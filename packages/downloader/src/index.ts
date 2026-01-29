@@ -1,8 +1,7 @@
-import stream from 'stream';
-import { promisify } from 'util';
-
 import fs from 'fs-extra';
 import got from 'got';
+import stream from 'stream';
+import { promisify } from 'util';
 
 const pipeline = promisify(stream.pipeline);
 

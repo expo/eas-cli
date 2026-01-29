@@ -1,16 +1,15 @@
 import assert from 'assert';
 
+import { createGlobalContextMock } from './utils/context';
+import { getErrorAsync } from './utils/error';
+import { BuildFunction } from '../BuildFunction';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction } from '../BuildStep';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
 import { BuildWorkflow } from '../BuildWorkflow';
 import { BuildWorkflowValidator } from '../BuildWorkflowValidator';
 import { BuildConfigError, BuildWorkflowError } from '../errors';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
-import { BuildFunction } from '../BuildFunction';
-
-import { createGlobalContextMock } from './utils/context';
-import { getErrorAsync } from './utils/error';
 
 describe(BuildWorkflowValidator, () => {
   test('non unique step ids', async () => {

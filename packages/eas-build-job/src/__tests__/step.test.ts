@@ -1,4 +1,4 @@
-import { isStepFunctionStep, isStepShellStep, StepZ, validateSteps } from '../step';
+import { StepZ, isStepFunctionStep, isStepShellStep, validateSteps } from '../step';
 
 describe('StepZ', () => {
   it('accepts valid script step', () => {

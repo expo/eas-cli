@@ -1,11 +1,10 @@
 import { Ios } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 
+import { provisioningProfile } from './fixtures';
 import { BuildContext } from '../../../context';
 import Keychain from '../keychain';
 import ProvisioningProfile from '../provisioningProfile';
-
-import { provisioningProfile } from './fixtures';
 
 const mockLogger = createLogger({ name: 'mock-logger' });
 

@@ -3,9 +3,8 @@
 import arg, { Spec } from 'arg';
 import chalk from 'chalk';
 
-import { Log } from '../log';
-
 import { replaceValue } from './array';
+import { Log } from '../log';
 
 /**
  * Parse args and assert unknown options.
@@ -143,7 +142,7 @@ export function collapseAliases(arg: Spec, args: string[]): string[] {
 /** Assert that the spec has unknown arguments. */
 export function assertUnknownArgs(arg: Spec, args: string[]): void {
   const allowedArgs = Object.keys(arg);
-  const unknownArgs = args.filter((arg) => !allowedArgs.includes(arg) && arg.startsWith('-'));
+  const unknownArgs = args.filter(arg => !allowedArgs.includes(arg) && arg.startsWith('-'));
   if (unknownArgs.length > 0) {
     throw new Error(`Unknown arguments: ${unknownArgs.join(', ')}`);
   }
@@ -155,7 +154,7 @@ function getAliasTuples(arg: Spec): [string, string][] {
 /** Asserts that a duplicate flag has been used, this naively throws without knowing if an alias or flag were used as the duplicate. */
 export function assertDuplicateArgs(args: string[], argNameAliasTuple: [string, string][]): void {
   for (const [argName, argNameAlias] of argNameAliasTuple) {
-    if (args.filter((a) => [argName, argNameAlias].includes(a)).length > 1) {
+    if (args.filter(a => [argName, argNameAlias].includes(a)).length > 1) {
       throw new Error(`Can only provide one instance of ${argName} or ${argNameAlias}`);
     }
   }

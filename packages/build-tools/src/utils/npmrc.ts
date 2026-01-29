@@ -1,13 +1,11 @@
-import path from 'path';
-
 import { Job } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
-
-import { BuildContext } from '../context';
-import { NpmrcTemplate } from '../templates/npmrc';
+import path from 'path';
 
 import { findPackagerRootDir } from './packageManager';
+import { BuildContext } from '../context';
+import { NpmrcTemplate } from '../templates/npmrc';
 
 export async function setUpNpmrcAsync(ctx: BuildContext<Job>, logger: bunyan): Promise<void> {
   if (ctx.env.NPM_TOKEN) {

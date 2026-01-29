@@ -1,14 +1,13 @@
 import assert from 'assert';
 import fs from 'fs/promises';
-import path from 'path';
-
 import Joi from 'joi';
+import path from 'path';
 import YAML from 'yaml';
 
-import { BuildConfigError, BuildWorkflowError } from './errors';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
-import { BuildStepInputValueTypeName, BuildStepInputValueType } from './BuildStepInput';
 import { BuildStepEnv } from './BuildStepEnv';
+import { BuildStepInputValueType, BuildStepInputValueTypeName } from './BuildStepInput';
+import { BuildConfigError, BuildWorkflowError } from './errors';
 import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export type BuildFunctions = Record<string, BuildFunctionConfig>;
@@ -305,7 +304,7 @@ async function importFunctionsAsync(
   const importedFunctions: BuildFunctions = {};
   // this is a set of visited files identified by ABSOLUTE paths
   const visitedFiles = new Set<string>([baseConfigPath]);
-  const configFilesToVisit = (configPathsToImport ?? []).map((childConfigRelativePath) =>
+  const configFilesToVisit = (configPathsToImport ?? []).map(childConfigRelativePath =>
     path.resolve(baseConfigDir, childConfigRelativePath)
   );
   while (configFilesToVisit.length > 0) {
@@ -329,7 +328,7 @@ async function importFunctionsAsync(
       }
       if (childConfig.configFilesToImport) {
         configFilesToVisit.push(
-          ...childConfig.configFilesToImport.map((relativePath) =>
+          ...childConfig.configFilesToImport.map(relativePath =>
             path.resolve(childDir, relativePath)
           )
         );
@@ -437,7 +436,7 @@ export function validateAllFunctionsExist(
   const externalFunctionIdsSet = new Set(externalFunctionIds);
   const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupsIds);
   const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(
-    (calledFunctionOrFunctionGroup) => {
+    calledFunctionOrFunctionGroup => {
       if (
         isFullIdNamespaced(calledFunctionOrFunctionGroup) &&
         skipNamespacedFunctionsOrFunctionGroupsCheck
@@ -454,7 +453,7 @@ export function validateAllFunctionsExist(
   if (nonExistentFunctionsOrFunctionGroups.length > 0) {
     throw new BuildConfigError(
       `Calling non-existent functions: ${nonExistentFunctionsOrFunctionGroups
-        .map((f) => `"${f}"`)
+        .map(f => `"${f}"`)
         .join(', ')}.`
     );
   }

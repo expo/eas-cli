@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 
-import { createFastfileForResigningBuild } from '../fastfile';
 import { TargetProvisioningProfiles } from '../credentials/manager';
+import { createFastfileForResigningBuild } from '../fastfile';
 
 describe('fastfile', () => {
   beforeEach(() => {

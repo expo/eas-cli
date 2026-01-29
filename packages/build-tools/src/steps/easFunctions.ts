@@ -1,44 +1,43 @@
 import { BuildFunction } from '@expo/steps';
 
-import { CustomBuildContext } from '../customBuildContext';
-
-import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
+import { calculateEASUpdateRuntimeVersionFunction } from './functions/calculateEASUpdateRuntimeVersion';
 import { createCheckoutBuildFunction } from './functions/checkout';
-import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
-import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
-import { createPrebuildBuildFunction } from './functions/prebuild';
-import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
-import { configureEASUpdateIfInstalledFunction } from './functions/configureEASUpdateIfInstalled';
-import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
 import { configureAndroidVersionFunction } from './functions/configureAndroidVersion';
-import { runGradleFunction } from './functions/runGradle';
-import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
+import { configureEASUpdateIfInstalledFunction } from './functions/configureEASUpdateIfInstalled';
 import { configureIosCredentialsFunction } from './functions/configureIosCredentials';
 import { configureIosVersionFunction } from './functions/configureIosVersion';
-import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
-import { runFastlaneFunction } from './functions/runFastlane';
-import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
-import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
-import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
-import { createInstallMaestroBuildFunction } from './functions/installMaestro';
-import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
-import { createInstallPodsBuildFunction } from './functions/installPods';
-import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
-import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
-import { calculateEASUpdateRuntimeVersionFunction } from './functions/calculateEASUpdateRuntimeVersion';
-import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
-import { createDownloadBuildFunction } from './functions/downloadBuild';
-import { createRepackBuildFunction } from './functions/repack';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
-import { createRestoreCacheFunction } from './functions/restoreCache';
-import { createSaveCacheFunction } from './functions/saveCache';
+import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { eagerBundleBuildFunction } from './functions/eagerBundle';
+import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
+import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
+import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
+import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
+import { createInstallMaestroBuildFunction } from './functions/installMaestro';
+import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
+import { createInstallPodsBuildFunction } from './functions/installPods';
 import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
-import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
+import { createPrebuildBuildFunction } from './functions/prebuild';
+import { createRepackBuildFunction } from './functions/repack';
+import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
+import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
   createCacheStatsBuildFunction,
   createRestoreBuildCacheFunction,
 } from './functions/restoreBuildCache';
+import { createRestoreCacheFunction } from './functions/restoreCache';
+import { runFastlaneFunction } from './functions/runFastlane';
+import { runGradleFunction } from './functions/runGradle';
+import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
+import { createSaveCacheFunction } from './functions/saveCache';
+import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
+import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
+import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
+import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
+import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
+import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
+import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
   const functions = [

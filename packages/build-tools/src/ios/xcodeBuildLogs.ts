@@ -1,11 +1,10 @@
+import { Ios, ManagedArtifactType } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import fg from 'fast-glob';
 import os from 'os';
 import path from 'path';
 
-import { ManagedArtifactType, Ios } from '@expo/eas-build-job';
-import fg from 'fast-glob';
-import { bunyan } from '@expo/logger';
-
-import { BuildContext } from '../context';
+import type { BuildContext } from '../context';
 
 export async function findAndUploadXcodeBuildLogsAsync(
   ctx: BuildContext<Ios.Job>,
@@ -30,14 +29,14 @@ export async function findAndUploadXcodeBuildLogsAsync(
 export async function findXcodeBuildLogsPathAsync(
   buildLogsDirectory: string
 ): Promise<string | undefined> {
-  const customLogPaths = (await fg('*.log', { cwd: buildLogsDirectory })).map((filename) =>
+  const customLogPaths = (await fg('*.log', { cwd: buildLogsDirectory })).map(filename =>
     path.join(buildLogsDirectory, filename)
   );
   if (customLogPaths[0]) {
     return customLogPaths[0];
   }
   const fallbackLogPaths = (await fg('Library/Logs/gym/*.log', { cwd: os.homedir() })).map(
-    (relativePath) => path.join(os.homedir(), relativePath)
+    relativePath => path.join(os.homedir(), relativePath)
   );
 
   return customLogPaths[0] ?? fallbackLogPaths[0] ?? undefined;

@@ -1,6 +1,6 @@
-import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
-import spawnAsync from '@expo/turtle-spawn';
 import { BuildStepEnv } from '@expo/steps';
+import spawnAsync from '@expo/turtle-spawn';
+import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 
 export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
 export class ExpoUpdatesCLIInvalidCommandError extends Error {}

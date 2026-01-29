@@ -1,11 +1,10 @@
-import { promises as fs } from 'node:fs';
-import * as path from 'node:path';
-
 import { bunyan } from '@expo/logger';
-import * as yaml from 'yaml';
-import { z } from 'zod';
 import { asyncResult } from '@expo/results';
 import fg from 'fast-glob';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import * as yaml from 'yaml';
+import { z } from 'zod';
 
 const FlowConfigSchema = z.object({
   name: z.string().optional(),
@@ -84,7 +83,9 @@ export async function findMaestroPathsFlowsToExecuteAsync({
   }
 
   logger.info(
-    `Filtering flows by tags. Tags to include: ${JSON.stringify(includeTags)}. Tags to exclude: ${JSON.stringify(excludeTags) ?? 'none'}.`
+    `Filtering flows by tags. Tags to include: ${JSON.stringify(includeTags)}. Tags to exclude: ${
+      JSON.stringify(excludeTags) ?? 'none'
+    }.`
   );
   return flows
     .filter(({ config, path: flowPath }) => {
@@ -220,12 +221,10 @@ function matchesTags({
   excludeTags: string[];
 }): boolean {
   // Include logic: if includeTags is empty OR flow has any of the include tags
-  const includeMatch =
-    includeTags.length === 0 || includeTags.some((tag) => flowTags.includes(tag));
+  const includeMatch = includeTags.length === 0 || includeTags.some(tag => flowTags.includes(tag));
 
   // Exclude logic: if excludeTags is empty OR flow has none of the exclude tags
-  const excludeMatch =
-    excludeTags.length === 0 || !excludeTags.some((tag) => flowTags.includes(tag));
+  const excludeMatch = excludeTags.length === 0 || !excludeTags.some(tag => flowTags.includes(tag));
 
   return includeMatch && excludeMatch;
 }

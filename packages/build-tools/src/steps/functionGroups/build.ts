@@ -1,31 +1,31 @@
-import { BuildFunctionGroup, BuildStep, BuildStepGlobalContext } from '@expo/steps';
 import { BuildJob, Platform } from '@expo/eas-build-job';
+import { BuildFunctionGroup, BuildStep, BuildStepGlobalContext } from '@expo/steps';
 
-import { createCheckoutBuildFunction } from '../functions/checkout';
-import { createInstallNodeModulesBuildFunction } from '../functions/installNodeModules';
-import { createPrebuildBuildFunction } from '../functions/prebuild';
-import { createInstallPodsBuildFunction } from '../functions/installPods';
-import { configureEASUpdateIfInstalledFunction } from '../functions/configureEASUpdateIfInstalled';
-import { generateGymfileFromTemplateFunction } from '../functions/generateGymfileFromTemplate';
-import { runFastlaneFunction } from '../functions/runFastlane';
-import { createFindAndUploadBuildArtifactsBuildFunction } from '../functions/findAndUploadBuildArtifacts';
-import { CustomBuildContext } from '../../customBuildContext';
-import { resolveAppleTeamIdFromCredentialsFunction } from '../functions/resolveAppleTeamIdFromCredentials';
-import { configureIosCredentialsFunction } from '../functions/configureIosCredentials';
-import { runGradleFunction } from '../functions/runGradle';
-import { configureIosVersionFunction } from '../functions/configureIosVersion';
-import { injectAndroidCredentialsFunction } from '../functions/injectAndroidCredentials';
-import { configureAndroidVersionFunction } from '../functions/configureAndroidVersion';
-import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
-import { createResolveBuildConfigBuildFunction } from '../functions/resolveBuildConfig';
-import { calculateEASUpdateRuntimeVersionFunction } from '../functions/calculateEASUpdateRuntimeVersion';
-import { eagerBundleBuildFunction } from '../functions/eagerBundle';
 import { shouldUseEagerBundle } from '../../common/eagerBundle';
+import { CustomBuildContext } from '../../customBuildContext';
+import { calculateEASUpdateRuntimeVersionFunction } from '../functions/calculateEASUpdateRuntimeVersion';
+import { createCheckoutBuildFunction } from '../functions/checkout';
+import { configureAndroidVersionFunction } from '../functions/configureAndroidVersion';
+import { configureEASUpdateIfInstalledFunction } from '../functions/configureEASUpdateIfInstalled';
+import { configureIosCredentialsFunction } from '../functions/configureIosCredentials';
+import { configureIosVersionFunction } from '../functions/configureIosVersion';
+import { eagerBundleBuildFunction } from '../functions/eagerBundle';
+import { createFindAndUploadBuildArtifactsBuildFunction } from '../functions/findAndUploadBuildArtifacts';
+import { generateGymfileFromTemplateFunction } from '../functions/generateGymfileFromTemplate';
+import { injectAndroidCredentialsFunction } from '../functions/injectAndroidCredentials';
+import { createInstallNodeModulesBuildFunction } from '../functions/installNodeModules';
+import { createInstallPodsBuildFunction } from '../functions/installPods';
+import { createPrebuildBuildFunction } from '../functions/prebuild';
+import { resolveAppleTeamIdFromCredentialsFunction } from '../functions/resolveAppleTeamIdFromCredentials';
+import { createResolveBuildConfigBuildFunction } from '../functions/resolveBuildConfig';
 import {
-  createRestoreBuildCacheFunction,
   createCacheStatsBuildFunction,
+  createRestoreBuildCacheFunction,
 } from '../functions/restoreBuildCache';
+import { runFastlaneFunction } from '../functions/runFastlane';
+import { runGradleFunction } from '../functions/runGradle';
 import { createSaveBuildCacheFunction } from '../functions/saveBuildCache';
+import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
 
 interface HelperFunctionsInput {
   globalCtx: BuildStepGlobalContext;
@@ -38,7 +38,7 @@ export function createEasBuildBuildFunctionGroup(
   return new BuildFunctionGroup({
     namespace: 'eas',
     id: 'build',
-    createBuildStepsFromFunctionGroupCall: (globalCtx) => {
+    createBuildStepsFromFunctionGroupCall: globalCtx => {
       if (buildToolsContext.job.platform === Platform.IOS) {
         if (buildToolsContext.job.simulator) {
           return createStepsForIosSimulatorBuild({

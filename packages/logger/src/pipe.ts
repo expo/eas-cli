@@ -1,6 +1,5 @@
-import { Readable } from 'stream';
-
 import type bunyan from 'bunyan';
+import { Readable } from 'stream';
 
 type LineLogger = (line: string) => void;
 type LineTransformer = (line: string) => string | null;
@@ -45,7 +44,7 @@ function pipeSpawnOutput(
     const stdoutLogger = logger.child({ source: 'stdout' });
     pipe(
       stdout,
-      (line) => {
+      line => {
         stdoutLogger.info(line);
         infoCallbackFn?.();
       },
@@ -60,7 +59,7 @@ function pipeSpawnOutput(
     });
     pipe(
       stderr,
-      (line) => {
+      line => {
         stderrLogger.info(line);
         infoCallbackFn?.();
       },
@@ -75,7 +74,7 @@ function createMultilineLogger(loggerFn: LineLogger, transformer?: LineTransform
       return;
     }
     const lines = String(data).trim().split('\n');
-    lines.forEach((line) => {
+    lines.forEach(line => {
       if (transformer) {
         const transformedLine = transformer(line);
         if (transformedLine) {

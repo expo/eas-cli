@@ -1,11 +1,10 @@
-import assert from 'assert';
-import path from 'path';
-
-import fs from 'fs-extra';
+import { Android } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
-import { Android } from '@expo/eas-build-job';
+import assert from 'assert';
+import fs from 'fs-extra';
+import path from 'path';
 
 export async function runGradleCommand({
   logger,
@@ -82,8 +81,8 @@ async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
     return result.stdout
       .toString()
       .split('\n')
-      .map((i) => Number(i.trim()))
-      .filter((i) => i);
+      .map(i => Number(i.trim()))
+      .filter(i => i);
   } catch {
     return [];
   }

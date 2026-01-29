@@ -1,5 +1,6 @@
 import assert from 'assert';
 
+import { AbstractConfigParser } from './AbstractConfigParser';
 import {
   BuildConfig,
   BuildFunctionConfig,
@@ -18,21 +19,20 @@ import {
   readAndValidateBuildConfigFromPathAsync,
 } from './BuildConfig';
 import { BuildFunction, BuildFunctionById } from './BuildFunction';
-import { BuildStep } from './BuildStep';
-import {
-  BuildStepInput,
-  BuildStepInputProvider,
-  BuildStepInputValueTypeName,
-} from './BuildStepInput';
-import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepOutput, BuildStepOutputProvider } from './BuildStepOutput';
-import { BuildConfigError } from './errors';
 import {
   BuildFunctionGroup,
   BuildFunctionGroupById,
   createBuildFunctionGroupByIdMapping,
 } from './BuildFunctionGroup';
-import { AbstractConfigParser } from './AbstractConfigParser';
+import { BuildStep } from './BuildStep';
+import { BuildStepGlobalContext } from './BuildStepContext';
+import {
+  BuildStepInput,
+  BuildStepInputProvider,
+  BuildStepInputValueTypeName,
+} from './BuildStepInput';
+import { BuildStepOutput, BuildStepOutputProvider } from './BuildStepOutput';
+import { BuildConfigError } from './errors';
 
 export class BuildConfigParser extends AbstractConfigParser {
   private readonly configPath: string;
@@ -312,7 +312,7 @@ export class BuildConfigParser extends AbstractConfigParser {
   private createBuildStepInputProvidersFromBuildFunctionInputs(
     buildFunctionInputs: BuildFunctionInputs
   ): BuildStepInputProvider[] {
-    return buildFunctionInputs.map((entry) => {
+    return buildFunctionInputs.map(entry => {
       return typeof entry === 'string'
         ? BuildStepInput.createProvider({
             id: entry,
@@ -333,7 +333,7 @@ export class BuildConfigParser extends AbstractConfigParser {
     buildStepOutputs: BuildStepOutputs,
     stepDisplayName: string
   ): BuildStepOutput[] {
-    return buildStepOutputs.map((entry) =>
+    return buildStepOutputs.map(entry =>
       typeof entry === 'string'
         ? new BuildStepOutput(this.ctx, { id: entry, stepDisplayName, required: true })
         : new BuildStepOutput(this.ctx, {
@@ -347,7 +347,7 @@ export class BuildConfigParser extends AbstractConfigParser {
   private createBuildStepOutputProvidersFromBuildFunctionOutputs(
     buildFunctionOutputs: BuildFunctionOutputs
   ): BuildStepOutputProvider[] {
-    return buildFunctionOutputs.map((entry) =>
+    return buildFunctionOutputs.map(entry =>
       typeof entry === 'string'
         ? BuildStepOutput.createProvider({ id: entry, required: true })
         : BuildStepOutput.createProvider({ id: entry.name, required: entry.required ?? true })

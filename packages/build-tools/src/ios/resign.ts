@@ -1,8 +1,7 @@
-import assert from 'assert';
-import path from 'path';
-
 import downloadFile from '@expo/downloader';
 import { ArchiveSourceType, Ios } from '@expo/eas-build-job';
+import assert from 'assert';
+import path from 'path';
 
 import { BuildContext } from '../context';
 

@@ -1,9 +1,9 @@
-import { ManagedArtifactType, Ios, Platform, BuildJob } from '@expo/eas-build-job';
+import { BuildJob, Ios, ManagedArtifactType, Platform } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepContext } from '@expo/steps';
 
-import { findArtifacts } from '../../utils/artifacts';
-import { findXcodeBuildLogsPathAsync } from '../../ios/xcodeBuildLogs';
 import { CustomBuildContext } from '../../customBuildContext';
+import { findXcodeBuildLogsPathAsync } from '../../ios/xcodeBuildLogs';
+import { findArtifacts } from '../../utils/artifacts';
 
 export function createFindAndUploadBuildArtifactsBuildFunction(
   ctx: CustomBuildContext<BuildJob>
@@ -13,7 +13,7 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
     id: 'find_and_upload_build_artifacts',
     name: 'Find and upload build artifacts',
     __metricsId: 'eas/find_and_upload_build_artifacts',
-    fn: async (stepCtx) => {
+    fn: async stepCtx => {
       // We want each upload to print logs on its own
       // and we don't want to interleave logs from different uploads
       // so we execute uploads consecutively.
@@ -110,7 +110,7 @@ async function uploadBuildArtifacts({
 }): Promise<void> {
   const buildArtifacts = (
     await Promise.all(
-      (ctx.job.buildArtifactPaths ?? []).map((path) =>
+      (ctx.job.buildArtifactPaths ?? []).map(path =>
         findArtifacts({ rootDir: workingDirectory, patternOrPath: path, logger })
       )
     )

@@ -1,8 +1,8 @@
-import { pipeSpawnOutput, bunyan, PipeOptions } from '@expo/logger';
+import { PipeOptions, bunyan, pipeSpawnOutput } from '@expo/logger';
 import spawnAsync, {
-  SpawnResult,
-  SpawnPromise,
   SpawnOptions as SpawnAsyncOptions,
+  SpawnPromise,
+  SpawnResult,
 } from '@expo/spawn-async';
 
 type SpawnOptions = SpawnAsyncOptions &

@@ -1,16 +1,15 @@
-import path from 'path';
 import assert from 'node:assert';
-
-import { BuildFunction } from '../BuildFunction';
-import { BuildFunctionGroup } from '../BuildFunctionGroup';
-import { BuildWorkflow } from '../BuildWorkflow';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors';
-import { StepsConfigParser } from '../StepsConfigParser';
-import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
+import path from 'path';
 
 import { createGlobalContextMock } from './utils/context';
 import { getError } from './utils/error';
 import { UUID_REGEX } from './utils/uuid';
+import { BuildFunction } from '../BuildFunction';
+import { BuildFunctionGroup } from '../BuildFunctionGroup';
+import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildWorkflow } from '../BuildWorkflow';
+import { StepsConfigParser } from '../StepsConfigParser';
+import { BuildConfigError, BuildStepRuntimeError } from '../errors';
 
 describe(StepsConfigParser, () => {
   describe('constructor', () => {

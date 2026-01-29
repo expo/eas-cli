@@ -1,12 +1,11 @@
+import fs from 'fs-extra';
+import { vol } from 'memfs';
 import path from 'path';
 
-import { vol } from 'memfs';
-import fs from 'fs-extra';
-
 import {
-  resolvePackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
+  resolvePackageManager,
   shouldUseFrozenLockfile,
 } from '../packageManager';
 

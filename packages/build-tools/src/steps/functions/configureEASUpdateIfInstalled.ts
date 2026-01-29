@@ -1,12 +1,11 @@
-import assert from 'assert';
-
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { Metadata } from '@expo/eas-build-job';
+import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import assert from 'assert';
 import semver from 'semver';
 
-import { configureEASUpdateAsync } from '../utils/expoUpdates';
 import { readAppConfig } from '../../utils/appConfig';
 import getExpoUpdatesPackageVersionIfInstalledAsync from '../../utils/getExpoUpdatesPackageVersionIfInstalledAsync';
+import { configureEASUpdateAsync } from '../utils/expoUpdates';
 
 export function configureEASUpdateIfInstalledFunction(): BuildFunction {
   return new BuildFunction({

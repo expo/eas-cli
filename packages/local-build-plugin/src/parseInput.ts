@@ -1,13 +1,13 @@
 import {
-  sanitizeBuildJob,
   ArchiveSourceType,
-  Metadata,
-  sanitizeMetadata,
   BuildJob,
+  Metadata,
+  sanitizeBuildJob,
+  sanitizeMetadata,
 } from '@expo/eas-build-job';
-import Joi from 'joi';
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import Joi from 'joi';
 
 import { registerHandler } from './exit';
 
@@ -24,7 +24,7 @@ const ParamsSchema = Joi.object<Params>({
 });
 
 export async function parseInputAsync(): Promise<Params> {
-  if (process.argv.findIndex((arg) => arg === '--version' || arg === '-v') !== -1) {
+  if (process.argv.findIndex(arg => arg === '--version' || arg === '-v') !== -1) {
     console.log(packageJson.version);
     process.exit(0);
   }

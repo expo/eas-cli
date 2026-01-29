@@ -1,7 +1,7 @@
 import Joi from 'joi';
 
-import { Platform } from './common';
 import * as Android from './android';
+import { Platform } from './common';
 import { Generic } from './generic';
 import * as Ios from './ios';
 

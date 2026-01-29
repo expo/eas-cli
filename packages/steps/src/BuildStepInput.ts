@@ -1,14 +1,13 @@
-import assert from 'assert';
-
 import { JobInterpolationContext } from '@expo/eas-build-job';
+import assert from 'assert';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
+import { interpolateJobContext } from './interpolation';
 import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
   interpolateWithOutputs,
 } from './utils/template';
-import { interpolateJobContext } from './interpolation';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',
@@ -125,7 +124,7 @@ export class BuildStepInput<
       const valueInterpolatedWithGlobalContext = this.ctx.interpolate(interpolatedValue);
       const valueInterpolatedWithOutputsAndGlobalContext = interpolateWithOutputs(
         valueInterpolatedWithGlobalContext,
-        (path) => this.ctx.getStepOutputValue(path) ?? ''
+        path => this.ctx.getStepOutputValue(path) ?? ''
       );
       returnValue = this.parseInputValueToAllowedType(valueInterpolatedWithOutputsAndGlobalContext);
     }

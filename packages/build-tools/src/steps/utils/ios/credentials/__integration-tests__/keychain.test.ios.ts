@@ -1,12 +1,11 @@
-import os from 'os';
-import path from 'path';
-
 import { createLogger } from '@expo/logger';
 import fs from 'fs-extra';
+import os from 'os';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
 
-import Keychain from '../keychain';
 import { distributionCertificate } from '../__tests__/fixtures';
+import Keychain from '../keychain';
 
 const mockLogger = createLogger({ name: 'mock-logger' });
 

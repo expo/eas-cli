@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 
-import path from 'path';
-import fs from 'fs';
-
 import chalk from 'chalk';
+import fs from 'fs';
+import path from 'path';
 
-import { extractAndPrepareTemplateFunctionModuleAsync, promptTemplateAsync } from './templates';
-import { assertFolderEmpty, assertValidName, resolveProjectRootAsync } from './resolveProjectRoot';
+import { Log } from './log';
 import {
   PackageManagerName,
   installDependenciesAsync,
   resolvePackageManager,
 } from './resolvePackageManager';
-import { Log } from './log';
+import { assertFolderEmpty, assertValidName, resolveProjectRootAsync } from './resolveProjectRoot';
+import { extractAndPrepareTemplateFunctionModuleAsync, promptTemplateAsync } from './templates';
 import { withSectionLog } from './utils/log';
 
 export type Options = {
@@ -36,7 +35,7 @@ export async function createAsync(inputPath: string, options: Options): Promise<
     {
       pending: chalk.bold('Locating project files...'),
       success: 'Successfully extracted custom build function template files.',
-      error: (error) =>
+      error: error =>
         `Something went wrong when extracting the custom build function template files: ${error.message}`,
     }
   );

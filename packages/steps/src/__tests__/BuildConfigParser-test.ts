@@ -1,17 +1,16 @@
 import path from 'path';
 
-import { BuildConfigParser } from '../BuildConfigParser';
-import { BuildFunction } from '../BuildFunction';
-import { BuildStepFunction } from '../BuildStep';
-import { BuildWorkflow } from '../BuildWorkflow';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
-import { BuildStepInputValueTypeName } from '../BuildStepInput';
-import { BuildFunctionGroup } from '../BuildFunctionGroup';
-
 import { createGlobalContextMock } from './utils/context';
 import { getError, getErrorAsync } from './utils/error';
 import { UUID_REGEX } from './utils/uuid';
+import { BuildConfigParser } from '../BuildConfigParser';
+import { BuildFunction } from '../BuildFunction';
+import { BuildFunctionGroup } from '../BuildFunctionGroup';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildStepFunction } from '../BuildStep';
+import { BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildWorkflow } from '../BuildWorkflow';
+import { BuildConfigError, BuildStepRuntimeError } from '../errors';
 
 describe(BuildConfigParser, () => {
   describe('constructor', () => {
@@ -616,11 +615,11 @@ describe(BuildConfigParser, () => {
     it('works with external functions', async () => {
       const ctx = createGlobalContextMock();
 
-      const downloadProjectFn: BuildStepFunction = (ctx) => {
+      const downloadProjectFn: BuildStepFunction = ctx => {
         ctx.logger.info('Downloading project...');
       };
 
-      const buildProjectFn: BuildStepFunction = (ctx) => {
+      const buildProjectFn: BuildStepFunction = ctx => {
         ctx.logger.info('Building project...');
       };
 
@@ -657,11 +656,11 @@ describe(BuildConfigParser, () => {
     it('works with external function groups', async () => {
       const ctx = createGlobalContextMock();
 
-      const downloadProjectFn: BuildStepFunction = (ctx) => {
+      const downloadProjectFn: BuildStepFunction = ctx => {
         ctx.logger.info('Downloading project...');
       };
 
-      const buildProjectFn: BuildStepFunction = (ctx) => {
+      const buildProjectFn: BuildStepFunction = ctx => {
         ctx.logger.info('Building project...');
       };
 
@@ -713,7 +712,7 @@ describe(BuildConfigParser, () => {
               new BuildFunction({
                 namespace: 'eas',
                 id: 'test7',
-                fn: (ctx) => {
+                fn: ctx => {
                   ctx.logger.info('Test');
                 },
               }).createBuildStepFromFunctionCall(ctx),

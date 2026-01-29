@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 
-import path from 'path';
-import fs from 'fs';
-
 import chalk from 'chalk';
+import fs from 'fs';
+import path from 'path';
 import prompts from 'prompts';
 
 import { Log } from './log';
-import { getConflictsForDirectory } from './utils/dir';
 import { formatSelfCommand } from './resolvePackageManager';
+import { getConflictsForDirectory } from './utils/dir';
 
 export function assertFolderEmpty(projectRoot: string, folderName: string): void {
   const conflicts = getConflictsForDirectory(projectRoot);
@@ -55,7 +54,7 @@ export async function resolveProjectRootAsync(input: string): Promise<string> {
       name: 'answer',
       message: 'What is your EAS Build function named?',
       initial: 'my-function',
-      validate: (name) => {
+      validate: name => {
         const validation = validateName(path.basename(path.resolve(name)));
         if (typeof validation === 'string') {
           return 'Invalid project name: ' + validation;

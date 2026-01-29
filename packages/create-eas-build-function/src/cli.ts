@@ -3,9 +3,9 @@
 import { Spec } from 'arg';
 import chalk from 'chalk';
 
-import { assertWithOptionsArgs, printHelp, resolveStringOrBooleanArgsAsync } from './utils/args';
-import { Log } from './log';
 import { ExitError } from './error';
+import { Log } from './log';
+import { assertWithOptionsArgs, printHelp, resolveStringOrBooleanArgsAsync } from './utils/args';
 import shouldUpdate from './utils/updateCheck';
 
 async function run(): Promise<void> {

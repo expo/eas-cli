@@ -6,7 +6,7 @@ export function createLogger(): bunyan {
     debug: () => {},
     error: () => {},
     warn: () => {},
-    child: (_fields) => logger,
+    child: _fields => logger,
   } as bunyan;
   return logger;
 }

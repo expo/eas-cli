@@ -1,6 +1,3 @@
-import { randomBytes, randomUUID } from 'crypto';
-import { setTimeout } from 'timers/promises';
-
 import {
   ArchiveSourceType,
   BuildMode,
@@ -9,13 +6,15 @@ import {
   Platform,
   Workflow,
 } from '@expo/eas-build-job';
-import fetch, { Response } from 'node-fetch';
+import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
+import fetch, { Response } from 'node-fetch';
+import { setTimeout } from 'timers/promises';
 
-import { BuildContext } from '../../context';
 import { createMockLogger } from '../../__tests__/utils/logger';
-import { prepareProjectSourcesAsync } from '../projectSources';
+import { BuildContext } from '../../context';
 import { shallowCloneRepositoryAsync } from '../git';
+import { prepareProjectSourcesAsync } from '../projectSources';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('node-fetch');

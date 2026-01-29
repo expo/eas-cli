@@ -1,9 +1,9 @@
 import chalk from 'chalk';
 
-import { parseInputAsync } from './parseInput';
 import { buildAsync } from './build';
-import { listenForInterrupts, shouldExit } from './exit';
 import { checkRuntimeAsync } from './checkRuntime';
+import { listenForInterrupts, shouldExit } from './exit';
+import { parseInputAsync } from './parseInput';
 
 listenForInterrupts();
 

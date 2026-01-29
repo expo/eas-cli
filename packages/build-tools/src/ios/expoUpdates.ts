@@ -1,9 +1,8 @@
-import assert from 'assert';
-
 import { IOSConfig } from '@expo/config-plugins';
-import fs from 'fs-extra';
-import plist from '@expo/plist';
 import { BuildJob, Job } from '@expo/eas-build-job';
+import plist from '@expo/plist';
+import assert from 'assert';
+import fs from 'fs-extra';
 
 import { BuildContext } from '../context';
 

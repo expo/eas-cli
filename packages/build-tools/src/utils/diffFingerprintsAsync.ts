@@ -1,5 +1,5 @@
-import { BuildStepEnv } from '@expo/steps';
 import { bunyan } from '@expo/logger';
+import { BuildStepEnv } from '@expo/steps';
 
 import {
   ExpoFingerprintCLICommandFailedError,

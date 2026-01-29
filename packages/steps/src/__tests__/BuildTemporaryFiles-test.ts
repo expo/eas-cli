@@ -1,13 +1,12 @@
 import fs from 'fs/promises';
 import os from 'os';
 
+import { createGlobalContextMock } from './utils/context';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
   getTemporaryOutputsDirPath,
   saveScriptToTemporaryFileAsync,
 } from '../BuildTemporaryFiles';
-
-import { createGlobalContextMock } from './utils/context';
 
 describe(saveScriptToTemporaryFileAsync, () => {
   it('saves the script in a directory inside os.tmpdir()', async () => {

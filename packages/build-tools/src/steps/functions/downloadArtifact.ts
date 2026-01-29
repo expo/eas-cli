@@ -1,24 +1,23 @@
-import path from 'node:path';
-import fs from 'node:fs';
-import os from 'node:os';
-import stream from 'stream';
-import { promisify } from 'util';
-
+import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import stream from 'stream';
+import { promisify } from 'util';
 import { z } from 'zod';
-import { bunyan } from '@expo/logger';
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
 
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
+import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 
 const streamPipeline = promisify(stream.pipeline);
 

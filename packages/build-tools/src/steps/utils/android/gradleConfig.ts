@@ -1,12 +1,11 @@
-import path from 'path';
-
 import { AndroidConfig } from '@expo/config-plugins';
 import { bunyan } from '@expo/logger';
-import fs from 'fs-extra';
 import { templateString } from '@expo/template-file';
+import fs from 'fs-extra';
+import path from 'path';
 
-import { EasBuildInjectAndroidCredentialsGradle } from '../../../templates/EasBuildInjectAndroidCredentialsGradle';
 import { EasBuildConfigureVersionGradleTemplate } from '../../../templates/EasBuildConfigureVersionGradle';
+import { EasBuildInjectAndroidCredentialsGradle } from '../../../templates/EasBuildInjectAndroidCredentialsGradle';
 
 const APPLY_EAS_BUILD_INJECT_CREDENTIALS_GRADLE_LINE =
   'apply from: "./eas-build-inject-android-credentials.gradle"';
@@ -115,6 +114,6 @@ function hasLine(haystack: string, needle: string): boolean {
       .replace(/\r\n/g, '\n')
       .split('\n')
       // Check for both single and double quotes
-      .some((line) => line === needle || line === needle.replace(/"/g, "'"))
+      .some(line => line === needle || line === needle.replace(/"/g, "'"))
   );
 }

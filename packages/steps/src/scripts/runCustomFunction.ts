@@ -1,13 +1,12 @@
-import assert from 'assert';
-
 import { createLogger } from '@expo/logger';
 import { SpawnPromise, SpawnResult } from '@expo/spawn-async';
+import assert from 'assert';
 import cloneDeep from 'lodash.clonedeep';
 
+import { BuildStepFunction } from '../BuildStep';
+import { BuildStepContext } from '../BuildStepContext';
 import { BuildStepOutput } from '../BuildStepOutput';
 import { SerializedCustomBuildFunctionArguments, deserializeInputs } from '../utils/customFunction';
-import { BuildStepContext } from '../BuildStepContext';
-import { BuildStepFunction } from '../BuildStep';
 import { spawnAsync } from '../utils/shell/spawn';
 
 async function runCustomJsFunctionAsync(): Promise<void> {

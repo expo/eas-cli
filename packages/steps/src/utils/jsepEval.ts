@@ -5,7 +5,6 @@
 // - lack of Promise wrapper we don't need
 
 import assert from 'assert';
-
 import jsep from 'jsep';
 import get from 'lodash.get';
 
@@ -105,7 +104,7 @@ function evaluateExpressionNode(node: jsep.Expression, context: Record<string, u
     }
     case 'Compound': {
       const compoundNode = node as jsep.Compound;
-      const expressions = compoundNode.body.map((el) => evaluateExpressionNode(el, context));
+      const expressions = compoundNode.body.map(el => evaluateExpressionNode(el, context));
       return expressions.pop();
     }
     case 'UnaryExpression': {
@@ -149,7 +148,7 @@ function evaluateExpressionNode(node: jsep.Expression, context: Record<string, u
         );
       }
       const callee = evaluateExpressionNode(callNode.callee, context);
-      const args = callNode.arguments.map((arg) => evaluateExpressionNode(arg, context));
+      const args = callNode.arguments.map(arg => evaluateExpressionNode(arg, context));
       assert(typeof callee === 'function', 'Expected a function');
       // eslint-disable-next-line prefer-spread
       return callee.apply(null, args);
@@ -181,7 +180,7 @@ function evaluateExpressionNode(node: jsep.Expression, context: Record<string, u
       );
     }
     case 'ArrayExpression': {
-      const elements = (node as jsep.ArrayExpression).elements.map((el) =>
+      const elements = (node as jsep.ArrayExpression).elements.map(el =>
         el ? evaluateExpressionNode(el, context) : null
       );
       return elements;

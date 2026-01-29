@@ -1,7 +1,6 @@
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import { setTimeout } from 'timers/promises';
-
-import spawn from '@expo/turtle-spawn';
 
 import { IosSimulatorName, IosSimulatorUtils } from '../IosSimulatorUtils';
 
@@ -88,7 +87,7 @@ describe('IosSimulatorUtils', () => {
         env: process.env,
         filter: 'booted',
       });
-      expect(devices.map((device) => device.udid)).toContain(udid);
+      expect(devices.map(device => device.udid)).toContain(udid);
     }, 60_000);
   });
 

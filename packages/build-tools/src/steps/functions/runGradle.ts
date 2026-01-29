@@ -1,6 +1,3 @@
-import path from 'path';
-import assert from 'assert';
-
 import { Platform } from '@expo/eas-build-job';
 import {
   BuildFunction,
@@ -8,6 +5,8 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
+import assert from 'assert';
+import path from 'path';
 
 import { resolveGradleCommand, runGradleCommand } from '../utils/android/gradle';
 import { BuildStatusText, BuildStepOutputName } from '../utils/slackMessageDynamicFields';

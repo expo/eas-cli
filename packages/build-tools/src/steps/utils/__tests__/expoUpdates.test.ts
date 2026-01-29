@@ -1,9 +1,9 @@
-import { Platform, BuildJob } from '@expo/eas-build-job';
-import { createLogger } from '@expo/logger';
 import { ExpoConfig } from '@expo/config';
+import { BuildJob, Platform } from '@expo/eas-build-job';
+import { createLogger } from '@expo/logger';
 
-import { configureEASUpdateAsync } from '../expoUpdates';
 import { androidSetChannelNativelyAsync } from '../android/expoUpdates';
+import { configureEASUpdateAsync } from '../expoUpdates';
 import { iosSetChannelNativelyAsync } from '../ios/expoUpdates';
 
 jest.mock('../../../utils/getExpoUpdatesPackageVersionIfInstalledAsync');

@@ -1,7 +1,7 @@
 import { vol } from 'memfs';
 
-import { injectCredentialsGradleConfig, injectConfigureVersionGradleConfig } from '../gradleConfig';
 import { EasBuildInjectAndroidCredentialsGradle } from '../../../../templates/EasBuildInjectAndroidCredentialsGradle';
+import { injectConfigureVersionGradleConfig, injectCredentialsGradleConfig } from '../gradleConfig';
 
 // Sample build.gradle content
 const SAMPLE_BUILD_GRADLE = `apply plugin: "com.android.application"

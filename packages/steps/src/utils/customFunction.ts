@@ -1,13 +1,11 @@
+import fs from 'fs-extra';
 import path from 'path';
 
-import fs from 'fs-extra';
-
+import { spawnAsync } from './shell/spawn';
 import { BuildStepFunction } from '../BuildStep';
+import { SerializedBuildStepContext } from '../BuildStepContext';
 import { BuildStepEnv } from '../BuildStepEnv';
 import { SerializedBuildStepOutput } from '../BuildStepOutput';
-import { SerializedBuildStepContext } from '../BuildStepContext';
-
-import { spawnAsync } from './shell/spawn';
 
 export const SCRIPTS_PATH = path.join(__dirname, '../../dist/scripts');
 

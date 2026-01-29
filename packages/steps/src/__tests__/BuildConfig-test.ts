@@ -1,7 +1,12 @@
 import assert from 'assert';
 import path from 'path';
 
+import { getError, getErrorAsync } from './utils/error';
 import {
+  BuildConfig,
+  BuildConfigSchema,
+  BuildFunctions,
+  BuildFunctionsConfigFileSchema,
   BuildStepBareCommandRun,
   BuildStepBareFunctionOrFunctionGroupCall,
   BuildStepCommandRun,
@@ -10,20 +15,14 @@ import {
   isBuildStepBareFunctionOrFunctionGroupCall,
   isBuildStepCommandRun,
   isBuildStepFunctionCall,
-  readRawBuildConfigAsync,
-  readAndValidateBuildConfigFromPathAsync,
-  validateConfig,
-  BuildFunctionsConfigFileSchema,
-  BuildConfigSchema,
-  validateAllFunctionsExist,
-  BuildConfig,
   mergeConfigWithImportedFunctions,
-  BuildFunctions,
+  readAndValidateBuildConfigFromPathAsync,
   readAndValidateBuildFunctionsConfigFileAsync,
+  readRawBuildConfigAsync,
+  validateAllFunctionsExist,
+  validateConfig,
 } from '../BuildConfig';
 import { BuildConfigError, BuildConfigYAMLError } from '../errors';
-
-import { getError, getErrorAsync } from './utils/error';
 
 describe(readAndValidateBuildConfigFromPathAsync, () => {
   test('valid custom build config', async () => {
@@ -1051,7 +1050,7 @@ const buildStepBareFunctionCall: BuildStepBareFunctionOrFunctionGroupCall = 'say
 describe(isBuildStepCommandRun, () => {
   it.each([buildStepBareCommandRun, buildStepFunctionCall, buildStepBareFunctionCall])(
     'returns false',
-    (i) => {
+    i => {
       expect(isBuildStepCommandRun(i)).toBe(false);
     }
   );
@@ -1063,7 +1062,7 @@ describe(isBuildStepCommandRun, () => {
 describe(isBuildStepBareCommandRun, () => {
   it.each([buildStepCommandRun, buildStepFunctionCall, buildStepBareFunctionCall])(
     'returns false',
-    (i) => {
+    i => {
       expect(isBuildStepBareCommandRun(i)).toBe(false);
     }
   );
@@ -1075,7 +1074,7 @@ describe(isBuildStepBareCommandRun, () => {
 describe(isBuildStepFunctionCall, () => {
   it.each([buildStepCommandRun, buildStepBareCommandRun, buildStepBareFunctionCall])(
     'returns false',
-    (i) => {
+    i => {
       expect(isBuildStepFunctionCall(i)).toBe(false);
     }
   );
@@ -1087,7 +1086,7 @@ describe(isBuildStepFunctionCall, () => {
 describe(isBuildStepBareFunctionOrFunctionGroupCall, () => {
   it.each([buildStepCommandRun, buildStepBareCommandRun, buildStepFunctionCall])(
     'returns false',
-    (i) => {
+    i => {
       expect(isBuildStepBareFunctionOrFunctionGroupCall(i)).toBe(false);
     }
   );

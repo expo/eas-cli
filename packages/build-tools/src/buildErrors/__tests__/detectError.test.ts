@@ -1,7 +1,6 @@
-import path from 'path';
-
-import { BuildMode, BuildPhase, errors, Job, Platform } from '@expo/eas-build-job';
+import { BuildMode, BuildPhase, Job, Platform, errors } from '@expo/eas-build-job';
 import { vol } from 'memfs';
+import path from 'path';
 
 import { resolveBuildPhaseErrorAsync } from '../detectError';
 

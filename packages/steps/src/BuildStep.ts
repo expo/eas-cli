@@ -1,12 +1,13 @@
+import { JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
+import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
-import { Buffer } from 'buffer';
-
 import { v4 as uuidv4 } from 'uuid';
-import { JobInterpolationContext } from '@expo/eas-build-job';
 
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
 import {
   BuildStepOutput,
@@ -14,21 +15,19 @@ import {
   SerializedBuildStepOutput,
   makeBuildStepOutputByIdMap,
 } from './BuildStepOutput';
-import { BIN_PATH } from './utils/shell/bin';
-import { getShellCommandAndArgs } from './utils/shell/command';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
   getTemporaryEnvsDirPath,
   getTemporaryOutputsDirPath,
   saveScriptToTemporaryFileAsync,
 } from './BuildTemporaryFiles';
+import { BuildStepRuntimeError } from './errors';
+import { interpolateJobContext } from './interpolation';
+import { jsepEval } from './utils/jsepEval';
+import { BIN_PATH } from './utils/shell/bin';
+import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
 import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
-import { BuildStepRuntimeError } from './errors';
-import { BuildStepEnv } from './BuildStepEnv';
-import { BuildRuntimePlatform } from './BuildRuntimePlatform';
-import { jsepEval } from './utils/jsepEval';
-import { interpolateJobContext } from './interpolation';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -480,7 +479,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     if (!inputs) {
       return interpolateWithOutputs(
         this.ctx.global.interpolate(template),
-        (path) => this.ctx.global.getStepOutputValue(path) ?? ''
+        path => this.ctx.global.getStepOutputValue(path) ?? ''
       );
     }
     const vars = inputs.reduce(
@@ -493,7 +492,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     );
     return interpolateWithOutputs(
       interpolateWithInputs(this.ctx.global.interpolate(template), vars),
-      (path) => this.ctx.global.getStepOutputValue(path) ?? ''
+      path => this.ctx.global.getStepOutputValue(path) ?? ''
     );
   }
 
@@ -527,7 +526,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       }
     }
     if (nonSetRequiredOutputIds.length > 0) {
-      const idsString = nonSetRequiredOutputIds.map((i) => `"${i}"`).join(', ');
+      const idsString = nonSetRequiredOutputIds.map(i => `"${i}"`).join(', ');
       throw new BuildStepRuntimeError(`Some required outputs have not been set: ${idsString}`, {
         metadata: { ids: nonSetRequiredOutputIds },
       });
@@ -538,7 +537,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     const filenames = await fs.readdir(envsDir);
 
     const entries = await Promise.all(
-      filenames.map(async (basename) => {
+      filenames.map(async basename => {
         const rawContents = await fs.readFile(path.join(envsDir, basename), 'utf-8');
         const decodedContents = Buffer.from(rawContents, 'base64').toString('utf-8');
         return [basename, decodedContents];

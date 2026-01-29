@@ -1,9 +1,8 @@
+import { bunyan } from '@expo/logger';
+import spawn from '@expo/turtle-spawn';
 import os from 'os';
 import path from 'path';
-
-import spawn from '@expo/turtle-spawn';
 import { v4 as uuid } from 'uuid';
-import { bunyan } from '@expo/logger';
 
 import { runFastlane } from '../fastlane';
 
@@ -89,10 +88,10 @@ export default class Keychain {
 
   public async cleanUpKeychains(logger: bunyan): Promise<void> {
     const { stdout } = await spawn('security', ['list-keychains'], { stdio: 'pipe' });
-    const keychainList = (/"(.*)"/g.exec(stdout) ?? ([] as string[])).map((i) =>
+    const keychainList = (/"(.*)"/g.exec(stdout) ?? ([] as string[])).map(i =>
       i.slice(1, i.length - 1)
     );
-    const turtleKeychainList = keychainList.filter((keychain) =>
+    const turtleKeychainList = keychainList.filter(keychain =>
       /eas-build-[\w-]+\.keychain$/.exec(keychain)
     );
     for (const turtleKeychainPath of turtleKeychainList) {

@@ -1,11 +1,9 @@
-import { randomUUID } from 'crypto';
-
 import { BuildTrigger, Job, Metadata } from '@expo/eas-build-job';
+import { randomUUID } from 'crypto';
 import { vol } from 'memfs';
 
-import { BuildContext } from '../context';
-
 import { createMockLogger } from './utils/logger';
+import { BuildContext } from '../context';
 
 jest.mock('fs');
 jest.mock('fs-extra');

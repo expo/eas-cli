@@ -1,11 +1,11 @@
-import { Android, ManagedArtifactType, BuildPhase, Env } from '@expo/eas-build-job';
-import { Builders, BuildContext, Artifacts } from '@expo/build-tools';
+import { Artifacts, BuildContext, Builders } from '@expo/build-tools';
+import { Android, BuildPhase, Env, ManagedArtifactType } from '@expo/eas-build-job';
 import omit from 'lodash/omit';
 
-import { logBuffer } from './logger';
-import { BuildParams } from './types';
 import { prepareArtifacts } from './artifacts';
 import config from './config';
+import { logBuffer } from './logger';
+import { BuildParams } from './types';
 
 export async function buildAndroidAsync(
   job: Android.Job,

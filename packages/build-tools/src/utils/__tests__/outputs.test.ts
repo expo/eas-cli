@@ -1,13 +1,12 @@
-import { randomBytes, randomUUID } from 'crypto';
-
 import { JobInterpolationContext } from '@expo/eas-build-job';
+import { createLogger } from '@expo/logger';
 import {
   BuildRuntimePlatform,
   BuildStep,
   BuildStepGlobalContext,
   BuildStepOutput,
 } from '@expo/steps';
-import { createLogger } from '@expo/logger';
+import { randomBytes, randomUUID } from 'crypto';
 import fetch, { Response } from 'node-fetch';
 
 import { collectJobOutputs, uploadJobOutputsToWwwAsync } from '../outputs';

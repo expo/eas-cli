@@ -1,9 +1,8 @@
-import path from 'path';
-
-import fs from 'fs-extra';
-import fg from 'fast-glob';
+import { BuildJob, Job, ManagedArtifactType } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { ManagedArtifactType, Job, BuildJob } from '@expo/eas-build-job';
+import fg from 'fast-glob';
+import fs from 'fs-extra';
+import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { BuildContext } from '../context';
@@ -36,7 +35,7 @@ export async function findArtifacts({
     }
   }
 
-  return files.map((filePath) => {
+  return files.map(filePath => {
     // User may provide an absolute path as input in which case
     // fg will return an absolute path.
     if (path.isAbsolute(filePath)) {
@@ -82,7 +81,7 @@ export async function maybeFindAndUploadBuildArtifacts(
   try {
     const buildArtifacts = (
       await Promise.all(
-        ctx.job.buildArtifactPaths.map((path) =>
+        ctx.job.buildArtifactPaths.map(path =>
           findArtifacts({
             rootDir: ctx.getReactNativeProjectDirectory(),
             patternOrPath: path,
@@ -142,7 +141,7 @@ export async function uploadApplicationArchive(
 async function getArtifactsSizes(artifacts: string[]): Promise<Record<string, number | undefined>> {
   const artifactsSizes: Record<string, number | undefined> = {};
   await Promise.all(
-    artifacts.map(async (artifact) => {
+    artifacts.map(async artifact => {
       artifactsSizes[artifact] = await getArtifactSize(artifact);
     })
   );
@@ -163,7 +162,7 @@ async function getArtifactSize(artifact: string): Promise<number | undefined> {
 
       const getFileSizePromiseLimit = promiseLimit<number>(100);
       const sizes = await Promise.all(
-        files.map((file) =>
+        files.map(file =>
           getFileSizePromiseLimit(async () => (await fs.stat(path.join(artifact, file))).size)
         )
       );

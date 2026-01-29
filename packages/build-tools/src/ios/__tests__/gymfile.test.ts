@@ -1,8 +1,8 @@
 import { vol } from 'memfs';
 
-import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from '../gymfile';
 import { Credentials } from '../credentials/manager';
 import { DistributionType } from '../credentials/provisioningProfile';
+import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from '../gymfile';
 
 describe('gymfile', () => {
   beforeEach(() => {

@@ -1,11 +1,11 @@
 import { ExpoConfig } from '@expo/config';
 import { Updates } from '@expo/config-plugins';
-import { bunyan } from '@expo/logger';
 import { Workflow } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 
 import { ExpoUpdatesCLIModuleNotFoundError, expoUpdatesCommandAsync } from './expoUpdatesCli';
-import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupported } from './expoUpdates';
+import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupported } from './isModernExpoUpdatesCLIWithRuntimeVersionCommandSupported';
 
 export async function resolveRuntimeVersionAsync({
   exp,

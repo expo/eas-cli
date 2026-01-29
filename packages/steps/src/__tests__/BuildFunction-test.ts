@@ -1,3 +1,5 @@
+import { createGlobalContextMock } from './utils/context';
+import { UUID_REGEX } from './utils/uuid';
 import { BuildFunction } from '../BuildFunction';
 import { BuildStep, BuildStepFunction } from '../BuildStep';
 import {
@@ -6,9 +8,6 @@ import {
   BuildStepInputValueTypeName,
 } from '../BuildStepInput';
 import { BuildStepOutput, BuildStepOutputProvider } from '../BuildStepOutput';
-
-import { createGlobalContextMock } from './utils/context';
-import { UUID_REGEX } from './utils/uuid';
 
 describe(BuildFunction, () => {
   describe('constructor', () => {

@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import path from 'path';
-
-import fs from 'fs-extra';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 import prompts from 'prompts';
 
 import { Log } from './log';

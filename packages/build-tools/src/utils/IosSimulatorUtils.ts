@@ -1,9 +1,8 @@
-import path from 'node:path';
-import os from 'node:os';
-import fs from 'node:fs';
-import { setTimeout } from 'node:timers/promises';
-
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { retryAsync } from './retry';
@@ -57,7 +56,7 @@ export namespace IosSimulatorUtils {
     const allAvailableDevices: SimulatorDevice[] = [];
     for (const [runtime, devices] of Object.entries(xcrunData.devices)) {
       allAvailableDevices.push(
-        ...devices.map((device) => ({
+        ...devices.map(device => ({
           ...device,
           runtime,
           displayName: `${device.name} (${device.udid}) on ${runtime}`,
@@ -76,7 +75,7 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
   }): Promise<SimulatorDevice | null> {
     const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
-    return devices.find((device) => device.udid === udid) ?? null;
+    return devices.find(device => device.udid === udid) ?? null;
   }
 
   export async function cloneAsync({
@@ -219,12 +218,12 @@ export namespace IosSimulatorUtils {
     let outputAggregated = '';
 
     // Listen to both stdout and stderr since "Recording started" might come from either
-    stdout.on('data', (data) => {
+    stdout.on('data', data => {
       const output = data.toString();
       outputAggregated += output;
     });
 
-    stderr.on('data', (data) => {
+    stderr.on('data', data => {
       const output = data.toString();
       outputAggregated += output;
     });

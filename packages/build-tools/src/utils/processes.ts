@@ -8,8 +8,8 @@ async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
     return result.stdout
       .toString()
       .split('\n')
-      .map((i) => Number(i.trim()))
-      .filter((i) => i);
+      .map(i => Number(i.trim()))
+      .filter(i => i);
   } catch {
     return [];
   }

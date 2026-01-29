@@ -1,9 +1,8 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { getFingerprint, getCommonName } from '../distributionCertificate';
-
 import { distributionCertificate } from './fixtures';
+import { getCommonName, getFingerprint } from '../distributionCertificate';
 
 describe('distributionCertificate module', () => {
   describe(getFingerprint, () => {

@@ -1,14 +1,13 @@
+import { BuildFunction, BuildStepContext, BuildStepEnv } from '@expo/steps';
 import path from 'path';
 
-import { BuildFunction, BuildStepEnv, BuildStepContext } from '@expo/steps';
-
+import { installDependenciesAsync } from '../../common/installDependencies';
 import {
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
   resolvePackageManager,
   shouldUseFrozenLockfile,
 } from '../../utils/packageManager';
-import { installDependenciesAsync } from '../../common/installDependencies';
 import { readPackageJson } from '../../utils/project';
 
 export function createInstallNodeModulesBuildFunction(): BuildFunction {

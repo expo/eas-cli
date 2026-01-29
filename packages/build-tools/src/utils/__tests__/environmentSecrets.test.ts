@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-
 import { vol } from 'memfs';
 
 import { createTemporaryEnvironmentSecretFile } from '../environmentSecrets';

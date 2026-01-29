@@ -1,35 +1,32 @@
-import assert from 'assert';
-import os from 'os';
-import path from 'path';
-
-import { v4 as uuidv4 } from 'uuid';
-import { Platform, Job, BuildJob, Workflow } from '@expo/eas-build-job';
-import semver from 'semver';
 import { ExpoConfig } from '@expo/config';
+import { BuildJob, Job, Platform, Workflow } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
-import fetch from 'node-fetch';
+import assert from 'assert';
 import fs from 'fs-extra';
 import { graphql } from 'gql.tada';
+import fetch from 'node-fetch';
+import os from 'os';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
-import {
-  androidSetRuntimeVersionNativelyAsync,
-  androidSetChannelNativelyAsync,
-  androidGetNativelyDefinedRuntimeVersionAsync,
-  androidGetNativelyDefinedChannelAsync,
-} from '../android/expoUpdates';
-import {
-  iosSetRuntimeVersionNativelyAsync,
-  iosSetChannelNativelyAsync,
-  iosGetNativelyDefinedRuntimeVersionAsync,
-  iosGetNativelyDefinedChannelAsync,
-} from '../ios/expoUpdates';
-import { BuildContext } from '../context';
-
-import getExpoUpdatesPackageVersionIfInstalledAsync from './getExpoUpdatesPackageVersionIfInstalledAsync';
-import { resolveRuntimeVersionAsync } from './resolveRuntimeVersionAsync';
 import { diffFingerprintsAsync } from './diffFingerprintsAsync';
 import { stringifyFingerprintDiff } from './fingerprint';
+import getExpoUpdatesPackageVersionIfInstalledAsync from './getExpoUpdatesPackageVersionIfInstalledAsync';
+import { resolveRuntimeVersionAsync } from './resolveRuntimeVersionAsync';
+import {
+  androidGetNativelyDefinedChannelAsync,
+  androidGetNativelyDefinedRuntimeVersionAsync,
+  androidSetChannelNativelyAsync,
+  androidSetRuntimeVersionNativelyAsync,
+} from '../android/expoUpdates';
+import { BuildContext } from '../context';
+import {
+  iosGetNativelyDefinedChannelAsync,
+  iosGetNativelyDefinedRuntimeVersionAsync,
+  iosSetChannelNativelyAsync,
+  iosSetRuntimeVersionNativelyAsync,
+} from '../ios/expoUpdates';
 
 export async function setRuntimeVersionNativelyAsync(
   ctx: BuildContext<Job>,
@@ -236,17 +233,6 @@ export function isEASUpdateConfigured(ctx: BuildContext<Job>): boolean {
     ctx.logger.error(`Assuming EAS Update is not configured`);
     return false;
   }
-}
-
-export function isModernExpoUpdatesCLIWithRuntimeVersionCommandSupported(
-  expoUpdatesPackageVersion: string
-): boolean {
-  if (expoUpdatesPackageVersion.includes('canary')) {
-    return true;
-  }
-
-  // Anything SDK 51 or greater uses the expo-updates CLI
-  return semver.gte(expoUpdatesPackageVersion, '0.25.4');
 }
 
 async function logDiffFingerprints({

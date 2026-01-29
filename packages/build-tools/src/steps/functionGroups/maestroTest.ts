@@ -1,15 +1,15 @@
+import { Platform } from '@expo/eas-build-job';
 import {
   BuildFunctionGroup,
   BuildStep,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
-import { Platform } from '@expo/eas-build-job';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { createInstallMaestroBuildFunction } from '../functions/installMaestro';
-import { createStartIosSimulatorBuildFunction } from '../functions/startIosSimulator';
 import { createStartAndroidEmulatorBuildFunction } from '../functions/startAndroidEmulator';
+import { createStartIosSimulatorBuildFunction } from '../functions/startIosSimulator';
 import { createUploadArtifactBuildFunction } from '../functions/uploadArtifact';
 
 export function createEasMaestroTestFunctionGroup(
@@ -128,7 +128,7 @@ export function createEasMaestroTestFunctionGroup(
         interpolationContext: globalCtx.getInterpolationContext(),
       })}`
         .split('\n') // It's easy to get an empty line with YAML
-        .filter((entry) => entry);
+        .filter(entry => entry);
 
       for (const flowPath of flowPaths) {
         steps.push(

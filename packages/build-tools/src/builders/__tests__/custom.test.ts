@@ -1,12 +1,12 @@
 import { BuildJob } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
-import { runCustomBuildAsync } from '../custom';
-import { BuildContext } from '../../context';
-import { createMockLogger } from '../../__tests__/utils/logger';
 import { createTestIosJob } from '../../__tests__/utils/job';
-import { findAndUploadXcodeBuildLogsAsync } from '../../ios/xcodeBuildLogs';
+import { createMockLogger } from '../../__tests__/utils/logger';
 import { prepareProjectSourcesAsync } from '../../common/projectSources';
+import { BuildContext } from '../../context';
+import { findAndUploadXcodeBuildLogsAsync } from '../../ios/xcodeBuildLogs';
+import { runCustomBuildAsync } from '../custom';
 
 jest.mock('../../common/projectSources');
 jest.mock('../../ios/xcodeBuildLogs');

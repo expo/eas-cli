@@ -1,10 +1,9 @@
+import { BuildFunction } from '@expo/steps';
+import fs from 'fs-extra';
 import path from 'path';
 
-import fs from 'fs-extra';
-import { BuildFunction } from '@expo/steps';
-
-import { findPackagerRootDir } from '../../utils/packageManager';
 import { NpmrcTemplate } from '../../templates/npmrc';
+import { findPackagerRootDir } from '../../utils/packageManager';
 
 export function createSetUpNpmrcBuildFunction(): BuildFunction {
   return new BuildFunction({

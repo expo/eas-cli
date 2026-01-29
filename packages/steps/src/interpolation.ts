@@ -22,7 +22,7 @@ export function interpolateJobContext({
       return `${jsepEval(expression, context)}`;
     });
   } else if (Array.isArray(target)) {
-    return target.map((value) => interpolateJobContext({ target: value, context }));
+    return target.map(value => interpolateJobContext({ target: value, context }));
   } else if (typeof target === 'object' && target) {
     return Object.fromEntries(
       Object.entries(target).map(([key, value]) => [

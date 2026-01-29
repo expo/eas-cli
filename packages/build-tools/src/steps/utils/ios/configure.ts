@@ -1,10 +1,9 @@
-import path from 'path';
-
 import { IOSConfig } from '@expo/config-plugins';
-import uniq from 'lodash/uniq';
-import fs from 'fs-extra';
-import plist from '@expo/plist';
 import { bunyan } from '@expo/logger';
+import plist from '@expo/plist';
+import fs from 'fs-extra';
+import uniq from 'lodash/uniq';
+import path from 'path';
 
 import { Credentials } from './credentials/manager';
 

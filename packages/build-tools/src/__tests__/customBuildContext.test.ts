@@ -1,10 +1,9 @@
 import { BuildTrigger, Ios, Metadata } from '@expo/eas-build-job';
 
-import { BuildContext } from '../context';
-import { CustomBuildContext } from '../customBuildContext';
-
 import { createTestIosJob } from './utils/job';
 import { createMockLogger } from './utils/logger';
+import { BuildContext } from '../context';
+import { CustomBuildContext } from '../customBuildContext';
 
 describe(CustomBuildContext, () => {
   it('should not lose workflowInterpolationContext', () => {

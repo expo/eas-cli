@@ -1,12 +1,11 @@
 import path from 'path';
 
-import { StepsConfigParser } from '../StepsConfigParser';
-import { BuildFunction } from '../BuildFunction';
-import { BuildConfigParser } from '../BuildConfigParser';
-import { BuildStep } from '../BuildStep';
-
 import { createGlobalContextMock } from './utils/context';
 import { UUID_REGEX } from './utils/uuid';
+import { BuildConfigParser } from '../BuildConfigParser';
+import { BuildFunction } from '../BuildFunction';
+import { BuildStep } from '../BuildStep';
+import { StepsConfigParser } from '../StepsConfigParser';
 
 describe('Publish Update job', () => {
   it('parses job with steps and build config to the same workflow', async () => {

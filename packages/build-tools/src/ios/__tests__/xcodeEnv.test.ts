@@ -2,7 +2,7 @@ import { Ios } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
-import { instance, mock, when, verify } from 'ts-mockito';
+import { instance, mock, verify, when } from 'ts-mockito';
 
 import { BuildContext } from '../../context';
 import { deleteXcodeEnvLocalIfExistsAsync } from '../xcodeEnv';

@@ -1,25 +1,23 @@
+import { jest } from '@jest/globals';
 import fs from 'fs/promises';
 import path from 'path';
-
-import { jest } from '@jest/globals';
 import { instance, mock, verify, when } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
 
+import { createGlobalContextMock } from './utils/context';
+import { getError, getErrorAsync } from './utils/error';
+import { createMockLogger } from './utils/logger';
+import { UUID_REGEX } from './utils/uuid';
+import { BuildFunction } from '../BuildFunction';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction, BuildStepStatus } from '../BuildStep';
+import { BuildStepContext, BuildStepGlobalContext } from '../BuildStepContext';
+import { BuildStepEnv } from '../BuildStepEnv';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
-import { BuildStepGlobalContext, BuildStepContext } from '../BuildStepContext';
 import { BuildStepOutput } from '../BuildStepOutput';
 import { BuildStepRuntimeError } from '../errors';
 import { nullthrows } from '../utils/nullthrows';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { spawnAsync } from '../utils/shell/spawn';
-import { BuildStepEnv } from '../BuildStepEnv';
-import { BuildFunction } from '../BuildFunction';
-
-import { createGlobalContextMock } from './utils/context';
-import { createMockLogger } from './utils/logger';
-import { getError, getErrorAsync } from './utils/error';
-import { UUID_REGEX } from './utils/uuid';
 
 describe(BuildStep, () => {
   describe(BuildStep.getNewId, () => {
@@ -303,7 +301,10 @@ describe(BuildStep, () => {
         expect(step.ctx.logger.error).toHaveBeenCalledWith(
           expect.anything(),
           expect.stringContaining(
-            `Working directory "${path.join(baseStepCtx.defaultWorkingDirectory, 'non-existing-directory')}" does not exist`
+            `Working directory "${path.join(
+              baseStepCtx.defaultWorkingDirectory,
+              'non-existing-directory'
+            )}" does not exist`
           )
         );
       });
@@ -376,9 +377,9 @@ describe(BuildStep, () => {
         });
         await step.executeAsync();
 
-        expect(lines.find((line) => line.match('expo-abc123'))).toBeTruthy();
-        expect(lines.find((line) => line.match('expo-def456'))).toBeTruthy();
-        expect(lines.find((line) => line.match('expo-ghi789'))).toBeTruthy();
+        expect(lines.find(line => line.match('expo-abc123'))).toBeTruthy();
+        expect(lines.find(line => line.match('expo-def456'))).toBeTruthy();
+        expect(lines.find(line => line.match('expo-ghi789'))).toBeTruthy();
       });
 
       it('interpolates the inputs in command template', async () => {
@@ -569,7 +570,7 @@ describe(BuildStep, () => {
         const id = 'test1';
         const fn = jest.fn(
           async () =>
-            await new Promise((resolve) => {
+            await new Promise(resolve => {
               setTimeout(resolve, 2000); // 2 second delay
             })
         );
@@ -901,7 +902,7 @@ describe(BuildStep, () => {
         },
       });
       await step.executeAsync();
-      expect(lines.find((line) => line.match('lorem ipsum dolor sit amet'))).toBeTruthy();
+      expect(lines.find(line => line.match('lorem ipsum dolor sit amet'))).toBeTruthy();
     });
 
     it('when running a script step envs override gloabl envs', async () => {
@@ -932,8 +933,8 @@ describe(BuildStep, () => {
         },
       });
       await step.executeAsync();
-      expect(lines.find((line) => line.match('dolor sit amet'))).toBeTruthy();
-      expect(lines.find((line) => line.match('lorem ipsum'))).toBeUndefined();
+      expect(lines.find(line => line.match('dolor sit amet'))).toBeTruthy();
+      expect(lines.find(line => line.match('lorem ipsum'))).toBeUndefined();
     });
 
     it('executes the command with internal environment variables', async () => {
@@ -961,16 +962,16 @@ describe(BuildStep, () => {
       });
       await step.executeAsync();
       expect(
-        lines.find((line) =>
+        lines.find(line =>
           line.startsWith(path.join(baseStepCtx.stepsInternalBuildDirectory, 'steps/test1/envs'))
         )
       ).toBeTruthy();
       expect(
-        lines.find((line) =>
+        lines.find(line =>
           line.startsWith(path.join(baseStepCtx.stepsInternalBuildDirectory, 'steps/test1/outputs'))
         )
       ).toBeTruthy();
-      expect(lines.find((line) => line.match(baseStepCtx.defaultWorkingDirectory))).toBeTruthy();
+      expect(lines.find(line => line.match(baseStepCtx.defaultWorkingDirectory))).toBeTruthy();
     });
     it('can update global env object with set-env', async () => {
       const id = 'test1';

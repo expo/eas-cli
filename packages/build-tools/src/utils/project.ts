@@ -1,9 +1,8 @@
-import path from 'path';
-
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
+import path from 'path';
 
-import { findPackagerRootDir, PackageManager } from '../utils/packageManager';
+import { PackageManager, findPackagerRootDir } from '../utils/packageManager';
 
 /**
  * check if .yarnrc.yml exists in the project dir or in the workspace root dir

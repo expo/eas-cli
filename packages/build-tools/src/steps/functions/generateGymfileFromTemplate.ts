@@ -1,13 +1,12 @@
-import assert from 'assert';
-import path from 'path';
-
-import fs from 'fs-extra';
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import { Ios } from '@expo/eas-build-job';
 import { IOSConfig } from '@expo/config-plugins';
-import plist from '@expo/plist';
+import { Ios } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import plist from '@expo/plist';
+import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { templateString } from '@expo/template-file';
+import assert from 'assert';
+import fs from 'fs-extra';
+import path from 'path';
 
 import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
 import IosCredentialsManager, { Credentials } from '../utils/ios/credentials/manager';

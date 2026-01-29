@@ -1,7 +1,7 @@
 import { bunyan } from '@expo/logger';
 
 export async function sleepAsync(ms: number): Promise<void> {
-  await new Promise((res) => setTimeout(res, ms));
+  await new Promise(res => setTimeout(res, ms));
 }
 
 export interface RetryOptions {

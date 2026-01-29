@@ -1,11 +1,10 @@
+import { Ios } from '@expo/eas-build-job';
+import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import assert from 'assert';
 
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import { Ios } from '@expo/eas-build-job';
-
-import IosCredentialsManager from '../utils/ios/credentials/manager';
-import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
 import { configureCredentialsAsync } from '../utils/ios/configure';
+import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
+import IosCredentialsManager from '../utils/ios/credentials/manager';
 import { resolveBuildConfiguration } from '../utils/ios/resolve';
 
 export function configureIosCredentialsFunction(): BuildFunction {

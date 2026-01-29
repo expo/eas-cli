@@ -1,6 +1,5 @@
+import { fs, vol } from 'memfs';
 import os from 'node:os';
-
-import { vol, fs } from 'memfs';
 
 if (process.env.NODE_ENV !== 'test') {
   throw new Error("NODE_ENV environment variable must be set to 'test'.");

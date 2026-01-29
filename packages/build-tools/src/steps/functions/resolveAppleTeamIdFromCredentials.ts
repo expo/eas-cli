@@ -5,8 +5,8 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 
-import IosCredentialsManager from '../utils/ios/credentials/manager';
 import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
+import IosCredentialsManager from '../utils/ios/credentials/manager';
 
 export function resolveAppleTeamIdFromCredentialsFunction(): BuildFunction {
   return new BuildFunction({

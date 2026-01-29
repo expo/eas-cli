@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
 import { bunyan } from '@expo/logger';
+import { jest } from '@jest/globals';
 
 export function createMockLogger(): bunyan {
   const logger = {

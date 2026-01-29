@@ -1,11 +1,10 @@
-import { IOType } from 'child_process';
-
-import { pipeSpawnOutput, bunyan, PipeMode } from '@expo/logger';
+import { PipeMode, bunyan, pipeSpawnOutput } from '@expo/logger';
 import spawnAsyncOriginal, {
-  SpawnResult,
-  SpawnPromise,
   SpawnOptions as SpawnOptionsOriginal,
+  SpawnPromise,
+  SpawnResult,
 } from '@expo/spawn-async';
+import { IOType } from 'child_process';
 
 // We omit 'ignoreStdio' to simplify logic -- only 'stdio' governs stdio.
 // We omit 'stdio' here to add further down in a logger-based union.

@@ -41,7 +41,7 @@ describe('MetadataSchema', () => {
   test('valid metadata with environment', () => {
     const environments = ['production', 'preview', 'development', 'staging', 'custom-env'];
 
-    environments.forEach((env) => {
+    environments.forEach(env => {
       const metadataWithEnvironment = {
         ...validMetadata,
         environment: env,

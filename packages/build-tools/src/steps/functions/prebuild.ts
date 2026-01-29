@@ -2,9 +2,8 @@ import { Platform } from '@expo/config';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
-import { PackageManager, resolvePackageManager } from '../../utils/packageManager';
-
 import { installNodeModules } from './installNodeModules';
+import { PackageManager, resolvePackageManager } from '../../utils/packageManager';
 
 export function createPrebuildBuildFunction(): BuildFunction {
   return new BuildFunction({

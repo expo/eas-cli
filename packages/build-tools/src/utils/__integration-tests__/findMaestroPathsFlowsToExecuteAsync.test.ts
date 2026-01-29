@@ -1,11 +1,10 @@
+import spawnAsync from '@expo/spawn-async';
+import bunyan from 'bunyan';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-import bunyan from 'bunyan';
-import spawnAsync from '@expo/spawn-async';
-
-import { findMaestroPathsFlowsToExecuteAsync } from '../findMaestroPathsFlowsToExecuteAsync';
 import { createMockLogger } from '../../__tests__/utils/logger';
+import { findMaestroPathsFlowsToExecuteAsync } from '../findMaestroPathsFlowsToExecuteAsync';
 
 // We use node:fs
 jest.unmock('node:fs');
@@ -63,8 +62,8 @@ describe('findMaestroPathsFlowsToExecuteAsync', () => {
   function parseMaestroExecutedFlows(output: string): string[] {
     return output
       .split('\n')
-      .filter((line) => line.includes('[Passed]') || line.includes('> Flow'))
-      .map((line) => {
+      .filter(line => line.includes('[Passed]') || line.includes('> Flow'))
+      .map(line => {
         if (line.includes('[Passed]')) {
           return line.split('[Passed]')[1].trim().split(' ')[0];
         }
@@ -87,7 +86,7 @@ describe('findMaestroPathsFlowsToExecuteAsync', () => {
       logger,
     });
 
-    return result.map((filePath) => path.basename(filePath, path.extname(filePath))).sort();
+    return result.map(filePath => path.basename(filePath, path.extname(filePath))).sort();
   }
 
   describe('Directory-based flow discovery', () => {
@@ -143,8 +142,8 @@ describe('findMaestroPathsFlowsToExecuteAsync', () => {
     it('should exclude config files from flow discovery', async () => {
       const ourFlows = await getOurFlowList(fixturesDir);
 
-      expect(ourFlows.every((flow) => !flow.endsWith('config.yaml'))).toBe(true);
-      expect(ourFlows.every((flow) => !flow.endsWith('config.yml'))).toBe(true);
+      expect(ourFlows.every(flow => !flow.endsWith('config.yaml'))).toBe(true);
+      expect(ourFlows.every(flow => !flow.endsWith('config.yml'))).toBe(true);
     });
 
     it('should exclude non-YAML files from flow discovery', async () => {

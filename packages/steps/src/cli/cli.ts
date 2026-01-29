@@ -1,13 +1,12 @@
-import path from 'path';
-
 import { Job, Metadata, StaticJobInterpolationContext } from '@expo/eas-build-job';
 import { bunyan, createLogger } from '@expo/logger';
+import path from 'path';
 
 import { BuildConfigParser } from '../BuildConfigParser';
-import { ExternalBuildContextProvider, BuildStepGlobalContext } from '../BuildStepContext';
-import { BuildWorkflowError } from '../errors';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildStepGlobalContext, ExternalBuildContextProvider } from '../BuildStepContext';
 import { BuildStepEnv } from '../BuildStepEnv';
+import { BuildWorkflowError } from '../errors';
 
 const logger = createLogger({
   name: 'steps-cli',
@@ -76,7 +75,7 @@ if (!relativeConfigPath || !relativeProjectDirectoryPath) {
 const configPath = path.resolve(process.cwd(), relativeConfigPath);
 const workingDirectory = path.resolve(process.cwd(), relativeProjectDirectoryPath);
 
-runAsync(configPath, workingDirectory, platform).catch((err) => {
+runAsync(configPath, workingDirectory, platform).catch(err => {
   logger.error({ err }, 'Build failed');
   if (err instanceof BuildWorkflowError) {
     logger.error('Failed to parse the custom build config file.');

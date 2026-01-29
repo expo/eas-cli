@@ -148,7 +148,7 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     createError: () =>
       new TrackedBuildError('NODE_ENV_PRODUCTION_DEFINED', 'npm: NODE_ENV=production was defined.'),
   },
-  ...[BuildPhase.INSTALL_DEPENDENCIES, BuildPhase.PREBUILD].map((phase) => ({
+  ...[BuildPhase.INSTALL_DEPENDENCIES, BuildPhase.PREBUILD].map(phase => ({
     phase,
     // example log:
     // [stderr] WARN tarball tarball data for @typescript-eslint/typescript-estree@5.26.0 (sha512-cozo/GbwixVR0sgfHItz3t1yXu521yn71Wj6PlYCFA3WPhy51CUPkifFKfBis91bDclGmAY45hhaAXVjdn4new==) seems to be corrupted. Trying again.
@@ -156,7 +156,7 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     createError: (match: RegExpMatchArray) =>
       new TrackedBuildError('NPM_CORRUPTED_PACKAGE', `npm: corrupted package ${match[1]}`),
   })),
-  ...[BuildPhase.INSTALL_DEPENDENCIES, BuildPhase.PREBUILD].map((phase) => ({
+  ...[BuildPhase.INSTALL_DEPENDENCIES, BuildPhase.PREBUILD].map(phase => ({
     phase,
     regexp: ({ env }: ErrorContext) =>
       env.EAS_BUILD_NPM_CACHE_URL

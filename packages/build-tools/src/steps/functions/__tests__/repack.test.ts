@@ -1,20 +1,19 @@
-import path from 'node:path';
-
 import { type bunyan } from '@expo/logger';
 import fg from 'fast-glob';
 import { vol } from 'memfs';
+import path from 'node:path';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createTestAndroidJob, createTestIosJob } from '../../../__tests__/utils/job';
 import IosCredentialsManager from '../../utils/ios/credentials/manager';
+import ProvisioningProfile, {
+  DistributionType,
+} from '../../utils/ios/credentials/provisioningProfile';
 import {
   createRepackBuildFunction,
   resolveAndroidSigningOptionsAsync,
   resolveIosSigningOptionsAsync,
 } from '../repack';
-import ProvisioningProfile, {
-  DistributionType,
-} from '../../utils/ios/credentials/provisioningProfile';
 
 jest.mock('fs');
 jest.mock('@expo/spawn-async');

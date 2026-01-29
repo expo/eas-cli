@@ -2,8 +2,8 @@ import { Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import semver from 'semver';
 
-import { runExpoCliCommand } from '../utils/project';
 import { PackageManager } from '../utils/packageManager';
+import { runExpoCliCommand } from '../utils/project';
 
 export async function eagerBundleAsync({
   platform,

@@ -1,25 +1,24 @@
-import path from 'node:path';
-import fs from 'node:fs';
-import os from 'node:os';
-import stream from 'stream';
-import { promisify } from 'util';
-
+import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import { asyncResult } from '@expo/results';
-import fetch from 'node-fetch';
 import { glob } from 'fast-glob';
+import fetch from 'node-fetch';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import stream from 'stream';
+import { promisify } from 'util';
 import { z } from 'zod';
-import { bunyan } from '@expo/logger';
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
 
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { formatBytes } from '../../utils/artifacts';
 import { decompressTarAsync, isFileTarGzAsync } from '../../utils/files';
+import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { pluralize } from '../../utils/strings';
 
 const streamPipeline = promisify(stream.pipeline);
@@ -137,12 +136,15 @@ export async function downloadBuildAsync({
   if (matchingFiles.length === 0) {
     throw new UserFacingError(
       'EAS_DOWNLOAD_BUILD_NO_MATCHING_FILES',
-      `No ${extensions.map((ext) => `.${ext}`).join(', ')} entries found in the archive.`
+      `No ${extensions.map(ext => `.${ext}`).join(', ')} entries found in the archive.`
     );
   }
 
   logger.info(
-    `Found ${matchingFiles.length} matching ${pluralize(matchingFiles.length, 'entry')}:\n${matchingFiles.map((f) => `- ${path.relative(extractionDirectory, f)}`).join('\n')}`
+    `Found ${matchingFiles.length} matching ${pluralize(
+      matchingFiles.length,
+      'entry'
+    )}:\n${matchingFiles.map(f => `- ${path.relative(extractionDirectory, f)}`).join('\n')}`
   );
 
   return { artifactPath: matchingFiles[0] };

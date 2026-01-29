@@ -1,17 +1,17 @@
+import { ExpoConfig } from '@expo/config';
 import { BuildJob, Job, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { ExpoConfig } from '@expo/config';
 
-import {
-  iosGetNativelyDefinedChannelAsync,
-  iosSetChannelNativelyAsync,
-  iosSetRuntimeVersionNativelyAsync,
-} from './ios/expoUpdates';
 import {
   androidGetNativelyDefinedChannelAsync,
   androidSetChannelNativelyAsync,
   androidSetRuntimeVersionNativelyAsync,
 } from './android/expoUpdates';
+import {
+  iosGetNativelyDefinedChannelAsync,
+  iosSetChannelNativelyAsync,
+  iosSetRuntimeVersionNativelyAsync,
+} from './ios/expoUpdates';
 
 export async function configureEASUpdateAsync({
   job,

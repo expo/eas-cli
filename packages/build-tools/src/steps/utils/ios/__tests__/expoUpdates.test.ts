@@ -1,11 +1,11 @@
-import fs from 'fs-extra';
 import plist from '@expo/plist';
+import fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import {
   IosMetadataName,
-  iosSetChannelNativelyAsync,
   iosGetNativelyDefinedChannelAsync,
+  iosSetChannelNativelyAsync,
   iosSetRuntimeVersionNativelyAsync,
 } from '../../ios/expoUpdates';
 

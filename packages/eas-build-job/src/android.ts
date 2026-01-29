@@ -1,22 +1,22 @@
-import Joi from 'joi';
 import { LoggerLevel } from '@expo/logger';
+import Joi from 'joi';
 
 import {
   ArchiveSource,
   ArchiveSourceSchema,
-  Env,
-  EnvSchema,
-  Platform,
-  Workflow,
+  BuildMode,
+  BuildTrigger,
   Cache,
   CacheSchema,
-  EnvironmentSecretsSchema,
-  EnvironmentSecret,
-  BuildTrigger,
-  BuildMode,
-  StaticWorkflowInterpolationContextZ,
-  StaticWorkflowInterpolationContext,
   CustomBuildConfigSchema,
+  Env,
+  EnvSchema,
+  EnvironmentSecret,
+  EnvironmentSecretsSchema,
+  Platform,
+  StaticWorkflowInterpolationContext,
+  StaticWorkflowInterpolationContextZ,
+  Workflow,
 } from './common';
 import { Step } from './step';
 
@@ -188,7 +188,7 @@ export const JobSchema = Joi.object({
 
   environment: Joi.string(),
 
-  workflowInterpolationContext: Joi.object().custom((workflowInterpolationContext) =>
+  workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)
   ),
 }).concat(CustomBuildConfigSchema);

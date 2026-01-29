@@ -1,5 +1,3 @@
-import assert from 'assert';
-
 import { GenericArtifactType, Job, ManagedArtifactType } from '@expo/eas-build-job';
 import {
   BuildFunction,
@@ -7,6 +5,7 @@ import {
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
+import assert from 'assert';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { FindArtifactsError, findArtifacts } from '../../utils/artifacts';
@@ -80,10 +79,10 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         .toString()
         .split('\n')
         // It's easy to get an empty line with YAML
-        .filter((entry) => entry);
+        .filter(entry => entry);
 
       const artifactsSearchResults = await Promise.allSettled(
-        artifactSearchPaths.map((patternOrPath) =>
+        artifactSearchPaths.map(patternOrPath =>
           findArtifacts({
             rootDir: global.projectTargetDirectory,
             patternOrPath,

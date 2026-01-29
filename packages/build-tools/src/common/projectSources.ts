@@ -1,20 +1,18 @@
-import path from 'path';
-import fs from 'fs/promises';
-
-import spawn from '@expo/turtle-spawn';
-import fetch from 'node-fetch';
-import { ArchiveSourceType, Job, ArchiveSource, ArchiveSourceSchemaZ } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
 import downloadFile from '@expo/downloader';
-import { z } from 'zod';
+import { ArchiveSource, ArchiveSourceSchemaZ, ArchiveSourceType, Job } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
-import nullthrows from 'nullthrows';
+import spawn from '@expo/turtle-spawn';
+import fs from 'fs/promises';
 import { graphql } from 'gql.tada';
-
-import { BuildContext } from '../context';
-import { turtleFetch } from '../utils/turtleFetch';
+import fetch from 'node-fetch';
+import nullthrows from 'nullthrows';
+import path from 'path';
+import { z } from 'zod';
 
 import { shallowCloneRepositoryAsync } from './git';
+import { BuildContext } from '../context';
+import { turtleFetch } from '../utils/turtleFetch';
 
 export async function prepareProjectSourcesAsync<TJob extends Job>(
   ctx: BuildContext<TJob>,
@@ -184,7 +182,7 @@ async function uploadProjectMetadataAsync(
   const sortedFiles = files
     .map(
       // Prepend entries with "project/"
-      (f) => path.join('project', f)
+      f => path.join('project', f)
     )
     .sort(); // Sort for consistent ordering
 

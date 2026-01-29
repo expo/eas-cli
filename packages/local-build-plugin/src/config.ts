@@ -1,8 +1,7 @@
-import path from 'path';
-
-import { v4 as uuidv4 } from 'uuid';
-import envPaths from 'env-paths';
 import { LoggerLevel } from '@expo/logger';
+import envPaths from 'env-paths';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 const { temp } = envPaths('eas-build-local');
 
@@ -18,7 +17,7 @@ if (
 ) {
   throw new Error(
     `Invalid value for EAS_LOCAL_BUILD_LOGGER_LEVEL, one of ${Object.values(LoggerLevel)
-      .map((ll) => `"${ll}"`)
+      .map(ll => `"${ll}"`)
       .join(', ')} is expected`
   );
 }

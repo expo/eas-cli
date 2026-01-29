@@ -1,9 +1,9 @@
+import { bunyan } from '@expo/logger';
 import { errors } from '@expo/steps';
 import fetch, { Response } from 'node-fetch';
-import { bunyan } from '@expo/logger';
 
-import { createSendSlackMessageFunction } from '../sendSlackMessage';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
+import { createSendSlackMessageFunction } from '../sendSlackMessage';
 
 jest.mock('@expo/logger');
 jest.mock('node-fetch');

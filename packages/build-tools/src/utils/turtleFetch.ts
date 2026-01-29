@@ -1,5 +1,5 @@
-import fetch, { Response, RequestInit, HeaderInit } from 'node-fetch';
 import { bunyan } from '@expo/logger';
+import fetch, { HeaderInit, RequestInit, Response } from 'node-fetch';
 
 import { retryAsync } from './retry';
 
@@ -56,7 +56,7 @@ export async function turtleFetch(
   const headers = json ? { ...rawHeaders, 'Content-Type': 'application/json' } : rawHeaders;
 
   return await retryAsync(
-    async (attemptCount) => {
+    async attemptCount => {
       const response = await fetch(url, {
         method,
         body,

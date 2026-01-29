@@ -1,4 +1,4 @@
-import { BuildMode, BuildPhase, errors, Platform, Workflow } from '@expo/eas-build-job';
+import { BuildMode, BuildPhase, Platform, Workflow, errors } from '@expo/eas-build-job';
 
 import { ErrorHandler, XCODE_BUILD_PHASE } from './errors.types';
 
@@ -290,11 +290,11 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     // file modified: /Users/expo/workingdir/build/packages/video/ios/Vendor/dependency/ProgrammaticAccessLibrary.xcframework/ios-arm64_x86_64-simulator/ProgrammaticAccessLibrary.framework/ProgrammaticAccessLibrary
     // file modified: /Users/expo/workingdir/build/packages/video/ios/Vendor/dependency/ProgrammaticAccessLibrary.xcframework/ios-arm64/ProgrammaticAccessLibrary.framework/ProgrammaticAccessLibrary
     regexp: /error: .+/g,
-    createError: (matchResult) =>
+    createError: matchResult =>
       new UserFacingError(
         'XCODE_BUILD_ERROR',
         `The "Run fastlane" step failed because of an error in the Xcode build process. We automatically detected following errors in your Xcode build logs:\n${matchResult
-          .map((match) => `- ${match.replace('error: ', '')}`)
+          .map(match => `- ${match.replace('error: ', '')}`)
           .join('\n')}\nRefer to "Xcode Logs" below for additional, more detailed logs.`
       ),
   },

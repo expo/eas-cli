@@ -1,10 +1,9 @@
-import { Writable } from 'stream';
-
+import { LogBuffer } from '@expo/build-tools';
+import { LoggerLevel } from '@expo/logger';
 import bunyan from 'bunyan';
 import chalk from 'chalk';
 import omit from 'lodash/omit';
-import { LogBuffer } from '@expo/build-tools';
-import { LoggerLevel } from '@expo/logger';
+import { Writable } from 'stream';
 
 import config from './config';
 

@@ -1,22 +1,21 @@
-import os from 'os';
-import path from 'path';
-
-import fg from 'fast-glob';
 import { Env, JobInterpolationContext, StaticJobInterpolationContext } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import fg from 'fast-glob';
+import os from 'os';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { StepMetricInput, StepMetricsCollection } from './StepMetrics';
-import { hashFiles } from './utils/hashFiles';
+import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepOutputAccessor, SerializedBuildStepOutputAccessor } from './BuildStep';
+import { BuildStepEnv } from './BuildStepEnv';
+import { StepMetricInput, StepMetricsCollection } from './StepMetrics';
+import { BuildStepRuntimeError } from './errors';
+import { hashFiles } from './utils/hashFiles';
 import {
   getObjectValueForInterpolation,
   interpolateWithGlobalContext,
   parseOutputPath,
 } from './utils/template';
-import { BuildStepRuntimeError } from './errors';
-import { BuildRuntimePlatform } from './BuildRuntimePlatform';
-import { BuildStepEnv } from './BuildStepEnv';
 
 interface SerializedExternalBuildContextProvider {
   projectSourceDirectory: string;
@@ -93,11 +92,11 @@ export class BuildStepGlobalContext {
     return {
       ...this.provider.staticContext(),
       steps: Object.fromEntries(
-        Object.values(this.stepById).map((step) => [
+        Object.values(this.stepById).map(step => [
           step.id,
           {
             outputs: Object.fromEntries(
-              step.outputs.map((output) => {
+              step.outputs.map(output => {
                 return [output.id, output.rawValue];
               })
             ),
@@ -152,7 +151,7 @@ export class BuildStepGlobalContext {
   public interpolate<InterpolableType extends string | object>(
     value: InterpolableType
   ): InterpolableType {
-    return interpolateWithGlobalContext(value, (path) => {
+    return interpolateWithGlobalContext(value, path => {
       return (
         getObjectValueForInterpolation(path, {
           eas: {
@@ -211,9 +210,7 @@ export class BuildStepGlobalContext {
       return '';
     }
 
-    const validFilePaths = filePaths.filter((file) =>
-      file.startsWith(`${workspacePath}${path.sep}`)
-    );
+    const validFilePaths = filePaths.filter(file => file.startsWith(`${workspacePath}${path.sep}`));
 
     if (validFilePaths.length === 0) {
       return '';

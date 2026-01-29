@@ -1,12 +1,10 @@
+import { bunyan } from '@expo/logger';
+import { BuildStepEnv } from '@expo/steps';
+import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import path from 'path';
 
-import { bunyan } from '@expo/logger';
-import spawn, { SpawnResult } from '@expo/turtle-spawn';
-import { BuildStepEnv } from '@expo/steps';
-
-import { COMMON_FASTLANE_ENV } from '../../../common/fastlane';
-
 import { XcodeBuildLogger } from './xcpretty';
+import { COMMON_FASTLANE_ENV } from '../../../common/fastlane';
 
 export async function runFastlaneGym({
   workingDir,

@@ -1,6 +1,4 @@
-import path from 'path';
-
-import { v4 as uuidv4 } from 'uuid';
+import { Android } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepContext,
@@ -9,7 +7,8 @@ import {
 } from '@expo/steps';
 import fs from 'fs-extra';
 import Joi from 'joi';
-import { Android } from '@expo/eas-build-job';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import { injectCredentialsGradleConfig } from '../utils/android/gradleConfig';
 
@@ -64,7 +63,10 @@ async function restoreCredentials(
 ): Promise<void> {
   stepsCtx.logger.info("Writing secrets to the project's directory");
   const keystorePath = path.join(stepsCtx.global.projectTargetDirectory, `keystore-${uuidv4()}`);
-  await fs.writeFile(keystorePath, new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64')));
+  await fs.writeFile(
+    keystorePath,
+    new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64'))
+  );
   const credentialsJson = {
     android: {
       keystore: {

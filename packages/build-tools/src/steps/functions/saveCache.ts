@@ -1,19 +1,18 @@
+import { Platform } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import fg from 'fast-glob';
 import fs from 'fs';
+import fetch from 'node-fetch';
+import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
-
 import * as tar from 'tar';
-import fg from 'fast-glob';
-import { bunyan } from '@expo/logger';
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import z from 'zod';
-import nullthrows from 'nullthrows';
-import fetch from 'node-fetch';
-import { asyncResult } from '@expo/results';
-import { Platform } from '@expo/eas-build-job';
 
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { formatBytes } from '../../utils/artifacts';
+import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { getCacheVersion } from '../utils/cache';
 
 export function createSaveCacheFunction(): BuildFunction {
@@ -41,7 +40,7 @@ export function createSaveCacheFunction(): BuildFunction {
         const paths = z
           .array(z.string())
           .parse(((inputs.path.value ?? '') as string).split(/[\r\n]+/))
-          .filter((path) => path.length > 0);
+          .filter(path => path.length > 0);
         const key = z.string().parse(inputs.key.value);
         const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
         const robotAccessToken = nullthrows(

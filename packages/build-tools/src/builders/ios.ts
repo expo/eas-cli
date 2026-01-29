@@ -1,32 +1,31 @@
-import plist from '@expo/plist';
 import { IOSConfig } from '@expo/config-plugins';
-import { ManagedArtifactType, BuildMode, BuildPhase, Ios, Workflow } from '@expo/eas-build-job';
+import { BuildMode, BuildPhase, Ios, ManagedArtifactType, Workflow } from '@expo/eas-build-job';
+import plist from '@expo/plist';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 
+import { runBuilderWithHooksAsync } from './common';
+import { runCustomBuildAsync } from './custom';
+import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
+import { prebuildAsync } from '../common/prebuild';
+import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext } from '../context';
-import {
-  resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
-  configureExpoUpdatesIfInstalledAsync,
-} from '../utils/expoUpdates';
-import { uploadApplicationArchive } from '../utils/artifacts';
-import { Hook, runHookIfPresent } from '../utils/hooks';
 import { configureXcodeProject } from '../ios/configure';
 import CredentialsManager from '../ios/credentials/manager';
 import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
-import { setupAsync } from '../common/setup';
-import { prebuildAsync } from '../common/prebuild';
+import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import { uploadApplicationArchive } from '../utils/artifacts';
+import {
+  configureExpoUpdatesIfInstalledAsync,
+  resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
+} from '../utils/expoUpdates';
+import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
-import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-
-import { runBuilderWithHooksAsync } from './common';
-import { runCustomBuildAsync } from './custom';
 
 const INSTALL_PODS_WARN_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const INSTALL_PODS_KILL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -304,7 +303,7 @@ async function runInstallPodsAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       );
       const ppid = nullthrows(installPodsSpawnPromise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach((pid) => {
+      pids.forEach(pid => {
         process.kill(pid);
       });
       ctx.reportError?.('"Install pods" phase takes a very long time', undefined, {

@@ -1,18 +1,17 @@
-import assert from 'assert';
-
 import {
   BuildJob,
-  Env,
   EasCliNpmTags,
+  Env,
   Metadata,
   sanitizeBuildJob,
   sanitizeMetadata,
 } from '@expo/eas-build-job';
 import { PipeMode, bunyan } from '@expo/logger';
+import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import assert from 'assert';
 import Joi from 'joi';
 import nullthrows from 'nullthrows';
-import { BuildStepEnv } from '@expo/steps';
 
 import { BuildContext } from '../context';
 import { isAtLeastNpm7Async } from '../utils/packageManager';

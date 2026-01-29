@@ -1,7 +1,6 @@
-import path from 'path';
-
 import { Job } from '@expo/eas-build-job';
-import spawn, { SpawnPromise, SpawnResult, SpawnOptions } from '@expo/turtle-spawn';
+import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import path from 'path';
 
 import { BuildContext } from '../context';
 import { PackageManager, findPackagerRootDir } from '../utils/packageManager';

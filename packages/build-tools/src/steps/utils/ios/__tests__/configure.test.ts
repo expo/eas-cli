@@ -1,6 +1,5 @@
-import path from 'path';
-
 import { vol } from 'memfs';
+import path from 'path';
 
 import { configureCredentialsAsync, updateVersionsAsync } from '../configure';
 import ProvisioningProfile, { DistributionType } from '../credentials/provisioningProfile';

@@ -1,5 +1,4 @@
 import { createHash } from 'crypto';
-
 import fs from 'fs-extra';
 
 /**

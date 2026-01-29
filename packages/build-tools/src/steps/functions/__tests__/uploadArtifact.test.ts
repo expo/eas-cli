@@ -23,14 +23,14 @@ describe(createUploadArtifactBuildFunction, () => {
   const customContext = new CustomBuildContext(ctx);
   const uploadArtifact = createUploadArtifactBuildFunction(customContext);
 
-  it.each(['build-artifact', 'BUILD_ARTIFACTS'])('accepts %s', async (type) => {
+  it.each(['build-artifact', 'BUILD_ARTIFACTS'])('accepts %s', async type => {
     const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
       callInputs: {
         type,
         path: '/',
       },
     });
-    const typeInput = buildStep.inputs?.find((input) => input.id === 'type')!;
+    const typeInput = buildStep.inputs?.find(input => input.id === 'type')!;
     expect(typeInput.isRawValueOneOfAllowedValues()).toBe(true);
   });
 
@@ -110,14 +110,14 @@ describe(createUploadArtifactBuildFunction, () => {
     }
   });
 
-  it.each(['invalid-value'])('does not accept %s', async (type) => {
+  it.each(['invalid-value'])('does not accept %s', async type => {
     const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
       callInputs: {
         type,
         path: '/',
       },
     });
-    const typeInput = buildStep.inputs?.find((input) => input.id === 'type')!;
+    const typeInput = buildStep.inputs?.find(input => input.id === 'type')!;
     expect(typeInput.isRawValueOneOfAllowedValues()).toBe(false);
   });
 });

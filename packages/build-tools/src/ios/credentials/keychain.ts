@@ -1,8 +1,7 @@
-import os from 'os';
-import path from 'path';
-
 import { Ios } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import os from 'os';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
 
 import { BuildContext } from '../../context';
@@ -86,10 +85,10 @@ export default class Keychain<TJob extends Ios.Job> {
 
   public async cleanUpKeychains(): Promise<void> {
     const { stdout } = await spawn('security', ['list-keychains'], { stdio: 'pipe' });
-    const keychainList = (/"(.*)"/g.exec(stdout) ?? ([] as string[])).map((i) =>
+    const keychainList = (/"(.*)"/g.exec(stdout) ?? ([] as string[])).map(i =>
       i.slice(1, i.length - 1)
     );
-    const turtleKeychainList = keychainList.filter((keychain) =>
+    const turtleKeychainList = keychainList.filter(keychain =>
       /eas-build-[\w-]+\.keychain$/.exec(keychain)
     );
     for (const turtleKeychainPath of turtleKeychainList) {

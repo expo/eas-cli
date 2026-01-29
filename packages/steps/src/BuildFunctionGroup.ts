@@ -44,7 +44,7 @@ export class BuildFunctionGroup {
     this.inputProviders = inputProviders;
 
     this.createBuildStepsFromFunctionGroupCall = (ctx, { callInputs = {} } = {}) => {
-      const inputs = this.inputProviders?.map((inputProvider) => {
+      const inputs = this.inputProviders?.map(inputProvider => {
         const input = inputProvider(ctx, id);
         if (input.id in callInputs) {
           input.set(callInputs[input.id]);

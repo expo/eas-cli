@@ -1,6 +1,6 @@
 import { JobInterpolationContext } from '@expo/eas-build-job';
-import { BuildStepGlobalContext, jsepEval } from '@expo/steps';
 import { bunyan } from '@expo/logger';
+import { BuildStepGlobalContext, jsepEval } from '@expo/steps';
 import nullthrows from 'nullthrows';
 
 import { turtleFetch } from './turtleFetch';

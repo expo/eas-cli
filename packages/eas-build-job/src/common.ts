@@ -285,7 +285,7 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
       steps: Joi.array()
         .items(Joi.any())
         .required()
-        .custom((steps) => validateSteps(steps), 'steps validation'),
+        .custom(steps => validateSteps(steps), 'steps validation'),
       outputs: Joi.object().pattern(Joi.string(), Joi.string()).required(),
     }),
   }),

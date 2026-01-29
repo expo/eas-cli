@@ -1,8 +1,7 @@
-import assert from 'assert';
-
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import semver from 'semver';
 import { Android } from '@expo/eas-build-job';
+import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import assert from 'assert';
+import semver from 'semver';
 
 import { injectConfigureVersionGradleConfig } from '../utils/android/gradleConfig';
 

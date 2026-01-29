@@ -1,6 +1,6 @@
 import * as Builders from './builders';
-import GCS from './gcs/client';
 import GCSLoggerStream from './gcs/LoggerStream';
+import GCS from './gcs/client';
 
 export { Builders, GCS, GCSLoggerStream };
 

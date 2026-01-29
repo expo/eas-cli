@@ -1,10 +1,9 @@
-import path from 'path';
-import os from 'os';
-import assert from 'assert';
-
+import { Platform } from '@expo/eas-build-job';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { hashFiles } from '@expo/steps';
-import { Platform } from '@expo/eas-build-job';
+import assert from 'assert';
+import os from 'os';
+import path from 'path';
 
 import { findPackagerRootDir } from './packageManager';
 

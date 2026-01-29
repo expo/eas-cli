@@ -1,8 +1,6 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import { setTimeout } from 'node:timers/promises';
-
+import { GenericArtifactType } from '@expo/eas-build-job';
+import { PipeMode, bunyan } from '@expo/logger';
+import { Result, asyncResult, result } from '@expo/results';
 import {
   BuildFunction,
   BuildStepEnv,
@@ -11,21 +9,22 @@ import {
   BuildStepOutput,
   spawnAsync,
 } from '@expo/steps';
-import { z } from 'zod';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
-import { PipeMode, bunyan } from '@expo/logger';
-import { Result, asyncResult, result } from '@expo/results';
-import { GenericArtifactType } from '@expo/eas-build-job';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout } from 'node:timers/promises';
+import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { IosSimulatorName, IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import {
   AndroidDeviceSerialId,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
-import { PlatformToProperNounMap } from '../../utils/strings';
+import { IosSimulatorName, IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import { findMaestroPathsFlowsToExecuteAsync } from '../../utils/findMaestroPathsFlowsToExecuteAsync';
+import { PlatformToProperNounMap } from '../../utils/strings';
 
 export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
@@ -123,7 +122,9 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
           continue;
         }
         stepCtx.logger.info(
-          `Marking for execution:\n- ${flowPaths.map((flowPath) => path.relative(stepCtx.workingDirectory, flowPath)).join('\n- ')}`
+          `Marking for execution:\n- ${flowPaths
+            .map(flowPath => path.relative(stepCtx.workingDirectory, flowPath))
+            .join('\n- ')}`
         );
         stepCtx.logger.info('');
         flowPathsToExecute.push(...flowPaths);
@@ -291,7 +292,10 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
                 logger: stepCtx.logger,
                 artifact: {
                   // TODO(sjchmiela): Add metadata to artifacts so we don't need to encode flow path and attempt in the name.
-                  name: `Screen Recording (${flowIndex}-${path.basename(flowPath, path.extname(flowPath))})`,
+                  name: `Screen Recording (${flowIndex}-${path.basename(
+                    flowPath,
+                    path.extname(flowPath)
+                  )})`,
                   paths: [recordingResult.value],
                   type: GenericArtifactType.OTHER,
                 },
@@ -369,7 +373,7 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
       if (failedFlows.length > 0) {
         throw new Error(
           `Some Maestro tests failed:\n- ${failedFlows
-            .map((flowPath) => path.relative(stepCtx.workingDirectory, flowPath))
+            .map(flowPath => path.relative(stepCtx.workingDirectory, flowPath))
             .join('\n- ')}`
         );
       } else {

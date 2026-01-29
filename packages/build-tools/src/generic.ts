@@ -1,14 +1,13 @@
+import { BuildPhase, Generic } from '@expo/eas-build-job';
+import { Result, asyncResult } from '@expo/results';
+import { BuildStepGlobalContext, BuildWorkflow, StepsConfigParser, errors } from '@expo/steps';
 import fs from 'fs/promises';
 
-import { BuildPhase, Generic } from '@expo/eas-build-job';
-import { BuildStepGlobalContext, BuildWorkflow, errors, StepsConfigParser } from '@expo/steps';
-import { Result, asyncResult } from '@expo/results';
-
-import { BuildContext } from './context';
 import { prepareProjectSourcesAsync } from './common/projectSources';
-import { getEasFunctions } from './steps/easFunctions';
+import { BuildContext } from './context';
 import { CustomBuildContext } from './customBuildContext';
 import { getEasFunctionGroups } from './steps/easFunctionGroups';
+import { getEasFunctions } from './steps/easFunctions';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
 import { retryAsync } from './utils/retry';
 import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';

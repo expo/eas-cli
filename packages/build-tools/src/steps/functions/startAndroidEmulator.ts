@@ -1,13 +1,13 @@
+import { asyncResult } from '@expo/results';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import { asyncResult } from '@expo/results';
 
-import { retryAsync } from '../../utils/retry';
 import {
   AndroidDeviceName,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../utils/AndroidEmulatorUtils';
+import { retryAsync } from '../../utils/retry';
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({

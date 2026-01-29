@@ -1,8 +1,7 @@
-import path from 'path';
-
 import { Android } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BuildContext } from '../context';
@@ -18,7 +17,10 @@ async function restoreCredentials(ctx: BuildContext<Android.Job>): Promise<void>
   }
   ctx.logger.info("Writing secrets to the project's directory");
   const keystorePath = path.join(ctx.buildDirectory, `keystore-${uuidv4()}`);
-  await fs.writeFile(keystorePath, new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64')));
+  await fs.writeFile(
+    keystorePath,
+    new Uint8Array(Buffer.from(buildCredentials.keystore.dataBase64, 'base64'))
+  );
   const credentialsJson = {
     android: {
       keystore: {

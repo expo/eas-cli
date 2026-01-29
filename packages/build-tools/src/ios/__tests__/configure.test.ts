@@ -1,7 +1,6 @@
-import path from 'path';
-
 import { Ios } from '@expo/eas-build-job';
 import { vol } from 'memfs';
+import path from 'path';
 
 import { configureXcodeProject } from '../configure';
 import ProvisioningProfile, { DistributionType } from '../credentials/provisioningProfile';

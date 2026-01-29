@@ -16,7 +16,7 @@ export function listenForInterrupts(): void {
       createLogger().error({ phase: 'ABORT' }, 'Received termination signal.');
       shouldExitStatus = true;
       await Promise.allSettled(
-        handlers.map((handler) => {
+        handlers.map(handler => {
           return handler();
         })
       );

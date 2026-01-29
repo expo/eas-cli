@@ -1,7 +1,6 @@
-import path from 'path';
-
 import { Job } from '@expo/eas-build-job';
 import fs from 'fs-extra';
+import path from 'path';
 
 import { BuildContext } from '../context';
 

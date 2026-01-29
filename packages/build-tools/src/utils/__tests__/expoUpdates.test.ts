@@ -1,10 +1,10 @@
-import { Platform, BuildJob } from '@expo/eas-build-job';
+import { BuildJob, Platform } from '@expo/eas-build-job';
 
+import { androidSetChannelNativelyAsync } from '../../android/expoUpdates';
 import { BuildContext } from '../../context';
+import { iosSetChannelNativelyAsync } from '../../ios/expoUpdates';
 import * as expoUpdates from '../expoUpdates';
 import getExpoUpdatesPackageVersionIfInstalledAsync from '../getExpoUpdatesPackageVersionIfInstalledAsync';
-import { iosSetChannelNativelyAsync } from '../../ios/expoUpdates';
-import { androidSetChannelNativelyAsync } from '../../android/expoUpdates';
 
 jest.mock('../getExpoUpdatesPackageVersionIfInstalledAsync');
 jest.mock('../../ios/expoUpdates');

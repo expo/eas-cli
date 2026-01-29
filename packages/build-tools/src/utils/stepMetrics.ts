@@ -1,5 +1,5 @@
-import { StepMetricsCollection } from '@expo/steps';
 import { bunyan } from '@expo/logger';
+import { StepMetricsCollection } from '@expo/steps';
 
 import { turtleFetch } from './turtleFetch';
 

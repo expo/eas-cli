@@ -1,9 +1,8 @@
-import { Ios } from '@expo/eas-build-job';
 import { IOSConfig } from '@expo/config-plugins';
-
-import { BuildContext } from '../context';
+import { Ios } from '@expo/eas-build-job';
 
 import { resolveBuildConfiguration, resolveScheme } from './resolve';
+import { BuildContext } from '../context';
 
 // Functions specific to Apple TV support should be added here
 

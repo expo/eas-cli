@@ -18,7 +18,7 @@ export async function retryOnGCSUploadFailure(
   return await retry(fn, {
     retries,
     retryIntervalMs,
-    shouldRetryOnError: (e) => {
+    shouldRetryOnError: e => {
       return (
         e.code === 'ENOTFOUND' ||
         e.code === 'EAI_AGAIN' ||
@@ -27,7 +27,7 @@ export async function retryOnGCSUploadFailure(
         e.code === 'EPIPE'
       );
     },
-    shouldRetryOnResponse: (resp) => {
+    shouldRetryOnResponse: resp => {
       return [408, 429, 500, 502, 503, 504].includes(resp.status);
     },
   });
@@ -51,7 +51,7 @@ async function retry(
       attemptCount += 1;
       const resp = await fn(attemptCount);
       if (attemptCount < retries && shouldRetryOnResponse(resp)) {
-        await new Promise((res) => setTimeout(res, retryIntervalMs));
+        await new Promise(res => setTimeout(res, retryIntervalMs));
       } else {
         return resp;
       }
@@ -59,7 +59,7 @@ async function retry(
       if (attemptCount === retries || !shouldRetryOnError(err)) {
         throw err;
       }
-      await new Promise((res) => setTimeout(res, retryIntervalMs));
+      await new Promise(res => setTimeout(res, retryIntervalMs));
     }
   }
 }

@@ -1,28 +1,27 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-import stream from 'stream';
-import { promisify } from 'util';
-
-import * as tar from 'tar';
+import { Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
 } from '@expo/steps';
-import z from 'zod';
-import nullthrows from 'nullthrows';
+import fs from 'fs';
 import fetch from 'node-fetch';
-import { asyncResult } from '@expo/results';
-import { Platform } from '@expo/eas-build-job';
+import nullthrows from 'nullthrows';
+import os from 'os';
+import path from 'path';
+import stream from 'stream';
+import * as tar from 'tar';
+import { promisify } from 'util';
+import z from 'zod';
 
-import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 import { formatBytes } from '../../utils/artifacts';
-import { getCacheVersion } from '../utils/cache';
-import { turtleFetch, TurtleFetchError } from '../../utils/turtleFetch';
 import { PUBLIC_CACHE_KEY_PREFIX_BY_PLATFORM } from '../../utils/cacheKey';
+import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
+import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';
+import { getCacheVersion } from '../utils/cache';
 
 const streamPipeline = promisify(stream.pipeline);
 
@@ -67,12 +66,12 @@ export function createRestoreCacheFunction(): BuildFunction {
         const paths = z
           .array(z.string())
           .parse(((inputs.path.value ?? '') as string).split(/[\r\n]+/))
-          .filter((path) => path.length > 0);
+          .filter(path => path.length > 0);
         const key = z.string().parse(inputs.key.value);
         const restoreKeys = z
           .array(z.string())
           .parse(((inputs.restore_keys.value ?? '') as string).split(/[\r\n]+/))
-          .filter((key) => key !== '');
+          .filter(key => key !== '');
 
         const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
         const robotAccessToken = nullthrows(
@@ -290,7 +289,7 @@ export async function decompressCacheAsync({
       logger.warn({ code, data }, message);
     },
     preservePaths: true,
-    onReadEntry: (entry) => {
+    onReadEntry: entry => {
       extractedFiles.push(entry.path);
       if (verbose) {
         logger.info(`- ${entry.path}`);

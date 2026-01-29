@@ -1,8 +1,4 @@
-import path from 'path';
-import os from 'os';
-
 import { bunyan } from '@expo/logger';
-import { v4 as uuidv4 } from 'uuid';
 import {
   BuildRuntimePlatform,
   BuildStepContext,
@@ -10,6 +6,9 @@ import {
   BuildStepGlobalContext,
   ExternalBuildContextProvider,
 } from '@expo/steps';
+import os from 'os';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import { createMockLogger } from './logger';
 

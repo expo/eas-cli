@@ -1,11 +1,10 @@
-import { promisify } from 'node:util';
+import { CreateWriteStreamOptions, File, Storage } from '@google-cloud/storage';
+import fs from 'fs-extra';
+import fetch, { FetchError } from 'node-fetch';
 import stream from 'node:stream';
+import { promisify } from 'node:util';
 import { Readable } from 'stream';
 import { URL } from 'url';
-
-import fs from 'fs-extra';
-import { CreateWriteStreamOptions, File, Storage } from '@google-cloud/storage';
-import fetch, { FetchError } from 'node-fetch';
 
 import { RetryOptions, retryOnGCSUploadFailure } from './retry';
 
@@ -92,7 +91,7 @@ class GCS {
       src.pipe(
         file
           .createWriteStream(streamOptions)
-          .on('error', (err) => {
+          .on('error', err => {
             rej(err);
           })
           .on('finish', () => {
@@ -173,7 +172,7 @@ class GCS {
 
   public async listDirectory(prefix: string): Promise<string[]> {
     const [files] = await this.client.bucket(this.bucket).getFiles({ prefix });
-    return files.map((x) => this.formatHttpUrl(x.name));
+    return files.map(x => this.formatHttpUrl(x.name));
   }
 
   public async moveFile(src: string, dest: string): Promise<void> {
@@ -181,7 +180,7 @@ class GCS {
   }
 
   public async deleteFiles(keys: string[]): Promise<void> {
-    await Promise.all(keys.map((key) => this.deleteFile(key)));
+    await Promise.all(keys.map(key => this.deleteFile(key)));
   }
 
   public async downloadFile(key: string, destinationPath: string): Promise<void> {

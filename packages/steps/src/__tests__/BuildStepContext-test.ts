@@ -1,19 +1,17 @@
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
-import crypto from 'crypto';
-
 import { JobInterpolationContext } from '@expo/eas-build-job';
+import crypto from 'crypto';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { instance, mock, when } from 'ts-mockito';
 
-import { BuildStep } from '../BuildStep';
-import { BuildStepGlobalContext, BuildStepContext } from '../BuildStepContext';
-import { BuildStepRuntimeError } from '../errors';
-import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
-
-import { createGlobalContextMock, MockContextProvider } from './utils/context';
+import { MockContextProvider, createGlobalContextMock } from './utils/context';
 import { getError } from './utils/error';
 import { createMockLogger } from './utils/logger';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
+import { BuildStep } from '../BuildStep';
+import { BuildStepContext, BuildStepGlobalContext } from '../BuildStepContext';
+import { BuildStepRuntimeError } from '../errors';
 
 describe(BuildStepGlobalContext, () => {
   describe('stepsInternalBuildDirectory', () => {

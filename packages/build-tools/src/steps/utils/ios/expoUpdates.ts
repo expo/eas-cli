@@ -1,6 +1,6 @@
 import { IOSConfig } from '@expo/config-plugins';
-import fs from 'fs-extra';
 import plist from '@expo/plist';
+import fs from 'fs-extra';
 
 export enum IosMetadataName {
   UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY = 'EXUpdatesRequestHeaders',

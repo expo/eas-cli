@@ -1,14 +1,12 @@
-import path from 'path';
-
 import { IOSConfig } from '@expo/config-plugins';
 import { Ios } from '@expo/eas-build-job';
-import uniq from 'lodash/uniq';
-import fs from 'fs-extra';
 import plist from '@expo/plist';
-
-import { BuildContext } from '../context';
+import fs from 'fs-extra';
+import uniq from 'lodash/uniq';
+import path from 'path';
 
 import { Credentials } from './credentials/manager';
+import { BuildContext } from '../context';
 
 async function configureXcodeProject(
   ctx: BuildContext<Ios.Job>,

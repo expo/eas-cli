@@ -40,7 +40,7 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         });
         logger.info(
           `Available Simulator devices:\n- ${availableDevices
-            .map((device) => device.displayName)
+            .map(device => device.displayName)
             .join(`\n- `)}`
         );
       } catch (error) {
@@ -118,10 +118,10 @@ async function findMostGenericIphoneUuidAsync({
     env,
     filter: 'available',
   });
-  const availableIphones = availableSimulatorDevices.filter((device) =>
+  const availableIphones = availableSimulatorDevices.filter(device =>
     device.name.startsWith('iPhone')
   );
   // It's funny, but it works.
-  const iphoneWithShortestName = minBy(availableIphones, (device) => device.name.length);
+  const iphoneWithShortestName = minBy(availableIphones, device => device.name.length);
   return iphoneWithShortestName?.udid ?? null;
 }

@@ -1,9 +1,8 @@
-import assert from 'assert';
-import { randomUUID } from 'crypto';
-
 import { ArchiveSourceType, Ios, Platform, Workflow } from '@expo/eas-build-job';
 import { BuildMode, BuildTrigger } from '@expo/eas-build-job/dist/common';
 import { createLogger } from '@expo/logger';
+import assert from 'assert';
+import { randomUUID } from 'crypto';
 
 import { distributionCertificate, provisioningProfile } from '../__tests__/fixtures';
 import IosCredentialsManager from '../manager';

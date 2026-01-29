@@ -1,5 +1,4 @@
 import { randomUUID } from 'crypto';
-
 import { ZodError } from 'zod';
 
 import { ArchiveSourceType, BuildTrigger, EnvironmentSecretType } from '../common';

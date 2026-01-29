@@ -1,12 +1,11 @@
-import assert from 'assert';
-import fs from 'node:fs';
-import os from 'node:os';
-import { setTimeout } from 'node:timers/promises';
-import path from 'node:path';
-
 import { bunyan } from '@expo/logger';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import assert from 'assert';
 import FastGlob from 'fast-glob';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { retryAsync } from './retry';
@@ -28,7 +27,7 @@ export namespace AndroidEmulatorUtils {
     env: NodeJS.ProcessEnv;
   }): Promise<AndroidDeviceName[]> {
     const result = await spawn('avdmanager', ['list', 'device', '--compact', '--null'], { env });
-    return result.stdout.split('\0').filter((line) => line !== '') as AndroidDeviceName[];
+    return result.stdout.split('\0').filter(line => line !== '') as AndroidDeviceName[];
   }
 
   export async function getAttachedDevicesAsync({
@@ -42,8 +41,8 @@ export namespace AndroidEmulatorUtils {
     return result.stdout
       .replace(/\r\n/g, '\n')
       .split('\n')
-      .filter((line) => line.startsWith('emulator'))
-      .map((line) => {
+      .filter(line => line.startsWith('emulator'))
+      .map(line => {
         const [serialId, state] = line.split(/\s+/) as [
           AndroidDeviceSerialId,
           'offline' | 'device',
@@ -233,9 +232,7 @@ export namespace AndroidEmulatorUtils {
         cwd: `${env.HOME}/.android/avd/${sourceDeviceName}.avd`,
         absolute: true,
       });
-      await Promise.all(
-        sourceLockfiles.map((lockfile) => fs.promises.rm(lockfile, { force: true }))
-      );
+      await Promise.all(sourceLockfiles.map(lockfile => fs.promises.rm(lockfile, { force: true })));
     } catch (err) {
       logger.warn({ err }, `Failed to remove lockfiles from source device ${sourceDeviceName}.`);
     }
@@ -258,7 +255,7 @@ export namespace AndroidEmulatorUtils {
         cwd: `${env.HOME}/.android/avd/${destinationDeviceName}.avd`,
         absolute: true,
       });
-      await Promise.all(lockfiles.map((lockfile) => fs.promises.rm(lockfile, { force: true })));
+      await Promise.all(lockfiles.map(lockfile => fs.promises.rm(lockfile, { force: true })));
     } catch (err) {
       logger.warn(
         { err },
@@ -277,7 +274,7 @@ export namespace AndroidEmulatorUtils {
         ])
       ).stdout
         .split('\n')
-        .filter((file) => file !== '');
+        .filter(file => file !== '');
 
     for (const file of [...filesToReplaceDeviceNameIn, cloneIniFile]) {
       try {
@@ -410,7 +407,7 @@ export namespace AndroidEmulatorUtils {
       child.on('error', reject);
       writeStream.on('error', reject);
 
-      child.on('close', (code) => {
+      child.on('close', code => {
         if (code === 0) {
           resolve();
         } else {
@@ -439,7 +436,7 @@ export namespace AndroidEmulatorUtils {
     await retryAsync(
       async () => {
         const devices = await getAttachedDevicesAsync({ env });
-        if (devices.some((device) => device.serialId === serialId)) {
+        if (devices.some(device => device.serialId === serialId)) {
           throw new Error(`Emulator (${serialId}) is still attached.`);
         }
       },

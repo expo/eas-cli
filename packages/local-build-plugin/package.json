@@ -32,6 +32,7 @@
   "dependencies": {
     "@expo/build-tools": "1.0.272",
     "@expo/eas-build-job": "1.0.265",
+    "@expo/logger": "1.0.260",
     "@expo/spawn-async": "^1.7.2",
     "@expo/turtle-spawn": "1.0.260",
     "bunyan": "^1.8.15",

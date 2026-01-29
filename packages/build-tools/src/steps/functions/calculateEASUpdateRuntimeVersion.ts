@@ -6,8 +6,8 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 
-import { resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync } from '../../utils/expoUpdates';
 import { readAppConfig } from '../../utils/appConfig';
+import { resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync } from '../../utils/expoUpdates';
 
 export function calculateEASUpdateRuntimeVersionFunction(): BuildFunction {
   return new BuildFunction({

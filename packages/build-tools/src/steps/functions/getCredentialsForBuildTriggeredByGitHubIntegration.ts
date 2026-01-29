@@ -1,9 +1,8 @@
 import { BuildJob } from '@expo/eas-build-job';
 import { BuildFunction } from '@expo/steps';
 
-import { CustomBuildContext } from '../../customBuildContext';
-
 import { resolveBuildConfigAsync } from './resolveBuildConfig';
+import { CustomBuildContext } from '../../customBuildContext';
 
 export function createGetCredentialsForBuildTriggeredByGithubIntegration(
   ctx: CustomBuildContext<BuildJob>

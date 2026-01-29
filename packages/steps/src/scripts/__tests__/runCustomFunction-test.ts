@@ -1,21 +1,20 @@
-import path from 'path';
-import os from 'os';
-import fs from 'fs/promises';
-
-import { v4 as uuidv4 } from 'uuid';
 import { jest } from '@jest/globals';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 import { BuildStepInput, BuildStepInputValueTypeName } from '../../BuildStepInput';
 import { BuildStepOutput } from '../../BuildStepOutput';
-import { createStepContextMock } from '../../__tests__/utils/context';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
   getTemporaryEnvsDirPath,
   getTemporaryOutputsDirPath,
 } from '../../BuildTemporaryFiles';
-import { BIN_PATH } from '../../utils/shell/bin';
-import { createCustomFunctionCall } from '../../utils/customFunction';
+import { createStepContextMock } from '../../__tests__/utils/context';
 import { createMockLogger } from '../../__tests__/utils/logger';
+import { createCustomFunctionCall } from '../../utils/customFunction';
+import { BIN_PATH } from '../../utils/shell/bin';
 
 describe('runCustomFunction', () => {
   test('can run custom function', async () => {

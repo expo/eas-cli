@@ -1,13 +1,12 @@
+import { bunyan } from '@expo/logger';
+import assert from 'assert';
 import { randomUUID } from 'crypto';
+import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import zlib from 'zlib';
 import { Readable, Writable, pipeline } from 'stream';
-import assert from 'assert';
 import { promisify } from 'util';
-
-import { bunyan } from '@expo/logger';
-import fs from 'fs-extra';
+import zlib from 'zlib';
 
 import GCS from './client';
 
@@ -137,17 +136,17 @@ class GCSLoggerStream extends Writable {
 
     let resolveFn: PromiseResolveFn;
     this.hasChangesToUpload = false;
-    this.uploadingPromise = new Promise((res) => {
+    this.uploadingPromise = new Promise(res => {
       resolveFn = res;
     });
     return await this.upload()
-      .then((result) => {
+      .then(result => {
         return result;
       })
-      .catch((err) => {
+      .catch(err => {
         this.logger.error({ err }, 'Failed to upload logs file to GCS');
       })
-      .then((result) => {
+      .then(result => {
         this.uploadingPromise = undefined;
         resolveFn();
         return result;

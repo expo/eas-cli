@@ -13,7 +13,7 @@ const fsRm = (
     .then(() => {
       callback(null);
     })
-    .catch((err) => {
+    .catch(err => {
       callback(err);
     });
 };

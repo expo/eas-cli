@@ -1,11 +1,10 @@
-import assert from 'assert';
-import path from 'path';
-
-import fs from 'fs-extra';
 import { bunyan } from '@expo/logger';
-import { ExpoRunFormatter } from '@expo/xcpretty';
 import spawnAsync, { SpawnPromise, SpawnResult } from '@expo/spawn-async';
+import { ExpoRunFormatter } from '@expo/xcpretty';
+import assert from 'assert';
 import fg from 'fast-glob';
+import fs from 'fs-extra';
+import path from 'path';
 
 const CHECK_FILE_INTERVAL_MS = 1000;
 
@@ -28,7 +27,7 @@ export class XcodeBuildLogger {
         void this.startBuildLogger(this.logsPath);
         return;
       }
-      await new Promise((res) => setTimeout(res, CHECK_FILE_INTERVAL_MS));
+      await new Promise(res => setTimeout(res, CHECK_FILE_INTERVAL_MS));
     }
   }
 

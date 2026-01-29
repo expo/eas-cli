@@ -7,7 +7,7 @@ export function promiseRetryWithCondition<TFn extends (...args: any[]) => Promis
   options: OperationOptions = { retries: 3, factor: 2 }
 ): (...funcArgs: Parameters<TFn>) => Promise<ReturnType<TFn>> {
   return (...funcArgs) =>
-    promiseRetry<ReturnType<TFn>>(async (retry) => {
+    promiseRetry<ReturnType<TFn>>(async retry => {
       try {
         return await fn(...funcArgs);
       } catch (e) {

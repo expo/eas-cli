@@ -1,19 +1,17 @@
-import path from 'path';
-
 import { Env, Ios } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
-import { BuildContext, SkipNativeBuildError } from '../context';
-import { COMMON_FASTLANE_ENV } from '../common/fastlane';
-
-import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from './gymfile';
-import { Credentials } from './credentials/manager';
-import { XcodeBuildLogger } from './xcpretty';
-import { isTVOS } from './tvos';
+import type { Credentials } from './credentials/manager';
 import { createFastfileForResigningBuild } from './fastfile';
+import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from './gymfile';
+import { isTVOS } from './tvos';
+import { XcodeBuildLogger } from './xcpretty';
+import { COMMON_FASTLANE_ENV } from '../common/fastlane';
+import { BuildContext, SkipNativeBuildError } from '../context';
 
 export async function runFastlaneGym<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,

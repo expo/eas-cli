@@ -1,5 +1,5 @@
-import { BuildConfigError, BuildStepRuntimeError } from '../../errors';
 import { getError } from '../../__tests__/utils/error';
+import { BuildConfigError, BuildStepRuntimeError } from '../../errors';
 import {
   findOutputPaths,
   getObjectValueForInterpolation,
@@ -18,18 +18,15 @@ describe(interpolateWithInputs, () => {
 
 describe(interpolateWithOutputs, () => {
   test('interpolation', () => {
-    const result = interpolateWithOutputs(
-      'foo${ steps.abc123.foo }${ steps.abc123.bar }',
-      (path) => {
-        if (path === 'steps.abc123.foo') {
-          return 'bar';
-        } else if (path === 'steps.abc123.bar') {
-          return 'baz';
-        } else {
-          return 'x';
-        }
+    const result = interpolateWithOutputs('foo${ steps.abc123.foo }${ steps.abc123.bar }', path => {
+      if (path === 'steps.abc123.foo') {
+        return 'bar';
+      } else if (path === 'steps.abc123.bar') {
+        return 'baz';
+      } else {
+        return 'x';
       }
-    );
+    });
     expect(result).toBe('foobarbaz');
   });
 });
@@ -38,7 +35,7 @@ describe(interpolateWithGlobalContext, () => {
   test('interpolation', () => {
     const result = interpolateWithGlobalContext(
       'foo${ eas.prop1.prop2.prop3.value4 }${ eas.prop1.prop2.prop3.value5 }',
-      (path) => {
+      path => {
         if (path === 'eas.prop1.prop2.prop3.value4') {
           return 'bar';
         } else if (path === 'eas.prop1.prop2.prop3.value5') {

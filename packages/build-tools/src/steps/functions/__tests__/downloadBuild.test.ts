@@ -1,14 +1,13 @@
+import { createLogger } from '@expo/logger';
+import fetch, { Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 
-import { createLogger } from '@expo/logger';
-import fetch, { Response } from 'node-fetch';
-
-import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { createDownloadBuildFunction, downloadBuildAsync } from '../downloadBuild';
 
 // contains a 'TestApp.app/TestApp' file with 'i am executable' content
 const APP_TAR_GZ_BUFFER = Buffer.from(

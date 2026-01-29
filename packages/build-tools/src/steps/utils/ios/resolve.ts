@@ -1,7 +1,6 @@
-import assert from 'assert';
-
-import { Ios } from '@expo/eas-build-job';
 import { IOSConfig } from '@expo/config-plugins';
+import { Ios } from '@expo/eas-build-job';
+import assert from 'assert';
 
 export function resolveScheme(workingDir: string, job: Ios.Job, scheme?: string): string {
   if (scheme) {

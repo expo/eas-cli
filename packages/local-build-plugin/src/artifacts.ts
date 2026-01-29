@@ -1,7 +1,6 @@
-import path from 'path';
-
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
+import path from 'path';
 import * as tar from 'tar';
 
 import config from './config';
@@ -22,7 +21,7 @@ export async function prepareArtifacts(
       (acc, item) => getCommonParentDir(acc, item),
       artifactPaths[0]
     );
-    const relativePathsToArchive = artifactPaths.map((absolute) =>
+    const relativePathsToArchive = artifactPaths.map(absolute =>
       path.relative(parentDir, absolute)
     );
 

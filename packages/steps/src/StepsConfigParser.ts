@@ -1,25 +1,24 @@
-import assert from 'node:assert';
-
 import {
   FunctionStep,
-  isStepFunctionStep,
-  isStepShellStep,
   ShellStep,
   Step,
+  isStepFunctionStep,
+  isStepShellStep,
   validateSteps,
 } from '@expo/eas-build-job';
+import assert from 'node:assert';
 
+import { AbstractConfigParser } from './AbstractConfigParser';
 import { BuildFunction, BuildFunctionById } from './BuildFunction';
 import {
   BuildFunctionGroup,
   BuildFunctionGroupById,
   createBuildFunctionGroupByIdMapping,
 } from './BuildFunctionGroup';
-import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStep } from './BuildStep';
-import { AbstractConfigParser } from './AbstractConfigParser';
-import { BuildConfigError } from './errors';
+import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepOutput } from './BuildStepOutput';
+import { BuildConfigError } from './errors';
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
@@ -172,7 +171,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     stepDisplayName: string
   ): BuildStepOutput[] {
     return stepOutputs.map(
-      (entry) =>
+      entry =>
         new BuildStepOutput(this.ctx, {
           id: entry.name,
           stepDisplayName,
@@ -201,7 +200,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     const externalFunctionIdsSet = new Set(externalFunctionIds);
     const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupIds);
     const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(
-      (calledFunctionOrFunctionGroup) => {
+      calledFunctionOrFunctionGroup => {
         return (
           !externalFunctionIdsSet.has(calledFunctionOrFunctionGroup) &&
           !externalFunctionGroupsIdsSet.has(calledFunctionOrFunctionGroup)
@@ -211,7 +210,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     if (nonExistentFunctionsOrFunctionGroups.length > 0) {
       throw new BuildConfigError(
         `Calling non-existent functions: ${nonExistentFunctionsOrFunctionGroups
-          .map((f) => `"${f}"`)
+          .map(f => `"${f}"`)
           .join(', ')}.`
       );
     }

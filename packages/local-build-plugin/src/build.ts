@@ -1,17 +1,16 @@
-import path from 'path';
-
-import { BuildJob, Platform, ArchiveSourceType, Metadata, Workflow } from '@expo/eas-build-job';
-import pickBy from 'lodash/pickBy';
-import fs from 'fs-extra';
-import chalk from 'chalk';
 import { Artifacts, SkipNativeBuildError } from '@expo/build-tools';
+import { ArchiveSourceType, BuildJob, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { DEBUG } from 'bunyan';
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import pickBy from 'lodash/pickBy';
+import path from 'path';
 
 import { buildAndroidAsync } from './android';
 import config from './config';
 import { buildIosAsync } from './ios';
-import { prepareWorkingdirAsync } from './workingdir';
 import { createLogger } from './logger';
+import { prepareWorkingdirAsync } from './workingdir';
 
 export async function buildAsync(job: BuildJob, metadata: Metadata): Promise<void> {
   const logger = createLogger(job.loggerLevel);

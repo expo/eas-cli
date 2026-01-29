@@ -1,29 +1,27 @@
-import path from 'path';
-
-import spawn, { SpawnResult } from '@expo/turtle-spawn';
-import fs from 'fs-extra';
+import { ExpoConfig } from '@expo/config';
 import { BuildJob, BuildPhase, Ios, Job, Platform } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
-import nullthrows from 'nullthrows';
-import { ExpoConfig } from '@expo/config';
 import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import spawn, { SpawnResult } from '@expo/turtle-spawn';
+import fs from 'fs-extra';
+import nullthrows from 'nullthrows';
+import path from 'path';
 
+import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from './easBuildInternal';
+import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
+import { prepareProjectSourcesAsync } from './projectSources';
 import { BuildContext } from '../context';
 import { deleteXcodeEnvLocalIfExistsAsync } from '../ios/xcodeEnv';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { setUpNpmrcAsync } from '../utils/npmrc';
 import {
-  shouldUseFrozenLockfile,
-  isAtLeastNpm7Async,
   getPackageVersionFromPackageJson,
+  isAtLeastNpm7Async,
+  shouldUseFrozenLockfile,
 } from '../utils/packageManager';
-import { readEasJsonContents, readPackageJson } from '../utils/project';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { readEasJsonContents, readPackageJson } from '../utils/project';
 import { retryAsync } from '../utils/retry';
-
-import { prepareProjectSourcesAsync } from './projectSources';
-import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
-import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from './easBuildInternal';
 
 const MAX_EXPO_DOCTOR_TIMEOUT_MS = 30 * 1000;
 const INSTALL_DEPENDENCIES_WARN_TIMEOUT_MS = 15 * 60 * 1000;
@@ -171,7 +169,7 @@ async function runExpoDoctor<TJob extends Job>(ctx: BuildContext<TJob>): Promise
       timedOut = true;
       const ppid = nullthrows(promise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach((pid) => {
+      pids.forEach(pid => {
         process.kill(pid);
       });
       ctx.reportError?.(`"expo doctor" timed out`, undefined, {
@@ -234,7 +232,7 @@ async function runInstallDependenciesAsync<TJob extends Job>(
       );
       const ppid = nullthrows(installDependenciesSpawnPromise.child.pid);
       const pids = await getParentAndDescendantProcessPidsAsync(ppid);
-      pids.forEach((pid) => {
+      pids.forEach(pid => {
         process.kill(pid);
       });
       ctx.reportError?.('"Install dependencies" phase takes a very long time', undefined, {

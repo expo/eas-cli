@@ -1,9 +1,8 @@
-import path from 'path';
 import { randomBytes } from 'crypto';
-import { Readable } from 'stream';
-
-import fetch, { RequestInit, Response } from 'node-fetch';
 import fs from 'fs-extra';
+import fetch, { RequestInit, Response } from 'node-fetch';
+import path from 'path';
+import { Readable } from 'stream';
 
 import GCS from '../client';
 

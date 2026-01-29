@@ -1,11 +1,10 @@
 import { BuildJob } from '@expo/eas-build-job';
-import { SpawnOptions } from '@expo/turtle-spawn';
 import { bunyan } from '@expo/logger';
-
-import { BuildContext } from '../context';
-import { runExpoCliCommand } from '../utils/project';
+import { SpawnOptions } from '@expo/turtle-spawn';
 
 import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
+import { BuildContext } from '../context';
+import { runExpoCliCommand } from '../utils/project';
 
 export interface PrebuildOptions {
   extraEnvs?: Record<string, string>;

@@ -1,6 +1,6 @@
 import { Job, Platform } from '@expo/eas-build-job';
-import chalk from 'chalk';
 import spawnAsync from '@expo/spawn-async';
+import chalk from 'chalk';
 import fs from 'fs-extra';
 
 interface Validator {

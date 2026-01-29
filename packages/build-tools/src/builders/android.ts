@@ -1,31 +1,29 @@
-import path from 'path';
-
 import { Android, BuildMode, BuildPhase, Workflow } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
+import { runBuilderWithHooksAsync } from './common';
+import { runCustomBuildAsync } from './custom';
+import { restoreCredentials } from '../android/credentials';
+import {
+  ensureLFLineEndingsInGradlewScript,
+  resolveGradleCommand,
+  runGradleCommand,
+} from '../android/gradle';
+import { configureBuildGradle } from '../android/gradleConfig';
+import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
+import { prebuildAsync } from '../common/prebuild';
+import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
+import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
-import {
-  runGradleCommand,
-  ensureLFLineEndingsInGradlewScript,
-  resolveGradleCommand,
-} from '../android/gradle';
-import { uploadApplicationArchive } from '../utils/artifacts';
 import { Hook, runHookIfPresent } from '../utils/hooks';
-import { restoreCredentials } from '../android/credentials';
-import { configureBuildGradle } from '../android/gradleConfig';
-import { setupAsync } from '../common/setup';
-import { prebuildAsync } from '../common/prebuild';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
-import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
-
-import { runBuilderWithHooksAsync } from './common';
-import { runCustomBuildAsync } from './custom';
 
 export default async function androidBuilder(ctx: BuildContext<Android.Job>): Promise<Artifacts> {
   if (ctx.job.mode === BuildMode.BUILD) {

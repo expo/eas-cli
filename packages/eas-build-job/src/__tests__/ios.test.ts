@@ -1,7 +1,6 @@
-import { randomUUID } from 'crypto';
-
-import Joi from 'joi';
 import { LoggerLevel } from '@expo/logger';
+import { randomUUID } from 'crypto';
+import Joi from 'joi';
 
 import { ArchiveSourceType, BuildMode, Platform, Workflow } from '../common';
 import * as Ios from '../ios';
@@ -283,7 +282,7 @@ describe('Ios.JobSchema', () => {
   test('valid job with environment', () => {
     const environments = ['production', 'preview', 'development', 'staging', 'custom-env'];
 
-    environments.forEach((env) => {
+    environments.forEach(env => {
       const jobWithEnvironment = {
         secrets: {
           buildCredentials,

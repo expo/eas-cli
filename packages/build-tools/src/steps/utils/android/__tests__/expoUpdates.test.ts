@@ -1,12 +1,11 @@
-import path from 'path';
-
-import { vol } from 'memfs';
 import { AndroidConfig } from '@expo/config-plugins';
+import { vol } from 'memfs';
+import path from 'path';
 
 import {
   AndroidMetadataName,
-  androidSetChannelNativelyAsync,
   androidGetNativelyDefinedChannelAsync,
+  androidSetChannelNativelyAsync,
   androidSetRuntimeVersionNativelyAsync,
 } from '../expoUpdates';
 

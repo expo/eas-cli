@@ -1,8 +1,7 @@
-import assert from 'assert';
-
-import fs from 'fs-extra';
 import { AndroidConfig } from '@expo/config-plugins';
 import { BuildJob, Job } from '@expo/eas-build-job';
+import assert from 'assert';
+import fs from 'fs-extra';
 
 import { BuildContext } from '../context';
 

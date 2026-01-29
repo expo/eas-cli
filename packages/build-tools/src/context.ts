@@ -1,29 +1,28 @@
-import path from 'path';
-
-import fs from 'fs-extra';
+import { ExpoConfig } from '@expo/config';
 import {
-  ManagedArtifactType,
   BuildPhase,
   BuildPhaseResult,
   BuildPhaseStats,
-  Job,
-  LogMarker,
   Env,
-  errors,
-  Metadata,
   EnvironmentSecretType,
   GenericArtifactType,
+  Job,
+  LogMarker,
+  ManagedArtifactType,
+  Metadata,
+  errors,
   isGenericArtifact,
 } from '@expo/eas-build-job';
-import { ExpoConfig } from '@expo/config';
-import { bunyan } from '@expo/logger';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
+import { bunyan } from '@expo/logger';
 import { Client, fetchExchange } from '@urql/core';
+import fs from 'fs-extra';
+import path from 'path';
 
-import { PackageManager, resolvePackageManager } from './utils/packageManager';
 import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
+import { PackageManager, resolvePackageManager } from './utils/packageManager';
 
 export type Artifacts = Partial<Record<ManagedArtifactType, string>>;
 
@@ -368,7 +367,7 @@ export class BuildContext<TJob extends Job = Job> {
     const filenames = await fs.readdir(this.buildEnvsDirectory);
 
     const entries = await Promise.all(
-      filenames.map(async (basename) => {
+      filenames.map(async basename => {
         const rawContents = await fs.readFile(
           path.join(this.buildEnvsDirectory, basename),
           'utf-8'
@@ -377,7 +376,7 @@ export class BuildContext<TJob extends Job = Job> {
       })
     );
     await Promise.all(
-      filenames.map(async (basename) => {
+      filenames.map(async basename => {
         await fs.remove(path.join(this.buildEnvsDirectory, basename));
       })
     );

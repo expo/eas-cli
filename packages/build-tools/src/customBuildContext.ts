@@ -1,6 +1,3 @@
-import assert from 'assert';
-import path from 'path';
-
 import {
   BuildJob,
   BuildPhase,
@@ -12,7 +9,9 @@ import {
   StaticJobInterpolationContext,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { ExternalBuildContextProvider, BuildRuntimePlatform } from '@expo/steps';
+import { BuildRuntimePlatform, ExternalBuildContextProvider } from '@expo/steps';
+import assert from 'assert';
+import path from 'path';
 
 import { ArtifactToUpload, BuildContext } from './context';
 

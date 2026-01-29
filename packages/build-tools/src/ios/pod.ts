@@ -1,7 +1,6 @@
-import path from 'path';
-
 import { Ios } from '@expo/eas-build-job';
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import path from 'path';
 
 import { BuildContext } from '../context';
 

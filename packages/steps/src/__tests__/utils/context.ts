@@ -1,19 +1,17 @@
-import os from 'os';
-import path from 'path';
-
 import { JobInterpolationContext, StaticJobInterpolationContext } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import os from 'os';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  ExternalBuildContextProvider,
-  BuildStepGlobalContext,
-  BuildStepContext,
-} from '../../BuildStepContext';
-import { BuildRuntimePlatform } from '../../BuildRuntimePlatform';
-import { BuildStepEnv } from '../../BuildStepEnv';
-
 import { createMockLogger } from './logger';
+import { BuildRuntimePlatform } from '../../BuildRuntimePlatform';
+import {
+  BuildStepContext,
+  BuildStepGlobalContext,
+  ExternalBuildContextProvider,
+} from '../../BuildStepContext';
+import { BuildStepEnv } from '../../BuildStepEnv';
 
 export class MockContextProvider implements ExternalBuildContextProvider {
   private _env: BuildStepEnv = {};

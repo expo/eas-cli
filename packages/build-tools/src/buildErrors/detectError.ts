@@ -1,11 +1,10 @@
 import { BuildPhase, errors } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
-import { findXcodeBuildLogsPathAsync } from '../ios/xcodeBuildLogs';
-
+import { buildErrorHandlers } from './buildErrorHandlers';
 import { ErrorContext, ErrorHandler, XCODE_BUILD_PHASE } from './errors.types';
 import { userErrorHandlers } from './userErrorHandlers';
-import { buildErrorHandlers } from './buildErrorHandlers';
+import { findXcodeBuildLogsPathAsync } from '../ios/xcodeBuildLogs';
 
 async function maybeReadXcodeBuildLogs(
   phase: BuildPhase,
@@ -38,14 +37,14 @@ function resolveError<TError extends Error>(
   const { platform } = job;
   const logs = logLines.join('\n');
   const handlers = errorHandlers
-    .filter((handler) => handler.platform === platform || !handler.platform)
+    .filter(handler => handler.platform === platform || !handler.platform)
     .filter(
-      (handler) =>
+      handler =>
         (handler.phase === XCODE_BUILD_PHASE && phase === BuildPhase.RUN_FASTLANE) ||
         handler.phase === phase ||
         !handler.phase
     )
-    .filter((handler) => ('mode' in job && handler.mode === job.mode) || !handler.mode);
+    .filter(handler => ('mode' in job && handler.mode === job.mode) || !handler.mode);
 
   for (const handler of handlers) {
     const regexp =

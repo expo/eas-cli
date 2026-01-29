@@ -1,8 +1,7 @@
+import { createGlobalContextMock } from './utils/context';
 import { BuildStep } from '../BuildStep';
 import { BuildStepOutput, makeBuildStepOutputByIdMap } from '../BuildStepOutput';
 import { BuildStepRuntimeError } from '../errors';
-
-import { createGlobalContextMock } from './utils/context';
 
 describe(BuildStepOutput, () => {
   test('basic case', () => {

@@ -1,23 +1,22 @@
+import { Platform } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   spawnAsync,
 } from '@expo/steps';
-import { Platform } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import nullthrows from 'nullthrows';
 
+import { sendCcacheStatsAsync } from './ccacheStats';
+import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
 import {
   CACHE_KEY_PREFIX_BY_PLATFORM,
   generateDefaultBuildCacheKeyAsync,
   getCcachePath,
 } from '../../utils/cacheKey';
 import { TurtleFetchError } from '../../utils/turtleFetch';
-
-import { downloadCacheAsync, decompressCacheAsync, downloadPublicCacheAsync } from './restoreCache';
-import { sendCcacheStatsAsync } from './ccacheStats';
 
 export function createRestoreBuildCacheFunction(): BuildFunction {
   return new BuildFunction({

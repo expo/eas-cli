@@ -1,10 +1,9 @@
-import get from 'lodash.get';
 import cloneDeep from 'lodash.clonedeep';
-
-import { BuildStepInputValueTypeName } from '../BuildStepInput';
-import { BuildConfigError, BuildStepRuntimeError } from '../errors';
+import get from 'lodash.get';
 
 import { nullthrows } from './nullthrows';
+import { BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildConfigError, BuildStepRuntimeError } from '../errors';
 
 export const BUILD_STEP_INPUT_EXPRESSION_REGEXP = /\${\s*(inputs\.[\S]+)\s*}/;
 export const BUILD_STEP_OUTPUT_EXPRESSION_REGEXP = /\${\s*(steps\.[\S]+)\s*}/;
@@ -41,7 +40,7 @@ export function interpolateObjectWithOutputs(
   fn: (path: string) => string
 ): object {
   const interpolableObjectCopy = cloneDeep(interpolableObject);
-  Object.keys(interpolableObject).forEach((property) => {
+  Object.keys(interpolableObject).forEach(property => {
     const propertyValue = interpolableObject[property as keyof typeof interpolableObject];
     if (['string', 'object'].includes(typeof propertyValue)) {
       interpolableObjectCopy[property as keyof typeof interpolableObjectCopy] =
@@ -101,7 +100,7 @@ export function interpolateObjectWithGlobalContext(
   fn: (path: string) => string
 ): object {
   const templateObjectCopy = cloneDeep(templateObject);
-  Object.keys(templateObject).forEach((property) => {
+  Object.keys(templateObject).forEach(property => {
     const propertyValue = templateObject[property as keyof typeof templateObject];
     if (['string', 'object'].includes(typeof propertyValue)) {
       templateObjectCopy[property as keyof typeof templateObjectCopy] =

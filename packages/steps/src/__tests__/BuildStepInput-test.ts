@@ -1,14 +1,13 @@
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
-import { BuildStepRuntimeError } from '../errors';
+import { createGlobalContextMock } from './utils/context';
 import { BuildStep } from '../BuildStep';
 import {
   BuildStepInput,
   BuildStepInputValueTypeName,
   makeBuildStepInputByIdMap,
 } from '../BuildStepInput';
-
-import { createGlobalContextMock } from './utils/context';
+import { BuildStepRuntimeError } from '../errors';
 
 describe(BuildStepInput, () => {
   test('basic case string', () => {

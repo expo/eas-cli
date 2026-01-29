@@ -1,18 +1,17 @@
-import assert from 'assert';
-import path from 'path';
-import fs from 'fs/promises';
-
-import nullthrows from 'nullthrows';
 import { BuildJob, BuildPhase, BuildTrigger, Ios, Platform } from '@expo/eas-build-job';
 import { BuildConfigParser, BuildStepGlobalContext, StepsConfigParser, errors } from '@expo/steps';
+import assert from 'assert';
+import fs from 'fs/promises';
+import nullthrows from 'nullthrows';
+import path from 'path';
 
-import { Artifacts, BuildContext } from '../context';
-import { prepareProjectSourcesAsync } from '../common/projectSources';
-import { getEasFunctions } from '../steps/easFunctions';
-import { CustomBuildContext } from '../customBuildContext';
 import { resolveEnvFromBuildProfileAsync } from '../common/easBuildInternal';
-import { getEasFunctionGroups } from '../steps/easFunctionGroups';
+import { prepareProjectSourcesAsync } from '../common/projectSources';
+import { Artifacts, BuildContext } from '../context';
+import { CustomBuildContext } from '../customBuildContext';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
+import { getEasFunctionGroups } from '../steps/easFunctionGroups';
+import { getEasFunctions } from '../steps/easFunctions';
 import { retryAsync } from '../utils/retry';
 
 export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<Artifacts> {

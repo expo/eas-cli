@@ -1,7 +1,6 @@
-import { randomUUID } from 'crypto';
-
-import Joi from 'joi';
 import { LoggerLevel } from '@expo/logger';
+import { randomUUID } from 'crypto';
+import Joi from 'joi';
 
 import * as Android from '../android';
 import { ArchiveSourceType, BuildMode, BuildTrigger, Platform, Workflow } from '../common';
@@ -147,7 +146,7 @@ describe('Android.JobSchema', () => {
   test('valid job with environment', () => {
     const environments = ['production', 'preview', 'development', 'staging', 'custom-env'];
 
-    environments.forEach((env) => {
+    environments.forEach(env => {
       const jobWithEnvironment = {
         secrets,
         platform: Platform.ANDROID,

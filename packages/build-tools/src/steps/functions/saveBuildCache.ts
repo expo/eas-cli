@@ -1,19 +1,17 @@
-import fs from 'fs';
-
+import { Platform } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
   BuildStepInputValueTypeName,
   spawnAsync,
 } from '@expo/steps';
-import { Platform } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
+import fs from 'fs';
 import nullthrows from 'nullthrows';
 
-import { generateDefaultBuildCacheKeyAsync, getCcachePath } from '../../utils/cacheKey';
-
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
+import { generateDefaultBuildCacheKeyAsync, getCcachePath } from '../../utils/cacheKey';
 
 export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFunction {
   return new BuildFunction({

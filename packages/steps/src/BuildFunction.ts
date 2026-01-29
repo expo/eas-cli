@@ -3,9 +3,9 @@ import assert from 'assert';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputProvider } from './BuildStepInput';
 import { BuildStepOutputProvider } from './BuildStepOutput';
-import { BuildStepEnv } from './BuildStepEnv';
 import { createCustomFunctionCall } from './utils/customFunction';
 
 export type BuildFunctionById = Record<string, BuildFunction>;
@@ -111,14 +111,14 @@ export class BuildFunction {
       name: buildStepName,
     });
 
-    const inputs = this.inputProviders?.map((inputProvider) => {
+    const inputs = this.inputProviders?.map(inputProvider => {
       const input = inputProvider(ctx, buildStepId);
       if (input.id in callInputs) {
         input.set(callInputs[input.id]);
       }
       return input;
     });
-    const outputs = this.outputProviders?.map((outputProvider) => outputProvider(ctx, buildStepId));
+    const outputs = this.outputProviders?.map(outputProvider => outputProvider(ctx, buildStepId));
 
     return new BuildStep(ctx, {
       id: buildStepId,

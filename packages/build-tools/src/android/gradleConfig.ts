@@ -1,8 +1,7 @@
-import path from 'path';
-
 import { AndroidConfig } from '@expo/config-plugins';
 import { Android } from '@expo/eas-build-job';
 import fs from 'fs-extra';
+import path from 'path';
 
 import { BuildContext } from '../context';
 import { EasBuildGradle } from '../templates/EasBuildGradle';
@@ -53,6 +52,6 @@ function hasLine(haystack: string, needle: string): boolean {
       .replace(/\r\n/g, '\n')
       .split('\n')
       // Check for both single and double quotes
-      .some((line) => line === needle || line === needle.replace(/"/g, "'"))
+      .some(line => line === needle || line === needle.replace(/"/g, "'"))
   );
 }

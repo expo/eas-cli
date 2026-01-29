@@ -1,9 +1,9 @@
 import {
   BuildStepContext,
+  BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
-  BuildStepEnv,
 } from '@expo/steps';
 
 interface MyTsFunctionInputs {

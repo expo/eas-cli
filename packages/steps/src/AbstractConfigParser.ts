@@ -46,14 +46,14 @@ export abstract class AbstractConfigParser {
     if (externalFunctions === undefined) {
       return;
     }
-    const externalFunctionIds = externalFunctions.map((f) => f.getFullId());
+    const externalFunctionIds = externalFunctions.map(f => f.getFullId());
     const duplicatedExternalFunctionIds = duplicates(externalFunctionIds);
     if (duplicatedExternalFunctionIds.length === 0) {
       return;
     }
     throw new BuildConfigError(
       `Provided external functions with duplicated IDs: ${duplicatedExternalFunctionIds
-        .map((id) => `"${id}"`)
+        .map(id => `"${id}"`)
         .join(', ')}`
     );
   }
@@ -62,14 +62,14 @@ export abstract class AbstractConfigParser {
     if (externalFunctionGroups === undefined) {
       return;
     }
-    const externalFunctionGroupIds = externalFunctionGroups.map((f) => f.getFullId());
+    const externalFunctionGroupIds = externalFunctionGroups.map(f => f.getFullId());
     const duplicatedExternalFunctionGroupIds = duplicates(externalFunctionGroupIds);
     if (duplicatedExternalFunctionGroupIds.length === 0) {
       return;
     }
     throw new BuildConfigError(
       `Provided external function groups with duplicated IDs: ${duplicatedExternalFunctionGroupIds
-        .map((id) => `"${id}"`)
+        .map(id => `"${id}"`)
         .join(', ')}`
     );
   }
@@ -78,7 +78,7 @@ export abstract class AbstractConfigParser {
     if (this.externalFunctions === undefined) {
       return [];
     }
-    const ids = this.externalFunctions.map((f) => f.getFullId());
+    const ids = this.externalFunctions.map(f => f.getFullId());
     return uniq(ids);
   }
 
@@ -86,7 +86,7 @@ export abstract class AbstractConfigParser {
     if (this.externalFunctionGroups === undefined) {
       return [];
     }
-    const ids = this.externalFunctionGroups.map((f) => f.getFullId());
+    const ids = this.externalFunctionGroups.map(f => f.getFullId());
     return uniq(ids);
   }
 }

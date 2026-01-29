@@ -1,15 +1,14 @@
+import { asyncResult } from '@expo/results';
+import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import { setTimeout } from 'timers/promises';
 
-import spawn from '@expo/turtle-spawn';
-import { asyncResult } from '@expo/results';
-
+import { createMockLogger } from '../../__tests__/utils/logger';
 import {
   AndroidDeviceSerialId,
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
-import { createMockLogger } from '../../__tests__/utils/logger';
 
 // We need to use real fs for cloning devices to work.
 jest.unmock('fs');
@@ -78,7 +77,7 @@ describe('AndroidEmulatorUtils', () => {
       });
 
       const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env: process.env });
-      expect(devices.map((device) => device.serialId)).toContain(serialId);
+      expect(devices.map(device => device.serialId)).toContain(serialId);
     }, 30_000);
   });
 

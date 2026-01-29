@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto';
-
 import { StepMetricsCollection } from '@expo/steps';
+import { randomUUID } from 'crypto';
 
 import { uploadStepMetricsToWwwAsync } from '../stepMetrics';
 import { turtleFetch } from '../turtleFetch';

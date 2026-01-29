@@ -1,8 +1,5 @@
-import assert from 'assert';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -13,8 +10,10 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import { bunyan } from '@expo/logger';
-import { asyncResult } from '@expo/results';
+import assert from 'assert';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({

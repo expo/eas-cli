@@ -1,7 +1,7 @@
-import { getConfig, ProjectConfig } from '@expo/config';
+import { ProjectConfig, getConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import { bunyan, LoggerLevel } from '@expo/logger';
 import { load } from '@expo/env';
+import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
 
 export function readAppConfig({

@@ -1,6 +1,6 @@
+import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import fetch, { Response } from 'node-fetch';
-import { bunyan } from '@expo/logger';
 
 export function createSendSlackMessageFunction(): BuildFunction {
   return new BuildFunction({

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-
 import * as PackageManager from '@expo/package-manager';
+import { execSync } from 'child_process';
 
 export type PackageManagerName = 'npm' | 'pnpm' | 'yarn';
 

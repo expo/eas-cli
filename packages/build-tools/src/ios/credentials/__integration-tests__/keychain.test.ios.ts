@@ -1,14 +1,13 @@
-import os from 'os';
-import path from 'path';
-
 import { Ios } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import fs from 'fs-extra';
+import os from 'os';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
 
 import { BuildContext } from '../../../context';
-import Keychain from '../keychain';
 import { distributionCertificate } from '../__tests__/fixtures';
+import Keychain from '../keychain';
 
 const mockLogger = createLogger({ name: 'mock-logger' });
 

@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto';
-
 import { ManagedArtifactType } from '@expo/eas-build-job';
+import { randomUUID } from 'crypto';
 import { vol } from 'memfs';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';

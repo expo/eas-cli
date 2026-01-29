@@ -1,18 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-
-import resolveFrom from 'resolve-from';
-import { Platform, type Android, type Ios, type Job } from '@expo/eas-build-job';
+import { type Android, type Ios, type Job, Platform } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
-import {
-  BuildFunction,
-  BuildStepInput,
-  BuildStepInputValueTypeName,
-  BuildStepOutput,
-  spawnAsync,
-} from '@expo/steps';
 import {
   type AndroidSigningOptions,
   type IosSigningOptions,
@@ -21,6 +8,18 @@ import {
   type SpawnProcessPromise,
   type SpawnProcessResult,
 } from '@expo/repack-app';
+import {
+  BuildFunction,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  BuildStepOutput,
+  spawnAsync,
+} from '@expo/steps';
+import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import resolveFrom from 'resolve-from';
 
 import { COMMON_FASTLANE_ENV } from '../../common/fastlane';
 import IosCredentialsManager from '../utils/ios/credentials/manager';
@@ -192,7 +191,7 @@ function createSpawnAsyncStepAdapter({
       ...(verbose ? { logger, stdio: 'pipe' } : { logger: undefined }),
     });
     const child = promise.child;
-    const wrappedPromise = promise.catch((error) => {
+    const wrappedPromise = promise.catch(error => {
       logger.error(`Error while running command: ${command} ${args.join(' ')}`);
       logger.error(`stdout: ${error.stdout}`);
       logger.error(`stderr: ${error.stderr}`);

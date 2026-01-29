@@ -1,7 +1,7 @@
-import resolveFrom from 'resolve-from';
-import spawnAsync from '@expo/turtle-spawn';
 import { BuildStepEnv } from '@expo/steps';
+import spawnAsync from '@expo/turtle-spawn';
 import fs from 'fs-extra';
+import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
 export class ExpoFingerprintCLIModuleNotFoundError extends Error {}

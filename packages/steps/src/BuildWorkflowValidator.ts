@@ -1,6 +1,5 @@
-import path from 'path';
-
 import fs from 'fs-extra';
+import path from 'path';
 
 import { BuildStep } from './BuildStep';
 import { BuildStepInputValueTypeName } from './BuildStepInput';
@@ -31,7 +30,7 @@ export class BuildWorkflowValidator {
       return [];
     } else {
       const error = new BuildConfigError(
-        `Duplicated step IDs: ${duplicatedStepIds.map((i) => `"${i}"`).join(', ')}`
+        `Duplicated step IDs: ${duplicatedStepIds.map(i => `"${i}"`).join(', ')}`
       );
       return [error];
     }
@@ -40,7 +39,7 @@ export class BuildWorkflowValidator {
   private validateInputs(): BuildConfigError[] {
     const errors: BuildConfigError[] = [];
 
-    const allStepIds = new Set(this.workflow.buildSteps.map((s) => s.id));
+    const allStepIds = new Set(this.workflow.buildSteps.map(s => s.id));
     const visitedStepByStepId: Record<string, BuildStep> = {};
     for (const currentStep of this.workflow.buildSteps) {
       for (const currentStepInput of currentStep.inputs ?? []) {
@@ -81,10 +80,10 @@ export class BuildWorkflowValidator {
           const error = new BuildConfigError(
             `Input parameter "${currentStepInput.id}" for step "${
               currentStep.displayName
-            }" is set to "${currentStepInput.rawValue}" which is not one of the allowed values: ${nullthrows(
-              currentStepInput.allowedValues
-            )
-              .map((i) => `"${i}"`)
+            }" is set to "${
+              currentStepInput.rawValue
+            }" which is not one of the allowed values: ${nullthrows(currentStepInput.allowedValues)
+              .map(i => `"${i}"`)
               .join(', ')}.`
           );
           errors.push(error);
@@ -133,7 +132,7 @@ export class BuildWorkflowValidator {
             step.supportedRuntimePlatforms,
             `step.supportedRuntimePlatforms can't be falsy if canBeRunOnRuntimePlatform() is false`
           )
-            .map((p) => `"${p}"`)
+            .map(p => `"${p}"`)
             .join(', ')}.`
         );
         errors.push(error);

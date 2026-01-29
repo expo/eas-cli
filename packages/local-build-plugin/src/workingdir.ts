@@ -1,8 +1,7 @@
-import path from 'path';
-
+import { bunyan } from '@expo/logger';
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import { bunyan } from '@expo/logger';
+import path from 'path';
 
 import config from './config';
 import { registerHandler } from './exit';

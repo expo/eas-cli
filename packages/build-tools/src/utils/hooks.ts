@@ -1,10 +1,9 @@
 import { BuildJob } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 
-import { BuildContext } from '../context';
-
 import { PackageManager } from './packageManager';
 import { readPackageJson } from './project';
+import { BuildContext } from '../context';
 
 export enum Hook {
   PRE_INSTALL = 'eas-build-pre-install',

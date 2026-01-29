@@ -1,10 +1,9 @@
-import path from 'path';
-import assert from 'assert';
-
-import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import { Android, Env, Job, Platform } from '@expo/eas-build-job';
-import fs from 'fs-extra';
 import { bunyan } from '@expo/logger';
+import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import assert from 'assert';
+import fs from 'fs-extra';
+import path from 'path';
 
 import { BuildContext } from '../context';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';

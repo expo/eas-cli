@@ -1,14 +1,11 @@
-import assert from 'assert';
-import os from 'os';
-import path from 'path';
-
 import { Ios } from '@expo/eas-build-job';
+import assert from 'assert';
 import fs from 'fs-extra';
 import { orderBy } from 'lodash';
 import nullthrows from 'nullthrows';
+import os from 'os';
+import path from 'path';
 import { v4 as uuid } from 'uuid';
-
-import { BuildContext } from '../../context';
 
 import * as distributionCertificateUtils from './distributionCertificate';
 import Keychain from './keychain';
@@ -16,6 +13,7 @@ import ProvisioningProfile, {
   DistributionType,
   ProvisioningProfileData,
 } from './provisioningProfile';
+import { BuildContext } from '../../context';
 
 export interface Credentials {
   applicationTargetProvisioningProfile: ProvisioningProfile<Ios.Job>;
