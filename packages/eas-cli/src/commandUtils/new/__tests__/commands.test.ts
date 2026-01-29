@@ -1,12 +1,14 @@
 import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../../onboarding/git';
 import { installDependenciesAsync } from '../../../onboarding/installDependencies';
 import { runCommandAsync } from '../../../onboarding/runCommand';
+import { expoCommandAsync } from '../../../utils/expoCli';
 import {
   cloneTemplateAsync,
   initializeGitRepositoryAsync,
   installProjectDependenciesAsync,
 } from '../commands';
 
+jest.mock('../../../utils/expoCli');
 jest.mock('../../../onboarding/git');
 jest.mock('../../../onboarding/runCommand');
 jest.mock('../../../onboarding/installDependencies');
@@ -79,21 +81,11 @@ describe('commands', () => {
         packageManager: 'npm',
       });
 
-      expect(runCommandAsync).toHaveBeenCalledWith({
-        cwd: projectDir,
-        command: 'npx',
-        args: ['expo', 'install', 'expo-updates'],
-        showOutput: false,
-        showSpinner: false,
-      });
-
-      expect(runCommandAsync).toHaveBeenCalledWith({
-        cwd: projectDir,
-        command: 'npx',
-        args: ['expo', 'install', '@expo/metro-runtime'],
-        showOutput: false,
-        showSpinner: false,
-      });
+      expect(expoCommandAsync).toHaveBeenCalledWith(
+        projectDir,
+        ['install', 'expo-updates', '@expo/metro-runtime'],
+        { silent: true }
+      );
     });
   });
 
