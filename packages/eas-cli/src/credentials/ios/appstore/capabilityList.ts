@@ -682,6 +682,13 @@ export const CapabilityMapping: CapabilityClassifier[] = [
     ]),
     getSyncOperation: getDefinedValueSyncOperation,
   },
+  {
+    entitlement: 'com.apple.developer.authentication-services.account-creation-requires-phone-number',
+    name: 'Account Creation Requires Phone Number',
+    capability: CapabilityType.ACCOUNT_CREATION_REQUIRES_PHONE_NUMBER,
+    validateOptions: validateBooleanOptions,
+    getSyncOperation: getBooleanSyncOperation,
+  },
   // VMNET
 
   // These don't appear to have entitlements, so it's unclear how we can automatically enable / disable them at this time.
