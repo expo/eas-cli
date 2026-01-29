@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "EAS CLI",
+    "slug": "eas-cli",
+    "platforms": ["ios"],
+    "extra": {
+      "eas": {
+        "projectId": "d7052d37-a36c-47fb-9187-30af638dc844"
+      }
+    }
+  }
+}

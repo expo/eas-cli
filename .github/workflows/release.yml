@@ -70,8 +70,7 @@ jobs:
           asset_content_type: application/gzip
   build-mac:
     name: Build for macOS
-    # Use macOS to get the correct platform specific dependencies
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: release
     permissions:
       contents: write
@@ -80,30 +79,134 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: brew install python-setuptools
+      - name: Start EAS workflow to build macOS tarballs
+        id: eas_workflow
+        working-directory: packages/eas-cli
         env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
-      - name: Build tarballs
-        working-directory: ${{ github.workspace }}/packages/eas-cli
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
         run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - id: arm64
-        run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
+          set -euo pipefail
+
+          WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-mac.yml \
+            --ref ${{ github.sha }} \
+            --non-interactive \
+            --no-wait \
+            --json)
+
+          WORKFLOW_RUN_ID=$(echo "$WORKFLOW_OUTPUT" | jq -r '.id')
+          if [ -z "$WORKFLOW_RUN_ID" ] || [ "$WORKFLOW_RUN_ID" = "null" ]; then
+            echo "Error: Could not determine workflow run ID"
+            echo "Workflow output:"
+            echo "$WORKFLOW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          echo "workflow_run_id=$WORKFLOW_RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Wait for EAS workflow and capture artifacts
+        id: eas_artifacts
+        working-directory: packages/eas-cli
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+          if [ -z "$WORKFLOW_RUN_ID" ]; then
+            echo "Error: Missing workflow run ID"
+            exit 1
+          fi
+
+          TIMEOUT_SECONDS=600
+          START_TIME=$(date +%s)
+
+          while true; do
+            ELAPSED=$(( $(date +%s) - START_TIME ))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Timeout: polling exceeded 10 minutes"
+              exit 1
+            fi
+
+            VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
+              --non-interactive \
+              --json)
+            STATUS=$(echo "$VIEW_OUTPUT" | jq -r '.status')
+
+            case "$STATUS" in
+              SUCCESS)
+                break
+                ;;
+              FAILURE)
+                echo "EAS workflow failed."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              CANCELED)
+                echo "EAS workflow canceled."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              ACTION_REQUIRED)
+                echo "EAS workflow requires action."
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              NEW|IN_PROGRESS)
+                sleep 7
+                ;;
+              *)
+                echo "Unexpected workflow status: $STATUS"
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+            esac
+          done
+
+          X64_ARTIFACT=$(echo "$VIEW_OUTPUT" | jq -r '
+            .jobs[]
+            | .artifacts[]?
+            | select(.name == "eas-cli-darwin-x64-tarball")
+            | @json
+          ' | head -1)
+
+          ARM64_ARTIFACT=$(echo "$VIEW_OUTPUT" | jq -r '
+            .jobs[]
+            | .artifacts[]?
+            | select(.name == "eas-cli-darwin-arm64-tarball")
+            | @json
+          ' | head -1)
+
+          echo "::add-mask::$(echo "$X64_ARTIFACT" | jq -e -r '.downloadUrl')"
+          echo "::add-mask::$(echo "$ARM64_ARTIFACT" | jq -e -r '.downloadUrl')"
+          echo "x64_artifact=$X64_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "arm64_artifact=$ARM64_ARTIFACT" >> "$GITHUB_OUTPUT"
+      - name: Cancel EAS workflow on GitHub cancellation
+        if: cancelled()
+        working-directory: packages/eas-cli
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+          if [ -n "$WORKFLOW_RUN_ID" ]; then
+            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
+          fi
+      - name: Download darwin-x64 tarball
+        run: |
+          mkdir -p eas-cli-dist
+          curl -L "${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).downloadUrl }}" -o "eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}"
+      - name: Download darwin-arm64 tarball
+        run: |
+          mkdir -p eas-cli-dist
+          curl -L "${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).downloadUrl }}" -o "eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}"
       - name: Upload darwin-x64 tarball
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
+          asset_path: eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}
+          asset_name: ${{ fromJSON(steps.eas_artifacts.outputs.x64_artifact).filename }}
           asset_content_type: application/gzip
       - name: Upload darwin-arm64 tarball
         uses: actions/upload-release-asset@v1
@@ -111,8 +214,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
-          asset_name: ${{ steps.arm64.outputs.filename }}
+          asset_path: eas-cli-dist/${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}
+          asset_name: ${{ fromJSON(steps.eas_artifacts.outputs.arm64_artifact).filename }}
           asset_content_type: application/gzip
   build-windows:
     name: Build for Windows
