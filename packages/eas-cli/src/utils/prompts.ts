@@ -31,7 +31,9 @@ export async function promptVariableTypeAsync(
   initialType?: EnvironmentSecretType
 ): Promise<EnvironmentSecretType> {
   if (nonInteractive) {
-    throw new Error('The `--type` flag must be set when running in `--non-interactive` mode.');
+    throw new Error(
+      'The `--type` flag must be set when running in `--non-interactive` mode. Valid values: string, file.'
+    );
   }
 
   const options = [
@@ -89,7 +91,7 @@ export async function promptVariableVisibilityAsync(
 ): Promise<EnvironmentVariableVisibility> {
   if (nonInteractive) {
     throw new Error(
-      'The `--visibility` flag must be set when running in `--non-interactive` mode.'
+      'The `--visibility` flag must be set when running in `--non-interactive` mode. Valid values: plaintext, sensitive, secret.'
     );
   }
   return await selectAsync('Select visibility:', [
@@ -136,7 +138,9 @@ export async function promptVariableEnvironmentAsync({
 }: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
   if (nonInteractive) {
     throw new Error(
-      'The `--environment` flag must be set when running in `--non-interactive` mode.'
+      `The \`--environment\` flag must be set when running in \`--non-interactive\` mode. Default environments: ${DEFAULT_ENVIRONMENTS.join(
+        ', '
+      )}.`
     );
   }
 

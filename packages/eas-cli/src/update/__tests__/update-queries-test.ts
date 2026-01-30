@@ -57,7 +57,7 @@ describe('update queries', () => {
             limit: 50,
           },
         })
-      ).rejects.toThrowError(`Unable to select an update in non-interactive mode.`);
+      ).rejects.toThrowError(`No update groups found on branch "${branchName}".`);
     });
   });
 });
