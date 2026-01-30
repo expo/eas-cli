@@ -1,0 +1,43 @@
+name: Build macOS tarballs
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_macos_tarballs:
+    name: Build macOS tarballs
+    runs_on: macos-medium
+    image: latest
+    steps:
+      - uses: eas/checkout
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --check-files
+
+      - name: Build packages
+        working_directory: /
+        run: yarn build
+
+      - name: Build tarballs
+        run: |
+          yarn pretarball-ci
+          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
+
+      - id: resolve_tarballs
+        name: Resolve tarball paths
+        run: |
+          set -euo pipefail
+          set-output x64_path "$(ls dist/eas-*-x64.tar.gz)"
+          set-output arm64_path "$(ls dist/eas-*-arm64.tar.gz)"
+
+      - name: Upload darwin-x64 tarball as artifact
+        uses: eas/upload_artifact
+        with:
+          name: eas-cli-darwin-x64-tarball
+          path: packages/eas-cli/${{ steps.resolve_tarballs.outputs.x64_path }}
+
+      - name: Upload darwin-arm64 tarball as artifact
+        uses: eas/upload_artifact
+        with:
+          name: eas-cli-darwin-arm64-tarball
+          path: packages/eas-cli/${{ steps.resolve_tarballs.outputs.arm64_path }}
