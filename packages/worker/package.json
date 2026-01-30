@@ -1,6 +1,6 @@
 {
   "name": "@expo/worker",
-  "version": "16.31.0",
+  "version": "16.32.0",
   "private": true,
   "scripts": {
     "start": "yarn watch",

@@ -1,7 +1,7 @@
 {
   "name": "eas-cli",
   "description": "EAS command line tool",
-  "version": "16.31.0",
+  "version": "16.32.0",
   "author": "Expo <support@expo.dev>",
   "bin": {
     "eas": "./bin/run"
