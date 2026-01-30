@@ -41,9 +41,7 @@ export async function selectAppleTeamOnAccountAsync(
     }
     const teamList = teams
       .map(t =>
-        t.appleTeamName
-          ? `${t.appleTeamName} (${t.appleTeamIdentifier})`
-          : t.appleTeamIdentifier
+        t.appleTeamName ? `${t.appleTeamName} (${t.appleTeamIdentifier})` : t.appleTeamIdentifier
       )
       .join('\n  ');
     throw new Error(
@@ -102,9 +100,7 @@ export async function selectAppleDeviceOnAppleTeamAsync(
         `No devices found on Apple team ${appleTeamIdentifier} for account ${accountName}.`
       );
     }
-    const deviceList = devices
-      .map(d => formatDeviceLabel(d))
-      .join('\n  ');
+    const deviceList = devices.map(d => formatDeviceLabel(d)).join('\n  ');
     throw new Error(
       `Unable to select an Apple device in non-interactive mode. Available devices on Apple team ${appleTeamIdentifier}:\n  ${deviceList}`
     );

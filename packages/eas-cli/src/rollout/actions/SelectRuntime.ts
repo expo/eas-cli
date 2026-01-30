@@ -55,8 +55,7 @@ export class SelectRuntime implements EASUpdateAction<string | null> {
       const runtimes = await this.getNewestRuntimeAsync(graphqlClient, {
         appId: projectId,
         branchName: this.branchInfo.name,
-        anotherBranchIdToIntersectRuntimesBy:
-          this.options.anotherBranchToIntersectRuntimesBy?.id,
+        anotherBranchIdToIntersectRuntimesBy: this.options.anotherBranchToIntersectRuntimesBy?.id,
       });
       if (runtimes.edges.length === 0) {
         throw new NonInteractiveError(

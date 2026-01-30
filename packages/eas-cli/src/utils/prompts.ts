@@ -138,7 +138,9 @@ export async function promptVariableEnvironmentAsync({
 }: EnvironmentPromptArgs & { multiple?: boolean }): Promise<string[] | string> {
   if (nonInteractive) {
     throw new Error(
-      `The \`--environment\` flag must be set when running in \`--non-interactive\` mode. Default environments: ${DEFAULT_ENVIRONMENTS.join(', ')}.`
+      `The \`--environment\` flag must be set when running in \`--non-interactive\` mode. Default environments: ${DEFAULT_ENVIRONMENTS.join(
+        ', '
+      )}.`
     );
   }
 

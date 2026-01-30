@@ -89,7 +89,9 @@ export async function listAndSelectBuildOnAppAsync(
     const buildList = builds
       .map(
         b =>
-          `${b.id} (platform: ${b.platform}, status: ${b.status}${b.buildProfile ? `, profile: ${b.buildProfile}` : ''})`
+          `${b.id} (platform: ${b.platform}, status: ${b.status}${
+            b.buildProfile ? `, profile: ${b.buildProfile}` : ''
+          })`
       )
       .join('\n  ');
     throw new Error(
