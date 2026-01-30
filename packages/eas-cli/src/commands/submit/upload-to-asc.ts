@@ -166,7 +166,8 @@ export default class SubmitUploadToAsc extends EasCommand {
         continue;
       }
 
-      const { errors, warnings } = buildFileStatusResponse.data.attributes.assetDeliveryState;
+      const { errors = [], warnings = [] } =
+        buildFileStatusResponse.data.attributes.assetDeliveryState;
       if (warnings.length > 0) {
         Log.warn(
           `Warnings:\n- ${warnings.map(w => `${w.description} (${w.code})`).join('\n- ')}\n`
@@ -210,7 +211,11 @@ export default class SubmitUploadToAsc extends EasCommand {
 
       Log.log('\n');
 
-      const { errors, warnings, infos } = buildUploadStatusResponse.data.attributes.state;
+      const {
+        errors = [],
+        warnings = [],
+        infos = [],
+      } = buildUploadStatusResponse.data.attributes.state;
       if (infos.length > 0) {
         Log.log(`Infos:\n- ${infos.map(i => `${i.description} (${i.code})`).join('\n- ')}\n`);
       }

@@ -4,12 +4,6 @@ import { ZodError, z } from 'zod';
 
 import Log from '../../log';
 
-// https://developer.apple.com/documentation/appstoreconnectapi/documentlinks
-// https://developer.apple.com/documentation/appstoreconnectapi/resourcelinks
-const LinksZ = z.object({
-  self: z.string(),
-});
-
 type ApiSchema = {
   [Path in string]: {
     path?: z.ZodType<Record<string, string>>;
@@ -57,8 +51,8 @@ const GetApi = {
           // https://developer.apple.com/documentation/appstoreconnectapi/appmediaassetstate
           assetDeliveryState: z.object({
             state: z.enum(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'COMPLETE', 'FAILED']),
-            errors: z.array(z.object({ code: z.string(), description: z.string() })),
-            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
+            errors: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+            warnings: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
           }),
         }),
       }),
@@ -85,13 +79,12 @@ const GetApi = {
           // https://developer.apple.com/documentation/appstoreconnectapi/buildupload/attributes-data.dictionary/state-data.dictionary
           state: z.object({
             state: z.enum(['AWAITING_UPLOAD', 'PROCESSING', 'COMPLETE', 'FAILED']),
-            infos: z.array(z.object({ code: z.string(), description: z.string() })),
-            errors: z.array(z.object({ code: z.string(), description: z.string() })),
-            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
+            infos: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+            errors: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+            warnings: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
           }),
         }),
       }),
-      included: z.array(z.unknown()),
     }),
   },
 } satisfies ApiSchema;
@@ -128,26 +121,7 @@ const PostApi = {
       data: z.object({
         id: z.string(),
         type: z.literal('buildUploads'),
-        // https://developer.apple.com/documentation/appstoreconnectapi/buildupload/attributes-data.dictionary
-        attributes: z.object({
-          cfBundleShortVersionString: z.string(),
-          cfBundleVersion: z.string(),
-          createdDate: z.unknown(),
-          platform: z.enum(['IOS', 'MAC_OS', 'TV_OS', 'VISION_OS']),
-          // https://developer.apple.com/documentation/appstoreconnectapi/buildupload/attributes-data.dictionary/state-data.dictionary
-          state: z.object({
-            state: z.enum(['AWAITING_UPLOAD', 'PROCESSING', 'COMPLETE', 'FAILED']),
-            infos: z.array(z.object({ code: z.string(), description: z.string() })),
-            errors: z.array(z.object({ code: z.string(), description: z.string() })),
-            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
-          }),
-          uploadedDate: z.unknown(),
-        }),
-        // https://developer.apple.com/documentation/appstoreconnectapi/buildupload/relationships-data.dictionary
-        relationships: z.unknown(),
-        links: LinksZ,
       }),
-      links: LinksZ,
     }),
   },
   '/v1/buildUploadFiles': {
@@ -191,21 +165,9 @@ const PostApi = {
         // https://developer.apple.com/documentation/appstoreconnectapi/builduploadfile/attributes-data.dictionary
         attributes: z.object({
           // https://developer.apple.com/documentation/appstoreconnectapi/appmediaassetstate
-          assetDeliveryState: z.object({
-            state: z.enum(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'COMPLETE', 'FAILED']),
-            errors: z.array(z.object({ code: z.string(), description: z.string() })),
-            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
-          }),
-          assetToken: z.string(),
-          assetType: z.enum(['ASSET', 'ASSET_DESCRIPTION', 'ASSET_SPI']),
-          fileName: z.string(),
-          fileSize: z.number().min(1).max(9007199254740991),
-          sourceFileChecksums: z.unknown(),
           uploadOperations: z.array(
             // https://developer.apple.com/documentation/appstoreconnectapi/deliveryfileuploadoperation
             z.object({
-              // entityTag: z.string().optional(),
-              // expiration: z.unknown(),
               length: z.number().min(1).max(9007199254740991),
               method: z.string(),
               offset: z.number().min(0).max(9007199254740991),
@@ -219,15 +181,7 @@ const PostApi = {
               url: z.string(),
             })
           ),
-          uti: z.enum([
-            'com.apple.binary-property-list',
-            'com.apple.ipa',
-            'com.apple.pkg',
-            'com.apple.xml-property-list',
-            'com.pkware.zip-archive',
-          ]),
         }),
-        links: LinksZ,
       }),
     }),
   },
@@ -246,7 +200,6 @@ const PatchApi = {
         type: z.literal('buildUploadFiles'),
         // https://developer.apple.com/documentation/appstoreconnectapi/builduploadfileupdaterequest/data-data.dictionary/attributes-data.dictionary
         attributes: z.object({
-          sourceFileChecksums: z.unknown().optional(),
           uploaded: z.boolean(),
         }),
       }),
@@ -261,45 +214,11 @@ const PatchApi = {
           // https://developer.apple.com/documentation/appstoreconnectapi/appmediaassetstate
           assetDeliveryState: z.object({
             state: z.enum(['AWAITING_UPLOAD', 'UPLOAD_COMPLETE', 'COMPLETE', 'FAILED']),
-            errors: z.array(z.object({ code: z.string(), description: z.string() })),
-            warnings: z.array(z.object({ code: z.string(), description: z.string() })),
+            errors: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
+            warnings: z.array(z.object({ code: z.string(), description: z.string() })).optional(),
           }),
-          assetToken: z.string(),
-          assetType: z.enum(['ASSET', 'ASSET_DESCRIPTION', 'ASSET_SPI']),
-          fileName: z.string(),
-          fileSize: z.number().min(1).max(9007199254740991),
-          sourceFileChecksums: z.unknown(),
-          uploadOperations: z
-            .array(
-              // https://developer.apple.com/documentation/appstoreconnectapi/deliveryfileuploadoperation
-              z.object({
-                // entityTag: z.string().optional(),
-                // expiration: z.unknown(),
-                length: z.number().min(1).max(9007199254740991),
-                method: z.string(),
-                offset: z.number().min(0).max(9007199254740991),
-                partNumber: z.number().min(1).max(9007199254740991),
-                requestHeaders: z.array(
-                  z.object({
-                    name: z.string(),
-                    value: z.string(),
-                  })
-                ),
-                url: z.string(),
-              })
-            )
-            .nullable(),
-          uti: z.enum([
-            'com.apple.binary-property-list',
-            'com.apple.ipa',
-            'com.apple.pkg',
-            'com.apple.xml-property-list',
-            'com.pkware.zip-archive',
-          ]),
         }),
-        links: LinksZ,
       }),
-      links: LinksZ,
     }),
   },
 } satisfies ApiSchema;
