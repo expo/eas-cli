@@ -1,10 +1,11 @@
+import { randomInt } from 'crypto';
 import express from 'express';
 import http from 'http';
 import path from 'path';
 
 import { ImageNonPngError, ImageTransparencyError, ensurePNGIsNotTransparentAsync } from '../image';
 
-const TEST_SERVER_PORT = 9999;
+const TEST_SERVER_PORT = randomInt(9000, 9000 + 1000);
 
 const fixturesPath = path.join(__dirname, 'fixtures');
 const transparentPngPath = path.join(fixturesPath, 'icon-alpha.png');

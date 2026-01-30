@@ -100,7 +100,7 @@
     "@graphql-codegen/introspection": "4.0.0",
     "@graphql-codegen/typescript": "4.0.1",
     "@graphql-codegen/typescript-operations": "4.0.1",
-    "@tsconfig/node18": "18.2.4",
+    "@tsconfig/node20": "20.1.8",
     "@types/cli-progress": "3.11.5",
     "@types/dateformat": "3.0.1",
     "@types/diff": "6.0.0",
@@ -134,7 +134,7 @@
     "typescript": "5.5.4"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "files": [
     "/bin",
@@ -204,7 +204,7 @@
     },
     "update": {
       "node": {
-        "version": "18.6.0"
+        "version": "20.19.4"
       },
       "s3": {
         "templates": {
