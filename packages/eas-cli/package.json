@@ -229,7 +229,6 @@
     "postpack": "rimraf oclif.manifest.json",
     "prepack": "yarn rebuild && node ./scripts/prepack.js",
     "rebuild": "rimraf build && yarn build",
-    "pretarball-ci": "./scripts/pretarball-ci.sh",
     "build": "yarn typecheck-for-build && yarn copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
     "watch": "yarn typecheck-for-build --watch --preserveWatchOutput",
