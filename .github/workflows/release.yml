@@ -1,7 +1,7 @@
 on:
   push:
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Release workflow
 
@@ -22,138 +22,10 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           draft: true
-  build-linux:
-    name: Build for Linux
-    runs-on: ubuntu-latest
-    needs: release
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-mise
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
-      - name: Ensure GraphQL schema and generated code is up-to-date
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: |
-          yarn verify-graphql-code
-      - name: Build tarballs
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - id: arm
-        run: echo "filename=$(ls eas-*-arm.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - name: Upload linux-x64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload linux-arm tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.arm.outputs.filename }}
-          asset_name: ${{ steps.arm.outputs.filename }}
-          asset_content_type: application/gzip
-  build-mac:
-    name: Build for macOS
-    # Use macOS to get the correct platform specific dependencies
-    runs-on: macos-latest
-    needs: release
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-mise
-      - run: brew install python-setuptools
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
-      - name: Build tarballs
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-        run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - id: arm64
-        run: echo "filename=$(ls eas-*-arm64.tar.gz)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist
-      - name: Upload darwin-x64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload darwin-arm64 tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/${{ steps.arm64.outputs.filename }}
-          asset_name: ${{ steps.arm64.outputs.filename }}
-          asset_content_type: application/gzip
-  build-windows:
-    name: Build for Windows
-    runs-on: ubuntu-latest
-    needs: release
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-mise
-      - run: yarn install --frozen-lockfile --check-files
-      - run: sudo apt-get install nsis
-      - run: yarn build
-      - run: |
-          yarn pretarball-ci
-          yarn oclif pack:win
-        working-directory: ${{ github.workspace }}/packages/eas-cli
-      - id: x64
-        run: echo "filename=$(ls eas-*-x64.exe)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
-      - id: x86
-        run: echo "filename=$(ls eas-*-x86.exe)" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}/packages/eas-cli/dist/win32
-      - name: Upload x64 installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win32/${{ steps.x64.outputs.filename }}
-          asset_name: ${{ steps.x64.outputs.filename }}
-          asset_content_type: application/gzip
-      - name: Upload x86 installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: packages/eas-cli/dist/win32/${{ steps.x86.outputs.filename }}
-          asset_name: ${{ steps.x86.outputs.filename }}
-          asset_content_type: application/gzip
   publish-to-npm:
     name: Publish to npm
     runs-on: ubuntu-latest
-    needs: [build-linux, build-mac, build-windows]
+    needs: release
     permissions:
       id-token: write
     steps:
@@ -224,8 +96,8 @@ jobs:
           SLACK_CHANNEL: eas-cli
           SLACK_COLOR: ${{ job.status }}
           SLACK_ICON: https://github.com/expo-bot.png?size=48
-          SLACK_TITLE: 'Released eas-cli@${{ env.EAS_CLI_VERSION }}'
+          SLACK_TITLE: "Released eas-cli@${{ env.EAS_CLI_VERSION }}"
           SLACK_MESSAGE: ${{ env.SLACK_CHANGELOG }}
-          SLACK_USERNAME: 'EAS CLI CI'
+          SLACK_USERNAME: "EAS CLI CI"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_FOOTER: ''
+          SLACK_FOOTER: ""
