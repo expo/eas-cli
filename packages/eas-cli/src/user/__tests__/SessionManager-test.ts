@@ -55,17 +55,17 @@ afterEach(() => {
 });
 
 describe(SessionManager, () => {
-  describe('getSession', () => {
+  describe('getActiveSession', () => {
     it('returns null when session is not stored', () => {
       const sessionManager = new SessionManager(analytics);
-      expect(sessionManager['getSession']()).toBeNull();
+      expect(sessionManager['getActiveSession']()).toBeNull();
     });
 
     it('returns stored session data', async () => {
       await fs.mkdirp(path.dirname(getStateJsonPath()));
       await fs.writeJSON(getStateJsonPath(), { auth: authStub });
       const sessionManager = new SessionManager(analytics);
-      expect(sessionManager['getSession']()).toMatchObject(authStub);
+      expect(sessionManager['getActiveSession']()).toMatchObject(authStub);
     });
   });
 
