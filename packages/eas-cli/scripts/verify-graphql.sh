@@ -26,12 +26,8 @@ if cmp -s graphql.schema.json graphql.schema.json.bak; then
     fi
 else
     echo "GraphQL schema has changed on the server."
-    echo "Building eas-json"
-    cd ../eas-json
-    yarn build
-    cd ../eas-cli
-    echo "Running `yarn tsc` to check for breaking changes..."
-    yarn tsc
+    echo "Building eas-cli and its dependencies"
+    yarn lerna run build --scope eas-cli --include-dependencies
     # If there are no errors, then the schema is backwards compatible
     exit 0
 fi

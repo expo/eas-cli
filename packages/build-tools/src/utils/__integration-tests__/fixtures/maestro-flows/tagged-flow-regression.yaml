@@ -1,0 +1,7 @@
+appId: com.example.app
+name: "tagged-flow-regression"
+tags:
+  - regression
+  - slow
+---
+- assertTrue: true

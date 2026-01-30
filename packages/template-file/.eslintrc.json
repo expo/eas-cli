@@ -1,0 +1,8 @@
+{
+  "extends": "../../.eslintrc.js",
+  "rules": {
+    "async-protect/async-suffix": "off",
+    "import/order": "off",
+    "no-restricted-imports": "off"
+  }
+}

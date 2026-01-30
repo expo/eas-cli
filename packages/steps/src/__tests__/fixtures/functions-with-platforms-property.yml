@@ -1,0 +1,26 @@
+functions:
+  say_hi_linux_and_darwin:
+    name: Hi!
+    inputs:
+      - name
+    command: echo "Hi, ${ inputs.name }!"
+    supported_platforms: [darwin, linux]
+
+  say_bye_linux_and_darwin:
+    name: Bye!
+    inputs:
+      - name: name
+        type: string
+      - name: test
+        type: boolean
+        default_value: ${ eas.job.platform }
+      - name: test2
+        type: json
+        default_value:
+          property1: value1
+          property2:
+            - value2
+            - value3:
+                property3: value4
+    command: echo "Bye, ${ inputs.name }!"
+    supported_platforms: [darwin, linux]

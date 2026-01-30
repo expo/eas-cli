@@ -1,0 +1,22 @@
+import:
+  - functions-file-2.yml
+
+functions:
+  say_hi:
+    name: Hi!
+    inputs:
+      - name: name
+        type: string
+        allowed_values: [Wojtek, Dominik, Szymon, Brent]
+      - name: test
+        type: number
+        default_value: ${ eas.job.version.buildNumber }
+      - name: json
+        type: json
+        default_value:
+          property1: value1
+          property2:
+            - value2
+            - value3:
+                property3: value4
+    command: echo "Hi, ${ inputs.name }!"

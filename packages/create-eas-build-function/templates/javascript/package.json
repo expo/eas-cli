@@ -1,0 +1,16 @@
+{
+  "name": "custom-js-function",
+  "version": "1.0.0",
+  "main": "./build/index.js",
+  "type": "commonjs",
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1",
+    "@babel/cli": "^7.24.8",
+    "@babel/core": "^7.24.9",
+    "@babel/preset-env": "^7.24.8"
+  },
+  "scripts": {
+    "babel": "babel src --out-dir babel",
+    "build": "yarn babel && ncc build ./babel/index.js -o build/ --minify --no-cache --no-source-map-register"
+  }
+}
