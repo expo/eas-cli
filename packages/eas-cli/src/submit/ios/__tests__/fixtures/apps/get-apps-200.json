@@ -1,0 +1,16 @@
+{
+  "data": {
+    "type": "apps",
+    "id": "1491144534",
+    "attributes": {
+      "name": "turtle-cli-example",
+      "bundleId": "com.expo.turtle.cli.example"
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/apps/1491144534"
+    }
+  },
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/apps/1491144534?fields%5Bapps%5D=bundleId%2Cname"
+  }
+}

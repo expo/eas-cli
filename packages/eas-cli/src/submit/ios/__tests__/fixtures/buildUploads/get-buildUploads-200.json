@@ -1,0 +1,26 @@
+{
+  "data": {
+    "type": "buildUploads",
+    "id": "fdf9c476-aaa4-4ead-b91c-6e3cc3a47805",
+    "attributes": {
+      "state": {
+        "errors": [],
+        "warnings": [],
+        "infos": [],
+        "state": "PROCESSING"
+      }
+    },
+    "relationships": {
+      "build": {
+        "data": null
+      }
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/buildUploads/fdf9c476-aaa4-4ead-b91c-6e3cc3a47805"
+    }
+  },
+  "included": [],
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/buildUploads/fdf9c476-aaa4-4ead-b91c-6e3cc3a47805?fields%5BbuildUploads%5D=build%2Cstate&include=build"
+  }
+}
