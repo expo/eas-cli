@@ -64,7 +64,6 @@ export default class SubmitUploadToAsc extends EasCommand {
       })
       .parse(ascApiKeyJson);
 
-    Log.log('Generating JWT...');
     const token = jwt.sign({}, ascApiKey.key, {
       algorithm: 'ES256',
       issuer: ascApiKey.issuer_id,
