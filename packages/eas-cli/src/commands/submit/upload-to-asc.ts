@@ -14,15 +14,15 @@ export default class SubmitUploadToAsc extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    path: Flags.string({
+    'ipa-path': Flags.string({
       description: 'Path to the IPA file',
       required: true,
     }),
-    key: Flags.string({
-      description: 'Path to the ASC API Key JSON file',
+    'asc-api-key-path': Flags.string({
+      description: 'Path to the App Store Connect API Key JSON file',
       required: true,
     }),
-    'app-id': Flags.string({
+    'apple-app-identifier': Flags.string({
       description: 'App Store Connect App ID (e.g. 1491144534)',
       required: true,
     }),
@@ -34,50 +34,55 @@ export default class SubmitUploadToAsc extends EasCommand {
       description: 'CFBundleShortVersionString (Marketing Version, e.g. 1.0.0)',
       required: true,
     }),
+    'wait-for-processing': Flags.boolean({
+      description: 'Wait for the upload to complete processing',
+      default: false,
+    }),
   };
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(SubmitUploadToAsc);
 
-    const ipaPath = path.resolve(flags.path);
+    const ipaPath = path.resolve(flags['ipa-path']);
     if (!(await fs.pathExists(ipaPath))) {
       throw new Error(`IPA file not found: ${ipaPath}`);
     }
     const fileSize = (await fs.stat(ipaPath)).size;
     const fileName = path.basename(ipaPath);
 
-    const keyPath = path.resolve(flags.key);
-    if (!(await fs.pathExists(keyPath))) {
-      throw new Error(`Key file not found: ${keyPath}`);
+    const ascApiKeyPath = path.resolve(flags['asc-api-key-path']);
+    if (!(await fs.pathExists(ascApiKeyPath))) {
+      throw new Error(`ASC API Key file not found: ${ascApiKeyPath}`);
     }
 
-    const keyJson = await fs.readJson(keyPath);
-    const apiKey = z
+    const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
+    const ascApiKey = z
       .object({
         issuer_id: z.string(),
         key_id: z.string(),
         key: z.string(),
       })
-      .parse(keyJson);
+      .parse(ascApiKeyJson);
 
     Log.log('Generating JWT...');
-    const token = jwt.sign({}, apiKey.key, {
+    const token = jwt.sign({}, ascApiKey.key, {
       algorithm: 'ES256',
-      issuer: apiKey.issuer_id,
+      issuer: ascApiKey.issuer_id,
       expiresIn: '20m',
       audience: 'appstoreconnect-v1',
       header: {
-        kid: apiKey.key_id,
+        kid: ascApiKey.key_id,
       },
     });
 
     const client = new AscApiClient({ token });
 
     Log.log('Reading App information...');
+    const appleAppIdentifier = flags['apple-app-identifier'];
     const appResponse = await client.getAsync(
       '/v1/apps/:id',
-      { 'fields[apps]': ['bundleId', 'name'] as const },
-      { id: flags['app-id'] }
+      { 'fields[apps]': ['bundleId', 'name'] },
+      { id: appleAppIdentifier }
     );
     Log.log(
       `Uploading Build to "${appResponse.data.attributes.name}" (${appResponse.data.attributes.bundleId})...`
@@ -96,7 +101,7 @@ export default class SubmitUploadToAsc extends EasCommand {
           app: {
             data: {
               type: 'apps',
-              id: flags['app-id'],
+              id: appleAppIdentifier,
             },
           },
         },
@@ -152,90 +157,96 @@ export default class SubmitUploadToAsc extends EasCommand {
     Log.log('Checking upload file status...');
     const waitingForFileStartedAt = performance.now();
     while (performance.now() - waitingForFileStartedAt < 60 * 1000 /* 60 seconds */) {
-      const buildFileStatusResponse = await client.getAsync(
+      const {
+        data: {
+          attributes: { assetDeliveryState },
+        },
+      } = await client.getAsync(
         `/v1/buildUploadFiles/:id`,
         { 'fields[buildUploadFiles]': ['assetDeliveryState'] },
         { id: buildFileResponse.data.id }
       );
 
-      if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'AWAITING_UPLOAD') {
+      if (assetDeliveryState.state === 'AWAITING_UPLOAD') {
         Log.log(
-          `Waiting for file upload to finish processing... (state = ${buildFileStatusResponse.data.attributes.assetDeliveryState.state})`
+          `Waiting for file upload to complete processing... (state = ${assetDeliveryState.state})`
         );
         await setTimeout(2000);
         continue;
       }
 
-      const { errors = [], warnings = [] } =
-        buildFileStatusResponse.data.attributes.assetDeliveryState;
+      const { errors = [], warnings = [] } = assetDeliveryState;
       if (warnings.length > 0) {
-        Log.warn(
-          `Warnings:\n- ${warnings.map(w => `${w.description} (${w.code})`).join('\n- ')}\n`
-        );
+        Log.warn(`Warnings:\n${itemizeMessages(warnings)}\n`);
       }
       if (errors.length > 0) {
-        Log.error(`Errors:\n- ${errors.map(e => `${e.description} (${e.code})`).join('\n- ')}\n`);
+        Log.error(`Errors:\n${itemizeMessages(errors)}\n`);
       }
 
-      if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'FAILED') {
+      if (assetDeliveryState.state === 'FAILED') {
         throw new Error(`File upload (ID: ${buildFileResponse.data.id}) failed.`);
-      } else if (buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'COMPLETE') {
-        Log.log(`File upload (ID: ${buildFileResponse.data.id}) complete!`);
       } else if (
-        buildFileStatusResponse.data.attributes.assetDeliveryState.state === 'UPLOAD_COMPLETE'
+        assetDeliveryState.state === 'COMPLETE' ||
+        assetDeliveryState.state === 'UPLOAD_COMPLETE'
       ) {
-        Log.log(`File upload (ID: ${buildFileResponse.data.id}) finished!`);
+        Log.log(`File upload (ID: ${buildFileResponse.data.id}) completed!`);
       }
       break;
     }
 
+    Log.log(
+      `See your build in App Store Connect: https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/ios/${buildUploadId}`
+    );
+
+    if (!flags['wait-for-processing']) {
+      Log.log('Skipping waiting for processing.');
+      return;
+    }
+
     Log.log('Checking build upload status...');
     const waitingForBuildStartedAt = performance.now();
-    while (performance.now() - waitingForBuildStartedAt < 60 * 1000 /* 60 seconds */) {
-      const buildUploadStatusResponse = await client.getAsync(
+    while (performance.now() - waitingForBuildStartedAt < 10 * 60 * 1000 /* 10 minutes */) {
+      const {
+        data: {
+          attributes: { state },
+        },
+      } = await client.getAsync(
         `/v1/buildUploads/:id`,
         { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
         { id: buildUploadId }
       );
 
-      if (
-        buildUploadStatusResponse.data.attributes.state.state === 'AWAITING_UPLOAD' ||
-        buildUploadStatusResponse.data.attributes.state.state === 'PROCESSING'
-      ) {
-        Log.log(
-          `Waiting for build upload to finish... (status = ${buildUploadStatusResponse.data.attributes.state.state})`
-        );
+      if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
+        Log.log(`Waiting for build upload to complete... (status = ${state.state})`);
         await setTimeout(2000);
         continue;
       }
 
       Log.log('\n');
 
-      const {
-        errors = [],
-        warnings = [],
-        infos = [],
-      } = buildUploadStatusResponse.data.attributes.state;
+      const { errors = [], warnings = [], infos = [] } = state;
       if (infos.length > 0) {
-        Log.log(`Infos:\n- ${infos.map(i => `${i.description} (${i.code})`).join('\n- ')}\n`);
+        Log.log(`Infos:\n${itemizeMessages(infos)}\n`);
       }
       if (warnings.length > 0) {
-        Log.warn(
-          `Warnings:\n- ${warnings.map(w => `${w.description} (${w.code})`).join('\n- ')}\n`
-        );
+        Log.warn(`Warnings:\n${itemizeMessages(warnings)}\n`);
       }
       if (errors.length > 0) {
-        Log.error(`Errors:\n- ${errors.map(e => `${e.description} (${e.code})`).join('\n- ')}\n`);
+        Log.error(`Errors:\n${itemizeMessages(errors)}\n`);
       }
 
-      if (buildUploadStatusResponse.data.attributes.state.state === 'FAILED') {
+      if (state.state === 'FAILED') {
         throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
-      } else if (buildUploadStatusResponse.data.attributes.state.state === 'COMPLETE') {
+      } else if (state.state === 'COMPLETE') {
         Log.log(`Build upload (ID: ${buildUploadId}) complete!`);
       }
       break;
     }
   }
+}
+
+function itemizeMessages(messages: { description: string; code: string }[]): string {
+  return `- ${messages.map(m => `${m.description} (${m.code})`).join('\n- ')}`;
 }
 
 async function uploadChunksAsync({
