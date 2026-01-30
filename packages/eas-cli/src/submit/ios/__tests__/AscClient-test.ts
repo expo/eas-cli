@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { AscApiClient } from '../AscClient';
+import { AscApiClient } from '../AscApiClient';
 
 describe(AscApiClient, () => {
   const token = 'test-token';
@@ -94,7 +94,6 @@ describe(AscApiClient, () => {
       data: {
         type: 'buildUploads',
         id: buildUploadId,
-        attributes: {},
       },
     });
     expect(scope.isDone()).toBeTruthy();

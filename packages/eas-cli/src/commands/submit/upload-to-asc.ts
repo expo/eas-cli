@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
-import { AscApiClient, AscApiClientPostApi } from '../../submit/ios/AscClient';
+import { AscApiClient, AscApiClientPostApi } from '../../submit/ios/AscApiClient';
 
 export default class SubmitUploadToAsc extends EasCommand {
   static override hidden = true;
