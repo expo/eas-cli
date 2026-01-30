@@ -10,6 +10,7 @@ import { GCSCacheManager } from '../CacheManager';
 
 jest.mock('fs');
 jest.mock('fs/promises');
+jest.mock('node:fs', () => jest.requireMock('fs'));
 jest.mock('@expo/downloader', () => {
   return jest.fn();
 });
