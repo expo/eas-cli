@@ -24,7 +24,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   nonInteractive?: boolean;
   buildProfiles?: ProfileData<'build'>[];
 }): Promise<void> {
-  if (await isExpoDevClientInstalledAsync(projectDir)) {
+  if (isExpoDevClientInstalled(projectDir)) {
     return;
   }
 
@@ -103,7 +103,7 @@ export async function ensureExpoDevClientInstalledForDevClientBuildsAsync({
   }
 }
 
-async function isExpoDevClientInstalledAsync(projectDir: string): Promise<boolean> {
+export function isExpoDevClientInstalled(projectDir: string): boolean {
   try {
     resolveFrom(projectDir, 'expo-dev-client/package.json');
     return true;
