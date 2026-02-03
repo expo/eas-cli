@@ -40,7 +40,19 @@ export async function selectBranchOnAppAsync(
   }
 ): Promise<UpdateBranchFragment> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select a branch in non-interactive mode.');
+    const branches = await queryBranchesOnProjectAsync(
+      graphqlClient,
+      paginatedQueryOptions.limit ?? BRANCHES_LIMIT,
+      paginatedQueryOptions.offset,
+      projectId
+    );
+    if (branches.length === 0) {
+      throw new Error(`No branches found for project "${projectId}".`);
+    }
+    const branchList = branches.map(b => b.name).join('\n  ');
+    throw new Error(
+      `Unable to select a branch in non-interactive mode. Use the --branch flag to specify the branch. Available branches:\n  ${branchList}`
+    );
   }
 
   const selectedBranch = await paginatedQueryWithSelectPromptAsync({
