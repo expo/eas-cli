@@ -57,6 +57,12 @@ export function createRepackBuildFunction(): BuildFunction {
         required: false,
         defaultValue: 'latest',
       }),
+      BuildStepInput.createProvider({
+        id: 'repack_package',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        required: false,
+        defaultValue: '@expo/repack-app',
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -93,8 +99,13 @@ export function createRepackBuildFunction(): BuildFunction {
           }
         : undefined;
 
-      stepsCtx.logger.info(`Using repack tool version: ${inputs.repack_version.value}`);
-      const repackApp = await installAndImportRepackAsync(inputs.repack_version.value as string);
+      stepsCtx.logger.info(
+        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value}`
+      );
+      const repackApp = await installAndImportRepackAsync({
+        packageName: inputs.repack_package.value as string,
+        version: inputs.repack_version.value as string,
+      });
       const { repackAppIosAsync, repackAppAndroidAsync } = repackApp;
 
       stepsCtx.logger.info('Repacking the app...');
@@ -160,15 +171,19 @@ export function createRepackBuildFunction(): BuildFunction {
 /**
  * Install `@expo/repack-app` in a sandbox directory and import it.
  */
-async function installAndImportRepackAsync(
-  version: string = 'latest'
-): Promise<typeof import('@expo/repack-app')> {
+async function installAndImportRepackAsync({
+  packageName,
+  version,
+}: {
+  packageName: string;
+  version: string;
+}): Promise<typeof import('@expo/repack-app')> {
   const sandbox = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-package-root-`));
-  await spawnAsync('yarn', ['add', `@expo/repack-app@${version}`], {
+  await spawnAsync('yarn', ['add', `${packageName}@${version}`], {
     stdio: 'inherit',
     cwd: sandbox,
   });
-  return require(resolveFrom(sandbox, '@expo/repack-app'));
+  return require(resolveFrom(sandbox, packageName));
 }
 
 /**
