@@ -61,10 +61,12 @@ export function displayOverageWarning({
   hasFreePlan: boolean;
   name: string;
 }): void {
-  Log.warn(
-    chalk.bold(`You've used ${percentUsed}% of your included build credits for this month. `) +
-      createProgressBar(percentUsed)
+  const message = chalk.bold(
+    `You've used ${percentUsed}% of your included build credits for this month.`
   );
+  // Don't show progress bar at 100% - it's redundant when the limit is reached
+  const progressBar = percentUsed < 100 ? ' ' + createProgressBar(percentUsed) : '';
+  Log.warn(message + progressBar);
 
   const billingUrl = `https://expo.dev/accounts/${name}/settings/billing`;
   const warning = hasFreePlan

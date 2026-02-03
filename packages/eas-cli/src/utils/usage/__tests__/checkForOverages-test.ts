@@ -255,4 +255,27 @@ describe('displayOverageWarning', () => {
       expect.objectContaining({ text: 'Upgrade your plan to continue service.' })
     );
   });
+
+  it('shows progress bar when usage is under 100%', () => {
+    displayOverageWarning({
+      percentUsed: 85,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
+  });
+
+  it('does not show progress bar when usage is at 100%', () => {
+    displayOverageWarning({
+      percentUsed: 100,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("You've used 100% of your included build credits for this month.")
+    );
+    expect(mockWarn).not.toHaveBeenCalledWith(expect.stringMatching(/[█░]/));
+  });
 });
