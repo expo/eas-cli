@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Don't show build credits warning bar when usage is at 100%. ([#3371](https://github.com/expo/eas-cli/pull/3371) by [@mackenco](https://github.com/mackenco))
+
 ### 🧹 Chores
 
 ## [16.32.0](https://github.com/expo/eas-cli/releases/tag/v16.32.0) - 2026-01-30
