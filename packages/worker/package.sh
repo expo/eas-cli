@@ -77,7 +77,6 @@ if [[ "$PLATFORM" == "ios" ]]; then
   mv expo-cocoapods-proxy-*.gem "$target_worker_dir/expo-cocoapods-proxy.gem"
   popd >/dev/null 2>&1
 fi
-rm -rf $target_root_dir/.volta/
 
 # Create backward-compatible symlink for orchestrator
 # The orchestrator expects ./src/services/worker/dist/main.js
