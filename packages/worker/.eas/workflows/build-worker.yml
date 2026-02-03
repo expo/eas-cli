@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: eas/checkout
 
+      - uses: eas/install_node_modules
+
       - name: Build Android worker tarball
         run: ./package.sh worker-android.tar.gz android
 
@@ -32,6 +34,8 @@ jobs:
     image: latest
     steps:
       - uses: eas/checkout
+
+      - uses: eas/install_node_modules
 
       - name: Build iOS worker tarball
         run: ./package.sh worker-ios.tar.gz ios
