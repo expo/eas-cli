@@ -147,6 +147,21 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
+  it('does not display a warning when usage is at 100%', async () => {
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        buildPlanMetrics: [createMockPlanMetric({ value: 100, limit: 100 })],
+      })
+    );
+
+    await maybeWarnAboutUsageOveragesAsync({
+      graphqlClient: mockGraphqlClient,
+      accountId: 'account-id',
+    });
+
+    expect(mockWarn).not.toHaveBeenCalled();
+  });
+
   it('handles errors gracefully', async () => {
     mockGetUsageForOverageWarningAsync.mockRejectedValue(new Error('Network error'));
 

@@ -27,7 +27,7 @@ export async function maybeWarnAboutUsageOveragesAsync({
     }
 
     const percentUsed = calculatePercentUsed(planMetric.value, planMetric.limit);
-    if (percentUsed >= THRESHOLD_PERCENT) {
+    if (percentUsed >= THRESHOLD_PERCENT && percentUsed < 100) {
       const hasFreePlan = subscription.name === 'Free';
       displayOverageWarning({ percentUsed, hasFreePlan, name });
     }
