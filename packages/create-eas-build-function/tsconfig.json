@@ -1,0 +1,19 @@
+{
+  "include": ["src/**/*.ts"],
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "es2022",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "build",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "src",
+    "declaration": true,
+    "composite": true
+  },
+  "exclude": ["**/__mocks__/*", "**/__tests__/*"]
+}

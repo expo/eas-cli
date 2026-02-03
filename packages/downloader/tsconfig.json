@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "es2022",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

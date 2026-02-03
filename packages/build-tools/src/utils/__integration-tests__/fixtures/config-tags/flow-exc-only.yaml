@@ -1,0 +1,7 @@
+appId: com.example.app
+name: flow-exc-only
+tags:
+  - cfgExclude
+---
+- assertTrue: true
+

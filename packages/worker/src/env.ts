@@ -13,7 +13,7 @@ import {
 import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
-// https://github.com/expo/eas-build/blob/main/packages/local-build-plugin/src/build.ts
+// see packages/local-build-plugin/src/build.ts
 export function getBuildEnv({
   job,
   projectId,

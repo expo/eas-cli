@@ -1,0 +1,20 @@
+build:
+  name: Outputs
+  steps:
+    - run:
+        outputs: [first_name, last_name]
+        command: |
+          set-output first_name Brent
+          set-output last_name Vatne
+    - run:
+        outputs:
+          - name: first_name
+            required: true
+          - name: middle_name
+            required: false
+          - name: last_name
+          - nickname
+        command: |
+          set-output first_name Dominik
+          set-output last_name Sokal
+          set-output nickname dsokal

@@ -1,0 +1,4 @@
+appId: com.example.app
+name: "no-tags-flow"
+---
+- assertTrue: true

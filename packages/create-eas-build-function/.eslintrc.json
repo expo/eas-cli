@@ -1,0 +1,10 @@
+{
+  "extends": "../../.eslintrc.js",
+  "rules": {
+    "async-protect/async-suffix": "off",
+    "import/no-extraneous-dependencies": ["off"],
+    "no-console": "off",
+    "no-underscore-dangle": "off",
+    "no-void": "off"
+  }
+}
