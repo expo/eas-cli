@@ -27,6 +27,8 @@ jobs:
 
       - run: yarn install --frozen-lockfile --check-files
 
+      - run: yarn typecheck
+
       - name: Run unit tests
         working-directory: packages/worker
         run: yarn test:unit
