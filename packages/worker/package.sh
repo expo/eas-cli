@@ -40,6 +40,9 @@ copy_package() {
     cp "$src/tsconfig.build.json" "$dst/tsconfig.build.json"
   fi
   cp -r "$src/src" "$dst/src"
+  if [[ -d "$src/bin" ]]; then
+    cp -r "$src/bin" "$dst/bin"
+  fi
 }
 
 cp "$ROOT_DIR/yarn.lock" $target_root_dir
