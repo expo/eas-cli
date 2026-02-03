@@ -147,21 +147,6 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
-  it('does not display a warning when usage is at 100%', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        buildPlanMetrics: [createMockPlanMetric({ value: 100, limit: 100 })],
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).not.toHaveBeenCalled();
-  });
-
   it('handles errors gracefully', async () => {
     mockGetUsageForOverageWarningAsync.mockRejectedValue(new Error('Network error'));
 
@@ -269,5 +254,28 @@ describe('displayOverageWarning', () => {
       'https://expo.dev/accounts/my-custom-account/settings/billing',
       expect.objectContaining({ text: 'Upgrade your plan to continue service.' })
     );
+  });
+
+  it('shows progress bar when usage is under 100%', () => {
+    displayOverageWarning({
+      percentUsed: 85,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
+  });
+
+  it('does not show progress bar when usage is at 100%', () => {
+    displayOverageWarning({
+      percentUsed: 100,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("You've used 100% of your included build credits for this month.")
+    );
+    expect(mockWarn).not.toHaveBeenCalledWith(expect.stringMatching(/[█░]/));
   });
 });
