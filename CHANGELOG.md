@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade `tar` to v7. ([#3327](https://github.com/expo/eas-cli/pull/3327) by [@KarolRzeminski](https://github.com/KarolRzeminski))
+
 ## [16.32.0](https://github.com/expo/eas-cli/releases/tag/v16.32.0) - 2026-01-30
 
 ### 🎉 New features
@@ -31,7 +33,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Use `--dump-sourcemaps` as fallback when `--source-maps` is not provided to `eas update`, for backwards compatibility. ([8cc324e1](https://github.com/expo/eas-cli/commit/8cc324e1) by [@brentvatne](https://github.com/brentvatne))
 - Fix `metadata:pull` failing for apps with only a live version by falling back to live app version and info. ([#3299](https://github.com/expo/eas-cli/pull/3299) by [@EvanBacon](https://github.com/EvanBacon))
 - eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
-- Fix `eas build` failing when compressing project files after upgrading `tar` by switching to namespace imports. ([#3327](https://github.com/expo/eas-cli/pull/3327) by [@KarolRzeminski](https://github.com/KarolRzeminski))
 
 ### 🧹 Chores
 
