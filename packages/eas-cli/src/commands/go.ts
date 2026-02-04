@@ -387,7 +387,7 @@ export default class Go extends EasCommand {
     await fs.ensureDir(workflowDir);
     await fs.writeFile(path.join(workflowDir, 'repack.yml'), WORKFLOW_TEMPLATE);
 
-    await spawnAsync('yarn', ['install'], { cwd: projectDir });
+    await spawnAsync('npm', ['install'], { cwd: projectDir });
   }
 
   private async initGitRepoAsync(projectDir: string): Promise<void> {
