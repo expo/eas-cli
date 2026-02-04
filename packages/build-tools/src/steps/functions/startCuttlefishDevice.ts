@@ -132,7 +132,34 @@ export function createStartCuttlefishDeviceBuildFunction(): BuildFunction {
 
       logger.info('Listing adb devices...');
       await spawn('adb', ['devices'], { env, logger });
-      await spawn('adb', ['shell', 'input', 'keyevent', '82'], { env, logger });
+
+      logger.info('Unlocking Cuttlefish device');
+      const unlockDeadline = Date.now() + 30_000;
+      let isUnlocked = false;
+      while (Date.now() < unlockDeadline) {
+        const dumpsysResult = await asyncResult(
+          spawn('adb', ['shell', 'dumpsys', 'window'], { env })
+        );
+        if (dumpsysResult.ok) {
+          const match = dumpsysResult.value.stdout.match(/mDreamingLockscreen=(true|false)/);
+          if (match?.[1] === 'false') {
+            isUnlocked = true;
+            break;
+          }
+        } else {
+          logger.warn(dumpsysResult.reason, 'Failed to query device lock state.');
+        }
+
+        await spawn('adb', ['shell', 'input', 'keyevent', '82'], { env, logger });
+        await sleepAsync(1_000);
+      }
+
+      if (isUnlocked) {
+        logger.info('Device unlocked, returning to home screen');
+        await spawn('adb', ['shell', 'input', 'keyevent', '3'], { env, logger });
+      } else {
+        logger.warn('Timed out waiting for Cuttlefish device to unlock.');
+      }
     },
   });
 }
