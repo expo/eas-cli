@@ -50,7 +50,7 @@ jobs:
       - name: Run tests (coverage)
         # Coverage on PRs and main; per-package reports are uploaded to Codecov.
         if: ${{ matrix.coverage }}
-        run: yarn lerna run test -- --coverage
+        run: yarn lerna run test -- -- --coverage
         env:
           # Oclif seems to cause OOM errors when testing with coverage enabled.
           # Remove this whenever we solved those OOM errors.
