@@ -1,4 +1,4 @@
-import { App, Build, User, UserRole } from '@expo/apple-utils';
+import { App, User, UserRole } from '@expo/apple-utils';
 import spawnAsync from '@expo/spawn-async';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -43,39 +43,6 @@ const EXPO_GO_BUILD_NUMBER = '1017799';
 const TESTFLIGHT_GROUP_NAME = 'Team (Expo)';
 
 async function setupTestFlightAsync(ascApp: App): Promise<void> {
-  // Set encryption compliance on the latest build (required before testers can access)
-  for (let attempt = 0; attempt < 30; attempt++) {
-    try {
-      const builds = await Build.getAsync(ascApp.context, {
-        query: {
-          filter: { app: ascApp.id },
-          sort: '-uploadedDate',
-          limit: 1,
-        },
-      });
-
-      if (builds.length > 0) {
-        const build = builds[0];
-        const { processingState, usesNonExemptEncryption } = build.attributes;
-
-        // Wait for build to finish processing
-        if (processingState === 'PROCESSING') {
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          continue;
-        }
-
-        // Set encryption compliance if not already set
-        if (usesNonExemptEncryption === null || usesNonExemptEncryption === undefined) {
-          await build.updateAsync({ usesNonExemptEncryption: false });
-        }
-        break;
-      }
-    } catch {
-      // Build might not be ready yet, retry
-    }
-    await new Promise(resolve => setTimeout(resolve, 10000));
-  }
-
   // Create or get TestFlight group
   let group;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -194,13 +161,6 @@ jobs:
       - id: download
         run: |
           curl --output expo-go.ipa -L ${EXPO_GO_IPA_URL}
-          # Add ITSAppUsesNonExemptEncryption to skip export compliance dialog
-          unzip -q expo-go.ipa -d ipa_contents
-          APP_PATH=$(find ipa_contents/Payload -name "*.app" -type d | head -1)
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$APP_PATH/Info.plist"
-          cd ipa_contents && zip -qr ../expo-go-modified.ipa . && cd ..
-          rm -rf ipa_contents
-          mv expo-go-modified.ipa expo-go.ipa
           set-output ipa_path "$PWD/expo-go.ipa"
       - uses: eas/repack
         id: repack
@@ -369,6 +329,9 @@ export default class Go extends EasCommand {
         ios: {
           bundleIdentifier: bundleId,
           buildNumber: EXPO_GO_BUILD_NUMBER,
+          config: {
+            usesNonExemptEncryption: false,
+          },
         },
         extra: {
           eas: {
