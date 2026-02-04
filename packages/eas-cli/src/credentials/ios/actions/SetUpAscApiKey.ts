@@ -90,9 +90,11 @@ export class SetUpAscApiKey {
       return null;
     }
     const [autoselectedKey] = sortAscApiKeysByUpdatedAtDesc(validKeys);
-    const useAutoselected = await confirmAsync({
-      message: `Reuse this App Store Connect API Key?\n${formatAscApiKey(autoselectedKey)}`,
-    });
+    const useAutoselected =
+      ctx.autoAcceptCredentialReuse ||
+      (await confirmAsync({
+        message: `Reuse this App Store Connect API Key?\n${formatAscApiKey(autoselectedKey)}`,
+      }));
 
     if (useAutoselected) {
       Log.log(`Using App Store Connect API Key with ID ${autoselectedKey.keyIdentifier}`);

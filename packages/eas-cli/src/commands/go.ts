@@ -5,13 +5,10 @@ import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
-import prompts from 'prompts';
-
 import { Analytics } from '../analytics/AnalyticsManager';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../commandUtils/context/contextUtils/getProjectIdAsync';
-import { showWorkflowStatusAsync } from '../commandUtils/workflow/utils';
 import { CredentialsContext } from '../credentials/context';
 import { AppStoreApiKeyPurpose } from '../credentials/ios/actions/AscApiKeyUtils';
 import { getAppFromContextAsync } from '../credentials/ios/actions/BuildCredentialsUtils';
@@ -19,18 +16,20 @@ import { SetUpAscApiKey } from '../credentials/ios/actions/SetUpAscApiKey';
 import { SetUpBuildCredentials } from '../credentials/ios/actions/SetUpBuildCredentials';
 import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExists';
 import { Target } from '../credentials/ios/types';
-import { WorkflowProjectSourceType, WorkflowRunStatus } from '../graphql/generated';
+import { WorkflowJobStatus, WorkflowProjectSourceType, WorkflowRunStatus } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { WorkflowRevisionMutation } from '../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
-import Log from '../log';
+import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
+import Log, { learnMore } from '../log';
 import { ora } from '../ora';
 import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
 import { Actor } from '../user/User';
+import { sleepAsync } from '../utils/promise';
 import { resolveVcsClient } from '../vcs';
 import { Client as VcsClient } from '../vcs/vcs';
 
@@ -102,7 +101,6 @@ async function setupTestFlightAsync(ascApp: App): Promise<void> {
 /* eslint-disable no-console */
 async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
   const originalConsoleLog = console.log;
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
@@ -116,8 +114,9 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
     return true;
   };
 
+  // Only suppress stdout, not stderr — ora writes spinner frames to stderr and
+  // patching it would freeze the spinner animation during suppressed async work.
   process.stdout.write = capture as any;
-  process.stderr.write = capture as any;
   console.log = () => {};
   console.error = () => {};
   console.warn = () => {};
@@ -126,7 +125,6 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (error) {
     process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
@@ -137,7 +135,6 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
     throw error;
   } finally {
     process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
     console.warn = originalConsoleWarn;
@@ -184,6 +181,7 @@ jobs:
 `;
 
 export default class Go extends EasCommand {
+  static override hidden = true;
   static override description = 'Create a custom Expo Go and submit to TestFlight';
 
   static override flags = {
@@ -207,11 +205,15 @@ export default class Go extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    Log.log(chalk.bold('Creating your personal Expo Go...\n'));
+    Log.log(
+      chalk.bold(
+        `Creating your personal Expo Go and deploying to TestFlight. ${learnMore('https://expo.fyi/personal-expo-go')}`
+      )
+    );
 
     const { flags } = await this.parse(Go);
 
-    let spinner = ora('Logging in to Expo...').start();
+    const spinner = ora('Logging in to Expo...').start();
     const {
       loggedIn: { actor, graphqlClient },
       analytics,
@@ -230,23 +232,19 @@ export default class Go extends EasCommand {
     const originalCwd = process.cwd();
     process.chdir(projectDir);
 
-    Log.log(`Bundle ID: ${chalk.cyan(bundleId)}`);
+    const setupSpinner = ora('Creating project...').start();
 
-    // Step 1: Create project files and initialize git
+    // Step 1: Create project files and initialize git (silently)
     try {
-      spinner = ora('Creating project...').start();
       await withSuppressedOutputAsync(async () => {
         await this.createProjectFilesAsync(projectDir, bundleId, appName);
         await this.initGitRepoAsync(projectDir);
       });
       const vcsClient = resolveVcsClient();
 
-      // Step 2: Create/link EAS project
+      // Step 2: Create/link EAS project (silently)
       const projectId = await withSuppressedOutputAsync(() =>
         this.ensureEasProjectAsync(graphqlClient, actor, projectDir, bundleId)
-      );
-      spinner.succeed(
-        `Project created: ${chalk.cyan(`@${actor.accounts[0].name}/${bundleId.split('.').pop()}`)}`
       );
 
       // Step 3: Set up iOS credentials and create App Store Connect app
@@ -259,44 +257,53 @@ export default class Go extends EasCommand {
         actor,
         analytics,
         vcsClient,
-        flags.credentials
+        flags.credentials,
+        () => {
+          setupSpinner.stop();
+          Log.markFreshLine();
+        }
       );
 
-      Log.withTick('Credentials and App Store Connect configured');
+      // Step 4: Start workflow and monitor progress
+      const { workflowUrl, workflowRunId } = await this.runWorkflowAsync(
+        graphqlClient,
+        projectDir,
+        projectId,
+        actor,
+        vcsClient
+      );
+      Log.withTick(`Workflow started: ${chalk.cyan(workflowUrl)}`);
 
-      // Step 4: Run workflow
-      const startTime = Date.now();
-      spinner = ora('Starting workflow...').start();
+      const status = await this.monitorWorkflowJobsAsync(graphqlClient, workflowRunId);
+      if (status === WorkflowRunStatus.Failure) {
+        throw new Error('Workflow failed');
+      } else if (status === WorkflowRunStatus.Canceled) {
+        throw new Error('Workflow was canceled');
+      }
 
-      await this.runWorkflowAsync(graphqlClient, projectDir, projectId, actor, vcsClient, url => {
-        spinner.succeed(`Workflow started: ${chalk.cyan(url)}`);
-      });
-
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const mins = Math.floor(elapsed / 60);
-      const secs = elapsed % 60;
-      Log.withTick(`Workflow completed in ${mins}:${secs.toString().padStart(2, '0')}`);
-
-      // Step 5: Set up TestFlight group (after build is submitted)
-      spinner = ora('Setting up TestFlight...').start();
+      // Step 5: Set up TestFlight group (silently)
       try {
         await setupTestFlightAsync(ascApp);
-        spinner.succeed('TestFlight configured');
-      } catch (error: any) {
-        spinner.fail(`Could not set up TestFlight group: ${error.message}`);
+      } catch {
+        // Non-fatal: TestFlight group setup failure shouldn't block the user
       }
 
       Log.newLine();
-      Log.succeed('Done! Your custom Expo Go has been submitted to TestFlight.');
+      Log.succeed(
+        `Done! Your custom Expo Go has been submitted to TestFlight. ${learnMore(
+          `https://appstoreconnect.apple.com/apps/${ascApp.id}/testflight`,
+          { learnMoreMessage: 'Open it on App Store Connect' }
+        )}`
+      );
       Log.log(
-        `App Store Connect: ${chalk.cyan(
-          `https://appstoreconnect.apple.com/apps/${ascApp.id}/testflight`
+        `App Store processing may take several minutes to complete. ${learnMore(
+          'https://expo.fyi/personal-expo-go',
+          { learnMoreMessage: 'Learn more about Expo Go on TestFlight' }
         )}`
       );
 
       await fs.remove(projectDir);
     } catch (error) {
-      spinner?.fail();
       Log.gray(`Project files preserved for debugging: ${projectDir}`);
       throw error;
     } finally {
@@ -433,7 +440,8 @@ export default class Go extends EasCommand {
     actor: Actor,
     analytics: Analytics,
     vcsClient: VcsClient,
-    customizeCreds: boolean
+    customizeCreds: boolean,
+    onBeforeAppleAuth?: () => void
   ): Promise<App> {
     const exp = await getPrivateExpoConfigAsync(projectDir);
     const extensionBundleId = `${bundleId}.ExpoNotificationServiceExtension`;
@@ -441,6 +449,7 @@ export default class Go extends EasCommand {
     const credentialsCtx = new CredentialsContext({
       projectInfo: { exp, projectId },
       nonInteractive: false,
+      autoAcceptCredentialReuse: !customizeCreds,
       projectDir,
       user: actor,
       graphqlClient,
@@ -451,6 +460,7 @@ export default class Go extends EasCommand {
       },
     });
 
+    onBeforeAppleAuth?.();
     const userAuthCtx = await credentialsCtx.appStore.ensureUserAuthenticatedAsync();
 
     const app = await getAppFromContextAsync(credentialsCtx);
@@ -468,10 +478,6 @@ export default class Go extends EasCommand {
         entitlements: {},
       },
     ];
-
-    if (!customizeCreds) {
-      prompts.inject(Array(20).fill(true));
-    }
 
     const ascApp = await withSuppressedOutputAsync(async () => {
       await new SetUpBuildCredentials({
@@ -515,9 +521,8 @@ export default class Go extends EasCommand {
     projectDir: string,
     projectId: string,
     actor: Actor,
-    vcsClient: VcsClient,
-    onWorkflowStarted?: (workflowUrl: string) => void
-  ): Promise<string> {
+    vcsClient: VcsClient
+  ): Promise<{ workflowUrl: string; workflowRunId: string }> {
     const account = actor.accounts[0];
     const workflowFile = path.join(projectDir, '.eas', 'workflows', 'repack.yml');
     const yamlConfig = await fs.readFile(workflowFile, 'utf-8');
@@ -576,19 +581,67 @@ export default class Go extends EasCommand {
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
     const workflowUrl = `https://expo.dev/accounts/${account.name}/projects/${app.slug}/workflows/${workflowRunId}`;
 
-    onWorkflowStarted?.(workflowUrl);
+    return { workflowUrl, workflowRunId };
+  }
 
-    const { status } = await showWorkflowStatusAsync(graphqlClient, {
-      workflowRunId,
-      spinnerUsesStdErr: false,
-    });
+  private async monitorWorkflowJobsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    workflowRunId: string
+  ): Promise<WorkflowRunStatus> {
+    const buildSpinner = ora('Building Expo Go').start();
+    let submitSpinner: ReturnType<typeof ora> | null = null;
+    let buildCompleted = false;
+    let failedFetchesCount = 0;
 
-    if (status === WorkflowRunStatus.Failure) {
-      throw new Error('Workflow failed');
-    } else if (status === WorkflowRunStatus.Canceled) {
-      throw new Error('Workflow was canceled');
+    while (true) {
+      try {
+        const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
+          useCache: false,
+        });
+        failedFetchesCount = 0;
+
+        const repackJob = workflowRun.jobs.find(j => j.name === 'Repack Expo Go');
+        const submitJob = workflowRun.jobs.find(j => j.name === 'Submit to TestFlight');
+
+        if (!buildCompleted) {
+          if (repackJob?.status === WorkflowJobStatus.Success) {
+            buildSpinner.succeed('Built Expo Go');
+            buildCompleted = true;
+          } else if (
+            repackJob?.status === WorkflowJobStatus.Failure ||
+            repackJob?.status === WorkflowJobStatus.Canceled
+          ) {
+            buildSpinner.fail('Build failed');
+            return WorkflowRunStatus.Failure;
+          }
+        }
+
+        if (buildCompleted && submitSpinner === null && submitJob) {
+          submitSpinner = ora('Submitting to TestFlight').start();
+        }
+
+        if (workflowRun.status === WorkflowRunStatus.Success) {
+          submitSpinner?.stop();
+          return WorkflowRunStatus.Success;
+        } else if (workflowRun.status === WorkflowRunStatus.Failure) {
+          buildSpinner.stop();
+          submitSpinner?.fail('Submission failed');
+          return WorkflowRunStatus.Failure;
+        } else if (workflowRun.status === WorkflowRunStatus.Canceled) {
+          buildSpinner.stop();
+          submitSpinner?.stop();
+          return WorkflowRunStatus.Canceled;
+        }
+      } catch {
+        failedFetchesCount++;
+        if (failedFetchesCount > 6) {
+          buildSpinner.fail();
+          submitSpinner?.fail();
+          throw new Error('Failed to fetch the workflow run status 6 times in a row');
+        }
+      }
+
+      await sleepAsync(10 * 1000);
     }
-
-    return workflowUrl;
   }
 }
