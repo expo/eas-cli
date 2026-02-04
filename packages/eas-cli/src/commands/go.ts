@@ -316,10 +316,12 @@ export default class Go extends EasCommand {
       Log.withTick(`Workflow completed in ${mins}:${secs.toString().padStart(2, '0')}`);
 
       // Step 5: Set up TestFlight group (after build is submitted)
+      spinner = ora('Setting up TestFlight...').start();
       try {
         await setupTestFlightAsync(ascApp);
+        spinner.succeed('TestFlight configured');
       } catch (error: any) {
-        Log.warn(`Could not set up TestFlight group: ${error.message}`);
+        spinner.fail(`Could not set up TestFlight group: ${error.message}`);
       }
 
       Log.newLine();
