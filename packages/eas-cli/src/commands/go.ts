@@ -2,7 +2,6 @@ import { App, Build, User, UserRole } from '@expo/apple-utils';
 import spawnAsync from '@expo/spawn-async';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
-import crypto from 'crypto';
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
@@ -210,13 +209,13 @@ jobs:
           platform: ios
           embed_bundle_assets: false
           repack_package: "@kudo-chien/repack-app"
-          repack_version: "0.3.0"
+          repack_version: "0.3.1"
       - uses: eas/upload_artifact
         with:
           path: "\${{ steps.repack.outputs.output_path }}"
 
-  testflight:
-    type: testflight
+  submit:
+    type: submit
     needs: [repack]
     params:
       build_id: \${{ needs.repack.outputs.build_id }}
@@ -232,7 +231,7 @@ export default class Go extends EasCommand {
     }),
     name: Flags.string({
       description: 'App name',
-      default: 'Custom Expo Go',
+      default: 'My Expo Go',
     }),
     credentials: Flags.boolean({
       description: 'Interactively select credentials (default: auto-select)',
@@ -246,7 +245,7 @@ export default class Go extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    Log.log(chalk.bold('Creating custom Expo Go for TestFlight...\n'));
+    Log.log(chalk.bold('Creating your personal Expo Go...\n'));
 
     const { flags } = await this.parse(Go);
 
@@ -260,8 +259,8 @@ export default class Go extends EasCommand {
     spinner.succeed(`Logged in as ${chalk.cyan(actor.accounts[0].name)}`);
 
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
-    const appName = flags.name ?? 'Custom Expo Go';
-    const slug = bundleId.split('.').pop() || 'custom-expo-go';
+    const appName = flags.name ?? 'My Expo Go';
+    const slug = bundleId.split('.').pop() || 'my-expo-go';
 
     const projectDir = path.join(os.tmpdir(), `eas-go-${slug}`);
     await fs.emptyDir(projectDir);
@@ -348,14 +347,8 @@ export default class Go extends EasCommand {
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '')
       .replace(/^-+|-+$/g, ''); // trim leading/trailing hyphens
-    // Generate 6 random bytes and encode as base64, then make it bundle-ID safe
-    const randomBytes = crypto
-      .randomBytes(6)
-      .toString('base64')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .substring(0, 6)
-      .toLowerCase();
-    return `com.${sanitizedUsername || 'app'}.${randomBytes}`;
+    // Deterministic bundle ID per user + SDK version (reuses same ASC app)
+    return `com.${sanitizedUsername || 'app'}.expogo${EXPO_GO_SDK_VERSION}`;
   }
 
   private async createProjectFilesAsync(
@@ -370,10 +363,10 @@ export default class Go extends EasCommand {
       expo: {
         name: appName,
         slug,
-        version: '55.0.11',
+        version: EXPO_GO_APP_VERSION,
         ios: {
           bundleIdentifier: bundleId,
-          buildNumber: '1017799',
+          buildNumber: EXPO_GO_BUILD_NUMBER,
         },
         extra: {
           eas: {
