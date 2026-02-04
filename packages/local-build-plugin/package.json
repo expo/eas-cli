@@ -21,6 +21,7 @@
     "build": "tsc",
     "typecheck": "tsc",
     "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "jest --passWithNoTests",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
   "engines": {

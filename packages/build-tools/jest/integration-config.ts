@@ -1,8 +1,10 @@
-import type { Config } from 'jest';
+import type { Config } from '@jest/types';
 
-const config: Config = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
+// eslint-disable-next-line import/no-relative-packages
+import baseConfig from '../../../jest/jest.shared.config';
+
+const config: Config.InitialOptions = {
+  ...baseConfig,
   rootDir: '../src',
   testMatch: ['**/__integration-tests__/*.test.ts'],
   clearMocks: true,

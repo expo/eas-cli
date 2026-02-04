@@ -5,9 +5,10 @@ import baseConfig from '../../jest/jest.shared.config';
 
 const config: Config.InitialOptions = {
   ...baseConfig,
-  rootDir: __dirname,
-  roots: ['src', '__mocks__'],
-  testRegex: '/__tests__/.*(test|spec)\\.[jt]sx?$',
+  rootDir: 'src',
+  testMatch: ['**/__tests__/*.test.ts'],
+  clearMocks: true,
+  setupFilesAfterEnv: ['<rootDir>/../jest/setup-tests.ts'],
 };
 
 export default config;

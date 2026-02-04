@@ -46,7 +46,7 @@
     "typecheck": "tsc",
     "prepack": "yarn rebuild",
     "rebuild": "rimraf build && yarn build",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
   },
   "files": [
