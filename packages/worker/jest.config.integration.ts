@@ -1,6 +1,10 @@
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
+import type { Config } from '@jest/types';
+
+// eslint-disable-next-line import/no-relative-packages
+import baseConfig from '../../jest/jest.shared.config';
+
+const config: Config.InitialOptions = {
+  ...baseConfig,
   rootDir: 'src',
   testMatch: ['**/__integration__/*.test.ts'],
   collectCoverage: true,
@@ -13,3 +17,5 @@ module.exports = {
   // WebSocket cleanup timing) may keep handles open that prevent clean exit.
   forceExit: true,
 };
+
+export default config;

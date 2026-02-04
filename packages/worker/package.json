@@ -13,8 +13,8 @@
     "test": "yarn test:unit",
     "test:unit": "./resources/jest --config jest.config.unit.ts",
     "test:unit:watch": "./resources/jest --config jest.config.unit.ts --watch",
-    "test:integration": "./resources/jest --runInBand --config jest.config.integration.js",
-    "test:integration:watch": "./resources/jest --runInBand --config jest.config.integration.js --watchAll",
+    "test:integration": "./resources/jest --runInBand --config jest.config.integration.ts",
+    "test:integration:watch": "./resources/jest --runInBand --config jest.config.integration.ts --watchAll",
     "typecheck": "tsc"
   },
   "engines": {

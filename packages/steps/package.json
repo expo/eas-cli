@@ -18,8 +18,8 @@
     "typecheck": "tsc",
     "prepack": "rm -rf dist && tsc --project tsconfig.build.json",
     "watch": "tsc --watch --preserveWatchOutput",
-    "test": "jest --config jest.config.cjs",
-    "test:coverage": "jest --config jest.config.cjs --coverage",
+    "test": "jest --config jest.config.ts",
+    "test:coverage": "jest --config jest.config.ts --coverage",
     "test:watch": "yarn test --watch",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
