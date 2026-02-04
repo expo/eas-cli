@@ -5,13 +5,16 @@ on:
     branches: [main]
     paths:
       - "packages/worker/**"
+      - "packages/build-tools/**"
+      - "packages/eas-build-job/**"
+      - "packages/steps/**"
+      - "packages/logger/**"
+      - "packages/downloader/**"
+      - "packages/template-file/**"
+      - "packages/turtle-spawn/**"
       - .github/workflows/worker.yml
       - .github/workflows/build-and-deploy-worker.yml
-  pull_request:
-    paths:
-      - "packages/worker/**"
-      - .github/workflows/worker.yml
-      - .github/workflows/build-and-deploy-worker.yml
+      - yarn.lock
 
 concurrency:
   group: worker-${{ github.ref }}-${{ github.event_name }}

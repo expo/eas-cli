@@ -31,12 +31,26 @@ jobs:
       - run: |
           git config --global user.email "tester@expo.dev"
           git config --global user.name "Test"
-      - run: yarn test
-        if: ${{ !matrix.coverage }}
+      - name: Fetch base commit for PR diffing
+        if: ${{ github.event_name == 'pull_request' }}
+        # Lerna needs the base commit to compute affected packages.
+        run: git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
+      - name: Run tests (affected)
+        # PRs: only run tests for changed packages + dependents.
+        if: ${{ !matrix.coverage && github.event_name == 'pull_request' }}
+        run: yarn lerna run test --since ${{ github.event.pull_request.base.sha }} --include-dependents
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-      - run: yarn test --coverage
+      - name: Run tests (all)
+        # Pushes to main: run all package tests.
+        if: ${{ !matrix.coverage && github.event_name == 'push' }}
+        run: yarn lerna run test
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+      - name: Run tests (coverage)
+        # Coverage on PRs and main; per-package reports are uploaded to Codecov.
         if: ${{ matrix.coverage }}
+        run: yarn lerna run test -- --coverage
         env:
           # Oclif seems to cause OOM errors when testing with coverage enabled.
           # Remove this whenever we solved those OOM errors.
