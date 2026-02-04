@@ -149,6 +149,7 @@ const WORKFLOW_TEMPLATE = `name: Repack Expo Go
 
 jobs:
   repack:
+    name: Repack Expo Go
     type: build
     params:
       platform: ios
@@ -175,6 +176,7 @@ jobs:
           path: "\${{ steps.repack.outputs.output_path }}"
 
   submit:
+    name: Submit to TestFlight
     type: submit
     needs: [repack]
     params:
