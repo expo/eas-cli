@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "lint-changelog": "./scripts/bin/run lint-changelog",
     "release": "lerna run rebuild && ./scripts/bin/run release",
-    "test": "jest",
+    "test": "lerna run test",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
   "devDependencies": {

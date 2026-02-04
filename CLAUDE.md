@@ -106,14 +106,17 @@ yarn start-allow-unused
 ### Testing
 
 ```bash
-yarn test           # Run all tests across packages (Jest multi-project)
-yarn test --watch   # Run tests in watch mode
+yarn lerna run test                      # Run all tests across packages
+yarn lerna run test -- --watch           # Watch mode across packages (heavier)
+#
+# If you use `yarn test`, remember to pass args through two separators:
+# yarn test -- -- --watch
 
-# Run tests for specific package
+# Run tests for a specific package
 cd packages/eas-cli && yarn test
 cd packages/eas-json && yarn test
 cd packages/worker && yarn test
-cd packages/build-tools && yarn jest-unit
+cd packages/build-tools && yarn test
 cd packages/steps && yarn test
 ```
 
@@ -243,8 +246,8 @@ Most packages depend on `@expo/eas-build-job` as the source of truth for types.
 
 ## Testing Architecture
 
-- **Framework**: Jest with multi-project configuration
-- **Root config**: `jest.config.ts` (combines eas-cli, eas-json, worker)
+- **Framework**: Jest with per-package configuration
+- **Shared base config**: `jest/jest.shared.config.ts`
 - **Test locations**: `__tests__/` directories alongside source files
 - **Mocking**:
   - File system: `memfs`
@@ -254,9 +257,9 @@ Most packages depend on `@expo/eas-build-job` as the source of truth for types.
 Run a single test file:
 
 ```bash
-yarn test <path-to-test-file>
+cd packages/eas-cli && yarn test <path-to-test-file>
 # Example:
-yarn test packages/eas-cli/src/project/__tests__/projectUtils-test.ts
+cd packages/eas-cli && yarn test src/project/__tests__/projectUtils-test.ts
 ```
 
 ## Common Development Scenarios
