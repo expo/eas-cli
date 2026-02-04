@@ -133,8 +133,8 @@ export function createStartCuttlefishDeviceBuildFunction(): BuildFunction {
       logger.info('Listing adb devices...');
       await spawn('adb', ['devices'], { env, logger });
 
-      logger.info('Unlocking Cuttlefish device');
-      const unlockDeadline = Date.now() + 30_000;
+      logger.info('Unlocking device...');
+      const unlockDeadline = Date.now() + 10_000;
       let isUnlocked = false;
       while (Date.now() < unlockDeadline) {
         const dumpsysResult = await asyncResult(
@@ -158,7 +158,7 @@ export function createStartCuttlefishDeviceBuildFunction(): BuildFunction {
         logger.info('Device unlocked, returning to home screen');
         await spawn('adb', ['shell', 'input', 'keyevent', '3'], { env, logger });
       } else {
-        logger.warn('Timed out waiting for Cuttlefish device to unlock.');
+        logger.warn('Timed out waiting for the device to unlock.');
       }
     },
   });
