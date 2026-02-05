@@ -1,8 +1,9 @@
 import nock from 'nock';
 
-jest.mock('node-fetch', () => jest.requireActual('node-fetch'));
-
 import { AscApiClient } from '../AscApiClient';
+
+// nock needs real fetch implementation
+jest.unmock('node-fetch');
 
 describe(AscApiClient, () => {
   const token = 'test-token';
