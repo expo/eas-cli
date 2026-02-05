@@ -39,7 +39,7 @@
       }
     ],
     "no-return-await": "off",
-    "typescript/return-await": ["warn", "in-try-catch"],
+    "typescript/return-await": ["warn", "error-handling-correctness-only"],
     "typescript/no-confusing-non-null-assertion": "warn",
     "typescript/no-extra-non-null-assertion": "warn",
     "typescript/prefer-as-const": "warn",
