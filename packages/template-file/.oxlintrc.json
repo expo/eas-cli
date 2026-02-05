@@ -4,10 +4,6 @@
     {
       "name": "async-protect",
       "specifier": "eslint-plugin-async-protect"
-    },
-    {
-      "name": "eslint-import",
-      "specifier": "eslint-plugin-import"
     }
   ],
   "rules": {

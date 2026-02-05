@@ -6,10 +6,6 @@
       "specifier": "eslint-plugin-async-protect"
     },
     {
-      "name": "eslint-import",
-      "specifier": "eslint-plugin-import"
-    },
-    {
       "name": "graphql",
       "specifier": "eslint-plugin-graphql"
     }
@@ -43,7 +39,7 @@
       }
     ],
     "no-return-await": "off",
-    "typescript/return-await": ["error", "always"],
+    "typescript/return-await": ["warn", "always"],
     "typescript/no-confusing-non-null-assertion": "warn",
     "typescript/no-extra-non-null-assertion": "warn",
     "typescript/prefer-as-const": "warn",

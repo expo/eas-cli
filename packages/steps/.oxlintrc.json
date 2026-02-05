@@ -4,16 +4,11 @@
     {
       "name": "async-protect",
       "specifier": "eslint-plugin-async-protect"
-    },
-    {
-      "name": "eslint-import",
-      "specifier": "eslint-plugin-import"
     }
   ],
   "rules": {
     "async-protect/async-suffix": "off",
-    "import/no-cycle": "off",
-    "eslint-import/no-extraneous-dependencies": "off",
+    "no-cycle": "off",
     "no-console": "off",
     "no-underscore-dangle": "off",
     "no-void": "off",

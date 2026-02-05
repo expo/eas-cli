@@ -4,10 +4,6 @@
     {
       "name": "async-protect",
       "specifier": "eslint-plugin-async-protect"
-    },
-    {
-      "name": "eslint-import",
-      "specifier": "eslint-plugin-import"
     }
   ],
   "rules": {
@@ -17,12 +13,6 @@
       {
         "allow": ["__typename", "__WORKFLOW_JOB_ID"],
         "allowAfterThis": true
-      }
-    ],
-    "eslint-import/no-extraneous-dependencies": [
-      "error",
-      {
-        "devDependencies": ["**/__integration__/**/*", "**/__unit__/**/*", "**/__mocks__/**/*"]
       }
     ],
     "node/no-sync": "off"
