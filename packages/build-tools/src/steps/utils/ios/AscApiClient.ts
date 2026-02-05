@@ -1,8 +1,7 @@
+import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
 import { ZodError, z } from 'zod';
-
-import Log from '../../log';
 
 type ApiSchema = {
   [Path in string]: {
@@ -240,9 +239,11 @@ export type AscApiClientPatchApi = {
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
   private readonly token: string;
+  private readonly logger?: bunyan;
 
-  constructor({ token }: { token: string }) {
+  constructor({ token, logger }: { token: string; logger?: bunyan }) {
     this.token = token;
+    this.logger = logger;
   }
 
   public async getAsync<TPath extends keyof typeof GetApi>(
@@ -257,9 +258,18 @@ export class AscApiClient {
       effectivePath = effectivePath.replace(`:${key}`, String(value));
     }
 
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(body)) {
+      if (Array.isArray(value)) {
+        searchParams.set(key, value.join(','));
+      } else {
+        searchParams.set(key, String(value));
+      }
+    }
+
     return await this.sendRequestAsync({
       method: 'GET',
-      path: `${effectivePath}?${new URLSearchParams(body).toString()}`,
+      path: `${effectivePath}?${searchParams.toString()}`,
       body,
       requestSchema: schema.request,
       responseSchema: schema.response,
@@ -343,7 +353,7 @@ export class AscApiClient {
 
     const json = await response.json();
 
-    Log.debug(`Response from App Store Connect: ${JSON.stringify(json, null, 2)}`);
+    this.logger?.debug(`Response from App Store Connect: ${JSON.stringify(json, null, 2)}`);
 
     const parsedResponse = await asyncResult((async () => responseSchema.parse(json))());
     if (!parsedResponse.ok) {

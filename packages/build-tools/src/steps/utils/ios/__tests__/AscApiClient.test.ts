@@ -1,5 +1,7 @@
 import nock from 'nock';
 
+jest.mock('node-fetch', () => jest.requireActual('node-fetch'));
+
 import { AscApiClient } from '../AscApiClient';
 
 describe(AscApiClient, () => {
