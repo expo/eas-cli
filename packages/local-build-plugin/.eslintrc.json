@@ -1,8 +1,0 @@
-{
-  "extends": "../../.eslintrc.js",
-  "rules": {
-    "async-protect/async-suffix": "off",
-    "no-console": "off",
-    "no-void": "off"
-  }
-}
