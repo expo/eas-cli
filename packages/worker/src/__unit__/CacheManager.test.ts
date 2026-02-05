@@ -7,10 +7,14 @@ import os from 'os';
 import path from 'path';
 import { Readable } from 'stream';
 
+// These tests use real fs and directories in os.tmpdir().
+// Something about tar v7 makes mocking fs with memfs problematic.
+// Mocking all variants of fs/node:fs/fs/promises does not help.
+// Last Codex research indicated it might be something related to fs-minipass
+// and fs.writev, mocking fs.writev did not help though.
 jest.unmock('fs');
-jest.unmock('fs/promises');
-jest.unmock('fs-extra');
 jest.unmock('node:fs');
+
 jest.mock('@expo/downloader', () => {
   return jest.fn();
 });
