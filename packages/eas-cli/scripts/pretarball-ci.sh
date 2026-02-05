@@ -24,7 +24,7 @@ rewrite_deps() {
     KEY="${package%%:*}"
     DIR="${package##*:}"
 
-    # Determine the relative path
+    # Determine the relative path. If IS_EAS_CLI we go one level deeper because oclif builds in `tmp` in current directory.
     if [[ "$IS_EAS_CLI" == "true" ]]; then
       REL_PATH="file:../../../$DIR"
     else
