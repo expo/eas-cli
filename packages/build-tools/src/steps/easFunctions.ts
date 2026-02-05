@@ -35,6 +35,7 @@ import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
+import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { CustomBuildContext } from '../customBuildContext';
@@ -75,6 +76,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     calculateEASUpdateRuntimeVersionFunction(),
 
     createSubmissionEntityFunction(),
+    createUploadToAscBuildFunction(),
 
     createInternalEasMaestroTestFunction(ctx),
   ];
