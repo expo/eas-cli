@@ -2,6 +2,9 @@ import nock from 'nock';
 
 import { AscApiClient } from '../AscApiClient';
 
+// nock needs real fetch implementation
+jest.unmock('node-fetch');
+
 describe(AscApiClient, () => {
   const token = 'test-token';
   const client = new AscApiClient({ token });
