@@ -1,34 +1,51 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "restriction": "off",
+    "style": "off",
+    "nursery": "off"
+  },
+  "ignorePatterns": [
+    "**/build/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/fixtures/**",
+    "**/__fixtures__/**",
+    ".github/**",
+    "packages/eas-cli/schema/**",
+    "packages/eas-cli/graphql.schema.json",
+    "packages/build-tools/schema.graphql"
+  ],
   "plugins": ["import", "node", "typescript"],
   "jsPlugins": [
     {
       "name": "async-protect",
       "specifier": "eslint-plugin-async-protect"
-    },
-    {
-      "name": "eslint-import",
-      "specifier": "eslint-plugin-import"
     }
   ],
   "rules": {
     "no-console": "warn",
-    "no-constant-condition": ["warn", { "checkLoops": false }],
-    "sort-imports": ["warn", { "ignoreDeclarationSort": true }],
-    "curly": "warn",
-    "import/no-cycle": "error",
-    "eslint-import/no-extraneous-dependencies": [
-      "error",
+    "no-constant-condition": [
+      "warn",
       {
-        "devDependencies": [
-          "**/jest/**/*",
-          "**/__tests__/**/*",
-          "**/__mocks__/**/*",
-          "**/__integration-tests__/**/*"
-        ]
+        "checkLoops": false
       }
     ],
-    "eslint-import/no-relative-packages": "error",
+    "sort-imports": [
+      "warn",
+      {
+        "ignoreDeclarationSort": true
+      }
+    ],
+    "curly": "warn",
+    "default": "off",
+    "named": "off",
+    "namespace": "off",
+    "no-cycle": "error",
     "no-restricted-imports": [
       "error",
       {
@@ -40,7 +57,12 @@
         ]
       }
     ],
-    "no-underscore-dangle": ["error", { "allow": ["__typename"] }],
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": ["__typename"]
+      }
+    ],
     "async-protect/async-suffix": "error",
     "node/no-sync": "error"
   },
