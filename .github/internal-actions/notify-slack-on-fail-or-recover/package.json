@@ -5,8 +5,5 @@
   "main": "main.js",
   "author": "Expo",
   "license": "UNLICENSED",
-  "private": true,
-  "devDependencies": {
-    "prettier": "^2.5.1"
-  }
+  "private": true
 }
