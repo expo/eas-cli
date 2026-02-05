@@ -1,9 +1,14 @@
 **/build/**
 **/dist/**
+**/coverage/**
+**/fixtures/**
 !packages/eas-cli/src/commands/build/**
 !packages/eas-cli/src/build/**
 
 packages/eas-cli/src/graphql/generated.ts
+packages/eas-cli/schema/**
+packages/eas-cli/graphql.schema.json
+packages/build-tools/schema.graphql
 
 node_modules
 ts-declarations
