@@ -5,7 +5,7 @@ import fg from 'fast-glob';
 import fs from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getBuildLogsUrl } from '../build/utils/url';
