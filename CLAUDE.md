@@ -124,7 +124,8 @@ cd packages/steps && yarn test
 
 ```bash
 yarn typecheck      # TypeScript type check all packages
-yarn lint           # ESLint across all packages
+yarn lint           # Oxlint across all packages
+yarn fmt:check      # Oxfmt format check
 ```
 
 ### Running EAS CLI Locally
@@ -307,7 +308,8 @@ All changes should be validated with TypeScript and the linter before committing
 
 ```bash
 yarn typecheck      # Validate TypeScript types
-yarn lint           # Run ESLint
+yarn lint           # Run Oxlint
+yarn fmt:check      # Run Oxfmt format check
 ```
 
 ### Logging
