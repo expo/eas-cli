@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "typeRoots": ["./node_modules/@types", "./ts-declarations"]
+  },
+  "include": ["packages/*/src/**/*.ts", "scripts/src/**/*.ts"],
+  "exclude": [
+    "**/build/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/node_modules/**",
+    "packages/eas-cli/src/graphql/generated.ts"
+  ]
+}

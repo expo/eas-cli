@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "prepack": "yarn run clean && yarn run build",
-    "lint": "eslint .",
+    "lint": "oxlint --type-aware --tsconfig ../../tsconfig.oxlint.json .",
     "test": "echo 'No tests yet.'",
     "watch": "yarn run build:dev -w",
     "build:dev": "ncc build ./src/index.ts -o build/",
