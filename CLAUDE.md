@@ -354,6 +354,6 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 
 ## Important Notes
 
-- **Node Version**: Requires Node.js >= 18.0.0 (managed via Volta)
+- **Node Version**: Requires Node.js (managed via Mise)
 - **Package Manager**: Uses Yarn 1.22.21
 - **Compilation Target**: CommonJS with Node resolution

@@ -34,8 +34,5 @@
     "ts-jest": "29.1.1",
     "typescript": "5.5.4"
   },
-  "volta": {
-    "node": "20.19.4",
-    "yarn": "1.22.21"
-  }
+  "packageManager": "yarn@1.22.21"
 }
