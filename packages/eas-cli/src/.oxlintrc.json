@@ -20,7 +20,9 @@
     "typescript/prefer-nullish-coalescing": [
       "warn",
       {
-        "ignorePrimitives": true
+        "ignorePrimitives": true,
+        "ignoreIfStatements": true,
+        "ignoreTernaryTests": true
       }
     ],
     "typescript/no-confusing-void-expression": "warn",
