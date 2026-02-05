@@ -14,6 +14,7 @@ Turtle Worker is a service running on every EAS build worker VM or pod. It's a *
 ## Development Commands
 
 ### Setup
+
 ```bash
 # Copy environment configuration
 cp ./.direnv/local/.envrc.example ./.direnv/local/.envrc
@@ -29,6 +30,7 @@ yarn build
 ```
 
 ### Development
+
 ```bash
 yarn start          # Start the worker in development mode
 
@@ -38,6 +40,7 @@ yarn start          # Start the worker in development mode
 ```
 
 ### Testing
+
 ```bash
 yarn test           # Run unit tests
 ```
@@ -106,6 +109,7 @@ If the launcher goes down during a build, recovery happens when it comes back:
 ### Build Execution
 
 Worker wraps `@expo/build-tools` library to execute builds:
+
 - Receives build job configuration
 - Sets up build environment
 - Runs actual React Native build process
@@ -119,16 +123,19 @@ Worker wraps `@expo/build-tools` library to execute builds:
 Worker code is distributed via **GCS bucket**. Every pod/VM installs it during startup.
 
 **Archive Structure**:
+
 - Contains worker source code from repository
 - All other dependencies downloaded from npm at install time
 
 ### Deployment Process
 
 **For every commit on main**:
+
 - GitHub Actions creates archives: `worker-{{platform}}-{{hash}}`
 - Creates staging archives: `worker-{{platform}}-staging`
 
 **Production Deployment**:
+
 - Guarded with manual `approve` step in GitHub Actions
 - Creates copy: `worker-{{platform}}-staging` → `worker-{{platform}}-production`
 
@@ -144,6 +151,7 @@ Worker code is distributed via **GCS bucket**. Every pod/VM installs it during s
 ## Dependencies
 
 Key dependencies:
+
 - `@expo/build-tools` - Core build execution
 - `koa`, `koa-body`, `koa-router` - HTTP server
 - `ws` - WebSocket server

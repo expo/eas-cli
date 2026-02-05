@@ -32,7 +32,7 @@ export async function eagerBundleAsync({
 export function shouldUseEagerBundle(metadata: Metadata | null | undefined): boolean {
   return Boolean(
     !metadata?.developmentClient &&
-      metadata?.sdkVersion &&
-      semver.satisfies(metadata?.sdkVersion, '>=52')
+    metadata?.sdkVersion &&
+    semver.satisfies(metadata?.sdkVersion, '>=52')
   );
 }

@@ -24,9 +24,7 @@ export const UserPreferencesMutation = {
           MarkCliDoneInOnboardingUserPreferencesMutationVariables
         >(
           gql`
-            mutation MarkCliDoneInOnboardingUserPreferencesMutation(
-              $preferences: UserPreferencesInput!
-            ) {
+            mutation MarkCliDoneInOnboardingUserPreferencesMutation($preferences: UserPreferencesInput!) {
               me {
                 setPreferences(preferences: $preferences) {
                   onboarding {

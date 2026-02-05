@@ -17,6 +17,7 @@ await templateFile('abc.json.template', 'abc.json', { ABC: 123, XYZ: 789 });
 ```
 
 `abc.json.template` file contents:
+
 ```
 {
   "someKey": {{ ABC }},
@@ -25,6 +26,7 @@ await templateFile('abc.json.template', 'abc.json', { ABC: 123, XYZ: 789 });
 ```
 
 `abc.json` file should be created with the following contents:
+
 ```json
 {
   "someKey": 123,

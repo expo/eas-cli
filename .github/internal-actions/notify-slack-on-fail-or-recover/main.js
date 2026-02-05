@@ -110,7 +110,7 @@ module.exports = async ({ github }) => {
   }
 
   const previousRuns = workflow_runs.filter(
-    (run) => run.status === 'completed' && run.conclusion !== 'cancelled'
+    run => run.status === 'completed' && run.conclusion !== 'cancelled'
   );
 
   if (await github.isFailedRun(currentRun)) {

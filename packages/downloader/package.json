@@ -1,16 +1,19 @@
 {
   "name": "@expo/downloader",
+  "version": "18.0.0",
+  "bugs": "https://github.com/expo/eas-cli/issues",
+  "license": "BUSL-1.1",
+  "author": "Expo <support@expo.io>",
   "repository": {
     "type": "git",
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/downloader"
   },
-  "version": "18.0.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "start": "yarn watch",
     "watch": "tsc --watch --preserveWatchOutput",
@@ -21,9 +24,6 @@
     "test:watch": "jest --config jest.config.ts --watch",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
-  "author": "Expo <support@expo.io>",
-  "bugs": "https://github.com/expo/eas-cli/issues",
-  "license": "BUSL-1.1",
   "dependencies": {
     "fs-extra": "^11.2.0",
     "got": "11.8.5"

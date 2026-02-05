@@ -77,7 +77,7 @@ export function getBuildEnv({
 
   if (config.env !== Environment.TEST) {
     const maxHeapSize = config.resourceClass
-      ? ResourceClassToMaxHeapSize[config.resourceClass] ?? '4g'
+      ? (ResourceClassToMaxHeapSize[config.resourceClass] ?? '4g')
       : '4g';
 
     setEnv(

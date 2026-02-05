@@ -58,7 +58,9 @@ export default class Config extends EasCommand {
       maybeProfile ??
       (await selectAsync(
         'Select build profile',
-        (await EasJsonUtils.getBuildProfileNamesAsync(accessor)).map(profileName => ({
+        (
+          await EasJsonUtils.getBuildProfileNamesAsync(accessor)
+        ).map(profileName => ({
           title: profileName,
           value: profileName,
         }))

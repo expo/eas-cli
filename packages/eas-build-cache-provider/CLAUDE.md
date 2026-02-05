@@ -48,6 +48,7 @@ Update your **app.json** to enable the EAS build cache provider:
 ## How It Works
 
 The build cache provider:
+
 1. Hooks into Expo CLI's build process
 2. Uploads build cache artifacts to EAS infrastructure
 3. Downloads cached artifacts on subsequent builds

@@ -71,7 +71,7 @@ async function uploadApplicationArchivesAsync({
 }): Promise<void> {
   const applicationArchivePatternOrPath =
     ctx.job.platform === Platform.ANDROID
-      ? ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}'
+      ? (ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}')
       : resolveIosArtifactPath(ctx.job);
   const applicationArchives = await findArtifacts({
     rootDir: workingDirectory,

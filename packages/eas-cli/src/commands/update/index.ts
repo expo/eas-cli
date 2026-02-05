@@ -468,13 +468,13 @@ export default class UpdatePublish extends EasCommand {
           return {
             ...info,
             expoUpdatesRuntimeFingerprintSource: info.expoUpdatesRuntimeFingerprint
-              ? (
+              ? ((
                   await maybeUploadFingerprintAsync({
                     hash: info.runtimeVersion,
                     fingerprint: info.expoUpdatesRuntimeFingerprint,
                     graphqlClient,
                   })
-                ).fingerprintSource ?? null
+                ).fingerprintSource ?? null)
               : null,
           };
         })

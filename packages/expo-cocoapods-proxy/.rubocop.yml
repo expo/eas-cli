@@ -1,8 +1,8 @@
 Metrics/BlockLength:
   Exclude:
-    - "spec/**/*"
+    - 'spec/**/*'
 Lint/AmbiguousBlockAssociation:
   Exclude:
-    - "spec/**/*"
+    - 'spec/**/*'
 Metrics/MethodLength:
   Max: 20

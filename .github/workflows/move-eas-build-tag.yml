@@ -5,16 +5,16 @@ on:
         type: boolean
         required: true
         default: false
-        description: "Only move the latest-eas-build-staging tag, not the latest-eas-build tag"
+        description: 'Only move the latest-eas-build-staging tag, not the latest-eas-build tag'
       version:
         type: string
         required: true
-        description: "Version number to move the tag to"
+        description: 'Version number to move the tag to'
       dry_run:
         type: boolean
         required: true
         default: true
-        description: "Run the workflow in dry run mode, without making any NPM changes"
+        description: 'Run the workflow in dry run mode, without making any NPM changes'
 
 name: Move NPM tags used by EAS builds and workflows
 
@@ -31,8 +31,8 @@ jobs:
     steps:
       - uses: actions/setup-node@v2
         with:
-          registry-url: "https://registry.npmjs.org/"
-          scope: "expo"
+          registry-url: 'https://registry.npmjs.org/'
+          scope: 'expo'
           node-version: 22
       - name: Resolve version (fails if the version does not exist)
         run: |

@@ -1,9 +1,35 @@
 {
   "name": "eas-build-cache-provider",
-  "description": "A build cache provider plugin for the Expo CLI",
   "version": "18.0.0",
-  "author": "Expo <support@expo.dev>",
+  "description": "A build cache provider plugin for the Expo CLI",
+  "homepage": "https://github.com/expo/eas-cli",
   "bugs": "https://github.com/expo/eas-cli/issues",
+  "license": "MIT",
+  "author": "Expo <support@expo.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/eas-build-cache-provider"
+  },
+  "files": [
+    "/build"
+  ],
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
+    "watch": "yarn build --watch --preserveWatchOutput",
+    "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
+    "typecheck": "tsc",
+    "prepack": "yarn rebuild",
+    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
+    "test": "jest --passWithNoTests",
+    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
+  },
   "dependencies": {
     "@babel/code-frame": "7.23.5",
     "@expo/config": "11.0.10",
@@ -28,31 +54,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "homepage": "https://github.com/expo/eas-cli",
-  "license": "MIT",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/expo/eas-cli.git",
-    "directory": "packages/eas-build-cache-provider"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
-    "watch": "yarn build --watch --preserveWatchOutput",
-    "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
-    "typecheck": "tsc",
-    "prepack": "yarn rebuild",
-    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
-    "test": "jest --passWithNoTests",
-    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
-  },
-  "files": [
-    "/build"
-  ],
-  "publishConfig": {
-    "access": "public"
   }
 }

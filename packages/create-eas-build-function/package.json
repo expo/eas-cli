@@ -1,28 +1,31 @@
 {
   "name": "create-eas-build-function",
+  "version": "18.0.0",
+  "description": "Create functions for use in EAS Build custom builds.",
+  "keywords": [
+    "expo",
+    "react",
+    "react-native"
+  ],
+  "homepage": "https://docs.expo.dev",
+  "license": "BSD-3-Clause",
+  "author": "Expo <support@expo.io>",
   "repository": {
     "type": "git",
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/create-eas-build-function"
   },
-  "version": "18.0.0",
   "bin": {
     "create-eas-build-function": "./build/index.js"
   },
-  "main": "build",
-  "description": "Create functions for use in EAS Build custom builds.",
-  "license": "BSD-3-Clause",
-  "keywords": [
-    "expo",
-    "react-native",
-    "react"
-  ],
-  "homepage": "https://docs.expo.dev",
-  "author": "Expo <support@expo.io>",
   "files": [
     "build",
     "templates"
   ],
+  "main": "build",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "prepack": "yarn run clean && yarn run build",
     "lint": "oxlint --type-aware --tsconfig ../../tsconfig.oxlint.json .",
@@ -50,8 +53,5 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "update-check": "^1.5.4"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

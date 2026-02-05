@@ -4,14 +4,14 @@ on:
   push:
     branches: [main]
     paths:
-      - "packages/worker/**"
-      - "packages/build-tools/**"
-      - "packages/eas-build-job/**"
-      - "packages/steps/**"
-      - "packages/logger/**"
-      - "packages/downloader/**"
-      - "packages/template-file/**"
-      - "packages/turtle-spawn/**"
+      - 'packages/worker/**'
+      - 'packages/build-tools/**'
+      - 'packages/eas-build-job/**'
+      - 'packages/steps/**'
+      - 'packages/logger/**'
+      - 'packages/downloader/**'
+      - 'packages/template-file/**'
+      - 'packages/turtle-spawn/**'
       - .github/workflows/worker.yml
       - .github/workflows/build-and-deploy-worker.yml
       - yarn.lock

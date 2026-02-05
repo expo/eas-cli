@@ -13,6 +13,7 @@ The main CLI tool for Expo Application Services (EAS). Published as `eas-cli` on
 ## Development Commands
 
 ### Running Locally
+
 ```bash
 # From repository root:
 yarn eas <command>
@@ -26,6 +27,7 @@ easd build --help
 ```
 
 ### Build & Development
+
 ```bash
 yarn build                    # TypeScript compilation (src → build)
 yarn watch                    # Watch mode
@@ -35,22 +37,26 @@ yarn typecheck-for-build      # Type check for production build
 ```
 
 ### Testing
+
 ```bash
 yarn test                     # Run all tests
 yarn test <path-to-file>      # Run specific test file
 ```
 
 ### GraphQL Code Generation
+
 ```bash
 yarn generate-graphql-code    # Generate TypeScript types from GraphQL schema
 yarn verify-graphql-code      # Verify GraphQL code is up to date (CI check)
 ```
 
 The GraphQL schema is fetched from `https://staging-api.expo.dev/graphql` and generates:
+
 - `src/graphql/generated.ts` - 499KB+ of TypeScript types
 - Types for all queries, mutations, and fragments
 
 ### oclif Commands
+
 ```bash
 yarn oclif readme             # Auto-generate README.md from command metadata
 ```
@@ -81,6 +87,7 @@ Available context types:
   - Provides: methods to interact with server-side env vars
 
 Example command structure:
+
 ```typescript
 import EasCommand from '../../commandUtils/EasCommand';
 
@@ -88,7 +95,7 @@ export default class Build extends EasCommand {
   static override description = 'start a build';
 
   static override ContextOptions = {
-    ...EasCommand.ContextOptions.LoggedIn,      // Requires auth
+    ...EasCommand.ContextOptions.LoggedIn, // Requires auth
     ...EasCommand.ContextOptions.ProjectConfig, // Requires project
   };
 
@@ -120,12 +127,14 @@ export default class Build extends EasCommand {
 **Location**: `src/graphql/`
 
 **Client**: `ExpoGraphqlClient` (urql-based wrapper)
+
 - Automatic retry logic with exponential backoff
 - Cache management (cache-first vs network-only)
 - Transient error handling
 - Authentication via Bearer token or session secret
 
 **Structure**:
+
 ```
 src/graphql/
 ├── generated.ts           # Generated TypeScript types
@@ -135,15 +144,14 @@ src/graphql/
 ```
 
 **Making GraphQL Requests**:
+
 ```typescript
 // In a command with LoggedIn context:
 const { graphqlClient } = await this.getContextAsync(LoggedIn, {
   nonInteractive: false,
 });
 
-const result = await graphqlClient
-  .query(MyQuery, { variables: { id: projectId } })
-  .toPromise();
+const result = await graphqlClient.query(MyQuery, { variables: { id: projectId } }).toPromise();
 
 if (result.error) {
   throw new Error(result.error.message);
@@ -157,6 +165,7 @@ const data = result.data;
 **Client**: `ApiV2Client` in `src/api.ts`
 
 **Base URLs**:
+
 - Production: `https://api.expo.dev`
 - Staging: `https://staging-api.expo.dev` (set `EXPO_STAGING=1`)
 - Local: `http://127.0.0.1:3000` (set `EXPO_LOCAL=1`)
@@ -202,6 +211,7 @@ src/
 ## Common Patterns
 
 ### Working with eas.json
+
 ```typescript
 import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 
@@ -214,6 +224,7 @@ const buildProfile = easJson.build?.[profileName];
 ```
 
 ### Project Context
+
 ```typescript
 // In a command with ProjectConfig context:
 const { projectId, exp } = await this.getContextAsync(ProjectConfig, {
@@ -243,6 +254,7 @@ const { projectId, exp } = await this.getContextAsync(ProjectConfig, {
 ### Error Handling
 
 Extend `CommandError` or use specific error classes in `src/commandUtils/errors.ts`:
+
 ```typescript
 import { CommandError } from '../commandUtils/errors';
 
@@ -264,6 +276,7 @@ throw new CommandError('BUILD_FAILED', 'The build failed due to...');
   - Utilities: `ts-mockito`, `mockdate`
 
 Example test:
+
 ```typescript
 import { vol } from 'memfs';
 import nock from 'nock';

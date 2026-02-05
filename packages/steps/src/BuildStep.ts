@@ -485,7 +485,8 @@ export class BuildStep extends BuildStepOutputAccessor {
     const vars = inputs.reduce(
       (acc, input) => {
         const value = input.getValue({ interpolationContext: this.getInterpolationContext() });
-        acc[input.id] = typeof value === 'object' ? JSON.stringify(value) : value?.toString() ?? '';
+        acc[input.id] =
+          typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
         return acc;
       },
       {} as Record<string, string>

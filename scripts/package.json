@@ -1,8 +1,10 @@
 {
   "name": "scripts",
-  "private": true,
-  "type": "module",
   "version": "0.31.0",
+  "private": true,
+  "license": "MIT",
+  "author": "Expo <support@expo.dev>",
+  "type": "module",
   "scripts": {
     "changelog-entry": "node --no-warnings=ExperimentalWarning --loader ts-node/esm src/changelogEntry.ts",
     "next-version": "node --no-warnings=ExperimentalWarning --loader ts-node/esm src/nextVersion.ts",
@@ -11,11 +13,6 @@
     "release-changelog": "node --no-warnings=ExperimentalWarning --loader ts-node/esm src/releaseChangelog.ts",
     "update-local-plugin": "./src/updateLocalPlugin.sh",
     "typecheck": "tsc"
-  },
-  "author": "Expo <support@expo.dev>",
-  "license": "MIT",
-  "engines": {
-    "node": ">=20.0.0"
   },
   "dependencies": {
     "chalk": "5.2.0",
@@ -34,5 +31,8 @@
     "@types/semver": "7.5.6",
     "ts-node": "10.9.2",
     "typescript": "5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

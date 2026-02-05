@@ -9,25 +9,21 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
 ### CLI & Configuration Packages
 
 1. **[packages/eas-cli](./packages/eas-cli/CLAUDE.md)** - The main CLI tool (published as `eas-cli`)
-
    - 95+ commands organized by domain (build, submit, update, channel, credentials, etc.)
    - Built on oclif (Open CLI Framework)
    - Entry point: `packages/eas-cli/bin/run`
 
 2. **[packages/eas-json](./packages/eas-json/CLAUDE.md)** - EAS configuration parser (published as `@expo/eas-json`)
-
    - Validates `eas.json` configuration files using Joi schemas
    - Manages build, submit, and deploy profiles
    - Supports JSON5 via golden-fleece
 
 3. **[packages/eas-build-cache-provider](./packages/eas-build-cache-provider/CLAUDE.md)** - Build cache plugin (published as `eas-build-cache-provider`)
-
    - Optimizes build caching for Expo CLI
 
 ### Build Execution Packages
 
 4. **[packages/eas-build-job](./packages/eas-build-job)** - Build job definitions (published as `@expo/eas-build-job`)
-
    - Defines all data structures for build operations (Job, BuildPhase, BuildMode, Platform, Workflow)
    - Provides type definitions and validation schemas (Zod, Joi)
    - Contains BuildPhase enum that defines the traditional build pipeline stages
@@ -35,7 +31,6 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
    - **Foundation that all other build packages depend on**
 
 5. **[packages/build-tools](./packages/build-tools)** - Build execution engine (published as `@expo/build-tools`)
-
    - Orchestrates all build operations through `BuildContext<T extends Job>`
    - Contains platform-specific builders: `androidBuilder()`, `iosBuilder()`, `runCustomBuildAsync()`
    - Manages build phases, artifact uploading, caching, credentials
@@ -43,7 +38,6 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
    - Integrates with GraphQL API
 
 6. **[packages/steps](./packages/steps)** - Custom build workflow engine (published as `@expo/steps`)
-
    - Framework for defining and executing custom build steps
    - Key abstractions:
      - `BuildWorkflow`: Orchestrates sequential step execution
@@ -55,7 +49,6 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
    - Parses build configs from YAML/JSON
 
 7. **[packages/local-build-plugin](./packages/local-build-plugin)** - Local build execution (published as `eas-cli-local-build-plugin`)
-
    - Allows running EAS builds locally on developer machines
    - Entry point: `packages/local-build-plugin/src/main.ts`
    - Sets `EAS_BUILD_RUNNER=local-build-plugin` environment variable
@@ -69,7 +62,6 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
 ### Supporting Packages
 
 9. **[packages/logger](./packages/logger)** - Bunyan-based structured logging (published as `@expo/logger`)
-
    - Used by all build packages
 
 10. **[packages/downloader](./packages/downloader)** - HTTP file downloading with retry logic (published as `@expo/downloader`)
