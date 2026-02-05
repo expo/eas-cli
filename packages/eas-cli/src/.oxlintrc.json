@@ -21,8 +21,7 @@
       "warn",
       {
         "ignorePrimitives": true,
-        "ignoreIfStatements": true,
-        "ignoreTernaryTests": true
+        "ignoreIfStatements": true
       }
     ],
     "typescript/no-confusing-void-expression": "warn",
