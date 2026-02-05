@@ -5,7 +5,7 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import fs from 'fs-extra';
-import { SignJWT, importPKCS8 } from 'jose';
+import * as jose from 'jose';
 import fetch from 'node-fetch';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -91,8 +91,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         })
         .parse(ascApiKeyJson);
 
-      const privateKey = await importPKCS8(ascApiKey.key, 'ES256');
-      const token = await new SignJWT({})
+      const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
+      const token = await new jose.SignJWT({})
         .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
         .setIssuer(ascApiKey.issuer_id)
         .setAudience('appstoreconnect-v1')
