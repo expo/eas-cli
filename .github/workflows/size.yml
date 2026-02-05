@@ -10,9 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 20
+      - uses: ./.github/actions/setup-mise
       - uses: preactjs/compressed-size-action@v2
         with:
           build-script: 'build:tarballs:linux'
