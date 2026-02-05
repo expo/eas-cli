@@ -6,7 +6,7 @@ const path = './src/graphql/generated.ts';
   const generatedCode = await fs.readFile(path, 'utf8');
   const comment = `/**
  * This file was generated using GraphQL Codegen
- * Command: yarn generate-graphql-code
+ * Command: bun run generate-graphql-code
  * Run this during development for automatic type generation when editing GraphQL documents
  * For more info and docs, visit https://graphql-code-generator.com/
  */\n\n`;

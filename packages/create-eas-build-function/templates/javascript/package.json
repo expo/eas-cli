@@ -11,6 +11,6 @@
   },
   "scripts": {
     "babel": "babel src --out-dir babel",
-    "build": "yarn babel && ncc build ./babel/index.js -o build/ --minify --no-cache --no-source-map-register"
+    "build": "bun run babel && ncc build ./babel/index.js -o build/ --minify --no-cache --no-source-map-register"
   }
 }

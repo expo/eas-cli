@@ -15,10 +15,10 @@
     "bin"
   ],
   "scripts": {
-    "start": "yarn watch",
-    "prewatch": "yarn gql",
+    "start": "bun run watch",
+    "prewatch": "bun run gql",
     "watch": "tsc --watch --preserveWatchOutput",
-    "prebuild": "yarn gql",
+    "prebuild": "bun run gql",
     "build": "tsc",
     "typecheck": "tsc",
     "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
@@ -28,8 +28,8 @@
     "jest-integration-watch": "jest --config jest/integration-config.ts --watch",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo",
     "gql": "gql.tada generate-schema ${API_SERVER_URL:-https://api.expo.dev}/graphql --output ./schema.graphql && gql.tada generate-output",
-    "gql:local": "API_SERVER_URL=http://api.expo.test yarn gql",
-    "test": "yarn jest-unit"
+    "gql:local": "API_SERVER_URL=http://api.expo.test bun run gql",
+    "test": "bun run jest-unit"
   },
   "author": "Expo <support@expo.io>",
   "bugs": "https://github.com/expo/eas-cli/issues",

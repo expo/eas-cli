@@ -22,15 +22,15 @@ cp ./.direnv/local/.envrc.example ./.direnv/local/.envrc
 # Then load it with direnv or source it manually
 
 # Install dependencies (from repo root)
-yarn install
+bun install
 
 # Build
-yarn build
+bun run build
 ```
 
 ### Development
 ```bash
-yarn start          # Start the worker in development mode
+bun run start       # Start the worker in development mode
 
 # If you made changes in packages from libs/ directory:
 # Type 'rs' in the console and press ENTER
@@ -39,7 +39,7 @@ yarn start          # Start the worker in development mode
 
 ### Testing
 ```bash
-yarn test           # Run unit tests
+bun run test        # Run unit tests
 ```
 
 ## Architecture

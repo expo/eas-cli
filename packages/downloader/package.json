@@ -12,7 +12,7 @@
     "dist"
   ],
   "scripts": {
-    "start": "yarn watch",
+    "start": "bun run watch",
     "watch": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "typecheck": "tsc",

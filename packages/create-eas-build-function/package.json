@@ -24,10 +24,10 @@
     "templates"
   ],
   "scripts": {
-    "prepack": "yarn run clean && yarn run build",
+    "prepack": "bun run clean && bun run build",
     "lint": "eslint .",
     "test": "echo 'No tests yet.'",
-    "watch": "yarn run build:dev -w",
+    "watch": "bun run build:dev -w",
     "build:dev": "ncc build ./src/index.ts -o build/",
     "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register",
     "typecheck": "tsc",

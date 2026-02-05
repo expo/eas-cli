@@ -229,20 +229,20 @@
   },
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
-    "prepack": "yarn rebuild && node ./scripts/prepack.js",
-    "rebuild": "rimraf build && yarn build",
+    "prepack": "bun run rebuild && node ./scripts/prepack.js",
+    "rebuild": "rimraf build && bun run build",
     "pretarball-ci": "./scripts/pretarball-ci.sh",
-    "build": "yarn typecheck-for-build && yarn copy-new-templates",
+    "build": "bun run typecheck-for-build && bun run copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
-    "watch": "yarn typecheck-for-build --watch --preserveWatchOutput",
-    "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
+    "watch": "bun run typecheck-for-build --watch --preserveWatchOutput",
+    "watch-allow-unused": "bun run build-allow-unused --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "typecheck-for-build": "tsc --project tsconfig.build.json",
     "test": "jest",
-    "version": "yarn oclif readme && node scripts/patch-readme && git add README.md",
+    "version": "bunx oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
-    "clean": "rimraf dist build tmp node_modules yarn-error.log *.tsbuildinfo",
+    "clean": "rimraf dist build tmp node_modules *.tsbuildinfo",
     "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   }
 }

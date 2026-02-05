@@ -14,10 +14,10 @@ A library for parsing and validating `eas.json` configuration files. Published a
 ## Development Commands
 
 ```bash
-yarn build          # TypeScript compilation (src → build)
-yarn watch          # Watch mode
-yarn typecheck      # Type check
-yarn test           # Run tests
+bun run build       # TypeScript compilation (src → build)
+bun run watch       # Watch mode
+bun run typecheck   # Type check
+bun run test        # Run tests
 ```
 
 ## Architecture

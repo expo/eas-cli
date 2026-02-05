@@ -64,7 +64,7 @@ function sanitizeInput(
 ): [category: EntryCategory, message: string] {
   if (!rawCategory || !rawMessage) {
     throw new Error(
-      'Usage: yarn changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]'
+      'Usage: bun run changelog-entry [breaking-change|new-feature|bug-fix|chore] [message]'
     );
   }
 

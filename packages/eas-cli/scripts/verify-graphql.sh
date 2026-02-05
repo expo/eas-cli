@@ -14,20 +14,20 @@ trap cleanup EXIT
 cp graphql.schema.json graphql.schema.json.bak
 cp src/graphql/generated.ts src/graphql/generated.ts.bak
 
-yarn generate-graphql-code
+bun run generate-graphql-code
 if cmp -s graphql.schema.json graphql.schema.json.bak; then
     echo "GraphQL schema is up-to-date"
     if cmp -s src/graphql/generated.ts src/graphql/generated.ts.bak; then
         echo "GraphQL generated code is up-to-date"
         exit 0
     else
-        echo "GraphQL code has changed but has not been regenerated. Run `yarn generate-graphql-code` and commit the changes."
+        echo "GraphQL code has changed but has not been regenerated. Run `bun run generate-graphql-code` and commit the changes."
         exit 1
     fi
 else
     echo "GraphQL schema has changed on the server."
     echo "Building eas-cli and its dependencies"
-    yarn lerna run build --scope eas-cli --include-dependencies
+    bunx lerna run build --scope eas-cli --include-dependencies
     # If there are no errors, then the schema is backwards compatible
     exit 0
 fi

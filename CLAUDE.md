@@ -89,49 +89,51 @@ This is a **Lerna-based monorepo** containing the EAS CLI and all supporting bui
 ### Setup
 
 ```bash
-yarn install        # Install all dependencies
-yarn build          # Build all packages in the monorepo
+bun install         # Install all dependencies
+bun run build       # Build all packages in the monorepo
 ```
 
 ### Development
 
 ```bash
-yarn start          # Watch mode with parallel builds across all packages
-yarn watch          # Alias for start
+bun run start       # Watch mode with parallel builds across all packages
+bun run watch       # Alias for start
 
 # Development with relaxed TypeScript rules (allows unused variables)
-yarn start-allow-unused
+bun run start-allow-unused
 ```
 
 ### Testing
 
 ```bash
-yarn lerna run test                      # Run all tests across packages
-yarn lerna run test -- --watch           # Watch mode across packages (heavier)
+# Run all tests across packages
+bun run test
+# Watch mode across packages (heavier)
+bun run test -- --watch
 #
-# If you use `yarn test`, remember to pass args through two separators:
-# yarn test -- -- --watch
+# If you use `bun run test`, remember to pass args through two separators:
+# bun run test -- -- --watch
 
 # Run tests for a specific package
-cd packages/eas-cli && yarn test
-cd packages/eas-json && yarn test
-cd packages/worker && yarn test
-cd packages/build-tools && yarn test
-cd packages/steps && yarn test
+cd packages/eas-cli && bun run test
+cd packages/eas-json && bun run test
+cd packages/worker && bun run test
+cd packages/build-tools && bun run test
+cd packages/steps && bun run test
 ```
 
 ### Type Checking & Linting
 
 ```bash
-yarn typecheck      # TypeScript type check all packages
-yarn lint           # ESLint across all packages
+bun run typecheck   # TypeScript type check all packages
+bun run lint        # ESLint across all packages
 ```
 
 ### Running EAS CLI Locally
 
 ```bash
 # From repository root:
-yarn eas <command>  # Run via root package script
+bun run eas <command>  # Run via root package script
 
 # Or use the binary directly:
 packages/eas-cli/bin/run <command>
@@ -257,9 +259,9 @@ Most packages depend on `@expo/eas-build-job` as the source of truth for types.
 Run a single test file:
 
 ```bash
-cd packages/eas-cli && yarn test <path-to-test-file>
+cd packages/eas-cli && bun run test <path-to-test-file>
 # Example:
-cd packages/eas-cli && yarn test src/project/__tests__/projectUtils-test.ts
+cd packages/eas-cli && bun run test src/project/__tests__/projectUtils-test.ts
 ```
 
 ## Common Development Scenarios
@@ -306,8 +308,8 @@ export EXPO_DEBUG=1     # Enable debug logging
 All changes should be validated with TypeScript and the linter before committing:
 
 ```bash
-yarn typecheck      # Validate TypeScript types
-yarn lint           # Run ESLint
+bun run typecheck   # Validate TypeScript types
+bun run lint        # Run ESLint
 ```
 
 ### Logging
@@ -355,5 +357,5 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 ## Important Notes
 
 - **Node Version**: Requires Node.js (managed via Mise)
-- **Package Manager**: Uses Yarn 1.22.21
+- **Package Manager**: Uses Bun
 - **Compilation Target**: CommonJS with Node resolution

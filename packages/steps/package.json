@@ -13,14 +13,14 @@
     "dist"
   ],
   "scripts": {
-    "start": "yarn watch",
+    "start": "bun run watch",
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc",
     "prepack": "rm -rf dist && tsc --project tsconfig.build.json",
     "watch": "tsc --watch --preserveWatchOutput",
     "test": "jest --config jest.config.ts",
     "test:coverage": "jest --config jest.config.ts --coverage",
-    "test:watch": "yarn test --watch",
+    "test:watch": "bun run test --watch",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
   "author": "Expo <support@expo.io>",

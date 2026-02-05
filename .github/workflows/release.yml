@@ -31,17 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-mise
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - name: Ensure GraphQL schema and generated code is up-to-date
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
-          yarn verify-graphql-code
+          bun run verify-graphql-code
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
+          bun run pretarball-ci
+          bunx oclif pack:tarballs --no-xz --targets linux-x64,linux-arm
       - id: x64
         run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
@@ -79,13 +79,13 @@ jobs:
       - run: brew install python-setuptools
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
-      - run: yarn install --frozen-lockfile --check-files
-      - run: yarn build
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - name: Build tarballs
         working-directory: ${{ github.workspace }}/packages/eas-cli
         run: |
-          yarn pretarball-ci
-          yarn oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
+          bun run pretarball-ci
+          bunx oclif pack:tarballs --no-xz --targets darwin-x64,darwin-arm64
       - id: x64
         run: echo "filename=$(ls eas-*-x64.tar.gz)" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}/packages/eas-cli/dist
@@ -119,12 +119,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-mise
-      - run: yarn install --frozen-lockfile --check-files
+      - run: bun install --frozen-lockfile
       - run: sudo apt-get install nsis
-      - run: yarn build
+      - run: bun run build
       - run: |
-          yarn pretarball-ci
-          yarn oclif pack:win
+          bun run pretarball-ci
+          bunx oclif pack:win
         working-directory: ${{ github.workspace }}/packages/eas-cli
       - id: x64
         run: echo "filename=$(ls eas-*-x64.exe)" >> $GITHUB_OUTPUT
@@ -160,11 +160,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-mise
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --check-files
+        run: bun install --frozen-lockfile
       - name: Build
-        run: yarn build
+        run: bun run build
       - name: Publish packages to npm
-        run: yarn lerna publish from-package --yes --no-verify-access
+        run: bunx lerna publish from-package --yes --no-verify-access
       - name: Add latest-eas-build-staging tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
@@ -192,12 +192,12 @@ jobs:
       - uses: ./.github/actions/setup-mise
       - name: Install dependencies
         working-directory: ./scripts
-        run: yarn install --frozen-lockfile --check-files
+        run: bun install --frozen-lockfile
       - name: Resolve version
         run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
       - name: Update changelog
         working-directory: ./scripts
-        run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
+        run: bun run release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
       - name: Publish release
         run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
         env:

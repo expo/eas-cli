@@ -9,4 +9,4 @@ ROOT_DIR="$( cd "$DIR/../../../.."  && pwd)"
 # shellcheck source=test-env.sh
 source "$DIR/test-env.sh"
 
-yarn run jest "$@"
+bun run jest "$@"

@@ -15,7 +15,7 @@ The main CLI tool for Expo Application Services (EAS). Published as `eas-cli` on
 ### Running Locally
 ```bash
 # From repository root:
-yarn eas <command>
+bun run eas <command>
 
 # Or use the binary directly:
 packages/eas-cli/bin/run <command>
@@ -27,23 +27,23 @@ easd build --help
 
 ### Build & Development
 ```bash
-yarn build                    # TypeScript compilation (src → build)
-yarn watch                    # Watch mode
-yarn watch-allow-unused       # Watch mode with relaxed TS rules
-yarn typecheck                # Type check without building
-yarn typecheck-for-build      # Type check for production build
+bun run build                 # TypeScript compilation (src → build)
+bun run watch                 # Watch mode
+bun run watch-allow-unused    # Watch mode with relaxed TS rules
+bun run typecheck             # Type check without building
+bun run typecheck-for-build   # Type check for production build
 ```
 
 ### Testing
 ```bash
-yarn test                     # Run all tests
-yarn test <path-to-file>      # Run specific test file
+bun run test                  # Run all tests
+bun run test <path-to-file>   # Run specific test file
 ```
 
 ### GraphQL Code Generation
 ```bash
-yarn generate-graphql-code    # Generate TypeScript types from GraphQL schema
-yarn verify-graphql-code      # Verify GraphQL code is up to date (CI check)
+bun run generate-graphql-code # Generate TypeScript types from GraphQL schema
+bun run verify-graphql-code   # Verify GraphQL code is up to date (CI check)
 ```
 
 The GraphQL schema is fetched from `https://staging-api.expo.dev/graphql` and generates:
@@ -52,7 +52,7 @@ The GraphQL schema is fetched from `https://staging-api.expo.dev/graphql` and ge
 
 ### oclif Commands
 ```bash
-yarn oclif readme             # Auto-generate README.md from command metadata
+bunx oclif readme             # Auto-generate README.md from command metadata
 ```
 
 ## Command Architecture
@@ -283,7 +283,7 @@ describe('MyCommand', () => {
 ## Important Notes
 
 - **oclif**: Commands auto-discovered from `build/commands/`
-- **README**: Auto-generated from oclif - update via `yarn oclif readme`
+- **README**: Auto-generated from oclif - update via `bunx oclif readme`
 - **Manifest**: Generated during `prepack` step
 - **Templates**: `src/commandUtils/new/templates` are copied to `build/` during build
 - **Node Version**: >= 18.0.0

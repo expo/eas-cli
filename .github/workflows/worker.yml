@@ -14,7 +14,7 @@ on:
       - "packages/turtle-spawn/**"
       - .github/workflows/worker.yml
       - .github/workflows/build-and-deploy-worker.yml
-      - yarn.lock
+      - bun.lock
 
 concurrency:
   group: worker-${{ github.ref }}-${{ github.event_name }}
@@ -28,17 +28,17 @@ jobs:
 
       - uses: ./.github/actions/setup-mise
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: bun install --frozen-lockfile
 
-      - run: yarn typecheck
+      - run: bun run typecheck
 
       - name: Run unit tests
         working-directory: packages/worker
-        run: yarn test:unit
+        run: bun run test:unit
 
       - name: Run integration tests
         working-directory: packages/worker
-        run: yarn test:integration
+        run: bun run test:integration
 
   worker-build:
     needs:

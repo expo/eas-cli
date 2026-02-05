@@ -45,7 +45,7 @@ copy_package() {
   fi
 }
 
-cp "$ROOT_DIR/yarn.lock" $target_root_dir
+cp "$ROOT_DIR/bun.lock" $target_root_dir
 cp "$ROOT_DIR/package.json" $target_root_dir
 cp "$ROOT_DIR/lerna.json" $target_root_dir
 
@@ -53,13 +53,13 @@ copy_package $WORKER_DIR $target_worker_dir
 while IFS= read -r package_dir; do
   package_name=$(basename "$package_dir")
   copy_package "$package_dir" "$target_root_dir/packages/$package_name"
-done <<< "$(yarn --silent lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
+done <<< "$(bunx --silent lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
 
 
 pushd $target_root_dir >/dev/null 2>&1
-yarn install --silent --frozen-lockfile
-yarn build
-yarn install --silent --production=true --frozen-lockfile
+bun install --silent --frozen-lockfile
+bun run build
+bun install --silent --production --frozen-lockfile
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 

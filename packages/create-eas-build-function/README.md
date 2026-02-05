@@ -12,6 +12,9 @@
 # With NPM
 npx create-eas-build-function
 
+# With Bun
+bunx create-eas-build-function
+
 # With Yarn
 yarn create eas-build-function
 

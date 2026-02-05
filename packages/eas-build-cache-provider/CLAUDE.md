@@ -13,10 +13,10 @@ A build cache provider plugin for Expo CLI. Published as `eas-build-cache-provid
 ## Development Commands
 
 ```bash
-yarn build          # TypeScript compilation (src → build)
-yarn watch          # Watch mode
-yarn typecheck      # Type check
-yarn test           # Run tests
+bun run build       # TypeScript compilation (src → build)
+bun run watch       # Watch mode
+bun run typecheck   # Type check
+bun run test        # Run tests
 ```
 
 ## Usage
@@ -27,6 +27,8 @@ Install as a dev dependency in your Expo project:
 
 ```bash
 npm install --save-dev eas-build-cache-provider
+# or
+bun add --dev eas-build-cache-provider
 # or
 yarn add --dev eas-build-cache-provider
 ```

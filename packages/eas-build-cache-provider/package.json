@@ -41,13 +41,13 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
-    "watch": "yarn build --watch --preserveWatchOutput",
-    "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
+    "watch": "bun run build --watch --preserveWatchOutput",
+    "watch-allow-unused": "bun run build-allow-unused --watch --preserveWatchOutput",
     "typecheck": "tsc",
-    "prepack": "yarn rebuild",
-    "rebuild": "rimraf build && yarn build",
+    "prepack": "bun run rebuild",
+    "rebuild": "rimraf build && bun run build",
     "test": "jest --passWithNoTests",
-    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
+    "clean": "rimraf build node_modules *.tsbuildinfo"
   },
   "files": [
     "/build"

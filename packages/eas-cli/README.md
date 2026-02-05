@@ -16,7 +16,7 @@ EAS command line tool
 ```sh
 npm install -g eas-cli
 # or
-yarn global add eas-cli
+bun add -g eas-cli
 ```
 
 ## Enforcing eas-cli version for your project
@@ -1661,13 +1661,13 @@ Create a new project configured with Expo Application Services (EAS)
 
 ```
 USAGE
-  $ eas new [PATH] [-p bun|npm|pnpm|yarn]
+  $ eas new [PATH] [-p bun|npm|pnpm]
 
 ARGUMENTS
   PATH  Path to create the project (defaults to current directory)
 
 FLAGS
-  -p, --package-manager=(bun|npm|pnpm|yarn)  [default: npm] Package manager to use for installing dependencies
+  -p, --package-manager=(bun|npm|pnpm)  [default: bun] Package manager to use for installing dependencies
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)
@@ -1749,13 +1749,13 @@ Create a new project configured with Expo Application Services (EAS)
 
 ```
 USAGE
-  $ eas project:new [PATH] [-p bun|npm|pnpm|yarn]
+  $ eas project:new [PATH] [-p bun|npm|pnpm]
 
 ARGUMENTS
   PATH  Path to create the project (defaults to current directory)
 
 FLAGS
-  -p, --package-manager=(bun|npm|pnpm|yarn)  [default: npm] Package manager to use for installing dependencies
+  -p, --package-manager=(bun|npm|pnpm)  [default: bun] Package manager to use for installing dependencies
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)

@@ -18,7 +18,7 @@ const FORMAT_RELEASE_HEADING = (version: string): markdown.Token =>
 
 (async function main(version: string): Promise<void> {
   if (!semver.valid(version)) {
-    throw new Error(`Usage: yarn release-changelog SEMVER`);
+    throw new Error(`Usage: bun run release-changelog SEMVER`);
   }
 
   const tokens = await readAndParseChangelogAsync();

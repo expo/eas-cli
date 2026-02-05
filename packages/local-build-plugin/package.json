@@ -16,7 +16,7 @@
     "eas-cli-local-build-plugin": "./bin/run"
   },
   "scripts": {
-    "start": "yarn watch",
+    "start": "bun run watch",
     "watch": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "typecheck": "tsc",

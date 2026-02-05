@@ -23,7 +23,7 @@ If for some reason the launcher is down when the build has finished then the new
 ## Development
 
 - Run `cp ./.direnv/local/.envrc.example ./.direnv/local/.envrc` and fill out the new file with your secrets.
-- Run `yarn` (if you haven't run it in the root dir of the repo) and then `yarn start`.
+- Run `bun install` (if you haven't run it in the root dir of the repo) and then `bun run start`.
 - If you made a change in packages from directory `libs`, type `rs` in the console and press ENTER (or `CTRL+C`, `UP`, `ENTER`).
 
 ## Deployment

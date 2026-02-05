@@ -5,13 +5,13 @@
 If this is your first time running `eas-cli` locally, make sure you install and build the packages. In the project root, run:
 
 ```sh
-yarn install
-yarn build
+bun install
+bun run build
 ```
 
 From there, set up an alias for the EAS CLI so you can try it in projects all around your computer. The project is compiled on the fly so you don't need to run a build (watch) command.
 
-> The only exception is if there have been changes in `packages/eas-json`. In that case, you'll have to run `yarn build` in the root.
+> The only exception is if there have been changes in `packages/eas-json`. In that case, you'll have to run `bun run build` in the root.
 
 Open your `.zshrc` or other config file and add:
 
@@ -24,7 +24,7 @@ Then use it with `easd` like `easd build`.
 If you're making changes to `packages/eas-json` or prefer/need to work with production code, start the build command in watch mode with:
 
 ```sh
-yarn start
+bun run start
 ```
 
 If it is easier for you to work with the code locally with compiler options set to:
@@ -43,7 +43,7 @@ If it is easier for you to work with the code locally with compiler options set 
 you can consider using:
 
 ```sh
-yarn start-allow-unused
+bun run start-allow-unused
 ```
 
 ## Format
@@ -69,7 +69,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for how to set up your environment when making ch
 
 ## Testing
 
-From the repository root, run `yarn lerna run test`. For a single package, run `yarn test` in that package directory.
+From the repository root, run `bun run test`. For a single package, run `bun run test` in that package directory.
 
 ## Releasing
 
