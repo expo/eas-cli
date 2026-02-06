@@ -9,8 +9,8 @@ import Log from '../../log';
 import { promptAsync, selectAsync } from '../../prompts';
 import { getStateJsonPath } from '../../utils/paths';
 import SessionManager, { UserSecondFactorDeviceMethod } from '../SessionManager';
-import { fetchSessionSecretAndSsoUserAsync } from '../fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from '../fetchSessionSecretAndUser';
+import { fetchSessionSecretAndUserFromBrowserAuthFlowAsync } from '../fetchSessionSecretAndUserFromBrowserAuthFlow';
 
 jest.mock('../../prompts');
 jest.mock('../../log');
@@ -25,7 +25,7 @@ jest.mock('../../graphql/queries/UserQuery', () => ({
   },
 }));
 jest.mock('../fetchSessionSecretAndUser');
-jest.mock('../fetchSessionSecretAndSsoUser');
+jest.mock('../fetchSessionSecretAndUserFromBrowserAuthFlow');
 jest.mock('../../api');
 
 const authStub: any = {
@@ -156,15 +156,15 @@ describe(SessionManager, () => {
     });
   });
 
-  describe('ssoLoginAsync', () => {
-    it('saves user data to ~/.expo/state.json', async () => {
-      jest.mocked(fetchSessionSecretAndSsoUserAsync).mockResolvedValue({
+  describe('browserLoginAsync', () => {
+    it('saves user data to ~/.expo/state.json with sso', async () => {
+      jest.mocked(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).mockResolvedValue({
         sessionSecret: 'SESSION_SECRET',
         id: 'USER_ID',
         username: 'USERNAME',
       });
       const sessionManager = new SessionManager(analytics);
-      await sessionManager['ssoLoginAsync']();
+      await sessionManager['browserLoginAsync']({ sso: true });
       expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
         "{
           "auth": {
@@ -176,6 +176,31 @@ describe(SessionManager, () => {
         }
         "
       `);
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({ sso: true });
+    });
+
+    it('saves user data to ~/.expo/state.json without sso', async () => {
+      jest.mocked(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['browserLoginAsync']({ sso: false });
+      expect(await fs.readFile(getStateJsonPath(), 'utf8')).toMatchInlineSnapshot(`
+        "{
+          "auth": {
+            "sessionSecret": "SESSION_SECRET",
+            "userId": "USER_ID",
+            "username": "USERNAME",
+            "currentConnection": "Browser-Flow-Authentication"
+          }
+        }
+        "
+      `);
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({
+        sso: false,
+      });
     });
   });
 
@@ -292,7 +317,18 @@ describe(SessionManager, () => {
       // SSO login
       await sessionManager.showLoginPromptAsync({ sso: true });
       expect(promptAsync).not.toHaveBeenCalled();
-      expect(fetchSessionSecretAndSsoUserAsync).toHaveBeenCalled();
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({ sso: true });
+    });
+
+    it('calls browser login if the browser flag is true', async () => {
+      const sessionManager = new SessionManager(analytics);
+
+      // Browser login (not SSO)
+      await sessionManager.showLoginPromptAsync({ browser: true });
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchSessionSecretAndUserFromBrowserAuthFlowAsync).toHaveBeenCalledWith({
+        sso: false,
+      });
     });
   });
 

@@ -4,8 +4,8 @@ import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
-import { fetchSessionSecretAndSsoUserAsync } from './fetchSessionSecretAndSsoUser';
 import { fetchSessionSecretAndUserAsync } from './fetchSessionSecretAndUser';
+import { fetchSessionSecretAndUserFromBrowserAuthFlowAsync } from './fetchSessionSecretAndUserFromBrowserAuthFlow';
 import { ApiV2Error } from '../ApiV2Error';
 import { AnalyticsWithOrchestration } from '../analytics/AnalyticsManager';
 import { ApiV2Client } from '../api';
@@ -149,6 +149,7 @@ export default class SessionManager {
     nonInteractive = false,
     printNewLine = false,
     sso = false,
+    browser = false,
   } = {}): Promise<void> {
     if (nonInteractive) {
       Errors.error(
@@ -164,8 +165,8 @@ export default class SessionManager {
       Log.newLine();
     }
 
-    if (sso) {
-      await this.ssoLoginAsync();
+    if (sso || browser) {
+      await this.browserLoginAsync({ sso });
       return;
     }
 
@@ -205,8 +206,10 @@ export default class SessionManager {
     }
   }
 
-  private async ssoLoginAsync(): Promise<void> {
-    const { sessionSecret, id, username } = await fetchSessionSecretAndSsoUserAsync();
+  private async browserLoginAsync({ sso = false }): Promise<void> {
+    const { sessionSecret, id, username } = await fetchSessionSecretAndUserFromBrowserAuthFlowAsync(
+      { sso }
+    );
     await this.setSessionAsync({
       sessionSecret,
       userId: id,
