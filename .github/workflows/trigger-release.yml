@@ -27,9 +27,7 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.EXPO_BOT_PAT }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - uses: ./.github/actions/setup-mise
       - run: |
           # Lerna will not detect changes correctly without having all tags
           git fetch --depth=1 origin +refs/tags/*:refs/tags/*

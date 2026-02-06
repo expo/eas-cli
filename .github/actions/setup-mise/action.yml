@@ -1,0 +1,11 @@
+name: setup-mise
+description: Install tools via mise
+
+runs:
+  using: "composite"
+  steps:
+    - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
+      with:
+        install: true
+        cache: true
+        experimental: true
