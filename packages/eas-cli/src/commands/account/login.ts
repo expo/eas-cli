@@ -21,7 +21,6 @@ export default class AccountLogin extends EasCommand {
       description: 'Login with your browser',
       char: 'b',
       default: false,
-      hidden: true, // soft launch
     }),
   };
 
