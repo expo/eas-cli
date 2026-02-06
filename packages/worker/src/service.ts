@@ -317,6 +317,9 @@ export default class BuildService {
       const err = error instanceof errors.BuildError ? error : unknownError;
       const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
 
+      const rawErrorMessage =
+        maybeRawError instanceof Error ? maybeRawError.message : 'An unknown error occurred';
+
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
@@ -331,12 +334,14 @@ export default class BuildService {
       });
 
       if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
-        const rawMessage =
-          maybeRawError instanceof Error ? maybeRawError.message : 'An unknown error occurred';
-        void datadogLogs.send({
-          message: `Unknown build error: ${rawMessage}`,
+        datadogLogs.send({
+          message: `Unknown build error: ${rawErrorMessage}`,
           level: 'error',
-          tags: { build_id: this.buildId },
+          tags: {
+            build_id: this.buildId,
+            ...(err.buildPhase ? { build_phase: err.buildPhase } : {}),
+            error_code: err.errorCode,
+          },
         });
       }
 
