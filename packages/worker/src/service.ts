@@ -25,7 +25,6 @@ import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
-import datadogLogs from './datadogLogs';
 import { Analytics } from './external/analytics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
@@ -33,6 +32,7 @@ import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
 import { LoggerStream } from './utils/logger';
+import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -334,15 +334,25 @@ export default class BuildService {
       });
 
       if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
-        datadogLogs.send({
-          message: `Unknown build error: ${rawErrorMessage}`,
-          level: 'error',
-          tags: {
-            build_id: this.buildId,
-            ...(err.buildPhase ? { build_phase: err.buildPhase } : {}),
-            error_code: err.errorCode,
-          },
-        });
+        const robotAccessToken = job.secrets?.robotAccessToken;
+        if (robotAccessToken) {
+          turtleFetch(
+            new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
+            'POST',
+            {
+              json: {
+                buildId: this.buildId,
+                message: rawErrorMessage,
+                buildPhase: err.buildPhase ?? null,
+                errorCode: err.errorCode,
+              },
+              headers: {
+                Authorization: `Bearer ${robotAccessToken}`,
+              },
+              shouldThrowOnNotOk: false,
+            }
+          ).catch(() => {});
+        }
       }
 
       await this.finishError(err, maybeArtifacts);
