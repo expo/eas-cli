@@ -70,6 +70,10 @@ export default {
   sentry: {
     dsn: env('SENTRY_DSN', { defaultValue: '' }),
   },
+  datadog: {
+    apiKey: env<string | null>('DD_API_KEY', { defaultValue: null }),
+    site: env('DD_SITE', { defaultValue: 'datadoghq.com' }),
+  },
   rudderstack: {
     dataPlaneURL: env<string | null>('RUDDERSTACK_DATA_PLANE_URL', { defaultValue: null }),
     writeKey: env<string | null>('RUDDERSTACK_WRITE_KEY', { defaultValue: null }),

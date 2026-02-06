@@ -27,6 +27,7 @@ import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
+import datadogLogs from './datadogLogs';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
@@ -328,6 +329,17 @@ export default class BuildService {
           ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
+
+      if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+        const rawMessage =
+          maybeRawError instanceof Error ? maybeRawError.message : 'An unknown error occurred';
+        void datadogLogs.send({
+          message: `Unknown build error: ${rawMessage}`,
+          level: 'error',
+          tags: { build_id: this.buildId },
+        });
+      }
+
       await this.finishError(err, maybeArtifacts);
     }
   }
