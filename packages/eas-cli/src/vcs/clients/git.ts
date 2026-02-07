@@ -74,7 +74,10 @@ export default class GitClient extends Client {
     const repoRoot = PackageManagerUtils.resolveWorkspaceRoot(cwd) ?? cwd;
 
     if (nonInteractive) {
-      Log.log(`Initializing git repository in ${this.maybeCwdOverride ?? repoRoot}...`);
+      Log.log(
+        `No git repository found. Auto initializing in ${this.maybeCwdOverride ?? repoRoot}. ` +
+          `Set ${chalk.bold('EAS_NO_VCS=1')} to skip.`
+      );
       await spawnAsync('git', ['init'], { cwd: this.maybeCwdOverride ?? repoRoot });
       await this.commitAsync({
         commitAllFiles: true,
