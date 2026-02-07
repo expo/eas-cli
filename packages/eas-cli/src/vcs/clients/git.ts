@@ -31,7 +31,11 @@ export default class GitClient extends Client {
     this.requireCommit = options.requireCommit;
   }
 
-  public override async ensureRepoExistsAsync(): Promise<void> {
+  public override async ensureRepoExistsAsync(options?: {
+    nonInteractive?: boolean;
+  }): Promise<void> {
+    const nonInteractive = options?.nonInteractive ?? false;
+
     try {
       if (!(await isGitInstalledAsync())) {
         Log.error(
@@ -66,11 +70,23 @@ export default class GitClient extends Client {
       return;
     }
 
+    const cwd = process.cwd();
+    const repoRoot = PackageManagerUtils.resolveWorkspaceRoot(cwd) ?? cwd;
+
+    if (nonInteractive) {
+      Log.log(`Initializing git repository in ${this.maybeCwdOverride ?? repoRoot}...`);
+      await spawnAsync('git', ['init'], { cwd: this.maybeCwdOverride ?? repoRoot });
+      await this.commitAsync({
+        commitAllFiles: true,
+        commitMessage: 'Initial commit',
+        nonInteractive: true,
+      });
+      return;
+    }
+
     Log.warn("It looks like you haven't initialized the git repository yet.");
     Log.warn('EAS requires you to use a git repository for your project.');
 
-    const cwd = process.cwd();
-    const repoRoot = PackageManagerUtils.resolveWorkspaceRoot(cwd) ?? cwd;
     const confirmInit = await confirmAsync({
       message: `Would you like us to run 'git init' in ${
         this.maybeCwdOverride ?? repoRoot
@@ -419,16 +435,22 @@ export default class GitClient extends Client {
       return;
     }
 
-    Log.warn(
-      `You need to configure Git with your ${[
-        !usernameConfigured && 'username (user.name)',
-        !emailConfigured && 'email address (user.email)',
+    const missingConfig = [
+      !usernameConfigured && 'username (user.name)',
+      !emailConfigured && 'email address (user.email)',
+    ].filter(i => i);
+
+    Log.warn(`You need to configure Git with your ${missingConfig.join(' and ')}`);
+    if (nonInteractive) {
+      const configCommands = [
+        !usernameConfigured && 'git config --global user.name "Your Name"',
+        !emailConfigured && 'git config --global user.email "your@email.com"',
       ]
         .filter(i => i)
-        .join(' and ')}`
-    );
-    if (nonInteractive) {
-      throw new Error('Git cannot be configured automatically in non-interactive mode');
+        .join(' && ');
+      throw new Error(
+        `Git ${missingConfig.join(' and ')} must be configured. Run: ${configCommands}`
+      );
     }
     if (!usernameConfigured) {
       const { username } = await promptAsync({
