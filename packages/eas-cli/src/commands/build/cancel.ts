@@ -27,8 +27,8 @@ async function cancelBuildAsync(
       .mutation<CancelBuildMutation, CancelBuildMutationVariables>(
         gql`
           mutation CancelBuildMutation($buildId: ID!) {
-            build(buildId: $buildId) {
-              cancel {
+            build {
+              cancelBuild(buildId: $buildId) {
                 id
                 status
               }
@@ -39,7 +39,7 @@ async function cancelBuildAsync(
       )
       .toPromise()
   );
-  return data.build.cancel;
+  return data.build.cancelBuild;
 }
 
 export async function selectBuildToCancelAsync(
