@@ -2,18 +2,11 @@ import { GCSLoggerStream } from '@expo/build-tools';
 import { BuildPhase } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { randomUUID } from 'crypto';
-import { Transform, Writable } from 'stream';
-
-export interface LoggerStream extends Writable {
-  writable: boolean;
-  init(): Promise<string>;
-  cleanUp(): Promise<void>;
-  write(rec: any): boolean;
-}
+import { Transform } from 'stream';
 
 export interface BuildLogger {
   logger: bunyan;
-  stream?: LoggerStream;
+  cleanUp?: () => Promise<void>;
 }
 
 export function makeKeyForBuildLogs(prefix: string): string {
@@ -46,9 +39,14 @@ export async function createGCSBuildLogger({
     transformStream?.pipe(stream);
     await stream.init();
     const logger = await createBuildLogger(config.logger, transformStream ?? stream);
+
+    const cleanUp = async () => {
+      await stream.cleanUp();
+    };
+
     return {
       logger,
-      stream,
+      cleanUp,
     };
   } else {
     return { logger: await createBuildLogger(config.logger) };
