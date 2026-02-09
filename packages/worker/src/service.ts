@@ -280,7 +280,7 @@ export default class BuildService {
         logger: buildLogger,
         cleanUp,
         logBuffer,
-      } = await createBuildLoggerWithSecretsFilter(job.secrets?.environmentSecrets);
+      } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
