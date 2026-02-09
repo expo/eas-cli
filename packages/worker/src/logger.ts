@@ -1,11 +1,12 @@
 import { GCSLoggerStream, LogBuffer } from '@expo/build-tools';
-import { BuildPhase, EnvironmentSecret } from '@expo/eas-build-job';
+import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { uuidv7 } from 'uuidv7';
+import HttpLogStream from './utils/HttpLogStream';
 
 const defaultLogger = createLogger({
   name: config.loggers.base.name,
@@ -103,7 +104,7 @@ function createDiscardStream(): Writable {
   });
 }
 
-export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSecret[]): Promise<{
+export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
   cleanUp: () => Promise<void>;
   logBuffer: WorkerLogBuffer;
@@ -111,7 +112,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
 }> {
   const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
 
-  const transformStream = createTransformStream(secrets ?? []);
+  const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
   const discardStream = createDiscardStream();
   transformStream.pipe(discardStream);
 
@@ -144,13 +145,37 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
     level: buildLogger.level(),
   });
 
+  let httpLogStreamCleanUp: () => Promise<void>;
+
+  const robotAccessToken = secrets?.robotAccessToken;
+  if (config.loggers.http.baseUrl && robotAccessToken) {
+    const httpLogStream = new HttpLogStream({
+      url: new URL(config.buildId, config.loggers.http.baseUrl).toString(),
+      headers: {
+        Authorization: `Bearer ${robotAccessToken}`,
+      },
+      logger: buildLogger,
+    });
+
+    buildLogger.addStream({
+      type: 'raw',
+      stream: httpLogStream,
+      reemitErrorEvents: true,
+      level: buildLogger.level(),
+    });
+
+    httpLogStreamCleanUp = async () => {
+      await httpLogStream.cleanUp();
+    };
+  }
+
   return {
     logger: buildLogger,
     cleanUp: async () => {
-      await gcsLoggerStream?.cleanUp();
+      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStreamCleanUp?.()]);
     },
-    logBuffer,
     outputStream: transformStream,
+    logBuffer,
   };
 }
 

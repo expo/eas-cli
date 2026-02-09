@@ -44,6 +44,9 @@ export default {
         defaultValue: null,
       }),
     },
+    http: {
+      baseUrl: process.env.ENVIRONMENT === 'development' ? 'http://localhost:4999/logs/' : null,
+    },
   },
   buildCache: {
     gcsSignedUploadUrlForBuildCache: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
