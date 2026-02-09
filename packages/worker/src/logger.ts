@@ -90,7 +90,7 @@ export async function createBuildLoggerWithSecretsFilter(
 ): Promise<BuildLogger> {
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
 
-  const { logger, stream } = await createGCSBuildLogger({
+  const { logger, cleanUp } = await createGCSBuildLogger({
     uploadMethod: config.loggers.gcs.signedUploadUrlForLogs
       ? { signedUrl: config.loggers.gcs.signedUploadUrlForLogs }
       : undefined,
@@ -109,7 +109,7 @@ export async function createBuildLoggerWithSecretsFilter(
     level: logger.level(),
   });
 
-  return { logger, stream, logBuffer };
+  return { logger, cleanUp, logBuffer };
 }
 
 export default defaultLogger;
