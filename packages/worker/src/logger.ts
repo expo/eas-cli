@@ -2,6 +2,7 @@ import { LogBuffer } from '@expo/build-tools';
 import { EnvironmentSecret } from '@expo/eas-build-job';
 import { LoggerLevel, createLogger } from '@expo/logger';
 import { Transform, TransformCallback, Writable } from 'stream';
+import { uuidv7 } from 'uuidv7';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
@@ -14,6 +15,10 @@ export interface BuildLogger extends CommonBuildLogger {
 const defaultLogger = createLogger({
   name: config.loggers.base.name,
   level: LoggerLevel.INFO,
+  log_id: true,
+  serializers: {
+    log_id: () => uuidv7(),
+  },
 });
 
 const MAX_LINES_IN_BUFFER = 100;
