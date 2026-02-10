@@ -32,6 +32,7 @@ import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
 import { LoggerStream } from './utils/logger';
+import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -328,6 +329,40 @@ export default class BuildService {
           ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
+
+      if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+        let rawErrorMessage: string;
+        if (maybeRawError instanceof Error) {
+          rawErrorMessage = maybeRawError.message;
+        } else {
+          try {
+            rawErrorMessage = JSON.stringify(maybeRawError);
+          } catch {
+            rawErrorMessage = String(maybeRawError);
+          }
+        }
+
+        const robotAccessToken = job.secrets?.robotAccessToken;
+        if (robotAccessToken) {
+          await turtleFetch(
+            new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
+            'POST',
+            {
+              json: {
+                buildId: this.buildId,
+                message: rawErrorMessage,
+                buildPhase: err.buildPhase ?? null,
+                errorCode: err.errorCode,
+              },
+              headers: {
+                Authorization: `Bearer ${robotAccessToken}`,
+              },
+              shouldThrowOnNotOk: false,
+            }
+          );
+        }
+      }
+
       await this.finishError(err, maybeArtifacts);
     }
   }
