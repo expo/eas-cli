@@ -98,7 +98,7 @@ export async function createBuildLoggerWithSecretsFilter({
       ? { signedUrl: config.loggers.gcs.signedUploadUrlForLogs }
       : undefined,
     options: {
-      uploadIntervalMs: config.loggers.base.uploadIntervalMs,
+      uploadIntervalMs: config.loggers.gcs.uploadIntervalMs,
       compress: config.loggers.gcs.compressionMethod,
     },
     transformStream: secrets && createSecretMaskingStream(secrets),

@@ -31,9 +31,9 @@ export default {
   loggers: {
     base: {
       name: env('LOGGER_NAME', { defaultValue: 'turtle-worker' }),
-      uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
     },
     gcs: {
+      uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
       compressionMethod: GCSLoggerStream.CompressionMethod.BR,
       signedUploadUrlForLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForLogs'),
