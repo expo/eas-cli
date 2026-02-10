@@ -4,10 +4,16 @@ import fetch from 'node-fetch';
 import { Writable } from 'stream';
 import { uuidv7 } from 'uuidv7';
 
-import { RetryOptions, retry } from './retry';
+import { retry } from './retry';
 
 const MAX_BATCH_SIZE = 100;
 
+/**
+ * A bunyan-compatible writable stream for sending logs over HTTP.
+ *
+ * When it receives a log entry, it assigns it a `log_id: uuidv7()`
+ * which is used to identify the log in logs service and later to dedupe.
+ */
 export default class HttpLogStream extends Writable {
   public writable = true;
 
@@ -15,28 +21,21 @@ export default class HttpLogStream extends Writable {
   private readonly url: string;
   private readonly headers: Record<string, string>;
   private readonly logger?: bunyan;
-  private readonly retryOptions: RetryOptions;
   private inFlightRequest?: Promise<void>;
 
   constructor({
     url,
     headers,
     logger,
-    retryOptions = { retries: 2, retryIntervalMs: 1000 },
   }: {
     url: string;
-    headers?: Record<string, string>;
-    logger?: bunyan;
-    retryOptions?: RetryOptions;
+    headers: Record<string, string>;
+    logger: bunyan;
   }) {
     super({ objectMode: true });
     this.url = url;
-    this.headers = {
-      'Content-Type': 'application/x-ndjson',
-      ...headers,
-    };
+    this.headers = headers;
     this.logger = logger;
-    this.retryOptions = retryOptions;
   }
 
   public override _write(
@@ -98,7 +97,10 @@ export default class HttpLogStream extends Writable {
       async () => {
         const response = await fetch(this.url, {
           method: 'POST',
-          headers: this.headers,
+          headers: {
+            ...this.headers,
+            'Content-Type': 'application/x-ndjson',
+          },
           body: logs.map(log => JSON.stringify(log)).join('\n'),
         });
 
@@ -112,7 +114,10 @@ export default class HttpLogStream extends Writable {
         }
       },
       {
-        retryOptions: this.retryOptions,
+        retryOptions: {
+          retries: 2,
+          retryIntervalMs: 1000,
+        },
         logger: this.logger,
       }
     );
