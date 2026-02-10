@@ -317,9 +317,6 @@ export default class BuildService {
       const err = error instanceof errors.BuildError ? error : unknownError;
       const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
 
-      const rawErrorMessage =
-        maybeRawError instanceof Error ? maybeRawError.message : 'An unknown error occurred';
-
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
@@ -334,9 +331,20 @@ export default class BuildService {
       });
 
       if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+        let rawErrorMessage: string;
+        if (maybeRawError instanceof Error) {
+          rawErrorMessage = maybeRawError.message;
+        } else {
+          try {
+            rawErrorMessage = JSON.stringify(maybeRawError);
+          } catch {
+            rawErrorMessage = String(maybeRawError);
+          }
+        }
+
         const robotAccessToken = job.secrets?.robotAccessToken;
         if (robotAccessToken) {
-          turtleFetch(
+          await turtleFetch(
             new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
             'POST',
             {
@@ -351,7 +359,7 @@ export default class BuildService {
               },
               shouldThrowOnNotOk: false,
             }
-          ).catch(() => {});
+          );
         }
       }
 
