@@ -128,7 +128,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
     gcsLoggerStream = new GCSLoggerStream({
       uploadMethod: { signedUrl: config.loggers.gcs.signedUploadUrlForLogs },
       options: {
-        uploadIntervalMs: config.loggers.base.uploadIntervalMs,
+        uploadIntervalMs: config.loggers.gcs.uploadIntervalMs,
         compress: config.loggers.gcs.compressionMethod,
       },
       logger: defaultLogger,
