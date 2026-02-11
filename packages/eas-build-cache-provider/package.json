@@ -1,7 +1,7 @@
 {
   "name": "eas-build-cache-provider",
   "description": "A build cache provider plugin for the Expo CLI",
-  "version": "17.0.0",
+  "version": "18.0.0",
   "author": "Expo <support@expo.dev>",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "dependencies": {

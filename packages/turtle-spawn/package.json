@@ -5,7 +5,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/turtle-spawn"
   },
-  "version": "17.0.0",
+  "version": "18.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -25,7 +25,7 @@
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "dependencies": {
-    "@expo/logger": "17.0.0",
+    "@expo/logger": "18.0.0",
     "@expo/spawn-async": "^1.7.2"
   },
   "devDependencies": {

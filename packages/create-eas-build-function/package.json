@@ -5,7 +5,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/create-eas-build-function"
   },
-  "version": "17.0.0",
+  "version": "18.0.0",
   "bin": {
     "create-eas-build-function": "./build/index.js"
   },
@@ -34,7 +34,7 @@
     "clean": "rimraf ./build/ *.tsbuildinfo"
   },
   "dependencies": {
-    "@expo/steps": "17.0.0"
+    "@expo/steps": "18.0.0"
   },
   "devDependencies": {
     "@expo/package-manager": "1.9.10",

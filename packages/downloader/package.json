@@ -5,7 +5,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/downloader"
   },
-  "version": "17.0.0",
+  "version": "18.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
