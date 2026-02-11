@@ -21,7 +21,7 @@
     "prebuild": "yarn gql",
     "build": "tsc",
     "typecheck": "tsc",
-    "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "rm -rf dist *.tsbuildinfo && tsc -p tsconfig.build.json",
     "jest-unit": "jest --config jest/unit-config.ts",
     "jest-integration": "jest --config jest/integration-config.ts",
     "jest-unit-watch": "jest --config jest/unit-config.ts --watch",

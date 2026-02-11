@@ -20,7 +20,7 @@
     "watch": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "typecheck": "tsc",
-    "prepack": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "rm -rf dist *.tsbuildinfo && tsc -p tsconfig.build.json",
     "test": "jest --passWithNoTests",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },

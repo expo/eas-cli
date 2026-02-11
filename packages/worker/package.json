@@ -6,7 +6,7 @@
     "start": "yarn watch",
     "watch": "yarn compile --watch --preserveWatchOutput",
     "build": "npm run clean && npm run compile",
-    "clean": "rm -rf ./dist",
+    "clean": "rm -rf ./dist *.tsbuildinfo",
     "clean-all": "yarn clean && rm -rf node_modules",
     "compile": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
