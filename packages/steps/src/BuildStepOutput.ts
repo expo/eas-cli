@@ -12,8 +12,9 @@ interface BuildStepOutputProviderParams<R extends boolean = boolean> {
   required: R;
 }
 
-interface BuildStepOutputParams<R extends boolean = boolean>
-  extends BuildStepOutputProviderParams<R> {
+interface BuildStepOutputParams<
+  R extends boolean = boolean,
+> extends BuildStepOutputProviderParams<R> {
   stepDisplayName: string;
 }
 

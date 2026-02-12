@@ -43,8 +43,10 @@ interface BuildStepInputProviderParams<
   allowedValueTypeName: T;
 }
 
-interface BuildStepInputParams<T extends BuildStepInputValueTypeName, R extends boolean>
-  extends BuildStepInputProviderParams<T, R> {
+interface BuildStepInputParams<
+  T extends BuildStepInputValueTypeName,
+  R extends boolean,
+> extends BuildStepInputProviderParams<T, R> {
   stepDisplayName: string;
 }
 

@@ -117,7 +117,10 @@ export default class EnvCreate extends EasCommand {
       force,
       type,
       fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags, args, { graphqlClient, projectId });
+    } = await this.promptForMissingFlagsAsync(validatedFlags, args, {
+      graphqlClient,
+      projectId,
+    });
 
     const [projectDisplayName, ownerAccount] = await Promise.all([
       getDisplayNameForProjectIdAsync(graphqlClient, projectId),
@@ -323,7 +326,7 @@ export default class EnvCreate extends EasCommand {
 
     value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
 
-    let newEnvironments = environments ? environments : environment ? [environment] : undefined;
+    let newEnvironments = environments ?? (environment ? [environment] : undefined);
 
     if (!newEnvironments) {
       newEnvironments = await promptVariableEnvironmentAsync({

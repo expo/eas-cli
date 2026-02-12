@@ -1,20 +1,23 @@
 {
   "name": "eas-cli-local-build-plugin",
+  "version": "18.0.0",
+  "description": "Tool for running EAS compatible builds on a local machine.",
+  "bugs": "https://github.com/expo/eas-cli/issues",
+  "license": "BUSL-1.1",
+  "author": "Expo <support@expo.io>",
   "repository": {
     "type": "git",
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/local-build-plugin"
   },
-  "version": "18.0.0",
-  "description": "Tool for running EAS compatible builds on a local machine.",
-  "main": "dist/main.js",
+  "bin": {
+    "eas-cli-local-build-plugin": "./bin/run"
+  },
   "files": [
     "dist",
     "bin"
   ],
-  "bin": {
-    "eas-cli-local-build-plugin": "./bin/run"
-  },
+  "main": "dist/main.js",
   "scripts": {
     "start": "yarn watch",
     "watch": "tsc --watch --preserveWatchOutput",
@@ -24,12 +27,6 @@
     "test": "jest --passWithNoTests",
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "author": "Expo <support@expo.io>",
-  "bugs": "https://github.com/expo/eas-cli/issues",
-  "license": "BUSL-1.1",
   "dependencies": {
     "@expo/build-tools": "18.0.0",
     "@expo/eas-build-job": "18.0.0",
@@ -57,5 +54,8 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.1.4",
     "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

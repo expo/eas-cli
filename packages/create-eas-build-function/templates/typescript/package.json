@@ -2,17 +2,17 @@
   "name": "custom-ts-function",
   "version": "1.0.0",
   "description": "",
-  "main": "./build/index.js",
+  "keywords": [],
+  "author": "",
   "type": "commonjs",
+  "main": "./build/index.js",
   "scripts": {
     "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register"
   },
-  "keywords": [],
-  "author": "",
   "devDependencies": {
-    "@vercel/ncc": "^0.38.1",
+    "@expo/steps": "^1.0.119",
     "@types/node": "20.14.11",
-    "typescript": "^5.5.3",
-    "@expo/steps": "^1.0.119"
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.5.3"
   }
 }

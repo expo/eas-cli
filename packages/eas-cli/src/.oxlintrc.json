@@ -1,0 +1,51 @@
+{
+  "extends": ["../.oxlintrc.json"],
+  "jsPlugins": [
+    {
+      "name": "async-protect",
+      "specifier": "eslint-plugin-async-protect"
+    },
+    {
+      "name": "graphql",
+      "specifier": "eslint-plugin-graphql"
+    }
+  ],
+  "rules": {
+    "typescript/explicit-function-return-type": [
+      "warn",
+      {
+        "allowExpressions": true
+      }
+    ],
+    "typescript/prefer-nullish-coalescing": [
+      "warn",
+      {
+        "ignorePrimitives": true,
+        "ignoreIfStatements": true
+      }
+    ],
+    "typescript/no-confusing-void-expression": "warn",
+    "typescript/await-thenable": "error",
+    "typescript/no-misused-promises": [
+      "error",
+      {
+        "checksVoidReturn": false
+      }
+    ],
+    "typescript/no-floating-promises": "error",
+    "no-void": [
+      "warn",
+      {
+        "allowAsStatement": true
+      }
+    ],
+    "no-return-await": "off",
+    "typescript/return-await": ["warn", "error-handling-correctness-only"],
+    "typescript/no-confusing-non-null-assertion": "warn",
+    "typescript/no-extra-non-null-assertion": "warn",
+    "typescript/prefer-as-const": "warn",
+    "typescript/prefer-includes": "warn",
+    "typescript/prefer-ts-expect-error": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn"
+  }
+}

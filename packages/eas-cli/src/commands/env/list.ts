@@ -183,11 +183,7 @@ export default class EnvList extends EasCommand {
     flags: RawListFlags,
     { environment }: { environment?: string }
   ): ListFlags {
-    const environments = flags.environment
-      ? flags.environment
-      : environment
-        ? [environment]
-        : undefined;
+    const environments = flags.environment ?? (environment ? [environment] : undefined);
 
     return {
       ...flags,

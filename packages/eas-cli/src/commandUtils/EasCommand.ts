@@ -57,8 +57,7 @@ interface BaseGetContextAsyncArgs {
   vcsClientOverride?: Client;
 }
 
-interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument
-  extends BaseGetContextAsyncArgs {
+interface GetContextAsyncArgsWithRequiredServerSideEnvironmentArgument extends BaseGetContextAsyncArgs {
   withServerSideEnvironment: string | null;
 }
 

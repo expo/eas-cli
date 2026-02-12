@@ -20,11 +20,7 @@ export const AppVersionQuery = {
       graphqlClient
         .query<LatestAppVersionQuery, LatestAppVersionQueryVariables>(
           gql`
-            query LatestAppVersion(
-              $appId: String!
-              $platform: AppPlatform!
-              $applicationIdentifier: String!
-            ) {
+            query LatestAppVersion($appId: String!, $platform: AppPlatform!, $applicationIdentifier: String!) {
               app {
                 byId(appId: $appId) {
                   id

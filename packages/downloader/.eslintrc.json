@@ -1,6 +1,0 @@
-{
-  "extends": "../../.eslintrc.js",
-  "rules": {
-    "async-protect/async-suffix": "off"
-  }
-}

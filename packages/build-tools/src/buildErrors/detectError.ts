@@ -76,8 +76,8 @@ export async function resolveBuildPhaseErrorAsync(
   const userFacingError =
     error instanceof errors.UserFacingError
       ? error
-      : resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
-        new errors.UnknownError(errorContext.phase);
+      : (resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
+        new errors.UnknownError(errorContext.phase));
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
   const isUnknownUserError =

@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - Drop support for Node 18 and Node 19. Require Node 20+. ([#3343](https://github.com/expo/eas-cli/pull/3343) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🎉 New features
+
 - Add `--browser` flag to `eas login` for browser-based authentication. ([#3312](https://github.com/expo/eas-cli/pull/3312) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🐛 Bug fixes

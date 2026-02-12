@@ -83,10 +83,7 @@ export const PublishMutation = {
       graphqlClient
         .mutation<SetCodeSigningInfoMutation, SetCodeSigningInfoMutationVariables>(
           gql`
-            mutation SetCodeSigningInfoMutation(
-              $updateId: ID!
-              $codeSigningInfo: CodeSigningInfoInput!
-            ) {
+            mutation SetCodeSigningInfoMutation($updateId: ID!, $codeSigningInfo: CodeSigningInfoInput!) {
               update {
                 setCodeSigningInfo(updateId: $updateId, codeSigningInfo: $codeSigningInfo) {
                   id

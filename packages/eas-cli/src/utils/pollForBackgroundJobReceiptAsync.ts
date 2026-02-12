@@ -83,66 +83,63 @@ export async function pollForBackgroundJobReceiptAsync(
 ): Promise<BackgroundJobReceiptDataFragment | null> {
   return await new Promise<BackgroundJobReceiptDataFragment | null>((resolve, reject) => {
     let numChecks = 0;
-    const intervalHandle = setIntervalAsync(
-      async function pollForDeletionFinishedAsync() {
-        function failBackgroundDeletion(error: BackgroundJobReceiptPollError): void {
-          void clearIntervalAsync(intervalHandle);
-          reject(error);
-        }
+    const intervalHandle = setIntervalAsync(async function pollForDeletionFinishedAsync() {
+      function failBackgroundDeletion(error: BackgroundJobReceiptPollError): void {
+        void clearIntervalAsync(intervalHandle);
+        reject(error);
+      }
 
-        const [receipt, error] = await fetchBackgroundJobReceiptAsync(
-          graphqlClient,
-          backgroundJobReceipt.id
-        );
-        if (!receipt) {
-          if (error instanceof CombinedError) {
-            const errorResult = options?.onBackgroundJobReceiptPollError?.(error);
-            if (errorResult?.errorIndicatesSuccess) {
-              void clearIntervalAsync(intervalHandle);
-              resolve(null);
-              return;
-            }
+      const [receipt, error] = await fetchBackgroundJobReceiptAsync(
+        graphqlClient,
+        backgroundJobReceipt.id
+      );
+      if (!receipt) {
+        if (error instanceof CombinedError) {
+          const errorResult = options?.onBackgroundJobReceiptPollError?.(error);
+          if (errorResult?.errorIndicatesSuccess) {
+            void clearIntervalAsync(intervalHandle);
+            resolve(null);
+            return;
           }
-          failBackgroundDeletion(
-            new BackgroundJobReceiptPollError({
-              errorType: BackgroundJobReceiptPollErrorType.NULL_RECEIPT,
-            })
-          );
-          return;
         }
+        failBackgroundDeletion(
+          new BackgroundJobReceiptPollError({
+            errorType: BackgroundJobReceiptPollErrorType.NULL_RECEIPT,
+          })
+        );
+        return;
+      }
 
-        // job failed and will not retry
-        if (receipt.state === BackgroundJobState.Failure && !receipt.willRetry) {
-          failBackgroundDeletion(
-            new BackgroundJobReceiptPollError({
-              errorType: BackgroundJobReceiptPollErrorType.JOB_FAILED_NO_WILL_RETRY,
-              receiptErrorMessage: receipt.errorMessage,
-            })
-          );
-          return;
-        }
+      // job failed and will not retry
+      if (receipt.state === BackgroundJobState.Failure && !receipt.willRetry) {
+        failBackgroundDeletion(
+          new BackgroundJobReceiptPollError({
+            errorType: BackgroundJobReceiptPollErrorType.JOB_FAILED_NO_WILL_RETRY,
+            receiptErrorMessage: receipt.errorMessage,
+          })
+        );
+        return;
+      }
 
-        // all else fails, stop polling after 90 checks. This should only happen if there's an
-        // issue with receipts not setting `willRetry` to false when they fail within a reasonable
-        // amount of time.
-        if (numChecks > 90) {
-          failBackgroundDeletion(
-            new BackgroundJobReceiptPollError({
-              errorType: BackgroundJobReceiptPollErrorType.TIMEOUT,
-            })
-          );
-          return;
-        }
+      // all else fails, stop polling after 90 checks. This should only happen if there's an
+      // issue with receipts not setting `willRetry` to false when they fail within a reasonable
+      // amount of time.
+      if (numChecks > 90) {
+        failBackgroundDeletion(
+          new BackgroundJobReceiptPollError({
+            errorType: BackgroundJobReceiptPollErrorType.TIMEOUT,
+          })
+        );
+        return;
+      }
 
-        if (receipt.state === BackgroundJobState.Success) {
-          void clearIntervalAsync(intervalHandle);
-          resolve(receipt);
-          return;
-        }
+      if (receipt.state === BackgroundJobState.Success) {
+        void clearIntervalAsync(intervalHandle);
+        resolve(receipt);
+        return;
+      }
 
-        numChecks++;
-      },
-      options?.pollInterval ?? 1000
-    );
+      numChecks++;
+    }, options?.pollInterval ?? 1000);
   });
 }
