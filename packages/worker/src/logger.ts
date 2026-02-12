@@ -89,7 +89,6 @@ export async function createBuildLoggerWithSecretsFilter(
   secrets?: EnvironmentSecret[]
 ): Promise<BuildLogger> {
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
-  const childLogger = defaultLogger.child({ service: 'worker' });
 
   const { logger, stream } = await createGCSBuildLogger({
     uploadMethod: config.loggers.gcs.signedUploadUrlForLogs
@@ -100,7 +99,7 @@ export async function createBuildLoggerWithSecretsFilter(
       compress: config.loggers.gcs.compressionMethod,
     },
     transformStream: secrets && createSecretMaskingStream(secrets),
-    logger: childLogger,
+    logger: defaultLogger,
   });
 
   logger.addStream({
