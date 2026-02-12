@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Use authorization code flow with PKCE for browser-based login. ([#3398](https://github.com/expo/eas-cli/pull/3398) by [@byronkarlen](https://github.com/byronkarlen))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
