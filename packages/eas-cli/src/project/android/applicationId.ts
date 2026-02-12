@@ -148,15 +148,8 @@ async function configureApplicationIdAsync({
   exp: ExpoConfig;
   nonInteractive: boolean;
 }): Promise<string> {
-  if (nonInteractive) {
-    throw new Error(
-      `The "android.package" is required to be set in app config when running in non-interactive mode. ${learnMore(
-        'https://docs.expo.dev/versions/latest/config/app/#package'
-      )}`
-    );
-  }
-
   const paths = getConfigFilePaths(projectDir);
+
   // we can't automatically update app.config.js
   if (paths.dynamicConfigPath) {
     throw new Error(
@@ -166,25 +159,41 @@ async function configureApplicationIdAsync({
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
-  Log.addNewLineIfNone();
-  Log.log(
-    `${chalk.bold(`📝  Android application id`)} ${chalk.dim(
-      learnMore('https://expo.fyi/android-package')
-    )}`
-  );
-
   const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
     graphqlClient,
     exp,
     projectId
   );
-  const { packageName } = await promptAsync({
-    name: 'packageName',
-    type: 'text',
-    message: `What would you like your Android application id to be?`,
-    initial: suggestedAndroidApplicationId,
-    validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
-  });
+
+  let packageName: string;
+
+  if (nonInteractive) {
+    if (!suggestedAndroidApplicationId) {
+      throw new Error(
+        `The "android.package" is required to be set in app config when running in non-interactive mode. ${learnMore(
+          'https://docs.expo.dev/versions/latest/config/app/#package'
+        )}`
+      );
+    }
+    packageName = suggestedAndroidApplicationId;
+    Log.log(`Using automatically generated Android application id: ${chalk.bold(packageName)}`);
+  } else {
+    Log.addNewLineIfNone();
+    Log.log(
+      `${chalk.bold(`📝  Android application id`)} ${chalk.dim(
+        learnMore('https://expo.fyi/android-package')
+      )}`
+    );
+
+    const result = await promptAsync({
+      name: 'packageName',
+      type: 'text',
+      message: `What would you like your Android application id to be?`,
+      initial: suggestedAndroidApplicationId,
+      validate: value => (isApplicationIdValid(value) ? true : INVALID_APPLICATION_ID_MESSAGE),
+    });
+    packageName = result.packageName;
+  }
 
   const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = {
