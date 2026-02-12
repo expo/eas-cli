@@ -62,7 +62,7 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   }
 }
 
-function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
+function createTransformStream(secrets: EnvironmentSecret[]): Transform {
   const secretValues = secrets.map(({ value }) => value);
   const secretList: string[] = [
     ...secretValues,
@@ -105,7 +105,7 @@ export async function createBuildLoggerWithSecretsFilter(
 ): Promise<BuildLogger> {
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
 
-  const transformStream = createSecretMaskingStream(secrets ?? []);
+  const transformStream = createTransformStream(secrets ?? []);
 
   const { logger, cleanUp } = await createGCSBuildLogger({
     uploadMethod: config.loggers.gcs.signedUploadUrlForLogs
