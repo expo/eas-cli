@@ -159,15 +159,19 @@ async function configureApplicationIdAsync({
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
-  const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
-    graphqlClient,
-    exp,
-    projectId
-  );
-
   let packageName: string;
 
   if (nonInteractive) {
+    let suggestedAndroidApplicationId: string | undefined;
+    try {
+      suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
+        graphqlClient,
+        exp,
+        projectId
+      );
+    } catch {
+      // If we can't get a suggestion, we'll throw the non-interactive error below
+    }
     if (!suggestedAndroidApplicationId) {
       throw new Error(
         `The "android.package" is required to be set in app config when running in non-interactive mode. ${learnMore(
@@ -178,6 +182,11 @@ async function configureApplicationIdAsync({
     packageName = suggestedAndroidApplicationId;
     Log.log(`Using automatically generated Android application id: ${chalk.bold(packageName)}`);
   } else {
+    const suggestedAndroidApplicationId = await getSuggestedApplicationIdAsync(
+      graphqlClient,
+      exp,
+      projectId
+    );
     Log.addNewLineIfNone();
     Log.log(
       `${chalk.bold(`📝  Android application id`)} ${chalk.dim(

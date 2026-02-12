@@ -148,15 +148,19 @@ async function configureBundleIdentifierAsync({
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
-  const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(
-    graphqlClient,
-    exp,
-    projectId
-  );
-
   let bundleIdentifier: string;
 
   if (nonInteractive) {
+    let suggestedBundleIdentifier: string | undefined;
+    try {
+      suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(
+        graphqlClient,
+        exp,
+        projectId
+      );
+    } catch {
+      // If we can't get a suggestion, we'll throw the non-interactive error below
+    }
     if (!suggestedBundleIdentifier) {
       throw new Error(
         `The "ios.bundleIdentifier" is required to be set in app config when running in non-interactive mode. ${learnMore(
@@ -167,6 +171,11 @@ async function configureBundleIdentifierAsync({
     bundleIdentifier = suggestedBundleIdentifier;
     Log.log(`Using automatically generated iOS bundle identifier: ${chalk.bold(bundleIdentifier)}`);
   } else {
+    const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(
+      graphqlClient,
+      exp,
+      projectId
+    );
     Log.addNewLineIfNone();
     Log.log(
       `${chalk.bold(`📝  iOS Bundle Identifier`)} ${chalk.dim(
