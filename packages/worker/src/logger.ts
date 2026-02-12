@@ -148,7 +148,6 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
     logger: buildLogger,
     cleanUp: async () => {
       await gcsLoggerStream?.cleanUp();
-      discardStream.destroy();
     },
     logBuffer,
     outputStream: transformStream,
