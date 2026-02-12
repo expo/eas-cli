@@ -1,14 +1,16 @@
 import { LogBuffer } from '@expo/build-tools';
 import { EnvironmentSecret } from '@expo/eas-build-job';
 import { LoggerLevel, createLogger } from '@expo/logger';
-import { Transform, TransformCallback, Writable } from 'stream';
+import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { BuildLogger as CommonBuildLogger, createGCSBuildLogger } from './utils/logger';
+import { uuidv7 } from 'uuidv7';
 
 export interface BuildLogger extends CommonBuildLogger {
   logBuffer: LogBuffer;
+  outputStream: Readable;
 }
 
 const defaultLogger = createLogger({
@@ -70,11 +72,23 @@ function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
-    transform(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+    transform(_chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+      let chunk = _chunk;
+      if (chunk && typeof chunk === 'object') {
+        // Remove hostname from logs since we don't need it.
+        const { hostname, ...rest } = chunk;
+        chunk = {
+          ...rest,
+          // Add logId to each log.
+          logId: uuidv7(),
+        };
+      }
+
       if (chunk && typeof chunk === 'object' && chunk.msg) {
         const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
           return acc.replaceAll(pattern, '*'.repeat(pattern.length));
         }, chunk.msg as string);
+
         callback(null, {
           ...chunk,
           msg: msgWithoutSecrets,
@@ -91,6 +105,8 @@ export async function createBuildLoggerWithSecretsFilter(
 ): Promise<BuildLogger> {
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
 
+  const transformStream = createSecretMaskingStream(secrets ?? []);
+
   const { logger, cleanUp } = await createGCSBuildLogger({
     uploadMethod: config.loggers.gcs.signedUploadUrlForLogs
       ? { signedUrl: config.loggers.gcs.signedUploadUrlForLogs }
@@ -99,7 +115,7 @@ export async function createBuildLoggerWithSecretsFilter(
       uploadIntervalMs: config.loggers.base.uploadIntervalMs,
       compress: config.loggers.gcs.compressionMethod,
     },
-    transformStream: createSecretMaskingStream(secrets ?? []),
+    transformStream,
     logger: defaultLogger,
   });
 
@@ -110,7 +126,7 @@ export async function createBuildLoggerWithSecretsFilter(
     level: logger.level(),
   });
 
-  return { logger, cleanUp, logBuffer };
+  return { logger, cleanUp, logBuffer, outputStream: transformStream };
 }
 
 export default defaultLogger;
