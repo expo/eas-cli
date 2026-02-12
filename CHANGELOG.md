@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [18.0.1](https://github.com/expo/eas-cli/releases/tag/v18.0.1) - 2026-02-12
+
+### 🛠 Breaking changes
+
 - Drop support for Node 18 and Node 19. Require Node 20+. ([#3343](https://github.com/expo/eas-cli/pull/3343) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🎉 New features
