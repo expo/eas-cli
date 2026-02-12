@@ -66,6 +66,7 @@ function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
     ...secretValues,
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
   ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
@@ -98,7 +99,7 @@ export async function createBuildLoggerWithSecretsFilter(
       uploadIntervalMs: config.loggers.base.uploadIntervalMs,
       compress: config.loggers.gcs.compressionMethod,
     },
-    transformStream: secrets && createSecretMaskingStream(secrets),
+    transformStream: createSecretMaskingStream(secrets ?? []),
     logger: defaultLogger,
   });
 
