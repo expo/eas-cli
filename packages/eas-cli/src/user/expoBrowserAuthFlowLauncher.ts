@@ -79,6 +79,7 @@ export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Prom
       `code_challenge=${codeChallenge}`,
       `code_challenge_method=S256`,
       `state=${state}`,
+      `confirm_account=true`,
     ].join('&');
     return `${expoWebsiteUrl}${sso ? '/sso-login' : '/login'}?${params}`;
   };
