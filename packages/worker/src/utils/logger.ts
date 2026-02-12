@@ -1,16 +1,11 @@
 import { GCSLoggerStream } from '@expo/build-tools';
 import { BuildPhase } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { randomUUID } from 'crypto';
 import { Transform } from 'stream';
 
 export interface BuildLogger {
   logger: bunyan;
   cleanUp?: () => Promise<void>;
-}
-
-export function makeKeyForBuildLogs(prefix: string): string {
-  return `${prefix}/${Date.now()}-${randomUUID()}.txt`;
 }
 
 async function createBuildLogger(logger: bunyan, stream?: NodeJS.WritableStream): Promise<bunyan> {
