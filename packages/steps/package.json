@@ -16,7 +16,7 @@
     "start": "yarn watch",
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc",
-    "prepack": "rm -rf dist && tsc --project tsconfig.build.json",
+    "prepack": "rm -rf dist *.tsbuildinfo && tsc --project tsconfig.build.json",
     "watch": "tsc --watch --preserveWatchOutput",
     "test": "jest --config jest.config.ts",
     "test:coverage": "jest --config jest.config.ts --coverage",
