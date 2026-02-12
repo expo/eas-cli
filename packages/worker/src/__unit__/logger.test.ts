@@ -3,24 +3,19 @@ import { createBuildLoggerWithSecretsFilter } from '../logger';
 import z from 'zod';
 
 describe('logger', () => {
+  async function waitForStreamFlush(): Promise<void> {
+    await new Promise(resolve => setImmediate(resolve));
+  }
+
   it('adds logId to each log', async () => {
     const { logger, outputStream } = await createBuildLoggerWithSecretsFilter([]);
 
     const logs: any[] = [];
 
-    let resolveWrites!: () => void;
-    const writesDone = new Promise<void>(resolve => {
-      resolveWrites = resolve;
-    });
-
     const writable = new Writable({
       objectMode: true,
       write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
         logs.push(chunk);
-        if (logs.length === 2) {
-          resolveWrites();
-        }
-
         callback(null, chunk);
       },
     });
@@ -30,7 +25,7 @@ describe('logger', () => {
     logger.info('Test log');
     logger.info('Test log');
 
-    await writesDone;
+    await waitForStreamFlush();
 
     expect(logs.length).toBe(2);
 
@@ -40,5 +35,17 @@ describe('logger', () => {
     }
 
     expect(logs[0].logId).not.toBe(logs[1].logId);
+  });
+
+  it('drains transformed logs even without explicit output consumer', async () => {
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter([]);
+
+    logger.info('Test log');
+    logger.info('Test log');
+    logger.info('Test log');
+
+    await waitForStreamFlush();
+
+    expect(outputStream.readableLength).toBe(0);
   });
 });

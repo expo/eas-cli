@@ -94,6 +94,15 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
   });
 }
 
+function createDiscardStream(): Writable {
+  return new Writable({
+    objectMode: true,
+    write(_chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      callback(null);
+    },
+  });
+}
+
 export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSecret[]): Promise<{
   logger: bunyan;
   cleanUp: () => Promise<void>;
@@ -103,6 +112,9 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
   const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
 
   const transformStream = createTransformStream(secrets ?? []);
+  const discardStream = createDiscardStream();
+  transformStream.pipe(discardStream);
+
   buildLogger.addStream({
     type: 'raw',
     stream: transformStream,
@@ -136,6 +148,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
     logger: buildLogger,
     cleanUp: async () => {
       await gcsLoggerStream?.cleanUp();
+      discardStream.destroy();
     },
     logBuffer,
     outputStream: transformStream,
