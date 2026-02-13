@@ -70,7 +70,7 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
       let chunk = _chunk;
       if (chunk && typeof chunk === 'object') {
         // Remove hostname from logs since we don't need it.
-        const { hostname, ...rest } = chunk;
+        const { hostname: _hostname, ...rest } = chunk;
         chunk = {
           ...rest,
           // Add logId to each log.
