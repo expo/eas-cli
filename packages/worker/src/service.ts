@@ -331,15 +331,12 @@ export default class BuildService {
       });
 
       if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
-        let rawErrorMessage: string;
-        if (maybeRawError instanceof Error) {
-          rawErrorMessage = maybeRawError.message;
-        } else {
-          try {
-            rawErrorMessage = JSON.stringify(maybeRawError);
-          } catch {
-            rawErrorMessage = String(maybeRawError);
-          }
+        let rawErrorMessage: string = '';
+        if (maybeRawError.stderr) {
+          rawErrorMessage = '\n' + getLastNLines(100, maybeRawError.stderr);
+        }
+        if (maybeRawError.stdout) {
+          rawErrorMessage = '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 
         const robotAccessToken = job.secrets?.robotAccessToken;
