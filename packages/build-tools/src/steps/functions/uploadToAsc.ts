@@ -234,7 +234,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       stepsCtx.logger.info('Checking build upload status...');
       const waitingForBuildStartedAt = Date.now();
-      while (Date.now() - waitingForBuildStartedAt < 10 * 60 * 1000 /* 10 minutes */) {
+      while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
         const {
           data: {
             attributes: { state },
