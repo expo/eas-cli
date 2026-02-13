@@ -74,8 +74,8 @@ export default class BuildDev extends EasCommand {
       Errors.error('Running iOS builds in simulator is only supported on macOS.', { exit: 1 });
     }
 
-    await vcsClient.ensureRepoExistsAsync();
-    await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
+    await vcsClient.ensureRepoExistsAsync({ nonInteractive: false });
+    await ensureRepoIsCleanAsync(vcsClient, false);
     await ensureProjectConfiguredAsync({
       projectDir,
       nonInteractive: false,

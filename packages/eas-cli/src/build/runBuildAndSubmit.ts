@@ -128,7 +128,7 @@ export async function runBuildAndSubmitAsync({
   buildIds: string[];
   buildProfiles?: ProfileData<'build'>[];
 }> {
-  await vcsClient.ensureRepoExistsAsync();
+  await vcsClient.ensureRepoExistsAsync({ nonInteractive: flags.nonInteractive });
   await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
 
   await ensureProjectConfiguredAsync({
