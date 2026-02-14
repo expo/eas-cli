@@ -31,7 +31,6 @@ import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { LoggerStream } from './utils/logger';
 import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -42,7 +41,7 @@ export default class BuildService {
   private readonly state: State = new State();
   private ws: WebSocketServer<LauncherMessage.Message, WorkerMessage.Message> | null = null;
   private shouldCloseWorker = false;
-  private loggerStream?: LoggerStream;
+  private logsCleanUp?: () => Promise<void>;
   private _startBuildTime?: number;
   private buildContext?: BuildContext<Job>;
 
@@ -121,7 +120,7 @@ export default class BuildService {
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
     await setTimeoutAsync(5 * 1000);
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - error');
       this.ws.send({
@@ -142,7 +141,7 @@ export default class BuildService {
       buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
     });
     const isSocketClosed: boolean = !this.ws;
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - success');
       this.ws.send({
@@ -194,7 +193,7 @@ export default class BuildService {
     }
 
     const isSocketClosed: boolean = !this.ws;
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - aborted');
       this.ws.send({
@@ -280,10 +279,10 @@ export default class BuildService {
     try {
       const {
         logger: buildLogger,
-        stream,
+        cleanUp,
         logBuffer,
       } = await createBuildLoggerWithSecretsFilter(job.secrets?.environmentSecrets);
-      this.loggerStream = stream;
+      this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
 

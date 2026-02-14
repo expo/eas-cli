@@ -30,7 +30,7 @@ export default {
   }),
   loggers: {
     base: {
-      name: env('LOGGER_NAME', { defaultValue: 'turtle-worker' }),
+      name: env('LOGGER_NAME', { defaultValue: 'worker' }),
       uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
     },
     gcs: {
