@@ -214,6 +214,9 @@
       "update": {
         "description": "manage individual updates"
       },
+      "observe": {
+        "description": "monitor app performance metrics"
+      },
       "webhook": {
         "description": "manage webhooks"
       },
