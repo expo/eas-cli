@@ -52,6 +52,7 @@
     "@google-cloud/storage": "^7.11.2",
     "@urql/core": "^6.0.1",
     "fast-glob": "^3.3.2",
+    "fast-xml-parser": "5.3.5",
     "fs-extra": "^11.2.0",
     "gql.tada": "^1.8.13",
     "joi": "^17.13.1",
