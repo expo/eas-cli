@@ -330,37 +330,32 @@ export default class BuildService {
         },
       });
 
-      if (err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
-        let rawErrorMessage: string;
-        if (maybeRawError instanceof Error) {
-          rawErrorMessage = maybeRawError.message;
-        } else {
-          try {
-            rawErrorMessage = JSON.stringify(maybeRawError);
-          } catch {
-            rawErrorMessage = String(maybeRawError);
-          }
+      const robotAccessToken = job.secrets?.robotAccessToken;
+      if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+        let rawErrorMessage: string = '';
+        if (maybeRawError.stderr) {
+          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
+        }
+        if (maybeRawError.stdout) {
+          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 
-        const robotAccessToken = job.secrets?.robotAccessToken;
-        if (robotAccessToken) {
-          await turtleFetch(
-            new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
-            'POST',
-            {
-              json: {
-                buildId: this.buildId,
-                message: rawErrorMessage,
-                buildPhase: err.buildPhase ?? null,
-                errorCode: err.errorCode,
-              },
-              headers: {
-                Authorization: `Bearer ${robotAccessToken}`,
-              },
-              shouldThrowOnNotOk: false,
-            }
-          );
-        }
+        await turtleFetch(
+          new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
+          'POST',
+          {
+            json: {
+              buildId: this.buildId,
+              message: rawErrorMessage,
+              buildPhase: err.buildPhase ?? null,
+              errorCode: err.errorCode,
+            },
+            headers: {
+              Authorization: `Bearer ${robotAccessToken}`,
+            },
+            shouldThrowOnNotOk: false,
+          }
+        );
       }
 
       await this.finishError(err, maybeArtifacts);
