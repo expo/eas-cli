@@ -1,15 +1,11 @@
-import { LogBuffer } from '@expo/build-tools';
-import { EnvironmentSecret } from '@expo/eas-build-job';
-import { LoggerLevel, createLogger } from '@expo/logger';
-import { Transform, TransformCallback, Writable } from 'stream';
+import { GCSLoggerStream, LogBuffer } from '@expo/build-tools';
+import { BuildPhase, EnvironmentSecret } from '@expo/eas-build-job';
+import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
+import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
-import { BuildLogger as CommonBuildLogger, createGCSBuildLogger } from './utils/logger';
-
-export interface BuildLogger extends CommonBuildLogger {
-  logBuffer: LogBuffer;
-}
+import { uuidv7 } from 'uuidv7';
 
 const defaultLogger = createLogger({
   name: config.loggers.base.name,
@@ -60,20 +56,33 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
   }
 }
 
-function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
+function createTransformStream(secrets: EnvironmentSecret[]): Transform {
   const secretValues = secrets.map(({ value }) => value);
   const secretList: string[] = [
     ...secretValues,
     ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
   ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
-    transform(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+    transform(_chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+      let chunk = _chunk;
+      if (chunk && typeof chunk === 'object') {
+        // Remove hostname from logs since we don't need it.
+        const { hostname: _hostname, ...rest } = chunk;
+        chunk = {
+          ...rest,
+          // Add logId to each log.
+          logId: uuidv7(),
+        };
+      }
+
       if (chunk && typeof chunk === 'object' && chunk.msg) {
         const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
           return acc.replaceAll(pattern, '*'.repeat(pattern.length));
         }, chunk.msg as string);
+
         callback(null, {
           ...chunk,
           msg: msgWithoutSecrets,
@@ -85,32 +94,64 @@ function createSecretMaskingStream(secrets: EnvironmentSecret[]): Transform {
   });
 }
 
-export async function createBuildLoggerWithSecretsFilter(
-  secrets?: EnvironmentSecret[]
-): Promise<BuildLogger> {
-  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
-  const childLogger = defaultLogger.child({ service: 'worker' });
-
-  const { logger, stream } = await createGCSBuildLogger({
-    uploadMethod: config.loggers.gcs.signedUploadUrlForLogs
-      ? { signedUrl: config.loggers.gcs.signedUploadUrlForLogs }
-      : undefined,
-    options: {
-      uploadIntervalMs: config.loggers.base.uploadIntervalMs,
-      compress: config.loggers.gcs.compressionMethod,
+function createDiscardStream(): Writable {
+  return new Writable({
+    objectMode: true,
+    write(_chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null) => void) {
+      callback(null);
     },
-    transformStream: secrets && createSecretMaskingStream(secrets),
-    logger: childLogger,
+  });
+}
+
+export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSecret[]): Promise<{
+  logger: bunyan;
+  cleanUp: () => Promise<void>;
+  logBuffer: WorkerLogBuffer;
+  outputStream: Readable;
+}> {
+  const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
+
+  const transformStream = createTransformStream(secrets ?? []);
+  const discardStream = createDiscardStream();
+  transformStream.pipe(discardStream);
+
+  buildLogger.addStream({
+    type: 'raw',
+    stream: transformStream,
+    reemitErrorEvents: true,
+    level: buildLogger.level(),
   });
 
-  logger.addStream({
+  let gcsLoggerStream: GCSLoggerStream | null = null;
+  if (config.loggers.gcs.signedUploadUrlForLogs) {
+    gcsLoggerStream = new GCSLoggerStream({
+      uploadMethod: { signedUrl: config.loggers.gcs.signedUploadUrlForLogs },
+      options: {
+        uploadIntervalMs: config.loggers.base.uploadIntervalMs,
+        compress: config.loggers.gcs.compressionMethod,
+      },
+      logger: defaultLogger,
+    });
+    transformStream.pipe(gcsLoggerStream);
+    await gcsLoggerStream.init();
+  }
+
+  const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
+  buildLogger.addStream({
     type: 'raw',
     stream: logBuffer,
     reemitErrorEvents: true,
-    level: logger.level(),
+    level: buildLogger.level(),
   });
 
-  return { logger, stream, logBuffer };
+  return {
+    logger: buildLogger,
+    cleanUp: async () => {
+      await gcsLoggerStream?.cleanUp();
+    },
+    logBuffer,
+    outputStream: transformStream,
+  };
 }
 
 export default defaultLogger;
