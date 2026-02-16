@@ -51,7 +51,7 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
       const ipaPathInput = z.string().parse(inputs.ipa_path.value);
       const ipaPath = path.resolve(stepCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
-        throw new Error(`IPA file not found: ${ipaPath}`);
+        throw new UserFacingError('EAS_READ_IPA_INFO_FILE_NOT_FOUND', `IPA file not found: ${ipaPath}`);
       }
 
       const ipaInfo = await readIpaInfoAsync(ipaPath);
@@ -63,33 +63,55 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
 }
 
 export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
-  const zip = new StreamZip.async({ file: ipaPath });
   try {
-    const entries = Object.values(await zip.entries());
-    const infoPlistEntry = entries.find(entry => INFO_PLIST_PATH_REGEXP.test(entry.name));
-    if (!infoPlistEntry) {
-      throw new Error(`Could not find Info.plist in ${ipaPath}`);
+    const infoPlistBuffer = await readInfoPlistBufferFromIpaAsync(ipaPath);
+    const infoPlist = parseInfoPlistBuffer(infoPlistBuffer);
+
+    const bundleIdentifier = infoPlist.CFBundleIdentifier;
+    if (typeof bundleIdentifier !== 'string') {
+      throw new UserFacingError(
+        'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
+        'Failed to read IPA info: Missing or invalid CFBundleIdentifier in Info.plist'
+      );
     }
 
-    const infoPlistBuffer = await zip.entryData(infoPlistEntry.name);
-    const infoPlist = parseInfoPlistBuffer(infoPlistBuffer);
+    const bundleShortVersion = infoPlist.CFBundleShortVersionString;
+    if (typeof bundleShortVersion !== 'string') {
+      throw new UserFacingError(
+        'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
+        'Failed to read IPA info: Missing or invalid CFBundleShortVersionString in Info.plist'
+      );
+    }
+
+    const bundleVersion = infoPlist.CFBundleVersion;
+    if (typeof bundleVersion !== 'string') {
+      throw new UserFacingError(
+        'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
+        'Failed to read IPA info: Missing or invalid CFBundleVersion in Info.plist'
+      );
+    }
+
     return {
-      bundleIdentifier: getRequiredStringValue(infoPlist, 'CFBundleIdentifier'),
-      bundleShortVersion: getRequiredStringValue(infoPlist, 'CFBundleShortVersionString'),
-      bundleVersion: getRequiredStringValue(infoPlist, 'CFBundleVersion'),
+      bundleIdentifier,
+      bundleShortVersion,
+      bundleVersion,
     };
   } catch (error) {
+    if (error instanceof UserFacingError) {
+      throw error;
+    }
+
     throw new UserFacingError(
       'EAS_READ_IPA_INFO_FAILED',
-      `Failed to read IPA info: ${(error as Error).message}`
+      `Failed to read IPA info: ${(error as Error).message}`,
+      { cause: error }
     );
-  } finally {
-    await zip.close();
   }
 }
 
 function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
-  if (isBinaryPlist(data)) {
+  const isBinaryPlist = data.subarray(0, 8).toString('ascii') === 'bplist00';
+  if (isBinaryPlist) {
     const parsedBinaryPlists = bplistParser.parseBuffer(data);
     const parsedBinaryPlist = parsedBinaryPlists[0];
     if (!parsedBinaryPlist || typeof parsedBinaryPlist !== 'object') {
@@ -104,14 +126,19 @@ function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
   return plist.parse(data.toString('utf8')) as Record<string, unknown>;
 }
 
-function isBinaryPlist(data: Buffer): boolean {
-  return data.subarray(0, 8).toString('ascii') === 'bplist00';
-}
-
-function getRequiredStringValue(plistData: Record<string, unknown>, key: string): string {
-  const value = plistData[key];
-  if (typeof value !== 'string') {
-    throw new Error(`Missing or invalid ${key} in Info.plist`);
+async function readInfoPlistBufferFromIpaAsync(ipaPath: string): Promise<Buffer> {
+  const zip = new StreamZip.async({ file: ipaPath });
+  try {
+    const entries = Object.values(await zip.entries());
+    const infoPlistEntry = entries.find(entry => INFO_PLIST_PATH_REGEXP.test(entry.name));
+    if (!infoPlistEntry) {
+      throw new UserFacingError(
+        'EAS_READ_IPA_INFO_INFO_PLIST_NOT_FOUND',
+        `Failed to read IPA info: Could not find Info.plist in ${ipaPath}`
+      );
+    }
+    return await zip.entryData(infoPlistEntry.name);
+  } finally {
+    await zip.close();
   }
-  return value;
 }
