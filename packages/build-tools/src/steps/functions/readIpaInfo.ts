@@ -1,4 +1,4 @@
-import plist from '@expo/plist';
+import { UserFacingError } from '@expo/eas-build-job/dist/errors';
 import {
   BuildFunction,
   BuildStepInput,
@@ -9,6 +9,8 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import StreamZip from 'node-stream-zip';
 import { z } from 'zod';
+import bplistParser from 'bplist-parser';
+import plist from 'plist';
 
 export type IpaInfo = {
   bundleIdentifier: string;
@@ -70,17 +72,40 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
     }
 
     const infoPlistBuffer = await zip.entryData(infoPlistEntry.name);
-    const infoPlist = plist.parse(infoPlistBuffer.toString('utf8')) as Record<string, unknown>;
+    const infoPlist = parseInfoPlistBuffer(infoPlistBuffer);
     return {
       bundleIdentifier: getRequiredStringValue(infoPlist, 'CFBundleIdentifier'),
       bundleShortVersion: getRequiredStringValue(infoPlist, 'CFBundleShortVersionString'),
       bundleVersion: getRequiredStringValue(infoPlist, 'CFBundleVersion'),
     };
   } catch (error) {
-    throw new Error(`Failed to read IPA info: ${(error as Error).message}`);
+    throw new UserFacingError(
+      'EAS_READ_IPA_INFO_FAILED',
+      `Failed to read IPA info: ${(error as Error).message}`
+    );
   } finally {
     await zip.close();
   }
+}
+
+function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
+  if (isBinaryPlist(data)) {
+    const parsedBinaryPlists = bplistParser.parseBuffer(data);
+    const parsedBinaryPlist = parsedBinaryPlists[0];
+    if (!parsedBinaryPlist || typeof parsedBinaryPlist !== 'object') {
+      throw new UserFacingError(
+        'EAS_READ_IPA_INFO_INVALID_BINARY_PLIST',
+        'Invalid binary plist in IPA'
+      );
+    }
+    return parsedBinaryPlist as Record<string, unknown>;
+  }
+
+  return plist.parse(data.toString('utf8')) as Record<string, unknown>;
+}
+
+function isBinaryPlist(data: Buffer): boolean {
+  return data.subarray(0, 8).toString('ascii') === 'bplist00';
 }
 
 function getRequiredStringValue(plistData: Record<string, unknown>, key: string): string {
