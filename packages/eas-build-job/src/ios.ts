@@ -13,6 +13,8 @@ import {
   EnvSchema,
   EnvironmentSecret,
   EnvironmentSecretsSchema,
+  Hooks,
+  HooksSchema,
   Platform,
   StaticWorkflowInterpolationContext,
   StaticWorkflowInterpolationContextZ,
@@ -120,6 +122,7 @@ export interface Job {
   customBuildConfig?: {
     path: string;
   };
+  hooks?: Hooks;
   steps?: Step[];
   outputs?: Record<string, string>;
 
@@ -206,6 +209,7 @@ export const JobSchema = Joi.object({
   applicationArchivePath: Joi.string(),
 
   username: Joi.string(),
+  hooks: HooksSchema,
 
   experimental: Joi.object({
     prebuildCommand: Joi.string(),
