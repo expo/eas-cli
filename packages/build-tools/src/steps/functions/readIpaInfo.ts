@@ -51,7 +51,10 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
       const ipaPathInput = z.string().parse(inputs.ipa_path.value);
       const ipaPath = path.resolve(stepCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
-        throw new UserFacingError('EAS_READ_IPA_INFO_FILE_NOT_FOUND', `IPA file not found: ${ipaPath}`);
+        throw new UserFacingError(
+          'EAS_READ_IPA_INFO_FILE_NOT_FOUND',
+          `IPA file not found: ${ipaPath}`
+        );
       }
 
       const ipaInfo = await readIpaInfoAsync(ipaPath);

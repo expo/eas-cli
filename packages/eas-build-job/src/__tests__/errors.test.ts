@@ -27,5 +27,4 @@ describe(UserFacingError, () => {
     expect(error.docsUrl).toBe('https://docs.example.dev');
     expect(error.cause).toBe(cause);
   });
-
 });
