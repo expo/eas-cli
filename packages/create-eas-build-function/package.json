@@ -15,9 +15,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/create-eas-build-function"
   },
-  "bin": {
-    "create-eas-build-function": "./build/index.js"
-  },
+  "bin": "./build/index.js",
   "files": [
     "build",
     "templates"
