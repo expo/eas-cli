@@ -98,8 +98,8 @@ yarn start-allow-unused
 ### Testing
 
 ```bash
-yarn lerna run test                      # Run all tests across packages
-yarn lerna run test -- --watch           # Watch mode across packages (heavier)
+yarn run -T lerna run test               # Run all tests across packages
+yarn run -T lerna run test -- --watch    # Watch mode across packages (heavier)
 #
 # If you use `yarn test`, remember to pass args through two separators:
 # yarn test -- -- --watch

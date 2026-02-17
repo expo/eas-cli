@@ -69,7 +69,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for how to set up your environment when making ch
 
 ## Testing
 
-From the repository root, run `yarn lerna run test`. For a single package, run `yarn test` in that package directory.
+From the repository root, run `yarn run -T lerna run test`. For a single package, run `yarn test` in that package directory.
 
 ## Releasing
 

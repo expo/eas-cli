@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: yarn build
       - name: Publish packages to npm
-        run: yarn lerna publish from-package --yes --no-verify-access
+        run: yarn run -T lerna publish from-package --yes --no-verify-access
       - name: Add latest-eas-build-staging tag
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
