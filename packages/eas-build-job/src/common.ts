@@ -148,15 +148,12 @@ export const HooksSchema = Joi.object().pattern(
   Joi.array()
     .items(Joi.any())
     .required()
-    .custom(
-      steps => {
-        if (steps.length === 0) {
-          return steps;
-        }
-        return validateSteps(steps);
-      },
-      'steps validation'
-    )
+    .custom(steps => {
+      if (steps.length === 0) {
+        return steps;
+      }
+      return validateSteps(steps);
+    }, 'steps validation')
 );
 export const HooksZ = z.record(z.string(), z.array(StepZ));
 
