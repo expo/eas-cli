@@ -54,12 +54,15 @@ export class BuildError extends Error {
 }
 
 export class UserFacingError extends Error {
+  public docsUrl?: string;
+
   constructor(
     public errorCode: string,
     public message: string,
-    public docsUrl?: string
+    options?: { docsUrl?: string; cause?: unknown }
   ) {
-    super(message);
+    super(message, { cause: options?.cause });
+    this.docsUrl = options?.docsUrl;
   }
 }
 

@@ -17,7 +17,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
         `Your project requires a newer version of CocoaPods. You can update it in the build profile in eas.json by either:
 - changing the current version under key "cocoapods"
 - switching to an image that supports that version under key "image"`,
-        'https://docs.expo.dev/build-reference/eas-json/'
+        { docsUrl: 'https://docs.expo.dev/build-reference/eas-json/' }
       ),
   },
   {
@@ -30,7 +30,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
       new UserFacingError(
         'EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR',
         `Your project requires a different version of the Ruby "bundler" program than the version installed in this EAS Build environment. You can specify which version of "bundler" to install by specifying the version under "build"→[buildProfileName]→"ios"→"bundler" in eas.json.`,
-        'https://docs.expo.dev/build-reference/eas-json/'
+        { docsUrl: 'https://docs.expo.dev/build-reference/eas-json/' }
       ),
   },
   {
@@ -70,7 +70,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
       new UserFacingError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR',
         '"google-services.json" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
-        'https://docs.expo.dev/eas/environment-variables/#file-environment-variables'
+        { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
       ),
   },
   {
@@ -85,7 +85,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
       new UserFacingError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR',
         '"google-services.json" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
-        'https://docs.expo.dev/eas/environment-variables/#file-environment-variables'
+        { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
       ),
   },
   {
@@ -98,7 +98,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
       new UserFacingError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_PLIST_ERROR',
         '"GoogleService-Info.plist" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
-        'https://docs.expo.dev/eas/environment-variables/#file-environment-variables'
+        { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
       ),
   },
   {
@@ -234,13 +234,19 @@ You are seeing this error because either:
             'XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR',
             `Starting from Xcode 14, resource bundles are signed by default, which requires setting the development team for each resource bundle target.
 To resolve this issue, downgrade to an older Xcode version using the "image" field in eas.json, or upgrade to SDK 46 or higher.`,
-            'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations'
+            {
+              docsUrl:
+                'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations',
+            }
           )
         : new UserFacingError(
             'XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR',
             `Starting from Xcode 14, resource bundles are signed by default, which requires setting the development team for each resource bundle target.
 To resolve this issue, downgrade to an older Xcode version using the "image" field in eas.json, or turn off signing resource bundles in your Podfile: https://expo.fyi/r/disable-bundle-resource-signing`,
-            'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations'
+            {
+              docsUrl:
+                'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations',
+            }
           ),
   },
   {
