@@ -3,7 +3,7 @@ import { vol } from 'memfs';
 import os from 'os';
 
 import { promptAsync } from '../../../prompts';
-import { selectSchemeAsync } from '../scheme';
+import { assertNoPodSchemeNameCollisionAsync, selectSchemeAsync } from '../scheme';
 
 jest.mock('fs');
 jest.mock('../../../prompts');
@@ -65,5 +65,36 @@ describe(selectSchemeAsync, () => {
       expect(scheme).toBe('scheme3');
       expect(promptAsync).toHaveBeenCalled();
     });
+  });
+});
+
+describe(assertNoPodSchemeNameCollisionAsync, () => {
+  const projectDir = '/app';
+
+  it('does not throw when there is no pod scheme collision', async () => {
+    vol.fromJSON(
+      {
+        'ios/multitarget.xcodeproj/xcshareddata/xcschemes/FruitVision.xcscheme': 'fakecontents',
+      },
+      projectDir
+    );
+
+    await expect(assertNoPodSchemeNameCollisionAsync(projectDir, 'FruitVision')).resolves.toBe(
+      undefined
+    );
+  });
+
+  it('throws when pod scheme name collides with app scheme', async () => {
+    vol.fromJSON(
+      {
+        'ios/multitarget.xcodeproj/xcshareddata/xcschemes/FruitVision.xcscheme': 'fakecontents',
+        'ios/Pods/Pods.xcodeproj/xcshareddata/xcschemes/FruitVision.xcscheme': 'fakecontents',
+      },
+      projectDir
+    );
+
+    await expect(assertNoPodSchemeNameCollisionAsync(projectDir, 'FruitVision')).rejects.toThrow(
+      /scheme name collision/
+    );
   });
 });

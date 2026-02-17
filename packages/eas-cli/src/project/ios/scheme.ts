@@ -3,6 +3,8 @@ import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import path from 'path';
 
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
@@ -32,6 +34,7 @@ export async function resolveXcodeBuildContextAsync(
         projectDir,
         nonInteractive,
       }));
+    await assertNoPodSchemeNameCollisionAsync(projectDir, buildScheme);
     return {
       buildScheme,
       buildConfiguration:
@@ -95,5 +98,30 @@ export async function selectSchemeAsync({
     });
     Log.newLine();
     return selectedScheme as string;
+  }
+}
+
+export async function assertNoPodSchemeNameCollisionAsync(
+  projectDir: string,
+  buildScheme: string
+): Promise<void> {
+  const podSchemePath = path.join(
+    projectDir,
+    'ios',
+    'Pods',
+    'Pods.xcodeproj',
+    'xcshareddata',
+    'xcschemes',
+    `${buildScheme}.xcscheme`
+  );
+  if (await fs.pathExists(podSchemePath)) {
+    throw new Error(
+      `Detected an iOS scheme name collision for "${buildScheme}".\n` +
+        `A CocoaPods shared scheme with the same name exists at: ${podSchemePath}\n\n` +
+        'This is unsafe because Xcode may resolve the Pods scheme instead of your application scheme.\n\n' +
+        'To fix this:\n' +
+        '- If you use CNG: set "ios.scheme" in eas.json to a non-conflicting app scheme name.\n' +
+        "- If you don't use CNG: rename the app scheme in Xcode so it does not match the Pod scheme name, then update build config to use that scheme."
+    );
   }
 }
