@@ -6,7 +6,7 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 
 pushd $SCRIPTS_DIR >/dev/null 2>&1
 # Install modules
-yarn --silent
+yarn
 # Run script
-yarn --silent $@
+yarn $@
 popd >/dev/null 2>&1

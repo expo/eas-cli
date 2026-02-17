@@ -69,7 +69,7 @@ jobs:
         run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
       - name: Update changelog
         working-directory: ./scripts
-        run: yarn --silent release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
+        run: yarn release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
       - name: Publish release
         run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
         env:

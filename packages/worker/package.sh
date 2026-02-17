@@ -53,13 +53,13 @@ copy_package $WORKER_DIR $target_worker_dir
 while IFS= read -r package_dir; do
   package_name=$(basename "$package_dir")
   copy_package "$package_dir" "$target_root_dir/packages/$package_name"
-done <<< "$(yarn --silent run -T lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
+done <<< "$(yarn run -T lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
 
 
 pushd $target_root_dir >/dev/null 2>&1
-yarn install --silent --immutable
+yarn install --immutable
 yarn build
-yarn --silent workspaces focus --all --production
+yarn workspaces focus --all --production
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 
