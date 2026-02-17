@@ -28,7 +28,10 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node }}
-      - run: yarn install --immutable
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
       - run: yarn typecheck
       - run: |
           git config --global user.email "tester@expo.dev"
@@ -59,8 +62,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
-      - run: yarn install --immutable
+      - name: Install scripts dependencies
+        run: yarn install --immutable
         working-directory: ./scripts
+        env:
+          YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:
