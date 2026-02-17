@@ -28,7 +28,7 @@ jobs:
 
       - uses: ./.github/actions/setup-mise
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --immutable
 
       - run: yarn typecheck
 

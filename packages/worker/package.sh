@@ -57,9 +57,9 @@ done <<< "$(yarn --silent lerna list --scope "@expo/worker" --include-dependenci
 
 
 pushd $target_root_dir >/dev/null 2>&1
-yarn install --silent --frozen-lockfile
+yarn install --silent --immutable
 yarn build
-yarn install --silent --production=true --frozen-lockfile
+yarn --silent workspaces focus --all --production
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 

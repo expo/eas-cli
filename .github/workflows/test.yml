@@ -22,11 +22,13 @@ jobs:
     name: Test with Node ${{ matrix.node }}
     steps:
       - uses: actions/checkout@v2
+      - name: Setup tools
+        uses: ./.github/actions/setup-mise
       - name: Setup node
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node }}
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --immutable
       - run: yarn typecheck
       - run: |
           git config --global user.email "tester@expo.dev"
@@ -57,7 +59,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --immutable
         working-directory: ./scripts
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}

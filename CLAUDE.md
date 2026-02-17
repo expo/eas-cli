@@ -349,5 +349,5 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 ## Important Notes
 
 - **Node Version**: Requires Node.js (managed via Mise)
-- **Package Manager**: Uses Yarn 1.22.21
+- **Package Manager**: Uses Yarn 4.12.0
 - **Compilation Target**: CommonJS with Node resolution
