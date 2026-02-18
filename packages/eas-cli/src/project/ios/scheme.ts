@@ -2,6 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import { IOSConfig } from '@expo/config-plugins';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile } from '@expo/eas-json';
+import { asyncResult } from '@expo/results';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -34,7 +35,7 @@ export async function resolveXcodeBuildContextAsync(
         projectDir,
         nonInteractive,
       }));
-    await assertNoPodSchemeNameCollisionAsync(projectDir, buildScheme);
+    await warnIfPodSchemeNameCollisionAsync({ projectDir, buildScheme });
     return {
       buildScheme,
       buildConfiguration:
@@ -56,6 +57,25 @@ export async function resolveXcodeBuildContextAsync(
     return {
       buildScheme: sanitizedExpoName,
     };
+  }
+}
+
+async function warnIfPodSchemeNameCollisionAsync({
+  projectDir,
+  buildScheme,
+}: {
+  projectDir: string;
+  buildScheme: string;
+}): Promise<void> {
+  const collisionCheckResult = await asyncResult(
+    assertNoPodSchemeNameCollisionAsync({ projectDir, buildScheme })
+  );
+  if (!collisionCheckResult.ok) {
+    Log.warn(
+      collisionCheckResult.reason instanceof Error
+        ? collisionCheckResult.reason.message
+        : String(collisionCheckResult.reason)
+    );
   }
 }
 
@@ -102,8 +122,13 @@ export async function selectSchemeAsync({
 }
 
 export async function assertNoPodSchemeNameCollisionAsync(
-  projectDir: string,
-  buildScheme: string
+  {
+    projectDir,
+    buildScheme,
+  }: {
+    projectDir: string;
+    buildScheme: string;
+  }
 ): Promise<void> {
   const podSchemePath = path.join(
     projectDir,
@@ -120,8 +145,8 @@ export async function assertNoPodSchemeNameCollisionAsync(
         `A CocoaPods shared scheme with the same name exists at: ${podSchemePath}\n\n` +
         'This is unsafe because Xcode may resolve the Pods scheme instead of your application scheme.\n\n' +
         'To fix this:\n' +
-        '- If you use CNG: set "ios.scheme" in eas.json to a non-conflicting app scheme name.\n' +
-        "- If you don't use CNG: rename the app scheme in Xcode so it does not match the Pod scheme name, then update build config to use that scheme."
+        '- If you use CNG (managed workflow): create a non-conflicting iOS build scheme via a config plugin or prebuild script, then set "build.ios.scheme" in eas.json to that scheme.\n' +
+        '- If you do not use CNG (native ios/ directory): rename the app scheme in Xcode so it does not match the Pod scheme name, then set "build.ios.scheme" in eas.json to that scheme.'
     );
   }
 }

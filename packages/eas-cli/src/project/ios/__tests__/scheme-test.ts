@@ -79,9 +79,9 @@ describe(assertNoPodSchemeNameCollisionAsync, () => {
       projectDir
     );
 
-    await expect(assertNoPodSchemeNameCollisionAsync(projectDir, 'FruitVision')).resolves.toBe(
-      undefined
-    );
+    await expect(
+      assertNoPodSchemeNameCollisionAsync({ projectDir, buildScheme: 'FruitVision' })
+    ).resolves.toBe(undefined);
   });
 
   it('throws when pod scheme name collides with app scheme', async () => {
@@ -93,8 +93,8 @@ describe(assertNoPodSchemeNameCollisionAsync, () => {
       projectDir
     );
 
-    await expect(assertNoPodSchemeNameCollisionAsync(projectDir, 'FruitVision')).rejects.toThrow(
-      /scheme name collision/
-    );
+    await expect(
+      assertNoPodSchemeNameCollisionAsync({ projectDir, buildScheme: 'FruitVision' })
+    ).rejects.toThrow(/scheme name collision/);
   });
 });

@@ -1,11 +1,11 @@
 import { vol } from 'memfs';
 
-import { assertNoPodSchemeNameCollisionAsync } from '../schemeCollision';
+import { assertNoPodSchemeNameCollision } from '../schemeCollision';
 
-describe(assertNoPodSchemeNameCollisionAsync, () => {
+describe(assertNoPodSchemeNameCollision, () => {
   const projectRoot = '/app';
 
-  it('does not throw when there is no pod scheme collision', async () => {
+  it('does not throw when there is no pod scheme collision', () => {
     vol.fromJSON(
       {
         'ios/testapp.xcodeproj/xcshareddata/xcschemes/FruitVision.xcscheme': 'fakecontents',
@@ -13,12 +13,15 @@ describe(assertNoPodSchemeNameCollisionAsync, () => {
       projectRoot
     );
 
-    await expect(assertNoPodSchemeNameCollisionAsync(projectRoot, 'FruitVision')).resolves.toBe(
-      undefined
-    );
+    expect(() =>
+      assertNoPodSchemeNameCollision({
+        projectDir: projectRoot,
+        buildScheme: 'FruitVision',
+      })
+    ).not.toThrow();
   });
 
-  it('throws when pod scheme name collides with app scheme', async () => {
+  it('throws when pod scheme name collides with app scheme', () => {
     vol.fromJSON(
       {
         'ios/testapp.xcodeproj/xcshareddata/xcschemes/FruitVision.xcscheme': 'fakecontents',
@@ -27,8 +30,11 @@ describe(assertNoPodSchemeNameCollisionAsync, () => {
       projectRoot
     );
 
-    await expect(assertNoPodSchemeNameCollisionAsync(projectRoot, 'FruitVision')).rejects.toThrow(
-      /scheme name collision/
-    );
+    expect(() =>
+      assertNoPodSchemeNameCollision({
+        projectDir: projectRoot,
+        buildScheme: 'FruitVision',
+      })
+    ).toThrow(/scheme name collision/);
   });
 });
