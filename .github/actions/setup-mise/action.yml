@@ -9,6 +9,3 @@ runs:
         install: true
         cache: true
         experimental: true
-    - name: Enable Corepack
-      shell: bash
-      run: corepack enable
