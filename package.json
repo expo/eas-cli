@@ -15,7 +15,7 @@
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint-changelog": "./scripts/bin/run lint-changelog",
-    "release": "lerna run rebuild && ./scripts/bin/run release",
+    "release": "lerna run rebuild --concurrency 1 && ./scripts/bin/run release",
     "test": "lerna run test",
     "clean": "lerna run clean && rm -rf node_modules coverage"
   },
