@@ -8,10 +8,6 @@ on:
         type: boolean
         default: true
 
-defaults:
-  tools:
-    yarn: 4.12.0
-
 jobs:
   build_android_worker:
     name: Build Android Worker
@@ -19,6 +15,11 @@ jobs:
     image: latest
     steps:
       - uses: eas/checkout
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare yarn@4.12.0 --activate
 
       - uses: eas/install_node_modules
 
@@ -38,6 +39,11 @@ jobs:
     image: latest
     steps:
       - uses: eas/checkout
+
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare yarn@4.12.0 --activate
 
       - uses: eas/install_node_modules
 
