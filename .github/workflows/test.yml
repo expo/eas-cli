@@ -61,6 +61,7 @@ jobs:
       - run: yarn lint
       - run: yarn fmt:check
       - name: Install scripts dependencies
+        if: ${{ matrix.coverage }}
         run: yarn install --immutable
         working-directory: ./scripts
         env:
@@ -69,7 +70,8 @@ jobs:
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - run: yarn lint-changelog
+      - if: ${{ matrix.coverage }}
+        run: yarn lint-changelog
 
   notify-slack:
     runs-on: ubuntu-latest
