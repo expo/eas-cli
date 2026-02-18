@@ -1,2 +1,5 @@
+[env]
+MISE_NODE_COREPACK = "true"
+
 [tools]
-node = { version = "20.19.4", postinstall = "corepack enable" }
+node = "20.19.4"
