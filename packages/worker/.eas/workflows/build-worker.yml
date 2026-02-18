@@ -8,13 +8,15 @@ on:
         type: boolean
         default: true
 
+defaults:
+  tools:
+    yarn: 4.12.0
+
 jobs:
   build_android_worker:
     name: Build Android Worker
     runs_on: linux-medium
     image: latest
-    tools:
-      yarn: 4.12.0
     steps:
       - uses: eas/checkout
 
@@ -34,8 +36,6 @@ jobs:
     name: Build iOS Worker
     runs_on: macos-medium
     image: latest
-    tools:
-      yarn: 4.12.0
     steps:
       - uses: eas/checkout
 
