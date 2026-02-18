@@ -10,9 +10,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/local-build-plugin"
   },
-  "bin": {
-    "eas-cli-local-build-plugin": "./bin/run"
-  },
+  "bin": "./bin/run",
   "files": [
     "dist",
     "bin"

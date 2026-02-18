@@ -98,8 +98,8 @@ yarn start-allow-unused
 ### Testing
 
 ```bash
-yarn lerna run test                      # Run all tests across packages
-yarn lerna run test -- --watch           # Watch mode across packages (heavier)
+yarn run -T lerna run test               # Run all tests across packages
+yarn run -T lerna run test -- --watch    # Watch mode across packages (heavier)
 #
 # If you use `yarn test`, remember to pass args through two separators:
 # yarn test -- -- --watch
@@ -349,5 +349,5 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 ## Important Notes
 
 - **Node Version**: Requires Node.js (managed via Mise)
-- **Package Manager**: Uses Yarn 1.22.21
+- **Package Manager**: Uses Yarn 4.12.0
 - **Compilation Target**: CommonJS with Node resolution

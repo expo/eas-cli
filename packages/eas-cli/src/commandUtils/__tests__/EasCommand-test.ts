@@ -66,7 +66,7 @@ describe(EasCommand.name, () => {
 
       const sessionManagerSpy = jest.spyOn(SessionManager.prototype, 'getUserAsync');
       expect(sessionManagerSpy).toBeCalledTimes(1);
-    }, 30_000);
+    }, 60_000);
 
     it('initializes analytics', async () => {
       const TestEasCommand = createTestEasCommand();

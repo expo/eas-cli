@@ -22,11 +22,16 @@ jobs:
     name: Test with Node ${{ matrix.node }}
     steps:
       - uses: actions/checkout@v2
+      - name: Setup tools
+        uses: ./.github/actions/setup-mise
       - name: Setup node
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node }}
-      - run: yarn install --frozen-lockfile --check-files
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
       - run: yarn typecheck
       - run: |
           git config --global user.email "tester@expo.dev"
@@ -38,27 +43,30 @@ jobs:
       - name: Run tests (affected)
         # PRs: only run tests for changed packages + dependents.
         if: ${{ !matrix.coverage && github.event_name == 'pull_request' }}
-        run: yarn lerna run test --since ${{ github.event.pull_request.base.sha }} --include-dependents
+        run: yarn run -T lerna run test --since ${{ github.event.pull_request.base.sha }} --include-dependents
         env:
           NODE_OPTIONS: --max-old-space-size=8192
       - name: Run tests (all)
         # Pushes to main: run all package tests.
         if: ${{ !matrix.coverage && github.event_name == 'push' }}
-        run: yarn lerna run test
+        run: yarn run -T lerna run test
         env:
           NODE_OPTIONS: --max-old-space-size=8192
       - name: Run tests (coverage)
         # Coverage on PRs and main; per-package reports are uploaded to Codecov.
         if: ${{ matrix.coverage }}
-        run: yarn lerna run test -- -- --coverage
+        run: yarn run -T lerna run test -- --coverage
         env:
           # Oclif seems to cause OOM errors when testing with coverage enabled.
           # Remove this whenever we solved those OOM errors.
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
-      - run: yarn install --frozen-lockfile --check-files
+      - name: Install scripts dependencies
+        run: yarn install --immutable
         working-directory: ./scripts
+        env:
+          YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
       - uses: codecov/codecov-action@v1
         if: ${{ matrix.coverage }}
         with:
