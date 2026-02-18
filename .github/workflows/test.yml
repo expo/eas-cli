@@ -19,15 +19,13 @@ jobs:
         include:
           - node: '20'
             coverage: true
+    env:
+      MISE_NODE_VERSION: ${{ matrix.node }}
     name: Test with Node ${{ matrix.node }}
     steps:
       - uses: actions/checkout@v2
       - name: Setup tools
         uses: ./.github/actions/setup-mise
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ matrix.node }}
       - name: Install dependencies
         run: yarn install --immutable
         env:
