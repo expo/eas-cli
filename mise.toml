@@ -1,4 +1,5 @@
 [env]
+_.path = "./tools/bin"
 MISE_NODE_COREPACK = "true"
 
 [tools]

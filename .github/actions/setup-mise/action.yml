@@ -9,6 +9,3 @@ runs:
         install: true
         cache: true
         experimental: true
-    - name: Enable Corepack shims
-      shell: bash
-      run: corepack enable
