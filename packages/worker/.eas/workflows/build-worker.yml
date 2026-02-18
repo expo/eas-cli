@@ -1,5 +1,9 @@
 name: Build Worker
 
+defaults:
+  tools:
+    corepack: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -15,11 +19,6 @@ jobs:
     image: latest
     steps:
       - uses: eas/checkout
-
-      - name: Enable Corepack
-        run: |
-          corepack enable
-          corepack prepare yarn@4.12.0 --activate
 
       - uses: eas/install_node_modules
 
@@ -39,11 +38,6 @@ jobs:
     image: latest
     steps:
       - uses: eas/checkout
-
-      - name: Enable Corepack
-        run: |
-          corepack enable
-          corepack prepare yarn@4.12.0 --activate
 
       - uses: eas/install_node_modules
 
