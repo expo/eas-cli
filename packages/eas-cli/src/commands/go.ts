@@ -18,7 +18,6 @@ import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExist
 import { Target } from '../credentials/ios/types';
 import { WorkflowJobStatus, WorkflowProjectSourceType, WorkflowRunStatus } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
-import { WorkflowRevisionMutation } from '../graphql/mutations/WorkflowRevisionMutation';
 import { WorkflowRunMutation } from '../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
@@ -33,8 +32,7 @@ import { sleepAsync } from '../utils/promise';
 import { resolveVcsClient } from '../vcs';
 import { Client as VcsClient } from '../vcs/vcs';
 
-// Expo Go release info - update all three when releasing a new version
-const EXPO_GO_IPA_URL = 'https://expo.dev/artifacts/eas/gGwYvTqGd3rHWrbHDBfjDj.ipa';
+// Expo Go release info - update when releasing a new version
 const EXPO_GO_SDK_VERSION = '55';
 const EXPO_GO_APP_VERSION = '55.0.11';
 const EXPO_GO_BUILD_NUMBER = '1017799';
@@ -142,43 +140,6 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
 }
 /* eslint-enable no-console */
 
-const WORKFLOW_TEMPLATE = `name: Repack Expo Go
-
-jobs:
-  repack:
-    name: Repack Expo Go
-    type: build
-    params:
-      platform: ios
-      profile: production
-    steps:
-      - uses: eas/checkout
-      - uses: eas/use_npm_token
-      - uses: eas/install_node_modules
-      - uses: eas/resolve_build_config
-      - id: download
-        run: |
-          curl --output expo-go.ipa -L ${EXPO_GO_IPA_URL}
-          set-output ipa_path "$PWD/expo-go.ipa"
-      - uses: eas/repack
-        id: repack
-        with:
-          source_app_path: "\${{ steps.download.outputs.ipa_path }}"
-          platform: ios
-          embed_bundle_assets: false
-          repack_package: "@kudo-chien/repack-app"
-          repack_version: "0.3.1"
-      - uses: eas/upload_artifact
-        with:
-          path: "\${{ steps.repack.outputs.output_path }}"
-
-  submit:
-    name: Submit to TestFlight
-    type: submit
-    needs: [repack]
-    params:
-      build_id: \${{ needs.repack.outputs.build_id }}
-`;
 
 export default class Go extends EasCommand {
   static override hidden = true;
@@ -390,10 +351,6 @@ export default class Go extends EasCommand {
     await fs.writeJson(path.join(projectDir, 'eas.json'), easJson, { spaces: 2 });
     await fs.writeJson(path.join(projectDir, 'package.json'), packageJson, { spaces: 2 });
 
-    const workflowDir = path.join(projectDir, '.eas', 'workflows');
-    await fs.ensureDir(workflowDir);
-    await fs.writeFile(path.join(workflowDir, 'repack.yml'), WORKFLOW_TEMPLATE);
-
     await spawnAsync('npm', ['install'], { cwd: projectDir });
   }
 
@@ -524,13 +481,6 @@ export default class Go extends EasCommand {
     vcsClient: VcsClient
   ): Promise<{ workflowUrl: string; workflowRunId: string }> {
     const account = actor.accounts[0];
-    const workflowFile = path.join(projectDir, '.eas', 'workflows', 'repack.yml');
-    const yamlConfig = await fs.readFile(workflowFile, 'utf-8');
-
-    await WorkflowRevisionMutation.validateWorkflowYamlConfigAsync(graphqlClient, {
-      appId: projectId,
-      yamlConfig,
-    });
 
     const { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey } =
       await withSuppressedOutputAsync(async () => {
@@ -540,34 +490,26 @@ export default class Go extends EasCommand {
           accountId: account.id,
         });
 
-        const easJsonPath = path.join(projectDir, 'eas.json');
-        const packageJsonPath = path.join(projectDir, 'package.json');
-
         const { fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
           accountId: account.id,
-          filePath: easJsonPath,
+          filePath: path.join(projectDir, 'eas.json'),
           maxSizeBytes: 1024 * 1024,
         });
 
         const { fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
           graphqlClient,
           accountId: account.id,
-          filePath: packageJsonPath,
+          filePath: path.join(projectDir, 'package.json'),
           maxSizeBytes: 1024 * 1024,
         });
 
         return { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey };
       });
 
-    const { id: workflowRunId } = await WorkflowRunMutation.createWorkflowRunAsync(graphqlClient, {
-      appId: projectId,
-      workflowRevisionInput: {
-        fileName: 'repack.yml',
-        yamlConfig,
-      },
-      workflowRunInput: {
-        inputs: {},
+    const { id: workflowRunId } =
+      await WorkflowRunMutation.createExpoGoRepackWorkflowRunAsync(graphqlClient, {
+        appId: projectId,
         projectSource: {
           type: WorkflowProjectSourceType.Gcs,
           projectArchiveBucketKey,
@@ -575,8 +517,7 @@ export default class Go extends EasCommand {
           packageJsonBucketKey,
           projectRootDirectory: '.',
         },
-      },
-    });
+      });
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
     const workflowUrl = `https://expo.dev/accounts/${account.name}/projects/${app.slug}/workflows/${workflowRunId}`;
