@@ -142,7 +142,7 @@ export class SetUpProvisioningProfile {
     }
 
     const isNonInteractiveOrUserDidConfirmAsync = async (): Promise<boolean> => {
-      if (ctx.nonInteractive) {
+      if (ctx.nonInteractive || ctx.autoAcceptCredentialReuse) {
         return true;
       }
       return await confirmAsync({
