@@ -32,7 +32,7 @@
     "build:dev": "ncc build ./src/index.ts -o build/",
     "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register",
     "typecheck": "tsc",
-    "clean": "rimraf ./build/ *.tsbuildinfo"
+    "clean": "rimraf ./build/ \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@expo/steps": "18.0.2"
