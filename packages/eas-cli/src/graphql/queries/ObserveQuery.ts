@@ -76,10 +76,7 @@ export const ObserveQuery = {
       graphqlClient
         .query<AppObserveTimeSeriesQuery, AppObserveTimeSeriesQueryVariables>(
           gql`
-            query AppObserveTimeSeries(
-              $appId: String!
-              $input: AppObserveTimeSeriesInput!
-            ) {
+            query AppObserveTimeSeries($appId: String!, $input: AppObserveTimeSeriesInput!) {
               app {
                 byId(appId: $appId) {
                   id
@@ -93,6 +90,10 @@ export const ObserveQuery = {
                           min
                           max
                           median
+                          average
+                          p80
+                          p90
+                          p99
                         }
                       }
                     }
@@ -131,12 +132,7 @@ export const ObserveQuery = {
                 byId(appId: $appId) {
                   id
                   observe {
-                    events(
-                      filter: $filter
-                      first: $first
-                      after: $after
-                      orderBy: $orderBy
-                    ) {
+                    events(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
                       pageInfo {
                         hasNextPage
                         hasPreviousPage

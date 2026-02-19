@@ -16,22 +16,47 @@ describe('fetchObserveMetricsAsync', () => {
   it('fans out queries for each metric+platform combo and assembles metricsMap', async () => {
     mockTimeSeriesMarkers.mockImplementation(async (_client, { metricName, platform }) => {
       if (metricName === 'expo.app_startup.tti' && platform === AppObservePlatform.Ios) {
-        return [{
-          __typename: 'AppObserveVersionMarker' as const,
-          appVersion: '1.0.0',
-          eventCount: 100,
-          firstSeenAt: '2025-01-01T00:00:00.000Z',
-          statistics: { __typename: 'AppObserveVersionMarkerStatistics' as const, min: 0.01, max: 0.5, median: 0.1 },
-        }];
+        return [
+          {
+            __typename: 'AppObserveVersionMarker' as const,
+            appVersion: '1.0.0',
+            eventCount: 100,
+            firstSeenAt: '2025-01-01T00:00:00.000Z',
+            statistics: {
+              __typename: 'AppObserveVersionMarkerStatistics' as const,
+              min: 0.01,
+              max: 0.5,
+              median: 0.1,
+              average: 0.15,
+              p80: 0.3,
+              p90: 0.4,
+              p99: 0.48,
+            },
+          },
+        ];
       }
-      if (metricName === 'expo.app_startup.cold_launch_time' && platform === AppObservePlatform.Ios) {
-        return [{
-          __typename: 'AppObserveVersionMarker' as const,
-          appVersion: '1.0.0',
-          eventCount: 80,
-          firstSeenAt: '2025-01-01T00:00:00.000Z',
-          statistics: { __typename: 'AppObserveVersionMarkerStatistics' as const, min: 0.05, max: 1.2, median: 0.3 },
-        }];
+      if (
+        metricName === 'expo.app_startup.cold_launch_time' &&
+        platform === AppObservePlatform.Ios
+      ) {
+        return [
+          {
+            __typename: 'AppObserveVersionMarker' as const,
+            appVersion: '1.0.0',
+            eventCount: 80,
+            firstSeenAt: '2025-01-01T00:00:00.000Z',
+            statistics: {
+              __typename: 'AppObserveVersionMarkerStatistics' as const,
+              min: 0.05,
+              max: 1.2,
+              median: 0.3,
+              average: 0.4,
+              p80: 0.8,
+              p90: 1.0,
+              p99: 1.15,
+            },
+          },
+        ];
       }
       return [];
     });
@@ -57,11 +82,21 @@ describe('fetchObserveMetricsAsync', () => {
       min: 0.01,
       max: 0.5,
       median: 0.1,
+      average: 0.15,
+      p80: 0.3,
+      p90: 0.4,
+      p99: 0.48,
+      eventCount: 100,
     });
     expect(metricsForVersion.get('expo.app_startup.cold_launch_time')).toEqual({
       min: 0.05,
       max: 1.2,
       median: 0.3,
+      average: 0.4,
+      p80: 0.8,
+      p90: 1.0,
+      p99: 1.15,
+      eventCount: 80,
     });
   });
 
@@ -90,13 +125,24 @@ describe('fetchObserveMetricsAsync', () => {
       if (metricName === 'bad.metric') {
         throw new Error('Unknown metric');
       }
-      return [{
-        __typename: 'AppObserveVersionMarker' as const,
-        appVersion: '2.0.0',
-        eventCount: 50,
-        firstSeenAt: '2025-01-01T00:00:00.000Z',
-        statistics: { __typename: 'AppObserveVersionMarkerStatistics' as const, min: 0.1, max: 0.9, median: 0.5 },
-      }];
+      return [
+        {
+          __typename: 'AppObserveVersionMarker' as const,
+          appVersion: '2.0.0',
+          eventCount: 50,
+          firstSeenAt: '2025-01-01T00:00:00.000Z',
+          statistics: {
+            __typename: 'AppObserveVersionMarkerStatistics' as const,
+            min: 0.1,
+            max: 0.9,
+            median: 0.5,
+            average: 0.5,
+            p80: 0.7,
+            p90: 0.8,
+            p99: 0.85,
+          },
+        },
+      ];
     });
 
     const metricsMap = await fetchObserveMetricsAsync(
@@ -115,6 +161,11 @@ describe('fetchObserveMetricsAsync', () => {
       min: 0.1,
       max: 0.9,
       median: 0.5,
+      average: 0.5,
+      p80: 0.7,
+      p90: 0.8,
+      p99: 0.85,
+      eventCount: 50,
     });
     // The bad metric should not be present
     expect(metricsMap.get(key)!.has('bad.metric')).toBe(false);
@@ -136,13 +187,24 @@ describe('fetchObserveMetricsAsync', () => {
   });
 
   it('maps AppObservePlatform back to AppPlatform correctly in metricsMap keys', async () => {
-    mockTimeSeriesMarkers.mockResolvedValue([{
-      __typename: 'AppObserveVersionMarker' as const,
-      appVersion: '3.0.0',
-      eventCount: 10,
-      firstSeenAt: '2025-01-01T00:00:00.000Z',
-      statistics: { __typename: 'AppObserveVersionMarkerStatistics' as const, min: 0.1, max: 0.2, median: 0.15 },
-    }]);
+    mockTimeSeriesMarkers.mockResolvedValue([
+      {
+        __typename: 'AppObserveVersionMarker' as const,
+        appVersion: '3.0.0',
+        eventCount: 10,
+        firstSeenAt: '2025-01-01T00:00:00.000Z',
+        statistics: {
+          __typename: 'AppObserveVersionMarkerStatistics' as const,
+          min: 0.1,
+          max: 0.2,
+          median: 0.15,
+          average: 0.15,
+          p80: 0.18,
+          p90: 0.19,
+          p99: 0.2,
+        },
+      },
+    ]);
 
     const metricsMap = await fetchObserveMetricsAsync(
       mockGraphqlClient,

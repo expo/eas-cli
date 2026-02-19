@@ -1,5 +1,4 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasCommandError } from '../commandUtils/errors';
 import {
   AppObserveEvent,
   AppObserveEventsFilter,
@@ -14,16 +13,6 @@ import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 export type EventsOrderPreset = 'slowest' | 'fastest' | 'newest' | 'oldest';
 
 export const DEFAULT_EVENTS_LIMIT = 10;
-
-const METRIC_ALIASES: Record<string, string> = {
-  tti: 'expo.app_startup.tti',
-  ttr: 'expo.app_startup.ttr',
-  cold_launch: 'expo.app_startup.cold_launch_time',
-  warm_launch: 'expo.app_startup.warm_launch_time',
-  bundle_load: 'expo.app_startup.bundle_load_time',
-};
-
-const KNOWN_FULL_NAMES = new Set(Object.values(METRIC_ALIASES));
 
 export function resolveOrderBy(preset: EventsOrderPreset): AppObserveEventsOrderBy {
   switch (preset) {
@@ -48,18 +37,6 @@ export function resolveOrderBy(preset: EventsOrderPreset): AppObserveEventsOrder
         direction: AppObserveEventsOrderByDirection.Asc,
       };
   }
-}
-
-export function resolveMetricName(input: string): string {
-  if (METRIC_ALIASES[input]) {
-    return METRIC_ALIASES[input];
-  }
-  if (KNOWN_FULL_NAMES.has(input) || input.includes('.')) {
-    return input;
-  }
-  throw new EasCommandError(
-    `Unknown metric: "${input}". Use a full metric name (e.g. expo.app_startup.tti) or a short alias: ${Object.keys(METRIC_ALIASES).join(', ')}`
-  );
 }
 
 interface FetchObserveEventsOptions {

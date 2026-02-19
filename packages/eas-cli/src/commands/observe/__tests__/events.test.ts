@@ -86,12 +86,7 @@ describe(ObserveEvents, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand([
-      '--metric',
-      'tti',
-      '--start',
-      '2025-01-01T00:00:00.000Z',
-    ]);
+    const command = createCommand(['--metric', 'tti', '--start', '2025-01-01T00:00:00.000Z']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];

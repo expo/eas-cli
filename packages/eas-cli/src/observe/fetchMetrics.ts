@@ -1,10 +1,6 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
-import {
-  AppObservePlatform,
-  AppObserveVersionMarker,
-  AppPlatform,
-} from '../graphql/generated';
+import { AppObservePlatform, AppObserveVersionMarker, AppPlatform } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import { MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
@@ -100,6 +96,11 @@ export async function fetchObserveMetricsAsync(
         min: marker.statistics.min,
         max: marker.statistics.max,
         median: marker.statistics.median,
+        average: marker.statistics.average,
+        p80: marker.statistics.p80,
+        p90: marker.statistics.p90,
+        p99: marker.statistics.p99,
+        eventCount: marker.eventCount,
       };
       metricsMap.get(key)!.set(metricName, values);
     }

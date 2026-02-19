@@ -203,6 +203,9 @@
       "metadata": {
         "description": "manage store configuration"
       },
+      "observe": {
+        "description": "monitor app performance metrics"
+      },
       "project": {
         "description": "manage project"
       },
@@ -214,9 +217,6 @@
       },
       "update": {
         "description": "manage individual updates"
-      },
-      "observe": {
-        "description": "monitor app performance metrics"
       },
       "webhook": {
         "description": "manage webhooks"

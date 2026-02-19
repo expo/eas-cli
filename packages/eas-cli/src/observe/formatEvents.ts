@@ -1,18 +1,7 @@
 import chalk from 'chalk';
 
 import { AppObserveEvent } from '../graphql/generated';
-
-const METRIC_SHORT_NAMES: Record<string, string> = {
-  'expo.app_startup.cold_launch_time': 'Cold Launch',
-  'expo.app_startup.warm_launch_time': 'Warm Launch',
-  'expo.app_startup.tti': 'TTI',
-  'expo.app_startup.ttr': 'TTR',
-  'expo.app_startup.bundle_load_time': 'Bundle Load',
-};
-
-function getMetricDisplayName(metricName: string): string {
-  return METRIC_SHORT_NAMES[metricName] ?? metricName;
-}
+import { getMetricDisplayName } from './metricNames';
 
 function formatTimestamp(isoString: string): string {
   const date = new Date(isoString);
@@ -57,15 +46,11 @@ export function buildObserveEventsTable(events: AppObserveEvent[]): string {
     formatTimestamp(event.timestamp),
   ]);
 
-  const colWidths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map(r => r[i].length))
-  );
+  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
 
   const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
   const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map(row =>
-    row.map((cell, i) => cell.padEnd(colWidths[i])).join('  ')
-  );
+  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
 
   return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
 }

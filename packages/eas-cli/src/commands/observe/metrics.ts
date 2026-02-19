@@ -12,7 +12,15 @@ import {
   fetchObserveMetricsAsync,
   validateDateFlag,
 } from '../../observe/fetchMetrics';
-import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../observe/formatMetrics';
+import {
+  DEFAULT_STATS_JSON,
+  DEFAULT_STATS_TABLE,
+  StatisticKey,
+  buildObserveMetricsJson,
+  buildObserveMetricsTable,
+  resolveStatKey,
+} from '../../observe/formatMetrics';
+import { resolveMetricName } from '../../observe/metricNames';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ObserveMetrics extends EasCommand {
@@ -24,7 +32,13 @@ export default class ObserveMetrics extends EasCommand {
       options: ['android', 'ios'],
     }),
     metric: Flags.string({
-      description: 'Metric name to display (can be specified multiple times)',
+      description:
+        'Metric name to display (can be specified multiple times). Supports aliases: tti, ttr, cold_launch, warm_launch, bundle_load',
+      multiple: true,
+    }),
+    stat: Flags.string({
+      description:
+        'Statistic to display per metric (can be specified multiple times). Options: min, max, med, avg, p80, p90, p99, count',
       multiple: true,
     }),
     start: Flags.string({
@@ -68,12 +82,13 @@ export default class ObserveMetrics extends EasCommand {
       validateDateFlag(flags.end, '--end');
     }
 
-    const metricNames = flags.metric?.length ? flags.metric : DEFAULT_METRICS;
+    const metricNames = flags.metric?.length
+      ? flags.metric.map(resolveMetricName)
+      : DEFAULT_METRICS;
 
     const endTime = flags.end ?? new Date().toISOString();
     const startTime =
-      flags.start ??
-      new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+      flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
 
     const platformFilter = flags.platform
       ? flags.platform === 'android'
@@ -111,11 +126,17 @@ export default class ObserveMetrics extends EasCommand {
       endTime
     );
 
+    const argumentsStat = flags.stat?.length
+      ? Array.from(new Set(flags.stat.map(resolveStatKey)))
+      : undefined;
+
     if (flags.json) {
-      printJsonOnlyOutput(buildObserveMetricsJson(builds, metricsMap, metricNames));
+      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
+      printJsonOnlyOutput(buildObserveMetricsJson(builds, metricsMap, metricNames, stats));
     } else {
+      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
-      Log.log(buildObserveMetricsTable(builds, metricsMap, metricNames));
+      Log.log(buildObserveMetricsTable(builds, metricsMap, metricNames, stats));
     }
   }
 }

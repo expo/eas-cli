@@ -8,9 +8,9 @@ import {
   DEFAULT_EVENTS_LIMIT,
   type EventsOrderPreset,
   fetchObserveEventsAsync,
-  resolveMetricName,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
+import { resolveMetricName } from '../../observe/metricNames';
 import { DEFAULT_DAYS_BACK, validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -96,14 +96,11 @@ export default class ObserveEvents extends EasCommand {
 
     if (flags['days-from-now']) {
       endTime = new Date().toISOString();
-      startTime = new Date(
-        Date.now() - flags['days-from-now'] * 24 * 60 * 60 * 1000
-      ).toISOString();
+      startTime = new Date(Date.now() - flags['days-from-now'] * 24 * 60 * 60 * 1000).toISOString();
     } else {
       endTime = flags.end ?? new Date().toISOString();
       startTime =
-        flags.start ??
-        new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+        flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
     }
 
     const platform = flags.platform
