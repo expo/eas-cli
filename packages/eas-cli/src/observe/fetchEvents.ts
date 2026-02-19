@@ -70,6 +70,7 @@ interface FetchObserveEventsOptions {
   endTime: string;
   platform?: AppObservePlatform;
   appVersion?: string;
+  updateId?: string;
 }
 
 interface FetchObserveEventsResult {
@@ -88,6 +89,7 @@ export async function fetchObserveEventsAsync(
     endTime: options.endTime,
     ...(options.platform && { platform: options.platform }),
     ...(options.appVersion && { appVersion: options.appVersion }),
+    ...(options.updateId && { appUpdateId: options.updateId }),
   };
 
   return ObserveQuery.eventsAsync(graphqlClient, {
