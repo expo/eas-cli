@@ -5,6 +5,7 @@ import {
   ArchiveSourceSchemaZ,
   BuildTrigger,
   EnvironmentSecretZ,
+  HooksZ,
   StaticWorkflowInterpolationContextZ,
 } from './common';
 import { StepZ } from './step';
@@ -45,6 +46,7 @@ export namespace Generic {
     initiatingUserId: z.string(),
     appId: z.string(),
 
+    hooks: HooksZ.optional(),
     steps: z.array(StepZ).min(1),
     outputs: z.record(z.string(), z.string()).optional(),
   });

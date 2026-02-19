@@ -2,7 +2,7 @@ import Joi from 'joi';
 import { z } from 'zod';
 
 import { BuildPhase, BuildPhaseResult } from './logs';
-import { validateSteps } from './step';
+import { Step, StepZ, validateSteps } from './step';
 
 export enum BuildMode {
   BUILD = 'build',
@@ -141,6 +141,21 @@ export const EnvironmentSecretZ = z.object({
   value: z.string(),
   type: z.nativeEnum(EnvironmentSecretType),
 });
+
+export type Hooks = Record<string, Step[]>;
+export const HooksSchema = Joi.object().pattern(
+  Joi.string(),
+  Joi.array()
+    .items(Joi.any())
+    .required()
+    .custom(steps => {
+      if (steps.length === 0) {
+        return steps;
+      }
+      return validateSteps(steps);
+    }, 'steps validation')
+);
+export const HooksZ = z.record(z.string(), z.array(StepZ));
 
 export interface Cache {
   disabled: boolean;

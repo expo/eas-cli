@@ -84,6 +84,66 @@ describe('Ios.JobSchema', () => {
     expect(error).toBeFalsy();
   });
 
+  test('valid generic job with hooks', () => {
+    const genericJob = {
+      secrets: {
+        buildCredentials,
+      },
+      type: Workflow.GENERIC,
+      platform: Platform.IOS,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'http://localhost:3000',
+      },
+      projectRootDirectory: '.',
+      hooks: {
+        before_install_node_modules: [
+          {
+            id: 'before-install',
+            run: 'echo before install',
+            shell: 'sh',
+          },
+        ],
+        my_custom_hook: [],
+      },
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+
+    const { value, error } = Ios.JobSchema.validate(genericJob, joiOptions);
+    expect(value).toMatchObject(genericJob);
+    expect(error).toBeFalsy();
+  });
+
+  test('valid resign job with hooks', () => {
+    const genericJob = {
+      mode: BuildMode.RESIGN,
+      secrets: {
+        buildCredentials,
+      },
+      type: Workflow.UNKNOWN,
+      platform: Platform.IOS,
+      projectArchive: {
+        type: ArchiveSourceType.NONE,
+      },
+      resign: {
+        applicationArchiveSource: {
+          type: ArchiveSourceType.URL,
+          url: 'http://localhost:3000/a.ipa',
+        },
+      },
+      hooks: {
+        before_install_node_modules: [],
+      },
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+
+    const { value, error } = Ios.JobSchema.validate(genericJob, joiOptions);
+    expect(value).toMatchObject(genericJob);
+    expect(error).toBeFalsy();
+  });
+
   test('valid custom build job with metadataLocation', () => {
     const customBuildJob = {
       mode: BuildMode.CUSTOM,

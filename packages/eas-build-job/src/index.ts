@@ -11,6 +11,7 @@ export {
   Env,
   EnvironmentSecret,
   EnvironmentSecretType,
+  Hooks,
   Workflow,
   Platform,
   Cache,
