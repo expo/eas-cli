@@ -5,6 +5,7 @@ import { ExpoConfig } from '@expo/config-types';
 import { BuildJob, EnvironmentSecret, Platform, Workflow } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import { readFile, readJson } from 'fs-extra';
+import os from 'os';
 import path from 'path';
 import semver from 'semver';
 
@@ -38,12 +39,13 @@ export async function logProjectDependenciesAsync(
     const dependencies = (packageJSON?.dependencies as Record<string, string> | undefined) ?? {};
     const devDependencies =
       (packageJSON?.devDependencies as Record<string, string> | undefined) ?? {};
+    const projectDirectory = ctx.getReactNativeProjectDirectory();
     const plugins = filterSecretsAndParsePlugins(
       ctx.appConfig.plugins,
       ctx.job.secrets?.environmentSecrets
     );
 
-    const babelConfig = loadPartialConfig({ cwd: ctx.getReactNativeProjectDirectory() });
+    const babelConfig = loadPartialConfig({ cwd: projectDirectory });
     const babelPlugins =
       babelConfig?.options?.plugins
         ?.map(plugin => {
@@ -65,7 +67,10 @@ export async function logProjectDependenciesAsync(
         version: dependency[1],
       })),
       packageManager: ctx.packageManager,
-      packageManagerVersion: await getPackageManagerVersion(ctx.packageManager),
+      packageManagerVersion: await getPackageManagerVersion(ctx.packageManager, {
+        cwd: projectDirectory,
+        env: ctx.env,
+      }),
       jsEngine: resolveJsEngine(ctx, dependencies),
       newArchEnabled: await resolveNewArchEnabled(ctx, dependencies['react-native']),
       source: 'Turtle Worker',
@@ -202,11 +207,29 @@ function isConfigItem(plugin: PluginItem): plugin is ConfigItem {
   return !Array.isArray(plugin) && (plugin as any)?.file;
 }
 
-async function getPackageManagerVersion(packageManager: string): Promise<string | undefined> {
+async function getPackageManagerVersion(
+  packageManager: string,
+  {
+    cwd,
+    env,
+  }: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+  }
+): Promise<string | undefined> {
   try {
-    const { stdout } = await spawnAsync(packageManager, ['--version']);
+    const { stdout } = await spawnAsync(packageManager, ['--version'], { cwd, env });
     return stdout.toString().trim();
   } catch {
-    return undefined;
+    // Some package managers can fail version checks in project dirs with mismatched packageManager fields.
+    try {
+      const { stdout } = await spawnAsync(packageManager, ['--version'], {
+        cwd: os.tmpdir(),
+        env,
+      });
+      return stdout.toString().trim();
+    } catch {
+      return undefined;
+    }
   }
 }

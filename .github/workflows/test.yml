@@ -24,10 +24,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup tools
         uses: ./.github/actions/setup-mise
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ matrix.node }}
+        env:
+          MISE_NODE_VERSION: ${{ matrix.node }}
       - name: Install dependencies
         run: yarn install --immutable
         env:
@@ -63,6 +61,7 @@ jobs:
       - run: yarn lint
       - run: yarn fmt:check
       - name: Install scripts dependencies
+        if: ${{ matrix.coverage }}
         run: yarn install --immutable
         working-directory: ./scripts
         env:
@@ -71,7 +70,8 @@ jobs:
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - run: yarn lint-changelog
+      - if: ${{ matrix.coverage }}
+        run: yarn lint-changelog
 
   notify-slack:
     runs-on: ubuntu-latest

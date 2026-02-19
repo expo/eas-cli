@@ -72,9 +72,15 @@ export async function prepareRuntimeEnvironment(
     return;
   }
 
-  const currentYarnVersion = (await spawn('yarn', ['--version'], { stdio: 'pipe' })).stdout.trim();
-  const currentPnpmVersion = (await spawn('pnpm', ['--version'], { stdio: 'pipe' })).stdout.trim();
-  const currentBunVersion = (await spawn('bun', ['--version'], { stdio: 'pipe' })).stdout.trim();
+  const currentYarnVersion = (
+    await spawn('yarn', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
+  ).stdout.trim();
+  const currentPnpmVersion = (
+    await spawn('pnpm', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
+  ).stdout.trim();
+  const currentBunVersion = (
+    await spawn('bun', ['--version'], { stdio: 'pipe', cwd: os.tmpdir() })
+  ).stdout.trim();
 
   if (builderConfig.node) {
     const installedNodeVersion = await installNode(ctx, builderConfig.node);
@@ -204,7 +210,7 @@ async function installBun({
     });
 
     const currentBunVersion = (
-      await spawn('bun', ['--version'], { stdio: 'pipe', env: ctx.env })
+      await spawn('bun', ['--version'], { stdio: 'pipe', env: ctx.env, cwd: os.tmpdir() })
     ).stdout.trim();
     if (currentBunVersion !== versionToInstall) {
       throw new Error(
@@ -242,7 +248,7 @@ async function installPnpm({
       env: ctx.env,
     });
     const currentPnpmVersion = (
-      await spawn('pnpm', ['--version'], { stdio: 'pipe', env: ctx.env })
+      await spawn('pnpm', ['--version'], { stdio: 'pipe', env: ctx.env, cwd: os.tmpdir() })
     ).stdout.trim();
     if (currentPnpmVersion !== versionToInstall) {
       throw new Error(
@@ -279,7 +285,7 @@ async function installYarn({
       env: ctx.env,
     });
     const currentYarnVersion = (
-      await spawn('yarn', ['--version'], { stdio: 'pipe', env: ctx.env })
+      await spawn('yarn', ['--version'], { stdio: 'pipe', env: ctx.env, cwd: os.tmpdir() })
     ).stdout.trim();
     if (currentYarnVersion !== versionToInstall) {
       throw new Error(
