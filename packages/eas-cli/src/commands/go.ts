@@ -27,7 +27,7 @@ import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
-import { Actor } from '../user/User';
+import { Actor, getActorDisplayName } from '../user/User';
 import { sleepAsync } from '../utils/promise';
 import { resolveVcsClient } from '../vcs';
 import { Client as VcsClient } from '../vcs/vcs';
@@ -142,7 +142,6 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
 
 
 export default class Go extends EasCommand {
-  static override hidden = true;
   static override description = 'Create a custom Expo Go and submit to TestFlight';
 
   static override flags = {
@@ -181,7 +180,7 @@ export default class Go extends EasCommand {
     } = await this.getContextAsync(Go, {
       nonInteractive: false,
     });
-    spinner.succeed(`Logged in as ${chalk.cyan(actor.accounts[0].name)}`);
+    spinner.succeed(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
 
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
     const appName = flags.name ?? 'My Expo Go';
