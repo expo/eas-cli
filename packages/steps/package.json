@@ -1,6 +1,6 @@
 {
   "name": "@expo/steps",
-  "version": "18.0.1",
+  "version": "18.0.2",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "author": "Expo <support@expo.io>",
@@ -27,7 +27,7 @@
     "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
   },
   "dependencies": {
-    "@expo/eas-build-job": "18.0.1",
+    "@expo/eas-build-job": "18.0.2",
     "@expo/logger": "18.0.1",
     "@expo/spawn-async": "^1.7.2",
     "arg": "^5.0.2",

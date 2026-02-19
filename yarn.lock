@@ -2020,14 +2020,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/build-tools@npm:18.0.1, @expo/build-tools@workspace:packages/build-tools":
+"@expo/build-tools@npm:18.0.2, @expo/build-tools@workspace:packages/build-tools":
   version: 0.0.0-use.local
   resolution: "@expo/build-tools@workspace:packages/build-tools"
   dependencies:
     "@expo/config": "npm:10.0.6"
     "@expo/config-plugins": "npm:9.0.12"
     "@expo/downloader": "npm:18.0.1"
-    "@expo/eas-build-job": "npm:18.0.1"
+    "@expo/eas-build-job": "npm:18.0.2"
     "@expo/env": "npm:^0.4.0"
     "@expo/logger": "npm:18.0.1"
     "@expo/package-manager": "npm:1.9.10"
@@ -2035,7 +2035,7 @@ __metadata:
     "@expo/repack-app": "npm:~0.2.5"
     "@expo/results": "npm:^1.0.0"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:18.0.1"
+    "@expo/steps": "npm:18.0.2"
     "@expo/template-file": "npm:18.0.1"
     "@expo/turtle-spawn": "npm:18.0.1"
     "@expo/xcpretty": "npm:^4.3.1"
@@ -2305,7 +2305,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-build-job@npm:18.0.1, @expo/eas-build-job@workspace:packages/eas-build-job":
+"@expo/eas-build-job@npm:18.0.2, @expo/eas-build-job@workspace:packages/eas-build-job":
   version: 0.0.0-use.local
   resolution: "@expo/eas-build-job@workspace:packages/eas-build-job"
   dependencies:
@@ -2321,12 +2321,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-json@npm:18.0.1, @expo/eas-json@workspace:packages/eas-json":
+"@expo/eas-json@npm:18.0.2, @expo/eas-json@workspace:packages/eas-json":
   version: 0.0.0-use.local
   resolution: "@expo/eas-json@workspace:packages/eas-json"
   dependencies:
     "@babel/code-frame": "npm:7.23.5"
-    "@expo/eas-build-job": "npm:18.0.1"
+    "@expo/eas-build-job": "npm:18.0.2"
     "@tsconfig/node20": "npm:20.1.8"
     "@types/babel__code-frame": "npm:7.0.3"
     "@types/fs-extra": "npm:11.0.4"
@@ -2647,11 +2647,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/steps@npm:18.0.1, @expo/steps@workspace:packages/steps":
+"@expo/steps@npm:18.0.2, @expo/steps@workspace:packages/steps":
   version: 0.0.0-use.local
   resolution: "@expo/steps@workspace:packages/steps"
   dependencies:
-    "@expo/eas-build-job": "npm:18.0.1"
+    "@expo/eas-build-job": "npm:18.0.2"
     "@expo/logger": "npm:18.0.1"
     "@expo/spawn-async": "npm:^1.7.2"
     "@jest/globals": "npm:^29.7.0"
@@ -2717,16 +2717,16 @@ __metadata:
   resolution: "@expo/worker@workspace:packages/worker"
   dependencies:
     "@babel/core": "npm:7.24.7"
-    "@expo/build-tools": "npm:18.0.1"
+    "@expo/build-tools": "npm:18.0.2"
     "@expo/config-plugins": "npm:8.0.8"
     "@expo/config-types": "npm:52.0.1"
     "@expo/downloader": "npm:18.0.1"
-    "@expo/eas-build-job": "npm:18.0.1"
+    "@expo/eas-build-job": "npm:18.0.2"
     "@expo/logger": "npm:18.0.1"
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:18.0.1"
+    "@expo/steps": "npm:18.0.2"
     "@expo/template-file": "npm:18.0.1"
     "@expo/turtle-spawn": "npm:18.0.1"
     "@hapi/boom": "npm:10.0.1"
@@ -9478,7 +9478,7 @@ __metadata:
   resolution: "create-eas-build-function@workspace:packages/create-eas-build-function"
   dependencies:
     "@expo/package-manager": "npm:1.9.10"
-    "@expo/steps": "npm:18.0.1"
+    "@expo/steps": "npm:18.0.2"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:20.14.2"
@@ -10120,8 +10120,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "eas-cli-local-build-plugin@workspace:packages/local-build-plugin"
   dependencies:
-    "@expo/build-tools": "npm:18.0.1"
-    "@expo/eas-build-job": "npm:18.0.1"
+    "@expo/build-tools": "npm:18.0.2"
+    "@expo/eas-build-job": "npm:18.0.2"
     "@expo/logger": "npm:18.0.1"
     "@expo/spawn-async": "npm:^1.7.2"
     "@expo/turtle-spawn": "npm:18.0.1"
@@ -10176,8 +10176,8 @@ __metadata:
     "@expo/code-signing-certificates": "npm:0.0.5"
     "@expo/config": "npm:10.0.6"
     "@expo/config-plugins": "npm:9.0.12"
-    "@expo/eas-build-job": "npm:18.0.1"
-    "@expo/eas-json": "npm:18.0.1"
+    "@expo/eas-build-job": "npm:18.0.2"
+    "@expo/eas-json": "npm:18.0.2"
     "@expo/env": "npm:^1.0.0"
     "@expo/json-file": "npm:8.3.3"
     "@expo/logger": "npm:18.0.1"
@@ -10192,7 +10192,7 @@ __metadata:
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:18.0.1"
+    "@expo/steps": "npm:18.0.2"
     "@expo/timeago.js": "npm:1.0.0"
     "@graphql-codegen/cli": "npm:5.0.0"
     "@graphql-codegen/introspection": "npm:4.0.0"
