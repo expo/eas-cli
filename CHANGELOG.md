@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas go` command for creating custom Expo Go builds. ([#3376](https://github.com/expo/eas-cli/pull/3376) by [@tchayen](https://github.com/tchayen))
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
