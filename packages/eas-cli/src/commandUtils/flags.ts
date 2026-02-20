@@ -67,7 +67,7 @@ export const EasJsonOnlyFlag = {
 export const EasUpdateEnvironmentFlag = {
   environment: Flags.string({
     description:
-      'Environment to use for the server-side defined EAS environment variables during command execution, e.g. "production", "preview", "development"',
+      'Environment to use for the server-side defined EAS environment variables during command execution, e.g. "production", "preview", "development". Required for projects using Expo SDK 55 or greater.',
     required: false,
     default: undefined,
   }),

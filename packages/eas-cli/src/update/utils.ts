@@ -1,7 +1,9 @@
 import { ExpoConfig } from '@expo/config';
+import { Errors } from '@oclif/core';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
+import semver from 'semver';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -357,3 +359,18 @@ export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, A
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
 };
+
+export function assertEnvironmentFlagForSdk55OrGreater({
+  sdkVersion,
+  environment,
+}: {
+  sdkVersion: string | undefined;
+  environment: string | undefined;
+}): void {
+  if (sdkVersion && semver.gte(sdkVersion, '55.0.0') && !environment) {
+    Errors.error(
+      '--environment flag is required for projects using Expo SDK 55 or greater',
+      { exit: 1 }
+    );
+  }
+}
