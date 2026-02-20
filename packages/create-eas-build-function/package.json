@@ -1,6 +1,6 @@
 {
   "name": "create-eas-build-function",
-  "version": "18.0.2",
+  "version": "18.0.3",
   "description": "Create functions for use in EAS Build custom builds.",
   "keywords": [
     "expo",
