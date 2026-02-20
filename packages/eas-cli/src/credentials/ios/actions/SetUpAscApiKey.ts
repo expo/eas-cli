@@ -65,6 +65,12 @@ export class SetUpAscApiKey {
       return await new AssignAscApiKey(this.app).runAsync(ctx, maybeAutoselectedKey, this.purpose);
     }
 
+    // When auto-accepting credentials and no valid key was found, generate a new one without prompting
+    if (ctx.autoAcceptCredentialReuse) {
+      const ascApiKey = await new CreateAscApiKey(this.app.account).runAsync(ctx, this.purpose);
+      return await new AssignAscApiKey(this.app).runAsync(ctx, ascApiKey, this.purpose);
+    }
+
     const availableChoices =
       keysForAccount.length === 0
         ? this.choices.filter(choice => choice.value !== SetupAscApiKeyChoice.USE_EXISTING)
