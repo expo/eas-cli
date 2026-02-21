@@ -371,9 +371,8 @@ export function assertEnvironmentFlagForSdk55OrGreater({
     return;
   }
   if (sdkVersion && semver.gte(sdkVersion, '55.0.0') && !environment) {
-    Errors.error(
-      '--environment flag is required for projects using Expo SDK 55 or greater',
-      { exit: 1 }
-    );
+    Errors.error('--environment flag is required for projects using Expo SDK 55 or greater', {
+      exit: 1,
+    });
   }
 }
