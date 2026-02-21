@@ -1,15 +1,16 @@
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 import * as PackageManagerUtils from '@expo/package-manager';
+
+import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+
 import chalk from 'chalk';
+import { easCliVersion } from '../../../utils/easCli';
 import fs from 'fs-extra';
 import getenv from 'getenv';
+import { learnMore } from '../../../log';
 import path from 'path';
 import pkgDir from 'pkg-dir';
-import semver from 'semver';
-
-import { learnMore } from '../../../log';
-import { easCliVersion } from '../../../utils/easCli';
 import { resolveVcsClient } from '../../../vcs';
+import semver from 'semver';
 
 async function applyCliConfigAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
@@ -23,11 +24,12 @@ async function applyCliConfigAsync(projectDir: string): Promise<void> {
     !semver.satisfies(easCliVersion, config.version)
   ) {
     throw new Error(
-      `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${
-        config.version
-      }).\n\nThis error probably means that you need update your eas-cli to a newer version.\nRun ${chalk.bold(
+      `You are on eas-cli@${easCliVersion} which does not satisfy the CLI version constraint defined in eas.json (${config.version
+      }).\n\nUpdate eas-cli to a compatible version:\n  ${chalk.bold(
+        'npx eas-cli@latest'
+      )}\n  or install globally: ${chalk.bold(
         'npm install -g eas-cli'
-      )} to update the eas-cli to the latest version.`
+      )}`
     );
   }
 }
@@ -101,7 +103,7 @@ export async function findProjectRootAsync({
     let vcsRoot;
     try {
       vcsRoot = path.normalize(await resolveVcsClient().getRootPathAsync());
-    } catch {}
+    } catch { }
     if (vcsRoot && vcsRoot.startsWith(projectRootDir) && vcsRoot !== projectRootDir) {
       throw new Error(
         `package.json is outside of the current git repository (project root: ${projectRootDir}, git root: ${vcsRoot}.`
