@@ -236,7 +236,7 @@
       }
     },
     "warn-if-update-available": {
-      "message": "<%= chalk('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available.') %>\n<%= chalk.dim('To upgrade, run:') %>\n<%= chalk.dim(chalk.bold('npm install -g eas-cli')) %>\n<%= chalk.dim('Proceeding with outdated version.') %>\n",
+      "message": "<%= chalk('★') %> <%= chalk.bold(config.name + '@' + latest) %> <%= chalk.bold('is now available.') %>\n<%= chalk.dim('To upgrade:') %>\n<%= chalk.dim('  • npx: update') %> <%= chalk.dim(chalk.bold('cli.version')) %> <%= chalk.dim('in eas.json') %>\n<%= chalk.dim('  • global: npm install -g eas-cli') %>\n<%= chalk.dim('Proceeding with outdated version.') %>\n",
       "timeoutInDays": 0.5
     }
   },
