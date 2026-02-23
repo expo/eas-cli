@@ -14,6 +14,7 @@ import { AppStoreApiKeyPurpose } from '../credentials/ios/actions/AscApiKeyUtils
 import { getAppFromContextAsync } from '../credentials/ios/actions/BuildCredentialsUtils';
 import { SetUpAscApiKey } from '../credentials/ios/actions/SetUpAscApiKey';
 import { SetUpBuildCredentials } from '../credentials/ios/actions/SetUpBuildCredentials';
+import { SetUpPushKey } from '../credentials/ios/actions/SetUpPushKey';
 import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExists';
 import { Target } from '../credentials/ios/types';
 import { WorkflowJobStatus, WorkflowProjectSourceType, WorkflowRunStatus } from '../graphql/generated';
@@ -22,6 +23,7 @@ import { WorkflowRunMutation } from '../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
+import { confirmAsync } from '../prompts';
 import { ora } from '../ora';
 import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -411,9 +413,6 @@ export default class Go extends EasCommand {
       graphqlClient,
       analytics,
       vcsClient,
-      easJsonCliConfig: {
-        promptToConfigurePushNotifications: false,
-      },
     });
 
     onBeforeAppleAuth?.();
@@ -468,6 +467,24 @@ export default class Go extends EasCommand {
 
       return ascAppResult;
     });
+
+    // Set up push notifications (outside suppressed block so prompts are visible)
+    const appLookupParamsForPushKey = { ...app, bundleIdentifier: bundleId };
+    const setupPushKeyAction = new SetUpPushKey(appLookupParamsForPushKey);
+    const isPushKeySetup = await setupPushKeyAction.isPushKeySetupAsync(credentialsCtx);
+    if (!isPushKeySetup) {
+      if (customizeCreds) {
+        const wantsPushNotifications = await confirmAsync({
+          message: 'Would you like to set up Push Notifications for your app?',
+          initial: true,
+        });
+        if (wantsPushNotifications) {
+          await setupPushKeyAction.runAsync(credentialsCtx);
+        }
+      } else {
+        await setupPushKeyAction.runAsync(credentialsCtx);
+      }
+    }
 
     return ascApp;
   }
