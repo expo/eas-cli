@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Revert authorization code flow with PKCE for browser-based login. ([#3422](https://github.com/expo/eas-cli/pull/3422) by [@byronkarlen](https://github.com/byronkarlen))
+
 ### 🧹 Chores
 
 ## [18.0.3](https://github.com/expo/eas-cli/releases/tag/v18.0.3) - 2026-02-20
