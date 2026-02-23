@@ -117,11 +117,13 @@ export class SetUpDistributionCertificate {
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     const autoselectedDistCert = validDistCerts[0];
 
-    const useAutoselected = await confirmAsync({
-      message: `Reuse this distribution certificate?\n${formatDistributionCertificate(
-        autoselectedDistCert
-      )}`,
-    });
+    const useAutoselected =
+      ctx.autoAcceptCredentialReuse ||
+      (await confirmAsync({
+        message: `Reuse this distribution certificate?\n${formatDistributionCertificate(
+          autoselectedDistCert
+        )}`,
+      }));
 
     if (useAutoselected) {
       Log.log(

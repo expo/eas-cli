@@ -66,6 +66,11 @@ export async function provideOrGenerateAscApiKeyAsync(
     throw new Error(`A new App Store Connect API Key cannot be created in non-interactive mode.`);
   }
 
+  // When auto-accepting credentials, always auto-generate without asking for user input
+  if (ctx.autoAcceptCredentialReuse) {
+    return await generateAscApiKeyAsync(ctx, purpose);
+  }
+
   const userProvided = await promptForAscApiKeyAsync(ctx);
   if (!userProvided) {
     return await generateAscApiKeyAsync(ctx, purpose);

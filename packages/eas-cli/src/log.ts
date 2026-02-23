@@ -26,6 +26,15 @@ export default class Log {
     }
   }
 
+  /**
+   * Signal that the cursor is already at the start of a fresh line (e.g. after
+   * a spinner clears itself), so that the next `addNewLineIfNone()` call knows
+   * it doesn't need to emit an extra blank line.
+   */
+  public static markFreshLine(): void {
+    Log.isLastLineNewLine = true;
+  }
+
   public static error(...args: any[]): void {
     Log.consoleLog(...Log.withTextColor(args, chalk.red));
   }

@@ -63,18 +63,25 @@ export class SetUpPushKey {
       if (validPushKeys.length > 0) {
         const autoselectedPushKey = validPushKeys[0];
 
-        const useAutoselected = await confirmAsync({
-          message: `Reuse this Push Key?\n${formatPushKey(
-            autoselectedPushKey,
-            validPushKeys.map(pushKey => pushKey.keyIdentifier)
-          )}`,
-        });
+        const useAutoselected =
+          ctx.autoAcceptCredentialReuse ||
+          (await confirmAsync({
+            message: `Reuse this Push Key?\n${formatPushKey(
+              autoselectedPushKey,
+              validPushKeys.map(pushKey => pushKey.keyIdentifier)
+            )}`,
+          }));
 
         if (useAutoselected) {
           Log.log(`Using push key with ID ${autoselectedPushKey.keyIdentifier}`);
           return autoselectedPushKey;
         }
       }
+    }
+
+    // When auto-accepting and no valid push key was found, generate a new one without prompting
+    if (ctx.autoAcceptCredentialReuse) {
+      return await new CreatePushKey(this.app.account).runAsync(ctx);
     }
 
     const { action } = await promptAsync({
