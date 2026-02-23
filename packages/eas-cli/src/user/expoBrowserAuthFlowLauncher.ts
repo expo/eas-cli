@@ -1,86 +1,24 @@
 import assert from 'assert';
 import openBrowserAsync from 'better-opn';
-import crypto from 'crypto';
 import http from 'http';
 import { Socket } from 'node:net';
+import querystring from 'querystring';
 
-import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../api';
-import fetch from '../fetch';
+import { getExpoWebsiteBaseUrl } from '../api';
 import Log from '../log';
-
-const CLIENT_ID = 'eas-cli';
-
-function generateCodeVerifier(): string {
-  return crypto.randomBytes(32).toString('base64url');
-}
-
-function generateCodeChallenge(codeVerifier: string): string {
-  return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
-}
-
-function generateState(): string {
-  return crypto.randomBytes(32).toString('base64url');
-}
-
-async function exchangeCodeForSessionSecretAsync({
-  code,
-  codeVerifier,
-  redirectUri,
-}: {
-  code: string;
-  codeVerifier: string;
-  redirectUri: string;
-}): Promise<string> {
-  const tokenUrl = `${getExpoApiBaseUrl()}/v2/auth/token`;
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-      client_id: CLIENT_ID,
-    }),
-  });
-
-  const result: any = await response.json();
-  const sessionSecret = result?.data?.session_secret;
-  if (!sessionSecret) {
-    throw new Error('Failed to obtain session secret from token exchange.');
-  }
-  return sessionSecret;
-}
 
 export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Promise<string> {
   const scheme = 'http';
   const hostname = 'localhost';
-  const callbackPath = '/auth/callback';
+  const path = '/auth/callback';
 
   const expoWebsiteUrl = getExpoWebsiteBaseUrl();
 
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = generateCodeChallenge(codeVerifier);
-  const state = generateState();
-
-  const buildRedirectUri = (port: number): string =>
-    `${scheme}://${hostname}:${port}${callbackPath}`;
-
   const buildExpoLoginUrl = (port: number, sso: boolean): string => {
-    // Note: we avoid URLSearchParams here because better-opn calls encodeURI()
-    // on the URL before passing it to AppleScript, which would double-encode
-    // the percent-encoded values from URLSearchParams.toString().
-    const params = [
-      `client_id=${CLIENT_ID}`,
-      `redirect_uri=${buildRedirectUri(port)}`,
-      `response_type=code`,
-      `code_challenge=${codeChallenge}`,
-      `code_challenge_method=S256`,
-      `state=${state}`,
-      `confirm_account=true`,
-    ].join('&');
+    const params = querystring.stringify({
+      confirm_account: true,
+      app_redirect_uri: `${scheme}://${hostname}:${port}${path}`,
+    });
     return `${expoWebsiteUrl}${sso ? '/sso-login' : '/login'}?${params}`;
   };
 
@@ -101,39 +39,22 @@ export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Prom
             }
           };
 
-          const handleRequestAsync = async (): Promise<void> => {
+          try {
             if (!(request.method === 'GET' && request.url?.includes('/auth/callback'))) {
               throw new Error('Unexpected login response.');
             }
             const url = new URL(request.url, `http:${request.headers.host}`);
-            const code = url.searchParams.get('code');
-            const returnedState = url.searchParams.get('state');
+            const sessionSecret = url.searchParams.get('session_secret');
 
-            if (!code) {
-              throw new Error('Request missing code search parameter.');
+            if (!sessionSecret) {
+              throw new Error('Request missing session_secret search parameter.');
             }
-            if (returnedState !== state) {
-              throw new Error('State mismatch. Possible CSRF attack.');
-            }
-
-            const address = server.address();
-            assert(address !== null && typeof address === 'object');
-            const redirectUri = buildRedirectUri(address.port);
-
-            const sessionSecret = await exchangeCodeForSessionSecretAsync({
-              code,
-              codeVerifier,
-              redirectUri,
-            });
-
             resolve(sessionSecret);
             redirectAndCleanup('success');
-          };
-
-          handleRequestAsync().catch(error => {
+          } catch (error) {
             redirectAndCleanup('error');
             reject(error);
-          });
+          }
         }
       );
 
