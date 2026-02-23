@@ -122,10 +122,7 @@ export namespace WorkflowRunMutation {
         >(
           /* eslint-disable graphql/template-strings */
           gql`
-            mutation CreateExpoGoRepackWorkflowRun(
-              $appId: ID!
-              $projectSource: WorkflowProjectSourceInput!
-            ) {
+            mutation CreateExpoGoRepackWorkflowRun($appId: ID!, $projectSource: WorkflowProjectSourceInput!) {
               workflowRun {
                 createExpoGoRepackWorkflowRun(appId: $appId, projectSource: $projectSource) {
                   id

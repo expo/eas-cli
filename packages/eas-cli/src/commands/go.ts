@@ -17,7 +17,11 @@ import { SetUpBuildCredentials } from '../credentials/ios/actions/SetUpBuildCred
 import { SetUpPushKey } from '../credentials/ios/actions/SetUpPushKey';
 import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExists';
 import { Target } from '../credentials/ios/types';
-import { WorkflowJobStatus, WorkflowProjectSourceType, WorkflowRunStatus } from '../graphql/generated';
+import {
+  WorkflowJobStatus,
+  WorkflowProjectSourceType,
+  WorkflowRunStatus,
+} from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { WorkflowRunMutation } from '../graphql/mutations/WorkflowRunMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
@@ -141,7 +145,6 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 /* eslint-enable no-console */
-
 
 export default class Go extends EasCommand {
   static override description = 'Create a custom Expo Go and submit to TestFlight';
@@ -524,8 +527,9 @@ export default class Go extends EasCommand {
         return { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey };
       });
 
-    const { id: workflowRunId } =
-      await WorkflowRunMutation.createExpoGoRepackWorkflowRunAsync(graphqlClient, {
+    const { id: workflowRunId } = await WorkflowRunMutation.createExpoGoRepackWorkflowRunAsync(
+      graphqlClient,
+      {
         appId: projectId,
         projectSource: {
           type: WorkflowProjectSourceType.Gcs,
@@ -534,7 +538,8 @@ export default class Go extends EasCommand {
           packageJsonBucketKey,
           projectRootDirectory: '.',
         },
-      });
+      }
+    );
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
     const workflowUrl = `https://expo.dev/accounts/${account.name}/projects/${app.slug}/workflows/${workflowRunId}`;
