@@ -145,6 +145,7 @@ async function withSuppressedOutputAsync<T>(fn: () => Promise<T>): Promise<T> {
 
 export default class Go extends EasCommand {
   static override description = 'Create a custom Expo Go and submit to TestFlight';
+  static override hidden = true;
 
   static override flags = {
     'bundle-id': Flags.string({
