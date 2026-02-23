@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- Require --environment flag for update commands when SDK >= 55. ([#3398](https://github.com/expo/eas-cli/pull/3398) by [@douglowder](https://github.com/douglowder))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes

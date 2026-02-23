@@ -9,6 +9,7 @@ import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
+import { assertEnvironmentFlagForSdk55OrGreater } from '../../update/utils';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -248,6 +249,11 @@ export default class UpdatePublish extends EasCommand {
       projectId,
       projectDir,
     } = await getDynamicPublicProjectConfigAsync();
+
+    assertEnvironmentFlagForSdk55OrGreater({
+      sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
+      environment,
+    });
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 

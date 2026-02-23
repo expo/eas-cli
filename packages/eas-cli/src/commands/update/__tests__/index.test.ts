@@ -143,6 +143,67 @@ describe(UpdatePublish.name, () => {
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
+  it('errors when SDK >= 55 and --environment is not provided', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+
+    await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
+      '--environment flag is required for projects using Expo SDK 55 or greater'
+    );
+  });
+
+  it('does not error when SDK >= 55 and --environment is provided', async () => {
+    const flags = [
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--environment=production',
+    ];
+
+    mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
+      createdBranch: false,
+    });
+
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('does not error when SDK < 55 and --environment is not provided', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    mockTestProject({ expoConfig: { sdkVersion: '54.0.0' } });
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
+      createdBranch: false,
+    });
+
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+
+    await new UpdatePublish(flags, commandOptions).run();
+
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
   it('creates a new update with the public expo config', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
