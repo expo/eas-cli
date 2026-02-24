@@ -2,6 +2,10 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasPaginatedQueryFlags,
+  getLimitFlagWithCustomValues,
+} from '../../commandUtils/pagination';
 import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
@@ -11,6 +15,7 @@ import {
   DEFAULT_METRICS,
   fetchObserveMetricsAsync,
   validateDateFlag,
+  MAX_BUILDS_LIMIT,
 } from '../../observe/fetchMetrics';
 import {
   DEFAULT_STATS_JSON,
@@ -47,10 +52,11 @@ export default class ObserveMetrics extends EasCommand {
     end: Flags.string({
       description: 'End of time range (ISO date)',
     }),
-    limit: Flags.integer({
-      description: 'Number of builds to show',
-      default: DEFAULT_BUILDS_LIMIT,
-      min: 1,
+    ...EasPaginatedQueryFlags,
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: DEFAULT_BUILDS_LIMIT,
+      limit: MAX_BUILDS_LIMIT,
+      description: `The number of builds to fetch. Defaults to ${DEFAULT_BUILDS_LIMIT} and is capped at ${MAX_BUILDS_LIMIT}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -99,7 +105,7 @@ export default class ObserveMetrics extends EasCommand {
     const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
       limit: flags.limit ?? DEFAULT_BUILDS_LIMIT,
-      offset: 0,
+      offset: flags.offset ?? 0,
       filter: {
         status: BuildStatus.Finished,
         ...(platformFilter ? { platform: platformFilter } : {}),

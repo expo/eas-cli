@@ -14,6 +14,7 @@ export const DEFAULT_METRICS = [
 ];
 
 export const DEFAULT_BUILDS_LIMIT = 25;
+export const MAX_BUILDS_LIMIT = 50;
 export const DEFAULT_DAYS_BACK = 60;
 
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
