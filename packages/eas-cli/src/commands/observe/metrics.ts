@@ -7,7 +7,7 @@ import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
 import {
   DEFAULT_DAYS_BACK,
-  DEFAULT_LIMIT,
+  DEFAULT_BUILDS_LIMIT,
   DEFAULT_METRICS,
   fetchObserveMetricsAsync,
   validateDateFlag,
@@ -49,7 +49,7 @@ export default class ObserveMetrics extends EasCommand {
     }),
     limit: Flags.integer({
       description: 'Number of builds to show',
-      default: DEFAULT_LIMIT,
+      default: DEFAULT_BUILDS_LIMIT,
       min: 1,
     }),
     ...EasNonInteractiveAndJsonFlags,
@@ -98,7 +98,7 @@ export default class ObserveMetrics extends EasCommand {
 
     const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
-      limit: flags.limit ?? DEFAULT_LIMIT,
+      limit: flags.limit ?? DEFAULT_BUILDS_LIMIT,
       offset: 0,
       filter: {
         status: BuildStatus.Finished,

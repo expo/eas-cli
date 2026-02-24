@@ -13,7 +13,7 @@ export const DEFAULT_METRICS = [
   'expo.app_startup.bundle_load_time',
 ];
 
-export const DEFAULT_LIMIT = 10;
+export const DEFAULT_BUILDS_LIMIT = 25;
 export const DEFAULT_DAYS_BACK = 60;
 
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
