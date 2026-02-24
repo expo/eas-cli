@@ -49,10 +49,17 @@ export default class ObserveMetrics extends EasCommand {
     start: Flags.string({
       description:
         'Start of time range for metrics data (ISO date). Does not filter build selection.',
+      exclusive: ['days-from-now'],
     }),
     end: Flags.string({
       description:
         'End of time range for metrics data (ISO date). Does not filter build selection.',
+      exclusive: ['days-from-now'],
+    }),
+    'days-from-now': Flags.integer({
+      description: 'Show metrics from the last N days (mutually exclusive with --start/--end)',
+      min: 1,
+      exclusive: ['start', 'end'],
     }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({
@@ -94,9 +101,17 @@ export default class ObserveMetrics extends EasCommand {
       ? flags.metric.map(resolveMetricName)
       : DEFAULT_METRICS;
 
-    const endTime = flags.end ?? new Date().toISOString();
-    const startTime =
-      flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+    let startTime: string;
+    let endTime: string;
+
+    if (flags['days-from-now']) {
+      endTime = new Date().toISOString();
+      startTime = new Date(Date.now() - flags['days-from-now'] * 24 * 60 * 60 * 1000).toISOString();
+    } else {
+      endTime = flags.end ?? new Date().toISOString();
+      startTime =
+        flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
+    }
 
     const platformFilter = flags.platform
       ? flags.platform === 'android'
