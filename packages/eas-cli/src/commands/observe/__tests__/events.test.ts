@@ -1,7 +1,10 @@
 import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveEventsAsync } from '../../../observe/fetchEvents';
+import { buildObserveEventsJson } from '../../../observe/formatEvents';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveEvents from '../events';
 
 jest.mock('../../../observe/fetchEvents');
@@ -13,6 +16,9 @@ jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
+const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 describe(ObserveEvents, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -144,5 +150,88 @@ describe(ObserveEvents, () => {
     ]);
 
     await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('passes --platform ios to fetchObserveEventsAsync as AppObservePlatform.Ios', async () => {
+    const command = createCommand(['--metric', 'tti', '--platform', 'ios']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.platform).toBe(AppObservePlatform.Ios);
+  });
+
+  it('passes --platform android to fetchObserveEventsAsync as AppObservePlatform.Android', async () => {
+    const command = createCommand(['--metric', 'tti', '--platform', 'android']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.platform).toBe(AppObservePlatform.Android);
+  });
+
+  it('passes --app-version to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--app-version', '2.1.0']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.appVersion).toBe('2.1.0');
+  });
+
+  it('passes --update-id to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--update-id', 'update-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.updateId).toBe('update-xyz');
+  });
+
+  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
+    const command = createCommand(['--metric', 'tti']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.platform).toBeUndefined();
+    expect(options.appVersion).toBeUndefined();
+    expect(options.updateId).toBeUndefined();
+  });
+
+  it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
+    const mockEvents = [
+      {
+        id: 'evt-1',
+        metricName: 'expo.app_startup.tti',
+        metricValue: 1.23,
+        timestamp: '2025-01-15T10:30:00.000Z',
+        appVersion: '1.0.0',
+        appBuildNumber: '42',
+        deviceModel: 'iPhone 15',
+        deviceOs: 'iOS',
+        deviceOsVersion: '17.0',
+        countryCode: 'US',
+        sessionId: 'session-1',
+        easClientId: 'client-1',
+      },
+    ];
+    mockFetchObserveEventsAsync.mockResolvedValue({
+      events: mockEvents as any,
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const command = createCommand(['--metric', 'tti', '--json', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveEventsJson).toHaveBeenCalledWith(
+      mockEvents,
+      expect.objectContaining({ hasNextPage: false })
+    );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it('does not call enableJsonOutput when --json is not provided', async () => {
+    const command = createCommand(['--metric', 'tti']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 });
