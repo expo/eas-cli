@@ -43,6 +43,7 @@ interface FetchObserveEventsOptions {
   metricName: string;
   orderBy: AppObserveEventsOrderBy;
   limit: number;
+  after?: string;
   startTime: string;
   endTime: string;
   platform?: AppObservePlatform;
@@ -69,10 +70,11 @@ export async function fetchObserveEventsAsync(
     ...(options.updateId && { appUpdateId: options.updateId }),
   };
 
-  return ObserveQuery.eventsAsync(graphqlClient, {
+  return await ObserveQuery.eventsAsync(graphqlClient, {
     appId,
     filter,
     first: options.limit,
+    ...(options.after && { after: options.after }),
     orderBy: options.orderBy,
   });
 }

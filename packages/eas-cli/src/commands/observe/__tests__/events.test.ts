@@ -109,6 +109,30 @@ describe(ObserveEvents, () => {
     await expect(command.runAsync()).rejects.toThrow();
   });
 
+  it('passes --limit to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--limit', '42']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.limit).toBe(42);
+  });
+
+  it('passes --after cursor to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--after', 'cursor-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.after).toBe('cursor-xyz');
+  });
+
+  it('does not pass after when --after flag is not provided', async () => {
+    const command = createCommand(['--metric', 'tti']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('after');
+  });
+
   it('rejects --days-from-now combined with --end', async () => {
     const command = createCommand([
       '--metric',

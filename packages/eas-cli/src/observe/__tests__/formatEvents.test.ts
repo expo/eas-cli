@@ -1,4 +1,4 @@
-import { AppObserveEvent } from '../../graphql/generated';
+import { AppObserveEvent, PageInfo } from '../../graphql/generated';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../formatEvents';
 
 function createMockEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEvent {
@@ -23,6 +23,13 @@ function createMockEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEv
     ...overrides,
   };
 }
+
+const noNextPage: PageInfo = { hasNextPage: false, hasPreviousPage: false };
+const withNextPage: PageInfo = {
+  hasNextPage: true,
+  hasPreviousPage: false,
+  endCursor: 'cursor-abc',
+};
 
 describe(buildObserveEventsTable, () => {
   it('formats events into aligned columns', () => {
@@ -52,7 +59,7 @@ describe(buildObserveEventsTable, () => {
       }),
     ];
 
-    const output = buildObserveEventsTable(events);
+    const output = buildObserveEventsTable(events, noNextPage);
 
     // Escape codes are included, because the header is bolded.
     expect(output).toMatchInlineSnapshot(`
@@ -64,7 +71,7 @@ TTI     0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 
   });
 
   it('returns yellow warning for empty array', () => {
-    const output = buildObserveEventsTable([]);
+    const output = buildObserveEventsTable([], noNextPage);
     expect(output).toContain('No events found.');
   });
 
@@ -82,7 +89,7 @@ TTI     0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 
       }),
     ];
 
-    const output = buildObserveEventsTable(events);
+    const output = buildObserveEventsTable(events, noNextPage);
 
     expect(output).toContain('Cold Launch');
     expect(output).toContain('Warm Launch');
@@ -92,17 +99,31 @@ TTI     0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 
 
   it('shows - for null countryCode', () => {
     const events = [createMockEvent({ countryCode: null })];
-    const output = buildObserveEventsTable(events);
+    const output = buildObserveEventsTable(events, noNextPage);
 
     // The country column should contain a dash
     const lines = output.split('\n');
     const dataLine = lines[2]; // header, separator, first data row
     expect(dataLine).toContain('-');
   });
+
+  it('appends next page hint when hasNextPage is true', () => {
+    const events = [createMockEvent()];
+    const output = buildObserveEventsTable(events, withNextPage);
+
+    expect(output).toContain('Next page: --after cursor-abc');
+  });
+
+  it('does not append next page hint when hasNextPage is false', () => {
+    const events = [createMockEvent()];
+    const output = buildObserveEventsTable(events, noNextPage);
+
+    expect(output).not.toContain('Next page');
+  });
 });
 
 describe(buildObserveEventsJson, () => {
-  it('maps event to JSON shape with all relevant fields', () => {
+  it('maps event to JSON shape with all relevant fields and pageInfo', () => {
     const events = [
       createMockEvent({
         id: 'evt-1',
@@ -120,24 +141,30 @@ describe(buildObserveEventsJson, () => {
       }),
     ];
 
-    const result = buildObserveEventsJson(events);
+    const result = buildObserveEventsJson(events, withNextPage);
 
-    expect(result).toEqual([
-      {
-        id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
-        appVersion: '1.0.0',
-        appBuildNumber: '42',
-        deviceModel: 'iPhone 15',
-        deviceOs: 'iOS',
-        deviceOsVersion: '17.0',
-        countryCode: 'US',
-        sessionId: 'session-1',
-        easClientId: 'client-1',
-        timestamp: '2025-01-15T10:30:00.000Z',
+    expect(result).toEqual({
+      events: [
+        {
+          id: 'evt-1',
+          metricName: 'expo.app_startup.tti',
+          metricValue: 1.23,
+          appVersion: '1.0.0',
+          appBuildNumber: '42',
+          deviceModel: 'iPhone 15',
+          deviceOs: 'iOS',
+          deviceOsVersion: '17.0',
+          countryCode: 'US',
+          sessionId: 'session-1',
+          easClientId: 'client-1',
+          timestamp: '2025-01-15T10:30:00.000Z',
+        },
+      ],
+      pageInfo: {
+        hasNextPage: true,
+        endCursor: 'cursor-abc',
       },
-    ]);
+    });
   });
 
   it('handles null optional fields', () => {
@@ -148,13 +175,15 @@ describe(buildObserveEventsJson, () => {
       }),
     ];
 
-    const result = buildObserveEventsJson(events);
+    const result = buildObserveEventsJson(events, noNextPage);
 
-    expect(result[0].countryCode).toBeNull();
-    expect(result[0].sessionId).toBeNull();
+    expect(result.events[0].countryCode).toBeNull();
+    expect(result.events[0].sessionId).toBeNull();
   });
 
-  it('returns empty array for empty input', () => {
-    expect(buildObserveEventsJson([])).toEqual([]);
+  it('returns empty events array for empty input', () => {
+    const result = buildObserveEventsJson([], noNextPage);
+    expect(result.events).toEqual([]);
+    expect(result.pageInfo).toEqual({ hasNextPage: false, endCursor: null });
   });
 });

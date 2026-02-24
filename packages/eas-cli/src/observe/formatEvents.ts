@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { AppObserveEvent } from '../graphql/generated';
+import { AppObserveEvent, PageInfo } from '../graphql/generated';
 import { getMetricDisplayName } from './metricNames';
 
 function formatTimestamp(isoString: string): string {
@@ -29,7 +29,7 @@ export interface ObserveEventJson {
   timestamp: string;
 }
 
-export function buildObserveEventsTable(events: AppObserveEvent[]): string {
+export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: PageInfo): string {
   if (events.length === 0) {
     return chalk.yellow('No events found.');
   }
@@ -52,22 +52,37 @@ export function buildObserveEventsTable(events: AppObserveEvent[]): string {
   const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
   const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
 
-  return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
+  const lines = [chalk.bold(headerLine), separatorLine, ...dataLines];
+
+  if (pageInfo.hasNextPage && pageInfo.endCursor) {
+    lines.push('', `Next page: --after ${pageInfo.endCursor}`);
+  }
+
+  return lines.join('\n');
 }
 
-export function buildObserveEventsJson(events: AppObserveEvent[]): ObserveEventJson[] {
-  return events.map(event => ({
-    id: event.id,
-    metricName: event.metricName,
-    metricValue: event.metricValue,
-    appVersion: event.appVersion,
-    appBuildNumber: event.appBuildNumber,
-    deviceModel: event.deviceModel,
-    deviceOs: event.deviceOs,
-    deviceOsVersion: event.deviceOsVersion,
-    countryCode: event.countryCode ?? null,
-    sessionId: event.sessionId ?? null,
-    easClientId: event.easClientId,
-    timestamp: event.timestamp,
-  }));
+export function buildObserveEventsJson(
+  events: AppObserveEvent[],
+  pageInfo: PageInfo
+): { events: ObserveEventJson[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } {
+  return {
+    events: events.map(event => ({
+      id: event.id,
+      metricName: event.metricName,
+      metricValue: event.metricValue,
+      appVersion: event.appVersion,
+      appBuildNumber: event.appBuildNumber,
+      deviceModel: event.deviceModel,
+      deviceOs: event.deviceOs,
+      deviceOsVersion: event.deviceOsVersion,
+      countryCode: event.countryCode ?? null,
+      sessionId: event.sessionId ?? null,
+      easClientId: event.easClientId,
+      timestamp: event.timestamp,
+    })),
+    pageInfo: {
+      hasNextPage: pageInfo.hasNextPage,
+      endCursor: pageInfo.endCursor ?? null,
+    },
+  };
 }

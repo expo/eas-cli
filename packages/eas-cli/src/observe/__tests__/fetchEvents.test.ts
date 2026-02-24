@@ -224,4 +224,49 @@ describe(fetchObserveEventsAsync, () => {
     expect(result.events[0].metricValue).toBe(1.23);
     expect(result.pageInfo.hasNextPage).toBe(true);
   });
+
+  it('passes after cursor to ObserveQuery.eventsAsync', async () => {
+    mockEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
+      metricName: 'expo.app_startup.tti',
+      orderBy: {
+        field: AppObserveEventsOrderByField.MetricValue,
+        direction: AppObserveEventsOrderByDirection.Desc,
+      },
+      limit: 10,
+      after: 'cursor-abc',
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+
+    expect(mockEventsAsync).toHaveBeenCalledWith(
+      mockGraphqlClient,
+      expect.objectContaining({ first: 10, after: 'cursor-abc' })
+    );
+  });
+
+  it('omits after when not provided', async () => {
+    mockEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
+      metricName: 'expo.app_startup.tti',
+      orderBy: {
+        field: AppObserveEventsOrderByField.MetricValue,
+        direction: AppObserveEventsOrderByDirection.Desc,
+      },
+      limit: 10,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+
+    const calledVars = mockEventsAsync.mock.calls[0][1];
+    expect(calledVars).not.toHaveProperty('after');
+  });
 });

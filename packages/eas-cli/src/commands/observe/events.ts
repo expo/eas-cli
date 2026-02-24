@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObservePlatform } from '../../graphql/generated';
 import Log from '../../log';
 import {
@@ -33,12 +34,11 @@ export default class ObserveEvents extends EasCommand {
       description: 'Filter by platform',
       options: ['android', 'ios'],
     }),
-    limit: Flags.integer({
-      description: 'Number of events to show',
-      default: DEFAULT_EVENTS_LIMIT,
-      min: 1,
-      max: 100,
+    after: Flags.string({
+      description:
+        'Cursor for pagination. Use the endCursor from a previous query to fetch the next page.',
     }),
+    limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_EVENTS_LIMIT, limit: 100 }),
     start: Flags.string({
       description: 'Start of time range (ISO date)',
       exclusive: ['days-from-now'],
@@ -109,10 +109,11 @@ export default class ObserveEvents extends EasCommand {
         : AppObservePlatform.Ios
       : undefined;
 
-    const { events } = await fetchObserveEventsAsync(graphqlClient, projectId, {
+    const { events, pageInfo } = await fetchObserveEventsAsync(graphqlClient, projectId, {
       metricName,
       orderBy,
       limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+      ...(flags.after && { after: flags.after }),
       startTime,
       endTime,
       platform,
@@ -121,10 +122,10 @@ export default class ObserveEvents extends EasCommand {
     });
 
     if (flags.json) {
-      printJsonOnlyOutput(buildObserveEventsJson(events));
+      printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();
-      Log.log(buildObserveEventsTable(events));
+      Log.log(buildObserveEventsTable(events, pageInfo));
     }
   }
 }
