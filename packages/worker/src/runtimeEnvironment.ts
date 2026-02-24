@@ -135,31 +135,75 @@ async function installNode(ctx: PreDownloadBuildContext, version: string): Promi
   let sanitizedVersion = version.startsWith('v') ? version.slice(1) : version;
   try {
     ctx.logger.info(`Installing node v${sanitizedVersion}`);
-    const { stdout } = await spawn(
-      'bash',
-      ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`],
-      {
-        logger: ctx.logger,
-        env: ctx.env,
-      }
-    );
-
-    sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
-    await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
-      logger: ctx.logger,
-      env: ctx.env,
-    });
-    const nodeDir = `${os.homedir()}/.nvm/versions/node/v${sanitizedVersion}`;
-    ctx.env.PATH = `${nodeDir}/bin:${ctx.env.PATH}`;
-    const nodeBinPath = `${nodeDir}/bin/node`;
-    if (!(await fs.pathExists(nodeBinPath))) {
-      throw new Error(`node executable was not found in ${nodeBinPath}`);
-    }
+    sanitizedVersion = await installNodeWithNvm(ctx, version, sanitizedVersion, ctx.env);
   } catch (err: any) {
     ctx.logger.error({ err }, `Failed to install Node.js v${version}\n`);
-    throw new SystemDepsInstallError('Node.js');
+    await logNvmLsRemoteOutput(ctx, ctx.env);
+    if (!ctx.env.NVM_NODEJS_ORG_MIRROR) {
+      throw new SystemDepsInstallError('Node.js');
+    }
+
+    const retryEnv = { ...ctx.env };
+    delete retryEnv.NVM_NODEJS_ORG_MIRROR;
+    ctx.logger.warn(
+      `Retrying Node.js install for v${version} after unsetting NVM_NODEJS_ORG_MIRROR`
+    );
+    try {
+      sanitizedVersion = await installNodeWithNvm(ctx, version, sanitizedVersion, retryEnv);
+    } catch (retryErr: any) {
+      ctx.logger.error(
+        { err: retryErr },
+        `Failed to install Node.js v${version} after retrying without NVM_NODEJS_ORG_MIRROR\n`
+      );
+      await logNvmLsRemoteOutput(ctx, retryEnv);
+      throw new SystemDepsInstallError('Node.js');
+    }
   }
   return sanitizedVersion;
+}
+
+async function installNodeWithNvm(
+  ctx: PreDownloadBuildContext,
+  version: string,
+  sanitizedVersion: string,
+  env: PreDownloadBuildContext['env']
+): Promise<string> {
+  const { stdout } = await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`], {
+    logger: ctx.logger,
+    env,
+  });
+
+  const installedNodeVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
+  await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${installedNodeVersion}`], {
+    logger: ctx.logger,
+    env,
+  });
+  const nodeDir = `${os.homedir()}/.nvm/versions/node/v${installedNodeVersion}`;
+  ctx.env.PATH = `${nodeDir}/bin:${ctx.env.PATH}`;
+  const nodeBinPath = `${nodeDir}/bin/node`;
+  if (!(await fs.pathExists(nodeBinPath))) {
+    throw new Error(`node executable was not found in ${nodeBinPath}`);
+  }
+  return installedNodeVersion;
+}
+
+async function logNvmLsRemoteOutput(
+  ctx: PreDownloadBuildContext,
+  env: PreDownloadBuildContext['env']
+): Promise<void> {
+  try {
+    const { stdout } = await spawn(
+      'bash',
+      ['-c', 'source ~/.nvm/nvm.sh && nvm ls-remote'],
+      {
+        stdio: 'pipe',
+        env,
+      }
+    );
+    ctx.logger.info(`nvm ls-remote output:\n${stdout}`);
+  } catch (err: any) {
+    ctx.logger.warn({ err }, 'Failed to run nvm ls-remote');
+  }
 }
 
 async function installBundler(ctx: PreDownloadBuildContext, version: string): Promise<void> {
