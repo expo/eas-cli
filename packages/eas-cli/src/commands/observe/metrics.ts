@@ -47,10 +47,12 @@ export default class ObserveMetrics extends EasCommand {
       multiple: true,
     }),
     start: Flags.string({
-      description: 'Start of time range for metrics data (ISO date). Does not filter build selection.',
+      description:
+        'Start of time range for metrics data (ISO date). Does not filter build selection.',
     }),
     end: Flags.string({
-      description: 'End of time range for metrics data (ISO date). Does not filter build selection.',
+      description:
+        'End of time range for metrics data (ISO date). Does not filter build selection.',
     }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({

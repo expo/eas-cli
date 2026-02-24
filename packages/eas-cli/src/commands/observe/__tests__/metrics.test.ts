@@ -258,7 +258,14 @@ describe(ObserveMetrics, () => {
   });
 
   it('passes resolved --stat flags to buildObserveMetricsJson when --json is used', async () => {
-    const command = createCommand(['--json', '--non-interactive', '--stat', 'min', '--stat', 'avg']);
+    const command = createCommand([
+      '--json',
+      '--non-interactive',
+      '--stat',
+      'min',
+      '--stat',
+      'avg',
+    ]);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
