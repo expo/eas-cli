@@ -6,15 +6,17 @@ import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObservePlatform } from '../../graphql/generated';
 import Log from '../../log';
 import {
-  DEFAULT_EVENTS_LIMIT,
   type EventsOrderPreset,
   fetchObserveEventsAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
 import { resolveMetricName } from '../../observe/metricNames';
-import { DEFAULT_DAYS_BACK, validateDateFlag } from '../../observe/fetchMetrics';
+import { validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+const DEFAULT_EVENTS_LIMIT = 10;
+const DEFAULT_DAYS_BACK = 60;
 
 export default class ObserveEvents extends EasCommand {
   static override description = 'display individual app performance events ordered by metric value';

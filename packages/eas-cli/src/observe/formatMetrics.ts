@@ -15,18 +15,6 @@ export type StatisticKey =
   | 'p99'
   | 'eventCount';
 
-export const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
-export const DEFAULT_STATS_JSON: StatisticKey[] = [
-  'min',
-  'median',
-  'max',
-  'average',
-  'p80',
-  'p90',
-  'p99',
-  'eventCount',
-];
-
 export const STAT_ALIASES: Record<string, StatisticKey> = {
   min: 'min',
   max: 'max',

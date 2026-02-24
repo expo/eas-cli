@@ -1,14 +1,25 @@
 import { AppPlatform, BuildPriority, BuildStatus } from '../../graphql/generated';
 import {
-  DEFAULT_STATS_JSON,
-  DEFAULT_STATS_TABLE,
   ObserveMetricsMap,
+  StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
   makeMetricsKey,
   resolveStatKey,
   type MetricValues,
 } from '../formatMetrics';
+
+const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
+const DEFAULT_STATS_JSON: StatisticKey[] = [
+  'min',
+  'median',
+  'max',
+  'average',
+  'p80',
+  'p90',
+  'p99',
+  'eventCount',
+];
 
 function createMockBuild(overrides: {
   id: string;

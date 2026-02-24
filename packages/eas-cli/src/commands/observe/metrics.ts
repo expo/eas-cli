@@ -9,17 +9,8 @@ import {
 import { AppPlatform, BuildStatus } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import Log from '../../log';
+import { fetchObserveMetricsAsync, validateDateFlag } from '../../observe/fetchMetrics';
 import {
-  DEFAULT_DAYS_BACK,
-  DEFAULT_BUILDS_LIMIT,
-  DEFAULT_METRICS,
-  fetchObserveMetricsAsync,
-  validateDateFlag,
-  MAX_BUILDS_LIMIT,
-} from '../../observe/fetchMetrics';
-import {
-  DEFAULT_STATS_JSON,
-  DEFAULT_STATS_TABLE,
   StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
@@ -27,6 +18,30 @@ import {
 } from '../../observe/formatMetrics';
 import { resolveMetricName } from '../../observe/metricNames';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+const DEFAULT_METRICS = [
+  'expo.app_startup.cold_launch_time',
+  'expo.app_startup.warm_launch_time',
+  'expo.app_startup.tti',
+  'expo.app_startup.ttr',
+  'expo.app_startup.bundle_load_time',
+];
+
+const DEFAULT_BUILDS_LIMIT = 25;
+const MAX_BUILDS_LIMIT = 50;
+const DEFAULT_DAYS_BACK = 60;
+
+const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
+const DEFAULT_STATS_JSON: StatisticKey[] = [
+  'min',
+  'median',
+  'max',
+  'average',
+  'p80',
+  'p90',
+  'p99',
+  'eventCount',
+];
 
 export default class ObserveMetrics extends EasCommand {
   static override description = 'display app performance metrics grouped by recent builds';

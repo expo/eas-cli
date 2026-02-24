@@ -12,8 +12,6 @@ import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 
 export type EventsOrderPreset = 'slowest' | 'fastest' | 'newest' | 'oldest';
 
-export const DEFAULT_EVENTS_LIMIT = 10;
-
 export function resolveOrderBy(preset: EventsOrderPreset): AppObserveEventsOrderBy {
   switch (preset) {
     case 'slowest':

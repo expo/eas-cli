@@ -5,18 +5,6 @@ import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import { MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
 
-export const DEFAULT_METRICS = [
-  'expo.app_startup.cold_launch_time',
-  'expo.app_startup.warm_launch_time',
-  'expo.app_startup.tti',
-  'expo.app_startup.ttr',
-  'expo.app_startup.bundle_load_time',
-];
-
-export const DEFAULT_BUILDS_LIMIT = 25;
-export const MAX_BUILDS_LIMIT = 50;
-export const DEFAULT_DAYS_BACK = 60;
-
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
   [AppPlatform.Android]: AppObservePlatform.Android,
   [AppPlatform.Ios]: AppObservePlatform.Ios,
