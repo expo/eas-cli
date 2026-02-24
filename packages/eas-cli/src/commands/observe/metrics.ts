@@ -47,16 +47,16 @@ export default class ObserveMetrics extends EasCommand {
       multiple: true,
     }),
     start: Flags.string({
-      description: 'Start of time range (ISO date)',
+      description: 'Start of time range for metrics data (ISO date). Does not filter build selection.',
     }),
     end: Flags.string({
-      description: 'End of time range (ISO date)',
+      description: 'End of time range for metrics data (ISO date). Does not filter build selection.',
     }),
     ...EasPaginatedQueryFlags,
     limit: getLimitFlagWithCustomValues({
       defaultTo: DEFAULT_BUILDS_LIMIT,
       limit: MAX_BUILDS_LIMIT,
-      description: `The number of builds to fetch. Defaults to ${DEFAULT_BUILDS_LIMIT} and is capped at ${MAX_BUILDS_LIMIT}.`,
+      description: `The number of most recent finished builds to fetch (not filtered by --start/--end). Defaults to ${DEFAULT_BUILDS_LIMIT} and is capped at ${MAX_BUILDS_LIMIT}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -102,6 +102,8 @@ export default class ObserveMetrics extends EasCommand {
         : AppPlatform.Ios
       : undefined;
 
+    // TODO @ubax: builds are fetched independently of --start/--end; ideally we should also
+    // filter builds by the requested time range so irrelevant builds aren't included.
     const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
       appId: projectId,
       limit: flags.limit ?? DEFAULT_BUILDS_LIMIT,
