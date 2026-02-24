@@ -12,8 +12,10 @@ ROOT_DIR="$( cd "$SCRIPTS_DIR"/.. && pwd )"
 # to @expo/eas-build-job dependency, so the update-local-plugin step is no longer needed.
 # $SCRIPTS_DIR/bin/run update-local-plugin
 
-next_version_bump=$($SCRIPTS_DIR/bin/run next-version)
+next_version_bump=`(cd $SCRIPTS_DIR; node --no-warnings=ExperimentalWarning --loader ts-node/esm src/nextVersion.ts)`
 next_version=${1:-$next_version_bump}
+
+echo "next_version = ${next_version}"
 
 if [[ "$GITHUB_USER" == "Expo CI" && "$GITHUB_EMAIL" == "support+ci@expo.io" && "$INPUT_DRY_RUN" != "true" ]]; then
   echo "Releasing with version $next_version"
