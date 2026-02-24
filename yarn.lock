@@ -10258,7 +10258,7 @@ __metadata:
     log-symbols: "npm:4.1.0"
     memfs: "npm:3.4.13"
     mime: "npm:3.0.0"
-    minimatch: "npm:5.1.2"
+    minimatch: "npm:5.1.7"
     minizlib: "npm:3.0.1"
     mockdate: "npm:3.0.5"
     nanoid: "npm:3.3.8"
@@ -15699,12 +15699,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:5.1.2":
-  version: 5.1.2
-  resolution: "minimatch@npm:5.1.2"
+"minimatch@npm:5.1.7":
+  version: 5.1.7
+  resolution: "minimatch@npm:5.1.7"
   dependencies:
     brace-expansion: "npm:^2.0.1"
-  checksum: 10c0/1376e34455e8eb1a493ea648571a0c449b99c44753aa3a562204b68dfea3ebd40193b9132d67c0e4adddeb9311a53173252664aafeba6516e5101c99fb6d0171
+  checksum: 10c0/db29063fba9929d07cec7a08386849f4c18b6ffabf1836bd0ab70715f83ff8f596efb354dbc1f5a36653357d06a8b98bb5e3d82159306a9f84ba7ab296e4fa27
   languageName: node
   linkType: hard
 

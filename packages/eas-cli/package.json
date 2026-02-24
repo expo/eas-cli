@@ -99,7 +99,7 @@
     "keychain": "1.5.0",
     "log-symbols": "4.1.0",
     "mime": "3.0.0",
-    "minimatch": "5.1.2",
+    "minimatch": "5.1.7",
     "minizlib": "3.0.1",
     "nanoid": "3.3.8",
     "node-fetch": "2.6.7",
