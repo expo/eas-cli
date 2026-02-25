@@ -21,6 +21,7 @@ import { createInternalEasMaestroTestFunction } from './functions/internalMaestr
 import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
 import { createRepackBuildFunction } from './functions/repack';
+import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -81,6 +82,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadToAscBuildFunction(),
 
     createInternalEasMaestroTestFunction(ctx),
+
+    createReportMaestroTestResultsFunction(ctx),
   ];
 
   if (ctx.hasBuildJob()) {

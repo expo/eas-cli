@@ -10,6 +10,7 @@ import {
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, ExternalBuildContextProvider } from '@expo/steps';
+import { Client } from '@urql/core';
 import assert from 'assert';
 import path from 'path';
 
@@ -53,6 +54,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   public readonly startTime: Date;
 
   public readonly logger: bunyan;
+  public readonly graphqlClient: Client;
   public readonly runtimeApi: BuilderRuntimeApi;
   public job: TJob;
   public metadata?: Metadata;
@@ -65,6 +67,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.metadata = buildCtx.metadata;
 
     this.logger = buildCtx.logger.child({ phase: BuildPhase.CUSTOM });
+    this.graphqlClient = buildCtx.graphqlClient;
     this.projectSourceDirectory = path.join(buildCtx.workingdir, 'temporary-custom-build');
     this.projectTargetDirectory = path.join(buildCtx.workingdir, 'build');
     this.defaultWorkingDirectory = buildCtx.getReactNativeProjectDirectory();

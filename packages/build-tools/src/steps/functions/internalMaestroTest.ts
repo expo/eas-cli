@@ -81,6 +81,10 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
         id: 'test_reports_artifact_id',
         required: false,
       }),
+      BuildStepOutput.createProvider({
+        id: 'junit_report_directory',
+        required: false,
+      }),
     ],
     fn: async (stepCtx, { inputs: _inputs, env, outputs }) => {
       // inputs come in form of { value: unknown }. Here we parse them into a typed and validated object.
@@ -346,6 +350,10 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
         } catch (err) {
           stepCtx.logger.error({ err }, 'Failed to upload reports.');
         }
+      }
+
+      if (output_format === 'junit') {
+        outputs.junit_report_directory.set(maestroReportsDir);
       }
 
       const generatedDeviceLogs = await fs.promises.readdir(deviceLogsDir);
