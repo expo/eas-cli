@@ -32,7 +32,7 @@ describe('fetchObserveMetricsAsync', () => {
   });
 
   // TODO(@ubax): add support for fetching multiple metrics and platforms in a single query
-  it('fans out queries for each metric+platform combo and assembles metricsMap', async () => {
+  it('creates queries for each metric+platform combination and assembles metricsMap', async () => {
     mockTimeSeriesMarkers
       .mockResolvedValueOnce([{ ...SIMPLE_MARKER, eventCount: 100 }])
       .mockResolvedValueOnce([{ ...SIMPLE_MARKER, eventCount: 80 }]);
@@ -72,7 +72,7 @@ describe('fetchObserveMetricsAsync', () => {
     );
   });
 
-  it('fans out across multiple platforms', async () => {
+  it('creates queries for each platform', async () => {
     mockTimeSeriesMarkers.mockResolvedValue([]);
 
     await fetchObserveMetricsAsync(
@@ -147,8 +147,7 @@ describe('fetchObserveMetricsAsync', () => {
       '2025-03-01T00:00:00.000Z'
     );
 
-    // The key should use AppPlatform (ANDROID), not AppObservePlatform
-    expect(metricsMap.has('3.0.0:ANDROID')).toBe(true);
-    expect(metricsMap.has('3.0.0:Android' as any)).toBe(false);
+    expect(metricsMap.has(`3.0.0:${AppPlatform.Android}`)).toBe(true);
+    expect(metricsMap.has(`3.0.0:${AppObservePlatform.Android}`)).toBe(false);
   });
 });
