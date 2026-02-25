@@ -2,7 +2,15 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { AppObservePlatform, AppObserveTimeSeriesInput, AppObserveVersionMarker } from '../generated';
+import {
+  AppObserveEvent,
+  AppObserveEventsFilter,
+  AppObserveEventsOrderBy,
+  AppObservePlatform,
+  AppObserveTimeSeriesInput,
+  AppObserveVersionMarker,
+  PageInfo,
+} from '../generated';
 
 type AppObserveTimeSeriesQuery = {
   app: {
@@ -20,6 +28,31 @@ type AppObserveTimeSeriesQuery = {
 type AppObserveTimeSeriesQueryVariables = {
   appId: string;
   input: Pick<AppObserveTimeSeriesInput, 'metricName' | 'platform' | 'startTime' | 'endTime'>;
+};
+
+type AppObserveEventsQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        events: {
+          pageInfo: PageInfo;
+          edges: Array<{
+            cursor: string;
+            node: AppObserveEvent;
+          }>;
+        };
+      };
+    };
+  };
+};
+
+type AppObserveEventsQueryVariables = {
+  appId: string;
+  filter?: AppObserveEventsFilter;
+  first?: number;
+  after?: string;
+  orderBy?: AppObserveEventsOrderBy;
 };
 
 export const ObserveQuery = {
@@ -78,5 +111,65 @@ export const ObserveQuery = {
     );
 
     return data.app.byId.observe.timeSeries.versionMarkers;
+  },
+
+  async eventsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveEventsQueryVariables
+  ): Promise<{ events: AppObserveEvent[]; pageInfo: PageInfo }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveEventsQuery, AppObserveEventsQueryVariables>(
+          gql`
+            query AppObserveEvents(
+              $appId: String!
+              $filter: AppObserveEventsFilter
+              $first: Int
+              $after: String
+              $orderBy: AppObserveEventsOrderBy
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    events(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+                      pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        endCursor
+                      }
+                      edges {
+                        cursor
+                        node {
+                          id
+                          metricName
+                          metricValue
+                          timestamp
+                          appVersion
+                          appBuildNumber
+                          deviceModel
+                          deviceOs
+                          deviceOsVersion
+                          countryCode
+                          sessionId
+                          easClientId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    const { edges, pageInfo } = data.app.byId.observe.events;
+    return {
+      events: edges.map(edge => edge.node),
+      pageInfo,
+    };
   },
 };
