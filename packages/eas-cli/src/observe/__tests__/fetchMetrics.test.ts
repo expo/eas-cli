@@ -31,6 +31,7 @@ describe('fetchObserveMetricsAsync', () => {
     mockTimeSeriesMarkers.mockClear();
   });
 
+  // TODO(@ubax): add support for fetching multiple metrics and platforms in a single query
   it('fans out queries for each metric+platform combo and assembles metricsMap', async () => {
     mockTimeSeriesMarkers
       .mockResolvedValueOnce([{ ...SIMPLE_MARKER, eventCount: 100 }])

@@ -30,6 +30,7 @@ export async function fetchObserveMetricsAsync(
 ): Promise<ObserveMetricsMap> {
   const observeQueries: Promise<ObserveQueryResult | null>[] = [];
 
+  // TODO(@ubax): add support for fetching multiple metrics and platforms in a single query
   for (const metricName of metricNames) {
     for (const appPlatform of platforms) {
       const observePlatform = appPlatformToObservePlatform[appPlatform];
