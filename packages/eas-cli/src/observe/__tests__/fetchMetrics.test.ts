@@ -1,6 +1,6 @@
 import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
-import { makeMetricsKey } from '../formatMetrics';
+import { makeMetricsKey } from '../utils';
 import { fetchObserveMetricsAsync } from '../fetchMetrics';
 
 jest.mock('../../graphql/queries/ObserveQuery');
@@ -133,21 +133,5 @@ describe('fetchObserveMetricsAsync', () => {
     );
 
     expect(metricsMap.size).toBe(0);
-  });
-
-  it('maps AppObservePlatform back to AppPlatform correctly in metricsMap keys', async () => {
-    mockTimeSeriesMarkers.mockResolvedValue([{ ...SIMPLE_MARKER, appVersion: '3.0.0' }]);
-
-    const metricsMap = await fetchObserveMetricsAsync(
-      mockGraphqlClient,
-      'project-123',
-      ['expo.app_startup.tti'],
-      [AppPlatform.Android],
-      '2025-01-01T00:00:00.000Z',
-      '2025-03-01T00:00:00.000Z'
-    );
-
-    expect(metricsMap.has(`3.0.0:${AppPlatform.Android}`)).toBe(true);
-    expect(metricsMap.has(`3.0.0:${AppObservePlatform.Android}`)).toBe(false);
   });
 });

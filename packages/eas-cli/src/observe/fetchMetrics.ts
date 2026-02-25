@@ -2,7 +2,8 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AppObservePlatform, AppObserveVersionMarker, AppPlatform } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
-import { MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
+import type { MetricValues, ObserveMetricsMap } from './metrics.types';
+import { makeMetricsKey } from './utils';
 
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
   [AppPlatform.Android]: AppObservePlatform.Android,

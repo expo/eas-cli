@@ -2,7 +2,11 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { AppObservePlatform, AppObserveTimeSeriesInput, AppObserveVersionMarker } from '../generated';
+import {
+  AppObservePlatform,
+  AppObserveTimeSeriesInput,
+  AppObserveVersionMarker,
+} from '../generated';
 
 type AppObserveTimeSeriesQuery = {
   app: {

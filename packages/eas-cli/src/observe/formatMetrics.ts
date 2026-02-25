@@ -4,6 +4,8 @@ import { EasCommandError } from '../commandUtils/errors';
 import { AppPlatform } from '../graphql/generated';
 import { appPlatformDisplayNames } from '../platform';
 import { getMetricDisplayName } from './metricNames';
+import { parseMetricsKey } from './utils';
+import type { ObserveMetricsMap } from './metrics.types';
 
 export type StatisticKey =
   | 'min'
@@ -62,33 +64,6 @@ function formatStatValue(stat: StatisticKey, value: number | null | undefined): 
     return String(value);
   }
   return `${value.toFixed(2)}s`;
-}
-
-export interface MetricValues {
-  min: number | null | undefined;
-  max: number | null | undefined;
-  median: number | null | undefined;
-  average: number | null | undefined;
-  p80: number | null | undefined;
-  p90: number | null | undefined;
-  p99: number | null | undefined;
-  eventCount: number | null | undefined;
-}
-
-type ObserveMetricsKey = `${string}:${AppPlatform}`;
-
-export type ObserveMetricsMap = Map<ObserveMetricsKey, Map<string, MetricValues>>;
-
-export function makeMetricsKey(appVersion: string, platform: AppPlatform): ObserveMetricsKey {
-  return `${appVersion}:${platform}`;
-}
-
-function parseMetricsKey(key: ObserveMetricsKey): { appVersion: string; platform: AppPlatform } {
-  const lastColon = key.lastIndexOf(':');
-  return {
-    appVersion: key.slice(0, lastColon),
-    platform: key.slice(lastColon + 1) as AppPlatform,
-  };
 }
 
 export type MetricValuesJson = Partial<Record<StatisticKey, number | null>>;

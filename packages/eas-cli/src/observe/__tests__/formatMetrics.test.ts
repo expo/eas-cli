@@ -1,12 +1,11 @@
 import { AppPlatform } from '../../graphql/generated';
 import {
-  ObserveMetricsMap,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
-  makeMetricsKey,
   resolveStatKey,
-  type MetricValues,
 } from '../formatMetrics';
+import type { MetricValues, ObserveMetricsMap } from '../metrics.types';
+import { makeMetricsKey } from '../utils';
 
 function makeMetricValueWithDefaults(overrides: Partial<MetricValues>): MetricValues {
   return {
