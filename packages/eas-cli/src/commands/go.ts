@@ -173,7 +173,7 @@ export default class Go extends EasCommand {
   async runAsync(): Promise<void> {
     Log.log(
       chalk.bold(
-        `Creating your personal Expo Go and deploying to TestFlight. ${learnMore('https://expo.fyi/personal-expo-go')}`
+        `Creating your personal Expo Go and deploying to TestFlight. ${learnMore('https://expo.fyi/deploy-expo-go-testflight')}`
       )
     );
 
