@@ -34,7 +34,7 @@ export async function fetchObserveMetricsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   metricNames: string[],
-  platforms: Set<AppPlatform>,
+  platforms: AppPlatform[],
   startTime: string,
   endTime: string
 ): Promise<ObserveMetricsMap> {

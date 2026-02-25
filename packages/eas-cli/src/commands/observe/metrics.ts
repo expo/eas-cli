@@ -2,12 +2,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import {
-  EasPaginatedQueryFlags,
-  getLimitFlagWithCustomValues,
-} from '../../commandUtils/pagination';
-import { AppPlatform, BuildStatus } from '../../graphql/generated';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
+import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../observe/fetchMetrics';
 import {
@@ -27,8 +22,6 @@ const DEFAULT_METRICS = [
   'expo.app_startup.bundle_load_time',
 ];
 
-const DEFAULT_BUILDS_LIMIT = 25;
-const MAX_BUILDS_LIMIT = 50;
 const DEFAULT_DAYS_BACK = 60;
 
 const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
@@ -44,7 +37,7 @@ const DEFAULT_STATS_JSON: StatisticKey[] = [
 ];
 
 export default class ObserveMetrics extends EasCommand {
-  static override description = 'display app performance metrics grouped by recent builds';
+  static override description = 'display app performance metrics grouped by app version';
 
   static override flags = {
     platform: Flags.enum<'android' | 'ios'>({
@@ -62,25 +55,17 @@ export default class ObserveMetrics extends EasCommand {
       multiple: true,
     }),
     start: Flags.string({
-      description:
-        'Start of time range for metrics data (ISO date). Does not filter build selection.',
+      description: 'Start of time range for metrics data (ISO date).',
       exclusive: ['days-from-now'],
     }),
     end: Flags.string({
-      description:
-        'End of time range for metrics data (ISO date). Does not filter build selection.',
+      description: 'End of time range for metrics data (ISO date).',
       exclusive: ['days-from-now'],
     }),
     'days-from-now': Flags.integer({
       description: 'Show metrics from the last N days (mutually exclusive with --start/--end)',
       min: 1,
       exclusive: ['start', 'end'],
-    }),
-    ...EasPaginatedQueryFlags,
-    limit: getLimitFlagWithCustomValues({
-      defaultTo: DEFAULT_BUILDS_LIMIT,
-      limit: MAX_BUILDS_LIMIT,
-      description: `The number of most recent finished builds to fetch (not filtered by --start/--end). Defaults to ${DEFAULT_BUILDS_LIMIT} and is capped at ${MAX_BUILDS_LIMIT}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -128,40 +113,15 @@ export default class ObserveMetrics extends EasCommand {
         flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    const platformFilter = flags.platform
-      ? flags.platform === 'android'
-        ? AppPlatform.Android
-        : AppPlatform.Ios
-      : undefined;
-
-    // TODO @ubax: builds are fetched independently of --start/--end; ideally we should also
-    // filter builds by the requested time range so irrelevant builds aren't included.
-    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
-      appId: projectId,
-      limit: flags.limit ?? DEFAULT_BUILDS_LIMIT,
-      offset: flags.offset ?? 0,
-      filter: {
-        status: BuildStatus.Finished,
-        ...(platformFilter ? { platform: platformFilter } : {}),
-      },
-    });
-
-    if (builds.length === 0) {
-      if (flags.json) {
-        printJsonOnlyOutput([]);
-      } else {
-        Log.warn('No finished builds found.');
-      }
-      return;
-    }
-
-    const platformsInBuilds = new Set(builds.map(b => b.platform));
+    const platforms: AppPlatform[] = flags.platform
+      ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]
+      : [AppPlatform.Android, AppPlatform.Ios];
 
     const metricsMap = await fetchObserveMetricsAsync(
       graphqlClient,
       projectId,
       metricNames,
-      platformsInBuilds,
+      platforms,
       startTime,
       endTime
     );
@@ -172,11 +132,11 @@ export default class ObserveMetrics extends EasCommand {
 
     if (flags.json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
-      printJsonOnlyOutput(buildObserveMetricsJson(builds, metricsMap, metricNames, stats));
+      printJsonOnlyOutput(buildObserveMetricsJson(metricsMap, metricNames, stats));
     } else {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
-      Log.log(buildObserveMetricsTable(builds, metricsMap, metricNames, stats));
+      Log.log(buildObserveMetricsTable(metricsMap, metricNames, stats));
     }
   }
 }

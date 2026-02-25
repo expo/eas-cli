@@ -1,18 +1,12 @@
 import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppPlatform, BuildStatus } from '../../../graphql/generated';
-import { BuildQuery } from '../../../graphql/queries/BuildQuery';
+import { AppPlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
 
-jest.mock('../../../graphql/queries/BuildQuery', () => ({
-  BuildQuery: {
-    viewBuildsOnAppAsync: jest.fn(),
-  },
-}));
 jest.mock('../../../observe/fetchMetrics', () => {
   const actual = jest.requireActual('../../../observe/fetchMetrics');
   return {
@@ -28,7 +22,6 @@ jest.mock('../../../observe/formatMetrics', () => ({
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
-const mockViewBuildsOnAppAsync = jest.mocked(BuildQuery.viewBuildsOnAppAsync);
 const mockFetchObserveMetricsAsync = jest.mocked(fetchObserveMetricsAsync);
 const mockBuildObserveMetricsTable = jest.mocked(buildObserveMetricsTable);
 const mockBuildObserveMetricsJson = jest.mocked(buildObserveMetricsJson);
@@ -42,15 +35,6 @@ describe(ObserveMetrics, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockViewBuildsOnAppAsync.mockResolvedValue([
-      {
-        __typename: 'Build' as const,
-        id: 'build-1',
-        platform: AppPlatform.Ios,
-        appVersion: '1.0.0',
-        status: BuildStatus.Finished,
-      } as any,
-    ]);
     mockFetchObserveMetricsAsync.mockResolvedValue(new Map());
   });
 
@@ -64,80 +48,34 @@ describe(ObserveMetrics, () => {
     return command;
   }
 
-  it('fetches builds and metrics with default parameters', async () => {
+  it('fetches metrics with default parameters (both platforms)', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
     const command = createCommand([]);
     await command.runAsync();
 
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledTimes(1);
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({
-        appId: projectId,
-        limit: 25,
-        offset: 0,
-        filter: { status: BuildStatus.Finished },
-      })
-    );
     expect(mockFetchObserveMetricsAsync).toHaveBeenCalledTimes(1);
+    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    expect(platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
 
     jest.useRealTimers();
   });
 
-  it('passes --platform android as AppPlatform.Android filter', async () => {
+  it('queries only Android when --platform android is passed', async () => {
     const command = createCommand(['--platform', 'android']);
     await command.runAsync();
 
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({
-        filter: { status: BuildStatus.Finished, platform: AppPlatform.Android },
-      })
-    );
+    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    expect(platforms).toEqual([AppPlatform.Android]);
   });
 
-  it('passes --platform ios as AppPlatform.Ios filter', async () => {
+  it('queries only iOS when --platform ios is passed', async () => {
     const command = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({
-        filter: { status: BuildStatus.Finished, platform: AppPlatform.Ios },
-      })
-    );
-  });
-
-  it('passes --limit to the builds query', async () => {
-    const command = createCommand(['--limit', '5']);
-    await command.runAsync();
-
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({ limit: 5 })
-    );
-  });
-
-  it('passes --offset to the builds query', async () => {
-    const command = createCommand(['--offset', '10']);
-    await command.runAsync();
-
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({ offset: 10 })
-    );
-  });
-
-  it('defaults offset to 0 when not provided', async () => {
-    const command = createCommand([]);
-    await command.runAsync();
-
-    expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(
-      graphqlClient,
-      expect.objectContaining({ offset: 0 })
-    );
+    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    expect(platforms).toEqual([AppPlatform.Ios]);
   });
 
   it('resolves --metric aliases before passing to fetchObserveMetricsAsync', async () => {
@@ -178,55 +116,11 @@ describe(ObserveMetrics, () => {
     expect(endTime).toBe('2025-02-01T00:00:00.000Z');
   });
 
-  it('does not call fetchObserveMetricsAsync when no builds found', async () => {
-    mockViewBuildsOnAppAsync.mockResolvedValue([]);
-
-    const command = createCommand([]);
-    await command.runAsync();
-
-    expect(mockFetchObserveMetricsAsync).not.toHaveBeenCalled();
-  });
-
-  it('collects unique platforms from builds for metrics fetch', async () => {
-    mockViewBuildsOnAppAsync.mockResolvedValue([
-      {
-        __typename: 'Build' as const,
-        id: 'build-1',
-        platform: AppPlatform.Ios,
-        appVersion: '1.0.0',
-        status: BuildStatus.Finished,
-      } as any,
-      {
-        __typename: 'Build' as const,
-        id: 'build-2',
-        platform: AppPlatform.Android,
-        appVersion: '1.0.0',
-        status: BuildStatus.Finished,
-      } as any,
-      {
-        __typename: 'Build' as const,
-        id: 'build-3',
-        platform: AppPlatform.Ios,
-        appVersion: '1.1.0',
-        status: BuildStatus.Finished,
-      } as any,
-    ]);
-
-    const command = createCommand([]);
-    await command.runAsync();
-
-    const platformsSet = mockFetchObserveMetricsAsync.mock.calls[0][3] as Set<AppPlatform>;
-    expect(platformsSet.size).toBe(2);
-    expect(platformsSet.has(AppPlatform.Ios)).toBe(true);
-    expect(platformsSet.has(AppPlatform.Android)).toBe(true);
-  });
-
   it('passes resolved --stat flags to buildObserveMetricsTable', async () => {
     const command = createCommand(['--stat', 'p90', '--stat', 'count']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Array),
       expect.any(Map),
       expect.any(Array),
       ['p90', 'eventCount']
@@ -238,7 +132,6 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Array),
       expect.any(Map),
       expect.any(Array),
       ['median']
@@ -277,7 +170,6 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Array),
       expect.any(Map),
       expect.any(Array),
       ['median', 'eventCount']
@@ -297,7 +189,6 @@ describe(ObserveMetrics, () => {
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(
-      expect.any(Array),
       expect.any(Map),
       expect.any(Array),
       ['min', 'average']

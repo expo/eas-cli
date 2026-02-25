@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { EasCommandError } from '../commandUtils/errors';
-import { AppPlatform, BuildFragment } from '../graphql/generated';
+import { AppPlatform } from '../graphql/generated';
 import { appPlatformDisplayNames } from '../platform';
 import { getMetricDisplayName } from './metricNames';
 
@@ -80,79 +80,35 @@ export function makeMetricsKey(appVersion: string, platform: AppPlatform): Obser
   return `${appVersion}:${platform}`;
 }
 
-interface VersionGroup {
-  appVersion: string;
-  platform: AppPlatform;
-  commits: Set<string>;
-  lastBuildDate: string | null;
-}
-
-function groupBuildsByVersion(builds: BuildFragment[]): VersionGroup[] {
-  const grouped = new Map<ObserveMetricsKey, VersionGroup>();
-
-  for (const build of builds) {
-    const version = build.appVersion ?? '-';
-    const key = makeMetricsKey(version, build.platform);
-
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        appVersion: version,
-        platform: build.platform,
-        commits: new Set(),
-        lastBuildDate: build.completedAt ?? null,
-      });
-    } else {
-      const group = grouped.get(key)!;
-      if (build.completedAt && (!group.lastBuildDate || build.completedAt > group.lastBuildDate)) {
-        group.lastBuildDate = build.completedAt;
-      }
-    }
-
-    if (build.gitCommitHash) {
-      grouped.get(key)!.commits.add(build.gitCommitHash.slice(0, 7));
-    }
-  }
-
-  return [...grouped.values()];
-}
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) {
-    return '-';
-  }
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+function parseMetricsKey(key: ObserveMetricsKey): { appVersion: string; platform: AppPlatform } {
+  const lastColon = key.lastIndexOf(':');
+  return {
+    appVersion: key.slice(0, lastColon),
+    platform: key.slice(lastColon + 1) as AppPlatform,
+  };
 }
 
 export type MetricValuesJson = Partial<Record<StatisticKey, number | null>>;
 
 export interface ObserveMetricsVersionResult {
-  appVersion: string | null;
+  appVersion: string;
   platform: AppPlatform;
-  lastBuildDate: string | null;
-  commits: string[];
   metrics: Record<string, MetricValuesJson>;
 }
 
 export function buildObserveMetricsJson(
-  builds: BuildFragment[],
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[]
 ): ObserveMetricsVersionResult[] {
-  const groups = groupBuildsByVersion(builds);
+  const results: ObserveMetricsVersionResult[] = [];
 
-  return groups.map(group => {
-    const key = group.appVersion !== '-' ? makeMetricsKey(group.appVersion, group.platform) : null;
-    const versionMetrics = key ? metricsMap.get(key) : undefined;
+  for (const [key, versionMetrics] of metricsMap) {
+    const { appVersion, platform } = parseMetricsKey(key);
 
     const metrics: Record<string, MetricValuesJson> = {};
     for (const metricName of metricNames) {
-      const values = versionMetrics?.get(metricName);
+      const values = versionMetrics.get(metricName);
       const statValues: MetricValuesJson = {};
       for (const stat of stats) {
         statValues[stat] = values?.[stat] ?? null;
@@ -160,29 +116,24 @@ export function buildObserveMetricsJson(
       metrics[metricName] = statValues;
     }
 
-    return {
-      appVersion: group.appVersion !== '-' ? group.appVersion : null,
-      platform: group.platform,
-      lastBuildDate: group.lastBuildDate,
-      commits: [...group.commits],
-      metrics,
-    };
-  });
+    results.push({ appVersion, platform, metrics });
+  }
+
+  return results;
 }
 
 export function buildObserveMetricsTable(
-  builds: BuildFragment[],
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[]
 ): string {
-  const results = buildObserveMetricsJson(builds, metricsMap, metricNames, stats);
+  const results = buildObserveMetricsJson(metricsMap, metricNames, stats);
 
   if (results.length === 0) {
-    return chalk.yellow('No finished builds found.');
+    return chalk.yellow('No metrics data found.');
   }
 
-  const fixedHeaders = ['App Version', 'Platform', 'Last Build', 'Commits'];
+  const fixedHeaders = ['App Version', 'Platform'];
   const metricHeaders: string[] = [];
   for (const m of metricNames) {
     const name = getMetricDisplayName(m);
@@ -201,13 +152,7 @@ export function buildObserveMetricsTable(
       }
     }
 
-    return [
-      result.appVersion ?? '-',
-      appPlatformDisplayNames[result.platform],
-      formatDate(result.lastBuildDate),
-      result.commits.length > 0 ? result.commits.join(', ') : '-',
-      ...metricCells,
-    ];
+    return [result.appVersion, appPlatformDisplayNames[result.platform], ...metricCells];
   });
 
   const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));

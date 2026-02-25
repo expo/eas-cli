@@ -65,7 +65,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti', 'expo.app_startup.cold_launch_time'],
-      new Set([AppPlatform.Ios]),
+      [AppPlatform.Ios],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -107,7 +107,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      new Set([AppPlatform.Ios, AppPlatform.Android]),
+      [AppPlatform.Ios, AppPlatform.Android],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -149,7 +149,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti', 'bad.metric'],
-      new Set([AppPlatform.Android]),
+      [AppPlatform.Android],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -178,7 +178,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      new Set([AppPlatform.Ios]),
+      [AppPlatform.Ios],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
@@ -210,7 +210,7 @@ describe('fetchObserveMetricsAsync', () => {
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
-      new Set([AppPlatform.Android]),
+      [AppPlatform.Android],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );
