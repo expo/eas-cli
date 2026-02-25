@@ -2,18 +2,14 @@ import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../../../graphql/generated';
-import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
+import { fetchObserveMetricsAsync } from '../../../observe/fetchMetrics';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
 
-jest.mock('../../../observe/fetchMetrics', () => {
-  const actual = jest.requireActual('../../../observe/fetchMetrics');
-  return {
-    ...actual,
-    fetchObserveMetricsAsync: jest.fn(),
-  };
-});
+jest.mock('../../../observe/fetchMetrics', () => ({
+  fetchObserveMetricsAsync: jest.fn(),
+}));
 jest.mock('../../../observe/formatMetrics', () => ({
   ...jest.requireActual('../../../observe/formatMetrics'),
   buildObserveMetricsTable: jest.fn().mockReturnValue('table'),
@@ -120,22 +116,19 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--stat', 'p90', '--stat', 'count']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['p90', 'eventCount']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'p90',
+      'eventCount',
+    ]);
   });
 
   it('deduplicates --stat flags that resolve to the same key', async () => {
     const command = createCommand(['--stat', 'med', '--stat', 'median']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['median']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'median',
+    ]);
   });
 
   it('uses --days-from-now to compute start/end time range', async () => {
@@ -169,11 +162,10 @@ describe(ObserveMetrics, () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['median', 'eventCount']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'median',
+      'eventCount',
+    ]);
   });
 
   it('passes resolved --stat flags to buildObserveMetricsJson when --json is used', async () => {
@@ -188,27 +180,10 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['min', 'average']
-    );
+    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'min',
+      'average',
+    ]);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
-  });
-});
-
-describe(validateDateFlag, () => {
-  it('throws on invalid --start date', () => {
-    expect(() => validateDateFlag('not-a-date', '--start')).toThrow(
-      'Invalid --start date: "not-a-date"'
-    );
-  });
-
-  it('throws on invalid --end date', () => {
-    expect(() => validateDateFlag('also-bad', '--end')).toThrow('Invalid --end date: "also-bad"');
-  });
-
-  it('accepts valid ISO date in --start', () => {
-    expect(() => validateDateFlag('2025-01-01', '--start')).not.toThrow();
   });
 });
