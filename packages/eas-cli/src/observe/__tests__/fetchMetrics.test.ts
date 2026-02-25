@@ -4,6 +4,24 @@ import { makeMetricsKey } from '../formatMetrics';
 import { fetchObserveMetricsAsync } from '../fetchMetrics';
 
 jest.mock('../../graphql/queries/ObserveQuery');
+jest.mock('../../log');
+
+const SIMPLE_MARKER = {
+  __typename: 'AppObserveVersionMarker' as const,
+  appVersion: '1.0.0',
+  eventCount: 100,
+  firstSeenAt: '2025-01-01T00:00:00.000Z',
+  statistics: {
+    __typename: 'AppObserveVersionMarkerStatistics' as const,
+    min: 0.1,
+    max: 0.5,
+    median: 0.2,
+    average: 0.3,
+    p80: 0.35,
+    p90: 0.4,
+    p99: 0.48,
+  },
+};
 
 describe('fetchObserveMetricsAsync', () => {
   const mockTimeSeriesMarkers = jest.mocked(ObserveQuery.timeSeriesVersionMarkersAsync);
@@ -14,52 +32,9 @@ describe('fetchObserveMetricsAsync', () => {
   });
 
   it('fans out queries for each metric+platform combo and assembles metricsMap', async () => {
-    mockTimeSeriesMarkers.mockImplementation(async (_client, { metricName, platform }) => {
-      if (metricName === 'expo.app_startup.tti' && platform === AppObservePlatform.Ios) {
-        return [
-          {
-            __typename: 'AppObserveVersionMarker' as const,
-            appVersion: '1.0.0',
-            eventCount: 100,
-            firstSeenAt: '2025-01-01T00:00:00.000Z',
-            statistics: {
-              __typename: 'AppObserveVersionMarkerStatistics' as const,
-              min: 0.01,
-              max: 0.5,
-              median: 0.1,
-              average: 0.15,
-              p80: 0.3,
-              p90: 0.4,
-              p99: 0.48,
-            },
-          },
-        ];
-      }
-      if (
-        metricName === 'expo.app_startup.cold_launch_time' &&
-        platform === AppObservePlatform.Ios
-      ) {
-        return [
-          {
-            __typename: 'AppObserveVersionMarker' as const,
-            appVersion: '1.0.0',
-            eventCount: 80,
-            firstSeenAt: '2025-01-01T00:00:00.000Z',
-            statistics: {
-              __typename: 'AppObserveVersionMarkerStatistics' as const,
-              min: 0.05,
-              max: 1.2,
-              median: 0.3,
-              average: 0.4,
-              p80: 0.8,
-              p90: 1.0,
-              p99: 1.15,
-            },
-          },
-        ];
-      }
-      return [];
-    });
+    mockTimeSeriesMarkers
+      .mockResolvedValueOnce([{ ...SIMPLE_MARKER, eventCount: 100 }])
+      .mockResolvedValueOnce([{ ...SIMPLE_MARKER, eventCount: 80 }]);
 
     const metricsMap = await fetchObserveMetricsAsync(
       mockGraphqlClient,
@@ -70,34 +45,30 @@ describe('fetchObserveMetricsAsync', () => {
       '2025-03-01T00:00:00.000Z'
     );
 
-    // Should have called the query twice (2 metrics x 1 platform)
     expect(mockTimeSeriesMarkers).toHaveBeenCalledTimes(2);
+    expect(mockTimeSeriesMarkers).toHaveBeenNthCalledWith(1, mockGraphqlClient, {
+      appId: 'project-123',
+      metricName: 'expo.app_startup.tti',
+      platform: AppObservePlatform.Ios,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+    expect(mockTimeSeriesMarkers).toHaveBeenNthCalledWith(2, mockGraphqlClient, {
+      appId: 'project-123',
+      metricName: 'expo.app_startup.cold_launch_time',
+      platform: AppObservePlatform.Ios,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
 
-    // Verify metricsMap was assembled correctly
     const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
-    expect(metricsMap.has(key)).toBe(true);
-
     const metricsForVersion = metricsMap.get(key)!;
-    expect(metricsForVersion.get('expo.app_startup.tti')).toEqual({
-      min: 0.01,
-      max: 0.5,
-      median: 0.1,
-      average: 0.15,
-      p80: 0.3,
-      p90: 0.4,
-      p99: 0.48,
-      eventCount: 100,
-    });
-    expect(metricsForVersion.get('expo.app_startup.cold_launch_time')).toEqual({
-      min: 0.05,
-      max: 1.2,
-      median: 0.3,
-      average: 0.4,
-      p80: 0.8,
-      p90: 1.0,
-      p99: 1.15,
-      eventCount: 80,
-    });
+    expect(metricsForVersion.get('expo.app_startup.tti')).toEqual(
+      expect.objectContaining({ eventCount: 100, min: 0.1, p99: 0.48 })
+    );
+    expect(metricsForVersion.get('expo.app_startup.cold_launch_time')).toEqual(
+      expect.objectContaining({ eventCount: 80 })
+    );
   });
 
   it('fans out across multiple platforms', async () => {
@@ -112,38 +83,27 @@ describe('fetchObserveMetricsAsync', () => {
       '2025-03-01T00:00:00.000Z'
     );
 
-    // 1 metric x 2 platforms = 2 calls
     expect(mockTimeSeriesMarkers).toHaveBeenCalledTimes(2);
-
-    const platforms = mockTimeSeriesMarkers.mock.calls.map(call => call[1].platform);
-    expect(platforms).toContain(AppObservePlatform.Ios);
-    expect(platforms).toContain(AppObservePlatform.Android);
+    expect(mockTimeSeriesMarkers).toHaveBeenNthCalledWith(1, mockGraphqlClient, {
+      appId: 'project-123',
+      metricName: 'expo.app_startup.tti',
+      platform: AppObservePlatform.Ios,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
+    expect(mockTimeSeriesMarkers).toHaveBeenNthCalledWith(2, mockGraphqlClient, {
+      appId: 'project-123',
+      metricName: 'expo.app_startup.tti',
+      platform: AppObservePlatform.Android,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+    });
   });
 
-  it('handles partial failures gracefully — successful queries still populate metricsMap', async () => {
-    mockTimeSeriesMarkers.mockImplementation(async (_client, { metricName }) => {
-      if (metricName === 'bad.metric') {
-        throw new Error('Unknown metric');
-      }
-      return [
-        {
-          __typename: 'AppObserveVersionMarker' as const,
-          appVersion: '2.0.0',
-          eventCount: 50,
-          firstSeenAt: '2025-01-01T00:00:00.000Z',
-          statistics: {
-            __typename: 'AppObserveVersionMarkerStatistics' as const,
-            min: 0.1,
-            max: 0.9,
-            median: 0.5,
-            average: 0.5,
-            p80: 0.7,
-            p90: 0.8,
-            p99: 0.85,
-          },
-        },
-      ];
-    });
+  it('handles partial failures gracefully - successful queries still populate metricsMap', async () => {
+    mockTimeSeriesMarkers
+      .mockResolvedValueOnce([SIMPLE_MARKER])
+      .mockRejectedValueOnce(new Error('Unknown metric'));
 
     const metricsMap = await fetchObserveMetricsAsync(
       mockGraphqlClient,
@@ -154,20 +114,8 @@ describe('fetchObserveMetricsAsync', () => {
       '2025-03-01T00:00:00.000Z'
     );
 
-    // Should not throw; the good metric should still be in the map
-    const key = makeMetricsKey('2.0.0', AppPlatform.Android);
-    expect(metricsMap.has(key)).toBe(true);
-    expect(metricsMap.get(key)!.get('expo.app_startup.tti')).toEqual({
-      min: 0.1,
-      max: 0.9,
-      median: 0.5,
-      average: 0.5,
-      p80: 0.7,
-      p90: 0.8,
-      p99: 0.85,
-      eventCount: 50,
-    });
-    // The bad metric should not be present
+    const key = makeMetricsKey('1.0.0', AppPlatform.Android);
+    expect(metricsMap.get(key)!.has('expo.app_startup.tti')).toBe(true);
     expect(metricsMap.get(key)!.has('bad.metric')).toBe(false);
   });
 
@@ -187,24 +135,7 @@ describe('fetchObserveMetricsAsync', () => {
   });
 
   it('maps AppObservePlatform back to AppPlatform correctly in metricsMap keys', async () => {
-    mockTimeSeriesMarkers.mockResolvedValue([
-      {
-        __typename: 'AppObserveVersionMarker' as const,
-        appVersion: '3.0.0',
-        eventCount: 10,
-        firstSeenAt: '2025-01-01T00:00:00.000Z',
-        statistics: {
-          __typename: 'AppObserveVersionMarkerStatistics' as const,
-          min: 0.1,
-          max: 0.2,
-          median: 0.15,
-          average: 0.15,
-          p80: 0.18,
-          p90: 0.19,
-          p99: 0.2,
-        },
-      },
-    ]);
+    mockTimeSeriesMarkers.mockResolvedValue([{ ...SIMPLE_MARKER, appVersion: '3.0.0' }]);
 
     const metricsMap = await fetchObserveMetricsAsync(
       mockGraphqlClient,

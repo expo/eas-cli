@@ -1,27 +1,12 @@
 import { AppPlatform } from '../../graphql/generated';
 import {
   ObserveMetricsMap,
-  StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
   makeMetricsKey,
   resolveStatKey,
   type MetricValues,
 } from '../formatMetrics';
-
-const TABLE_FORMAT_DEFAULT_STATS: StatisticKey[] = ['median', 'eventCount'];
-const JSON_FORMAT_DEFAULT_STATS: StatisticKey[] = [
-  'min',
-  'median',
-  'max',
-  'average',
-  'p80',
-  'p90',
-  'p99',
-  'eventCount',
-];
-
-const DEFAULT_METRICS = ['expo.app_startup.cold_launch_time', 'expo.app_startup.tti'];
 
 function makeMetricValueWithDefaults(overrides: Partial<MetricValues>): MetricValues {
   return {
@@ -64,7 +49,11 @@ describe(buildObserveMetricsTable, () => {
       ])
     );
 
-    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
+    const output = buildObserveMetricsTable(
+      metricsMap,
+      ['expo.app_startup.cold_launch_time', 'expo.app_startup.tti'],
+      ['median', 'eventCount']
+    );
 
     // The header is bolded, thus the escape characters in the snapshot
     expect(output).toMatchInlineSnapshot(`
@@ -80,7 +69,11 @@ describe(buildObserveMetricsTable, () => {
     const key = makeMetricsKey('2.0.0', AppPlatform.Ios);
     metricsMap.set(key, new Map());
 
-    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
+    const output = buildObserveMetricsTable(
+      metricsMap,
+      ['expo.app_startup.cold_launch_time', 'expo.app_startup.tti'],
+      ['median', 'eventCount']
+    );
 
     expect(output).toMatchInlineSnapshot(`
 "[1mApp Version  Platform  Cold Launch Med  Cold Launch Count  TTI Med  TTI Count[22m
@@ -90,7 +83,11 @@ describe(buildObserveMetricsTable, () => {
   });
 
   it('returns message when no metrics data found', () => {
-    const output = buildObserveMetricsTable(new Map(), DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
+    const output = buildObserveMetricsTable(
+      new Map(),
+      ['expo.app_startup.cold_launch_time', 'expo.app_startup.tti'],
+      ['median', 'eventCount']
+    );
     expect(output).toMatchInlineSnapshot(`"[33mNo metrics data found.[39m"`);
   });
 });
@@ -106,7 +103,11 @@ describe(buildObserveMetricsJson, () => {
       ])
     );
 
-    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], JSON_FORMAT_DEFAULT_STATS);
+    const result = buildObserveMetricsJson(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      ['min', 'median', 'max', 'p99']
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -117,11 +118,7 @@ describe(buildObserveMetricsJson, () => {
           min: 0.1,
           median: 0.12,
           max: 1.1,
-          average: 0.5,
-          p80: 0.8,
-          p90: 0.9,
           p99: 1.0,
-          eventCount: 90,
         },
       },
     });
@@ -135,7 +132,7 @@ describe(buildObserveMetricsJson, () => {
     const result = buildObserveMetricsJson(
       metricsMap,
       ['expo.app_startup.tti'],
-      JSON_FORMAT_DEFAULT_STATS
+      ['min', 'median', 'max', 'average', 'p80', 'p90', 'p99', 'eventCount']
     );
 
     expect(result[0].metrics).toEqual({
@@ -184,7 +181,6 @@ describe(resolveStatKey, () => {
   });
 });
 
-
 describe('custom stats parameter', () => {
   it('table renders only selected stats', () => {
     const metricsMap: ObserveMetricsMap = new Map();
@@ -208,10 +204,11 @@ describe('custom stats parameter', () => {
       ])
     );
 
-    const output = buildObserveMetricsTable(metricsMap, ['expo.app_startup.tti'], [
-      'p99',
-      'eventCount',
-    ]);
+    const output = buildObserveMetricsTable(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      ['p99', 'eventCount']
+    );
 
     expect(output).toContain('TTI P99');
     expect(output).toContain('TTI Count');
@@ -273,10 +270,11 @@ describe('custom stats parameter', () => {
       ])
     );
 
-    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], [
-      'p90',
-      'eventCount',
-    ]);
+    const result = buildObserveMetricsJson(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      ['p90', 'eventCount']
+    );
 
     expect(result[0].metrics['expo.app_startup.tti']).toEqual({
       p90: 0.4,
@@ -309,7 +307,7 @@ describe('custom stats parameter', () => {
     const result = buildObserveMetricsJson(
       metricsMap,
       ['expo.app_startup.tti'],
-      JSON_FORMAT_DEFAULT_STATS
+      ['min', 'median', 'max', 'average', 'p80', 'p90', 'p99', 'eventCount']
     );
 
     expect(result[0].metrics['expo.app_startup.tti']).toEqual({
