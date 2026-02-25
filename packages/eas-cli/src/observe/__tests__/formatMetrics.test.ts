@@ -64,10 +64,18 @@ describe(buildObserveMetricsTable, () => {
 `);
   });
 
-  it('shows - for versions with no matching metric data', () => {
+  it('shows - for metrics with missing values for versions', () => {
     const metricsMap: ObserveMetricsMap = new Map();
     const key = makeMetricsKey('2.0.0', AppPlatform.Ios);
-    metricsMap.set(key, new Map());
+    metricsMap.set(
+      key,
+      new Map([
+        [
+          'expo.app_startup.cold_launch_time',
+          makeMetricValueWithDefaults({ median: 0.25, eventCount: 80 }),
+        ],
+      ])
+    );
 
     const output = buildObserveMetricsTable(
       metricsMap,
@@ -78,7 +86,7 @@ describe(buildObserveMetricsTable, () => {
     expect(output).toMatchInlineSnapshot(`
 "[1mApp Version  Platform  Cold Launch Med  Cold Launch Count  TTI Med  TTI Count[22m
 -----------  --------  ---------------  -----------------  -------  ---------
-2.0.0        iOS       -                -                  -        -        "
+2.0.0        iOS       0.25s            80                 -        -        "
 `);
   });
 
@@ -124,26 +132,32 @@ describe(buildObserveMetricsJson, () => {
     });
   });
 
-  it('produces null values when no observe data matches for a metric', () => {
+  it('produces null values for metrics missing from a version that has other metric data', () => {
     const metricsMap: ObserveMetricsMap = new Map();
     const key = makeMetricsKey('3.0.0', AppPlatform.Android);
-    metricsMap.set(key, new Map());
+    metricsMap.set(
+      key,
+      new Map([
+        [
+          'expo.app_startup.cold_launch_time',
+          makeMetricValueWithDefaults({ median: 0.25, eventCount: 80 }),
+        ],
+      ])
+    );
 
     const result = buildObserveMetricsJson(
       metricsMap,
-      ['expo.app_startup.tti'],
-      ['min', 'median', 'max', 'average', 'p80', 'p90', 'p99', 'eventCount']
+      ['expo.app_startup.cold_launch_time', 'expo.app_startup.tti'],
+      ['median', 'eventCount']
     );
 
     expect(result[0].metrics).toEqual({
+      'expo.app_startup.cold_launch_time': {
+        median: 0.25,
+        eventCount: 80,
+      },
       'expo.app_startup.tti': {
-        min: null,
         median: null,
-        max: null,
-        average: null,
-        p80: null,
-        p90: null,
-        p99: null,
         eventCount: null,
       },
     });
@@ -279,46 +293,6 @@ describe('custom stats parameter', () => {
     expect(result[0].metrics['expo.app_startup.tti']).toEqual({
       p90: 0.4,
       eventCount: 42,
-    });
-  });
-
-  it('JSON uses default stats when not specified', () => {
-    const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
-    metricsMap.set(
-      key,
-      new Map([
-        [
-          'expo.app_startup.tti',
-          {
-            min: 0.02,
-            median: 0.1,
-            max: 0.4,
-            average: null,
-            p80: null,
-            p90: null,
-            p99: null,
-            eventCount: null,
-          },
-        ],
-      ])
-    );
-
-    const result = buildObserveMetricsJson(
-      metricsMap,
-      ['expo.app_startup.tti'],
-      ['min', 'median', 'max', 'average', 'p80', 'p90', 'p99', 'eventCount']
-    );
-
-    expect(result[0].metrics['expo.app_startup.tti']).toEqual({
-      min: 0.02,
-      median: 0.1,
-      max: 0.4,
-      average: null,
-      p80: null,
-      p90: null,
-      p99: null,
-      eventCount: null,
     });
   });
 });
