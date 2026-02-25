@@ -41,6 +41,9 @@ export const STAT_DISPLAY_NAMES: Record<StatisticKey, string> = {
   eventCount: 'Count',
 };
 
+/**
+ * Resolves a user-provided stat alias (e.g. "avg", "med", "count") to graphql supported StatisticKey.
+ */
 export function resolveStatKey(input: string): StatisticKey {
   const resolved = STAT_ALIASES[input];
   if (resolved) {
