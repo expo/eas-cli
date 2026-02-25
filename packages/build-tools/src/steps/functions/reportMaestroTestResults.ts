@@ -53,31 +53,31 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
       }
       const testsDirectory = inputs.tests_directory.value as string;
 
-      const flowResults = await parseMaestroResults(
-        junitDirectory,
-        testsDirectory,
-        stepsCtx.workingDirectory
-      );
-      if (flowResults.length === 0) {
-        logger.info('No maestro test results found, skipping report');
-        return;
-      }
-
-      // Maestro allows overriding flow names via config, so different flow files can share
-      // the same name. JUnit XML only contains names (not file paths), making it impossible
-      // to map duplicates back to their original flow files. Skip and let the user fix it.
-      const names = flowResults.map(r => r.name);
-      const duplicates = names.filter((n, i) => names.indexOf(n) !== i);
-      if (duplicates.length > 0) {
-        logger.error(
-          `Duplicate test case names found in JUnit output: ${[...new Set(duplicates)].join(
-            ', '
-          )}. Skipping report. Ensure each Maestro flow has a unique name.`
-        );
-        return;
-      }
-
       try {
+        const flowResults = await parseMaestroResults(
+          junitDirectory,
+          testsDirectory,
+          stepsCtx.workingDirectory
+        );
+        if (flowResults.length === 0) {
+          logger.info('No maestro test results found, skipping report');
+          return;
+        }
+
+        // Maestro allows overriding flow names via config, so different flow files can share
+        // the same name. JUnit XML only contains names (not file paths), making it impossible
+        // to map duplicates back to their original flow files. Skip and let the user fix it.
+        const names = flowResults.map(r => r.name);
+        const duplicates = names.filter((n, i) => names.indexOf(n) !== i);
+        if (duplicates.length > 0) {
+          logger.error(
+            `Duplicate test case names found in JUnit output: ${[...new Set(duplicates)].join(
+              ', '
+            )}. Skipping report. Ensure each Maestro flow has a unique name.`
+          );
+          return;
+        }
+
         const testCaseResults = flowResults.flatMap(f => {
           const status = FLOW_STATUS_TO_TEST_CASE_RESULT_STATUS[f.status];
           if (!status) {
