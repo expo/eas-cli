@@ -551,12 +551,34 @@ export default class Go extends EasCommand {
     graphqlClient: ExpoGraphqlClient,
     workflowRunId: string
   ): Promise<WorkflowRunStatus> {
-    const buildSpinner = ora('Building Expo Go').start();
+    const EXPECTED_BUILD_DURATION_SECONDS = 5 * 60;
+    const EXPECTED_SUBMIT_DURATION_SECONDS = 2 * 60;
+    const buildStartTime = Date.now();
+    let submitStartTime: number | null = null;
+
+    const buildSpinner = ora(
+      this.formatSpinnerText('Building Expo Go', EXPECTED_BUILD_DURATION_SECONDS, buildStartTime)
+    ).start();
     let submitSpinner: ReturnType<typeof ora> | null = null;
     let buildCompleted = false;
     let failedFetchesCount = 0;
 
     while (true) {
+      if (!buildCompleted) {
+        buildSpinner.text = this.formatSpinnerText(
+          'Building Expo Go',
+          EXPECTED_BUILD_DURATION_SECONDS,
+          buildStartTime
+        );
+      }
+      if (submitSpinner && submitStartTime) {
+        submitSpinner.text = this.formatSpinnerText(
+          'Submitting to TestFlight',
+          EXPECTED_SUBMIT_DURATION_SECONDS,
+          submitStartTime
+        );
+      }
+
       try {
         const workflowRun = await WorkflowRunQuery.withJobsByIdAsync(graphqlClient, workflowRunId, {
           useCache: false,
@@ -580,7 +602,14 @@ export default class Go extends EasCommand {
         }
 
         if (buildCompleted && submitSpinner === null && submitJob) {
-          submitSpinner = ora('Submitting to TestFlight').start();
+          submitStartTime = Date.now();
+          submitSpinner = ora(
+            this.formatSpinnerText(
+              'Submitting to TestFlight',
+              EXPECTED_SUBMIT_DURATION_SECONDS,
+              submitStartTime
+            )
+          ).start();
         }
 
         if (workflowRun.status === WorkflowRunStatus.Success) {
@@ -606,5 +635,22 @@ export default class Go extends EasCommand {
 
       await sleepAsync(10 * 1000);
     }
+  }
+
+  private formatSpinnerText(
+    label: string,
+    expectedDurationSeconds: number,
+    startTime: number
+  ): string {
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const remainingSeconds = Math.max(0, expectedDurationSeconds - elapsedSeconds);
+
+    if (remainingSeconds === 0) {
+      return `${label} (almost done...)`;
+    }
+
+    const minutes = Math.ceil(remainingSeconds / 60);
+    const unit = minutes === 1 ? 'minute' : 'minutes';
+    return `${label} (~${minutes} ${unit} remaining)`;
   }
 }
