@@ -556,17 +556,27 @@ export default class Go extends EasCommand {
     const buildStartTime = Date.now();
     let submitStartTime: number | null = null;
 
-    const buildSpinner = ora(this.formatSpinnerText('Building Expo Go', EXPECTED_BUILD_DURATION_SECONDS, buildStartTime)).start();
+    const buildSpinner = ora(
+      this.formatSpinnerText('Building Expo Go', EXPECTED_BUILD_DURATION_SECONDS, buildStartTime)
+    ).start();
     let submitSpinner: ReturnType<typeof ora> | null = null;
     let buildCompleted = false;
     let failedFetchesCount = 0;
 
     while (true) {
       if (!buildCompleted) {
-        buildSpinner.text = this.formatSpinnerText('Building Expo Go', EXPECTED_BUILD_DURATION_SECONDS, buildStartTime);
+        buildSpinner.text = this.formatSpinnerText(
+          'Building Expo Go',
+          EXPECTED_BUILD_DURATION_SECONDS,
+          buildStartTime
+        );
       }
       if (submitSpinner && submitStartTime) {
-        submitSpinner.text = this.formatSpinnerText('Submitting to TestFlight', EXPECTED_SUBMIT_DURATION_SECONDS, submitStartTime);
+        submitSpinner.text = this.formatSpinnerText(
+          'Submitting to TestFlight',
+          EXPECTED_SUBMIT_DURATION_SECONDS,
+          submitStartTime
+        );
       }
 
       try {
@@ -593,7 +603,13 @@ export default class Go extends EasCommand {
 
         if (buildCompleted && submitSpinner === null && submitJob) {
           submitStartTime = Date.now();
-          submitSpinner = ora(this.formatSpinnerText('Submitting to TestFlight', EXPECTED_SUBMIT_DURATION_SECONDS, submitStartTime)).start();
+          submitSpinner = ora(
+            this.formatSpinnerText(
+              'Submitting to TestFlight',
+              EXPECTED_SUBMIT_DURATION_SECONDS,
+              submitStartTime
+            )
+          ).start();
         }
 
         if (workflowRun.status === WorkflowRunStatus.Success) {
@@ -621,7 +637,11 @@ export default class Go extends EasCommand {
     }
   }
 
-  private formatSpinnerText(label: string, expectedDurationSeconds: number, startTime: number): string {
+  private formatSpinnerText(
+    label: string,
+    expectedDurationSeconds: number,
+    startTime: number
+  ): string {
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
     const remainingSeconds = Math.max(0, expectedDurationSeconds - elapsedSeconds);
 
