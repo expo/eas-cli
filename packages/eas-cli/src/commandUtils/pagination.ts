@@ -35,16 +35,12 @@ const parseFlagInputStringAsInteger = (
 export const getLimitFlagWithCustomValues = ({
   defaultTo,
   limit,
-  description,
 }: {
   defaultTo: number;
   limit: number;
-  description?: string;
 }): OptionFlag<number | undefined> =>
   Flags.integer({
-    description:
-      description ??
-      `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
+    description: `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
     // eslint-disable-next-line async-protect/async-suffix
     parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, limit),
   });
