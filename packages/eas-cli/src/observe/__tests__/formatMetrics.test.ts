@@ -9,8 +9,8 @@ import {
   type MetricValues,
 } from '../formatMetrics';
 
-const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
-const DEFAULT_STATS_JSON: StatisticKey[] = [
+const TABLE_FORMAT_DEFAULT_STATS: StatisticKey[] = ['median', 'eventCount'];
+const JSON_FORMAT_DEFAULT_STATS: StatisticKey[] = [
   'min',
   'median',
   'max',
@@ -64,7 +64,7 @@ describe(buildObserveMetricsTable, () => {
       ])
     );
 
-    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, DEFAULT_STATS_TABLE);
+    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
 
     // The header is bolded, thus the escape characters in the snapshot
     expect(output).toMatchInlineSnapshot(`
@@ -80,7 +80,7 @@ describe(buildObserveMetricsTable, () => {
     const key = makeMetricsKey('2.0.0', AppPlatform.Ios);
     metricsMap.set(key, new Map());
 
-    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, DEFAULT_STATS_TABLE);
+    const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
 
     expect(output).toMatchInlineSnapshot(`
 "[1mApp Version  Platform  Cold Launch Med  Cold Launch Count  TTI Med  TTI Count[22m
@@ -90,7 +90,7 @@ describe(buildObserveMetricsTable, () => {
   });
 
   it('returns message when no metrics data found', () => {
-    const output = buildObserveMetricsTable(new Map(), DEFAULT_METRICS, DEFAULT_STATS_TABLE);
+    const output = buildObserveMetricsTable(new Map(), DEFAULT_METRICS, TABLE_FORMAT_DEFAULT_STATS);
     expect(output).toMatchInlineSnapshot(`"[33mNo metrics data found.[39m"`);
   });
 });
@@ -106,7 +106,7 @@ describe(buildObserveMetricsJson, () => {
       ])
     );
 
-    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], DEFAULT_STATS_JSON);
+    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], JSON_FORMAT_DEFAULT_STATS);
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -135,7 +135,7 @@ describe(buildObserveMetricsJson, () => {
     const result = buildObserveMetricsJson(
       metricsMap,
       ['expo.app_startup.tti'],
-      DEFAULT_STATS_JSON
+      JSON_FORMAT_DEFAULT_STATS
     );
 
     expect(result[0].metrics).toEqual({
@@ -184,26 +184,6 @@ describe(resolveStatKey, () => {
   });
 });
 
-describe('DEFAULT_STATS_TABLE', () => {
-  it('defaults to median, eventCount', () => {
-    expect(DEFAULT_STATS_TABLE).toEqual(['median', 'eventCount']);
-  });
-});
-
-describe('DEFAULT_STATS_JSON', () => {
-  it('includes all stats', () => {
-    expect(DEFAULT_STATS_JSON).toEqual([
-      'min',
-      'median',
-      'max',
-      'average',
-      'p80',
-      'p90',
-      'p99',
-      'eventCount',
-    ]);
-  });
-});
 
 describe('custom stats parameter', () => {
   it('table renders only selected stats', () => {
@@ -329,7 +309,7 @@ describe('custom stats parameter', () => {
     const result = buildObserveMetricsJson(
       metricsMap,
       ['expo.app_startup.tti'],
-      DEFAULT_STATS_JSON
+      JSON_FORMAT_DEFAULT_STATS
     );
 
     expect(result[0].metrics['expo.app_startup.tti']).toEqual({

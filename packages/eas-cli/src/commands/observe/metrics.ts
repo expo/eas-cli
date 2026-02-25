@@ -24,8 +24,8 @@ const DEFAULT_METRICS = [
 
 const DEFAULT_DAYS_BACK = 60;
 
-const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
-const DEFAULT_STATS_JSON: StatisticKey[] = [
+const TABLE_FORMAT_DEFAULT_STATS: StatisticKey[] = ['median', 'eventCount'];
+const JSON_FORMAT_DEFAULT_STATS: StatisticKey[] = [
   'min',
   'median',
   'max',
@@ -131,10 +131,10 @@ export default class ObserveMetrics extends EasCommand {
       : undefined;
 
     if (flags.json) {
-      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
+      const stats: StatisticKey[] = argumentsStat ?? JSON_FORMAT_DEFAULT_STATS;
       printJsonOnlyOutput(buildObserveMetricsJson(metricsMap, metricNames, stats));
     } else {
-      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
+      const stats: StatisticKey[] = argumentsStat ?? TABLE_FORMAT_DEFAULT_STATS;
       Log.addNewLineIfNone();
       Log.log(buildObserveMetricsTable(metricsMap, metricNames, stats));
     }
