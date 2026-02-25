@@ -1,5 +1,4 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasCommandError } from '../commandUtils/errors';
 import { AppObservePlatform, AppObserveVersionMarker, AppPlatform } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
@@ -19,15 +18,6 @@ interface ObserveQueryResult {
   metricName: string;
   platform: AppObservePlatform;
   markers: AppObserveVersionMarker[];
-}
-
-export function validateDateFlag(value: string, flagName: string): void {
-  const parsed = new Date(value);
-  if (isNaN(parsed.getTime())) {
-    throw new EasCommandError(
-      `Invalid ${flagName} date: "${value}". Provide a valid ISO 8601 date (e.g. 2025-01-01).`
-    );
-  }
 }
 
 export async function fetchObserveMetricsAsync(

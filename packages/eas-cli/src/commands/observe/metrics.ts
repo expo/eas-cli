@@ -4,13 +4,14 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
-import { fetchObserveMetricsAsync, validateDateFlag } from '../../observe/fetchMetrics';
+import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
   StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
   resolveStatKey,
 } from '../../observe/formatMetrics';
+import { validateDateFlag } from '../../observe/utils';
 import { resolveMetricName } from '../../observe/metricNames';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
