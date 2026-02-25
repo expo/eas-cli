@@ -6,13 +6,17 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- Require --environment flag for update commands when SDK >= 55. ([#3398](https://github.com/expo/eas-cli/pull/3398) by [@douglowder](https://github.com/douglowder))
-
 ### 🎉 New features
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [18.0.5](https://github.com/expo/eas-cli/releases/tag/v18.0.5) - 2026-02-25
+
+### 🛠 Breaking changes
+
+- Require --environment flag for update commands when SDK >= 55. ([#3398](https://github.com/expo/eas-cli/pull/3398) by [@douglowder](https://github.com/douglowder))
 
 ## [18.0.4](https://github.com/expo/eas-cli/releases/tag/v18.0.4) - 2026-02-23
 
