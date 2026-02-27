@@ -37,6 +37,8 @@ export async function collectMetadataAsync<T extends Platform>(
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
     ...channelObject,
+    //TODO: needs to be updated in @expo/eas-build-job
+    //@ts-expect-error
     distribution,
     appName: ctx.exp.name,
     appIdentifier: resolveAppIdentifier(ctx),

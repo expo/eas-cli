@@ -297,7 +297,7 @@ export default class BuildResign extends EasCommand {
         json: false,
       },
       filter: {
-        distribution: DistributionType.Internal,
+        distribution: DistributionType.Internal || DistributionType.Development,
         platform: toAppPlatform(platform),
         status: BuildStatus.Finished,
         buildProfile,
@@ -316,8 +316,11 @@ export default class BuildResign extends EasCommand {
   ): Promise<BuildFragment | undefined> {
     if (maybeBuildId) {
       const build = await BuildQuery.byIdAsync(graphqlClient, maybeBuildId);
-      if (build.distribution !== DistributionType.Internal) {
-        throw new Error('This is not an internal distribution build.');
+      if (
+        build.distribution !== DistributionType.Internal &&
+        build.distribution !== DistributionType.Development
+      ) {
+        throw new Error('This is not an internal or development distribution build.');
       }
       if (build.status !== BuildStatus.Finished) {
         throw new Error('Only builds that finished successfully can be re-signed.');
