@@ -2020,7 +2020,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/build-tools@npm:18.0.2, @expo/build-tools@workspace:packages/build-tools":
+"@expo/build-tools@npm:18.0.6, @expo/build-tools@workspace:packages/build-tools":
   version: 0.0.0-use.local
   resolution: "@expo/build-tools@workspace:packages/build-tools"
   dependencies:
@@ -2718,7 +2718,7 @@ __metadata:
   resolution: "@expo/worker@workspace:packages/worker"
   dependencies:
     "@babel/core": "npm:7.24.7"
-    "@expo/build-tools": "npm:18.0.2"
+    "@expo/build-tools": "npm:18.0.6"
     "@expo/config-plugins": "npm:8.0.8"
     "@expo/config-types": "npm:52.0.1"
     "@expo/downloader": "npm:18.0.1"
@@ -10121,7 +10121,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "eas-cli-local-build-plugin@workspace:packages/local-build-plugin"
   dependencies:
-    "@expo/build-tools": "npm:18.0.2"
+    "@expo/build-tools": "npm:18.0.6"
     "@expo/eas-build-job": "npm:18.0.2"
     "@expo/logger": "npm:18.0.1"
     "@expo/spawn-async": "npm:^1.7.2"
