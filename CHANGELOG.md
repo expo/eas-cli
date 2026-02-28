@@ -707,6 +707,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Allow filtering by `--fingerprint_hash` in `eas build:list` command. ([#2818](https://github.com/expo/eas-cli/pull/2818) by [@szdziedzic](https://github.com/szdziedzic))
+- Allow for build version to be passed as arg so `build:version:set` can be used non-interactively ([#2825](https://github.com/expo/eas-cli/pull/2825) by [@shaneboyar](https://github.com/shaneboyar))
 
 ### 🐛 Bug fixes
 
