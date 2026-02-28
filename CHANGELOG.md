@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Support YAML anchors and aliases when parsing workflow files. ([#3435](https://github.com/expo/eas-cli/pull/3435) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
 
 ## [18.0.6](https://github.com/expo/eas-cli/releases/tag/v18.0.6) - 2026-02-27
