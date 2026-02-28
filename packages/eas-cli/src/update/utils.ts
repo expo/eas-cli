@@ -23,6 +23,7 @@ import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 import formatFields from '../utils/formatFields';
+import { boolish } from 'getenv';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?:
@@ -86,7 +87,10 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
     { label: 'Code Signing Key', value: update.codeSigningKey ?? 'N/A' },
-    { label: 'Is Roll Back to Embedded', value: update.isRollBackToEmbedded ? 'Yes' : 'No' },
+    {
+      label: 'Is Roll Back to Embedded',
+      value: update.isRollBackToEmbedded ? 'Yes' : 'No',
+    },
     {
       label: 'Rollout Percentage',
       value: update.rolloutPercentage !== undefined ? `${update.rolloutPercentage}%` : 'N/A',
@@ -360,6 +364,10 @@ export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, A
   ios: AppPlatform.Ios,
 };
 
+const environmentFlagOverride = 'EAS_UPDATE_SKIP_ENVIRONMENT_CHECK';
+
+const ciEnvironmentFlags = ['EAS_BUILD', 'CI'];
+
 export function assertEnvironmentFlagForSdk55OrGreater({
   sdkVersion,
   environment,
@@ -367,12 +375,22 @@ export function assertEnvironmentFlagForSdk55OrGreater({
   sdkVersion: string | undefined;
   environment: string | undefined;
 }): void {
-  if (process.env.EAS_BUILD) {
+  // Skip check if we are in a CI environment
+  for (let flag of ciEnvironmentFlags) {
+    if (process.env[flag]) {
+      return;
+    }
+  }
+  // Skip check if the override is set
+  if (boolish(environmentFlagOverride, false)) {
     return;
   }
   if (sdkVersion && semver.gte(sdkVersion, '55.0.0') && !environment) {
-    Errors.error('--environment flag is required for projects using Expo SDK 55 or greater', {
-      exit: 1,
-    });
+    Errors.error(
+      `--environment flag is required for projects using Expo SDK 55 or greater when publishing an update. You can override this check by setting ${environmentFlagOverride}=1.`,
+      {
+        exit: 1,
+      }
+    );
   }
 }
