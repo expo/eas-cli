@@ -31,6 +31,12 @@ const builderConfig: Ios.BuilderEnvironment | Android.BuilderEnvironment = {};
 describe('prepareRuntimeEnvironment', () => {
   beforeEach(() => {
     jest.mocked(spawn).mockReset();
+    jest.mocked(pathExists).mockReset();
+    jest.mocked(ctx.logger.info).mockReset();
+    jest.mocked(ctx.logger.warn).mockReset();
+    jest.mocked(ctx.logger.error).mockReset();
+    ctx.env = { ...process.env };
+    builderConfig.node = undefined;
   });
 
   describe('installNode', () => {
@@ -48,7 +54,6 @@ describe('prepareRuntimeEnvironment', () => {
           }
           return Promise.resolve(spawnResult);
         });
-        jest.mocked(spawn).mockResolvedValue(spawnResult);
       });
 
       it('should install the specified version of Node.js', async () => {
@@ -159,30 +164,109 @@ describe('prepareRuntimeEnvironment', () => {
       });
     });
 
-    it('should throw an error if installation fails', async () => {
+    it('logs nvm ls-remote output after install failure', async () => {
       const version = 'invalid-version';
       builderConfig.node = version;
 
-      jest.mocked(spawn).mockImplementation((cmd, _args, _opts) => {
-        if (cmd === 'bash') {
+      jest.mocked(spawn).mockImplementation((cmd, args, _opts) => {
+        if (cmd === 'bash' && args?.[1]?.includes('nvm install')) {
+          return Promise.reject(new Error('nvm install failed'));
+        }
+        if (cmd === 'bash' && args?.[1]?.includes('nvm ls-remote')) {
           return Promise.resolve({
             ...spawnResult,
-            output: [
-              '',
-              "Version 'invalid-version' not found - try `nvm ls-remote` to browse available versions.\n",
-            ],
-            stdout: '',
-            stderr:
-              "Version 'invalid-version' not found - try `nvm ls-remote` to browse available versions.\n",
-            status: 3,
+            stdout: 'v20.18.0\nv20.18.1\n',
           });
         }
         return Promise.resolve(spawnResult);
       });
-      jest.mocked(pathExists).mockResolvedValue(false);
+      jest.mocked(pathExists).mockResolvedValue(true);
+
       await expect(prepareRuntimeEnvironment(ctx, builderConfig, false)).rejects.toThrow(
         'Failed to install Node.js'
       );
+      expect(spawn).toHaveBeenCalledWith(
+        'bash',
+        ['-c', 'source ~/.nvm/nvm.sh && nvm ls-remote'],
+        expect.objectContaining({ stdio: 'pipe', env: ctx.env })
+      );
+      expect(ctx.logger.info).toHaveBeenCalledWith(expect.stringContaining('nvm ls-remote output'));
+    });
+
+    it('retries node install without NVM_NODEJS_ORG_MIRROR', async () => {
+      const version = '20.18.1';
+      builderConfig.node = version;
+      ctx.env.NVM_NODEJS_ORG_MIRROR = 'https://example-mirror.invalid';
+
+      let installAttempt = 0;
+      jest.mocked(spawn).mockImplementation((cmd, args, _opts) => {
+        if (cmd === 'bash' && args?.[1]?.includes('nvm install')) {
+          installAttempt += 1;
+          if (installAttempt === 1) {
+            return Promise.reject(new Error('first install failed'));
+          }
+          return Promise.resolve({
+            ...spawnResult,
+            stdout:
+              'Downloading and installing node v20.18.1...\nNow using node v20.18.1 (npm v10.8.2)\n',
+          });
+        }
+        if (cmd === 'bash' && args?.[1]?.includes('nvm ls-remote')) {
+          return Promise.resolve({
+            ...spawnResult,
+            stdout: 'v20.18.0\nv20.18.1\n',
+          });
+        }
+        return Promise.resolve(spawnResult);
+      });
+      jest.mocked(pathExists).mockResolvedValue(true);
+
+      await expect(prepareRuntimeEnvironment(ctx, builderConfig, false)).resolves.toBeUndefined();
+
+      const installCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([cmd, args]) => cmd === 'bash' && args?.[1]?.includes('nvm install'));
+      expect(installCalls).toHaveLength(2);
+
+      const firstAttemptEnv = installCalls[0][2].env;
+      const secondAttemptEnv = installCalls[1][2].env;
+      expect(firstAttemptEnv.NVM_NODEJS_ORG_MIRROR).toBe('https://example-mirror.invalid');
+      expect(secondAttemptEnv.NVM_NODEJS_ORG_MIRROR).toBeUndefined();
+    });
+
+    it('throws when retry also fails', async () => {
+      const version = 'invalid-version';
+      builderConfig.node = version;
+      ctx.env.NVM_NODEJS_ORG_MIRROR = 'https://example-mirror.invalid';
+
+      let installAttempt = 0;
+      jest.mocked(spawn).mockImplementation((cmd, args, _opts) => {
+        if (cmd === 'bash' && args?.[1]?.includes('nvm install')) {
+          installAttempt += 1;
+          return Promise.reject(new Error(`nvm install failed on attempt ${installAttempt}`));
+        }
+        if (cmd === 'bash' && args?.[1]?.includes('nvm ls-remote')) {
+          return Promise.resolve({
+            ...spawnResult,
+            stdout: 'v20.18.0\n',
+          });
+        }
+        return Promise.resolve(spawnResult);
+      });
+      jest.mocked(pathExists).mockResolvedValue(true);
+
+      await expect(prepareRuntimeEnvironment(ctx, builderConfig, false)).rejects.toThrow(
+        'Failed to install Node.js'
+      );
+
+      const installCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([cmd, args]) => cmd === 'bash' && args?.[1]?.includes('nvm install'));
+      const lsRemoteCalls = jest
+        .mocked(spawn)
+        .mock.calls.filter(([cmd, args]) => cmd === 'bash' && args?.[1]?.includes('nvm ls-remote'));
+      expect(installCalls).toHaveLength(2);
+      expect(lsRemoteCalls).toHaveLength(2);
     });
   });
 });
