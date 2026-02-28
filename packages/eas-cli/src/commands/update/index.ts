@@ -244,7 +244,7 @@ export default class UpdatePublish extends EasCommand {
       enableJsonOutput();
     }
 
-    await vcsClient.ensureRepoExistsAsync();
+    await vcsClient.ensureRepoExistsAsync({ nonInteractive });
     await ensureRepoIsCleanAsync(vcsClient, nonInteractive);
 
     const {

@@ -48,6 +48,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Hide progress bar in build credits warning when usage reaches 100%. ([#3371](https://github.com/expo/eas-cli/pull/3371) by [@mackenco](https://github.com/mackenco))
 
+### 🐛 Bug fixes
+
+- Fix `--non-interactive` mode prompting for git initialization. Now auto-initializes git with an initial commit when needed. Set `EAS_NO_VCS=1` to skip. ([#3387](https://github.com/expo/eas-cli/pull/3387) by [@evanbacon](https://github.com/evanbacon))
+
 ### 🧹 Chores
 
 - Upgrade `tar` to v7. ([#3327](https://github.com/expo/eas-cli/pull/3327) by [@KarolRzeminski](https://github.com/KarolRzeminski))
