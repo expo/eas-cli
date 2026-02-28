@@ -28,7 +28,7 @@ export interface IosSubmitProfile {
   ascAppId?: string;
   appleTeamId?: string;
   sku?: string;
-  language: string;
+  language?: string;
   companyName?: string;
   appName?: string;
   bundleIdentifier?: string;
