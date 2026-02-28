@@ -8,7 +8,10 @@ import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasUpdateEnvironmentRequiredFlag,
+} from '../../commandUtils/flags';
 import { assertEnvironmentFlagForSdk55OrGreater } from '../../update/utils';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
@@ -191,7 +194,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
-    ...EasUpdateEnvironmentFlag,
+    ...EasUpdateEnvironmentRequiredFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
