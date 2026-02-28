@@ -11,7 +11,6 @@ import {
   ensureEASUpdateIsConfiguredAsync,
   ensureEASUpdateIsConfiguredInEasJsonAsync,
 } from '../../update/configure';
-import { assertEnvironmentFlagForSdk55OrGreater } from '../../update/utils';
 
 export default class UpdateConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Update';
@@ -41,11 +40,6 @@ export default class UpdateConfigure extends EasCommand {
     } = await this.getContextAsync(UpdateConfigure, {
       nonInteractive: flags['non-interactive'],
       withServerSideEnvironment: flags['environment'] ?? null,
-    });
-
-    assertEnvironmentFlagForSdk55OrGreater({
-      sdkVersion: exp.sdkVersion,
-      environment: flags['environment'],
     });
 
     Log.log(
