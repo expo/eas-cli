@@ -20,7 +20,11 @@ import { getNextVersionCode } from '../../project/android/versions';
 import { resolveWorkflowAsync } from '../../project/workflow';
 import { Client } from '../../vcs/vcs';
 import { updateAppJsonConfigAsync } from '../utils/appJson';
-import { bumpAppVersionAsync, ensureStaticConfigExists } from '../utils/version';
+import {
+  bumpAppVersionAsync,
+  ensureStaticConfigExists,
+  getVersionConfigTarget,
+} from '../utils/version';
 
 export enum BumpStrategy {
   APP_VERSION,
@@ -53,9 +57,11 @@ export async function bumpVersionAsync({
 
   await bumpVersionInAppJsonAsync({ bumpStrategy, projectDir, exp });
   Log.log('Updated versions in app.json');
+  const { versionGetter } = getVersionConfigTarget({ exp, platform: Platform.ANDROID });
+  const version = versionGetter(exp);
   await updateNativeVersionsAsync({
     projectDir,
-    version: exp.version,
+    version,
     versionCode: exp.android?.versionCode,
   });
   Log.log('Synchronized versions with build gradle');
@@ -79,7 +85,7 @@ export async function bumpVersionInAppJsonAsync({
 
   if (bumpStrategy === BumpStrategy.APP_VERSION) {
     const appVersion = AndroidConfig.Version.getVersionName(exp) ?? '1.0.0';
-    await bumpAppVersionAsync({ appVersion, projectDir, exp });
+    await bumpAppVersionAsync({ appVersion, projectDir, exp, platform: Platform.ANDROID });
   } else {
     const versionCode = AndroidConfig.Version.getVersionCode(exp);
     const bumpedVersionCode = getNextVersionCode(versionCode);
@@ -123,9 +129,11 @@ export async function maybeResolveVersionsAsync(
       return {};
     }
   } else {
+    const { versionGetter } = getVersionConfigTarget({ exp, platform: Platform.ANDROID });
+    const appVersion = versionGetter(exp);
     return {
       appBuildVersion: String(AndroidConfig.Version.getVersionCode(exp)),
-      appVersion: exp.version,
+      appVersion,
     };
   }
 }
@@ -207,6 +215,7 @@ export async function resolveRemoteVersionCodeAsync(
     applicationId
   );
 
+  const { versionGetter } = getVersionConfigTarget({ exp, platform: Platform.ANDROID });
   const localVersions = await maybeResolveVersionsAsync(projectDir, exp, buildProfile, vcsClient);
   let currentBuildVersion: string;
   let shouldInitializeVersionCode = false;
@@ -242,7 +251,7 @@ export async function resolveRemoteVersionCodeAsync(
         appId: projectId,
         platform: AppPlatform.Android,
         applicationIdentifier: applicationId,
-        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        storeVersion: localVersions.appVersion ?? versionGetter(exp) ?? '1.0.0',
         buildVersion: currentBuildVersion,
         runtimeVersion:
           (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
@@ -266,7 +275,7 @@ export async function resolveRemoteVersionCodeAsync(
         appId: projectId,
         platform: AppPlatform.Android,
         applicationIdentifier: applicationId,
-        storeVersion: localVersions.appVersion ?? exp.version ?? '1.0.0',
+        storeVersion: localVersions.appVersion ?? versionGetter(exp) ?? '1.0.0',
         buildVersion: String(nextBuildVersion),
         runtimeVersion:
           (await Updates.getRuntimeVersionNullableAsync(projectDir, exp, Platform.ANDROID)) ??
