@@ -100,7 +100,7 @@ describe(checkLockfileAsync, () => {
     await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
   });
 
-  it('errors when package.json is newer than lockfile (stale lockfile)', async () => {
+  it('warns but does not error when package.json is newer than lockfile', async () => {
     vol.fromJSON({
       '/project/yarn.lock': '# yarn lockfile',
       '/project/package.json': '{}',
@@ -111,7 +111,7 @@ describe(checkLockfileAsync, () => {
     fs.utimesSync('/project/package.json', new Date(now), new Date(now));
 
     const ctx = createMockContext({ requiredPackageManager: 'yarn' });
-    await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
+    await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
   });
 
   it('finds lockfile at workspace root for monorepos', async () => {

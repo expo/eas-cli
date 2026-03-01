@@ -149,14 +149,13 @@ export async function checkLockfileAsync<T extends Platform>(
     ]);
 
     if (packageJsonStat.mtimeMs > lockfileStat.mtimeMs) {
-      Log.error(
+      Log.warn(
         `Your lockfile may be out of date — package.json has been modified more recently than ${path.basename(lockfilePath)}.`
       );
-      Log.error(
-        `Run "${requiredPackageManager} install" to update your lockfile, then commit the changes.`
+      Log.warn(
+        `If you changed dependencies, run "${requiredPackageManager} install" to update your lockfile before building.`
       );
-      Errors.exit(1);
-      return;
+      Log.newLine();
     }
   }
 }
