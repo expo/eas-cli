@@ -23,6 +23,7 @@ import { evaluateConfigWithEnvVarsAsync } from './evaluateConfigWithEnvVarsAsync
 import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
+import { checkLockfileAsync } from './validateLockfile';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
@@ -84,6 +85,7 @@ import { Client } from '../vcs/vcs';
 
 let metroConfigValidated = false;
 let sdkVersionChecked = false;
+let lockfileChecked = false;
 let hasWarnedAboutUsageOverages = false;
 
 export interface BuildFlags {
@@ -413,6 +415,11 @@ async function prepareAndStartBuildAsync({
     whatToTest: flags.whatToTest,
     env,
   });
+
+  if (!lockfileChecked) {
+    await checkLockfileAsync(buildCtx);
+    lockfileChecked = true;
+  }
 
   if (!hasWarnedAboutUsageOverages && !flags.localBuildOptions.localBuildMode) {
     hasWarnedAboutUsageOverages = true;
