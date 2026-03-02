@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add lockfile preflight checks to `eas build`. Validates lockfile existence, VCS tracking, conflicting lockfiles, and dependency version sync before uploading to the builder.
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
