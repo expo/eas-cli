@@ -1,12 +1,11 @@
 import { ExpoConfig, getConfig, getConfigFilePaths, modifyConfigAsync } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import spawnAsync from '@expo/spawn-async';
 import fs from 'fs-extra';
 import Joi from 'joi';
 import path from 'path';
 
 import { isExpoInstalled } from './projectUtils';
-import Log from '../log';
+import { spawnExpoCommand } from '../utils/expoCli';
 
 export type PublicExpoConfig = Omit<
   ExpoConfig,
@@ -41,8 +40,6 @@ export async function createOrModifyExpoConfigAsync(
   }
 }
 
-let wasExpoConfigWarnPrinted = false;
-
 async function getExpoConfigInternalAsync(
   projectDir: string,
   opts: ExpoConfigOptionsInternal = {}
@@ -56,35 +53,16 @@ async function getExpoConfigInternalAsync(
 
     let exp: ExpoConfig;
     if (isExpoInstalled(projectDir)) {
-      try {
-        const { stdout } = await spawnAsync(
-          'npx',
-          ['expo', 'config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
-
-          {
-            cwd: projectDir,
-            env: {
-              ...process.env,
-              ...opts.env,
-              EXPO_NO_DOTENV: '1',
-            },
-          }
-        );
-        exp = JSON.parse(stdout);
-      } catch (err: any) {
-        if (!wasExpoConfigWarnPrinted) {
-          Log.warn(
-            `Failed to read the app config from the project using "npx expo config" command: ${err.message}.`
-          );
-          Log.warn('Falling back to the version of "@expo/config" shipped with the EAS CLI.');
-          wasExpoConfigWarnPrinted = true;
+      const { stdout } = await spawnExpoCommand(
+        projectDir,
+        ['config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
+        {
+          env: {
+            EXPO_NO_DOTENV: '1',
+          },
         }
-        exp = getConfig(projectDir, {
-          skipSDKVersionRequirement: true,
-          ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
-          ...(opts.skipPlugins ? { skipPlugins: true } : {}),
-        }).exp;
-      }
+      );
+      exp = JSON.parse(stdout);
     } else {
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
