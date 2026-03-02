@@ -234,6 +234,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       stepsCtx.logger.info('Checking build upload status...');
       const waitingForBuildStartedAt = Date.now();
+      const waitingLogIntervalMs = 30 * 1000;
+      let lastWaitLogTime = 0;
+      let lastWaitLogState: string | null = null;
       while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
         const {
           data: {
@@ -246,7 +249,15 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         );
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
-          stepsCtx.logger.info(`Waiting for build upload to complete... (status = ${state.state})`);
+          const now = Date.now();
+          if (
+            lastWaitLogState !== state.state ||
+            now - lastWaitLogTime >= waitingLogIntervalMs
+          ) {
+            stepsCtx.logger.info(`Waiting for build upload to complete... (status = ${state.state})`);
+            lastWaitLogTime = now;
+            lastWaitLogState = state.state;
+          }
           await setTimeout(2000);
           continue;
         }
