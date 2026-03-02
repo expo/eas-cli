@@ -1,6 +1,4 @@
 import { Platform } from '@expo/eas-build-job';
-import { ExitError } from '@oclif/core/lib/errors';
-import fs from 'fs-extra';
 import { vol } from 'memfs';
 
 import { CommonContext } from '../context';
@@ -20,6 +18,10 @@ jest.mock('@expo/package-manager', () => ({
 const { resolveWorkspaceRoot } = jest.requireMock<{
   resolveWorkspaceRoot: jest.Mock;
 }>('@expo/package-manager');
+
+const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+  throw new Error('process.exit called');
+});
 
 function createMockContext(
   overrides: Partial<{
@@ -41,39 +43,105 @@ function createMockContext(
   } as unknown as CommonContext<Platform>;
 }
 
+const PACKAGE_JSON_WITH_REACT = JSON.stringify({
+  dependencies: { react: '19.0.4', 'react-native': '~0.79.0' },
+});
+
+const NPM_LOCKFILE_SYNCED = JSON.stringify({
+  lockfileVersion: 3,
+  packages: {
+    'node_modules/react': { version: '19.0.4' },
+    'node_modules/react-native': { version: '0.79.4' },
+  },
+});
+
+const NPM_LOCKFILE_STALE = JSON.stringify({
+  lockfileVersion: 3,
+  packages: {
+    'node_modules/react': { version: '19.0.0' },
+    'node_modules/react-native': { version: '0.79.4' },
+  },
+});
+
+// bun.lock uses JSONC with trailing commas
+const BUN_LOCKFILE_STALE = `{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "react": "19.0.4",
+      },
+    },
+  },
+  "packages": {
+    "react": ["react@19.0.0", "", {}, "sha512-abc"],
+  },
+}`;
+
+const BUN_LOCKFILE_SYNCED = `{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "react": "19.0.4",
+      },
+    },
+  },
+  "packages": {
+    "react": ["react@19.0.4", "", {}, "sha512-abc"],
+  },
+}`;
+
+const YARN_LOCKFILE_STALE = `# yarn lockfile v1
+
+react@19.0.4:
+  version "19.0.0"
+  resolved "https://registry.yarnpkg.com/react/-/react-19.0.0.tgz"
+`;
+
+const YARN_LOCKFILE_SYNCED = `# yarn lockfile v1
+
+react@19.0.4:
+  version "19.0.4"
+  resolved "https://registry.yarnpkg.com/react/-/react-19.0.4.tgz"
+
+react-native@~0.79.0:
+  version "0.79.4"
+  resolved "https://registry.yarnpkg.com/react-native/-/react-native-0.79.4.tgz"
+`;
+
 beforeEach(() => {
   vol.reset();
   resolveWorkspaceRoot.mockReturnValue(null);
+  mockProcessExit.mockClear();
 });
 
 describe(checkLockfileAsync, () => {
-  it('errors when no package manager is detected', async () => {
+  it('exits when no package manager is detected', async () => {
     vol.fromJSON({ '/project/package.json': '{}' });
     const ctx = createMockContext({ requiredPackageManager: null });
-    await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
   });
 
-  it('errors when npm is detected but package-lock.json is missing', async () => {
+  it('exits when npm is detected but package-lock.json is missing', async () => {
     vol.fromJSON({ '/project/package.json': '{}' });
     const ctx = createMockContext({ requiredPackageManager: 'npm' });
-    await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
   });
 
-  it('does not error when lockfile exists and is tracked', async () => {
+  it('does not error when lockfile exists and is in sync', async () => {
     vol.fromJSON({
-      '/project/package.json': '{}',
-      '/project/yarn.lock': '# yarn lockfile',
+      '/project/package.json': PACKAGE_JSON_WITH_REACT,
+      '/project/package-lock.json': NPM_LOCKFILE_SYNCED,
     });
-    // Make lockfile newer than package.json
-    const now = Date.now();
-    fs.utimesSync('/project/package.json', new Date(now - 1000), new Date(now - 1000));
-    fs.utimesSync('/project/yarn.lock', new Date(now), new Date(now));
-
-    const ctx = createMockContext({ requiredPackageManager: 'yarn' });
+    const ctx = createMockContext({ requiredPackageManager: 'npm' });
     await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
   });
 
-  it('errors when lockfile exists but is gitignored', async () => {
+  it('exits when lockfile exists but is gitignored', async () => {
     vol.fromJSON({
       '/project/package.json': '{}',
       '/project/yarn.lock': '# yarn lockfile',
@@ -82,53 +150,77 @@ describe(checkLockfileAsync, () => {
       requiredPackageManager: 'yarn',
       isFileIgnoredAsync: async () => true,
     });
-    await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
   });
 
-  it('errors when conflicting lockfiles from multiple managers exist', async () => {
+  it('exits when conflicting lockfiles from multiple managers exist', async () => {
     vol.fromJSON({
       '/project/package.json': '{}',
-      '/project/package-lock.json': '{}',
+      '/project/package-lock.json': NPM_LOCKFILE_SYNCED,
       '/project/yarn.lock': '# yarn lockfile',
     });
-    // Make lockfile newer than package.json
-    const now = Date.now();
-    fs.utimesSync('/project/package.json', new Date(now - 1000), new Date(now - 1000));
-    fs.utimesSync('/project/package-lock.json', new Date(now), new Date(now));
-
     const ctx = createMockContext({ requiredPackageManager: 'npm' });
-    await expect(checkLockfileAsync(ctx)).rejects.toThrow(ExitError);
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
   });
 
-  it('warns but does not error when package.json is newer than lockfile', async () => {
+  it('exits when npm lockfile version does not satisfy package.json specifier', async () => {
     vol.fromJSON({
-      '/project/yarn.lock': '# yarn lockfile',
-      '/project/package.json': '{}',
+      '/project/package.json': PACKAGE_JSON_WITH_REACT,
+      '/project/package-lock.json': NPM_LOCKFILE_STALE,
     });
-    // Make package.json newer than lockfile
-    const now = Date.now();
-    fs.utimesSync('/project/yarn.lock', new Date(now - 2000), new Date(now - 2000));
-    fs.utimesSync('/project/package.json', new Date(now), new Date(now));
+    const ctx = createMockContext({ requiredPackageManager: 'npm' });
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
+  });
 
+  it('exits when bun.lock version does not satisfy package.json specifier', async () => {
+    vol.fromJSON({
+      '/project/package.json': JSON.stringify({ dependencies: { react: '19.0.4' } }),
+      '/project/bun.lock': BUN_LOCKFILE_STALE,
+    });
+    const ctx = createMockContext({ requiredPackageManager: 'bun' });
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
+  });
+
+  it('does not error when bun.lock is in sync', async () => {
+    vol.fromJSON({
+      '/project/package.json': JSON.stringify({ dependencies: { react: '19.0.4' } }),
+      '/project/bun.lock': BUN_LOCKFILE_SYNCED,
+    });
+    const ctx = createMockContext({ requiredPackageManager: 'bun' });
+    await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
+  });
+
+  it('exits when yarn lockfile version does not satisfy package.json specifier', async () => {
+    vol.fromJSON({
+      '/project/package.json': JSON.stringify({ dependencies: { react: '19.0.4' } }),
+      '/project/yarn.lock': YARN_LOCKFILE_STALE,
+    });
+    const ctx = createMockContext({ requiredPackageManager: 'yarn' });
+    await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+    expect(mockProcessExit).toHaveBeenCalledWith(1);
+  });
+
+  it('does not error when yarn lockfile is in sync', async () => {
+    vol.fromJSON({
+      '/project/package.json': PACKAGE_JSON_WITH_REACT,
+      '/project/yarn.lock': YARN_LOCKFILE_SYNCED,
+    });
     const ctx = createMockContext({ requiredPackageManager: 'yarn' });
     await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
   });
 
   it('finds lockfile at workspace root for monorepos', async () => {
     vol.fromJSON({
-      '/monorepo/yarn.lock': '# yarn lockfile',
-      '/monorepo/packages/app/package.json': '{}',
+      '/monorepo/yarn.lock': YARN_LOCKFILE_SYNCED,
+      '/monorepo/packages/app/package.json': PACKAGE_JSON_WITH_REACT,
     });
     resolveWorkspaceRoot.mockReturnValue('/monorepo');
-
-    // Make lockfile newer than package.json
-    const now = Date.now();
-    fs.utimesSync(
-      '/monorepo/packages/app/package.json',
-      new Date(now - 1000),
-      new Date(now - 1000)
-    );
-    fs.utimesSync('/monorepo/yarn.lock', new Date(now), new Date(now));
 
     const ctx = createMockContext({
       projectDir: '/monorepo/packages/app',
@@ -136,21 +228,38 @@ describe(checkLockfileAsync, () => {
       getRootPathAsync: async () => '/monorepo',
     });
     await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
   });
 
   it('does not report a conflict when both bun.lock and bun.lockb are present', async () => {
     vol.fromJSON({
-      '/project/package.json': '{}',
+      '/project/package.json': JSON.stringify({ dependencies: { react: '19.0.4' } }),
       '/project/bun.lockb': 'binary',
-      '/project/bun.lock': '# bun text lockfile',
+      '/project/bun.lock': BUN_LOCKFILE_SYNCED,
     });
-    // Make lockfile newer than package.json
-    const now = Date.now();
-    fs.utimesSync('/project/package.json', new Date(now - 1000), new Date(now - 1000));
-    fs.utimesSync('/project/bun.lockb', new Date(now), new Date(now));
-    fs.utimesSync('/project/bun.lock', new Date(now), new Date(now));
-
     const ctx = createMockContext({ requiredPackageManager: 'bun' });
     await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
+  });
+
+  it('skips sync check for non-registry specifiers', async () => {
+    vol.fromJSON({
+      '/project/package.json': JSON.stringify({
+        dependencies: {
+          'my-local-pkg': 'file:../local',
+          'my-workspace-pkg': 'workspace:*',
+          react: '19.0.4',
+        },
+      }),
+      '/project/package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          'node_modules/react': { version: '19.0.4' },
+        },
+      }),
+    });
+    const ctx = createMockContext({ requiredPackageManager: 'npm' });
+    await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
   });
 });
