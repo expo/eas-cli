@@ -262,4 +262,106 @@ describe(checkLockfileAsync, () => {
     await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
     expect(mockProcessExit).not.toHaveBeenCalled();
   });
+
+  describe('peer dependency conflicts', () => {
+    it('exits when a direct dependency has an unsatisfied peer (npm)', async () => {
+      vol.fromJSON({
+        '/project/package.json': JSON.stringify({
+          dependencies: { react: '19.0.0', 'react-dom': '19.2.4' },
+        }),
+        '/project/package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/react': { version: '19.0.0' },
+            'node_modules/react-dom': {
+              version: '19.2.4',
+              peerDependencies: { react: '^19.2.4' },
+            },
+          },
+        }),
+      });
+      const ctx = createMockContext({ requiredPackageManager: 'npm' });
+      await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    it('exits when a direct dependency has an unsatisfied peer (bun)', async () => {
+      vol.fromJSON({
+        '/project/package.json': JSON.stringify({
+          dependencies: { react: '19.0.0', 'react-dom': '19.2.4' },
+        }),
+        '/project/bun.lock': `{
+          "lockfileVersion": 1,
+          "workspaces": { "": { "dependencies": { "react": "19.0.0", "react-dom": "19.2.4" } } },
+          "packages": {
+            "react": ["react@19.0.0", "", {}, "sha512-abc"],
+            "react-dom": ["react-dom@19.2.4", "", { "peerDependencies": { "react": "^19.2.4" } }, "sha512-def"],
+          },
+        }`,
+      });
+      const ctx = createMockContext({ requiredPackageManager: 'bun' });
+      await expect(checkLockfileAsync(ctx)).rejects.toThrow('process.exit called');
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    it('does not error when peer dependencies are satisfied', async () => {
+      vol.fromJSON({
+        '/project/package.json': JSON.stringify({
+          dependencies: { react: '19.2.4', 'react-dom': '19.2.4' },
+        }),
+        '/project/package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/react': { version: '19.2.4' },
+            'node_modules/react-dom': {
+              version: '19.2.4',
+              peerDependencies: { react: '^19.2.4' },
+            },
+          },
+        }),
+      });
+      const ctx = createMockContext({ requiredPackageManager: 'npm' });
+      await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    it('skips optional peer dependencies (npm peerDependenciesMeta)', async () => {
+      vol.fromJSON({
+        '/project/package.json': JSON.stringify({
+          dependencies: { '@0no-co/graphql.web': '1.2.0' },
+        }),
+        '/project/package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/@0no-co/graphql.web': {
+              version: '1.2.0',
+              peerDependencies: { graphql: '^14.0.0 || ^15.0.0 || ^16.0.0' },
+              peerDependenciesMeta: { graphql: { optional: true } },
+            },
+          },
+        }),
+      });
+      const ctx = createMockContext({ requiredPackageManager: 'npm' });
+      await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    it('skips optional peer dependencies (bun optionalPeers)', async () => {
+      vol.fromJSON({
+        '/project/package.json': JSON.stringify({
+          dependencies: { '@0no-co/graphql.web': '1.2.0' },
+        }),
+        '/project/bun.lock': `{
+          "lockfileVersion": 1,
+          "workspaces": { "": { "dependencies": { "@0no-co/graphql.web": "1.2.0" } } },
+          "packages": {
+            "@0no-co/graphql.web": ["@0no-co/graphql.web@1.2.0", "", { "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0" }, "optionalPeers": ["graphql"] }, "sha512-abc"],
+          },
+        }`,
+      });
+      const ctx = createMockContext({ requiredPackageManager: 'bun' });
+      await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
 });

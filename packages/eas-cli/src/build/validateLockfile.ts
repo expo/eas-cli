@@ -61,15 +61,32 @@ async function findLockfileAsync(
 }
 
 // --- Lockfile parsers ---
-// Each returns a Map<packageName, lockedVersion> or null if parsing fails.
-// Wrapped in try/catch so a parse failure silently skips the sync check.
+// Each returns a LockfileData or null if parsing fails.
+// Wrapped in try/catch so a parse failure silently skips checks.
 
-function parseNpmLockVersions(content: string): Map<string, string> | null {
+interface PackageInfo {
+  version: string;
+  peerDependencies?: Record<string, string>;
+  optionalPeers?: Set<string>;
+}
+
+interface LockfileData {
+  packages: Map<string, PackageInfo>;
+}
+
+function parseNpmLock(content: string): LockfileData | null {
   try {
     const lockfile = JSON.parse(content);
-    const packages: Record<string, { version?: string }> = lockfile.packages ?? {};
-    const versions = new Map<string, string>();
-    for (const [key, value] of Object.entries(packages)) {
+    const rawPackages: Record<
+      string,
+      {
+        version?: string;
+        peerDependencies?: Record<string, string>;
+        peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+      }
+    > = lockfile.packages ?? {};
+    const packages = new Map<string, PackageInfo>();
+    for (const [key, value] of Object.entries(rawPackages)) {
       if (!key.startsWith('node_modules/')) {
         continue;
       }
@@ -79,18 +96,30 @@ function parseNpmLockVersions(content: string): Map<string, string> | null {
         continue;
       }
       if (value.version) {
-        versions.set(rest, value.version);
+        const optionalPeers = new Set<string>();
+        if (value.peerDependenciesMeta) {
+          for (const [peer, meta] of Object.entries(value.peerDependenciesMeta)) {
+            if (meta.optional) {
+              optionalPeers.add(peer);
+            }
+          }
+        }
+        packages.set(rest, {
+          version: value.version,
+          peerDependencies: value.peerDependencies,
+          optionalPeers: optionalPeers.size > 0 ? optionalPeers : undefined,
+        });
       }
     }
-    return versions;
+    return { packages };
   } catch {
     return null;
   }
 }
 
-function parseYarnLockVersions(content: string): Map<string, string> | null {
+function parseYarnLock(content: string): LockfileData | null {
   try {
-    const versions = new Map<string, string>();
+    const packages = new Map<string, PackageInfo>();
     const lines = content.split('\n');
     let currentPackage: string | null = null;
 
@@ -111,78 +140,88 @@ function parseYarnLockVersions(content: string): Map<string, string> | null {
       if (currentPackage) {
         const versionMatch = line.match(/^\s+version:?\s+"?([^"\s]+)"?/);
         if (versionMatch) {
-          if (!versions.has(currentPackage)) {
-            versions.set(currentPackage, versionMatch[1]);
+          if (!packages.has(currentPackage)) {
+            packages.set(currentPackage, { version: versionMatch[1] });
           }
           currentPackage = null;
         }
       }
     }
-    return versions;
+    // yarn.lock doesn't include peer dependency info
+    return { packages };
   } catch {
     return null;
   }
 }
 
-function parsePnpmLockVersions(content: string): Map<string, string> | null {
+function parsePnpmLock(content: string): LockfileData | null {
   try {
-    const versions = new Map<string, string>();
+    const packages = new Map<string, PackageInfo>();
     // Match entries in the packages section like:
     //   react@19.0.0:   or   @types/react@19.0.0:
     const packageRegex = /^ {2}((?:@[\w.-]+\/)?[\w.-]+)@(\d+[^:\s]*?):/gm;
     let match;
     while ((match = packageRegex.exec(content)) !== null) {
-      if (!versions.has(match[1])) {
-        versions.set(match[1], match[2]);
+      if (!packages.has(match[1])) {
+        packages.set(match[1], { version: match[2] });
       }
     }
-    return versions;
+    // pnpm-lock.yaml doesn't readily expose peer deps in a parseable way without YAML
+    return { packages };
   } catch {
     return null;
   }
 }
 
-function parseBunLockVersions(content: string): Map<string, string> | null {
+function parseBunLock(content: string): LockfileData | null {
   try {
     // bun.lock is JSONC (has trailing commas) — strip them for JSON.parse
     const jsonContent = content.replace(/,(\s*[}\]])/g, '$1');
     const lockfile = JSON.parse(jsonContent);
-    const packages: Record<string, unknown[]> = lockfile.packages ?? {};
-    const versions = new Map<string, string>();
-    for (const [name, value] of Object.entries(packages)) {
-      // Format: "react": ["react@19.0.0", ...]
+    const rawPackages: Record<string, unknown[]> = lockfile.packages ?? {};
+    const packages = new Map<string, PackageInfo>();
+    for (const [name, value] of Object.entries(rawPackages)) {
+      // Format: "react": ["react@19.0.0", "", { peerDependencies: {...}, optionalPeers: [...] }, "sha512-..."]
       if (Array.isArray(value) && typeof value[0] === 'string') {
         const entry: string = value[0];
         const atIndex = entry.lastIndexOf('@');
         if (atIndex > 0) {
-          versions.set(name, entry.slice(atIndex + 1));
+          const meta = (typeof value[2] === 'object' && value[2] !== null ? value[2] : {}) as {
+            peerDependencies?: Record<string, string>;
+            optionalPeers?: string[];
+          };
+          packages.set(name, {
+            version: entry.slice(atIndex + 1),
+            peerDependencies: meta.peerDependencies,
+            optionalPeers: meta.optionalPeers ? new Set(meta.optionalPeers) : undefined,
+          });
         }
       }
     }
-    return versions;
+    return { packages };
   } catch {
     return null;
   }
 }
 
-function parseLockfileVersions(
+function parseLockfile(
   content: string,
   manager: string,
   lockfilePath: string
-): Map<string, string> | null {
+): LockfileData | null {
   switch (manager) {
     case 'npm':
-      return parseNpmLockVersions(content);
+      return parseNpmLock(content);
     case 'yarn':
-      return parseYarnLockVersions(content);
+      return parseYarnLock(content);
     case 'pnpm':
-      return parsePnpmLockVersions(content);
+      return parsePnpmLock(content);
     case 'bun':
       // bun.lockb is binary — can only parse the text variant
       if (lockfilePath.endsWith('.lockb')) {
         return null;
       }
-      return parseBunLockVersions(content);
+      return parseBunLock(content);
     default:
       return null;
   }
@@ -211,28 +250,46 @@ interface DependencyMismatch {
   lockedVersion: string;
 }
 
-async function findLockfileMismatchesAsync(
+interface PeerDependencyConflict {
+  /** Package that declares the peer dependency */
+  source: string;
+  sourceVersion: string;
+  /** The peer dependency that is not satisfied */
+  peer: string;
+  peerRange: string;
+  /** The actual version of the peer in the lockfile */
+  installedVersion: string;
+}
+
+async function readLockfileDataAsync(
   projectDir: string,
   lockfilePath: string,
   manager: string
-): Promise<DependencyMismatch[]> {
+): Promise<{ lockfileData: LockfileData; packageJson: Record<string, unknown> } | null> {
   const packageJsonPath = path.join(projectDir, 'package.json');
   if (!(await fs.pathExists(packageJsonPath))) {
-    return [];
+    return null;
   }
 
   const packageJson = await fs.readJson(packageJsonPath);
-  const allDeps: Record<string, string> = {
-    ...packageJson.dependencies,
-    ...packageJson.devDependencies,
-    ...packageJson.optionalDependencies,
-  };
-
   const lockfileContent = await fs.readFile(lockfilePath, 'utf-8');
-  const lockedVersions = parseLockfileVersions(lockfileContent, manager, lockfilePath);
-  if (!lockedVersions) {
-    return []; // Can't parse lockfile, skip check
+  const lockfileData = parseLockfile(lockfileContent, manager, lockfilePath);
+  if (!lockfileData) {
+    return null;
   }
+
+  return { lockfileData, packageJson };
+}
+
+function findLockfileMismatches(
+  packageJson: Record<string, unknown>,
+  lockfileData: LockfileData
+): DependencyMismatch[] {
+  const allDeps: Record<string, string> = {
+    ...(packageJson.dependencies as Record<string, string> | undefined),
+    ...(packageJson.devDependencies as Record<string, string> | undefined),
+    ...(packageJson.optionalDependencies as Record<string, string> | undefined),
+  };
 
   const mismatches: DependencyMismatch[] = [];
   for (const [name, specifier] of Object.entries(allDeps)) {
@@ -240,17 +297,60 @@ async function findLockfileMismatchesAsync(
       continue;
     }
 
-    const lockedVersion = lockedVersions.get(name);
-    if (!lockedVersion) {
+    const pkg = lockfileData.packages.get(name);
+    if (!pkg) {
       continue; // Package not found in lockfile — may be a new dep or hoisted differently
     }
 
-    if (!semver.satisfies(lockedVersion, specifier)) {
-      mismatches.push({ name, specifier, lockedVersion });
+    if (!semver.satisfies(pkg.version, specifier)) {
+      mismatches.push({ name, specifier, lockedVersion: pkg.version });
     }
   }
 
   return mismatches;
+}
+
+function findPeerDependencyConflicts(
+  packageJson: Record<string, unknown>,
+  lockfileData: LockfileData
+): PeerDependencyConflict[] {
+  // Check peer deps of direct dependencies only (most common source of build failures)
+  const directDeps: Record<string, string> = {
+    ...(packageJson.dependencies as Record<string, string> | undefined),
+    ...(packageJson.devDependencies as Record<string, string> | undefined),
+  };
+
+  const conflicts: PeerDependencyConflict[] = [];
+  for (const depName of Object.keys(directDeps)) {
+    const pkg = lockfileData.packages.get(depName);
+    if (!pkg?.peerDependencies) {
+      continue;
+    }
+
+    for (const [peer, peerRange] of Object.entries(pkg.peerDependencies)) {
+      // Skip optional peers
+      if (pkg.optionalPeers?.has(peer)) {
+        continue;
+      }
+
+      const peerPkg = lockfileData.packages.get(peer);
+      if (!peerPkg) {
+        continue; // Peer not installed — might be optional or provided by a parent
+      }
+
+      if (!semver.satisfies(peerPkg.version, peerRange)) {
+        conflicts.push({
+          source: depName,
+          sourceVersion: pkg.version,
+          peer,
+          peerRange,
+          installedVersion: peerPkg.version,
+        });
+      }
+    }
+  }
+
+  return conflicts;
 }
 
 /**
@@ -331,18 +431,25 @@ export async function checkLockfileAsync<T extends Platform>(
     return;
   }
 
-  // --- 4. Lockfile out of sync ---
+  // --- 4 & 5. Parse lockfile for dependency sync and peer dep checks ---
   // For bun, prefer the text lockfile for parsing (bun.lockb is binary)
   const parsableLockfilePath =
     requiredPackageManager === 'bun'
       ? (await findLockfileAsync(projectDir, BUN_TEXT_LOCK_FILE)) ?? lockfilePath
       : lockfilePath;
 
-  const mismatches = await findLockfileMismatchesAsync(
+  const parsed = await readLockfileDataAsync(
     projectDir,
     parsableLockfilePath,
     requiredPackageManager
   );
+
+  if (!parsed) {
+    return; // Can't parse — skip remaining checks
+  }
+
+  // --- 4. Lockfile out of sync ---
+  const mismatches = findLockfileMismatches(parsed.packageJson, parsed.lockfileData);
 
   if (mismatches.length > 0) {
     Log.error('Lockfile is out of sync with package.json:');
@@ -353,6 +460,24 @@ export async function checkLockfileAsync<T extends Platform>(
     }
     Log.error(
       `Run "${requiredPackageManager} install" to update your lockfile, then commit the changes.`
+    );
+    process.exit(1);
+    return;
+  }
+
+  // --- 5. Peer dependency conflicts ---
+  const peerConflicts = findPeerDependencyConflicts(parsed.packageJson, parsed.lockfileData);
+
+  if (peerConflicts.length > 0) {
+    Log.error('Peer dependency conflicts detected:');
+    for (const c of peerConflicts) {
+      Log.error(
+        `  ${c.source}@${c.sourceVersion} requires peer ${c.peer}@"${c.peerRange}", but ${c.peer}@${c.installedVersion} is installed`
+      );
+    }
+    Log.error(
+      'Update the conflicting packages to compatible versions, then run ' +
+        `"${requiredPackageManager} install" and commit the changes.`
     );
     process.exit(1);
     return;
