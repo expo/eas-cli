@@ -1,5 +1,6 @@
 import { BuildContext } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -83,7 +84,11 @@ export async function prepareRuntimeEnvironment(
   ).stdout.trim();
 
   if (builderConfig.node) {
-    const installedNodeVersion = await installNode(ctx, builderConfig.node);
+    const installedNodeVersion = await installNode({
+      requestedVersion: builderConfig.node,
+      logger: ctx.logger,
+      env: ctx.env,
+    });
     await installSharpCli(ctx, installedNodeVersion);
   }
   if (builderConfig.corepack) {
@@ -131,32 +136,42 @@ export async function prepareRuntimeEnvironment(
   }
 }
 
-async function installNode(ctx: PreDownloadBuildContext, version: string): Promise<string> {
-  let sanitizedVersion = version.startsWith('v') ? version.slice(1) : version;
+async function installNode({
+  requestedVersion,
+  logger,
+  env,
+}: {
+  requestedVersion: string;
+  logger: bunyan;
+  env: NodeJS.ProcessEnv;
+}): Promise<string> {
+  let sanitizedVersion = requestedVersion.startsWith('v')
+    ? requestedVersion.slice(1)
+    : requestedVersion;
   try {
-    ctx.logger.info(`Installing node v${sanitizedVersion}`);
+    logger.info(`Installing node v${sanitizedVersion}`);
     const { stdout } = await spawn(
       'bash',
-      ['-c', `source ~/.nvm/nvm.sh && nvm install ${version}`],
+      ['-c', `source ~/.nvm/nvm.sh && nvm install ${sanitizedVersion}`],
       {
-        logger: ctx.logger,
-        env: ctx.env,
+        logger,
+        env,
       }
     );
 
     sanitizedVersion = stdout.match(/Now using node v(\d+\.\d+\.\d+)/)?.[1] ?? sanitizedVersion;
     await spawn('bash', ['-c', `source ~/.nvm/nvm.sh && nvm alias default ${sanitizedVersion}`], {
-      logger: ctx.logger,
-      env: ctx.env,
+      logger,
+      env,
     });
     const nodeDir = `${os.homedir()}/.nvm/versions/node/v${sanitizedVersion}`;
-    ctx.env.PATH = `${nodeDir}/bin:${ctx.env.PATH}`;
+    env.PATH = `${nodeDir}/bin:${env.PATH}`;
     const nodeBinPath = `${nodeDir}/bin/node`;
     if (!(await fs.pathExists(nodeBinPath))) {
       throw new Error(`node executable was not found in ${nodeBinPath}`);
     }
   } catch (err: any) {
-    ctx.logger.error({ err }, `Failed to install Node.js v${version}\n`);
+    logger.error({ err }, `Failed to install Node.js v${requestedVersion}\n`);
     throw new SystemDepsInstallError('Node.js');
   }
   return sanitizedVersion;
