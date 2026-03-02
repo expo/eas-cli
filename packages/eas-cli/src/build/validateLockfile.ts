@@ -12,7 +12,7 @@ import path from 'path';
 import semver from 'semver';
 
 import { CommonContext } from './context';
-import Log, { learnMore } from '../log';
+import Log from '../log';
 
 interface LockfileInfo {
   /** Filename of the lockfile (e.g. 'yarn.lock') */
@@ -269,7 +269,7 @@ export async function checkLockfileAsync<T extends Platform>(
       'A lockfile is required to ensure deterministic dependency installation on the EAS builder.'
     );
     Log.error(
-      `Run your package manager's install command (e.g. "npm install") to generate one, then commit it to version control. ${learnMore('https://docs.expo.dev/build-reference/infrastructure/')}`
+      'Run your package manager\'s install command (e.g. "npm install") to generate one, then commit it to version control.'
     );
     process.exit(1);
     return;
