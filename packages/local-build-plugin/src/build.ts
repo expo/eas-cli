@@ -41,6 +41,7 @@ export async function buildAsync(job: BuildJob, metadata: Metadata): Promise<voi
         EAS_BUILD_ANDROID_VERSION_NAME: job.version?.versionName,
       }),
       ...(job.platform === Platform.IOS && {
+        COCOAPODS_PARALLEL_CODE_SIGN: 'true',
         EAS_BUILD_IOS_BUILD_NUMBER: job.version?.buildNumber,
         EAS_BUILD_IOS_APP_VERSION: job.version?.appVersion,
       }),
