@@ -84,11 +84,28 @@ export async function prepareRuntimeEnvironment(
   ).stdout.trim();
 
   if (builderConfig.node) {
-    const installedNodeVersion = await installNode({
-      requestedVersion: builderConfig.node,
-      logger: ctx.logger,
-      env: ctx.env,
-    });
+    let installedNodeVersion;
+    try {
+      installedNodeVersion = await installNode({
+        requestedVersion: builderConfig.node,
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    } catch (err) {
+      if (!ctx.env.NVM_NODEJS_ORG_MIRROR) {
+        throw err;
+      }
+
+      ctx.logger.warn('Failed to install Node.js, retrying without mirror configuration.');
+
+      // We need to modify ctx.env.
+      delete ctx.env.NVM_NODEJS_ORG_MIRROR;
+      installedNodeVersion = await installNode({
+        requestedVersion: builderConfig.node,
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    }
     await installSharpCli(ctx, installedNodeVersion);
   }
   if (builderConfig.corepack) {
