@@ -15,9 +15,6 @@ import { z } from 'zod';
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
-const CLOSED_VERSION_TRAIN_ERROR_CODES = new Set(['90062', '90186']);
-const CLOSED_VERSION_TRAIN_USER_ERROR_CODE = 'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN';
-
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -271,7 +268,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         if (state.state === 'FAILED') {
           if (isClosedVersionTrainError(errors)) {
             throw new UserFacingError(
-              CLOSED_VERSION_TRAIN_USER_ERROR_CODE,
+              'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
               `Build upload was rejected by App Store Connect because the ${bundleShortVersion} version train is closed. ` +
                 'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version and submit again.'
             );
@@ -293,7 +290,7 @@ function itemizeMessages(messages: { description: string; code: string }[]): str
 export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
   return (
     messages.length > 0 &&
-    messages.every(message => CLOSED_VERSION_TRAIN_ERROR_CODES.has(message.code))
+    messages.every(message => ['90062', '90186'].includes(message.code))
   );
 }
 
