@@ -1,3 +1,4 @@
+import { UserFacingError } from '@expo/eas-build-job/dist/errors';
 import {
   BuildFunction,
   BuildStepInput,
@@ -12,6 +13,7 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
+import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -102,33 +104,17 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
       stepsCtx.logger.info('Reading App information...');
-      const appResponse = await client.getAsync(
-        '/v1/apps/:id',
-        { 'fields[apps]': ['bundleId', 'name'] },
-        { id: appleAppIdentifier }
-      );
+      const appResponse = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
       stepsCtx.logger.info(
         `Uploading Build to "${appResponse.data.attributes.name}" (${appResponse.data.attributes.bundleId})...`
       );
 
       stepsCtx.logger.info('Creating Build Upload...');
-      const buildUploadResponse = await client.postAsync('/v1/buildUploads', {
-        data: {
-          type: 'buildUploads',
-          attributes: {
-            platform: 'IOS',
-            cfBundleShortVersionString: bundleShortVersion,
-            cfBundleVersion: bundleVersion,
-          },
-          relationships: {
-            app: {
-              data: {
-                type: 'apps',
-                id: appleAppIdentifier,
-              },
-            },
-          },
-        },
+      const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
+        client,
+        appleAppIdentifier,
+        bundleShortVersion,
+        bundleVersion,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
@@ -234,6 +220,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       stepsCtx.logger.info('Checking build upload status...');
       const waitingForBuildStartedAt = Date.now();
+      const waitingLogIntervalMs = 10 * 1000;
+      let lastWaitLogTime = 0;
+      let lastWaitLogState: string | null = null;
       while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
         const {
           data: {
@@ -246,7 +235,14 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         );
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
-          stepsCtx.logger.info(`Waiting for build upload to complete... (status = ${state.state})`);
+          const now = Date.now();
+          if (lastWaitLogState !== state.state || now - lastWaitLogTime >= waitingLogIntervalMs) {
+            stepsCtx.logger.info(
+              `Waiting for build upload to complete... (status = ${state.state})`
+            );
+            lastWaitLogTime = now;
+            lastWaitLogState = state.state;
+          }
           await setTimeout(2000);
           continue;
         }
@@ -265,6 +261,13 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isClosedVersionTrainError(errors)) {
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
+              `Build upload was rejected by App Store Connect because the ${bundleShortVersion} version train is closed. ` +
+                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version and submit again.'
+            );
+          }
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
         } else if (state.state === 'COMPLETE') {
           stepsCtx.logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
@@ -277,6 +280,12 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
 function itemizeMessages(messages: { description: string; code: string }[]): string {
   return `- ${messages.map(m => `${m.description} (${m.code})`).join('\n- ')}`;
+}
+
+export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
+  );
 }
 
 async function uploadChunksAsync({
