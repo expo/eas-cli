@@ -104,11 +104,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
       stepsCtx.logger.info('Reading App information...');
-      const appResponse = await client.getAsync(
-        '/v1/apps/:id',
-        { 'fields[apps]': ['bundleId', 'name'] },
-        { id: appleAppIdentifier }
-      );
+      const appResponse = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
       stepsCtx.logger.info(
         `Uploading Build to "${appResponse.data.attributes.name}" (${appResponse.data.attributes.bundleId})...`
       );

@@ -2,7 +2,101 @@ import { AscApiRequestError } from '../AscApiClient';
 import { AscApiUtils } from '../AscApiUtils';
 
 describe('AscApiUtils', () => {
-  describe(AscApiUtils.createBuildUploadAsync, () => {
+  describe('getAppInfoAsync', () => {
+    it('returns app info when lookup succeeds', async () => {
+      const response = {
+        data: {
+          type: 'apps',
+          id: '1491144534',
+          attributes: {
+            name: 'Example App',
+            bundleId: 'com.example.app',
+          },
+        },
+      } as const;
+
+      const client = {
+        getAsync: jest.fn().mockResolvedValue(response),
+      };
+
+      await expect(
+        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1491144534' })
+      ).resolves.toEqual(response);
+    });
+
+    it('throws UserFacingError with visible apps when app id is not found', async () => {
+      const notFoundPayload = {
+        errors: [
+          {
+            status: '404',
+            code: 'NOT_FOUND',
+            detail: "There is no resource of type 'apps' with id '1234567890'",
+          },
+        ],
+      };
+      const notFoundError = new AscApiRequestError(
+        'Unexpected response (404) from App Store Connect',
+        404,
+        notFoundPayload
+      );
+      const client = {
+        getAsync: jest
+          .fn()
+          .mockRejectedValueOnce(notFoundError)
+          .mockResolvedValueOnce({
+            data: [
+              {
+                type: 'apps',
+                id: '1111111111',
+                attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+              },
+            ],
+          }),
+      };
+
+      await expect(
+        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
+      ).rejects.toEqual(
+        expect.objectContaining({
+          errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
+          docsUrl: 'https://expo.fyi/asc-app-id',
+          message: expect.stringContaining(
+            'App Store Connect app for application identifier 1234567890 was not found'
+          ),
+        })
+      );
+    });
+
+    it('rethrows original not-found error when app-list lookup fails', async () => {
+      const notFoundPayload = {
+        errors: [
+          {
+            status: '404',
+            code: 'NOT_FOUND',
+          },
+        ],
+      };
+      const notFoundError = new AscApiRequestError(
+        'Unexpected response (404) from App Store Connect',
+        404,
+        notFoundPayload
+      );
+
+      const listingError = new Error('listing failed');
+      const client = {
+        getAsync: jest
+          .fn()
+          .mockRejectedValueOnce(notFoundError)
+          .mockRejectedValueOnce(listingError),
+      };
+
+      await expect(
+        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
+      ).rejects.toBe(notFoundError);
+    });
+  });
+
+  describe('createBuildUploadAsync', () => {
     it('throws UserFacingError when ASC duplicate version error is returned', async () => {
       const payload = {
         errors: [
