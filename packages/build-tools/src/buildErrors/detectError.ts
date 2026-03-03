@@ -94,8 +94,10 @@ export async function resolveBuildPhaseErrorAsync(
   const errorCode =
     (isUnknownUserError ? buildError?.errorCode : userFacingError.errorCode) ??
     userFacingError.errorCode;
+  const type = isUnknownUserError ? errors.ExpoErrorType.SYSTEM : errors.ExpoErrorType.USER;
 
   return new errors.BuildError(message, {
+    type,
     errorCode,
     userFacingErrorCode: userFacingError.errorCode,
     userFacingMessage: userFacingError.message,
