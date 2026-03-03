@@ -464,10 +464,9 @@ async function withCleanDeviceAsync<TResult>({
     case 'android': {
       await retryAsync(
         async attemptCount => {
-          const timeoutMs =
-            androidStartupAttemptTimeoutsMs[
-              Math.min(attemptCount, androidStartupAttemptTimeoutsMs.length - 1)
-            ] as number;
+          const timeoutMs = androidStartupAttemptTimeoutsMs[
+            Math.min(attemptCount, androidStartupAttemptTimeoutsMs.length - 1)
+          ] as number;
           const attempt = attemptCount + 1;
           const maxAttempts = androidStartupAttemptTimeoutsMs.length;
           let serialId: AndroidDeviceSerialId | null = null;

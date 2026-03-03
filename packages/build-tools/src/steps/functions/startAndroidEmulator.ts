@@ -80,10 +80,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       let serialId = null;
       await retryAsync(
         async attemptCount => {
-          const timeoutMs =
-            startupAttemptTimeoutsMs[
-              Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
-            ] as number;
+          const timeoutMs = startupAttemptTimeoutsMs[
+            Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
+          ] as number;
           const attempt = attemptCount + 1;
           const maxAttempts = startupAttemptTimeoutsMs.length;
           let attemptSerialId = null;
@@ -166,10 +165,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           const cloneIdentifier = `eas-simulator-${i + 1}` as AndroidVirtualDeviceName;
           await retryAsync(
             async attemptCount => {
-              const timeoutMs =
-                startupAttemptTimeoutsMs[
-                  Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
-                ] as number;
+              const timeoutMs = startupAttemptTimeoutsMs[
+                Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
+              ] as number;
               const attempt = attemptCount + 1;
               const maxAttempts = startupAttemptTimeoutsMs.length;
               let cloneSerialId = null;
