@@ -373,12 +373,13 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
   }
 
   if (error instanceof errors.UserFacingError) {
+    const innerError = error.cause instanceof Error ? error.cause : error;
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
       userFacingErrorCode: error.errorCode,
       userFacingMessage: error.message,
       docsUrl: error.docsUrl,
-      innerError: error,
+      innerError,
     });
   }
 
