@@ -406,15 +406,12 @@ export namespace AndroidEmulatorUtils {
       return customNetworkCheckResult.ok;
     }
 
-    for (const host of ['8.8.8.8', '1.1.1.1']) {
-      const pingResult = await asyncResult(
-        spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', host], { env })
-      );
-      if (pingResult.ok) {
-        return true;
-      }
-    }
-    return false;
+    const pingResult = await asyncResult(
+      spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'], {
+        env,
+      })
+    );
+    return pingResult.ok;
   }
 
   export async function collectLogsAsync({

@@ -22,15 +22,12 @@ describe('AndroidEmulatorUtils', () => {
   });
 
   describe(AndroidEmulatorUtils.waitForReadyAsync, () => {
-    it('checks boot completion and falls back to a second network probe target', async () => {
+    it('checks boot completion and verifies network by pinging 1.1.1.1 with timeout', async () => {
       mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
         if (args[3] === 'getprop') {
           return { stdout: '1\n', stderr: '' } as any;
         }
-        if (args[3] === 'ping' && args[6] === '8.8.8.8') {
-          throw new Error('primary target unreachable');
-        }
-        if (args[3] === 'ping' && args[6] === '1.1.1.1') {
+        if (args[3] === 'ping' && args[8] === '1.1.1.1') {
           return { stdout: '1 packets transmitted, 1 received', stderr: '' } as any;
         }
         throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
@@ -53,12 +50,7 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '8.8.8.8'],
-        { env: process.env }
-      );
-      expect(mockedSpawn).toHaveBeenCalledWith(
-        'adb',
-        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '1.1.1.1'],
+        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'],
         { env: process.env }
       );
     });
@@ -112,7 +104,7 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).not.toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '8.8.8.8'],
+        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'],
         expect.anything()
       );
     });
