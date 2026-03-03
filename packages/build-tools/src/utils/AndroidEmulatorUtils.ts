@@ -1,4 +1,5 @@
 import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
 import FastGlob from 'fast-glob';
@@ -17,6 +18,8 @@ export type AndroidDeviceName = string & z.BRAND<'AndroidDeviceName'>;
 export type AndroidDeviceSerialId = string & z.BRAND<'AndroidDeviceSerialId'>;
 
 export namespace AndroidEmulatorUtils {
+  const RETRY_INTERVAL_MS = 1_000;
+
   export const defaultSystemImagePackage = `system-images;android-30;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
   }`;
@@ -352,10 +355,15 @@ export namespace AndroidEmulatorUtils {
   export async function waitForReadyAsync({
     serialId,
     env,
+    timeoutMs = 3 * 60 * 1_000,
+    logger,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
+    timeoutMs?: number;
+    logger?: bunyan;
   }): Promise<void> {
+    const retries = Math.max(0, Math.ceil(timeoutMs / RETRY_INTERVAL_MS) - 1);
     await retryAsync(
       async () => {
         const { stdout } = await spawn(
@@ -367,15 +375,38 @@ export namespace AndroidEmulatorUtils {
         if (!stdout.startsWith('1')) {
           throw new Error(`Emulator (${serialId}) boot has not completed.`);
         }
+
+        const hasNetworkConnection = await hasNetworkConnectionAsync({ serialId, env });
+        if (!hasNetworkConnection) {
+          throw new Error(`Emulator (${serialId}) network is not ready.`);
+        }
       },
       {
-        // Retry every second for 3 minutes.
         retryOptions: {
-          retries: 3 * 60,
-          retryIntervalMs: 1_000,
+          retries,
+          retryIntervalMs: RETRY_INTERVAL_MS,
         },
+        logger,
       }
     );
+  }
+
+  async function hasNetworkConnectionAsync({
+    serialId,
+    env,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+  }): Promise<boolean> {
+    for (const host of ['8.8.8.8', '1.1.1.1']) {
+      const pingResult = await asyncResult(
+        spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', host], { env })
+      );
+      if (pingResult.ok) {
+        return true;
+      }
+    }
+    return false;
   }
 
   export async function collectLogsAsync({
@@ -419,18 +450,13 @@ export namespace AndroidEmulatorUtils {
     return { outputPath };
   }
 
-  export async function deleteAsync({
+  export async function stopAsync({
     serialId,
     env,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    const adbEmuAvdName = await spawn('adb', ['-s', serialId, 'emu', 'avd', 'name'], {
-      env,
-    });
-    const deviceName = adbEmuAvdName.stdout.replace(/\r\n/g, '\n').split('\n')[0];
-
     await spawn('adb', ['-s', serialId, 'emu', 'kill'], { env });
 
     await retryAsync(
@@ -443,12 +469,40 @@ export namespace AndroidEmulatorUtils {
       {
         retryOptions: {
           retries: 3 * 60,
-          retryIntervalMs: 1_000,
+          retryIntervalMs: RETRY_INTERVAL_MS,
         },
       }
     );
+  }
 
-    await spawn('avdmanager', ['delete', 'avd', '-n', deviceName], { env });
+  export async function deleteAsync({
+    serialId,
+    deviceName,
+    env,
+  }: {
+    serialId?: AndroidDeviceSerialId;
+    deviceName?: AndroidVirtualDeviceName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    let resolvedDeviceName = deviceName;
+    if (!resolvedDeviceName && serialId) {
+      const adbEmuAvdName = await spawn('adb', ['-s', serialId, 'emu', 'avd', 'name'], {
+        env,
+      });
+      resolvedDeviceName = adbEmuAvdName.stdout.replace(/\r\n/g, '\n').split('\n')[0] as
+        | AndroidVirtualDeviceName
+        | undefined;
+    }
+
+    assert(resolvedDeviceName, 'Either "serialId" or "deviceName" must resolve to a device name.');
+
+    const serialIdToStop =
+      serialId ?? (await getSerialIdAsync({ deviceName: resolvedDeviceName, env })) ?? undefined;
+    if (serialIdToStop) {
+      await stopAsync({ serialId: serialIdToStop, env });
+    }
+
+    await spawn('avdmanager', ['delete', 'avd', '-n', resolvedDeviceName], { env });
   }
 
   export async function startScreenRecordingAsync({
