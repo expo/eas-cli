@@ -236,11 +236,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
           const now = Date.now();
-          if (
-            lastWaitLogState !== state.state ||
-            now - lastWaitLogTime >= waitingLogIntervalMs
-          ) {
-            stepsCtx.logger.info(`Waiting for build upload to complete... (status = ${state.state})`);
+          if (lastWaitLogState !== state.state || now - lastWaitLogTime >= waitingLogIntervalMs) {
+            stepsCtx.logger.info(
+              `Waiting for build upload to complete... (status = ${state.state})`
+            );
             lastWaitLogTime = now;
             lastWaitLogState = state.state;
           }
@@ -285,8 +284,7 @@ function itemizeMessages(messages: { description: string; code: string }[]): str
 
 export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
   return (
-    messages.length > 0 &&
-    messages.every(message => ['90062', '90186'].includes(message.code))
+    messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
   );
 }
 

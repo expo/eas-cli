@@ -288,7 +288,8 @@ describe(AscApiClient, () => {
         {
           status: '409',
           code: 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE',
-          title: 'The provided entity includes an attribute with a value that has already been used',
+          title:
+            'The provided entity includes an attribute with a value that has already been used',
           detail: 'The bundle version must be higher than the previously uploaded version.',
         },
       ],
