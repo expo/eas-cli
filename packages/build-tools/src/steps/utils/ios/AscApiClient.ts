@@ -389,7 +389,12 @@ export class AscApiClient {
       });
     }
 
-    const json = await response.json();
+    const text = await response.text();
+    const parsedJson = await asyncResult((async () => JSON.parse(text))());
+    if (!parsedJson.ok) {
+      throw new Error(`Malformed JSON response from App Store Connect (${response.status}): ${text}`);
+    }
+    const json = parsedJson.value;
 
     this.logger?.debug(`Response from App Store Connect: ${JSON.stringify(json, null, 2)}`);
 
