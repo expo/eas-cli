@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { AscApiClient } from '../AscApiClient';
+import { AscApiClient, AscApiRequestError } from '../AscApiClient';
 
 // nock needs real fetch implementation
 jest.unmock('node-fetch');
@@ -279,5 +279,54 @@ describe(AscApiClient, () => {
       },
     });
     expect(scope.isDone()).toBeTruthy();
+  });
+
+  it('throws AscApiRequestError for structured ASC error payload', async () => {
+    const appId = '1491144534';
+    const responseFixture = {
+      errors: [
+        {
+          status: '409',
+          code: 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE',
+          title: 'The provided entity includes an attribute with a value that has already been used',
+          detail: 'The bundle version must be higher than the previously uploaded version.',
+        },
+      ],
+    };
+
+    nock('https://api.appstoreconnect.apple.com')
+      .get(`/v1/apps/${appId}`)
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(409, responseFixture);
+
+    await expect(
+      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
+    ).rejects.toBeInstanceOf(AscApiRequestError);
+  });
+
+  it('throws regular Error for non-structured ASC error payload', async () => {
+    const appId = '1491144534';
+
+    nock('https://api.appstoreconnect.apple.com')
+      .get(`/v1/apps/${appId}`)
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(503, 'Service unavailable');
+
+    await expect(
+      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
+    ).rejects.not.toBeInstanceOf(AscApiRequestError);
+  });
+
+  it('throws controlled error when success response body is not valid JSON', async () => {
+    const appId = '1491144534';
+
+    nock('https://api.appstoreconnect.apple.com')
+      .get(`/v1/apps/${appId}`)
+      .query({ 'fields[apps]': 'bundleId,name' })
+      .reply(200, 'not-json');
+
+    await expect(
+      client.getAsync('/v1/apps/:id', { 'fields[apps]': ['bundleId', 'name'] }, { id: appId })
+    ).rejects.toThrow('Malformed JSON response from App Store Connect (200): not-json');
   });
 });

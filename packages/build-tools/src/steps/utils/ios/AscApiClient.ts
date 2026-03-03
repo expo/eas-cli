@@ -11,6 +11,21 @@ type ApiSchema = {
   };
 };
 
+const AscErrorResponseSchema = z.object({
+  errors: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        status: z.string().optional(),
+        code: z.string().optional(),
+        title: z.string().optional(),
+        detail: z.string().optional(),
+        source: z.unknown().optional(),
+      })
+    )
+    .min(1),
+});
+
 const GetApi = {
   '/v1/apps/:id': {
     path: z.object({
@@ -236,6 +251,17 @@ export type AscApiClientPatchApi = {
   };
 };
 
+export class AscApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly responseJson: z.output<typeof AscErrorResponseSchema>,
+    options?: { cause?: unknown }
+  ) {
+    super(message, { cause: options?.cause });
+  }
+}
+
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
   private readonly token: string;
@@ -346,6 +372,18 @@ export class AscApiClient {
 
     if (!response.ok) {
       const text = await response.text();
+      const parsedAscErrorResponse = await asyncResult(
+        (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
+      );
+      if (parsedAscErrorResponse.ok) {
+        throw new AscApiRequestError(
+          `Unexpected response (${response.status}) from App Store Connect: ${text}`,
+          response.status,
+          parsedAscErrorResponse.value,
+          { cause: response }
+        );
+      }
+
       throw new Error(`Unexpected response (${response.status}) from App Store Connect: ${text}`, {
         cause: response,
       });
