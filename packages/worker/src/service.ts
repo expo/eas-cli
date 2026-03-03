@@ -308,30 +308,42 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-      const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
+      const err = errors.toBuildError(error, {
+        mode: 'mode' in job ? job.mode : undefined,
+      });
+      const maybeRawError = err.innerError ?? (error instanceof Error ? error : undefined);
+      const maybeRawErrorWithOutput = maybeRawError as
+        | (Error & { stdout?: string; stderr?: string })
+        | undefined;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
+          expoErrorType: err.type,
           errorCode: err.errorCode,
+          userFacingErrorCode: err.userFacingErrorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(maybeRawErrorWithOutput?.stdout
+            ? { stdout: getLastNLines(100, maybeRawErrorWithOutput.stdout) }
+            : {}),
+          ...(maybeRawErrorWithOutput?.stderr
+            ? { stderr: getLastNLines(100, maybeRawErrorWithOutput.stderr) }
+            : {}),
         },
+        level: err.type === errors.ExpoErrorType.USER ? 'warning' : 'error',
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
         let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
+        if (maybeRawErrorWithOutput?.stderr) {
+          rawErrorMessage += '\n' + getLastNLines(100, maybeRawErrorWithOutput.stderr);
         }
-        if (maybeRawError.stdout) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
+        if (maybeRawErrorWithOutput?.stdout) {
+          rawErrorMessage += '\n' + getLastNLines(100, maybeRawErrorWithOutput.stdout);
         }
 
         await turtleFetch(
@@ -365,27 +377,6 @@ export default class BuildService {
       logger.debug('Not uploading XCode logs for Android job');
     }
   }
-}
-
-function toBuildError(error: unknown, job: Job): errors.BuildError {
-  if (error instanceof errors.BuildError) {
-    return error;
-  }
-
-  if (error instanceof errors.UserFacingError) {
-    const innerError = error.cause instanceof Error ? error.cause : error;
-    return new errors.BuildError(error.message, {
-      errorCode: error.errorCode,
-      userFacingErrorCode: error.errorCode,
-      userFacingMessage: error.message,
-      docsUrl: error.docsUrl,
-      innerError,
-    });
-  }
-
-  return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-    ? new errors.UnknownCustomBuildError()
-    : new errors.UnknownBuildError();
 }
 
 function getLastNLines(numberOfLines: number, stream: string): string {

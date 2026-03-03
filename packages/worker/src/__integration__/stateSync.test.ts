@@ -417,5 +417,72 @@ describe('State sync mechanism', () => {
       ws.close();
       clearTimeout(messageTimeout);
     });
+
+    it('should include user-facing error details when builder throws UserFacingError', async () => {
+      jest.mocked(Builders.androidBuilder).mockImplementation(async () => {
+        throw new errors.UserFacingError('EAS_BUILD_TEST_USER_ERROR', 'This is user-visible');
+      });
+      const dispatchWS = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
+      const dispatchHelper = new WsHelper(dispatchWS);
+      await dispatchHelper.onOpen();
+      dispatchWS.send(
+        JSON.stringify({
+          type: 'dispatch',
+          buildId,
+          job: createTestAndroidJob(),
+          initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
+          metadata: {
+            trackingContext: {},
+          },
+        })
+      );
+      dispatchWS.close();
+      await dispatchHelper.onClose();
+
+      const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
+      const helper = new WsHelper(ws);
+
+      let stateResponsePromiseResolve: () => void;
+      const stateResponsePromise = new Promise<void>(res => {
+        stateResponsePromiseResolve = res;
+      });
+      const onMessage = jest.fn((message: any) => {
+        logger.debug('message received');
+        clearTimeout(messageTimeout);
+        try {
+          expect(message).toBeTruthy();
+          expect(message.type).toBe('state-response');
+          expect(message.status).toBe('error');
+          expect(message.externalBuildError).toEqual({
+            errorCode: 'EAS_BUILD_TEST_USER_ERROR',
+            message: 'This is user-visible',
+          });
+          expect(message.internalErrorCode).toBe('EAS_BUILD_TEST_USER_ERROR');
+        } catch (err) {
+          throw err;
+        } finally {
+          stateResponsePromiseResolve();
+        }
+      });
+      const openPromise = helper.onOpen();
+      helper.onMessage(onMessage);
+
+      await openPromise;
+      messageTimeout = setTimeout(() => {
+        unreachableCode('state-response timeout');
+      }, 3000);
+
+      ws.send(JSON.stringify({ type: 'state-query', buildId }));
+      logger.debug('sent state-query');
+
+      await stateResponsePromise;
+
+      expect(helper.onErrorCb).not.toHaveBeenCalled();
+      expect(helper.onOpenCb).toHaveBeenCalled();
+      expect(helper.onMessageCb).toHaveBeenCalled();
+      expect(helper.onCloseCb).not.toHaveBeenCalled();
+      ws.close();
+      clearTimeout(messageTimeout);
+    });
   });
 });
