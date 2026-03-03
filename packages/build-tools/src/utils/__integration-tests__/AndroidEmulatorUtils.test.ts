@@ -104,7 +104,10 @@ describe('AndroidEmulatorUtils', () => {
     });
     expect(stdout).toContain('data');
 
-    await spawn('adb', ['-s', serialId, 'emu', 'kill'], { env: process.env });
+    await AndroidEmulatorUtils.stopAsync({
+      serialId,
+      env: process.env,
+    });
     await asyncResult(emulatorPromise);
 
     const cloneDeviceName = (deviceName + '-clone') as AndroidVirtualDeviceName;
@@ -131,10 +134,43 @@ describe('AndroidEmulatorUtils', () => {
     expect(stdoutClone).toContain('data');
 
     await AndroidEmulatorUtils.deleteAsync({
-      serialId,
+      deviceName,
       env: process.env,
     });
     await asyncResult(emulatorPromiseClone);
+  }, 60_000);
+
+  it('should delete a running emulator by device name', async () => {
+    const deviceName = 'android-emulator-delete-by-name-test' as AndroidVirtualDeviceName;
+    const avdPath = `${process.env.HOME}/.android/avd/${deviceName}.avd`;
+
+    await AndroidEmulatorUtils.createAsync({
+      deviceName,
+      systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+      deviceIdentifier: null,
+      env: process.env,
+      logger: createMockLogger({ logToConsole: true }),
+    });
+
+    const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+      deviceName,
+      env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+    });
+    await AndroidEmulatorUtils.waitForReadyAsync({
+      serialId,
+      env: process.env,
+    });
+
+    await AndroidEmulatorUtils.deleteAsync({
+      deviceName,
+      env: process.env,
+    });
+    await asyncResult(emulatorPromise);
+
+    const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env: process.env });
+    expect(devices.map(device => device.serialId)).not.toContain(serialId);
+
+    await expect(fs.promises.access(avdPath)).rejects.toThrow();
   }, 60_000);
 
   it('should work with screen recording', async () => {
