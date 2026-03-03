@@ -13,6 +13,7 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
+import { AscApiUtils } from '../utils/ios/AscApiUtils';
 
 const CLOSED_VERSION_TRAIN_ERROR_CODES = new Set(['90062', '90186']);
 const CLOSED_VERSION_TRAIN_USER_ERROR_CODE = 'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN';
@@ -116,23 +117,11 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       );
 
       stepsCtx.logger.info('Creating Build Upload...');
-      const buildUploadResponse = await client.postAsync('/v1/buildUploads', {
-        data: {
-          type: 'buildUploads',
-          attributes: {
-            platform: 'IOS',
-            cfBundleShortVersionString: bundleShortVersion,
-            cfBundleVersion: bundleVersion,
-          },
-          relationships: {
-            app: {
-              data: {
-                type: 'apps',
-                id: appleAppIdentifier,
-              },
-            },
-          },
-        },
+      const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
+        client,
+        appleAppIdentifier,
+        bundleShortVersion,
+        bundleVersion,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
