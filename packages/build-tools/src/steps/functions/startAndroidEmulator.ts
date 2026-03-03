@@ -9,10 +9,10 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../utils/retry';
 
-export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
-  const startupAttemptTimeoutsMs = [60_000, 120_000, 180_000];
-  const startupRetries = startupAttemptTimeoutsMs.length - 1;
+const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
+const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
 
+export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
     id: 'start_android_emulator',
@@ -80,11 +80,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       let serialId = null;
       await retryAsync(
         async attemptCount => {
-          const timeoutMs = startupAttemptTimeoutsMs[
-            Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
-          ] as number;
+          const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
           const attempt = attemptCount + 1;
-          const maxAttempts = startupAttemptTimeoutsMs.length;
+          const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
           let attemptSerialId = null;
 
           try {
@@ -140,7 +138,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         {
           logger,
           retryOptions: {
-            retries: startupRetries,
+            retries: ANDROID_STARTUP_RETRIES_COUNT,
             retryIntervalMs: 1_000,
           },
         }
@@ -165,11 +163,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           const cloneIdentifier = `eas-simulator-${i + 1}` as AndroidVirtualDeviceName;
           await retryAsync(
             async attemptCount => {
-              const timeoutMs = startupAttemptTimeoutsMs[
-                Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
-              ] as number;
+              const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
               const attempt = attemptCount + 1;
-              const maxAttempts = startupAttemptTimeoutsMs.length;
+              const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
               let cloneSerialId = null;
               try {
                 logger.info(
@@ -225,7 +221,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
             {
               logger,
               retryOptions: {
-                retries: startupRetries,
+                retries: ANDROID_STARTUP_RETRIES_COUNT,
                 retryIntervalMs: 1_000,
               },
             }

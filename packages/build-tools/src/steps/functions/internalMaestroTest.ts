@@ -414,8 +414,8 @@ const MaestroOutputFormatToExtensionMap: Record<string, string | undefined> = {
   html: 'html',
 };
 
-const androidStartupAttemptTimeoutsMs = [60_000, 120_000, 180_000];
-const androidStartupRetries = androidStartupAttemptTimeoutsMs.length - 1;
+const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
+const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
 
 async function withCleanDeviceAsync<TResult>({
   platform,
@@ -464,11 +464,9 @@ async function withCleanDeviceAsync<TResult>({
     case 'android': {
       await retryAsync(
         async attemptCount => {
-          const timeoutMs = androidStartupAttemptTimeoutsMs[
-            Math.min(attemptCount, androidStartupAttemptTimeoutsMs.length - 1)
-          ] as number;
+          const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
           const attempt = attemptCount + 1;
-          const maxAttempts = androidStartupAttemptTimeoutsMs.length;
+          const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
           let serialId: AndroidDeviceSerialId | null = null;
           try {
             logger.info(
@@ -526,7 +524,7 @@ async function withCleanDeviceAsync<TResult>({
         {
           logger,
           retryOptions: {
-            retries: androidStartupRetries,
+            retries: ANDROID_STARTUP_RETRIES_COUNT,
             retryIntervalMs: 1_000,
           },
         }
