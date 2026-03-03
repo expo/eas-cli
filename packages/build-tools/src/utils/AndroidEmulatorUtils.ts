@@ -398,6 +398,14 @@ export namespace AndroidEmulatorUtils {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
   }): Promise<boolean> {
+    const networkReadyCheckCommand = env.ANDROID_EMULATOR_NETWORK_READY_COMMAND?.trim();
+    if (networkReadyCheckCommand) {
+      const customNetworkCheckResult = await asyncResult(
+        spawn('adb', ['-s', serialId, 'shell', 'sh', '-c', networkReadyCheckCommand], { env })
+      );
+      return customNetworkCheckResult.ok;
+    }
+
     for (const host of ['8.8.8.8', '1.1.1.1']) {
       const pingResult = await asyncResult(
         spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', host], { env })

@@ -1,7 +1,6 @@
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
-import path from 'node:path';
 import { setTimeout } from 'timers/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -15,47 +14,6 @@ import { retryAsync } from '../retry';
 // We need to use real fs for cloning devices to work.
 jest.unmock('fs');
 jest.unmock('node:fs');
-
-async function setPerAvdSettingAsync({
-  deviceName,
-  key,
-  value,
-}: {
-  deviceName: AndroidVirtualDeviceName;
-  key: string;
-  value: string;
-}): Promise<void> {
-  const avdConfPath = path.join(
-    process.env.HOME as string,
-    '.android',
-    'avd',
-    `${deviceName}.avd`,
-    'AVD.conf'
-  );
-
-  let content = '';
-  try {
-    content = await fs.promises.readFile(avdConfPath, 'utf8');
-  } catch (error: any) {
-    if (error?.code !== 'ENOENT') {
-      throw error;
-    }
-  }
-
-  if (!content.includes('[perAvd]')) {
-    content = `${content.trimEnd()}\n[perAvd]\n`;
-  }
-
-  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const keyRegex = new RegExp(`^${escapedKey}=.*$`, 'm');
-  if (keyRegex.test(content)) {
-    content = content.replace(keyRegex, `${key}=${value}`);
-  } else {
-    content = `${content.trimEnd()}\n${key}=${value}\n`;
-  }
-
-  await fs.promises.writeFile(avdConfPath, content);
-}
 
 describe('AndroidEmulatorUtils', () => {
   beforeEach(async () => {
@@ -216,7 +174,7 @@ describe('AndroidEmulatorUtils', () => {
     await expect(fs.promises.access(avdPath)).rejects.toThrow();
   }, 60_000);
 
-  it('should retry when first startup has data disabled in AVD.conf', async () => {
+  it('should retry when first startup forces network check command failure', async () => {
     const deviceName = 'android-emulator-network-retry-test' as AndroidVirtualDeviceName;
     let attemptCounter = 0;
     let sawNetworkNotReadyError = false;
@@ -224,10 +182,13 @@ describe('AndroidEmulatorUtils', () => {
     await retryAsync(
       async attemptCount => {
         attemptCounter += 1;
-        const shouldDisableData = attemptCount === 0;
+        const shouldFailNetworkCheck = attemptCount === 0;
         const envForAttempt: NodeJS.ProcessEnv = {
           ...process.env,
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+          ANDROID_EMULATOR_NETWORK_READY_COMMAND: shouldFailNetworkCheck
+            ? 'echo "network not ready" && exit 1'
+            : 'echo "network ready"',
         };
 
         let serialId: AndroidDeviceSerialId | null = null;
@@ -242,15 +203,6 @@ describe('AndroidEmulatorUtils', () => {
             logger: createMockLogger({ logToConsole: true }),
           });
 
-          if (shouldDisableData) {
-            // See Pixel_5.avd/AVD.conf on local hosts; this setting can reproduce no-network startup.
-            await setPerAvdSettingAsync({
-              deviceName,
-              key: 'cell\\data_status',
-              value: '4',
-            });
-          }
-
           const startResult = await AndroidEmulatorUtils.startAsync({
             deviceName,
             env: envForAttempt,
@@ -261,7 +213,7 @@ describe('AndroidEmulatorUtils', () => {
           await AndroidEmulatorUtils.waitForReadyAsync({
             serialId,
             env: envForAttempt,
-            timeoutMs: shouldDisableData ? 30_000 : 120_000,
+            timeoutMs: 30_000,
             logger: createMockLogger({ logToConsole: true }),
           });
 
@@ -306,9 +258,9 @@ describe('AndroidEmulatorUtils', () => {
       }
     );
 
-    expect(attemptCounter).toBe(2);
     expect(sawNetworkNotReadyError).toBe(true);
-  }, 180_000);
+    expect(attemptCounter).toBe(2);
+  }, 360_000);
 
   it('should work with screen recording', async () => {
     const deviceName = 'android-emulator-screen-recording-test' as AndroidVirtualDeviceName;

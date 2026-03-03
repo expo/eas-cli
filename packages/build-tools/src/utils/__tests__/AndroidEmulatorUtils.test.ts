@@ -81,6 +81,41 @@ describe('AndroidEmulatorUtils', () => {
         })
       ).rejects.toThrow('network is not ready');
     });
+
+    it('uses overridden network readiness command when provided', async () => {
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (args[3] === 'getprop') {
+          return { stdout: '1\n', stderr: '' } as any;
+        }
+        if (args[3] === 'sh' && args[4] === '-c' && args[5] === 'exit 0') {
+          return { stdout: '', stderr: '' } as any;
+        }
+        throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
+      }) as any);
+
+      await AndroidEmulatorUtils.waitForReadyAsync({
+        serialId: 'emulator-5554' as any,
+        env: {
+          ...process.env,
+          ANDROID_EMULATOR_NETWORK_READY_COMMAND: 'exit 0',
+        },
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'adb',
+        ['-s', 'emulator-5554', 'shell', 'sh', '-c', 'exit 0'],
+        expect.objectContaining({
+          env: expect.objectContaining({
+            ANDROID_EMULATOR_NETWORK_READY_COMMAND: 'exit 0',
+          }),
+        })
+      );
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '8.8.8.8'],
+        expect.anything()
+      );
+    });
   });
 
   describe(AndroidEmulatorUtils.stopAsync, () => {
