@@ -10,6 +10,9 @@ import {
 import { retryAsync } from '../../utils/retry';
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
+  const startupAttemptTimeoutsMs = [60_000, 120_000, 180_000];
+  const startupRetries = startupAttemptTimeoutsMs.length - 1;
+
   return new BuildFunction({
     namespace: 'eas',
     id: 'start_android_emulator',
@@ -73,24 +76,80 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       );
 
       logger.info('Creating emulator device');
-      await AndroidEmulatorUtils.createAsync({
-        deviceName,
-        systemImagePackage,
-        deviceIdentifier: deviceIdentifier ?? null,
-        env,
-        logger,
-      });
+      let emulatorPromise = null;
+      let serialId = null;
+      await retryAsync(
+        async attemptCount => {
+          const timeoutMs =
+            startupAttemptTimeoutsMs[
+              Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
+            ] as number;
+          const attempt = attemptCount + 1;
+          const maxAttempts = startupAttemptTimeoutsMs.length;
+          let attemptSerialId = null;
 
-      logger.info('Starting emulator device');
-      const { emulatorPromise, serialId } = await AndroidEmulatorUtils.startAsync({
-        deviceName,
-        env,
-      });
-      await AndroidEmulatorUtils.waitForReadyAsync({
-        env,
-        serialId,
-      });
-      logger.info(`${deviceName} is ready.`);
+          try {
+            logger.info(`Creating emulator device (attempt ${attempt}/${maxAttempts}).`);
+            await AndroidEmulatorUtils.createAsync({
+              deviceName,
+              systemImagePackage,
+              deviceIdentifier: deviceIdentifier ?? null,
+              env,
+              logger,
+            });
+
+            logger.info(`Starting emulator device (attempt ${attempt}/${maxAttempts}).`);
+            const startResult = await AndroidEmulatorUtils.startAsync({
+              deviceName,
+              env,
+            });
+            attemptSerialId = startResult.serialId;
+            await AndroidEmulatorUtils.waitForReadyAsync({
+              env,
+              serialId: attemptSerialId,
+              timeoutMs,
+              logger,
+            });
+            logger.info(`${deviceName} is ready.`);
+
+            serialId = attemptSerialId;
+            emulatorPromise = startResult.emulatorPromise;
+          } catch (err) {
+            logger.warn(
+              { err },
+              `${deviceName} failed to start on attempt ${attempt}/${maxAttempts}.`
+            );
+            try {
+              if (attemptSerialId) {
+                await AndroidEmulatorUtils.deleteAsync({
+                  serialId: attemptSerialId,
+                  deviceName,
+                  env,
+                });
+              } else {
+                await AndroidEmulatorUtils.deleteAsync({
+                  deviceName,
+                  env,
+                });
+              }
+            } catch (cleanupErr) {
+              logger.warn({ err: cleanupErr }, `Failed to clean up ${deviceName}.`);
+            }
+            throw err;
+          }
+        },
+        {
+          logger,
+          retryOptions: {
+            retries: startupRetries,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
+
+      if (!serialId || !emulatorPromise) {
+        throw new Error(`Failed to start emulator ${deviceName}.`);
+      }
 
       const count = Number(inputs.count.value ?? 1);
       if (count > 1) {
@@ -105,27 +164,74 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
         for (let i = 0; i < count; i++) {
           const cloneIdentifier = `eas-simulator-${i + 1}` as AndroidVirtualDeviceName;
-          logger.info(`Cloning ${deviceName} to ${cloneIdentifier}...`);
-          await AndroidEmulatorUtils.cloneAsync({
-            sourceDeviceName: deviceName,
-            destinationDeviceName: cloneIdentifier,
-            env,
-            logger,
-          });
+          await retryAsync(
+            async attemptCount => {
+              const timeoutMs =
+                startupAttemptTimeoutsMs[
+                  Math.min(attemptCount, startupAttemptTimeoutsMs.length - 1)
+                ] as number;
+              const attempt = attemptCount + 1;
+              const maxAttempts = startupAttemptTimeoutsMs.length;
+              let cloneSerialId = null;
+              try {
+                logger.info(
+                  `Cloning ${deviceName} to ${cloneIdentifier} (attempt ${attempt}/${maxAttempts}).`
+                );
+                await AndroidEmulatorUtils.cloneAsync({
+                  sourceDeviceName: deviceName,
+                  destinationDeviceName: cloneIdentifier,
+                  env,
+                  logger,
+                });
 
-          logger.info('Starting emulator device');
-          const { serialId } = await AndroidEmulatorUtils.startAsync({
-            deviceName: cloneIdentifier,
-            env,
-          });
+                logger.info(`Starting emulator device (attempt ${attempt}/${maxAttempts}).`);
+                const startResult = await AndroidEmulatorUtils.startAsync({
+                  deviceName: cloneIdentifier,
+                  env,
+                });
+                cloneSerialId = startResult.serialId;
 
-          logger.info('Waiting for emulator to become ready');
-          await AndroidEmulatorUtils.waitForReadyAsync({
-            serialId,
-            env,
-          });
+                logger.info('Waiting for emulator to become ready');
+                await AndroidEmulatorUtils.waitForReadyAsync({
+                  serialId: cloneSerialId,
+                  env,
+                  timeoutMs,
+                  logger,
+                });
 
-          logger.info(`${cloneIdentifier} is ready.`);
+                logger.info(`${cloneIdentifier} is ready.`);
+              } catch (err) {
+                logger.warn(
+                  { err },
+                  `${cloneIdentifier} failed to start on attempt ${attempt}/${maxAttempts}.`
+                );
+                try {
+                  if (cloneSerialId) {
+                    await AndroidEmulatorUtils.deleteAsync({
+                      serialId: cloneSerialId,
+                      deviceName: cloneIdentifier,
+                      env,
+                    });
+                  } else {
+                    await AndroidEmulatorUtils.deleteAsync({
+                      deviceName: cloneIdentifier,
+                      env,
+                    });
+                  }
+                } catch (cleanupErr) {
+                  logger.warn({ err: cleanupErr }, `Failed to clean up ${cloneIdentifier}.`);
+                }
+                throw err;
+              }
+            },
+            {
+              logger,
+              retryOptions: {
+                retries: startupRetries,
+                retryIntervalMs: 1_000,
+              },
+            }
+          );
         }
       }
     },
