@@ -11,6 +11,7 @@ import Log from '../../log';
 import { createValidator, getReadableErrors } from '../../metadata/utils/ajv';
 import { WorkflowFile } from '../../utils/workflowFile';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
+import { parsedYamlFromWorkflowContents } from './parse';
 
 const jobTypesWithBuildProfile = new Set(['build', 'repack']);
 
@@ -160,11 +161,6 @@ function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): vo
     }
     throw new Error([...processedErrors].join('\n'));
   }
-}
-
-export function parsedYamlFromWorkflowContents(workflowFileContents: { yamlConfig: string }): any {
-  const parsedYaml = YAML.parse(workflowFileContents.yamlConfig);
-  return parsedYaml;
 }
 
 export function workflowContentsFromParsedYaml(parsedYaml: any): string {

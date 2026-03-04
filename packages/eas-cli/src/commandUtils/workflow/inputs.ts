@@ -1,10 +1,10 @@
-import * as YAML from 'yaml';
 import { z } from 'zod';
 
 import { DefaultEnvironment } from '../../build/utils/environment';
 import { booleanLike, stringLike } from '../../credentials/ios/types';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
+import { parsedYamlFromWorkflowContents } from './parse';
 
 const inputExtraProperties = {
   description: stringLike.optional().describe('Description of the input'),
@@ -83,7 +83,7 @@ export function parseWorkflowInputsFromYaml(
   yamlConfig: string
 ): Record<string, z.infer<typeof WorkflowDispatchInputZ>> {
   try {
-    const parsed = YAML.parse(yamlConfig);
+    const parsed = parsedYamlFromWorkflowContents({ yamlConfig });
     return z
       .record(z.string(), WorkflowDispatchInputZ)
       .default({})
