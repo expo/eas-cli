@@ -401,7 +401,7 @@ export namespace AndroidEmulatorUtils {
     const networkReadyCheckCommand = env.ANDROID_EMULATOR_NETWORK_READY_COMMAND?.trim();
     if (networkReadyCheckCommand) {
       const customNetworkCheckResult = await asyncResult(
-        spawn('adb', ['-s', serialId, 'shell', 'sh', '-c', networkReadyCheckCommand], { env })
+        spawn('adb', ['-s', serialId, 'shell', networkReadyCheckCommand], { env })
       );
       return customNetworkCheckResult.ok;
     }
