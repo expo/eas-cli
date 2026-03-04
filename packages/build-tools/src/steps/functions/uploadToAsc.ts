@@ -282,6 +282,26 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
             );
           }
+          if (isMissingPurposeStringError(errors)) {
+            const missingUsageDescriptionKeys = parseMissingUsageDescriptionKeys(errors);
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
+              `Build upload was rejected by App Store Connect because Info.plist is missing one or more privacy purpose strings.\n\n` +
+                `${
+                  missingUsageDescriptionKeys.length > 0
+                    ? `Missing keys reported by App Store Connect:\n- ${missingUsageDescriptionKeys.join(
+                        '\n- '
+                      )}\n\n`
+                    : ''
+                }` +
+                'Add the missing keys with clear user-facing explanations, then rebuild and submit again.\n' +
+                'If you use Continuous Native Generation (CNG), update `ios.infoPlist` in app.json/app.config.js.\n' +
+                'If you do not use CNG, update your app target Info.plist directly.',
+              {
+                docsUrl: 'https://docs.expo.dev/guides/permissions/#ios',
+              }
+            );
+          }
           if (isClosedVersionTrainError(errors)) {
             throw new UserFacingError(
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
@@ -313,6 +333,23 @@ export function isInvalidBundleIdentifierError(messages: { code: string }[]): bo
   return (
     messages.length > 0 && messages.every(message => ['90054', '90055'].includes(message.code))
   );
+}
+
+export function isMissingPurposeStringError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90683');
+}
+
+export function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
+  const usageDescriptionKeyRegex = /\b(\w+UsageDescription)\b/g;
+  const keys = new Set<string>();
+  for (const message of messages) {
+    const matches = message.description.matchAll(usageDescriptionKeyRegex);
+    for (const match of matches) {
+      keys.add(match[1]);
+    }
+  }
+
+  return [...keys];
 }
 
 async function uploadChunksAsync({
