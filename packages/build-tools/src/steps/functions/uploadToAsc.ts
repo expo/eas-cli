@@ -105,7 +105,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
-      stepsCtx.logger.info('Reading App information...');
+      stepsCtx.logger.info(
+        `Reading App information for Apple app identifier: ${appleAppIdentifier}...`
+      );
       const appResponse = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
       const ascAppBundleIdentifier = appResponse.data.attributes.bundleId;
       stepsCtx.logger.info(
@@ -266,7 +268,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         if (state.state === 'FAILED') {
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
-            const ipaBundleIdentifier = ipaInfoResult.ok ? ipaInfoResult.value.bundleIdentifier : null;
+            const ipaBundleIdentifier = ipaInfoResult.ok
+              ? ipaInfoResult.value.bundleIdentifier
+              : null;
 
             throw new UserFacingError(
               'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',

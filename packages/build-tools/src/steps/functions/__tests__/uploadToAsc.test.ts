@@ -21,11 +21,7 @@ describe(isClosedVersionTrainError, () => {
 describe(isInvalidBundleIdentifierError, () => {
   it('returns true when all errors are invalid-bundle-id codes', () => {
     expect(
-      isInvalidBundleIdentifierError([
-        { code: '90054' },
-        { code: '90055' },
-        { code: '90055' },
-      ])
+      isInvalidBundleIdentifierError([{ code: '90054' }, { code: '90055' }, { code: '90055' }])
     ).toBe(true);
   });
 

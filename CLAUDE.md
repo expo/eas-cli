@@ -296,9 +296,11 @@ export EXPO_DEBUG=1     # Enable debug logging
 
 ### Validation
 
-All changes should be validated with TypeScript and the linter before committing:
+All changes should be validated before committing. At minimum run package-level tests (e.g. `jest-unit`)
+for touched code, then run type checks/linting and format the repo:
 
 ```bash
+yarn fmt            # Apply Oxfmt formatting
 yarn typecheck      # Validate TypeScript types
 yarn lint           # Run Oxlint
 yarn fmt:check      # Run Oxfmt format check
