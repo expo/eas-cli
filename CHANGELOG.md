@@ -8,14 +8,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [18.1.0](https://github.com/expo/eas-cli/releases/tag/v18.1.0) - 2026-03-04
+
+### 🎉 New features
+
 - Support YAML anchors and aliases when parsing workflow files. ([#3435](https://github.com/expo/eas-cli/pull/3435) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
 - Remove --environment flag requirement for update:configure. ([#3440](https://github.com/expo/eas-cli/pull/3440) by [@douglowder](https://github.com/douglowder))
 - Fix login spinner interfering with prompts in `eas go` command when not logged in. ([#3451](https://github.com/expo/eas-cli/pull/3451) by [@byronkarlen](https://github.com/byronkarlen))
-
-### 🧹 Chores
 
 ## [18.0.6](https://github.com/expo/eas-cli/releases/tag/v18.0.6) - 2026-02-27
 
