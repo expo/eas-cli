@@ -22,13 +22,13 @@ describe('AndroidEmulatorUtils', () => {
   });
 
   describe(AndroidEmulatorUtils.waitForReadyAsync, () => {
-    it('checks boot completion and verifies network by pinging 1.1.1.1 with timeout', async () => {
+    it('checks boot completion and verifies network with netcat to 1.1.1.1:443', async () => {
       mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
         if (args[3] === 'getprop') {
           return { stdout: '1\n', stderr: '' } as any;
         }
-        if (args[3] === 'ping' && args[8] === '1.1.1.1') {
-          return { stdout: '1 packets transmitted, 1 received', stderr: '' } as any;
+        if (args[3] === 'nc' && args[7] === '1.1.1.1' && args[8] === '443') {
+          return { stdout: '', stderr: '' } as any;
         }
         throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
       }) as any);
@@ -50,7 +50,7 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'],
+        ['-s', 'emulator-5554', 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'],
         { env: process.env }
       );
     });
@@ -60,7 +60,7 @@ describe('AndroidEmulatorUtils', () => {
         if (args[3] === 'getprop') {
           return { stdout: '1\n', stderr: '' } as any;
         }
-        if (args[3] === 'ping') {
+        if (args[3] === 'nc') {
           throw new Error('network unreachable');
         }
         throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
@@ -79,7 +79,7 @@ describe('AndroidEmulatorUtils', () => {
         if (args[3] === 'getprop') {
           return { stdout: '1\n', stderr: '' } as any;
         }
-        if (args[3] === 'sh' && args[4] === '-c' && args[5] === 'exit 0') {
+        if (args[3] === 'exit 0') {
           return { stdout: '', stderr: '' } as any;
         }
         throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
@@ -95,7 +95,7 @@ describe('AndroidEmulatorUtils', () => {
 
       expect(mockedSpawn).toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'sh', '-c', 'exit 0'],
+        ['-s', 'emulator-5554', 'shell', 'exit 0'],
         expect.objectContaining({
           env: expect.objectContaining({
             ANDROID_EMULATOR_NETWORK_READY_COMMAND: 'exit 0',
@@ -104,7 +104,7 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).not.toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'],
+        ['-s', 'emulator-5554', 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'],
         expect.anything()
       );
     });

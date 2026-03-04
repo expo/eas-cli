@@ -401,17 +401,17 @@ export namespace AndroidEmulatorUtils {
     const networkReadyCheckCommand = env.ANDROID_EMULATOR_NETWORK_READY_COMMAND?.trim();
     if (networkReadyCheckCommand) {
       const customNetworkCheckResult = await asyncResult(
-        spawn('adb', ['-s', serialId, 'shell', 'sh', '-c', networkReadyCheckCommand], { env })
+        spawn('adb', ['-s', serialId, 'shell', networkReadyCheckCommand], { env })
       );
       return customNetworkCheckResult.ok;
     }
 
-    const pingResult = await asyncResult(
-      spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'], {
+    const netcatResult = await asyncResult(
+      spawn('adb', ['-s', serialId, 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'], {
         env,
       })
     );
-    return pingResult.ok;
+    return netcatResult.ok;
   }
 
   export async function collectLogsAsync({
