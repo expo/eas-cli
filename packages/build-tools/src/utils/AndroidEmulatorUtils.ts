@@ -406,12 +406,12 @@ export namespace AndroidEmulatorUtils {
       return customNetworkCheckResult.ok;
     }
 
-    const pingResult = await asyncResult(
-      spawn('adb', ['-s', serialId, 'shell', 'ping', '-c', '1', '-W', '1', '1.1.1.1'], {
+    const netcatResult = await asyncResult(
+      spawn('adb', ['-s', serialId, 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'], {
         env,
       })
     );
-    return pingResult.ok;
+    return netcatResult.ok;
   }
 
   export async function collectLogsAsync({
