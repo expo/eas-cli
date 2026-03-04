@@ -12,7 +12,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   EasUpdateEnvironmentRequiredFlag,
 } from '../../commandUtils/flags';
-import { assertEnvironmentFlagForSdk55OrGreater } from '../../update/utils';
+import { environmentFlagNeededForSdk550OrGreater } from '../../update/utils';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -68,6 +68,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 /**
  * Preprocess argv to handle --source-maps with optional value.
@@ -226,7 +227,7 @@ export default class UpdatePublish extends EasCommand {
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
-      environment,
+      environment: environmentFromFlags,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -237,7 +238,7 @@ export default class UpdatePublish extends EasCommand {
       getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: environment ?? null,
+      withServerSideEnvironment: environmentFromFlags ?? null,
     });
 
     if (jsonFlag) {
@@ -253,10 +254,24 @@ export default class UpdatePublish extends EasCommand {
       projectDir,
     } = await getDynamicPublicProjectConfigAsync();
 
-    assertEnvironmentFlagForSdk55OrGreater({
-      sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
-      environment,
-    });
+    let environment: string | undefined = environmentFromFlags;
+
+    // Environment handling
+    if (
+      !autoFlag &&
+      environmentFlagNeededForSdk550OrGreater({
+        sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
+        environment: environmentFromFlags,
+      })
+    ) {
+      console.warn('Prompting for environment...');
+      environment = await promptVariableEnvironmentAsync({
+        multiple: false,
+        graphqlClient,
+        nonInteractive,
+        projectId,
+      });
+    }
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
@@ -296,8 +311,11 @@ export default class UpdatePublish extends EasCommand {
       jsonFlag,
     });
 
-    const maybeServerEnv = environment
-      ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
+    const maybeServerEnv = environmentFromFlags
+      ? {
+          ...(await getServerSideEnvironmentVariablesAsync()),
+          EXPO_NO_DOTENV: '1',
+        }
       : {};
 
     // build bundle and upload assets for a new publish
@@ -322,7 +340,9 @@ export default class UpdatePublish extends EasCommand {
     }
 
     // After possibly bundling, assert that the input directory can be found.
-    const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+    const distRoot = await resolveInputDirectoryAsync(inputDir, {
+      skipBundler,
+    });
 
     const assetSpinner = ora().start('Uploading...');
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};

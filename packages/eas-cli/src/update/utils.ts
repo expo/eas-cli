@@ -1,5 +1,4 @@
 import { ExpoConfig } from '@expo/config';
-import { Errors } from '@oclif/core';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
@@ -368,29 +367,25 @@ const environmentFlagOverride = 'EAS_UPDATE_SKIP_ENVIRONMENT_CHECK';
 
 const ciEnvironmentFlags = ['EAS_BUILD', 'CI'];
 
-export function assertEnvironmentFlagForSdk55OrGreater({
+export function environmentFlagNeededForSdk550OrGreater({
   sdkVersion,
   environment,
 }: {
   sdkVersion: string | undefined;
   environment: string | undefined;
-}): void {
+}): boolean {
   // Skip check if we are in a CI environment
   for (let flag of ciEnvironmentFlags) {
     if (process.env[flag]) {
-      return;
+      return false;
     }
   }
-  // Skip check if the override is set
+  // Skip check if the env override is set
   if (boolish(environmentFlagOverride, false)) {
-    return;
+    return false;
   }
-  if (sdkVersion && semver.gte(sdkVersion, '55.0.0') && !environment) {
-    Errors.error(
-      `--environment flag is required for projects using Expo SDK 55 or greater when publishing an update. You can override this check by setting ${environmentFlagOverride}=1.`,
-      {
-        exit: 1,
-      }
-    );
+  if (sdkVersion === undefined || semver.lt(sdkVersion, '55.0.0')) {
+    return false;
   }
+  return environment === undefined;
 }
