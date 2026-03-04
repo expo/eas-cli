@@ -1,4 +1,5 @@
 import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
@@ -14,6 +15,7 @@ import { z } from 'zod';
 
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
+import { readIpaInfoAsync } from './readIpaInfo';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -105,8 +107,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       stepsCtx.logger.info('Reading App information...');
       const appResponse = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
+      const ascAppBundleIdentifier = appResponse.data.attributes.bundleId;
       stepsCtx.logger.info(
-        `Uploading Build to "${appResponse.data.attributes.name}" (${appResponse.data.attributes.bundleId})...`
+        `Uploading Build to "${appResponse.data.attributes.name}" (${ascAppBundleIdentifier})...`
       );
 
       stepsCtx.logger.info('Creating Build Upload...');
@@ -261,6 +264,20 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isInvalidBundleIdentifierError(errors)) {
+            const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
+            const ipaBundleIdentifier = ipaInfoResult.ok ? ipaInfoResult.value.bundleIdentifier : null;
+
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
+              `Build upload was rejected by App Store Connect because the app bundle identifier in the IPA does not match the selected App Store Connect app.\n\n` +
+                `IPA bundle identifier: ${ipaBundleIdentifier ?? '(unavailable)'}\n` +
+                `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
+                'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
+                'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
+                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+            );
+          }
           if (isClosedVersionTrainError(errors)) {
             throw new UserFacingError(
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
@@ -285,6 +302,12 @@ function itemizeMessages(messages: { description: string; code: string }[]): str
 export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
   return (
     messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
+  );
+}
+
+export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 && messages.every(message => ['90054', '90055'].includes(message.code))
   );
 }
 
