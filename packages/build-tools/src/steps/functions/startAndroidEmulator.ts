@@ -75,7 +75,6 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         }
       );
 
-      logger.info('Creating emulator device');
       let emulatorPromise = null;
       let serialId = null;
       await retryAsync(
@@ -83,10 +82,11 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
           const attempt = attemptCount + 1;
           const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
+          const attemptSuffix = attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : '';
           let attemptSerialId = null;
 
           try {
-            logger.info(`Creating emulator device (attempt ${attempt}/${maxAttempts}).`);
+            logger.info(`Creating emulator device${attemptSuffix}.`);
             await AndroidEmulatorUtils.createAsync({
               deviceName,
               systemImagePackage,
@@ -95,7 +95,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               logger,
             });
 
-            logger.info(`Starting emulator device (attempt ${attempt}/${maxAttempts}).`);
+            logger.info(`Starting emulator device${attemptSuffix}.`);
             const startResult = await AndroidEmulatorUtils.startAsync({
               deviceName,
               env,
@@ -166,11 +166,10 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
               const attempt = attemptCount + 1;
               const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
+              const attemptSuffix = attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : '';
               let cloneSerialId = null;
               try {
-                logger.info(
-                  `Cloning ${deviceName} to ${cloneIdentifier} (attempt ${attempt}/${maxAttempts}).`
-                );
+                logger.info(`Cloning ${deviceName} to ${cloneIdentifier}${attemptSuffix}.`);
                 await AndroidEmulatorUtils.cloneAsync({
                   sourceDeviceName: deviceName,
                   destinationDeviceName: cloneIdentifier,
@@ -178,7 +177,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   logger,
                 });
 
-                logger.info(`Starting emulator device (attempt ${attempt}/${maxAttempts}).`);
+                logger.info(`Starting emulator device${attemptSuffix}.`);
                 const startResult = await AndroidEmulatorUtils.startAsync({
                   deviceName: cloneIdentifier,
                   env,
