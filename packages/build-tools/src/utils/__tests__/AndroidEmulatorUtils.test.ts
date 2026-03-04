@@ -27,7 +27,7 @@ describe('AndroidEmulatorUtils', () => {
         if (args[3] === 'getprop') {
           return { stdout: '1\n', stderr: '' } as any;
         }
-        if (args[3] === 'nc' && args[7] === '1.1.1.1' && args[8] === '443') {
+        if (args[3] === 'nc' && args[6] === '1.1.1.1' && args[7] === '443') {
           return { stdout: '', stderr: '' } as any;
         }
         throw new Error(`Unexpected adb command args: ${args.join(' ')}`);
@@ -50,8 +50,8 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'],
-        { env: process.env }
+        ['-s', 'emulator-5554', 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
+        { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] }
       );
     });
 
@@ -104,7 +104,7 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(mockedSpawn).not.toHaveBeenCalledWith(
         'adb',
-        ['-s', 'emulator-5554', 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'],
+        ['-s', 'emulator-5554', 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
         expect.anything()
       );
     });
