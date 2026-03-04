@@ -1,4 +1,6 @@
-import { Builders } from '@expo/build-tools';
+import { Builders, runGenericJobAsync } from '@expo/build-tools';
+import { ArchiveSourceType, BuildTrigger, Generic, errors } from '@expo/eas-build-job';
+import { result } from '@expo/results';
 import { hostname } from 'os';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import WebSocket from 'ws';
@@ -10,8 +12,31 @@ import { cleanUpWorkingdir, prepareWorkingdir } from '../workingdir';
 import startWsServer from '../ws';
 
 const buildId = 'e9b99e52-fb74-4927-be63-33d7447ddfd4';
+const genericJobRunErrorCode = 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND';
 
 jest.setTimeout(30 * 1000);
+
+function createTestGenericJob(): Generic.Job {
+  return {
+    projectArchive: {
+      type: ArchiveSourceType.URL,
+      url: 'https://turtle-v2-test-fixtures.s3.us-east-2.amazonaws.com/project.tar.gz',
+    },
+    secrets: {
+      robotAccessToken: 'token',
+      environmentSecrets: [],
+    },
+    expoDevUrl: 'https://expo.dev',
+    builderEnvironment: {
+      image: 'ubuntu-22.04',
+      env: {},
+    },
+    triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+    initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
+    appId: '8f89da11-f2d1-4db4-b2b5-0d55af4ca4f6',
+    steps: [{ run: 'echo hello' }],
+  };
+}
 
 // Mock @expo/build-tools at the library boundary
 jest.mock('@expo/build-tools', () => {
@@ -34,6 +59,10 @@ jest.mock('@expo/build-tools', () => {
         };
       }),
     },
+    runGenericJobAsync: jest.fn(async () => ({
+      runResult: result(undefined),
+      buildWorkflow: {},
+    })),
   };
 });
 jest.mock('../service', () => {
@@ -307,6 +336,77 @@ describe('State sync mechanism', () => {
 
       ws.send(JSON.stringify({ type: 'state-query', buildId }));
       logger.debug('sent state-query');
+
+      await stateResponsePromise;
+
+      expect(helper.onErrorCb).not.toHaveBeenCalled();
+      expect(helper.onOpenCb).toHaveBeenCalled();
+      expect(helper.onMessageCb).toHaveBeenCalled();
+      expect(helper.onCloseCb).not.toHaveBeenCalled();
+      ws.close();
+      clearTimeout(messageTimeout);
+    });
+
+    it('should expose user-facing error from generic job', async () => {
+      jest.mocked(runGenericJobAsync).mockResolvedValueOnce({
+        runResult: result(
+          new errors.UserFacingError(
+            genericJobRunErrorCode,
+            'ASC app was not found for this account.'
+          )
+        ),
+        buildWorkflow: {} as any,
+      });
+      const dispatchWS = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
+      const dispatchHelper = new WsHelper(dispatchWS);
+      await dispatchHelper.onOpen();
+      dispatchWS.send(
+        JSON.stringify({
+          type: 'dispatch',
+          buildId,
+          job: createTestGenericJob(),
+          initiatingUserId: '14367e1b-26fc-4c00-aedb-0629d78f8286',
+          metadata: {
+            trackingContext: {},
+          },
+        })
+      );
+      dispatchWS.close();
+      await dispatchHelper.onClose();
+
+      const ws = new WebSocket(`ws://localhost:${port}?expo_vm_name=${hostname()}`);
+      const helper = new WsHelper(ws);
+
+      let stateResponsePromiseResolve: () => void;
+      const stateResponsePromise = new Promise<void>(res => {
+        stateResponsePromiseResolve = res;
+      });
+      const onMessage = jest.fn((message: any) => {
+        clearTimeout(messageTimeout);
+        try {
+          expect(message).toBeTruthy();
+          expect(message.type).toBe('state-response');
+          expect(message.status).toBe('error');
+          expect(message.externalBuildError).toEqual({
+            errorCode: genericJobRunErrorCode,
+            message: 'ASC app was not found for this account.',
+          });
+          expect(message.internalErrorCode).toBe(genericJobRunErrorCode);
+        } catch (err) {
+          throw err;
+        } finally {
+          stateResponsePromiseResolve();
+        }
+      });
+      const openPromise = helper.onOpen();
+      helper.onMessage(onMessage);
+
+      await openPromise;
+      messageTimeout = setTimeout(() => {
+        unreachableCode('state-response timeout');
+      }, 3000);
+
+      ws.send(JSON.stringify({ type: 'state-query', buildId }));
 
       await stateResponsePromise;
 

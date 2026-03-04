@@ -308,12 +308,7 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-
-      const unknownError =
-        'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-          ? new errors.UnknownCustomBuildError()
-          : new errors.UnknownBuildError();
-      const err = error instanceof errors.BuildError ? error : unknownError;
+      const err = toBuildError(error, job);
       const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
 
       sentry.handleError(err.message, maybeRawError, {
@@ -370,6 +365,27 @@ export default class BuildService {
       logger.debug('Not uploading XCode logs for Android job');
     }
   }
+}
+
+function toBuildError(error: unknown, job: Job): errors.BuildError {
+  if (error instanceof errors.BuildError) {
+    return error;
+  }
+
+  if (error instanceof errors.UserFacingError) {
+    const innerError = error.cause instanceof Error ? error.cause : error;
+    return new errors.BuildError(error.message, {
+      errorCode: error.errorCode,
+      userFacingErrorCode: error.errorCode,
+      userFacingMessage: error.message,
+      docsUrl: error.docsUrl,
+      innerError,
+    });
+  }
+
+  return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+    ? new errors.UnknownCustomBuildError()
+    : new errors.UnknownBuildError();
 }
 
 function getLastNLines(numberOfLines: number, stream: string): string {
