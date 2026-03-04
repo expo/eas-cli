@@ -8,6 +8,11 @@ export default class Credentials extends EasCommand {
 
   static override flags = {
     platform: Flags.option({ char: 'p', options: ['android', 'ios'] as const })(),
+    profile: Flags.string({
+      char: 'e',
+      description: 'Name of the profile to manage',
+      helpValue: 'PROFILE_NAME',
+    }),
   };
 
   static override contextDefinition = {
@@ -20,6 +25,7 @@ export default class Credentials extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Credentials);
+    console.error(`The flags! ${flags}`);
     const {
       loggedIn: { actor, graphqlClient },
       optionalPrivateProjectConfig: privateProjectConfig,
@@ -38,7 +44,10 @@ export default class Credentials extends EasCommand {
       analytics,
       privateProjectConfig ?? null,
       getDynamicPrivateProjectConfigAsync,
-      flags.platform
+      {
+        flagPlatform: flags.platform,
+        flagProfileName: flags.profile,
+      }
     ).runAsync();
   }
 }
