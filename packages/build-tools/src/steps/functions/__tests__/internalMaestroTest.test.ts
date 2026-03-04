@@ -1,11 +1,14 @@
 import { spawnAsync } from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import os from 'os';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { AndroidEmulatorUtils } from '../../../utils/AndroidEmulatorUtils';
 import { IosSimulatorUtils } from '../../../utils/IosSimulatorUtils';
 import { findMaestroPathsFlowsToExecuteAsync } from '../../../utils/findMaestroPathsFlowsToExecuteAsync';
+import { retryAsync } from '../../../utils/retry';
 import { createInternalEasMaestroTestFunction } from '../internalMaestroTest';
 
 jest.mock('@expo/steps', () => ({
@@ -13,11 +16,22 @@ jest.mock('@expo/steps', () => ({
   spawnAsync: jest.fn(),
 }));
 
+jest.mock('@expo/turtle-spawn', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('../../../utils/IosSimulatorUtils');
 jest.mock('../../../utils/AndroidEmulatorUtils');
 jest.mock('../../../utils/findMaestroPathsFlowsToExecuteAsync');
+jest.mock('../../../utils/retry', () => ({
+  retryAsync: jest.fn(),
+}));
 
 const mockedSpawnAsync = jest.mocked(spawnAsync);
+const mockedSpawn = jest.mocked(spawn);
+const mockedRetryAsync = jest.mocked(retryAsync);
+const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
 const mockedIosUtils = jest.mocked(IosSimulatorUtils);
 const mockedFindFlows = jest.mocked(findMaestroPathsFlowsToExecuteAsync);
 
@@ -28,7 +42,20 @@ describe(createInternalEasMaestroTestFunction, () => {
     vol.mkdirSync(os.tmpdir(), { recursive: true });
 
     mockedSpawnAsync.mockResolvedValue(undefined as any);
+    mockedSpawn.mockResolvedValue({ stdout: 'source-emulator\n', stderr: '' } as any);
     mockUploadArtifact.mockResolvedValue({ artifactId: null });
+
+    mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
+      let lastErr: unknown;
+      for (let attemptCount = 0; attemptCount <= retryOptions.retries; attemptCount++) {
+        try {
+          return await fn(attemptCount);
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr;
+    });
 
     mockedIosUtils.getAvailableDevicesAsync.mockResolvedValue([
       { name: 'iPhone 15', udid: 'test-udid-123' } as any,
@@ -38,6 +65,18 @@ describe(createInternalEasMaestroTestFunction, () => {
     mockedIosUtils.waitForReadyAsync.mockResolvedValue(undefined as any);
     mockedIosUtils.collectLogsAsync.mockResolvedValue({ outputPath: '/tmp/logs.txt' } as any);
     mockedIosUtils.deleteAsync.mockResolvedValue(undefined as any);
+
+    mockedAndroidUtils.getAttachedDevicesAsync.mockResolvedValue([
+      { serialId: 'emulator-5554', state: 'device' } as any,
+    ]);
+    mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined as any);
+    mockedAndroidUtils.startAsync.mockResolvedValue({
+      serialId: 'emulator-5556',
+      emulatorPromise: Promise.resolve({}),
+    } as any);
+    mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined as any);
+    mockedAndroidUtils.collectLogsAsync.mockResolvedValue({ outputPath: '/tmp/logs.txt' } as any);
+    mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined as any);
 
     mockedFindFlows.mockResolvedValue(['/project/.maestro/home.yml']);
   });
@@ -94,5 +133,78 @@ describe(createInternalEasMaestroTestFunction, () => {
 
     const junitDir = step.getOutputValueByName('junit_report_directory');
     expect(junitDir).toBeUndefined();
+  });
+
+  it('retries Android clone startup with increasing timeouts', async () => {
+    mockedAndroidUtils.startAsync
+      .mockResolvedValueOnce({
+        serialId: 'emulator-attempt-1',
+        emulatorPromise: Promise.resolve({}),
+      } as any)
+      .mockResolvedValueOnce({
+        serialId: 'emulator-attempt-2',
+        emulatorPromise: Promise.resolve({}),
+      } as any);
+    mockedAndroidUtils.waitForReadyAsync
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(undefined);
+
+    const step = createStep({
+      callInputs: { platform: 'android' },
+    });
+
+    await step.executeAsync();
+
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-attempt-1',
+        timeoutMs: 60_000,
+      })
+    );
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        serialId: 'emulator-attempt-2',
+        timeoutMs: 120_000,
+      })
+    );
+    expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-attempt-1',
+        deviceName: 'eas-simulator-0-0',
+      })
+    );
+  });
+
+  it('fails Android flow when clone startup exhausts all attempts', async () => {
+    mockedAndroidUtils.startAsync
+      .mockResolvedValueOnce({
+        serialId: 'emulator-attempt-1',
+        emulatorPromise: Promise.resolve({}),
+      } as any)
+      .mockResolvedValueOnce({
+        serialId: 'emulator-attempt-2',
+        emulatorPromise: Promise.resolve({}),
+      } as any)
+      .mockResolvedValueOnce({
+        serialId: 'emulator-attempt-3',
+        emulatorPromise: Promise.resolve({}),
+      } as any);
+    mockedAndroidUtils.waitForReadyAsync.mockRejectedValue(new Error('network unavailable'));
+
+    const step = createStep({
+      callInputs: { platform: 'android' },
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow('network unavailable');
+
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        serialId: 'emulator-attempt-3',
+        timeoutMs: 180_000,
+      })
+    );
   });
 });
