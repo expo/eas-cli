@@ -407,9 +407,12 @@ export namespace AndroidEmulatorUtils {
     }
 
     const netcatResult = await asyncResult(
-      spawn('adb', ['-s', serialId, 'shell', 'nc', '-z', '-w', '1', '1.1.1.1', '443'], {
-        env,
-      })
+      spawn(
+        'adb',
+        ['-s', serialId, 'shell', 'nc', '-w', '1', '1.1.1.1', '443'],
+        // Close stdin to make netcat exit cleanly on Android images that don't support `-z`.
+        { env, stdio: ['ignore', 'pipe', 'pipe'] }
+      )
     );
     return netcatResult.ok;
   }
