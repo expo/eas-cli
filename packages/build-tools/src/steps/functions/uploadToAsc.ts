@@ -13,7 +13,7 @@ import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
-import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
+import { AscApiClient, AscApiClientPostApi, AscApiRequestError } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 import { readIpaInfoAsync } from './readIpaInfo';
 
@@ -229,15 +229,30 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       let lastWaitLogTime = 0;
       let lastWaitLogState: string | null = null;
       while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
-        const {
-          data: {
-            attributes: { state },
-          },
-        } = await client.getAsync(
-          `/v1/buildUploads/:id`,
-          { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
-          { id: buildUploadId }
-        );
+        let state: {
+          state: 'AWAITING_UPLOAD' | 'PROCESSING' | 'COMPLETE' | 'FAILED';
+          infos?: { code: string; description: string }[];
+          errors?: { code: string; description: string }[];
+          warnings?: { code: string; description: string }[];
+        };
+        try {
+          const response = await client.getAsync(
+            `/v1/buildUploads/:id`,
+            { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
+            { id: buildUploadId }
+          );
+          state = response.data.attributes.state;
+        } catch (error) {
+          if (isAscUnexpectedServerError(error)) {
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
+              'App Store Connect returned a temporary server error while processing the uploaded build. ' +
+                'Wait a few minutes and retry submit. If this keeps happening, try again later or contact Apple Developer Support.',
+              { cause: error }
+            );
+          }
+          throw error;
+        }
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
           const now = Date.now();
@@ -339,6 +354,14 @@ export function isInvalidBundleIdentifierError(messages: { code: string }[]): bo
 
 export function isMissingPurposeStringError(messages: { code: string }[]): boolean {
   return messages.length > 0 && messages.every(message => message.code === '90683');
+}
+
+export function isAscUnexpectedServerError(error: unknown): boolean {
+  if (!(error instanceof AscApiRequestError) || error.status !== 500) {
+    return false;
+  }
+  const errors = error.responseJson.errors;
+  return errors.length > 0 && errors.every(item => item.code === 'UNEXPECTED_ERROR');
 }
 
 export function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
