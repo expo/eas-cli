@@ -45,7 +45,7 @@ class State {
   public stateResponse(): WorkerMessage.StateResponse {
     const websocketErrorCode =
       this.userError?.type === errors.ExpoErrorType.SYSTEM
-        ? errors.ErrorCode.SYSTEM_ERROR
+        ? errors.ErrorCode.SERVER_ERROR
         : this.userError?.errorCode;
 
     return {

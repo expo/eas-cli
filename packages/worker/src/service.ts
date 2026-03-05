@@ -112,7 +112,7 @@ export default class BuildService {
   public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
     const websocketErrorCode =
-      err.type === errors.ExpoErrorType.SYSTEM ? errors.ErrorCode.SYSTEM_ERROR : err.errorCode;
+      err.type === errors.ExpoErrorType.SYSTEM ? errors.ErrorCode.SERVER_ERROR : err.errorCode;
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
