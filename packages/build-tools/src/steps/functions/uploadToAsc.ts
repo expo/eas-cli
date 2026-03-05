@@ -266,6 +266,18 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isSdkVersionIssueError(errors)) {
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
+              'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
+                'Rebuild the app with a newer Xcode/iOS SDK and submit again. ' +
+                'If you use EAS Build, select a newer iOS build image in eas.json.',
+              {
+                docsUrl:
+                  'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -327,6 +339,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
   return (
     messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
   );
+}
+
+export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90725');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {

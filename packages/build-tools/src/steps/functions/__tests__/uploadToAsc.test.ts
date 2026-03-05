@@ -2,6 +2,7 @@ import {
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
   isMissingPurposeStringError,
+  isSdkVersionIssueError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
 
@@ -50,6 +51,20 @@ describe(isMissingPurposeStringError, () => {
 
   it('returns false when there are no errors', () => {
     expect(isMissingPurposeStringError([])).toBe(false);
+  });
+});
+
+describe(isSdkVersionIssueError, () => {
+  it('returns true when all errors are SDK-version-issue codes', () => {
+    expect(isSdkVersionIssueError([{ code: '90725' }, { code: '90725' }])).toBe(true);
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(isSdkVersionIssueError([{ code: '90725' }, { code: '90062' }])).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(isSdkVersionIssueError([])).toBe(false);
   });
 });
 
