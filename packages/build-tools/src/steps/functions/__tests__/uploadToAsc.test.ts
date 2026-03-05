@@ -2,6 +2,7 @@ import {
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
   isMissingPurposeStringError,
+  isRedundantBinaryUploadError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
 
@@ -36,6 +37,20 @@ describe(isInvalidBundleIdentifierError, () => {
 
   it('returns false when there are no errors', () => {
     expect(isInvalidBundleIdentifierError([])).toBe(false);
+  });
+});
+
+describe(isRedundantBinaryUploadError, () => {
+  it('returns true when all errors are redundant-binary-upload codes', () => {
+    expect(isRedundantBinaryUploadError([{ code: '90189' }, { code: '90189' }])).toBe(true);
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(isRedundantBinaryUploadError([{ code: '90189' }, { code: '90062' }])).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(isRedundantBinaryUploadError([])).toBe(false);
   });
 });
 

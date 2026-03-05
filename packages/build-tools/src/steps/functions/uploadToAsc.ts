@@ -266,6 +266,17 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isRedundantBinaryUploadError(errors)) {
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
+              `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
+                'App Store Connect requires unique build numbers within each app version (version train). ' +
+                'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+              {
+                docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -327,6 +338,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
   return (
     messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
   );
+}
+
+export function isRedundantBinaryUploadError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90189');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
