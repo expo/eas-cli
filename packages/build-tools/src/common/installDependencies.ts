@@ -45,7 +45,12 @@ export async function installDependenciesAsync({
           ];
         }
       } else {
-        args = ['install', ...(useFrozenLockfile ? ['--frozen-lockfile'] : [])];
+        args = [
+          'install',
+          ...(useFrozenLockfile ? ['--frozen-lockfile'] : []),
+          '--production',
+          'false',
+        ];
       }
       break;
     }
@@ -64,10 +69,7 @@ export async function installDependenciesAsync({
       cwd,
       logger,
       infoCallbackFn,
-      env: {
-        ...env,
-        NODE_ENV: 'development',
-      },
+      env,
     }),
   };
 }
