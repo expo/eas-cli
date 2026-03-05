@@ -2,6 +2,7 @@ import { BuildMode } from './common';
 import { BuildPhase, buildPhaseDisplayName } from './logs';
 
 export enum ErrorCode {
+  SYSTEM_ERROR = 'SYSTEM_ERROR',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
   UNKNOWN_CUSTOM_BUILD_ERROR = 'UNKNOWN_CUSTOM_BUILD_ERROR',
   SERVER_ERROR = 'SERVER_ERROR',

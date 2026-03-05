@@ -111,6 +111,8 @@ export default class BuildService {
 
   public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
+    const websocketErrorCode =
+      err.type === errors.ExpoErrorType.SYSTEM ? errors.ErrorCode.SYSTEM_ERROR : err.errorCode;
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
@@ -128,7 +130,7 @@ export default class BuildService {
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
         externalBuildError: err.format(),
-        internalErrorCode: err.errorCode,
+        internalErrorCode: websocketErrorCode,
       });
     }
     this.checkForHangingWorker(isSocketClosed);

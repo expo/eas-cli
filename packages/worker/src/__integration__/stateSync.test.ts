@@ -320,6 +320,7 @@ describe('State sync mechanism', () => {
           expect(message.applicationArchiveName).toBe(`application-${buildId}`);
           expect(message.type).toBe('state-response');
           expect(message.status).toBe('error');
+          expect(message.internalErrorCode).toBe(errors.ErrorCode.SYSTEM_ERROR);
         } catch (err) {
           throw err;
         } finally {

@@ -43,6 +43,11 @@ class State {
   }
 
   public stateResponse(): WorkerMessage.StateResponse {
+    const websocketErrorCode =
+      this.userError?.type === errors.ExpoErrorType.SYSTEM
+        ? errors.ErrorCode.SYSTEM_ERROR
+        : this.userError?.errorCode;
+
     return {
       type: WorkerMessage.MessageType.STATE_RESPONSE,
       status: this.status,
@@ -50,7 +55,7 @@ class State {
       applicationArchiveName: this.applicationArchiveName ?? null,
       ...(this.userError && {
         externalBuildError: this.userError.format(),
-        internalErrorCode: this.userError.errorCode,
+        internalErrorCode: websocketErrorCode,
       }),
       abortReason: this.abortReason,
     };
