@@ -1,6 +1,7 @@
 import {
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
+  isMissingAppIconsError,
   isMissingPurposeStringError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
@@ -50,6 +51,22 @@ describe(isMissingPurposeStringError, () => {
 
   it('returns false when there are no errors', () => {
     expect(isMissingPurposeStringError([])).toBe(false);
+  });
+});
+
+describe(isMissingAppIconsError, () => {
+  it('returns true when all errors are missing-app-icon codes', () => {
+    expect(isMissingAppIconsError([{ code: '90391' }, { code: '90713' }, { code: '90713' }])).toBe(
+      true
+    );
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(isMissingAppIconsError([{ code: '90391' }, { code: '90771' }])).toBe(false);
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(isMissingAppIconsError([])).toBe(false);
   });
 });
 
