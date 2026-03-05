@@ -94,6 +94,36 @@ describe('AscApiUtils', () => {
         AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
       ).rejects.toBe(notFoundError);
     });
+
+    it('throws UserFacingError when ASC rejects API credentials', async () => {
+      const payload = {
+        errors: [
+          {
+            status: '401',
+            code: 'NOT_AUTHORIZED',
+            detail: 'Authentication credentials are missing or invalid.',
+          },
+        ],
+      };
+      const authError = new AscApiRequestError(
+        'Unexpected response (401) from App Store Connect',
+        401,
+        payload
+      );
+      const client = {
+        getAsync: jest.fn().mockRejectedValue(authError),
+      };
+
+      await expect(
+        AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
+      ).rejects.toEqual(
+        expect.objectContaining({
+          errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          docsUrl: 'https://docs.expo.dev/submit/ios/',
+          message: expect.stringContaining('rejected the API authentication credentials'),
+        })
+      );
+    });
   });
 
   describe('createBuildUploadAsync', () => {
@@ -185,6 +215,41 @@ describe('AscApiUtils', () => {
           bundleVersion: '42',
         })
       ).rejects.toBe(mixedError);
+    });
+
+    it('throws UserFacingError when ASC rejects API credentials', async () => {
+      const payload = {
+        errors: [
+          {
+            status: '401',
+            code: 'NOT_AUTHORIZED',
+            detail: 'Authentication credentials are missing or invalid.',
+          },
+        ],
+      };
+      const authError = new AscApiRequestError(
+        'Unexpected response (401) from App Store Connect',
+        401,
+        payload
+      );
+      const client = {
+        postAsync: jest.fn().mockRejectedValue(authError),
+      };
+
+      await expect(
+        AscApiUtils.createBuildUploadAsync({
+          client,
+          appleAppIdentifier: '1491144534',
+          bundleShortVersion: '1.2.3',
+          bundleVersion: '42',
+        })
+      ).rejects.toEqual(
+        expect.objectContaining({
+          errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          docsUrl: 'https://docs.expo.dev/submit/ios/',
+          message: expect.stringContaining('rejected the API authentication credentials'),
+        })
+      );
     });
   });
 });

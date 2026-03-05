@@ -22,6 +22,24 @@ export namespace AscApiUtils {
         { id: appleAppIdentifier }
       );
     } catch (error) {
+      const authErrors =
+        error instanceof AscApiRequestError && error.status === 401
+          ? error.responseJson.errors
+          : [];
+      const isAuthError =
+        authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
+      if (isAuthError) {
+        throw new UserFacingError(
+          'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          'App Store Connect rejected the API authentication credentials. ' +
+            'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',
+          {
+            cause: error,
+            docsUrl: 'https://docs.expo.dev/submit/ios/',
+          }
+        );
+      }
+
       const notFoundErrors =
         error instanceof AscApiRequestError && error.status === 404
           ? error.responseJson.errors
@@ -85,6 +103,24 @@ export namespace AscApiUtils {
         },
       });
     } catch (error) {
+      const authErrors =
+        error instanceof AscApiRequestError && error.status === 401
+          ? error.responseJson.errors
+          : [];
+      const isAuthError =
+        authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
+      if (isAuthError) {
+        throw new UserFacingError(
+          'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          'App Store Connect rejected the API authentication credentials. ' +
+            'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',
+          {
+            cause: error,
+            docsUrl: 'https://docs.expo.dev/submit/ios/',
+          }
+        );
+      }
+
       const errors =
         error instanceof AscApiRequestError && error.status === 409
           ? error.responseJson.errors
