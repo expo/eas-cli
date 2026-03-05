@@ -64,7 +64,10 @@ export async function installDependenciesAsync({
       cwd,
       logger,
       infoCallbackFn,
-      env,
+      env: {
+        ...env,
+        NODE_ENV: 'development',
+      },
     }),
   };
 }
