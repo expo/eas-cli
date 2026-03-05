@@ -1,6 +1,7 @@
 import {
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
+  isMissingBackgroundTaskIdentifiersError,
   isMissingPurposeStringError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
@@ -50,6 +51,24 @@ describe(isMissingPurposeStringError, () => {
 
   it('returns false when there are no errors', () => {
     expect(isMissingPurposeStringError([])).toBe(false);
+  });
+});
+
+describe(isMissingBackgroundTaskIdentifiersError, () => {
+  it('returns true when all errors are missing BG task identifiers codes', () => {
+    expect(isMissingBackgroundTaskIdentifiersError([{ code: '90771' }, { code: '90771' }])).toBe(
+      true
+    );
+  });
+
+  it('returns false when any other error code is present', () => {
+    expect(isMissingBackgroundTaskIdentifiersError([{ code: '90771' }, { code: '90062' }])).toBe(
+      false
+    );
+  });
+
+  it('returns false when there are no errors', () => {
+    expect(isMissingBackgroundTaskIdentifiersError([])).toBe(false);
   });
 });
 

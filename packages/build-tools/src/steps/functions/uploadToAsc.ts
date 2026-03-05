@@ -266,6 +266,17 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isMissingBackgroundTaskIdentifiersError(errors)) {
+            throw new UserFacingError(
+              'EAS_UPLOAD_TO_ASC_MISSING_BG_TASK_IDENTIFIERS',
+              'Build upload was rejected by App Store Connect because Info.plist is missing `BGTaskSchedulerPermittedIdentifiers` while `UIBackgroundModes` includes `processing`. ' +
+                'Add the required task identifiers to your app configuration, rebuild, and submit again. ' +
+                'If you use Continuous Native Generation (CNG), set this in `ios.infoPlist` in app.json/app.config.js.',
+              {
+                docsUrl: 'https://docs.expo.dev/versions/latest/config/app/#infoplist',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -327,6 +338,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
   return (
     messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
   );
+}
+
+export function isMissingBackgroundTaskIdentifiersError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90771');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
