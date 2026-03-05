@@ -8,7 +8,12 @@ import {
 describe(isClosedVersionTrainError, () => {
   it('returns true when all errors are closed-version-train codes', () => {
     expect(
-      isClosedVersionTrainError([{ code: '90062' }, { code: '90186' }, { code: '90062' }])
+      isClosedVersionTrainError([
+        { code: '90062' },
+        { code: '90186' },
+        { code: '90478' },
+        { code: '90062' },
+      ])
     ).toBe(true);
   });
 

@@ -305,8 +305,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           if (isClosedVersionTrainError(errors)) {
             throw new UserFacingError(
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
-              `Build upload was rejected by App Store Connect because the ${bundleShortVersion} version train is closed. ` +
-                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version and submit again.'
+              `Build upload was rejected by App Store Connect because the ${bundleShortVersion} app version is not accepted for new build submissions. ` +
+                'This usually means the version train is closed or lower than a previously approved version. ' +
+                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version, then rebuild and submit again.'
             );
           }
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
@@ -325,7 +326,8 @@ function itemizeMessages(messages: { description: string; code: string }[]): str
 
 export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
   return (
-    messages.length > 0 && messages.every(message => ['90062', '90186'].includes(message.code))
+    messages.length > 0 &&
+    messages.every(message => ['90062', '90186', '90478'].includes(message.code))
   );
 }
 
