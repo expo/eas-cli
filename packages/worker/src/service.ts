@@ -309,7 +309,8 @@ export default class BuildService {
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
       const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? error.innerError ?? error : error;
+      const maybeRawError =
+        error instanceof errors.BuildError ? (error.innerError ?? error) : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {

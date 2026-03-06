@@ -81,7 +81,9 @@ export async function resolveBuildPhaseErrorAsync(
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
   const trackingCode =
-    buildError && buildError.errorCode !== userFacingError.errorCode ? buildError.errorCode : undefined;
+    buildError && buildError.errorCode !== userFacingError.errorCode
+      ? buildError.errorCode
+      : undefined;
 
   return new errors.BuildError(userFacingError.message, {
     errorCode: userFacingError.errorCode,
