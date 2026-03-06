@@ -42,7 +42,7 @@ beforeEach(() => {
   jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
-const createTestEasCommand = (): typeof EasCommand => {
+const createTestEasCommand = (): any => {
   class TestEasCommand extends EasCommand {
     async runAsync(): Promise<void> {}
   }

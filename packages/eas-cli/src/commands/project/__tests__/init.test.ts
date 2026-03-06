@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
 import ProjectDirContextField from '../../../commandUtils/context/ProjectDirContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -97,7 +98,7 @@ function mockTestProject(options: {
   jest.mocked(isExpoInstalled).mockReturnValue(true);
 }
 
-const commandOptions = { root: '/test-project' } as any;
+const commandOptions = getMockOclifConfig('/test-project');
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -166,9 +167,10 @@ describe(ProjectInit.name, () => {
         });
 
         it('does not prompt to overwrite when different', async () => {
-          await new ProjectInit(['--id', '12345', '--force'], {
-            root: '/test-project',
-          } as any).run();
+          await new ProjectInit(
+            ['--id', '12345', '--force'],
+            getMockOclifConfig('/test-project')
+          ).run();
           expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '12345');
           expect(confirmAsync).not.toHaveBeenCalled();
         });
@@ -177,9 +179,10 @@ describe(ProjectInit.name, () => {
       describe('non-interactive', () => {
         it('aborts when different', async () => {
           await expect(
-            new ProjectInit(['--id', '12345', '--non-interactive'], {
-              root: '/test-project',
-            } as any).run()
+            new ProjectInit(
+              ['--id', '12345', '--non-interactive'],
+              getMockOclifConfig('/test-project')
+            ).run()
           ).rejects.toThrowError(
             `Project is already linked to a different ID: ${chalk.bold(
               '1234'

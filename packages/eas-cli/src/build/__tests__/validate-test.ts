@@ -1,5 +1,5 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
-import { ExitError } from '@oclif/core/lib/errors';
+import { Errors } from '@oclif/core';
 import path from 'path';
 import { instance, mock, when } from 'ts-mockito';
 
@@ -7,6 +7,8 @@ import { CommonContext } from '../context';
 import { validatePNGsForManagedProjectAsync } from '../validate';
 
 const fixturesPath = path.join(__dirname, 'fixtures');
+
+const { ExitError } = Errors;
 
 describe(validatePNGsForManagedProjectAsync, () => {
   it('does not validate PNGs for generic projects', async () => {

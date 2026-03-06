@@ -4,6 +4,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import {
   DynamicPrivateProjectConfigContextField,
@@ -23,7 +24,7 @@ import { resolveVcsClient } from '../../../vcs';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
-const commandOptions = { root: projectRoot } as any;
+const commandOptions = getMockOclifConfig(projectRoot);
 const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',

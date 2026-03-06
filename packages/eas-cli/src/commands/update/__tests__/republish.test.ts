@@ -2,6 +2,7 @@ import { AppJSONConfig, ExpoConfig, PackageJSONConfig, getConfig } from '@expo/c
 import { DirectoryJSON, vol } from 'memfs';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
 import { PrivateProjectConfigContextField } from '../../../commandUtils/context/PrivateProjectConfigContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -23,7 +24,7 @@ import {
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
-const commandOptions = { root: projectRoot } as any;
+const commandOptions = getMockOclifConfig(projectRoot);
 const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',
