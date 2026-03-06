@@ -287,7 +287,7 @@ export class BuildContext<TJob extends Job = Job> {
   private async handleBuildPhaseErrorAsync(
     err: any,
     buildPhase: BuildPhase
-  ): Promise<errors.BuildError> {
+  ): Promise<errors.ExpoError> {
     const buildError = await resolveBuildPhaseErrorAsync(
       err,
       this.logBuffer.getPhaseLogs(buildPhase),

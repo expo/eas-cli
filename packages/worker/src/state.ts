@@ -8,7 +8,7 @@ class State {
   private status: Worker.Status = Worker.Status.NEW;
   private applicationArchiveName: string | null = null;
   private buildArtifactsName: string | null = null;
-  private userError?: errors.BuildError;
+  private userError?: errors.ExpoError;
   private abortReason?: LauncherMessage.AbortReason;
   private readonly shouldCloseWorker = false;
 
@@ -29,7 +29,7 @@ class State {
     }: {
       applicationArchiveName: string | null;
       buildArtifactsName: string | null;
-      userError?: errors.BuildError;
+      userError?: errors.ExpoError;
     }
   ): void {
     this.status = result;
