@@ -143,7 +143,7 @@ export default class New extends EasCommand {
     'package-manager': Flags.option({
       char: 'p',
       description: 'Package manager to use for installing dependencies',
-      options: [...PACKAGE_MANAGERS],
+      options: [...PACKAGE_MANAGERS] as const,
       default: 'npm',
     })(),
   };

@@ -30,7 +30,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
   static override flags = {
     scope: Flags.option({
       description: 'Scope for the secret',
-      options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
+      options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT] as const,
       default: EnvironmentSecretScope.PROJECT,
     })(),
     name: Flags.string({
@@ -41,7 +41,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }),
     type: Flags.option({
       description: 'The type of secret',
-      options: [SecretType.STRING, SecretType.FILE],
+      options: [SecretType.STRING, SecretType.FILE] as const,
     })(),
     force: Flags.boolean({
       description: 'Delete and recreate existing secrets',

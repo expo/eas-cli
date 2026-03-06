@@ -20,7 +20,7 @@ export default class BuildInternal extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios'] as const,
       required: true,
     })(),
     profile: Flags.string({

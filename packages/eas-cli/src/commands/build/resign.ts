@@ -68,7 +68,7 @@ export default class BuildResign extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios'] as const,
     })(),
     'target-profile': Flags.string({
       char: 'e',

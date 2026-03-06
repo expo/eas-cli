@@ -36,7 +36,7 @@ export default class FingerprintGenerate extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios'] as const,
     })(),
     ...EASEnvironmentFlag,
     environment: Flags.string({

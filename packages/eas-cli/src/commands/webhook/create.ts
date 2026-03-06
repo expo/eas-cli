@@ -13,7 +13,7 @@ export default class WebhookCreate extends EasCommand {
   static override flags = {
     event: Flags.option({
       description: 'Event type that triggers the webhook',
-      options: [WebhookType.Build, WebhookType.Submit],
+      options: [WebhookType.Build, WebhookType.Submit] as const,
     })(),
     url: Flags.string({
       description: 'Webhook URL',

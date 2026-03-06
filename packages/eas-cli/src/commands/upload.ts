@@ -37,7 +37,7 @@ export default class BuildUpload extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
+      options: [Platform.IOS, Platform.ANDROID] as const,
     })(),
     'build-path': Flags.string({
       description: 'Path for the local build',

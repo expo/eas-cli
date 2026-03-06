@@ -47,7 +47,7 @@ export default class Build extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios', 'all'],
+      options: ['android', 'ios', 'all'] as const,
     })(),
     'skip-credentials-check': Flags.boolean({
       default: false,

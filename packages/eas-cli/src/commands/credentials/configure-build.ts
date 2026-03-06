@@ -12,7 +12,7 @@ export default class InitializeBuildCredentials extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: [Platform.ANDROID, Platform.IOS],
+      options: [Platform.ANDROID, Platform.IOS] as const,
     })(),
     profile: Flags.string({
       char: 'e',

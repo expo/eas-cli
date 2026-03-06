@@ -69,7 +69,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
         // TODO: Add web when it's fully supported
         ...defaultPublishPlatforms,
         'all',
-      ],
+      ] as const,
       default: 'all',
       required: false,
     })(),

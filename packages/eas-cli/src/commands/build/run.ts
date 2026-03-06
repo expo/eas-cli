@@ -64,7 +64,7 @@ export default class Run extends EasCommand {
     }),
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios'],
+      options: ['android', 'ios'] as const,
     })(),
     profile: Flags.string({
       char: 'e',

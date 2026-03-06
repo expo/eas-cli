@@ -30,7 +30,7 @@ export default class BuildInspect extends EasCommand {
   static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: [RequestedPlatform.Android, RequestedPlatform.Ios],
+      options: [RequestedPlatform.Android, RequestedPlatform.Ios] as const,
       required: true,
     })(),
     profile: Flags.string({
@@ -42,7 +42,7 @@ export default class BuildInspect extends EasCommand {
     stage: Flags.option({
       char: 's',
       description: STAGE_DESCRIPTION,
-      options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD],
+      options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD] as const,
       required: true,
     })(),
     output: Flags.string({

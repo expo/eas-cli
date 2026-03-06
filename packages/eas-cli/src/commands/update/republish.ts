@@ -78,7 +78,7 @@ export default class UpdateRepublish extends EasCommand {
     }),
     platform: Flags.option({
       char: 'p',
-      options: [...defaultRepublishPlatforms, 'all'],
+      options: [...defaultRepublishPlatforms, 'all'] as const,
       default: 'all',
       required: false,
     })(),

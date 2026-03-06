@@ -30,7 +30,7 @@ export default class SubmitInternal extends EasCommand {
 
   static override flags = {
     platform: Flags.option({
-      options: [Platform.ANDROID, Platform.IOS],
+      options: [Platform.ANDROID, Platform.IOS] as const,
       required: true,
     })(),
     profile: Flags.string({

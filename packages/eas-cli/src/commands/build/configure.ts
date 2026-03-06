@@ -22,7 +22,7 @@ export default class BuildConfigure extends EasCommand {
     platform: Flags.option({
       description: 'Platform to configure',
       char: 'p',
-      options: ['android', 'ios', 'all'],
+      options: ['android', 'ios', 'all'] as const,
     })(),
   };
 

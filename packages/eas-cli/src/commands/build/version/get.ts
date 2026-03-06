@@ -24,7 +24,7 @@ export default class BuildVersionGetView extends EasCommand {
   public static override flags = {
     platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios', 'all'],
+      options: ['android', 'ios', 'all'] as const,
     })(),
     profile: Flags.string({
       char: 'e',
