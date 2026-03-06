@@ -17,10 +17,10 @@ export default class WebhookUpdate extends EasCommand {
       description: 'Webhook ID',
       required: true,
     }),
-    event: Flags.enum({
+    event: Flags.option({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
-    }),
+    })(),
     url: Flags.string({
       description: 'Webhook URL',
     }),

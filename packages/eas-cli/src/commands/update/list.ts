@@ -29,11 +29,11 @@ export default class UpdateList extends EasCommand {
       exclusive: ['branch'],
       default: false,
     }),
-    platform: Flags.enum<RequestedPlatform>({
+    platform: Flags.option({
       options: Object.values(RequestedPlatform),
       char: 'p',
       description: 'Filter updates by platform',
-    }),
+    })(),
     'runtime-version': Flags.string({
       description: 'Filter updates by runtime version',
     }),

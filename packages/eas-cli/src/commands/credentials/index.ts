@@ -7,7 +7,7 @@ export default class Credentials extends EasCommand {
   static override description = 'manage credentials';
 
   static override flags = {
-    platform: Flags.enum({ char: 'p', options: ['android', 'ios'] }),
+    platform: Flags.option({ char: 'p', options: ['android', 'ios'] })(),
   };
 
   static override contextDefinition = {

@@ -76,12 +76,12 @@ export default class UpdateRepublish extends EasCommand {
       description: 'Short message describing the republished update group',
       required: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: [...defaultRepublishPlatforms, 'all'],
       default: 'all',
       required: false,
-    }),
+    })(),
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,

@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 
@@ -37,19 +38,17 @@ export default class EnvExec extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       required: true,
       description:
         "Environment to execute the command in. Default environments are 'production', 'preview', and 'development'.",
-    },
-    {
-      name: 'bash_command',
+    }),
+    bash_command: Args.string({
       required: true,
       description: 'bash command to execute with the environment variables from the environment',
-    },
-  ];
+    }),
+  };
 
   private isNonInteractive: boolean = false;
 

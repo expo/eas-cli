@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
@@ -132,21 +132,20 @@ export default class New extends EasCommand {
   static override description =
     'Create a new project configured with Expo Application Services (EAS)';
 
-  static override args = [
-    {
-      name: 'path',
+  static override args = {
+    path: Args.string({
       description: 'Path to create the project (defaults to current directory)',
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
-    'package-manager': Flags.enum<PackageManager>({
+    'package-manager': Flags.option({
       char: 'p',
       description: 'Package manager to use for installing dependencies',
       options: [...PACKAGE_MANAGERS],
       default: 'npm',
-    }),
+    })(),
   };
 
   static override contextDefinition = {

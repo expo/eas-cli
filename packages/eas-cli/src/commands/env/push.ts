@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
@@ -38,14 +38,13 @@ export default class EnvPush extends EasCommand {
     }),
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Environment to push variables to. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvPush);
@@ -214,7 +213,7 @@ export default class EnvPush extends EasCommand {
       environment: string[] | undefined;
       force: boolean;
     },
-    { environment }: Record<string, string>
+    { environment }: { environment?: string }
   ): { environment?: string[]; path: string; force: boolean } {
     const environments = flags.environment ?? (environment ? [environment] : undefined);
 

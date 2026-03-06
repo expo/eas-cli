@@ -28,28 +28,28 @@ export const EASMultiEnvironmentFlag = {
 };
 
 export const EASVariableFormatFlag = {
-  format: Flags.enum({
+  format: Flags.option({
     description: 'Output format',
-    options: ['long', 'short'],
+    options: ['long', 'short'] as const,
     default: 'short',
-  }),
+  })(),
 };
 
 export const EASVariableVisibilityFlag = {
-  visibility: Flags.enum<'plaintext' | 'sensitive' | 'secret'>({
+  visibility: Flags.option({
     description: 'Visibility of the variable',
-    options: ['plaintext', 'sensitive', 'secret'],
-  }),
+    options: ['plaintext', 'sensitive', 'secret'] as const,
+  })(),
 };
 
 export type EASEnvironmentVariableScopeFlagValue = 'project' | 'account';
 
 export const EASEnvironmentVariableScopeFlag = {
-  scope: Flags.enum<EASEnvironmentVariableScopeFlagValue>({
+  scope: Flags.option({
     description: 'Scope for the variable',
-    options: ['project', 'account'],
+    options: ['project', 'account'] as const,
     default: 'project',
-  }),
+  })(),
 };
 
 export const EASNonInteractiveFlag = {

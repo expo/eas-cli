@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
@@ -16,13 +17,12 @@ import { formatWebhook } from '../../webhooks/formatWebhook';
 export default class WebhookDelete extends EasCommand {
   static override description = 'delete a webhook';
 
-  static override args = [
-    {
-      name: 'ID',
+  static override args = {
+    ID: Args.string({
       required: false,
       description: 'ID of the webhook to delete',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EASNonInteractiveFlag,
@@ -45,8 +45,9 @@ export default class WebhookDelete extends EasCommand {
       nonInteractive,
     });
 
-    let webhook: WebhookFragment | undefined =
-      webhookId && (await WebhookQuery.byIdAsync(graphqlClient, webhookId));
+    let webhook: WebhookFragment | undefined = webhookId
+      ? await WebhookQuery.byIdAsync(graphqlClient, webhookId)
+      : undefined;
     if (!webhookId) {
       const webhooks = await fetchWebhooksByAppIdAsync(graphqlClient, projectId);
       if (webhooks.length === 0) {

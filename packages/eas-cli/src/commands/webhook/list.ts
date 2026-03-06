@@ -15,10 +15,10 @@ export default class WebhookList extends EasCommand {
   static override description = 'list webhooks';
 
   static override flags = {
-    event: Flags.enum({
+    event: Flags.option({
       description: 'Event type that triggers the webhook',
       options: [WebhookType.Build, WebhookType.Submit],
-    }),
+    })(),
     ...EasJsonOnlyFlag,
   };
 

@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import { scheduleChannelDeletionAsync } from '../../channel/delete';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -11,13 +12,12 @@ import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJ
 export default class ChannelDelete extends EasCommand {
   static override description = 'Delete a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to delete',
-    },
-  ];
+    }),
+  };
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };

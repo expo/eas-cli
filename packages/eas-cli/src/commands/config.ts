@@ -17,7 +17,7 @@ export default class Config extends EasCommand {
   static override description = 'display project configuration (app.json + eas.json)';
 
   static override flags = {
-    platform: Flags.enum<Platform>({ char: 'p', options: [Platform.ANDROID, Platform.IOS] }),
+    platform: Flags.option({ char: 'p', options: [Platform.ANDROID, Platform.IOS] })(),
     profile: Flags.string({
       char: 'e',
       description:

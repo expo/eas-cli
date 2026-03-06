@@ -10,10 +10,10 @@ export default class InitializeBuildCredentials extends EasCommand {
   static override description = 'Set up credentials for building your project.';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: [Platform.ANDROID, Platform.IOS],
-    }),
+    })(),
     profile: Flags.string({
       char: 'e',
       description: 'The name of the build profile in eas.json.',

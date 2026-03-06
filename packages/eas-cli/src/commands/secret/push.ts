@@ -27,11 +27,11 @@ export default class EnvironmentSecretPush extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    scope: Flags.enum({
+    scope: Flags.option({
       description: 'Scope for the secrets',
       options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
       default: EnvironmentSecretScope.PROJECT,
-    }),
+    })(),
     'env-file': Flags.string({
       description: 'Env file with secrets',
     }),

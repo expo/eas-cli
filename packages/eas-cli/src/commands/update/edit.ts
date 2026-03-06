@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -20,12 +20,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class UpdateEdit extends EasCommand {
   static override description = 'edit all the updates in an update group';
 
-  static override args = [
-    {
-      name: 'groupId',
+  static override args = {
+    groupId: Args.string({
       description: 'The ID of an update group to edit.',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     'rollout-percentage': Flags.integer({

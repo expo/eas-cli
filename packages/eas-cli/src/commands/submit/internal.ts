@@ -29,10 +29,10 @@ export default class SubmitInternal extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    platform: Flags.enum<Platform>({
+    platform: Flags.option({
       options: [Platform.ANDROID, Platform.IOS],
       required: true,
-    }),
+    })(),
     profile: Flags.string({
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',

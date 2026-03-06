@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -11,13 +12,12 @@ import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJ
 export default class UpdateDelete extends EasCommand {
   static override description = 'delete all the updates in an update group';
 
-  static override args = [
-    {
-      name: 'groupId',
+  static override args = {
+    groupId: Args.string({
       required: true,
       description: 'The ID of an update group to delete.',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,

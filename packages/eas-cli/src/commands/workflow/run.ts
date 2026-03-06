@@ -41,7 +41,7 @@
  */
 
 import spawnAsync from '@expo/spawn-async';
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 import { boolish } from 'getenv';
@@ -82,7 +82,12 @@ export default class WorkflowRun extends EasCommand {
   static override description =
     'run an EAS workflow. The entire local project directory will be packaged and uploaded to EAS servers for the workflow run, unless the --ref flag is used.';
 
-  static override args = [{ name: 'file', description: 'Path to the workflow file to run' }];
+  static override args = {
+    file: Args.string({
+      description: 'Path to the workflow file to run',
+      required: true,
+    }),
+  };
 
   static override flags = {
     ...EASNonInteractiveFlag,

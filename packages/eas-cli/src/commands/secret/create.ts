@@ -28,21 +28,21 @@ export default class EnvironmentSecretCreate extends EasCommand {
   static override hidden = true;
 
   static override flags = {
-    scope: Flags.enum({
+    scope: Flags.option({
       description: 'Scope for the secret',
       options: [EnvironmentSecretScope.ACCOUNT, EnvironmentSecretScope.PROJECT],
       default: EnvironmentSecretScope.PROJECT,
-    }),
+    })(),
     name: Flags.string({
       description: 'Name of the secret',
     }),
     value: Flags.string({
       description: 'Text value or path to a file to store in the secret',
     }),
-    type: Flags.enum({
+    type: Flags.option({
       description: 'The type of secret',
       options: [SecretType.STRING, SecretType.FILE],
-    }),
+    })(),
     force: Flags.boolean({
       description: 'Delete and recreate existing secrets',
       default: false,
@@ -171,6 +171,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
     }
 
     assert(secretValue);
+    const environmentSecretType = SecretTypeToEnvironmentSecretType[secretType as SecretType];
 
     let secretFilePath: string | undefined;
     if (secretType === SecretType.FILE) {
@@ -201,7 +202,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
       const secret = await EnvironmentSecretMutation.createForAppAsync(
         graphqlClient,
-        { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[secretType] },
+        { name, value: secretValue, type: environmentSecretType },
         projectId
       );
       if (!secret) {
@@ -244,7 +245,7 @@ export default class EnvironmentSecretCreate extends EasCommand {
 
       const secret = await EnvironmentSecretMutation.createForAccountAsync(
         graphqlClient,
-        { name, value: secretValue, type: SecretTypeToEnvironmentSecretType[secretType] },
+        { name, value: secretValue, type: environmentSecretType },
         ownerAccount.id
       );
 

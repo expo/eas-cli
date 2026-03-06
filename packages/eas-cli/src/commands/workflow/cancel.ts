@@ -27,7 +27,7 @@ export default class WorkflowRunCancel extends EasCommand {
     const workflowRunIds: Set<string> = new Set();
 
     // Custom parsing of argv
-    const tokens: string[] = [...argv];
+    const tokens = [...argv] as string[];
     while (tokens.length > 0) {
       const token = tokens.shift();
       if (token === '--non-interactive') {

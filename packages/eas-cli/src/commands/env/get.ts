@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -44,14 +44,13 @@ export default class EnvGet extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Current environment of the variable. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     'variable-name': Flags.string({

@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import { getAnalyticsEnabledAsync, setAnalyticsEnabledAsync } from '../analytics/AnalyticsManager';
 import EasCommand from '../commandUtils/EasCommand';
 import Log from '../log';
@@ -5,7 +6,11 @@ import Log from '../log';
 export default class AnalyticsView extends EasCommand {
   static override description = 'display or change analytics settings';
 
-  static override args = [{ name: 'STATUS', options: ['on', 'off'] }];
+  static override args = {
+    STATUS: Args.string({
+      options: ['on', 'off'] as const,
+    }),
+  };
 
   async runAsync(): Promise<void> {
     const { STATUS: status } = (await this.parse(AnalyticsView)).args;

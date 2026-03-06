@@ -179,12 +179,12 @@ export default class UpdatePublish extends EasCommand {
       min: 0,
       max: 100,
     }),
-    platform: Flags.enum<RequestedPlatform>({
+    platform: Flags.option({
       char: 'p',
       options: Object.values(RequestedPlatform), // TODO: Add web when it's fully supported
       default: RequestedPlatform.All,
       required: false,
-    }),
+    })(),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',

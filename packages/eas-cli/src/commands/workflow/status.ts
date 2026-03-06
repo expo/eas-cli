@@ -10,7 +10,7 @@
  *
  */
 
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import { boolish } from 'getenv';
 
 import { getWorkflowRunUrl } from '../../build/utils/url';
@@ -34,12 +34,11 @@ export default class WorkflowStatus extends EasCommand {
   static override description =
     'show the status of an existing workflow run. If no run ID is provided, you will be prompted to select from recent workflow runs for the current project.';
 
-  static override args = [
-    {
-      name: 'WORKFLOW_RUN_ID',
+  static override args = {
+    WORKFLOW_RUN_ID: Args.string({
       description: 'A workflow run ID.',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EASNonInteractiveFlag,
@@ -104,6 +103,9 @@ export default class WorkflowStatus extends EasCommand {
         choices: runs.map(run => choiceFromWorkflowRun(run)),
       });
       workflowRunId = answers.selectedRun;
+      if (!workflowRunId) {
+        throw new Error('No workflow run selected');
+      }
     }
 
     Log.addNewLineIfNone();

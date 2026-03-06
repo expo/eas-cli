@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../../commandUtils/EasCommand';
@@ -22,7 +23,9 @@ export default class WorkerAliasDelete extends EasCommand {
   static override aliases = ['worker:alias:delete'];
   static override state = 'preview';
 
-  static override args = [{ name: 'ALIAS_NAME' }];
+  static override args = {
+    ALIAS_NAME: Args.string({}),
+  };
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };

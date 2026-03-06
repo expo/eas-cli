@@ -20,18 +20,18 @@ export default class BuildList extends EasCommand {
   static override description = 'list all builds for your project';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       options: Object.values(RequestedPlatform),
       char: 'p',
-    }),
-    status: Flags.enum({
+    })(),
+    status: Flags.option({
       options: Object.values(BuildStatus),
       description: 'Filter only builds with the specified status',
-    }),
-    distribution: Flags.enum({
+    })(),
+    distribution: Flags.option({
       options: Object.values(BuildDistributionType),
       description: 'Filter only builds with the specified distribution type',
-    }),
+    })(),
     channel: Flags.string(),
     'app-version': Flags.string({
       aliases: ['appVersion'],

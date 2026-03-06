@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -59,14 +59,13 @@ interface CreateFlags {
 export default class EnvCreate extends EasCommand {
   static override description = 'create an environment variable for the current project or account';
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Environment to create the variable in. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     name: Flags.string({
@@ -79,10 +78,10 @@ export default class EnvCreate extends EasCommand {
       description: 'Overwrite existing variable',
       default: false,
     }),
-    type: Flags.enum<'string' | 'file'>({
+    type: Flags.option({
       description: 'The type of variable',
-      options: ['string', 'file'],
-    }),
+      options: ['string', 'file'] as const,
+    })(),
     ...EASVariableVisibilityFlag,
     ...EASEnvironmentVariableScopeFlag,
     ...EASMultiEnvironmentFlag,

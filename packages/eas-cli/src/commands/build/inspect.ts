@@ -28,23 +28,23 @@ export default class BuildInspect extends EasCommand {
     'inspect the state of the project at specific build stages, useful for troubleshooting';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: [RequestedPlatform.Android, RequestedPlatform.Ios],
       required: true,
-    }),
+    })(),
     profile: Flags.string({
       char: 'e',
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
     }),
-    stage: Flags.enum({
+    stage: Flags.option({
       char: 's',
       description: STAGE_DESCRIPTION,
       options: [InspectStage.ARCHIVE, InspectStage.PRE_BUILD, InspectStage.POST_BUILD],
       required: true,
-    }),
+    })(),
     output: Flags.string({
       char: 'o',
       description: 'Output directory.',

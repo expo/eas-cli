@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -201,13 +202,12 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
 export default class AccountUsage extends EasCommand {
   static override description = 'view account usage and billing for the current cycle';
 
-  static override args = [
-    {
-      name: 'ACCOUNT_NAME',
+  static override args = {
+    ACCOUNT_NAME: Args.string({
       description:
         'Account name to view usage for. If not provided, the account will be selected interactively (or defaults to the only account if there is just one)',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasJsonOnlyFlag,

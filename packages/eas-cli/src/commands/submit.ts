@@ -55,10 +55,10 @@ export default class Submit extends EasCommand {
   static override aliases = ['build:submit'];
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: ['android', 'ios', 'all'],
-    }),
+    })(),
     profile: Flags.string({
       char: 'e',
       description:

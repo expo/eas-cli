@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import openBrowserAsync from 'better-opn';
 import chalk from 'chalk';
 
@@ -68,19 +68,17 @@ export default class FingerprintCompare extends EasCommand {
     '$ eas fingerprint:compare <FINGERPRINT-HASH> --update-id <UPDATE-ID> \t # Compare fingerprint from update against provided fingerprint',
   ];
 
-  static override args = [
-    {
-      name: 'hash1',
+  static override args = {
+    hash1: Args.string({
       description:
         "If provided alone, HASH1 is compared against the current project's fingerprint.",
       required: false,
-    },
-    {
-      name: 'hash2',
+    }),
+    hash2: Args.string({
       description: 'If two hashes are provided, HASH1 is compared against HASH2.',
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     'build-id': Flags.string({
@@ -155,8 +153,8 @@ export default class FingerprintCompare extends EasCommand {
     );
     const { fingerprint: firstFingerprint, origin: firstFingerprintOrigin } = firstFingerprintInfo;
 
-    const isFirstFingerprintSpecifiedByFlagOrArg = hash1 || buildId1 || updateId1;
-    const isSecondFingerprintSpecifiedByFlagOrArg = hash2 || buildId2 || updateId2;
+    const isFirstFingerprintSpecifiedByFlagOrArg = Boolean(hash1 || buildId1 || updateId1);
+    const isSecondFingerprintSpecifiedByFlagOrArg = Boolean(hash2 || buildId2 || updateId2);
     const secondFingerprintInfo = await getFingerprintInfoAsync(
       graphqlClient,
       projectDir,
@@ -287,7 +285,7 @@ async function getFingerprintInfoAsync(
   }: {
     buildId?: string;
     updateId?: string;
-    hash: string;
+    hash?: string;
     useProjectFingerprint?: boolean;
     environmentForProjectFingerprint?: string;
     nonInteractive: boolean;

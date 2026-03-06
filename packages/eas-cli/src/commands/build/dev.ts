@@ -34,10 +34,10 @@ export default class BuildDev extends EasCommand {
     'run dev client simulator/emulator build with matching fingerprint or create a new one';
 
   static override flags = {
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
       options: [Platform.IOS, Platform.ANDROID],
-    }),
+    })(),
     profile: Flags.string({
       char: 'e',
       description: `Name of the build profile from eas.json. It must be a profile allowing to create emulator/simulator internal distribution dev client builds. The "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile will be selected by default.`,

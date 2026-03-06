@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
@@ -38,9 +38,11 @@ export default class WorkflowLogView extends EasCommand {
     }),
   };
 
-  static override args = [
-    { name: 'id', description: 'ID of the workflow run or workflow job to view logs for' },
-  ];
+  static override args = {
+    id: Args.string({
+      description: 'ID of the workflow run or workflow job to view logs for',
+    }),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,

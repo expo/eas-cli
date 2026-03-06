@@ -63,7 +63,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: 'A short message describing the rollback to embedded update',
       required: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: [
         // TODO: Add web when it's fully supported
@@ -72,7 +72,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       ],
       default: 'all',
       required: false,
-    }),
+    })(),
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,

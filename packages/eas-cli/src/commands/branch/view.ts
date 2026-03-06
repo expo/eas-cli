@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -12,13 +13,12 @@ import { enableJsonOutput } from '../../utils/json';
 export default class BranchView extends EasCommand {
   static override description = 'view a branch';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the branch to view',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasPaginatedQueryFlags,

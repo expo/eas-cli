@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { AppVersionSource, EasJson } from '@expo/eas-json';
@@ -45,7 +46,9 @@ export default class Onboarding extends EasCommand {
 
   static override flags = {};
 
-  static override args = [{ name: 'TARGET_PROJECT_DIRECTORY' }];
+  static override args = {
+    TARGET_PROJECT_DIRECTORY: Args.string({}),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,

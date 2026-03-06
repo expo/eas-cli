@@ -1,5 +1,4 @@
-import { Flags } from '@oclif/core';
-import { OptionFlag } from '@oclif/core/lib/interfaces';
+import { Flags, Interfaces } from '@oclif/core';
 
 import { EasNonInteractiveAndJsonFlags } from './flags';
 
@@ -38,18 +37,18 @@ export const getLimitFlagWithCustomValues = ({
 }: {
   defaultTo: number;
   limit: number;
-}): OptionFlag<number | undefined> =>
+}): Interfaces.OptionFlag<number | undefined> =>
   Flags.integer({
     description: `The number of items to fetch each query. Defaults to ${defaultTo} and is capped at ${limit}.`,
     // eslint-disable-next-line async-protect/async-suffix
-    parse: async input => parseFlagInputStringAsInteger(input, 'limit', 1, limit),
+    parse: async (input: string) => parseFlagInputStringAsInteger(input, 'limit', 1, limit),
   });
 
 export const EasPaginatedQueryFlags = {
   offset: Flags.integer({
     description: 'Start queries from specified index. Use for paginating results. Defaults to 0.',
     // eslint-disable-next-line async-protect/async-suffix
-    parse: async input =>
+    parse: async (input: string) =>
       parseFlagInputStringAsInteger(input, 'offset', 0, Number.MAX_SAFE_INTEGER),
   }),
   limit: getLimitFlagWithCustomValues({ defaultTo: 50, limit: 100 }),

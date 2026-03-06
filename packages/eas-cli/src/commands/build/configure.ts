@@ -19,11 +19,11 @@ export default class BuildConfigure extends EasCommand {
   static override description = 'configure the project to support EAS Build';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       description: 'Platform to configure',
       char: 'p',
       options: ['android', 'ios', 'all'],
-    }),
+    })(),
   };
 
   static override contextDefinition = {

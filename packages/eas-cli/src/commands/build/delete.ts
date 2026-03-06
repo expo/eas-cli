@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -79,14 +79,16 @@ export async function selectBuildToDeleteAsync(
 
 export default class BuildDelete extends EasCommand {
   static override description = 'delete a build';
-  static override args = [{ name: 'BUILD_ID' }];
+    static override args = {
+    BUILD_ID: Args.string({}),
+  };
   static override flags = {
     ...EASNonInteractiveFlag,
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       description: 'Filter builds by the platform if build ID is not provided',
       options: Object.values(RequestedPlatform),
-    }),
+    })(),
     profile: Flags.string({
       char: 'e',
       description: 'Filter builds by build profile if build ID is not provided',
@@ -121,7 +123,7 @@ export default class BuildDelete extends EasCommand {
       await ensureBuildExistsAsync(graphqlClient, buildIdFromArg);
     }
 
-    let buildId: string | null = buildIdFromArg;
+    let buildId: string | null = buildIdFromArg ?? null;
     if (!buildId) {
       if (nonInteractive) {
         throw new Error('Build ID must be provided in non-interactive mode');
