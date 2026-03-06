@@ -45,8 +45,8 @@ export class BuildError extends Error {
   }
   public format(): ExternalBuildError {
     return {
-      errorCode: this.userFacingErrorCode,
-      message: this.userFacingMessage,
+      errorCode: this.errorCode,
+      message: this.message,
       docsUrl: this.docsUrl,
       buildPhase: this.buildPhase,
     };
