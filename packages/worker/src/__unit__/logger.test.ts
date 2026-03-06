@@ -9,14 +9,16 @@ async function waitForStreamFlush(): Promise<void> {
 
 describe('logger', () => {
   it('obfuscates secrets in logs', async () => {
-    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter([
-      { name: 'TEST_SECRET', value: 'secret', type: EnvironmentSecretType.STRING },
-      {
-        name: 'ANOTHER_SECRET_BASE64',
-        value: 'YW5vdGhlclNlY3JldA==',
-        type: EnvironmentSecretType.STRING,
-      },
-    ]);
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({
+      environmentSecrets: [
+        { name: 'TEST_SECRET', value: 'secret', type: EnvironmentSecretType.STRING },
+        {
+          name: 'ANOTHER_SECRET_BASE64',
+          value: 'YW5vdGhlclNlY3JldA==',
+          type: EnvironmentSecretType.STRING,
+        },
+      ],
+    });
 
     const logs: any[] = [];
 
@@ -41,7 +43,7 @@ describe('logger', () => {
   });
 
   it('adds logId to each log', async () => {
-    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter([]);
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 
     const logs: any[] = [];
 
@@ -71,7 +73,7 @@ describe('logger', () => {
   });
 
   it('drains transformed logs even without explicit output consumer', async () => {
-    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter([]);
+    const { logger, outputStream } = await createBuildLoggerWithSecretsFilter({});
 
     logger.info('Test log');
     logger.info('Test log');

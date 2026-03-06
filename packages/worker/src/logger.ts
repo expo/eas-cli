@@ -145,34 +145,22 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
     level: buildLogger.level(),
   });
 
-  let httpLogStreamCleanUp: () => Promise<void>;
-
-  const robotAccessToken = secrets?.robotAccessToken;
-  if (config.loggers.http.baseUrl && robotAccessToken) {
-    const httpLogStream = new HttpLogStream({
+  let httpLogStream: HttpLogStream | null = null;
+  if (config.loggers.http.baseUrl && secrets?.robotAccessToken) {
+    httpLogStream = new HttpLogStream({
       url: new URL(config.buildId, config.loggers.http.baseUrl).toString(),
       headers: {
-        Authorization: `Bearer ${robotAccessToken}`,
+        Authorization: `Bearer ${secrets.robotAccessToken}`,
       },
       logger: buildLogger,
     });
-
-    buildLogger.addStream({
-      type: 'raw',
-      stream: httpLogStream,
-      reemitErrorEvents: true,
-      level: buildLogger.level(),
-    });
-
-    httpLogStreamCleanUp = async () => {
-      await httpLogStream.cleanUp();
-    };
+    transformStream.pipe(httpLogStream);
   }
 
   return {
     logger: buildLogger,
     cleanUp: async () => {
-      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStreamCleanUp?.()]);
+      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
     outputStream: transformStream,
     logBuffer,
