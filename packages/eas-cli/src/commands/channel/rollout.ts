@@ -67,7 +67,7 @@ export default class ChannelRollout extends EasCommand {
             {
               name: 'percent',
               // eslint-disable-next-line async-protect/async-suffix
-              when: async (flags: Record<string, unknown>) => {
+              when: async flags => {
                 return (
                   !!flags['non-interactive'] &&
                   (flags['action'] === ActionRawFlagValue.CREATE ||
@@ -78,19 +78,19 @@ export default class ChannelRollout extends EasCommand {
             {
               name: 'outcome',
               // eslint-disable-next-line async-protect/async-suffix
-              when: async (flags: Record<string, unknown>) =>
+              when: async flags =>
                 !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.END,
             },
             {
               name: 'branch',
               // eslint-disable-next-line async-protect/async-suffix
-              when: async (flags: Record<string, unknown>) =>
+              when: async flags =>
                 !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.CREATE,
             },
             {
               name: 'runtime-version',
               // eslint-disable-next-line async-protect/async-suffix
-              when: async (flags: Record<string, unknown>) =>
+              when: async flags =>
                 !!flags['non-interactive'] && flags['action'] === ActionRawFlagValue.CREATE,
             },
           ],
