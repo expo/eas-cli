@@ -109,7 +109,7 @@ export default class BuildService {
     this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
-  public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
+  public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
 
     this.state.finish(Worker.Status.ERROR, {
@@ -308,14 +308,13 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-      const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? (error.cause ?? error) : error;
-      const internalErrorCode = err.trackingCode ?? err.errorCode;
+      const err = toExpoError(error, job);
+      const maybeRawError = error instanceof errors.ExpoError ? (error.cause ?? error) : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: internalErrorCode,
+          errorCode: err.trackingCode ?? err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
@@ -369,20 +368,10 @@ export default class BuildService {
   }
 }
 
-function toBuildError(error: unknown, job: Job): errors.BuildError {
-  if (error instanceof errors.BuildError) {
+function toExpoError(error: unknown, job: Job): errors.ExpoError {
+  if (error instanceof errors.ExpoError) {
     return error;
   }
-
-  if (error instanceof errors.UserError) {
-    return new errors.BuildError(error.message, {
-      errorCode: error.errorCode,
-      docsUrl: error.docsUrl,
-      cause: error.cause ?? error,
-      metadata: error.metadata,
-    });
-  }
-
   return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
     ? new errors.UnknownCustomBuildError()
     : new errors.UnknownBuildError();
