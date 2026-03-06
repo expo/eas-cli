@@ -73,7 +73,8 @@ export async function resolveBuildPhaseErrorAsync(
     return new errors.SystemError(error.message, {
       trackingCode: error.trackingCode,
       docsUrl: error.docsUrl,
-      cause: error.cause ?? error,
+      metadata: error.metadata,
+      cause: (error.cause ?? error) as Error,
       buildPhase: error.buildPhase ?? phase,
     });
   }
@@ -81,7 +82,8 @@ export async function resolveBuildPhaseErrorAsync(
     return new errors.UserError(error.errorCode, error.message, {
       trackingCode: error.trackingCode,
       docsUrl: error.docsUrl,
-      cause: error.cause ?? error,
+      metadata: error.metadata,
+      cause: (error.cause ?? error) as Error,
       buildPhase: error.buildPhase ?? phase,
     });
   }
@@ -102,8 +104,8 @@ export async function resolveBuildPhaseErrorAsync(
   return new errors.UserError(userError.errorCode, userError.message, {
     trackingCode,
     docsUrl: userError.docsUrl,
-    cause: error,
     buildPhase: phase,
     metadata: buildError?.metadata,
+    cause: error,
   });
 }
