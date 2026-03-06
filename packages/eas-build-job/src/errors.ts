@@ -72,7 +72,9 @@ export class BuildError<
   }
 }
 
-export class UserError<TMetadata extends ErrorMetadata = ErrorMetadata> extends ExpoError<TMetadata> {
+export class UserError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
   constructor(
     public errorCode: string,
     public message: string,

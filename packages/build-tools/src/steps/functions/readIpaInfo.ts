@@ -51,10 +51,7 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
       const ipaPathInput = z.string().parse(inputs.ipa_path.value);
       const ipaPath = path.resolve(stepCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
-        throw new UserError(
-          'EAS_READ_IPA_INFO_FILE_NOT_FOUND',
-          `IPA file not found: ${ipaPath}`
-        );
+        throw new UserError('EAS_READ_IPA_INFO_FILE_NOT_FOUND', `IPA file not found: ${ipaPath}`);
       }
 
       const ipaInfo = await readIpaInfoAsync(ipaPath);
@@ -118,10 +115,7 @@ function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
     const parsedBinaryPlists = bplistParser.parseBuffer(data);
     const parsedBinaryPlist = parsedBinaryPlists[0];
     if (!parsedBinaryPlist || typeof parsedBinaryPlist !== 'object') {
-      throw new UserError(
-        'EAS_READ_IPA_INFO_INVALID_BINARY_PLIST',
-        'Invalid binary plist in IPA'
-      );
+      throw new UserError('EAS_READ_IPA_INFO_INVALID_BINARY_PLIST', 'Invalid binary plist in IPA');
     }
     return parsedBinaryPlist as Record<string, unknown>;
   }
