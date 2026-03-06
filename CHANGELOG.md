@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `eas observe:metrics` command for monitoring app performance metrics. ([#3401](https://github.com/expo/eas-cli/pull/3401) by [@ubax](https://github.com/ubax))
+
 ### 🐛 Bug fixes
 
 - Add missing `--include=dev` for `npm install` commands ([#3459](https://github.com/expo/eas-cli/pull/3459) by [@kitten](https://github.com/kitten))
