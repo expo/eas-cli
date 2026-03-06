@@ -1,4 +1,4 @@
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job/dist/errors';
 import {
   BuildFunction,
   BuildStepInput,
@@ -51,7 +51,7 @@ export function createReadIpaInfoBuildFunction(): BuildFunction {
       const ipaPathInput = z.string().parse(inputs.ipa_path.value);
       const ipaPath = path.resolve(stepCtx.workingDirectory, ipaPathInput);
       if (!(await fs.pathExists(ipaPath))) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_READ_IPA_INFO_FILE_NOT_FOUND',
           `IPA file not found: ${ipaPath}`
         );
@@ -72,7 +72,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
 
     const bundleIdentifier = infoPlist.CFBundleIdentifier;
     if (typeof bundleIdentifier !== 'string') {
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
         'Failed to read IPA info: Missing or invalid CFBundleIdentifier in Info.plist'
       );
@@ -80,7 +80,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
 
     const bundleShortVersion = infoPlist.CFBundleShortVersionString;
     if (typeof bundleShortVersion !== 'string') {
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
         'Failed to read IPA info: Missing or invalid CFBundleShortVersionString in Info.plist'
       );
@@ -88,7 +88,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
 
     const bundleVersion = infoPlist.CFBundleVersion;
     if (typeof bundleVersion !== 'string') {
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_READ_IPA_INFO_INVALID_INFO_PLIST',
         'Failed to read IPA info: Missing or invalid CFBundleVersion in Info.plist'
       );
@@ -100,11 +100,11 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
       bundleVersion,
     };
   } catch (error) {
-    if (error instanceof UserFacingError) {
+    if (error instanceof UserError) {
       throw error;
     }
 
-    throw new UserFacingError(
+    throw new UserError(
       'EAS_READ_IPA_INFO_FAILED',
       `Failed to read IPA info: ${(error as Error).message}`,
       { cause: error }
@@ -118,7 +118,7 @@ function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
     const parsedBinaryPlists = bplistParser.parseBuffer(data);
     const parsedBinaryPlist = parsedBinaryPlists[0];
     if (!parsedBinaryPlist || typeof parsedBinaryPlist !== 'object') {
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_READ_IPA_INFO_INVALID_BINARY_PLIST',
         'Invalid binary plist in IPA'
       );
@@ -135,7 +135,7 @@ async function readInfoPlistBufferFromIpaAsync(ipaPath: string): Promise<Buffer>
     const entries = Object.values(await zip.entries());
     const infoPlistEntry = entries.find(entry => INFO_PLIST_PATH_REGEXP.test(entry.name));
     if (!infoPlistEntry) {
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_READ_IPA_INFO_INFO_PLIST_NOT_FOUND',
         `Failed to read IPA info: Could not find Info.plist in ${ipaPath}`
       );

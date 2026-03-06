@@ -1,4 +1,4 @@
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job/dist/errors';
 import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
@@ -272,7 +272,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               ? ipaInfoResult.value.bundleIdentifier
               : null;
 
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
               `Build upload was rejected by App Store Connect because the app bundle identifier in the IPA does not match the selected App Store Connect app.\n\n` +
                 `IPA bundle identifier: ${ipaBundleIdentifier ?? '(unavailable)'}\n` +
@@ -284,7 +284,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           }
           if (isMissingPurposeStringError(errors)) {
             const missingUsageDescriptionKeys = parseMissingUsageDescriptionKeys(errors);
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
               `Build upload was rejected by App Store Connect because Info.plist is missing one or more privacy purpose strings.\n\n` +
                 `${
@@ -303,7 +303,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
             );
           }
           if (isClosedVersionTrainError(errors)) {
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
               `Build upload was rejected by App Store Connect because the ${bundleShortVersion} app version is not accepted for new build submissions. ` +
                 'This usually means the version train is closed or lower than a previously approved version. ' +

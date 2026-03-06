@@ -1,4 +1,4 @@
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job/dist/errors';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -56,7 +56,7 @@ export function createDownloadArtifactFunction(): BuildFunction {
       const interpolationContext = stepsCtx.global.getInterpolationContext();
 
       if (!('workflow' in interpolationContext)) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_DOWNLOAD_ARTIFACT_NO_WORKFLOW',
           'No workflow found in the interpolation context.'
         );
@@ -64,7 +64,7 @@ export function createDownloadArtifactFunction(): BuildFunction {
 
       const robotAccessToken = stepsCtx.global.staticContext.job.secrets?.robotAccessToken;
       if (!robotAccessToken) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_DOWNLOAD_ARTIFACT_NO_ROBOT_ACCESS_TOKEN',
           'No robot access token found in the job secrets.'
         );

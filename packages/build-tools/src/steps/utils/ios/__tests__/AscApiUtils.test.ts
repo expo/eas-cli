@@ -24,7 +24,7 @@ describe('AscApiUtils', () => {
       ).resolves.toEqual(response);
     });
 
-    it('throws UserFacingError with visible apps when app id is not found', async () => {
+    it('throws UserError with visible apps when app id is not found', async () => {
       const notFoundPayload = {
         errors: [
           {
@@ -97,7 +97,7 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
-    it('throws UserFacingError when ASC duplicate version error is returned', async () => {
+    it('throws UserError when ASC duplicate version error is returned', async () => {
       const payload = {
         errors: [
           {
