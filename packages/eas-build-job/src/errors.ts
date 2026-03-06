@@ -1,3 +1,4 @@
+import { BuildMode } from './common';
 import { BuildPhase, buildPhaseDisplayName } from './logs';
 
 export enum ErrorCode {
@@ -10,6 +11,11 @@ export enum ErrorCode {
   BUILD_TIMEOUT_ERROR = 'EAS_BUILD_TIMEOUT_ERROR',
 }
 
+export enum ExpoErrorType {
+  USER = 'USER',
+  SYSTEM = 'SYSTEM',
+}
+
 export interface ExternalBuildError {
   errorCode: string;
   message: string;
@@ -17,32 +23,52 @@ export interface ExternalBuildError {
   buildPhase?: BuildPhase;
 }
 
-interface BuildErrorDetails {
+interface ExpoErrorDetails {
+  type: ExpoErrorType;
   errorCode: string;
   userFacingMessage: string;
   userFacingErrorCode: string;
   docsUrl?: string;
   innerError?: Error;
   buildPhase?: BuildPhase;
+  metadata?: Record<string, unknown>;
+  cause?: unknown;
 }
 
-export class BuildError extends Error {
+interface BuildErrorDetails {
+  type?: ExpoErrorType;
+  errorCode: string;
+  userFacingMessage: string;
+  userFacingErrorCode: string;
+  docsUrl?: string;
+  innerError?: Error;
+  buildPhase?: BuildPhase;
+  metadata?: Record<string, unknown>;
+  cause?: unknown;
+}
+
+export class ExpoError extends Error {
+  public type: ExpoErrorType;
   public errorCode: string;
   public userFacingMessage: string;
   public userFacingErrorCode: string;
   public docsUrl?: string;
   public innerError?: Error;
   public buildPhase?: BuildPhase;
+  public metadata: Record<string, unknown>;
 
-  constructor(message: string, details: BuildErrorDetails) {
-    super(message);
+  constructor(message: string, details: ExpoErrorDetails) {
+    super(message, { cause: details.cause });
+    this.type = details.type;
     this.errorCode = details.errorCode;
     this.userFacingErrorCode = details.userFacingErrorCode;
     this.userFacingMessage = details.userFacingMessage;
     this.docsUrl = details.docsUrl;
     this.innerError = details.innerError;
     this.buildPhase = details.buildPhase;
+    this.metadata = details.metadata ?? {};
   }
+
   public format(): ExternalBuildError {
     return {
       errorCode: this.userFacingErrorCode,
@@ -53,18 +79,65 @@ export class BuildError extends Error {
   }
 }
 
-export class UserFacingError extends Error {
-  public docsUrl?: string;
-
-  constructor(
-    public errorCode: string,
-    public message: string,
-    options?: { docsUrl?: string; cause?: unknown }
-  ) {
-    super(message, { cause: options?.cause });
-    this.docsUrl = options?.docsUrl;
+export class BuildError extends ExpoError {
+  constructor(message: string, details: BuildErrorDetails) {
+    super(message, {
+      ...details,
+      type: details.type ?? ExpoErrorType.SYSTEM,
+    });
   }
 }
+
+interface UserErrorOptions {
+  docsUrl?: string;
+  cause?: unknown;
+  buildPhase?: BuildPhase;
+  metadata?: Record<string, unknown>;
+}
+
+export class UserError extends ExpoError {
+  constructor(errorCode: string, message: string, options?: UserErrorOptions) {
+    super(message, {
+      type: ExpoErrorType.USER,
+      errorCode,
+      userFacingErrorCode: errorCode,
+      userFacingMessage: message,
+      docsUrl: options?.docsUrl,
+      innerError: options?.cause instanceof Error ? options.cause : undefined,
+      buildPhase: options?.buildPhase,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
+  }
+}
+
+interface SystemErrorOptions {
+  userFacingErrorCode?: string;
+  userFacingMessage?: string;
+  docsUrl?: string;
+  innerError?: Error;
+  buildPhase?: BuildPhase;
+  metadata?: Record<string, unknown>;
+  cause?: unknown;
+}
+
+export class SystemError extends ExpoError {
+  constructor(errorCode: string, message: string, options?: SystemErrorOptions) {
+    super(message, {
+      type: ExpoErrorType.SYSTEM,
+      errorCode,
+      userFacingErrorCode: options?.userFacingErrorCode ?? errorCode,
+      userFacingMessage: options?.userFacingMessage ?? message,
+      docsUrl: options?.docsUrl,
+      innerError: options?.innerError,
+      buildPhase: options?.buildPhase,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
+  }
+}
+
+export class UserFacingError extends UserError {}
 
 export class UnknownError extends UserFacingError {
   constructor(buildPhase?: BuildPhase) {
@@ -105,4 +178,39 @@ export class CredentialsDistCertMismatchError extends UserFacingError {
   constructor(message: string) {
     super('EAS_BUILD_CREDENTIALS_DIST_CERT_MISMATCH', message);
   }
+}
+
+export function toBuildError(
+  error: unknown,
+  options?: {
+    mode?: BuildMode;
+    buildPhase?: BuildPhase;
+  }
+): BuildError {
+  if (error instanceof BuildError) {
+    return error;
+  }
+
+  if (error instanceof ExpoError) {
+    return new BuildError(error.message, {
+      type: error.type,
+      errorCode: error.errorCode,
+      userFacingErrorCode: error.userFacingErrorCode,
+      userFacingMessage: error.userFacingMessage,
+      docsUrl: error.docsUrl,
+      innerError: error.innerError,
+      buildPhase: error.buildPhase ?? options?.buildPhase,
+      metadata: error.metadata,
+      cause: error.cause,
+    });
+  }
+
+  const isCustomMode =
+    options?.mode === BuildMode.CUSTOM || options?.mode === BuildMode.REPACK;
+  const fallback = isCustomMode ? new UnknownCustomBuildError() : new UnknownBuildError();
+  fallback.buildPhase = options?.buildPhase;
+  if (error && typeof error === 'object') {
+    fallback.innerError = error as Error;
+  }
+  return fallback;
 }

@@ -28,6 +28,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
     );
     expect(err.errorCode).toBe('NPM_CORRUPTED_PACKAGE');
     expect(err.userFacingErrorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.type).toBe(errors.ExpoErrorType.SYSTEM);
   });
 
   it('detects log for invalid bundler and reports it to user', async () => {
@@ -46,6 +47,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
     );
     expect(err.errorCode).toBe('EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR');
     expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR');
+    expect(err.type).toBe(errors.ExpoErrorType.USER);
   });
 
   it('does not detect errors if they show up in different build phase', async () => {
