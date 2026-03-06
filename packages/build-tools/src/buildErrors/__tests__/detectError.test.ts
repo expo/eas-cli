@@ -31,6 +31,9 @@ describe(resolveBuildPhaseErrorAsync, () => {
       'Unknown error. See logs of the Install dependencies build phase for more information.'
     );
     expect(err.trackingCode).toBe('NPM_CORRUPTED_PACKAGE');
+    expect(err.metadata).toEqual({
+      packageName: '@typescript-eslint/typescript-estree@5.26.0',
+    });
   });
 
   it('detects log for invalid bundler and reports it to user', async () => {
@@ -52,6 +55,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       'Your project requires a different version of the Ruby "bundler" program than the version installed in this EAS Build environment. You can specify which version of "bundler" to install by specifying the version under "build"→[buildProfileName]→"ios"→"bundler" in eas.json.'
     );
     expect(err.trackingCode).toBeUndefined();
+    expect(err.metadata).toBeUndefined();
   });
 
   it('does not detect errors if they show up in different build phase', async () => {

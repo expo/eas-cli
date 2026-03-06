@@ -91,5 +91,10 @@ export async function resolveBuildPhaseErrorAsync(
     docsUrl: userFacingError.docsUrl,
     innerError: error,
     buildPhase: phase,
+    extra: buildError?.metadata
+      ? {
+          metadata: buildError.metadata,
+        }
+      : undefined,
   });
 }

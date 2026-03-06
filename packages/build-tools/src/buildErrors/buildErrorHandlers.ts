@@ -6,7 +6,8 @@ import { ErrorContext, ErrorHandler } from './errors.types';
 export class TrackedBuildError extends Error {
   constructor(
     public errorCode: string,
-    public message: string
+    public message: string,
+    public metadata?: Record<string, unknown>
   ) {
     super(message);
   }
@@ -154,7 +155,9 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     // [stderr] WARN tarball tarball data for @typescript-eslint/typescript-estree@5.26.0 (sha512-cozo/GbwixVR0sgfHItz3t1yXu521yn71Wj6PlYCFA3WPhy51CUPkifFKfBis91bDclGmAY45hhaAXVjdn4new==) seems to be corrupted. Trying again.
     regexp: /tarball tarball data for ([^ ]*) .* seems to be corrupted. Trying again/,
     createError: (match: RegExpMatchArray) =>
-      new TrackedBuildError('NPM_CORRUPTED_PACKAGE', `npm: corrupted package ${match[1]}`),
+      new TrackedBuildError('NPM_CORRUPTED_PACKAGE', `npm: corrupted package ${match[1]}`, {
+        packageName: match[1],
+      }),
   })),
   ...[BuildPhase.INSTALL_DEPENDENCIES, BuildPhase.PREBUILD].map(phase => ({
     phase,

@@ -321,6 +321,7 @@ export default class BuildService {
         },
         extras: {
           buildId: this.buildId,
+          ...(err.metadata ? { errorMetadata: err.metadata } : {}),
           ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
           ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
@@ -380,6 +381,11 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
       errorCode: error.errorCode,
       docsUrl: error.docsUrl,
       innerError,
+      extra: error.metadata
+        ? {
+            metadata: error.metadata,
+          }
+        : undefined,
     });
   }
 
