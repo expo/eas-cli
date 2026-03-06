@@ -264,7 +264,6 @@ export default class UpdatePublish extends EasCommand {
         environment: environmentFromFlags,
       })
     ) {
-
       environment = await promptVariableEnvironmentAsync({
         multiple: false,
         graphqlClient,
