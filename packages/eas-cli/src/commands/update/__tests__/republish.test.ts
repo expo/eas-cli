@@ -24,7 +24,7 @@ import {
 import UpdateRepublish from '../republish';
 
 const projectRoot = '/test-project';
-const commandOptions = getMockOclifConfig(projectRoot);
+const commandOptions = getMockOclifConfig({ root: projectRoot });
 const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',

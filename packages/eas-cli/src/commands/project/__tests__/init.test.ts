@@ -98,7 +98,7 @@ function mockTestProject(options: {
   jest.mocked(isExpoInstalled).mockReturnValue(true);
 }
 
-const commandOptions = getMockOclifConfig('/test-project');
+const commandOptions = getMockOclifConfig({ root: '/test-project' });
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -169,7 +169,7 @@ describe(ProjectInit.name, () => {
         it('does not prompt to overwrite when different', async () => {
           await new ProjectInit(
             ['--id', '12345', '--force'],
-            getMockOclifConfig('/test-project')
+            getMockOclifConfig({ root: '/test-project' })
           ).run();
           expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '12345');
           expect(confirmAsync).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe(ProjectInit.name, () => {
           await expect(
             new ProjectInit(
               ['--id', '12345', '--non-interactive'],
-              getMockOclifConfig('/test-project')
+              getMockOclifConfig({ root: '/test-project' })
             ).run()
           ).rejects.toThrowError(
             `Project is already linked to a different ID: ${chalk.bold(

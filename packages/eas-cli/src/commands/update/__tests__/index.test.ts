@@ -27,7 +27,7 @@ import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../
 import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
-const commandOptions = getMockOclifConfig(projectRoot);
+const commandOptions = getMockOclifConfig({ root: projectRoot });
 const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',
