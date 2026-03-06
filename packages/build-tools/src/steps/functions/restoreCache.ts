@@ -58,11 +58,6 @@ export function createRestoreCacheFunction(): BuildFunction {
       const { logger } = stepsCtx;
 
       try {
-        if (stepsCtx.global.staticContext.job.platform) {
-          logger.error('Caches are not supported in build jobs yet.');
-          return;
-        }
-
         const paths = z
           .array(z.string())
           .parse(((inputs.path.value ?? '') as string).split(/[\r\n]+/))
