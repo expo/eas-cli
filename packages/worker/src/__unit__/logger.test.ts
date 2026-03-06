@@ -215,7 +215,9 @@ describe('logger', () => {
         .filter(Boolean)
         .map(serializedLog => JSON.parse(serializedLog))
     );
-    const firstAttemptOriginalLog = firstAttemptLogs.find(log => log.msg === 'Do not hang on cleanup');
+    const firstAttemptOriginalLog = firstAttemptLogs.find(
+      log => log.msg === 'Do not hang on cleanup'
+    );
     const secondAttemptOriginalLog = secondAttemptLogs.find(
       log => log.msg === 'Do not hang on cleanup'
     );
