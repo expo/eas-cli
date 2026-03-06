@@ -17,7 +17,7 @@ export default class HttpLogStream extends Writable {
   private readonly url: string;
   private readonly headers: Record<string, string>;
   private readonly logger?: bunyan;
-  private inFlightRequest?: Promise<void>;
+  private inFlightRequest: Promise<void> | null = null;
 
   constructor({
     url,
@@ -51,13 +51,17 @@ export default class HttpLogStream extends Writable {
 
   public async cleanUp(): Promise<void> {
     this.writable = false;
-    await this.flush(true);
+    await this.flush({ isCleanup: true });
   }
 
-  private flush(force = false): Promise<void> | void {
+  private flush({ isCleanup = false }: { isCleanup?: boolean } = {}): Promise<void> | void {
     if (this.inFlightRequest) {
-      if (force) {
-        return this.inFlightRequest.then(() => this.flush(true));
+      if (isCleanup) {
+        return this.inFlightRequest.then(() => {
+          if (this.buffer.length > 0) {
+            return this.flush({ isCleanup: true });
+          }
+        });
       }
       return;
     }
@@ -69,20 +73,26 @@ export default class HttpLogStream extends Writable {
     const batch = this.buffer.splice(0, MAX_BATCH_SIZE);
     this.inFlightRequest = this.sendBatch(batch)
       .catch(err => {
-        // Keep logs in memory if upload fails so cleanup can retry.
-        this.buffer.unshift(...batch);
-        this.logger?.error({ err }, 'Failed to send logs batch over HTTP');
+        if (!isCleanup) {
+          // Keep logs in memory if upload fails so a later flush can retry.
+          this.buffer.unshift(...batch);
+          this.logger?.error({ err }, 'Failed to send logs batch over HTTP');
+        }
       })
       .finally(() => {
-        this.inFlightRequest = undefined;
+        this.inFlightRequest = null;
       });
 
-    if (force) {
-      return this.inFlightRequest.then(() => this.flush(true));
+    if (isCleanup) {
+      return this.inFlightRequest.then(() => {
+        if (this.buffer.length > 0) {
+          return this.flush({ isCleanup: true });
+        }
+      });
     }
 
-    this.inFlightRequest.then(() => {
-      if (this.buffer.length > 0) {
+    void this.inFlightRequest.then(() => {
+      if (this.writable && this.buffer.length > 0) {
         this.flush();
       }
     });

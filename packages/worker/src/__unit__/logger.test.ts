@@ -15,6 +15,9 @@ jest.mock('node-fetch', () => {
     default: jest.fn(),
   };
 });
+jest.mock('../utils/retry', () => ({
+  retry: jest.fn(async (fn: (attemptCount: number) => Promise<unknown>) => await fn(0)),
+}));
 
 async function waitForStreamFlush(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
@@ -141,6 +144,85 @@ describe('logger', () => {
     const uploadedLog = JSON.parse(serializedLog);
 
     expect(uploadedLog.logId).toBe(logs[0].logId);
+  });
+
+  it('keeps failed HTTP logs buffered and resends them with the same logId', async () => {
+    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
+    config.buildId = 'build-id';
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response('upload failed', { status: 500, statusText: 'Internal Server Error' })
+      )
+      .mockResolvedValueOnce(new Response('', { status: 200, statusText: 'OK' }));
+
+    const { logger, outputStream, cleanUp } = await createBuildLoggerWithSecretsFilter({
+      robotAccessToken: 'robot-token',
+    });
+
+    const logs: any[] = [];
+    const writable = new Writable({
+      objectMode: true,
+      write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
+        logs.push(chunk);
+        callback(null, chunk);
+      },
+    });
+
+    outputStream.pipe(writable);
+    logger.info('Retry me');
+
+    await waitForStreamFlush();
+    await cleanUp();
+
+    const originalLog = logs.find(log => log.msg === 'Retry me');
+
+    expect(originalLog).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const [firstAttemptLogs, secondAttemptLogs] = fetchMock.mock.calls.map(([, requestInit]) =>
+      String(requestInit?.body)
+        .split('\n')
+        .filter(Boolean)
+        .map(serializedLog => JSON.parse(serializedLog))
+    );
+    const firstAttemptOriginalLog = firstAttemptLogs.find(log => log.msg === 'Retry me');
+    const secondAttemptOriginalLog = secondAttemptLogs.find(log => log.msg === 'Retry me');
+
+    expect(firstAttemptOriginalLog.logId).toBe(originalLog.logId);
+    expect(secondAttemptOriginalLog.logId).toBe(originalLog.logId);
+    expect(secondAttemptOriginalLog).toEqual(firstAttemptOriginalLog);
+  });
+
+  it('does one final best-effort HTTP flush during cleanup without looping indefinitely', async () => {
+    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
+    config.buildId = 'build-id';
+    fetchMock.mockResolvedValue(
+      new Response('upload failed', { status: 500, statusText: 'Internal Server Error' })
+    );
+
+    const { logger, cleanUp } = await createBuildLoggerWithSecretsFilter({
+      robotAccessToken: 'robot-token',
+    });
+
+    logger.info('Do not hang on cleanup');
+    await cleanUp();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const [firstAttemptLogs, secondAttemptLogs] = fetchMock.mock.calls.map(([, requestInit]) =>
+      String(requestInit?.body)
+        .split('\n')
+        .filter(Boolean)
+        .map(serializedLog => JSON.parse(serializedLog))
+    );
+    const firstAttemptOriginalLog = firstAttemptLogs.find(log => log.msg === 'Do not hang on cleanup');
+    const secondAttemptOriginalLog = secondAttemptLogs.find(
+      log => log.msg === 'Do not hang on cleanup'
+    );
+
+    expect(firstAttemptOriginalLog).toBeDefined();
+    expect(secondAttemptOriginalLog).toBeDefined();
+    expect(secondAttemptOriginalLog).toEqual(firstAttemptOriginalLog);
   });
 
   it('drains transformed logs even without explicit output consumer', async () => {
