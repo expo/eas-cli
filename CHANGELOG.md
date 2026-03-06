@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade `oclif` to v4. ([#3472](https://github.com/expo/eas-cli/pull/3472) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## [18.1.0](https://github.com/expo/eas-cli/releases/tag/v18.1.0) - 2026-03-04
 
 ### 🎉 New features
