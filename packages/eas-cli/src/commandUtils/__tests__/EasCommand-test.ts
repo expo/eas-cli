@@ -42,9 +42,9 @@ beforeEach(() => {
   jest.mocked(createAnalyticsAsync).mockResolvedValue(analytics);
 });
 
-const createTestEasCommand = (): any => {
+const createTestEasCommand = () => {
   class TestEasCommand extends EasCommand {
-    async runAsync(): Promise<void> {}
+    override async runAsync(): Promise<void> {}
   }
 
   TestEasCommand.id = 'testEasCommand'; // normally oclif will assign ids, but b/c this is located outside the commands folder it will not
@@ -109,7 +109,7 @@ describe(EasCommand.name, () => {
         const TestEasCommand = createTestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         const error = new Error('Unexpected, internal error message');
         runAsyncMock.mockImplementation(() => {
           throw error;
@@ -126,7 +126,7 @@ describe(EasCommand.name, () => {
         const TestEasCommand = createTestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         const graphQLErrors = ['Unexpected GraphQL error message'];
         const error = new CombinedError({ graphQLErrors });
         runAsyncMock.mockImplementation(() => {
@@ -144,7 +144,7 @@ describe(EasCommand.name, () => {
         const TestEasCommand = createTestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         const graphQLError = new GraphQLError(
           'Unexpected GraphQL error message',
           null,
@@ -176,7 +176,7 @@ describe(EasCommand.name, () => {
         const TestEasCommand = createTestEasCommand();
         const logErrorSpy = jest.spyOn(Log, 'error');
         const logDebugSpy = jest.spyOn(Log, 'debug');
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         const graphQLErrors = [
           new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
             errorCode: 'UNKNOWN_GRAPHQL_ERROR',
@@ -212,7 +212,7 @@ describe(EasCommand.name, () => {
 
       it('re-throws the error with default base message', async () => {
         const TestEasCommand = createTestEasCommand();
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           throw new Error('Error message');
         });
@@ -226,7 +226,7 @@ describe(EasCommand.name, () => {
 
       it('re-throws the error with a different default base message in case of CombinedError', async () => {
         const TestEasCommand = createTestEasCommand();
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = ['Unexpected GraphQL error message'];
           throw new CombinedError({ graphQLErrors });
@@ -241,7 +241,7 @@ describe(EasCommand.name, () => {
 
       it('re-throws the error with a different default base message in case of CombinedError with multiple GraphQLErrors', async () => {
         const TestEasCommand = createTestEasCommand();
-        const runAsyncMock = jest.spyOn(TestEasCommand.prototype as any, 'runAsync');
+        const runAsyncMock = jest.spyOn(TestEasCommand.prototype, 'runAsync');
         runAsyncMock.mockImplementation(() => {
           const graphQLErrors = [
             new GraphQLError('Unexpected GraphQL error message', null, null, null, null, null, {
