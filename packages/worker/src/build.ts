@@ -103,7 +103,7 @@ function logBuildError(logger: bunyan, analytics: Analytics, err: Error): void {
   const l = logger.child({ phase: BuildPhase.FAIL_BUILD });
   l.info({ marker: LogMarker.START_PHASE }, `Start phase: ${BuildPhase.FAIL_BUILD}`);
 
-  if (err instanceof errors.BuildError) {
+  if (err instanceof errors.ExpoError) {
     const internalErrorCode = err.trackingCode ?? err.errorCode;
     analytics.logEvent(Event.WORKER_BUILD_FAIL, {
       reason: err?.message,

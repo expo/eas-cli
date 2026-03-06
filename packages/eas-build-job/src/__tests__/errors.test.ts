@@ -1,4 +1,4 @@
-import { BuildError, ExpoError, UserError } from '../errors';
+import { ErrorCode, ExpoError, SystemError, UserError } from '../errors';
 import { BuildPhase } from '../logs';
 
 class TestExpoError extends ExpoError {
@@ -36,26 +36,6 @@ describe(ExpoError, () => {
   });
 });
 
-describe(BuildError, () => {
-  it('formats using canonical message and errorCode', () => {
-    const error = new BuildError('canonical message', {
-      errorCode: 'ERR_CODE',
-      docsUrl: 'https://docs.example.dev',
-      buildPhase: BuildPhase.PREBUILD,
-      metadata: { packageName: '@expo/config' },
-    });
-
-    expect(error).toBeInstanceOf(ExpoError);
-    expect(error.metadata).toEqual({ packageName: '@expo/config' });
-    expect(error.format()).toEqual({
-      errorCode: 'ERR_CODE',
-      message: 'canonical message',
-      docsUrl: 'https://docs.example.dev',
-      buildPhase: BuildPhase.PREBUILD,
-    });
-  });
-});
-
 describe(UserError, () => {
   it('supports docsUrl in options', () => {
     const error = new UserError('ERR_CODE', 'message', {
@@ -74,6 +54,16 @@ describe(UserError, () => {
     expect(error.cause).toBe(cause);
   });
 
+  it('supports trackingCode and buildPhase in options', () => {
+    const error = new UserError('ERR_CODE', 'message', {
+      trackingCode: 'TRACKING_CODE',
+      buildPhase: BuildPhase.PREBUILD,
+    });
+
+    expect(error.trackingCode).toBe('TRACKING_CODE');
+    expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
+  });
+
   it('supports docsUrl, metadata, and cause in options', () => {
     const cause = new Error('root cause');
     const error = new UserError('ERR_CODE', 'message', {
@@ -85,5 +75,32 @@ describe(UserError, () => {
     expect(error.docsUrl).toBe('https://docs.example.dev');
     expect(error.metadata).toEqual({ packageName: 'expo' });
     expect(error.cause).toBe(cause);
+  });
+});
+
+describe(SystemError, () => {
+  it('always formats with SERVER_ERROR and preserves trackingCode', () => {
+    const cause = new Error('root cause');
+    const error = new SystemError('system message', {
+      trackingCode: 'TRACKING_CODE',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+      metadata: { packageName: '@expo/config' },
+      cause,
+    });
+
+    expect(error).toBeInstanceOf(ExpoError);
+    expect(error.errorCode).toBe(ErrorCode.SERVER_ERROR);
+    expect(error.trackingCode).toBe('TRACKING_CODE');
+    expect(error.docsUrl).toBe('https://docs.example.dev');
+    expect(error.metadata).toEqual({ packageName: '@expo/config' });
+    expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
+    expect(error.cause).toBe(cause);
+    expect(error.format()).toEqual({
+      errorCode: ErrorCode.SERVER_ERROR,
+      message: 'system message',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+    });
   });
 });
