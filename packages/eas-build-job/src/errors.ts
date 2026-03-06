@@ -27,6 +27,8 @@ interface BuildErrorDetails {
 
 export class BuildError extends Error {
   public errorCode: string;
+  // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
+  // The public error saved on builds and job runs is always `errorCode`.
   public trackingCode?: string;
   public docsUrl?: string;
   public innerError?: Error;
