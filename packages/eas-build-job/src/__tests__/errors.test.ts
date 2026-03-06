@@ -62,7 +62,7 @@ describe(UserFacingError, () => {
   });
 
   it('supports cause in options', () => {
-    const cause = new Error('root cause');
+    const cause = { message: 'root cause' };
     const error = new UserFacingError('ERR_CODE', 'message', { cause });
 
     expect(error.cause).toBe(cause);

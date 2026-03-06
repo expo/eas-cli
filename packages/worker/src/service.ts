@@ -309,8 +309,7 @@ export default class BuildService {
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
       const err = toBuildError(error, job);
-      const maybeRawError =
-        error instanceof errors.BuildError ? (error.innerError ?? error) : error;
+      const maybeRawError = error instanceof errors.BuildError ? (error.cause ?? error) : error;
       const internalErrorCode = err.trackingCode ?? err.errorCode;
 
       sentry.handleError(err.message, maybeRawError, {
@@ -376,11 +375,10 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
   }
 
   if (error instanceof errors.UserFacingError) {
-    const innerError = error.cause instanceof Error ? error.cause : error;
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
       docsUrl: error.docsUrl,
-      innerError,
+      cause: error.cause ?? error,
       metadata: error.metadata,
     });
   }

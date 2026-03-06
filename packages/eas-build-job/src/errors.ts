@@ -33,13 +33,7 @@ interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
    * Underlying error that caused this error to be created. Used internally to
    * propagate blame stack traces to the response.
    */
-  cause?: Error;
-}
-
-interface BuildErrorDetails<
-  TMetadata extends ErrorMetadata = ErrorMetadata,
-> extends ExpoErrorDetails<TMetadata> {
-  innerError?: Error;
+  cause?: unknown;
 }
 
 export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends Error {
@@ -49,7 +43,6 @@ export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends 
   public trackingCode?: string;
   public docsUrl?: string;
   public readonly metadata?: TMetadata;
-  public override readonly cause?: Error;
   public buildPhase?: BuildPhase;
 
   constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
@@ -58,7 +51,6 @@ export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends 
     this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
     this.metadata = details.metadata;
-    this.cause = details.cause;
     this.buildPhase = details.buildPhase;
   }
 
@@ -75,18 +67,8 @@ export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends 
 export class BuildError<
   TMetadata extends ErrorMetadata = ErrorMetadata,
 > extends ExpoError<TMetadata> {
-  public innerError?: Error;
-
-  constructor(message: string, details: BuildErrorDetails<TMetadata>) {
-    super(message, {
-      errorCode: details.errorCode,
-      trackingCode: details.trackingCode,
-      docsUrl: details.docsUrl,
-      buildPhase: details.buildPhase,
-      metadata: details.metadata,
-      cause: details.innerError ?? details.cause,
-    });
-    this.innerError = details.innerError ?? details.cause;
+  constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
+    super(message, details);
   }
 }
 
@@ -99,7 +81,7 @@ export class UserFacingError<
     options?: {
       docsUrl?: string;
       metadata?: TMetadata;
-      cause?: Error;
+      cause?: unknown;
     }
   ) {
     super(message, {

@@ -89,7 +89,7 @@ export async function resolveBuildPhaseErrorAsync(
     errorCode: userFacingError.errorCode,
     trackingCode,
     docsUrl: userFacingError.docsUrl,
-    innerError: error,
+    cause: error,
     buildPhase: phase,
     metadata: buildError?.metadata,
   });
