@@ -350,7 +350,7 @@ describe('State sync mechanism', () => {
     it('should expose user-facing error from generic job', async () => {
       jest.mocked(runGenericJobAsync).mockResolvedValueOnce({
         runResult: result(
-          new errors.UserFacingError(
+          new errors.UserError(
             genericJobRunErrorCode,
             'ASC app was not found for this account.'
           )

@@ -72,9 +72,7 @@ export class BuildError<
   }
 }
 
-export class UserFacingError<
-  TMetadata extends ErrorMetadata = ErrorMetadata,
-> extends ExpoError<TMetadata> {
+export class UserError<TMetadata extends ErrorMetadata = ErrorMetadata> extends ExpoError<TMetadata> {
   constructor(
     public errorCode: string,
     public message: string,
@@ -93,7 +91,7 @@ export class UserFacingError<
   }
 }
 
-export class UnknownError extends UserFacingError {
+export class UnknownError extends UserError {
   constructor(buildPhase?: BuildPhase) {
     super(
       ErrorCode.UNKNOWN_ERROR,
@@ -124,7 +122,7 @@ export class UnknownCustomBuildError extends BuildError {
   }
 }
 
-export class CredentialsDistCertMismatchError extends UserFacingError {
+export class CredentialsDistCertMismatchError extends UserError {
   constructor(message: string) {
     super('EAS_BUILD_CREDENTIALS_DIST_CERT_MISMATCH', message);
   }

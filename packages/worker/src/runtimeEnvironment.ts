@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
 
-class SystemDepsInstallError extends errors.UserFacingError {
+class SystemDepsInstallError extends errors.UserError {
   constructor(dependency: string) {
     super(
       'EAS_BUILD_SYSTEM_DEPS_INSTALL_ERROR',

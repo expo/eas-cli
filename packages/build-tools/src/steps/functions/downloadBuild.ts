@@ -1,4 +1,4 @@
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job/dist/errors';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -134,7 +134,7 @@ export async function downloadBuildAsync({
   });
 
   if (matchingFiles.length === 0) {
-    throw new UserFacingError(
+    throw new UserError(
       'EAS_DOWNLOAD_BUILD_NO_MATCHING_FILES',
       `No ${extensions.map(ext => `.${ext}`).join(', ')} entries found in the archive.`
     );
