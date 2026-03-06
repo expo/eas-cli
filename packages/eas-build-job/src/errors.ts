@@ -19,8 +19,6 @@ export interface ExternalBuildError {
 
 interface BuildErrorDetails {
   errorCode: string;
-  userFacingMessage: string;
-  userFacingErrorCode: string;
   trackingCode?: string;
   docsUrl?: string;
   innerError?: Error;
@@ -29,8 +27,6 @@ interface BuildErrorDetails {
 
 export class BuildError extends Error {
   public errorCode: string;
-  public userFacingMessage: string;
-  public userFacingErrorCode: string;
   public trackingCode?: string;
   public docsUrl?: string;
   public innerError?: Error;
@@ -39,8 +35,6 @@ export class BuildError extends Error {
   constructor(message: string, details: BuildErrorDetails) {
     super(message);
     this.errorCode = details.errorCode;
-    this.userFacingErrorCode = details.userFacingErrorCode;
-    this.userFacingMessage = details.userFacingMessage;
     this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
     this.innerError = details.innerError;
@@ -86,8 +80,6 @@ export class UnknownBuildError extends BuildError {
     const message = 'Unknown error. See logs for more information.';
     super(message, {
       errorCode,
-      userFacingMessage: message,
-      userFacingErrorCode: errorCode,
     });
   }
 }
@@ -98,8 +90,6 @@ export class UnknownCustomBuildError extends BuildError {
     const message = 'Unknown custom build error. See logs for more information.';
     super(message, {
       errorCode,
-      userFacingMessage: message,
-      userFacingErrorCode: errorCode,
     });
   }
 }

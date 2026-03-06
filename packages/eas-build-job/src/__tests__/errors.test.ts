@@ -5,8 +5,6 @@ describe(BuildError, () => {
   it('formats using canonical message and errorCode', () => {
     const error = new BuildError('canonical message', {
       errorCode: 'ERR_CODE',
-      userFacingErrorCode: 'USER_ERR_CODE',
-      userFacingMessage: 'user-facing message',
       docsUrl: 'https://docs.example.dev',
       buildPhase: BuildPhase.PREBUILD,
     });

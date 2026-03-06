@@ -85,8 +85,6 @@ export async function resolveBuildPhaseErrorAsync(
 
   return new errors.BuildError(userFacingError.message, {
     errorCode: userFacingError.errorCode,
-    userFacingErrorCode: userFacingError.errorCode,
-    userFacingMessage: userFacingError.message,
     trackingCode,
     docsUrl: userFacingError.docsUrl,
     innerError: error,

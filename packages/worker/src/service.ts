@@ -376,8 +376,6 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
     const innerError = error.cause instanceof Error ? error.cause : error;
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
-      userFacingErrorCode: error.errorCode,
-      userFacingMessage: error.message,
       docsUrl: error.docsUrl,
       innerError,
     });

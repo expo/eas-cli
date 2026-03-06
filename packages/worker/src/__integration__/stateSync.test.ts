@@ -423,8 +423,6 @@ describe('State sync mechanism', () => {
         runResult: result(
           new errors.BuildError('ASC app was not found for this account.', {
             errorCode: genericJobRunErrorCode,
-            userFacingErrorCode: genericJobRunErrorCode,
-            userFacingMessage: 'ASC app was not found for this account.',
             trackingCode: 'GENERIC_TRACKING_ERROR',
           })
         ),

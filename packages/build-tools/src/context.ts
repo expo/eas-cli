@@ -299,7 +299,7 @@ export class BuildContext<TJob extends Job = Job> {
       // leaving message empty, website will display err.stack which already includes err.message
       this.logger.error({ err }, '');
     } else {
-      this.logger.error(`Error: ${buildError.userFacingMessage}`);
+      this.logger.error(`Error: ${buildError.message}`);
     }
     return buildError;
   }
