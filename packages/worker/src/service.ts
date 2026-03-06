@@ -374,15 +374,7 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
     return error;
   }
 
-<<<<<<< HEAD
-  if (error instanceof errors.UserFacingError) {
-||||||| parent of cd805491 ([eas-build-job] Rename UserFacingError to UserError)
-  if (error instanceof errors.UserFacingError) {
-    const innerError = error.cause instanceof Error ? error.cause : error;
-=======
   if (error instanceof errors.UserError) {
-    const innerError = error.cause instanceof Error ? error.cause : error;
->>>>>>> cd805491 ([eas-build-job] Rename UserFacingError to UserError)
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
       docsUrl: error.docsUrl,
