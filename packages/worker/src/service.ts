@@ -381,11 +381,7 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
       errorCode: error.errorCode,
       docsUrl: error.docsUrl,
       innerError,
-      extra: error.metadata
-        ? {
-            metadata: error.metadata,
-          }
-        : undefined,
+      metadata: error.metadata,
     });
   }
 

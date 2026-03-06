@@ -107,7 +107,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
     throw new UserFacingError(
       'EAS_READ_IPA_INFO_FAILED',
       `Failed to read IPA info: ${(error as Error).message}`,
-      { extra: { cause: error as Error } }
+      { cause: error as Error }
     );
   }
 }

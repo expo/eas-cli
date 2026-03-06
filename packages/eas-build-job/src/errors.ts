@@ -19,26 +19,21 @@ export interface ExternalBuildError {
 
 export type ErrorMetadata = Record<string, unknown>;
 
-export interface ExpoErrorExtra<TMetadata extends ErrorMetadata = ErrorMetadata> {
-  /**
-   * Metadata object for the error. Used internally for Sentry/logging/debugging.
-   * It is not included in the external build error payload.
-   */
-  metadata?: TMetadata;
-
-  /**
-   * Underlying error that caused this error to be created. Used internally to
-   * propagate blame stack traces to the response.
-   */
-  cause?: Error;
-}
-
 interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
   errorCode: string;
   trackingCode?: string;
   docsUrl?: string;
   buildPhase?: BuildPhase;
-  extra?: ExpoErrorExtra<TMetadata>;
+  /**
+   * Metadata object for the error. Used internally for Sentry/logging/debugging.
+   * It is not included in the external build error payload.
+   */
+  metadata?: TMetadata;
+  /**
+   * Underlying error that caused this error to be created. Used internally to
+   * propagate blame stack traces to the response.
+   */
+  cause?: Error;
 }
 
 interface BuildErrorDetails<
@@ -58,12 +53,12 @@ export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends 
   public buildPhase?: BuildPhase;
 
   constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
-    super(message, { cause: details.extra?.cause });
+    super(message, { cause: details.cause });
     this.errorCode = details.errorCode;
     this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
-    this.metadata = details.extra?.metadata;
-    this.cause = details.extra?.cause;
+    this.metadata = details.metadata;
+    this.cause = details.cause;
     this.buildPhase = details.buildPhase;
   }
 
@@ -88,12 +83,10 @@ export class BuildError<
       trackingCode: details.trackingCode,
       docsUrl: details.docsUrl,
       buildPhase: details.buildPhase,
-      extra: {
-        metadata: details.extra?.metadata,
-        cause: details.innerError ?? details.extra?.cause,
-      },
+      metadata: details.metadata,
+      cause: details.innerError ?? details.cause,
     });
-    this.innerError = details.innerError ?? details.extra?.cause;
+    this.innerError = details.innerError ?? details.cause;
   }
 }
 
@@ -105,13 +98,15 @@ export class UserFacingError<
     public message: string,
     options?: {
       docsUrl?: string;
-      extra?: ExpoErrorExtra<TMetadata>;
+      metadata?: TMetadata;
+      cause?: Error;
     }
   ) {
     super(message, {
       errorCode,
       docsUrl: options?.docsUrl,
-      extra: options?.extra,
+      metadata: options?.metadata,
+      cause: options?.cause,
     });
   }
 }

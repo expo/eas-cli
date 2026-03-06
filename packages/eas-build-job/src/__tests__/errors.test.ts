@@ -9,10 +9,8 @@ describe(ExpoError, () => {
       trackingCode: 'TRACKING_CODE',
       docsUrl: 'https://docs.example.dev',
       buildPhase: BuildPhase.PREBUILD,
-      extra: {
-        metadata: { packageName: '@typescript-eslint/typescript-estree' },
-        cause,
-      },
+      metadata: { packageName: '@typescript-eslint/typescript-estree' },
+      cause,
     });
 
     expect(error.errorCode).toBe('ERR_CODE');
@@ -38,9 +36,7 @@ describe(BuildError, () => {
       errorCode: 'ERR_CODE',
       docsUrl: 'https://docs.example.dev',
       buildPhase: BuildPhase.PREBUILD,
-      extra: {
-        metadata: { packageName: '@expo/config' },
-      },
+      metadata: { packageName: '@expo/config' },
     });
 
     expect(error).toBeInstanceOf(ExpoError);
@@ -67,7 +63,7 @@ describe(UserFacingError, () => {
 
   it('supports cause in options', () => {
     const cause = new Error('root cause');
-    const error = new UserFacingError('ERR_CODE', 'message', { extra: { cause } });
+    const error = new UserFacingError('ERR_CODE', 'message', { cause });
 
     expect(error.cause).toBe(cause);
   });
@@ -76,10 +72,8 @@ describe(UserFacingError, () => {
     const cause = new Error('root cause');
     const error = new UserFacingError('ERR_CODE', 'message', {
       docsUrl: 'https://docs.example.dev',
-      extra: {
-        metadata: { packageName: 'expo' },
-        cause,
-      },
+      metadata: { packageName: 'expo' },
+      cause,
     });
 
     expect(error.docsUrl).toBe('https://docs.example.dev');
