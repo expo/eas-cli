@@ -41,8 +41,9 @@ interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
   extra?: ExpoErrorExtra<TMetadata>;
 }
 
-interface BuildErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata>
-  extends ExpoErrorDetails<TMetadata> {
+interface BuildErrorDetails<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoErrorDetails<TMetadata> {
   innerError?: Error;
 }
 
@@ -76,7 +77,9 @@ export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends 
   }
 }
 
-export class BuildError<TMetadata extends ErrorMetadata = ErrorMetadata> extends ExpoError<TMetadata> {
+export class BuildError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
   public innerError?: Error;
 
   constructor(message: string, details: BuildErrorDetails<TMetadata>) {
@@ -94,7 +97,9 @@ export class BuildError<TMetadata extends ErrorMetadata = ErrorMetadata> extends
   }
 }
 
-export class UserFacingError<TMetadata extends ErrorMetadata = ErrorMetadata> extends ExpoError<TMetadata> {
+export class UserFacingError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
   constructor(
     public errorCode: string,
     public message: string,
