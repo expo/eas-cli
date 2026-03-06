@@ -264,7 +264,7 @@ export default class UpdatePublish extends EasCommand {
         environment: environmentFromFlags,
       })
     ) {
-      console.warn('Prompting for environment...');
+
       environment = await promptVariableEnvironmentAsync({
         multiple: false,
         graphqlClient,
