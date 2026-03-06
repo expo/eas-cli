@@ -113,7 +113,7 @@ function logBuildError(logger: bunyan, analytics: Analytics, err: Error): void {
     if (err.errorCode !== errors.ErrorCode.UNKNOWN_ERROR) {
       l.error(`Build failed: ${err.message}`);
     } else {
-      l.error({ err: err.innerError ?? err.message }, `Build failed\n`);
+      l.error({ err: err.innerError ?? err }, `Build failed\n`);
     }
   } else {
     // This can only happen when error is thrown outside of a build phase.
