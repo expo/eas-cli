@@ -1,10 +1,16 @@
 import { BuildError, ExpoError, UserFacingError } from '../errors';
 import { BuildPhase } from '../logs';
 
+class TestExpoError extends ExpoError {
+  constructor(message: string, details: ConstructorParameters<typeof BuildError>[1]) {
+    super(message, details);
+  }
+}
+
 describe(ExpoError, () => {
   it('stores shared metadata and formats external payload', () => {
     const cause = new Error('root cause');
-    const error = new ExpoError('canonical message', {
+    const error = new TestExpoError('canonical message', {
       errorCode: 'ERR_CODE',
       trackingCode: 'TRACKING_CODE',
       docsUrl: 'https://docs.example.dev',
@@ -62,7 +68,7 @@ describe(UserFacingError, () => {
   });
 
   it('supports cause in options', () => {
-    const cause = { message: 'root cause' };
+    const cause = new Error('root cause');
     const error = new UserFacingError('ERR_CODE', 'message', { cause });
 
     expect(error.cause).toBe(cause);

@@ -36,7 +36,7 @@ interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
   cause?: unknown;
 }
 
-export class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends Error {
+export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends Error {
   public errorCode: string;
   // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
   // The public error saved on builds and job runs is always `errorCode`.
