@@ -311,11 +311,13 @@ export default class BuildService {
       const err = toBuildError(error, job);
       const maybeRawError =
         error instanceof errors.BuildError ? (error.innerError ?? error) : error;
+      const internalErrorCode = err.trackingCode ?? err.errorCode;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: err.errorCode,
+          errorCode: internalErrorCode,
+          publicErrorCode: err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
