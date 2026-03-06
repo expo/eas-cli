@@ -374,7 +374,7 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
     return error;
   }
 
-  if (error instanceof errors.UserFacingError) {
+  if (error instanceof errors.UserError) {
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
       docsUrl: error.docsUrl,
