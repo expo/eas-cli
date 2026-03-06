@@ -17,31 +17,36 @@ export interface ExternalBuildError {
   buildPhase?: BuildPhase;
 }
 
-interface BuildErrorDetails {
+interface ExpoErrorDetails {
   errorCode: string;
   trackingCode?: string;
   docsUrl?: string;
-  innerError?: Error;
+  cause?: unknown;
   buildPhase?: BuildPhase;
 }
 
-export class BuildError extends Error {
+interface BuildErrorDetails extends ExpoErrorDetails {
+  innerError?: Error;
+}
+
+export class ExpoError extends Error {
   public errorCode: string;
   // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
   // The public error saved on builds and job runs is always `errorCode`.
   public trackingCode?: string;
   public docsUrl?: string;
-  public innerError?: Error;
+  public override readonly cause?: unknown;
   public buildPhase?: BuildPhase;
 
-  constructor(message: string, details: BuildErrorDetails) {
-    super(message);
+  constructor(message: string, details: ExpoErrorDetails) {
+    super(message, { cause: details.cause });
     this.errorCode = details.errorCode;
     this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
-    this.innerError = details.innerError;
+    this.cause = details.cause;
     this.buildPhase = details.buildPhase;
   }
+
   public format(): ExternalBuildError {
     return {
       errorCode: this.errorCode,
@@ -52,16 +57,32 @@ export class BuildError extends Error {
   }
 }
 
-export class UserFacingError extends Error {
-  public docsUrl?: string;
+export class BuildError extends ExpoError {
+  public innerError?: Error;
 
+  constructor(message: string, details: BuildErrorDetails) {
+    super(message, {
+      errorCode: details.errorCode,
+      trackingCode: details.trackingCode,
+      docsUrl: details.docsUrl,
+      buildPhase: details.buildPhase,
+      cause: details.innerError,
+    });
+    this.innerError = details.innerError;
+  }
+}
+
+export class UserFacingError extends ExpoError {
   constructor(
     public errorCode: string,
     public message: string,
     options?: { docsUrl?: string; cause?: unknown }
   ) {
-    super(message, { cause: options?.cause });
-    this.docsUrl = options?.docsUrl;
+    super(message, {
+      errorCode,
+      docsUrl: options?.docsUrl,
+      cause: options?.cause,
+    });
   }
 }
 

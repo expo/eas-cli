@@ -1,5 +1,30 @@
-import { BuildError, UserFacingError } from '../errors';
+import { BuildError, ExpoError, UserFacingError } from '../errors';
 import { BuildPhase } from '../logs';
+
+describe(ExpoError, () => {
+  it('stores shared metadata and formats external payload', () => {
+    const cause = new Error('root cause');
+    const error = new ExpoError('canonical message', {
+      errorCode: 'ERR_CODE',
+      trackingCode: 'TRACKING_CODE',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+      cause,
+    });
+
+    expect(error.errorCode).toBe('ERR_CODE');
+    expect(error.trackingCode).toBe('TRACKING_CODE');
+    expect(error.docsUrl).toBe('https://docs.example.dev');
+    expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
+    expect(error.cause).toBe(cause);
+    expect(error.format()).toEqual({
+      errorCode: 'ERR_CODE',
+      message: 'canonical message',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+    });
+  });
+});
 
 describe(BuildError, () => {
   it('formats using canonical message and errorCode', () => {
@@ -9,6 +34,7 @@ describe(BuildError, () => {
       buildPhase: BuildPhase.PREBUILD,
     });
 
+    expect(error).toBeInstanceOf(ExpoError);
     expect(error.format()).toEqual({
       errorCode: 'ERR_CODE',
       message: 'canonical message',
@@ -24,6 +50,7 @@ describe(UserFacingError, () => {
       docsUrl: 'https://docs.example.dev',
     });
 
+    expect(error).toBeInstanceOf(ExpoError);
     expect(error.docsUrl).toBe('https://docs.example.dev');
     expect(error.cause).toBeUndefined();
   });
