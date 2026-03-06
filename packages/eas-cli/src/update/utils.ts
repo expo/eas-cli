@@ -1,5 +1,4 @@
 import { ExpoConfig } from '@expo/config';
-import { Errors } from '@oclif/core';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
@@ -23,6 +22,7 @@ import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 import formatFields from '../utils/formatFields';
+import { boolish } from 'getenv';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?:
@@ -86,7 +86,10 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
     { label: 'Code Signing Key', value: update.codeSigningKey ?? 'N/A' },
-    { label: 'Is Roll Back to Embedded', value: update.isRollBackToEmbedded ? 'Yes' : 'No' },
+    {
+      label: 'Is Roll Back to Embedded',
+      value: update.isRollBackToEmbedded ? 'Yes' : 'No',
+    },
     {
       label: 'Rollout Percentage',
       value: update.rolloutPercentage !== undefined ? `${update.rolloutPercentage}%` : 'N/A',
@@ -360,19 +363,29 @@ export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, A
   ios: AppPlatform.Ios,
 };
 
-export function assertEnvironmentFlagForSdk55OrGreater({
+const environmentFlagOverride = 'EAS_UPDATE_SKIP_ENVIRONMENT_CHECK';
+
+const ciEnvironmentFlags = ['EAS_BUILD', 'CI'];
+
+export function environmentFlagNeededForSdk550OrGreater({
   sdkVersion,
   environment,
 }: {
   sdkVersion: string | undefined;
   environment: string | undefined;
-}): void {
-  if (process.env.EAS_BUILD) {
-    return;
+}): boolean {
+  // Skip check if we are in a CI environment
+  for (let flag of ciEnvironmentFlags) {
+    if (process.env[flag]) {
+      return false;
+    }
   }
-  if (sdkVersion && semver.gte(sdkVersion, '55.0.0') && !environment) {
-    Errors.error('--environment flag is required for projects using Expo SDK 55 or greater', {
-      exit: 1,
-    });
+  // Skip check if the env override is set
+  if (boolish(environmentFlagOverride, false)) {
+    return false;
   }
+  if (sdkVersion === undefined || semver.lt(sdkVersion, '55.0.0')) {
+    return false;
+  }
+  return environment === undefined;
 }

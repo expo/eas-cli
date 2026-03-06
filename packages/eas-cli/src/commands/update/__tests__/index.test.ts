@@ -21,8 +21,10 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
+import { selectAsync } from '../../../prompts';
 import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
@@ -53,6 +55,8 @@ jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAs
 jest.mock('../../../graphql/mutations/PublishMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/UpdateQuery');
+jest.mock('../../../prompts');
+jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../ora', () => ({
   ora: () => ({
     start: () => ({ succeed: () => {}, fail: () => {}, stop: () => {} }),
@@ -70,6 +74,7 @@ describe(UpdatePublish.name, () => {
   afterEach(() => {
     vol.reset();
     jest.mocked(PublishMutation.publishUpdateGroupAsync).mockClear();
+    jest.mocked(selectAsync).mockClear();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -96,9 +101,13 @@ describe(UpdatePublish.name, () => {
       createdBranch: false,
     });
 
-    jest
-      .mocked(PublishMutation.publishUpdateGroupAsync)
-      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
 
     await new UpdatePublish(flags, commandOptions).run();
 
@@ -111,9 +120,10 @@ describe(UpdatePublish.name, () => {
     const { projectId } = mockTestProject();
     const { platforms, runtimeVersion } = mockTestExport();
 
-    jest
-      .mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync)
-      .mockResolvedValue({ branchId: 'branch123', branchName: 'branchFromChannel' });
+    jest.mocked(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync).mockResolvedValue({
+      branchId: 'branch123',
+      branchName: 'branchFromChannel',
+    });
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
       branch: {
         id: 'branch123',
@@ -143,14 +153,68 @@ describe(UpdatePublish.name, () => {
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
-  it('errors when SDK >= 55 and --environment is not provided', async () => {
+  it('prompts for environment when SDK >= 55 and --environment is not provided', async () => {
+    const flags = ['--branch=branch123', '--message=abc'];
+
+    mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+    const { platforms, runtimeVersion } = mockTestExport();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: {
+        id: 'branch123',
+        name: 'wat',
+      },
+      createdBranch: false,
+    });
+
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
+
+    jest.mocked(selectAsync).mockResolvedValue('production');
+    jest
+      .mocked(EnvironmentVariablesQuery.environmentVariableEnvironmentsAsync)
+      .mockResolvedValue([]);
+
+    const ciValue = process.env.CI;
+    try {
+      delete process.env.CI;
+      await new UpdatePublish(flags, commandOptions).run();
+    } finally {
+      if (ciValue === undefined) {
+        delete process.env.CI;
+      } else {
+        process.env.CI = ciValue;
+      }
+    }
+
+    expect(selectAsync).toHaveBeenCalled();
+  });
+
+  it('errors when SDK >= 55, --environment is not provided, and --non-interactive is set', async () => {
     const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
 
     mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
 
-    await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
-      '--environment flag is required for projects using Expo SDK 55 or greater'
-    );
+    const ciValue = process.env.CI;
+    try {
+      delete process.env.CI;
+      await expect(new UpdatePublish(flags, commandOptions).run()).rejects.toThrow(
+        '`--environment` flag must be set when running in `--non-interactive` mode'
+      );
+    } finally {
+      if (ciValue === undefined) {
+        delete process.env.CI;
+      } else {
+        process.env.CI = ciValue;
+      }
+    }
+
+    expect(selectAsync).not.toHaveBeenCalled();
   });
 
   it('does not error when SDK >= 55 and --environment is provided', async () => {
@@ -172,13 +236,93 @@ describe(UpdatePublish.name, () => {
       createdBranch: false,
     });
 
-    jest
-      .mocked(PublishMutation.publishUpdateGroupAsync)
-      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
 
     await new UpdatePublish(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('does not error when SDK >= 55, --environment is not provided, but EAS_UPDATE_SKIP_ENVIRONMENT_CHECK=1', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    const originalValue = process.env.EAS_UPDATE_SKIP_ENVIRONMENT_CHECK;
+    try {
+      process.env.EAS_UPDATE_SKIP_ENVIRONMENT_CHECK = '1';
+
+      mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+      const { platforms, runtimeVersion } = mockTestExport();
+
+      jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+        branch: {
+          id: 'branch123',
+          name: 'wat',
+        },
+        createdBranch: false,
+      });
+
+      jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+        platforms.map(platform => ({
+          ...updateStub,
+          platform,
+          runtimeVersion,
+        }))
+      );
+
+      await new UpdatePublish(flags, commandOptions).run();
+
+      expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+    } finally {
+      if (originalValue === undefined) {
+        delete process.env.EAS_UPDATE_SKIP_ENVIRONMENT_CHECK;
+      } else {
+        process.env.EAS_UPDATE_SKIP_ENVIRONMENT_CHECK = originalValue;
+      }
+    }
+  });
+
+  it('does not error when SDK >= 55, --environment is not provided, but EAS_BUILD=1', async () => {
+    const flags = ['--non-interactive', '--branch=branch123', '--message=abc'];
+
+    const originalValue = process.env.EAS_BUILD;
+    try {
+      process.env.EAS_BUILD = '1';
+
+      mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+      const { platforms, runtimeVersion } = mockTestExport();
+
+      jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+        branch: {
+          id: 'branch123',
+          name: 'wat',
+        },
+        createdBranch: false,
+      });
+
+      jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+        platforms.map(platform => ({
+          ...updateStub,
+          platform,
+          runtimeVersion,
+        }))
+      );
+
+      await new UpdatePublish(flags, commandOptions).run();
+
+      expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+    } finally {
+      if (originalValue === undefined) {
+        delete process.env.EAS_BUILD;
+      } else {
+        process.env.EAS_BUILD = originalValue;
+      }
+    }
   });
 
   it('does not error when SDK < 55 and --environment is not provided', async () => {
@@ -195,9 +339,13 @@ describe(UpdatePublish.name, () => {
       createdBranch: false,
     });
 
-    jest
-      .mocked(PublishMutation.publishUpdateGroupAsync)
-      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
 
     await new UpdatePublish(flags, commandOptions).run();
 
@@ -210,7 +358,9 @@ describe(UpdatePublish.name, () => {
     // Add configuration to the project that should not be included in the update
     const { appJson } = mockTestProject();
 
-    const { platforms, runtimeVersion } = mockTestExport({ platforms: ['ios'] });
+    const { platforms, runtimeVersion } = mockTestExport({
+      platforms: ['ios'],
+    });
 
     // Mock an existing branch, so we don't create a new one
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -221,9 +371,13 @@ describe(UpdatePublish.name, () => {
       createdBranch: false,
     });
 
-    jest
-      .mocked(PublishMutation.publishUpdateGroupAsync)
-      .mockResolvedValue(platforms.map(platform => ({ ...updateStub, platform, runtimeVersion })));
+    jest.mocked(PublishMutation.publishUpdateGroupAsync).mockResolvedValue(
+      platforms.map(platform => ({
+        ...updateStub,
+        platform,
+        runtimeVersion,
+      }))
+    );
 
     await new UpdatePublish(flags, commandOptions).run();
 
