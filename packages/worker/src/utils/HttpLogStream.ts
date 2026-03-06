@@ -2,7 +2,6 @@ import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
 import { Writable } from 'stream';
-import { uuidv7 } from 'uuidv7';
 
 import { retry } from './retry';
 
@@ -10,9 +9,6 @@ const MAX_BATCH_SIZE = 100;
 
 /**
  * A bunyan-compatible writable stream for sending logs over HTTP.
- *
- * When it receives a log entry, it assigns it a `log_id: uuidv7()`
- * which is used to identify the log in logs service and later to dedupe.
  */
 export default class HttpLogStream extends Writable {
   public writable = true;
@@ -48,7 +44,7 @@ export default class HttpLogStream extends Writable {
       return;
     }
 
-    this.buffer.push({ ...chunk, log_id: uuidv7() });
+    this.buffer.push(chunk);
     this.flush();
     callback();
   }
