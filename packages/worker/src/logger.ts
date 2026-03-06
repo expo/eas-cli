@@ -153,6 +153,9 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
         Authorization: `Bearer ${secrets.robotAccessToken}`,
       },
       logger: buildLogger,
+      bufferRetentionMs: config.loggers.gcs.signedUploadUrlForLogs
+        ? Math.max(30_000, config.loggers.gcs.uploadIntervalMs * 2)
+        : null,
     });
     transformStream.pipe(httpLogStream);
   }
