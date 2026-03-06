@@ -47,8 +47,8 @@ export namespace AscApiUtils {
             ? `\n\nExample applications visible to this API key:\n${visibleAppsSummary}`
             : ''),
         {
-          cause: error,
           docsUrl: 'https://expo.fyi/asc-app-id',
+          extra: { cause: error },
         }
       );
     }
@@ -100,8 +100,8 @@ export namespace AscApiUtils {
             'App Store Connect requires unique build numbers within each app version (version train). ' +
             'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
           {
-            cause: error,
             docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+            extra: { cause: error },
           }
         );
       }

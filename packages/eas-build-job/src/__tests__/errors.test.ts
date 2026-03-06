@@ -9,12 +9,18 @@ describe(ExpoError, () => {
       trackingCode: 'TRACKING_CODE',
       docsUrl: 'https://docs.example.dev',
       buildPhase: BuildPhase.PREBUILD,
-      cause,
+      extra: {
+        metadata: { packageName: '@typescript-eslint/typescript-estree' },
+        cause,
+      },
     });
 
     expect(error.errorCode).toBe('ERR_CODE');
     expect(error.trackingCode).toBe('TRACKING_CODE');
     expect(error.docsUrl).toBe('https://docs.example.dev');
+    expect(error.metadata).toEqual({
+      packageName: '@typescript-eslint/typescript-estree',
+    });
     expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
     expect(error.cause).toBe(cause);
     expect(error.format()).toEqual({
@@ -32,9 +38,13 @@ describe(BuildError, () => {
       errorCode: 'ERR_CODE',
       docsUrl: 'https://docs.example.dev',
       buildPhase: BuildPhase.PREBUILD,
+      extra: {
+        metadata: { packageName: '@expo/config' },
+      },
     });
 
     expect(error).toBeInstanceOf(ExpoError);
+    expect(error.metadata).toEqual({ packageName: '@expo/config' });
     expect(error.format()).toEqual({
       errorCode: 'ERR_CODE',
       message: 'canonical message',
@@ -57,19 +67,23 @@ describe(UserFacingError, () => {
 
   it('supports cause in options', () => {
     const cause = new Error('root cause');
-    const error = new UserFacingError('ERR_CODE', 'message', { cause });
+    const error = new UserFacingError('ERR_CODE', 'message', { extra: { cause } });
 
     expect(error.cause).toBe(cause);
   });
 
-  it('supports docsUrl and cause in options', () => {
+  it('supports docsUrl, metadata, and cause in options', () => {
     const cause = new Error('root cause');
     const error = new UserFacingError('ERR_CODE', 'message', {
       docsUrl: 'https://docs.example.dev',
-      cause,
+      extra: {
+        metadata: { packageName: 'expo' },
+        cause,
+      },
     });
 
     expect(error.docsUrl).toBe('https://docs.example.dev');
+    expect(error.metadata).toEqual({ packageName: 'expo' });
     expect(error.cause).toBe(cause);
   });
 });
