@@ -317,7 +317,6 @@ export default class BuildService {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
           errorCode: internalErrorCode,
-          publicErrorCode: err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
