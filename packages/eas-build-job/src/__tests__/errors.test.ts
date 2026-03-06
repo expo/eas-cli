@@ -1,4 +1,22 @@
-import { UserFacingError } from '../errors';
+import { BuildError, UserFacingError } from '../errors';
+import { BuildPhase } from '../logs';
+
+describe(BuildError, () => {
+  it('formats using canonical message and errorCode', () => {
+    const error = new BuildError('canonical message', {
+      errorCode: 'ERR_CODE',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+    });
+
+    expect(error.format()).toEqual({
+      errorCode: 'ERR_CODE',
+      message: 'canonical message',
+      docsUrl: 'https://docs.example.dev',
+      buildPhase: BuildPhase.PREBUILD,
+    });
+  });
+});
 
 describe(UserFacingError, () => {
   it('supports docsUrl in options', () => {

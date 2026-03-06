@@ -19,8 +19,7 @@ export interface ExternalBuildError {
 
 interface BuildErrorDetails {
   errorCode: string;
-  userFacingMessage: string;
-  userFacingErrorCode: string;
+  trackingCode?: string;
   docsUrl?: string;
   innerError?: Error;
   buildPhase?: BuildPhase;
@@ -28,8 +27,9 @@ interface BuildErrorDetails {
 
 export class BuildError extends Error {
   public errorCode: string;
-  public userFacingMessage: string;
-  public userFacingErrorCode: string;
+  // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
+  // The public error saved on builds and job runs is always `errorCode`.
+  public trackingCode?: string;
   public docsUrl?: string;
   public innerError?: Error;
   public buildPhase?: BuildPhase;
@@ -37,16 +37,15 @@ export class BuildError extends Error {
   constructor(message: string, details: BuildErrorDetails) {
     super(message);
     this.errorCode = details.errorCode;
-    this.userFacingErrorCode = details.userFacingErrorCode;
-    this.userFacingMessage = details.userFacingMessage;
+    this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
     this.innerError = details.innerError;
     this.buildPhase = details.buildPhase;
   }
   public format(): ExternalBuildError {
     return {
-      errorCode: this.userFacingErrorCode,
-      message: this.userFacingMessage,
+      errorCode: this.errorCode,
+      message: this.message,
       docsUrl: this.docsUrl,
       buildPhase: this.buildPhase,
     };
@@ -83,8 +82,6 @@ export class UnknownBuildError extends BuildError {
     const message = 'Unknown error. See logs for more information.';
     super(message, {
       errorCode,
-      userFacingMessage: message,
-      userFacingErrorCode: errorCode,
     });
   }
 }
@@ -95,8 +92,6 @@ export class UnknownCustomBuildError extends BuildError {
     const message = 'Unknown custom build error. See logs for more information.';
     super(message, {
       errorCode,
-      userFacingMessage: message,
-      userFacingErrorCode: errorCode,
     });
   }
 }

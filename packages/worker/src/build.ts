@@ -104,15 +104,16 @@ function logBuildError(logger: bunyan, analytics: Analytics, err: Error): void {
   l.info({ marker: LogMarker.START_PHASE }, `Start phase: ${BuildPhase.FAIL_BUILD}`);
 
   if (err instanceof errors.BuildError) {
+    const internalErrorCode = err.trackingCode ?? err.errorCode;
     analytics.logEvent(Event.WORKER_BUILD_FAIL, {
       reason: err?.message,
-      error_code: err.errorCode,
+      error_code: internalErrorCode,
       build_phase: err.buildPhase,
     });
     if (err.errorCode !== errors.ErrorCode.UNKNOWN_ERROR) {
-      l.error(`Build failed: ${err.userFacingMessage}`);
+      l.error(`Build failed: ${err.message}`);
     } else {
-      l.error({ err: err.innerError ?? err.userFacingMessage }, `Build failed\n`);
+      l.error({ err: err.innerError ?? err }, `Build failed\n`);
     }
   } else {
     // This can only happen when error is thrown outside of a build phase.

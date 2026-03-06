@@ -128,7 +128,7 @@ export default class BuildService {
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
         externalBuildError: err.format(),
-        internalErrorCode: err.errorCode,
+        internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
     this.checkForHangingWorker(isSocketClosed);
@@ -309,12 +309,14 @@ export default class BuildService {
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
       const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
+      const maybeRawError =
+        error instanceof errors.BuildError ? (error.innerError ?? error) : error;
+      const internalErrorCode = err.trackingCode ?? err.errorCode;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: err.errorCode,
+          errorCode: internalErrorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
@@ -376,8 +378,6 @@ function toBuildError(error: unknown, job: Job): errors.BuildError {
     const innerError = error.cause instanceof Error ? error.cause : error;
     return new errors.BuildError(error.message, {
       errorCode: error.errorCode,
-      userFacingErrorCode: error.errorCode,
-      userFacingMessage: error.message,
       docsUrl: error.docsUrl,
       innerError,
     });

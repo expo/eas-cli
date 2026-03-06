@@ -50,7 +50,7 @@ class State {
       applicationArchiveName: this.applicationArchiveName ?? null,
       ...(this.userError && {
         externalBuildError: this.userError.format(),
-        internalErrorCode: this.userError.errorCode,
+        internalErrorCode: this.userError.trackingCode ?? this.userError.errorCode,
       }),
       abortReason: this.abortReason,
     };

@@ -80,25 +80,14 @@ export async function resolveBuildPhaseErrorAsync(
         new errors.UnknownError(errorContext.phase));
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
-  const isUnknownUserError =
-    !userFacingError ||
-    (
-      [
-        errors.ErrorCode.UNKNOWN_ERROR,
-        errors.ErrorCode.UNKNOWN_GRADLE_ERROR,
-        errors.ErrorCode.UNKNOWN_FASTLANE_ERROR,
-      ] as string[]
-    ).includes(userFacingError.errorCode);
-  const message =
-    (isUnknownUserError ? buildError?.message : userFacingError.message) ?? userFacingError.message;
-  const errorCode =
-    (isUnknownUserError ? buildError?.errorCode : userFacingError.errorCode) ??
-    userFacingError.errorCode;
+  const trackingCode =
+    buildError && buildError.errorCode !== userFacingError.errorCode
+      ? buildError.errorCode
+      : undefined;
 
-  return new errors.BuildError(message, {
-    errorCode,
-    userFacingErrorCode: userFacingError.errorCode,
-    userFacingMessage: userFacingError.message,
+  return new errors.BuildError(userFacingError.message, {
+    errorCode: userFacingError.errorCode,
+    trackingCode,
     docsUrl: userFacingError.docsUrl,
     innerError: error,
     buildPhase: phase,
