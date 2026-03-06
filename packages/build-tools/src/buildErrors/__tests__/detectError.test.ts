@@ -26,8 +26,11 @@ describe(resolveBuildPhaseErrorAsync, () => {
       },
       '/fake/path'
     );
-    expect(err.errorCode).toBe('NPM_CORRUPTED_PACKAGE');
-    expect(err.userFacingErrorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.message).toBe(
+      'Unknown error. See logs of the Install dependencies build phase for more information.'
+    );
+    expect(err.trackingCode).toBe('NPM_CORRUPTED_PACKAGE');
   });
 
   it('detects log for invalid bundler and reports it to user', async () => {
@@ -45,7 +48,10 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe('EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR');
+    expect(err.message).toBe(
+      'Your project requires a different version of the Ruby "bundler" program than the version installed in this EAS Build environment. You can specify which version of "bundler" to install by specifying the version under "build"→[buildProfileName]→"ios"→"bundler" in eas.json.'
+    );
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('does not detect errors if they show up in different build phase', async () => {
@@ -63,7 +69,10 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.userFacingErrorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.message).toBe(
+      'Unknown error. See logs of the Install dependencies build phase for more information.'
+    );
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects npm cache error if cache is enabled', async () => {
@@ -82,8 +91,11 @@ describe(resolveBuildPhaseErrorAsync, () => {
       },
       '/fake/path'
     );
-    expect(err.errorCode).toBe('NPM_CACHE_ERROR');
-    expect(err.userFacingErrorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.message).toBe(
+      'Unknown error. See logs of the Install dependencies build phase for more information.'
+    );
+    expect(err.trackingCode).toBe('NPM_CACHE_ERROR');
   });
 
   it('does not detect npm cache error if cache is disabled', async () => {
@@ -103,7 +115,10 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.userFacingErrorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.message).toBe(
+      'Unknown error. See logs of the Install dependencies build phase for more information.'
+    );
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects xcode line error', async () => {
@@ -126,7 +141,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/path/to/'
     );
     expect(err.errorCode).toBe('XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR');
-    expect(err.userFacingErrorCode).toBe('XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects minimum deployment target error correctly', async () => {
@@ -144,7 +159,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe('EAS_BUILD_HIGHER_MINIMUM_DEPLOYMENT_TARGET_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_HIGHER_MINIMUM_DEPLOYMENT_TARGET_ERROR');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects provisioning profile mismatch error correctly', async () => {
@@ -162,7 +177,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe('EAS_BUILD_RESIGN_PROVISIONING_PROFILE_MISMATCH_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_RESIGN_PROVISIONING_PROFILE_MISMATCH_ERROR');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects generic "Run Fastlane" error for resign correctly', async () => {
@@ -178,7 +193,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe('EAS_BUILD_UNKNOWN_FASTLANE_RESIGN_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNKNOWN_FASTLANE_RESIGN_ERROR');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects build error in "Run Fastlane" phase correctly', async () => {
@@ -194,7 +209,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
       '/fake/path'
     );
     expect(err.errorCode).toBe('EAS_BUILD_UNKNOWN_FASTLANE_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNKNOWN_FASTLANE_ERROR');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects provisioning profile mismatch error correctly', async () => {
@@ -240,8 +255,8 @@ note`;
       '/path/to'
     );
     expect(err.errorCode).toBe('XCODE_BUILD_ERROR');
-    expect(err.userFacingErrorCode).toBe('XCODE_BUILD_ERROR');
-    expect(err.userFacingMessage)
+    expect(err.trackingCode).toBeUndefined();
+    expect(err.message)
       .toBe(`The "Run fastlane" step failed because of an error in the Xcode build process. We automatically detected following errors in your Xcode build logs:
 - The signature of “ProgrammaticAccessLibrary.xcframework” cannot be verified.
 - Some other error
@@ -263,9 +278,9 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
       '/fake/path'
     );
 
-    expect(err.errorCode).toBe('MAVEN_CACHE_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNKNOWN_GRADLE_ERROR');
-    expect(err.userFacingMessage).toBe(
+    expect(err.errorCode).toBe('EAS_BUILD_UNKNOWN_GRADLE_ERROR');
+    expect(err.trackingCode).toBe('MAVEN_CACHE_ERROR');
+    expect(err.message).toBe(
       `Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.`
     );
   });
@@ -285,8 +300,8 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
     );
 
     expect(err.errorCode).toBe('EAS_BUILD_UNKNOWN_GRADLE_ERROR');
-    expect(err.userFacingErrorCode).toBe('EAS_BUILD_UNKNOWN_GRADLE_ERROR');
-    expect(err.userFacingMessage).toBe(
+    expect(err.trackingCode).toBeUndefined();
+    expect(err.message).toBe(
       `Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.`
     );
   });
