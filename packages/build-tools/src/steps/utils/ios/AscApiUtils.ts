@@ -7,10 +7,6 @@ import {
   AscApiRequestError,
 } from './AscApiClient';
 
-function toError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
-}
-
 export namespace AscApiUtils {
   export async function getAppInfoAsync({
     client,
@@ -52,7 +48,7 @@ export namespace AscApiUtils {
             : ''),
         {
           docsUrl: 'https://expo.fyi/asc-app-id',
-          cause: toError(error),
+          cause: error,
         }
       );
     }
@@ -105,7 +101,7 @@ export namespace AscApiUtils {
             'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
           {
             docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
-            cause: toError(error),
+            cause: error,
           }
         );
       }
