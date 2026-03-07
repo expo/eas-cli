@@ -1,7 +1,10 @@
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
 import { toggleConfirmAsync } from '../../prompts';
@@ -104,9 +107,10 @@ export default class WorkerDelete extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawDeployDeleteFlags): DeployDeleteFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
     };
   }
 }

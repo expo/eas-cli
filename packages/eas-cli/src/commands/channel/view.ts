@@ -5,7 +5,10 @@ import {
   selectChannelOnAppAsync,
 } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
 
@@ -36,7 +39,7 @@ export default class ChannelView extends EasCommand {
       flags,
     } = await this.parse(ChannelView);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

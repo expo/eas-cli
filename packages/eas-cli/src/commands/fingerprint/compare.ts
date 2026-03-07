@@ -11,6 +11,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import {
   EasEnvironmentFlagParameters,
   EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { diffFingerprint } from '../../fingerprint/cli';
 import { abridgedDiff } from '../../fingerprint/diff';
@@ -115,14 +116,8 @@ export default class FingerprintCompare extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(FingerprintCompare);
     const { hash1, hash2 } = args;
-    const {
-      json,
-      'non-interactive': nonInteractive,
-      'build-id': buildIds,
-      'update-id': updateIds,
-      open,
-      environment,
-    } = flags;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    const { 'build-id': buildIds, 'update-id': updateIds, open, environment } = flags;
     const [buildId1, buildId2] = buildIds ?? [];
     const [updateId1, updateId2] = updateIds ?? [];
 

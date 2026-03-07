@@ -12,7 +12,10 @@ import {
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   UpdateChannelBasicInfoFragment,
@@ -81,8 +84,9 @@ export default class ChannelEdit extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args,
-      flags: { branch: branchFlag, json, 'non-interactive': nonInteractive },
+      flags: { branch: branchFlag, ...rawFlags },
     } = await this.parse(ChannelEdit);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
     const {
       projectId,
       loggedIn: { graphqlClient },

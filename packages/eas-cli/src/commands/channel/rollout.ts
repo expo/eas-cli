@@ -1,7 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -183,8 +186,7 @@ export default class ChannelRollout extends EasCommand {
       runtimeVersion: rawFlags['runtime-version'],
       privateKeyPath: rawFlags['private-key-path'] ?? null,
       action: action ? this.getAction(action) : undefined,
-      nonInteractive: rawFlags['non-interactive'],
-      json: rawFlags.json,
+      ...resolveNonInteractiveAndJsonFlags(rawFlags),
     };
   }
 }

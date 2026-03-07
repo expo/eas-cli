@@ -1,6 +1,9 @@
 import { CHANNELS_LIMIT, listAndRenderChannelsOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -25,7 +28,7 @@ export default class ChannelList extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ChannelList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

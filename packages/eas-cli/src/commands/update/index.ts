@@ -11,6 +11,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
   EasUpdateEnvironmentRequiredFlag,
+  resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { environmentFlagNeededForSdk550OrGreater } from '../../update/utils';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
@@ -739,7 +740,7 @@ export default class UpdatePublish extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
-    const nonInteractive = flags['non-interactive'] ?? false;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
@@ -774,7 +775,7 @@ export default class UpdatePublish extends EasCommand {
       rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
       emitMetadata,
-      json: flags.json ?? false,
+      json,
       environment: flags['environment'],
     };
   }

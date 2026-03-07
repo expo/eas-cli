@@ -13,7 +13,10 @@ import { listAndSelectBuildOnAppAsync } from '../../build/queries';
 import { printBuildResults, printLogsUrls } from '../../build/utils/printBuildInfo';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags } from '../../commandUtils/pagination';
 import { CredentialsContext } from '../../credentials/context';
 import {
@@ -242,7 +245,7 @@ export default class BuildResign extends EasCommand {
   }
 
   sanitizeFlags(flags: RawBuildResignFlags): BuildResignFlags {
-    const nonInteractive = flags['non-interactive'];
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (nonInteractive && !flags.id) {
       throw new Error(
         `${chalk.bold('--id')} is required when running with ${chalk.bold(
@@ -251,7 +254,7 @@ export default class BuildResign extends EasCommand {
       );
     }
     return {
-      json: flags.json,
+      json,
       nonInteractive,
       offset: flags.offset,
       limit: flags.limit,

@@ -1,7 +1,10 @@
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { scheduleUpdateGroupDeletionAsync } from '../../update/delete';
@@ -30,8 +33,9 @@ export default class UpdateDelete extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { groupId: group },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(UpdateDelete);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       loggedIn: { graphqlClient },
