@@ -5,7 +5,10 @@ import { scheduleBranchDeletionAsync } from '../../branch/delete';
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import { GetBranchInfoQuery, GetBranchInfoQueryVariables } from '../../graphql/generated';
@@ -71,7 +74,7 @@ export default class BranchDelete extends EasCommand {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchDelete);
-    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 
     if (jsonFlag) {

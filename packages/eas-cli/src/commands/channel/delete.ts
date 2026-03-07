@@ -1,7 +1,10 @@
 import { scheduleChannelDeletionAsync } from '../../channel/delete';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
@@ -30,8 +33,9 @@ export default class ChannelDelete extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(ChannelDelete);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

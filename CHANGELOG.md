@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Auto-enable `--non-interactive` when `--json` is passed, so users no longer need to specify both flags. ([#3476](https://github.com/expo/eas-cli/pull/3476) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
 ### 🐛 Bug fixes
 
 - Provide an override for the new --environment flag requirement in the update command. ([#3442](https://github.com/expo/eas-cli/pull/3442) by [@douglowder](https://github.com/douglowder))

@@ -7,7 +7,11 @@ import * as path from 'node:path';
 
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EASEnvironmentFlag,
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
@@ -439,9 +443,10 @@ export default class WorkerDeploy extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
       isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),

@@ -10,7 +10,10 @@ import path from 'path';
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
@@ -184,15 +187,12 @@ export default class Build extends EasCommand {
   private sanitizeFlags(
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
-    const nonInteractive = flags['non-interactive'];
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
     }
     if (!flags.platform && nonInteractive) {
       Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
-    }
-    if (flags.json && !nonInteractive) {
-      Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
     const autoSubmit = flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined;
     if (flags['what-to-test'] && !autoSubmit) {
@@ -242,7 +242,7 @@ export default class Build extends EasCommand {
         : {},
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
-      json: flags['json'],
+      json,
       autoSubmit,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       resourceClass: flags['resource-class'],

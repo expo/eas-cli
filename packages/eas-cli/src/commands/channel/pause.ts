@@ -6,7 +6,10 @@ import gql from 'graphql-tag';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   PauseUpdateChannelMutation,
@@ -71,10 +74,8 @@ export default class ChannelPause extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const {
-      args,
-      flags: { json, 'non-interactive': nonInteractive },
-    } = await this.parse(ChannelPause);
+    const { args, flags } = await this.parse(ChannelPause);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

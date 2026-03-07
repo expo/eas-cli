@@ -1,6 +1,9 @@
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -36,7 +39,7 @@ export default class BranchView extends EasCommand {
       args: { name: branchName },
       flags,
     } = await this.parse(BranchView);
-    const { 'non-interactive': nonInteractive } = flags;
+    const { nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

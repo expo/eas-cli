@@ -2,7 +2,10 @@ import chalk from 'chalk';
 
 import EasCommand from '../../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../../commandUtils/flags';
 import Log from '../../../log';
 import { Ora, ora } from '../../../ora';
 import { toggleConfirmAsync } from '../../../prompts';
@@ -105,9 +108,10 @@ export default class WorkerAliasDelete extends EasCommand {
   }
 
   private sanitizeFlags(flags: any): DeployAliasDeleteFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
     };
   }
 }

@@ -2,13 +2,22 @@ import { Flags } from '@oclif/core';
 
 export const EasNonInteractiveAndJsonFlags = {
   json: Flags.boolean({
-    description: 'Enable JSON output, non-JSON messages will be printed to stderr.',
-    dependsOn: ['non-interactive'],
+    description:
+      'Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.',
   }),
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
   }),
 };
+
+export function resolveNonInteractiveAndJsonFlags(flags: {
+  json?: boolean;
+  'non-interactive'?: boolean;
+}): { json: boolean; nonInteractive: boolean } {
+  const json = flags.json ?? false;
+  const nonInteractive = flags['non-interactive'] || json;
+  return { json, nonInteractive };
+}
 
 export const EasEnvironmentFlagParameters = {
   description: "Environment variable's environment, e.g. 'production', 'preview', 'development'",

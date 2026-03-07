@@ -3,7 +3,10 @@ import { Errors, Flags } from '@oclif/core';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { StatuspageServiceName } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
@@ -195,7 +198,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
-    const nonInteractive = flags['non-interactive'] ?? false;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       branch: branchName,
@@ -221,7 +224,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
-      json: flags.json ?? false,
+      json,
     };
   }
 }

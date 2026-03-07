@@ -5,7 +5,10 @@ import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../../commandUtils/flags';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
@@ -44,7 +47,8 @@ export default class BuildVersionGetView extends EasCommand {
 
   public async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildVersionGetView);
-    if (flags.json) {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (json) {
       enableJsonOutput();
     }
     const {
@@ -57,13 +61,13 @@ export default class BuildVersionGetView extends EasCommand {
       withServerSideEnvironment: null,
     });
 
-    if (!flags.platform && flags['non-interactive']) {
+    if (!flags.platform && nonInteractive) {
       throw new Error('"--platform" flag is required in non-interactive mode.');
     }
     const requestedPlatform = await selectRequestedPlatformAsync(flags.platform);
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await ensureVersionSourceIsRemoteAsync(easJsonAccessor, {
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
     const platforms = toPlatforms(requestedPlatform);
@@ -94,7 +98,7 @@ export default class BuildVersionGetView extends EasCommand {
         buildProfile: profile,
         platform,
         vcsClient,
-        nonInteractive: flags['non-interactive'],
+        nonInteractive,
         env,
       });
       const remoteVersions = await AppVersionQuery.latestVersionAsync(
@@ -107,7 +111,7 @@ export default class BuildVersionGetView extends EasCommand {
         results[platform] = remoteVersions?.buildVersion;
       }
     }
-    if (flags.json) {
+    if (json) {
       const jsonResults: { versionCode?: string; buildNumber?: string } = {};
       if (results.android) {
         jsonResults.versionCode = results.android;

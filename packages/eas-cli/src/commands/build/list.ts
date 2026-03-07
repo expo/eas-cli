@@ -3,7 +3,10 @@ import { Flags } from '@oclif/core';
 import { BUILDS_LIMIT, listAndRenderBuildsOnAppAsync } from '../../build/queries';
 import { BuildDistributionType, BuildStatus } from '../../build/types';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -83,12 +86,11 @@ export default class BuildList extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildList);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
-      json: jsonFlag,
       platform: requestedPlatform,
       status: buildStatus,
       distribution: buildDistribution,
-      'non-interactive': nonInteractive,
     } = flags;
     if (buildDistribution === BuildDistributionType.SIMULATOR) {
       Log.warn(

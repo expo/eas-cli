@@ -3,7 +3,10 @@ import chalk from 'chalk';
 import { createUpdateBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -33,8 +36,9 @@ export default class BranchCreate extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       args: { name },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(BranchCreate);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },
