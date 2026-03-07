@@ -14,7 +14,7 @@ export abstract class Client {
 
   // (optional) ensureRepoExistsAsync should verify whether repository exists and tooling is installed
   // it's not required for minimal support, but lack of validation might cause the failure at a later stage.
-  public async ensureRepoExistsAsync(): Promise<void> {}
+  public async ensureRepoExistsAsync(_options?: { nonInteractive?: boolean }): Promise<void> {}
 
   // (optional) checks whether commit is necessary before calling makeShallowCopyAsync
   //

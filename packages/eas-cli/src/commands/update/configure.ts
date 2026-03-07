@@ -46,7 +46,7 @@ export default class UpdateConfigure extends EasCommand {
       '💡 The following process will configure your project to use EAS Update. These changes only apply to your local project files and you can safely revert them at any time.'
     );
 
-    await vcsClient.ensureRepoExistsAsync();
+    await vcsClient.ensureRepoExistsAsync({ nonInteractive: flags['non-interactive'] });
 
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     const easJsonCliConfig: EasJson['cli'] =
