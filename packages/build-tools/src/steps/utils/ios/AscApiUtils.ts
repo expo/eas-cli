@@ -89,6 +89,27 @@ export namespace AscApiUtils {
         error instanceof AscApiRequestError && error.status === 409
           ? error.responseJson.errors
           : [];
+      const isInvalidAppRelationshipError =
+        errors.length > 0 &&
+        errors.every(
+          item =>
+            item.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID' &&
+            typeof item.source === 'object' &&
+            item.source !== null &&
+            'pointer' in item.source &&
+            (item.source as { pointer?: unknown }).pointer === '/data/relationships/app/data/id'
+        );
+      if (isInvalidAppRelationshipError) {
+        throw new UserFacingError(
+          'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
+          `App Store Connect rejected Apple app identifier ${appleAppIdentifier} while creating the build upload. ` +
+            'Verify that this Apple app identifier points to the intended iOS app in the correct App Store Connect account and that your API key has access to it.',
+          {
+            cause: error,
+            docsUrl: 'https://expo.fyi/asc-app-id',
+          }
+        );
+      }
       const isDuplicateVersionError =
         errors.length > 0 &&
         errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');

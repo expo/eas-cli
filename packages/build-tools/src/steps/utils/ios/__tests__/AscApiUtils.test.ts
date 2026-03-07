@@ -97,6 +97,42 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
+    it('throws UserFacingError when app relationship is invalid', async () => {
+      const payload = {
+        errors: [
+          {
+            status: '409',
+            code: 'ENTITY_ERROR.RELATIONSHIP.INVALID',
+            detail: "'1234567890' is not a valid ID for this relationship.",
+            source: { pointer: '/data/relationships/app/data/id' },
+          },
+        ],
+      };
+      const relationshipError = new AscApiRequestError(
+        'Unexpected response (409) from App Store Connect',
+        409,
+        payload
+      );
+      const client = {
+        postAsync: jest.fn().mockRejectedValue(relationshipError),
+      };
+
+      await expect(
+        AscApiUtils.createBuildUploadAsync({
+          client,
+          appleAppIdentifier: '1234567890',
+          bundleShortVersion: '1.2.3',
+          bundleVersion: '42',
+        })
+      ).rejects.toEqual(
+        expect.objectContaining({
+          errorCode: 'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
+          docsUrl: 'https://expo.fyi/asc-app-id',
+          message: expect.stringContaining('rejected Apple app identifier 1234567890'),
+        })
+      );
+    });
+
     it('throws UserFacingError when ASC duplicate version error is returned', async () => {
       const payload = {
         errors: [
