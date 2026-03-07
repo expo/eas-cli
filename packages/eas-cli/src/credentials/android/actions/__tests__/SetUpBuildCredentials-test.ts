@@ -9,7 +9,6 @@ import {
   testAppQueryByIdResponse,
 } from '../../../__tests__/fixtures-constants';
 import { createCtxMock } from '../../../__tests__/fixtures-context';
-import { MissingCredentialsNonInteractiveError } from '../../../errors';
 import { generateRandomKeystoreAsync } from '../../utils/keystore';
 import { getAppLookupParamsFromContextAsync } from '../BuildCredentialsUtils';
 import { SetUpBuildCredentials } from '../SetUpBuildCredentials';
@@ -59,17 +58,20 @@ describe('SetUpBuildCredentials', () => {
     expect(ctx.android.createKeystoreAsync).toHaveBeenCalled();
     expect(generateRandomKeystoreAsync).toHaveBeenCalled();
   });
-  it('errors in Non-Interactive Mode', async () => {
+  it('auto-generates keystore in Non-Interactive Mode when no credentials exist', async () => {
     const ctx = createCtxMock({
       nonInteractive: true,
       android: {
         ...getNewAndroidApiMock(),
+        createKeystoreAsync: jest.fn(() => testJksAndroidKeystoreFragment),
       },
     });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const setupBuildCredentialsAction = new SetUpBuildCredentials({ app: appLookupParams });
-    await expect(setupBuildCredentialsAction.runAsync(ctx)).rejects.toThrowError(
-      MissingCredentialsNonInteractiveError
-    );
+
+    await setupBuildCredentialsAction.runAsync(ctx);
+
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalled();
+    expect(generateRandomKeystoreAsync).toHaveBeenCalled();
   });
 });
