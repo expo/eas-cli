@@ -99,11 +99,7 @@ describe(BuildVersionGetView, () => {
       storeVersion: '1.0.0',
     }));
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=android'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--json', '--platform=android'], ctx);
     await cmd.run();
     expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -126,11 +122,7 @@ describe(BuildVersionGetView, () => {
       storeVersion: '1.0.0',
     }));
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=ios'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--json', '--platform=ios'], ctx);
     await cmd.run();
     expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -150,11 +142,7 @@ describe(BuildVersionGetView, () => {
     });
     jest.mocked(AppVersionQuery.latestVersionAsync).mockImplementation(async () => null);
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=android'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--json', '--platform=android'], ctx);
     await cmd.run();
     expect(AppVersionQuery.latestVersionAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -175,11 +163,7 @@ describe(BuildVersionGetView, () => {
       storeVersion: '1.0.0',
     }));
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=android'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--json', '--platform=android'], ctx);
     await expect(cmd.run()).rejects.toThrowErrorMatchingSnapshot();
   });
 
@@ -218,11 +202,7 @@ describe(BuildVersionGetView, () => {
       storeVersion: '1.0.0',
     }));
 
-    const cmd = mockTestCommand(
-      BuildVersionGetView,
-      ['--non-interactive', '--json', '--platform=android'],
-      ctx
-    );
+    const cmd = mockTestCommand(BuildVersionGetView, ['--json', '--platform=android'], ctx);
     await expect(cmd.run()).rejects.toThrowError(
       `This project is not configured for using remote version source. Add ${chalk.bold(
         '{"cli": { "appVersionSource": "remote" }}'
