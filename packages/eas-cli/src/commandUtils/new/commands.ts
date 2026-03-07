@@ -7,6 +7,7 @@ import { canAccessRepositoryUsingSshAsync, runGitCloneAsync } from '../../onboar
 import { PackageManager, installDependenciesAsync } from '../../onboarding/installDependencies';
 import { runCommandAsync } from '../../onboarding/runCommand';
 import { ora } from '../../ora';
+import { expoCommandAsync } from '../../utils/expoCli';
 
 export async function cloneTemplateAsync(targetProjectDir: string): Promise<string> {
   const githubUsername = 'expo';
@@ -48,16 +49,8 @@ export async function installProjectDependenciesAsync(
   });
 
   const dependencies = ['expo-updates', '@expo/metro-runtime'];
-  for (const dependency of dependencies) {
-    spinner.text = `Installing ${chalk.bold(dependency)}`;
-    await runCommandAsync({
-      cwd: projectDir,
-      command: 'npx',
-      args: ['expo', 'install', dependency],
-      showOutput: false,
-      showSpinner: false,
-    });
-  }
+  spinner.text = `Installing ${dependencies.map(dep => chalk.bold(dep)).join(', ')}`;
+  await expoCommandAsync(projectDir, ['install', ...dependencies], { silent: true });
   spinner.succeed(`Installed project dependencies`);
 }
 

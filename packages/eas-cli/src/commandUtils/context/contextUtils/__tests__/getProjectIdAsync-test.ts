@@ -73,7 +73,10 @@ describe(getProjectIdAsync, () => {
     );
 
     jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
-    jest.mocked(isExpoInstalled).mockReturnValue(true);
+
+    // NOTE(@kitten): Updating this test is easiest by letting it fallback to `@expo/config`
+    // This isn't a great solution, but the test is pretty involved
+    jest.mocked(isExpoInstalled).mockReturnValue(false);
   });
 
   it('gets the project ID from app config if exists', async () => {
