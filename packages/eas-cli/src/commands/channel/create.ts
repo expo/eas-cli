@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import { createAndLinkChannelAsync } from '../../channel/queries';
@@ -13,13 +14,12 @@ import { enableJsonOutput } from '../../utils/json';
 export default class ChannelCreate extends EasCommand {
   static override description = 'create a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to create',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -57,6 +57,9 @@ export default class ChannelCreate extends EasCommand {
         message: 'Provide a channel name:',
         validate: value => (value ? true : validationMessage),
       }));
+      if (!channelName) {
+        throw new Error(validationMessage);
+      }
     }
 
     await createAndLinkChannelAsync(graphqlClient, {

@@ -26,10 +26,10 @@ export default class Download extends EasCommand {
       description: 'Fingerprint hash of the build to download',
       required: true,
     }),
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
-    }),
+      options: [Platform.IOS, Platform.ANDROID] as const,
+    })(),
     'dev-client': Flags.boolean({
       description: 'Filter only dev-client builds.',
       allowNo: true,

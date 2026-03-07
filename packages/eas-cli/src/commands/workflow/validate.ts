@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
@@ -11,13 +12,12 @@ import { WorkflowFile } from '../../utils/workflowFile';
 export class WorkflowValidate extends EasCommand {
   static override description = 'validate a workflow configuration yaml file';
 
-  static override args = [
-    {
-      name: 'path',
+  static override args = {
+    path: Args.string({
       description: 'Path to the workflow configuration YAML file (must end with .yml or .yaml)',
       required: true,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EASNonInteractiveFlag,
