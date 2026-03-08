@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - Auto-enable `--non-interactive` when `--json` is passed, so users no longer need to specify both flags. ([#3476](https://github.com/expo/eas-cli/pull/3476) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 - Auto-generate Android keystore in non-interactive mode instead of throwing an error. ([#3477](https://github.com/expo/eas-cli/pull/3477) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `--source-maps` flag to prevent uploading sourcemaps ([#3478](https://github.com/expo/eas-cli/pull/3478) by [@hassankhan]
 
 ### 🐛 Bug fixes
 
