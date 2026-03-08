@@ -52,6 +52,7 @@ interface DeployFlags {
   deploymentIdentifier?: string;
   exportDir: string;
   dryRun: boolean;
+  sourceMaps: boolean;
 }
 
 interface RawDeployFlags {
@@ -63,6 +64,7 @@ interface RawDeployFlags {
   id?: string;
   'export-dir': string;
   'dry-run': boolean;
+  'source-maps': boolean;
 }
 
 interface UploadAssetBatchInstruction {
@@ -106,6 +108,11 @@ export default class WorkerDeploy extends EasCommand {
       description: 'Outputs a tarball of the new deployment instead of uploading it.',
       default: false,
     }),
+    'source-maps': Flags.boolean({
+      description: 'Include source maps in the deployment.',
+      default: true,
+      allowNo: true,
+    }),
     ...EASEnvironmentFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -146,7 +153,9 @@ export default class WorkerDeploy extends EasCommand {
       yield ['assets.json', JSON.stringify(params.assetMap)];
       yield ['manifest.json', JSON.stringify(params.manifest)];
       if (projectDist.type === 'server' && projectDist.serverPath) {
-        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath);
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath, {
+          skipSourceMaps: !flags.sourceMaps,
+        });
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
         }
@@ -291,6 +300,7 @@ export default class WorkerDeploy extends EasCommand {
       const assetPath = projectDist.type === 'server' ? projectDist.clientPath : projectDist.path;
       assetFiles = await WorkerAssets.collectAssetsAsync(assetPath, {
         maxFileSize: MAX_UPLOAD_SIZE,
+        skipSourceMaps: !flags.sourceMaps,
       });
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
@@ -453,6 +463,7 @@ export default class WorkerDeploy extends EasCommand {
       exportDir: flags['export-dir'],
       environment: flags['environment'],
       dryRun: flags['dry-run'],
+      sourceMaps: flags['source-maps'],
     };
   }
 }

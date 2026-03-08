@@ -93,6 +93,7 @@ async function determineMimeTypeAsync(filePath: string): Promise<string | null> 
 
 interface AssetMapOptions {
   maxFileSize: number;
+  skipSourceMaps?: boolean;
 }
 
 export interface AssetFileEntry {
@@ -116,6 +117,8 @@ export async function collectAssetsAsync(
           `Upload of "${file.normalizedPath}" aborted: File size is greater than the upload limit (>500MB)`
         );
       } else if (EXPO_ROUTES_PATHS.has(file.normalizedPath)) {
+        continue;
+      } else if (options.skipSourceMaps && file.normalizedPath.endsWith('.map')) {
         continue;
       }
       const sha512$ = computeSha512HashAsync(file.path);
@@ -232,8 +235,14 @@ interface WorkerFileEntry {
 }
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
-export async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
+export async function* listWorkerFilesAsync(
+  workerPath: string,
+  options?: { skipSourceMaps?: boolean }
+): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
+    if (options?.skipSourceMaps && file.normalizedPath.endsWith('.map')) {
+      continue;
+    }
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,
