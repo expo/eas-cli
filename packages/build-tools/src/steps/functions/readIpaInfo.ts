@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepInput,

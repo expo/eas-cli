@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {

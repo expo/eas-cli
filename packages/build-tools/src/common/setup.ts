@@ -1,7 +1,13 @@
 import { ExpoConfig } from '@expo/config';
-import { BuildJob, BuildPhase, Ios, Job, Platform } from '@expo/eas-build-job';
-import { BuildTrigger } from '@expo/eas-build-job/dist/common';
-import { UserError } from '@expo/eas-build-job/dist/errors';
+import {
+  BuildJob,
+  BuildPhase,
+  BuildTrigger,
+  Ios,
+  Job,
+  Platform,
+  UserError,
+} from '@expo/eas-build-job';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
