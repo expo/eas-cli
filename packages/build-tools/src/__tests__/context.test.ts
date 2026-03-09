@@ -6,7 +6,7 @@ import { createMockLogger } from './utils/logger';
 import { BuildContext } from '../context';
 
 jest.mock('fs');
-jest.mock('fs-extra');
+jest.mock('fs-extra', () => jest.requireActual('fs-extra'));
 
 describe('BuildContext', () => {
   it('should merge secrets', async () => {
