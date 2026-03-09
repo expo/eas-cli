@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepOutputAccessor, SerializedBuildStepOutputAccessor } from './BuildStep';
 import { BuildStepEnv } from './BuildStepEnv';
-import { StepMetric, StepMetricInput, StepMetricsCollection } from './StepMetrics';
+import { StepMetric, StepMetricInput } from './StepMetrics';
 import { BuildStepRuntimeError } from './errors';
 import { hashFiles } from './utils/hashFiles';
 import {
@@ -56,7 +56,6 @@ export class BuildStepGlobalContext {
   private didCheckOut = false;
   private _hasAnyPreviousStepFailed = false;
   private stepById: Record<string, BuildStepOutputAccessor> = {};
-  private readonly _stepMetrics: StepMetricsCollection = [];
   public onStepMetricCollected?: (metric: StepMetric) => void;
 
   constructor(
@@ -184,13 +183,8 @@ export class BuildStepGlobalContext {
     this._hasAnyPreviousStepFailed = true;
   }
 
-  public get stepMetrics(): StepMetricsCollection {
-    return this._stepMetrics;
-  }
-
   public addStepMetric(metric: StepMetricInput): void {
     const stepMetric: StepMetric = { ...metric, platform: this.runtimePlatform };
-    this._stepMetrics.push(stepMetric);
     this.onStepMetricCollected?.(stepMetric);
   }
 

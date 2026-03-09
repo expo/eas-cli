@@ -160,6 +160,14 @@ describe(BuildWorkflow, () => {
   });
 
   describe('step metrics collection', () => {
+    function collectMetrics(ctx: ReturnType<typeof createGlobalContextMock>): StepMetric[] {
+      const collected: StepMetric[] = [];
+      ctx.onStepMetricCollected = metric => {
+        collected.push(metric);
+      };
+      return collected;
+    }
+
     it('collects metrics for steps with __metricsId', async () => {
       const mockBuildStep = mock<BuildStep>();
       when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
@@ -169,16 +177,17 @@ describe(BuildWorkflow, () => {
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
       const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
-      expect(ctx.stepMetrics).toHaveLength(1);
-      expect(ctx.stepMetrics[0]).toMatchObject({
+      expect(collected).toHaveLength(1);
+      expect(collected[0]).toMatchObject({
         metricsId: 'test-step-metrics',
         result: 'success',
         platform: 'linux',
       });
-      expect(ctx.stepMetrics[0].durationMs).toBeGreaterThanOrEqual(0);
+      expect(collected[0].durationMs).toBeGreaterThanOrEqual(0);
     });
 
     it('does not collect metrics for steps without __metricsId', async () => {
@@ -190,10 +199,11 @@ describe(BuildWorkflow, () => {
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
       const ctx = createGlobalContextMock();
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
-      expect(ctx.stepMetrics).toHaveLength(0);
+      expect(collected).toHaveLength(0);
     });
 
     it('collects failed result when step throws', async () => {
@@ -205,16 +215,17 @@ describe(BuildWorkflow, () => {
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
       const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.DARWIN });
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await expect(workflow.executeAsync()).rejects.toThrowError('Step failed');
 
-      expect(ctx.stepMetrics).toHaveLength(1);
-      expect(ctx.stepMetrics[0]).toMatchObject({
+      expect(collected).toHaveLength(1);
+      expect(collected[0]).toMatchObject({
         metricsId: 'failing-step-metrics',
         result: 'failed',
         platform: 'darwin',
       });
-      expect(ctx.stepMetrics[0].durationMs).toBeGreaterThanOrEqual(0);
+      expect(collected[0].durationMs).toBeGreaterThanOrEqual(0);
     });
 
     it('does not collect metrics when step is skipped', async () => {
@@ -225,12 +236,13 @@ describe(BuildWorkflow, () => {
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
       const ctx = createGlobalContextMock();
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
       // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
       verify(mockBuildStep.skip()).once();
-      expect(ctx.stepMetrics).toHaveLength(0);
+      expect(collected).toHaveLength(0);
     });
 
     it('collects metrics with darwin platform when runtimePlatform is darwin', async () => {
@@ -242,11 +254,12 @@ describe(BuildWorkflow, () => {
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
       const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.DARWIN });
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
-      expect(ctx.stepMetrics).toHaveLength(1);
-      expect(ctx.stepMetrics[0].platform).toBe('darwin');
+      expect(collected).toHaveLength(1);
+      expect(collected[0].platform).toBe('darwin');
     });
 
     it('collects metrics for multiple steps', async () => {
@@ -273,12 +286,13 @@ describe(BuildWorkflow, () => {
       ];
 
       const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
+      const collected = collectMetrics(ctx);
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
-      expect(ctx.stepMetrics).toHaveLength(2);
-      expect(ctx.stepMetrics[0].metricsId).toBe('step-1');
-      expect(ctx.stepMetrics[1].metricsId).toBe('step-3');
+      expect(collected).toHaveLength(2);
+      expect(collected[0].metricsId).toBe('step-1');
+      expect(collected[1].metricsId).toBe('step-3');
     });
 
     it('invokes onStepMetricCollected callback when metric is collected', async () => {
@@ -314,9 +328,7 @@ describe(BuildWorkflow, () => {
       const ctx = createGlobalContextMock();
 
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
-      await workflow.executeAsync();
-
-      expect(ctx.stepMetrics).toHaveLength(1);
+      await expect(workflow.executeAsync()).resolves.not.toThrow();
     });
   });
 });
