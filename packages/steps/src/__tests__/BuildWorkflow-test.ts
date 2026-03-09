@@ -4,6 +4,7 @@ import { createGlobalContextMock } from './utils/context';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep } from '../BuildStep';
 import { BuildWorkflow } from '../BuildWorkflow';
+import { StepMetric } from '../StepMetrics';
 
 describe(BuildWorkflow, () => {
   describe(BuildWorkflow.prototype.executeAsync, () => {
@@ -278,6 +279,44 @@ describe(BuildWorkflow, () => {
       expect(ctx.stepMetrics).toHaveLength(2);
       expect(ctx.stepMetrics[0].metricsId).toBe('step-1');
       expect(ctx.stepMetrics[1].metricsId).toBe('step-3');
+    });
+
+    it('invokes onStepMetricCollected callback when metric is collected', async () => {
+      const mockBuildStep = mock<BuildStep>();
+      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.__metricsId).thenReturn('callback-test');
+
+      const buildSteps: BuildStep[] = [instance(mockBuildStep)];
+      const ctx = createGlobalContextMock();
+
+      const collectedMetrics: StepMetric[] = [];
+      ctx.onStepMetricCollected = metric => {
+        collectedMetrics.push(metric);
+      };
+
+      const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
+      await workflow.executeAsync();
+
+      expect(collectedMetrics).toHaveLength(1);
+      expect(collectedMetrics[0]).toMatchObject({
+        metricsId: 'callback-test',
+        result: 'success',
+        platform: 'linux',
+      });
+    });
+
+    it('does not throw when onStepMetricCollected is not set', async () => {
+      const mockBuildStep = mock<BuildStep>();
+      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
+      when(mockBuildStep.__metricsId).thenReturn('no-callback-test');
+
+      const buildSteps: BuildStep[] = [instance(mockBuildStep)];
+      const ctx = createGlobalContextMock();
+
+      const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
+      await workflow.executeAsync();
+
+      expect(ctx.stepMetrics).toHaveLength(1);
     });
   });
 });
