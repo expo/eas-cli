@@ -17,31 +17,43 @@ export interface ExternalBuildError {
   buildPhase?: BuildPhase;
 }
 
-interface BuildErrorDetails {
+export type ErrorMetadata = Record<string, unknown>;
+
+interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
   errorCode: string;
   trackingCode?: string;
   docsUrl?: string;
-  innerError?: Error;
   buildPhase?: BuildPhase;
+  /**
+   * Metadata object for the error. Used internally for Sentry/logging/debugging.
+   * It is not included in the external build error payload.
+   */
+  metadata?: TMetadata;
+  /**
+   * Underlying error that caused this error to be created. Used internally to
+   * propagate blame stack traces to the response.
+   */
+  cause?: unknown;
 }
 
-export class BuildError extends Error {
+export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends Error {
   public errorCode: string;
   // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
   // The public error saved on builds and job runs is always `errorCode`.
   public trackingCode?: string;
   public docsUrl?: string;
-  public innerError?: Error;
+  public readonly metadata?: TMetadata;
   public buildPhase?: BuildPhase;
 
-  constructor(message: string, details: BuildErrorDetails) {
-    super(message);
+  constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
+    super(message, { cause: details.cause });
     this.errorCode = details.errorCode;
     this.trackingCode = details.trackingCode;
     this.docsUrl = details.docsUrl;
-    this.innerError = details.innerError;
+    this.metadata = details.metadata;
     this.buildPhase = details.buildPhase;
   }
+
   public format(): ExternalBuildError {
     return {
       errorCode: this.errorCode,
@@ -52,16 +64,32 @@ export class BuildError extends Error {
   }
 }
 
-export class UserFacingError extends Error {
-  public docsUrl?: string;
+export class BuildError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
+  constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
+    super(message, details);
+  }
+}
 
+export class UserFacingError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
   constructor(
     public errorCode: string,
     public message: string,
-    options?: { docsUrl?: string; cause?: unknown }
+    options?: {
+      docsUrl?: string;
+      metadata?: TMetadata;
+      cause?: unknown;
+    }
   ) {
-    super(message, { cause: options?.cause });
-    this.docsUrl = options?.docsUrl;
+    super(message, {
+      errorCode,
+      docsUrl: options?.docsUrl,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
   }
 }
 
