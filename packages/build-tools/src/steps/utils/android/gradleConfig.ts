@@ -17,6 +17,7 @@ export async function injectCredentialsGradleConfig(
   workingDir: string
 ): Promise<void> {
   logger.info('Injecting signing config into build.gradle');
+  await warnIfLegacyEasBuildGradleExists(logger, workingDir);
   await deleteEasBuildInjectCredentialsGradle(workingDir);
   await createEasBuildInjectCredentialsGradle(workingDir);
   await addApplyInjectCredentialsConfigToBuildGradle(workingDir);
@@ -29,6 +30,7 @@ export async function injectConfigureVersionGradleConfig(
   { versionCode, versionName }: { versionCode?: string; versionName?: string }
 ): Promise<void> {
   logger.info('Injecting version config into build.gradle');
+  await warnIfLegacyEasBuildGradleExists(logger, workingDir);
   if (versionCode) {
     logger.info(`Version code: ${versionCode}`);
   }
@@ -49,6 +51,20 @@ async function deleteEasBuildInjectCredentialsGradle(workingDir: string): Promis
 async function deleteEasBuildConfigureVersionGradle(workingDir: string): Promise<void> {
   const targetPath = getEasBuildConfigureVersionGradlePath(workingDir);
   await fs.remove(targetPath);
+}
+
+async function warnIfLegacyEasBuildGradleExists(
+  logger: bunyan,
+  projectRoot: string
+): Promise<void> {
+  const legacyGradlePath = getLegacyEasBuildGradlePath(projectRoot);
+  if (await fs.pathExists(legacyGradlePath)) {
+    logger.warn('eas-build.gradle script is deprecated, please remove it from your project.');
+  }
+}
+
+function getLegacyEasBuildGradlePath(projectRoot: string): string {
+  return path.join(projectRoot, 'android/app/eas-build.gradle');
 }
 
 function getEasBuildInjectCredentialsGradlePath(workingDir: string): string {
@@ -109,11 +125,8 @@ async function addApplyConfigureVersionConfigToBuildGradle(projectRoot: string):
 }
 
 function hasLine(haystack: string, needle: string): boolean {
-  return (
-    haystack
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      // Check for both single and double quotes
-      .some(line => line === needle || line === needle.replace(/"/g, "'"))
-  );
+  return haystack
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .some(line => line === needle || line === needle.replace(/"/g, "'"));
 }

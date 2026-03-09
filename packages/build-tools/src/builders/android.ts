@@ -10,13 +10,16 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
-import { configureBuildGradle } from '../android/gradleConfig';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  injectConfigureVersionGradleConfig,
+  injectCredentialsGradleConfig,
+} from '../steps/utils/android/gradleConfig';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -102,9 +105,19 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
   ) {
     await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       await restoreCredentials(ctx);
-      await configureBuildGradle(ctx);
+      await injectCredentialsGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory());
     });
   }
+
+  if (ctx.job.version?.versionCode || ctx.job.version?.versionName) {
+    await ctx.runBuildPhase(BuildPhase.CONFIGURE_ANDROID_VERSION, async () => {
+      await injectConfigureVersionGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory(), {
+        versionCode: ctx.job.version?.versionCode,
+        versionName: ctx.job.version?.versionName,
+      });
+    });
+  }
+
   await ctx.runBuildPhase(BuildPhase.CONFIGURE_EXPO_UPDATES, async () => {
     await configureExpoUpdatesIfInstalledAsync(ctx, {
       resolvedRuntimeVersion: resolvedExpoUpdatesRuntimeVersion?.runtimeVersion ?? null,
