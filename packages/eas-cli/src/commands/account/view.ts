@@ -23,9 +23,9 @@ export default class AccountView extends EasCommand {
       const loggedInAs = authenticationInfo.accessToken
         ? `${displayName} (authenticated using EXPO_TOKEN)`
         : displayName;
-      Log.log(chalk.bold('Username: ') + chalk.green(loggedInAs));
+      Log.log(chalk.green(loggedInAs));
       if ('email' in actor) {
-        Log.log(chalk.bold('Email: ') + actor.email);
+        Log.log(actor.email);
       }
 
       // personal account is included, only show if more accounts that personal account
