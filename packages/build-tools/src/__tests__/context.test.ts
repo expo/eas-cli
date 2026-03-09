@@ -6,7 +6,7 @@ import { createMockLogger } from './utils/logger';
 import { BuildContext } from '../context';
 
 jest.mock('fs');
-jest.mock('fs-extra', () => jest.requireActual('fs-extra'));
+jest.mock('fs-extra');
 
 describe('BuildContext', () => {
   it('should merge secrets', async () => {
@@ -119,7 +119,6 @@ describe('BuildContext', () => {
 
   it('should use a custom phase display name for logger metadata', async () => {
     const logger = createMockLogger();
-    await vol.promises.mkdir('/workingdir/env', { recursive: true });
 
     const ctx = new BuildContext(
       {
@@ -134,6 +133,9 @@ describe('BuildContext', () => {
         logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
         uploadArtifact: jest.fn(),
       }
+    );
+    (jest.spyOn(ctx as any, 'collectAndUpdateEnvVariablesAsync') as any).mockResolvedValue(
+      undefined
     );
 
     await ctx.runBuildPhase('Configure Android version', async () => undefined);
