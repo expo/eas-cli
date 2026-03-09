@@ -4,6 +4,7 @@ import { Actor, getActorDisplayName } from '../User';
 const userStub: Actor = {
   __typename: 'User',
   id: 'userId',
+  email: 'user@example.com',
   username: 'username',
   primaryAccount: {
     id: 'account_id_777',

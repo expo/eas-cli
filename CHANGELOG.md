@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Show user email in `eas account:view` output. ([#3485](https://github.com/expo/eas-cli/pull/3485) by [@brentvatne](https://github.com/brentvatne))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
