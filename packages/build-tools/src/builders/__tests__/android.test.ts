@@ -197,6 +197,57 @@ describe(androidBuilder, () => {
     );
   });
 
+  it('injects credentials and version config when both are configured', async () => {
+    const reportBuildPhaseStats = jest.fn();
+    const job: Android.Job = {
+      ...createTestAndroidJob(),
+      version: {
+        versionCode: '42',
+        versionName: '1.2.3',
+      },
+    };
+    const ctx = new BuildContext(job, {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+      },
+      uploadArtifact: jest.fn(),
+      reportBuildPhaseStats,
+    });
+    vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
+    vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
+
+    await androidBuilder(ctx);
+
+    expect(injectCredentialsGradleConfig).toHaveBeenCalledWith(
+      expect.anything(),
+      '/workingdir/build'
+    );
+    expect(restoreCredentials).toHaveBeenCalledWith(ctx);
+    expect(injectConfigureVersionGradleConfig).toHaveBeenCalledWith(
+      expect.anything(),
+      '/workingdir/build',
+      {
+        versionCode: '42',
+        versionName: '1.2.3',
+      }
+    );
+    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        result: BuildPhaseResult.WARNING,
+      })
+    );
+    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        result: BuildPhaseResult.WARNING,
+      })
+    );
+  });
+
   it('runs the builder through hooks', async () => {
     const ctx = new BuildContext(createTestAndroidJob(), {
       workingdir: '/workingdir',
