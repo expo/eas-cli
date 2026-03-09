@@ -94,6 +94,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
           // do nothing, it's a non-breaking error.
         }
       }
+      await customBuildCtx.drainPendingMetricUploads();
     }
   } catch (err: any) {
     err.artifacts = ctx.artifacts;

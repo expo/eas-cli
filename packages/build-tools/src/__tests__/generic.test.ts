@@ -4,11 +4,9 @@ import { BuildStepGlobalContext, StepsConfigParser } from '@expo/steps';
 import { runGenericJobAsync } from '../generic';
 import { CustomBuildContext } from '../customBuildContext';
 import { uploadJobOutputsToWwwAsync } from '../utils/outputs';
-import { uploadStepMetricToWwwAsync } from '../utils/stepMetrics';
 
 jest.mock('../customBuildContext');
 jest.mock('../utils/outputs');
-jest.mock('../utils/stepMetrics');
 jest.mock('../common/projectSources');
 jest.mock('../steps/easFunctions', () => ({ getEasFunctions: jest.fn().mockReturnValue([]) }));
 jest.mock('../steps/easFunctionGroups', () => ({
@@ -17,54 +15,31 @@ jest.mock('../steps/easFunctionGroups', () => ({
 jest.mock('@expo/steps');
 jest.mock('fs/promises');
 
-const mockUploadStepMetricToWwwAsync = jest.mocked(uploadStepMetricToWwwAsync);
 const mockUploadJobOutputsToWwwAsync = jest.mocked(uploadJobOutputsToWwwAsync);
-
-function createDeferred<T = void>(): {
-  promise: Promise<T>;
-  resolve: (value: T) => void;
-  reject: (reason?: any) => void;
-} {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: any) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
 
 describe(runGenericJobAsync, () => {
   const expoApiV2BaseUrl = 'http://exp.test/--/api/v2/';
 
-  let capturedOnStepMetricCollected: ((metric: any) => void) | undefined;
+  let mockDrainPendingMetricUploads: jest.Mock;
   let mockCtx: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    capturedOnStepMetricCollected = undefined;
+
+    mockDrainPendingMetricUploads = jest.fn().mockResolvedValue(undefined);
 
     (CustomBuildContext as unknown as jest.Mock).mockImplementation(() => ({
       projectSourceDirectory: '/tmp/src',
       env: { __WORKFLOW_JOB_ID: 'test-workflow-job-id' },
+      drainPendingMetricUploads: mockDrainPendingMetricUploads,
     }));
 
-    (BuildStepGlobalContext as unknown as jest.Mock).mockImplementation(() => {
-      const instance: any = {
-        env: { __WORKFLOW_JOB_ID: 'test-workflow-job-id' },
-      };
-      Object.defineProperty(instance, 'onStepMetricCollected', {
-        get: () => capturedOnStepMetricCollected,
-        set: (fn: any) => {
-          capturedOnStepMetricCollected = fn;
-        },
-        enumerable: true,
-        configurable: true,
-      });
-      return instance;
-    });
+    (BuildStepGlobalContext as unknown as jest.Mock).mockImplementation(() => ({
+      env: { __WORKFLOW_JOB_ID: 'test-workflow-job-id' },
+    }));
 
     mockCtx = {
+      expoApiV2BaseUrl,
       job: {
         secrets: { robotAccessToken: 'test-token' },
         steps: [],
@@ -79,118 +54,51 @@ describe(runGenericJobAsync, () => {
       runBuildPhase: jest.fn(async (_phase: BuildPhase, fn: () => Promise<any>) => fn()),
     };
 
-    mockUploadStepMetricToWwwAsync.mockResolvedValue(undefined);
     mockUploadJobOutputsToWwwAsync.mockResolvedValue(undefined);
   });
 
-  it('injects onStepMetricCollected callback when credentials exist', async () => {
-    const mockWorkflow = {
-      executeAsync: jest.fn(async () => {
-        capturedOnStepMetricCollected?.({
-          metricsId: 'eas/checkout',
-          result: 'success',
-          durationMs: 100,
-          platform: 'linux',
-        });
-      }),
-    };
-    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
-      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
-    }));
-
-    await runGenericJobAsync(mockCtx, { expoApiV2BaseUrl });
-
-    expect(capturedOnStepMetricCollected).toBeDefined();
-    expect(mockUploadStepMetricToWwwAsync).toHaveBeenCalledTimes(1);
-    expect(mockUploadStepMetricToWwwAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workflowJobId: 'test-workflow-job-id',
-        robotAccessToken: 'test-token',
-        expoApiV2BaseUrl,
-      })
-    );
-  });
-
-  it('does not inject callback when workflowJobId is missing', async () => {
-    (CustomBuildContext as unknown as jest.Mock).mockImplementation(() => ({
-      projectSourceDirectory: '/tmp/src',
-      env: {},
-    }));
-    (BuildStepGlobalContext as unknown as jest.Mock).mockImplementation(() => {
-      const instance: any = { env: {} };
-      Object.defineProperty(instance, 'onStepMetricCollected', {
-        get: () => capturedOnStepMetricCollected,
-        set: (fn: any) => {
-          capturedOnStepMetricCollected = fn;
-        },
-        enumerable: true,
-        configurable: true,
-      });
-      return instance;
-    });
+  it('awaits drainPendingMetricUploads in COMPLETE_JOB phase', async () => {
     const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
     (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
       parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
     }));
 
-    await runGenericJobAsync(mockCtx, { expoApiV2BaseUrl });
-
-    expect(capturedOnStepMetricCollected).toBeUndefined();
-    expect(mockUploadStepMetricToWwwAsync).not.toHaveBeenCalled();
-  });
-
-  it('drain waits for pending upload before runGenericJobAsync resolves', async () => {
-    const deferred = createDeferred<void>();
-    mockUploadStepMetricToWwwAsync.mockReturnValue(deferred.promise);
-
-    const mockWorkflow = {
-      executeAsync: jest.fn(async () => {
-        capturedOnStepMetricCollected?.({
-          metricsId: 'eas/checkout',
-          result: 'success',
-          durationMs: 100,
-          platform: 'linux',
-        });
-      }),
-    };
-    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
-      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
-    }));
+    let resolveDrain!: () => void;
+    mockDrainPendingMetricUploads.mockReturnValue(
+      new Promise<void>(resolve => {
+        resolveDrain = resolve;
+      })
+    );
 
     let resolved = false;
-    const resultPromise = runGenericJobAsync(mockCtx, { expoApiV2BaseUrl }).then(() => {
+    const resultPromise = runGenericJobAsync(mockCtx).then(() => {
       resolved = true;
     });
 
     await new Promise(r => setImmediate(r));
     expect(resolved).toBe(false);
 
-    deferred.resolve();
+    resolveDrain();
     await resultPromise;
     expect(resolved).toBe(true);
   });
 
-  it('drain runs even when outputs upload fails', async () => {
-    const deferred = createDeferred<void>();
-    mockUploadStepMetricToWwwAsync.mockReturnValue(deferred.promise);
-    mockUploadJobOutputsToWwwAsync.mockRejectedValue(new Error('outputs upload failed'));
-
-    const mockWorkflow = {
-      executeAsync: jest.fn(async () => {
-        capturedOnStepMetricCollected?.({
-          metricsId: 'eas/checkout',
-          result: 'success',
-          durationMs: 100,
-          platform: 'linux',
-        });
-      }),
-    };
+  it('awaits drainPendingMetricUploads even when outputs upload fails', async () => {
+    const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
     (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
       parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
     }));
+    mockUploadJobOutputsToWwwAsync.mockRejectedValue(new Error('outputs upload failed'));
+
+    let resolveDrain!: () => void;
+    mockDrainPendingMetricUploads.mockReturnValue(
+      new Promise<void>(resolve => {
+        resolveDrain = resolve;
+      })
+    );
 
     let rejected = false;
-    const resultPromise = runGenericJobAsync(mockCtx, { expoApiV2BaseUrl }).catch(err => {
+    const resultPromise = runGenericJobAsync(mockCtx).catch(err => {
       rejected = true;
       throw err;
     });
@@ -198,8 +106,23 @@ describe(runGenericJobAsync, () => {
     await new Promise(r => setImmediate(r));
     expect(rejected).toBe(false);
 
-    deferred.resolve();
+    resolveDrain();
     await expect(resultPromise).rejects.toThrow('outputs upload failed');
     expect(rejected).toBe(true);
+  });
+
+  it('throws before workflow execution when expoApiV2BaseUrl is missing', async () => {
+    mockCtx.expoApiV2BaseUrl = undefined;
+
+    const mockWorkflow = { executeAsync: jest.fn() };
+    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
+    }));
+
+    await expect(runGenericJobAsync(mockCtx)).rejects.toThrow(
+      'expoApiV2BaseUrl is required for generic jobs'
+    );
+
+    expect(CustomBuildContext).not.toHaveBeenCalled();
   });
 });

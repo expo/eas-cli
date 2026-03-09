@@ -40,6 +40,7 @@ export interface ExternalBuildContextProvider {
 
   readonly env: BuildStepEnv;
   updateEnv(env: BuildStepEnv): void;
+  reportStepMetric?(metric: StepMetric): void;
 }
 
 export interface SerializedBuildStepGlobalContext {
@@ -56,8 +57,6 @@ export class BuildStepGlobalContext {
   private didCheckOut = false;
   private _hasAnyPreviousStepFailed = false;
   private stepById: Record<string, BuildStepOutputAccessor> = {};
-  public onStepMetricCollected?: (metric: StepMetric) => void;
-
   constructor(
     private readonly provider: ExternalBuildContextProvider,
     public readonly skipCleanup: boolean
@@ -185,7 +184,7 @@ export class BuildStepGlobalContext {
 
   public addStepMetric(metric: StepMetricInput): void {
     const stepMetric: StepMetric = { ...metric, platform: this.runtimePlatform };
-    this.onStepMetricCollected?.(stepMetric);
+    this.provider.reportStepMetric?.(stepMetric);
   }
 
   public wasCheckedOut(): boolean {

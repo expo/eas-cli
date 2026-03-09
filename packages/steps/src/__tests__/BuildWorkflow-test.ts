@@ -160,12 +160,17 @@ describe(BuildWorkflow, () => {
   });
 
   describe('step metrics collection', () => {
-    function collectMetrics(ctx: ReturnType<typeof createGlobalContextMock>): StepMetric[] {
+    function createContextWithMetricCollector(
+      params: { runtimePlatform?: BuildRuntimePlatform } = {}
+    ): { ctx: ReturnType<typeof createGlobalContextMock>; collected: StepMetric[] } {
       const collected: StepMetric[] = [];
-      ctx.onStepMetricCollected = metric => {
-        collected.push(metric);
-      };
-      return collected;
+      const ctx = createGlobalContextMock({
+        ...params,
+        reportStepMetric: metric => {
+          collected.push(metric);
+        },
+      });
+      return { ctx, collected };
     }
 
     it('collects metrics for steps with __metricsId', async () => {
@@ -176,8 +181,9 @@ describe(BuildWorkflow, () => {
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
-      const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector({
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+      });
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
@@ -198,8 +204,7 @@ describe(BuildWorkflow, () => {
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
-      const ctx = createGlobalContextMock();
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector();
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
@@ -214,8 +219,9 @@ describe(BuildWorkflow, () => {
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
-      const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.DARWIN });
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+      });
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await expect(workflow.executeAsync()).rejects.toThrowError('Step failed');
 
@@ -235,8 +241,7 @@ describe(BuildWorkflow, () => {
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
-      const ctx = createGlobalContextMock();
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector();
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
@@ -253,8 +258,9 @@ describe(BuildWorkflow, () => {
 
       const buildSteps: BuildStep[] = [instance(mockBuildStep)];
 
-      const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.DARWIN });
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+      });
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
@@ -285,8 +291,9 @@ describe(BuildWorkflow, () => {
         instance(mockBuildStep3),
       ];
 
-      const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
-      const collected = collectMetrics(ctx);
+      const { ctx, collected } = createContextWithMetricCollector({
+        runtimePlatform: BuildRuntimePlatform.LINUX,
+      });
       const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
       await workflow.executeAsync();
 
@@ -295,31 +302,7 @@ describe(BuildWorkflow, () => {
       expect(collected[1].metricsId).toBe('step-3');
     });
 
-    it('invokes onStepMetricCollected callback when metric is collected', async () => {
-      const mockBuildStep = mock<BuildStep>();
-      when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
-      when(mockBuildStep.__metricsId).thenReturn('callback-test');
-
-      const buildSteps: BuildStep[] = [instance(mockBuildStep)];
-      const ctx = createGlobalContextMock();
-
-      const collectedMetrics: StepMetric[] = [];
-      ctx.onStepMetricCollected = metric => {
-        collectedMetrics.push(metric);
-      };
-
-      const workflow = new BuildWorkflow(ctx, { buildSteps, buildFunctions: {} });
-      await workflow.executeAsync();
-
-      expect(collectedMetrics).toHaveLength(1);
-      expect(collectedMetrics[0]).toMatchObject({
-        metricsId: 'callback-test',
-        result: 'success',
-        platform: 'linux',
-      });
-    });
-
-    it('does not throw when onStepMetricCollected is not set', async () => {
+    it('does not throw when reportStepMetric is not provided on the provider', async () => {
       const mockBuildStep = mock<BuildStep>();
       when(mockBuildStep.shouldExecuteStep()).thenReturn(true);
       when(mockBuildStep.__metricsId).thenReturn('no-callback-test');
