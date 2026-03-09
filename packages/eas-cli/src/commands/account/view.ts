@@ -19,10 +19,14 @@ export default class AccountView extends EasCommand {
       maybeLoggedIn: { actor, authenticationInfo },
     } = await this.getContextAsync(AccountView, { nonInteractive: true });
     if (actor) {
+      const displayName = getActorDisplayName(actor);
       const loggedInAs = authenticationInfo.accessToken
-        ? `${getActorDisplayName(actor)} (authenticated using EXPO_TOKEN)`
-        : getActorDisplayName(actor);
-      Log.log(chalk.green(loggedInAs));
+        ? `${displayName} (authenticated using EXPO_TOKEN)`
+        : displayName;
+      Log.log(chalk.bold('Username: ') + chalk.green(loggedInAs));
+      if ('email' in actor) {
+        Log.log(chalk.bold('Email: ') + actor.email);
+      }
 
       // personal account is included, only show if more accounts that personal account
       // but do show personal account in list if there are more
