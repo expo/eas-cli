@@ -59,6 +59,12 @@ export enum BuildPhase {
   COMPLETE_JOB = 'COMPLETE_JOB',
 }
 
+const buildPhaseValues = new Set<string>(Object.values(BuildPhase));
+
+export function isBuildPhase(value: string): value is BuildPhase {
+  return buildPhaseValues.has(value);
+}
+
 export enum SubmissionPhase {
   SPIN_UP_SUBMISSION_WORKER = 'SPIN_UP_SUBMISSION_WORKER',
   SUBMIT_TO_PLAY_STORE = 'SUBMIT_TO_PLAY_STORE',

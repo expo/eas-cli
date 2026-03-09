@@ -1,4 +1,4 @@
-import { BuildPhase, buildPhaseDisplayName } from './logs';
+import { BuildPhase, buildPhaseDisplayName, isBuildPhase } from './logs';
 
 export enum ErrorCode {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
@@ -94,11 +94,11 @@ export class UserFacingError<
 }
 
 export class UnknownError extends UserFacingError {
-  constructor(buildPhase?: BuildPhase) {
+  constructor(buildPhase?: BuildPhase | string) {
     super(
       ErrorCode.UNKNOWN_ERROR,
       buildPhase
-        ? `Unknown error. See logs of the ${buildPhaseDisplayName[buildPhase]} build phase for more information.`
+        ? `Unknown error. See logs of the ${isBuildPhase(buildPhase) ? buildPhaseDisplayName[buildPhase] : buildPhase} build phase for more information.`
         : 'Unknown error. See logs for more information.'
     );
   }

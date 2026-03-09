@@ -1,4 +1,4 @@
-import { BuildPhase, errors } from '@expo/eas-build-job';
+import { BuildPhase, errors, isBuildPhase } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 
 import { buildErrorHandlers } from './buildErrorHandlers';
@@ -7,7 +7,7 @@ import { userErrorHandlers } from './userErrorHandlers';
 import { findXcodeBuildLogsPathAsync } from '../ios/xcodeBuildLogs';
 
 async function maybeReadXcodeBuildLogs(
-  phase: BuildPhase,
+  phase: BuildPhase | string | undefined,
   buildLogsDirectory: string
 ): Promise<string | undefined> {
   if (phase !== BuildPhase.RUN_FASTLANE) {
@@ -77,7 +77,7 @@ export async function resolveBuildPhaseErrorAsync(
     error instanceof errors.UserFacingError
       ? error
       : (resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
-        new errors.UnknownError(errorContext.phase));
+        new errors.UnknownError(phase));
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
   const trackingCode =
@@ -90,7 +90,7 @@ export async function resolveBuildPhaseErrorAsync(
     trackingCode,
     docsUrl: userFacingError.docsUrl,
     cause: error,
-    buildPhase: phase,
+    ...(phase && isBuildPhase(phase) ? { buildPhase: phase } : {}),
     metadata: buildError?.metadata,
   });
 }

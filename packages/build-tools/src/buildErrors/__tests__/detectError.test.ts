@@ -12,6 +12,23 @@ afterEach(() => {
 });
 
 describe(resolveBuildPhaseErrorAsync, () => {
+  it('omits non-enum buildPhase on the returned build error', async () => {
+    const fakeError = new Error();
+    const err = await resolveBuildPhaseErrorAsync(
+      fakeError,
+      ['some log line'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: 'Configure Android version',
+        env: {},
+      },
+      '/fake/path'
+    );
+
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.buildPhase).toBeUndefined();
+  });
+
   it('detects log for corrupted npm package', async () => {
     const fakeError = new Error();
     const err = await resolveBuildPhaseErrorAsync(

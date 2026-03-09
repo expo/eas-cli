@@ -1,4 +1,4 @@
-import { BuildTrigger, Job, Metadata } from '@expo/eas-build-job';
+import { BuildPhase, BuildTrigger, Job, Metadata } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
 import { vol } from 'memfs';
 
@@ -115,5 +115,29 @@ describe('BuildContext', () => {
     expect(ctx.job.workflowInterpolationContext).toEqual({
       foo: 'bar',
     });
+  });
+
+  it('should use a custom phase display name for logger metadata', async () => {
+    const logger = createMockLogger();
+    await vol.promises.mkdir('/workingdir/env', { recursive: true });
+
+    const ctx = new BuildContext(
+      {
+        triggeredBy: BuildTrigger.EAS_CLI,
+      } as Job,
+      {
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+        },
+        workingdir: '/workingdir',
+        logger,
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        uploadArtifact: jest.fn(),
+      }
+    );
+
+    await ctx.runBuildPhase('Configure Android version', async () => undefined);
+
+    expect(logger.child).toHaveBeenCalledWith({ phase: 'Configure Android version' });
   });
 });

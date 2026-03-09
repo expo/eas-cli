@@ -11,6 +11,7 @@ import {
   ManagedArtifactType,
   Metadata,
   errors,
+  isBuildPhase,
   isGenericArtifact,
 } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
@@ -91,7 +92,7 @@ export class BuildContext<TJob extends Job = Job> {
   private _metadata?: Metadata;
   private readonly defaultLogger: bunyan;
   private readonly _uploadArtifact: BuildContextOptions['uploadArtifact'];
-  private buildPhase?: BuildPhase;
+  private buildPhase?: BuildPhase | string;
   private buildPhaseSkipped = false;
   private buildPhaseHasWarnings = false;
   private _appConfig?: ExpoConfig;
@@ -185,7 +186,7 @@ export class BuildContext<TJob extends Job = Job> {
   }
 
   public async runBuildPhase<T>(
-    buildPhase: BuildPhase,
+    buildPhase: BuildPhase | string,
     phase: () => Promise<T>,
     {
       doNotMarkStart = false,
@@ -283,7 +284,7 @@ export class BuildContext<TJob extends Job = Job> {
 
   private async handleBuildPhaseErrorAsync(
     err: any,
-    buildPhase: BuildPhase
+    buildPhase: BuildPhase | string
   ): Promise<errors.BuildError> {
     const buildError = await resolveBuildPhaseErrorAsync(
       err,
@@ -316,7 +317,7 @@ export class BuildContext<TJob extends Job = Job> {
     return path.join(baseDirectory, this.job.projectRootDirectory ?? '.');
   }
 
-  private setBuildPhase(buildPhase: BuildPhase, { doNotMarkStart = false } = {}): void {
+  private setBuildPhase(buildPhase: BuildPhase | string, { doNotMarkStart = false } = {}): void {
     if (this.buildPhase) {
       if (this.buildPhase === buildPhase) {
         return;
@@ -349,7 +350,14 @@ export class BuildContext<TJob extends Job = Job> {
     }
     await this.collectAndUpdateEnvVariablesAsync();
 
-    this.reportBuildPhaseStats?.({ buildPhase: this.buildPhase, result, durationMs });
+    const buildPhase = this.buildPhase;
+    if (isBuildPhase(buildPhase)) {
+      this.reportBuildPhaseStats?.({
+        buildPhase,
+        result,
+        durationMs,
+      });
+    }
 
     if (!doNotMarkEnd) {
       this.logger.info(
