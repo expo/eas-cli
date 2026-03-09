@@ -131,8 +131,11 @@ async function addApplyConfigureVersionConfigToBuildGradle(projectRoot: string):
 }
 
 function hasLine(haystack: string, needle: string): boolean {
-  return haystack
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .some(line => line === needle || line === needle.replace(/"/g, "'"));
+  return (
+    haystack
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      // Check for both single and double quotes.
+      .some(line => line === needle || line === needle.replace(/"/g, "'"))
+  );
 }

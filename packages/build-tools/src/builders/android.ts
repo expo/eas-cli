@@ -101,7 +101,9 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     }
   );
 
-  if (nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials) {
+  if (
+    nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials
+  ) {
     await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       await warnIfLegacyEasBuildGradleExists(ctx);
       await restoreCredentials(ctx);
