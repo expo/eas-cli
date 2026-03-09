@@ -112,29 +112,6 @@ describe('gradleConfig', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Injecting signing config into build.gradle');
       expect(mockLogger.info).toHaveBeenCalledWith('Signing config injected');
     });
-
-    it('should warn when deprecated eas-build.gradle exists', async () => {
-      vol.fromJSON(
-        {
-          '/workingdir/android/app/build.gradle': `${SAMPLE_BUILD_GRADLE}\napply from: "./eas-build.gradle"\n`,
-          '/workingdir/android/app/eas-build.gradle': '// Legacy content',
-        },
-        '/'
-      );
-
-      await injectCredentialsGradleConfig(mockLogger, '/workingdir');
-
-      const buildGradlePath = '/workingdir/android/app/build.gradle';
-      const buildGradleContent = vol.readFileSync(buildGradlePath, 'utf-8') as string;
-
-      expect(buildGradleContent).toContain('apply from: "./eas-build.gradle"');
-      expect(buildGradleContent).toContain(
-        'apply from: "./eas-build-inject-android-credentials.gradle"'
-      );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'eas-build.gradle script is deprecated, please remove it from your project.'
-      );
-    });
   });
 
   describe('injectConfigureVersionGradleConfig', () => {
@@ -272,29 +249,6 @@ describe('gradleConfig', () => {
       const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
       const generatedContent = vol.readFileSync(versionGradlePath, 'utf-8') as string;
       expect(generatedContent).toMatchSnapshot();
-    });
-
-    it('should warn when deprecated eas-build.gradle exists', async () => {
-      vol.fromJSON(
-        {
-          '/workingdir/android/app/build.gradle': `${SAMPLE_BUILD_GRADLE}\napply from: "./eas-build.gradle"\n`,
-          '/workingdir/android/app/eas-build.gradle': '// Legacy content',
-        },
-        '/'
-      );
-
-      await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
-        versionCode: '42',
-      });
-
-      const buildGradlePath = '/workingdir/android/app/build.gradle';
-      const buildGradleContent = vol.readFileSync(buildGradlePath, 'utf-8') as string;
-
-      expect(buildGradleContent).toContain('apply from: "./eas-build.gradle"');
-      expect(buildGradleContent).toContain('apply from: "./eas-build-configure-version.gradle"');
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'eas-build.gradle script is deprecated, please remove it from your project.'
-      );
     });
   });
 

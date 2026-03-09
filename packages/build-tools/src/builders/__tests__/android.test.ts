@@ -1,4 +1,4 @@
-import { Android } from '@expo/eas-build-job';
+import { Android, BuildPhase, BuildPhaseResult } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
 import { createTestAndroidJob } from '../../__tests__/utils/job';
@@ -45,6 +45,7 @@ jest.mock('../../steps/functions/saveBuildCache', () => ({
   saveCcacheAsync: jest.fn(),
 }));
 jest.mock('../../steps/utils/android/gradleConfig', () => ({
+  ...jest.requireActual('../../steps/utils/android/gradleConfig'),
   injectConfigureVersionGradleConfig: jest.fn(),
   injectCredentialsGradleConfig: jest.fn(),
 }));
@@ -134,6 +135,66 @@ describe(androidBuilder, () => {
     );
     expect(restoreCredentials).toHaveBeenCalledWith(ctx);
     expect(injectConfigureVersionGradleConfig).not.toHaveBeenCalled();
+  });
+
+  it('marks the configure Android version phase as warning for legacy eas-build.gradle', async () => {
+    const reportBuildPhaseStats = jest.fn();
+    const job: Android.Job = {
+      ...createTestAndroidJob(),
+      secrets: {
+        buildCredentials: undefined,
+      },
+      version: {
+        versionCode: '42',
+        versionName: '1.2.3',
+      },
+    };
+    const ctx = new BuildContext(job, {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+      },
+      uploadArtifact: jest.fn(),
+      reportBuildPhaseStats,
+    });
+    vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
+    vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
+
+    await androidBuilder(ctx);
+
+    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        result: BuildPhaseResult.WARNING,
+      })
+    );
+  });
+
+  it('marks the prepare credentials phase as warning for legacy eas-build.gradle', async () => {
+    const reportBuildPhaseStats = jest.fn();
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+      },
+      uploadArtifact: jest.fn(),
+      reportBuildPhaseStats,
+    });
+    vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
+    vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
+
+    await androidBuilder(ctx);
+
+    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        result: BuildPhaseResult.WARNING,
+      })
+    );
   });
 
   it('runs the builder through hooks', async () => {

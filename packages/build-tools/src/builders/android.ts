@@ -19,6 +19,7 @@ import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
+  warnIfLegacyEasBuildGradleExists,
 } from '../steps/utils/android/gradleConfig';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
@@ -100,10 +101,9 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     }
   );
 
-  if (
-    nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials
-  ) {
+  if (nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials) {
     await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
+      await warnIfLegacyEasBuildGradleExists(ctx);
       await restoreCredentials(ctx);
       await injectCredentialsGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory());
     });
@@ -111,6 +111,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
 
   if (ctx.job.version?.versionCode || ctx.job.version?.versionName) {
     await ctx.runBuildPhase(BuildPhase.CONFIGURE_ANDROID_VERSION, async () => {
+      await warnIfLegacyEasBuildGradleExists(ctx);
       await injectConfigureVersionGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory(), {
         versionCode: ctx.job.version?.versionCode,
         versionName: ctx.job.version?.versionName,

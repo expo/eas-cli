@@ -1,4 +1,5 @@
 import { AndroidConfig } from '@expo/config-plugins';
+import { Android } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { templateString } from '@expo/template-file';
 import fs from 'fs-extra';
@@ -6,6 +7,7 @@ import path from 'path';
 
 import { EasBuildConfigureVersionGradleTemplate } from '../../../templates/EasBuildConfigureVersionGradle';
 import { EasBuildInjectAndroidCredentialsGradle } from '../../../templates/EasBuildInjectAndroidCredentialsGradle';
+import { BuildContext } from '../../../context';
 
 const APPLY_EAS_BUILD_INJECT_CREDENTIALS_GRADLE_LINE =
   'apply from: "./eas-build-inject-android-credentials.gradle"';
@@ -17,7 +19,6 @@ export async function injectCredentialsGradleConfig(
   workingDir: string
 ): Promise<void> {
   logger.info('Injecting signing config into build.gradle');
-  await warnIfLegacyEasBuildGradleExists(logger, workingDir);
   await deleteEasBuildInjectCredentialsGradle(workingDir);
   await createEasBuildInjectCredentialsGradle(workingDir);
   await addApplyInjectCredentialsConfigToBuildGradle(workingDir);
@@ -30,7 +31,6 @@ export async function injectConfigureVersionGradleConfig(
   { versionCode, versionName }: { versionCode?: string; versionName?: string }
 ): Promise<void> {
   logger.info('Injecting version config into build.gradle');
-  await warnIfLegacyEasBuildGradleExists(logger, workingDir);
   if (versionCode) {
     logger.info(`Version code: ${versionCode}`);
   }
@@ -53,13 +53,19 @@ async function deleteEasBuildConfigureVersionGradle(workingDir: string): Promise
   await fs.remove(targetPath);
 }
 
-async function warnIfLegacyEasBuildGradleExists(
-  logger: bunyan,
-  projectRoot: string
+let legacyEasBuildGradleWarningEmitted = false;
+
+export async function warnIfLegacyEasBuildGradleExists(
+  ctx: BuildContext<Android.Job>
 ): Promise<void> {
-  const legacyGradlePath = getLegacyEasBuildGradlePath(projectRoot);
-  if (await fs.pathExists(legacyGradlePath)) {
-    logger.warn('eas-build.gradle script is deprecated, please remove it from your project.');
+  const legacyGradlePath = getLegacyEasBuildGradlePath(ctx.getReactNativeProjectDirectory());
+  if (
+    (await fs.pathExists(legacyGradlePath)) &&
+    (process.env.NODE_ENV === 'test' || !legacyEasBuildGradleWarningEmitted)
+  ) {
+    legacyEasBuildGradleWarningEmitted = true;
+    ctx.logger.warn('eas-build.gradle script is deprecated, please remove it from your project.');
+    ctx.markBuildPhaseHasWarnings();
   }
 }
 
