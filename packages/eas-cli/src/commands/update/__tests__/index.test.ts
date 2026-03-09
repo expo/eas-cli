@@ -5,6 +5,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import { instance, mock } from 'ts-mockito';
 
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import UpdatePublish, { preprocessSourceMapsArg } from '..';
 import { ensureBranchExistsAsync } from '../../../branch/queries';
 import {
@@ -28,7 +29,7 @@ import { selectAsync } from '../../../prompts';
 import { resolveVcsClient } from '../../../vcs';
 
 const projectRoot = '/test-project';
-const commandOptions = { root: projectRoot } as any;
+const commandOptions = getMockOclifConfig({ root: projectRoot });
 const updateStub: UpdateFragment = {
   id: 'update-1234',
   group: 'group-1234',

@@ -48,10 +48,10 @@ export default class Build extends EasCommand {
   static override description = 'start a build';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios', 'all'],
-    }),
+      options: ['android', 'ios', 'all'] as const,
+    })(),
     'skip-credentials-check': Flags.boolean({
       default: false,
       hidden: true,
@@ -99,7 +99,7 @@ export default class Build extends EasCommand {
       description:
         'Specify the "What to Test" information for the build in TestFlight (iOS-only). To be used with the `auto-submit` flag',
     }),
-    'resource-class': Flags.enum({
+    'resource-class': Flags.option({
       options: Object.values(ResourceClass),
       hidden: true,
       deprecated: {
@@ -108,15 +108,15 @@ export default class Build extends EasCommand {
         ),
       },
       description: 'The instance type that will be used to run this build [experimental]',
-    }),
+    })(),
     message: Flags.string({
       char: 'm',
       description: 'A short message describing the build',
     }),
-    'build-logger-level': Flags.enum({
+    'build-logger-level': Flags.option({
       description: 'The level of logs to output during the build process. Defaults to "info".',
       options: Object.values(LoggerLevel),
-    }),
+    })(),
     'freeze-credentials': Flags.boolean({
       default: false,
       description: 'Prevent the build from updating credentials in non-interactive mode',

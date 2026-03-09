@@ -38,10 +38,10 @@ export default class BuildUpload extends EasCommand {
   static override description = 'upload a local build and generate a sharable link';
 
   static override flags = {
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
-    }),
+      options: [Platform.IOS, Platform.ANDROID] as const,
+    })(),
     'build-path': Flags.string({
       description: 'Path for the local build',
     }),

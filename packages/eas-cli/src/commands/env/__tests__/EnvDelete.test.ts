@@ -1,5 +1,4 @@
-import { Config } from '@oclif/core';
-
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { DefaultEnvironment } from '../../../build/utils/environment';
 import {
   EnvironmentSecretType,
@@ -21,7 +20,7 @@ describe(EnvDelete, () => {
   const projectId = 'test-project-id';
   const variableId = '1';
   const graphqlClient = {};
-  const mockConfig = {} as unknown as Config;
+  const mockConfig = getMockOclifConfig();
   const mockContext = {
     privateProjectConfig: { projectId },
     loggedIn: { graphqlClient },
