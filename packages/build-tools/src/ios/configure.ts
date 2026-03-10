@@ -6,6 +6,7 @@ import uniq from 'lodash/uniq';
 import path from 'path';
 
 import { Credentials } from './credentials/manager';
+import { DistributionType } from './credentials/provisioningProfile';
 import { BuildContext } from '../context';
 
 async function configureXcodeProject(
@@ -59,6 +60,30 @@ async function configureCredentialsAsync(
       }
     );
   }
+
+  if (credentials.distributionType === DistributionType.DEVELOPMENT) {
+    overrideCodeSignIdentityForDevelopment(
+      ctx.getReactNativeProjectDirectory(),
+      targetNames,
+      buildConfiguration
+    );
+  }
+}
+
+function overrideCodeSignIdentityForDevelopment(
+  projectRoot: string,
+  targetNames: string[],
+  buildConfiguration: string
+): void {
+  const project = IOSConfig.XcodeUtils.getPbxproj(projectRoot);
+  for (const targetName of targetNames) {
+    const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+      targetName,
+      buildConfiguration,
+    });
+    xcBuildConfiguration.buildSettings.CODE_SIGN_IDENTITY = '"Apple Development"';
+  }
+  fs.writeFileSync(project.filepath, project.writeSync());
 }
 
 async function updateVersionsAsync(

@@ -6,6 +6,7 @@ import uniq from 'lodash/uniq';
 import path from 'path';
 
 import { Credentials } from './credentials/manager';
+import { DistributionType } from './credentials/provisioningProfile';
 
 export async function configureCredentialsAsync(
   logger: bunyan,
@@ -31,6 +32,26 @@ export async function configureCredentialsAsync(
       buildConfiguration,
     });
   }
+
+  if (credentials.distributionType === DistributionType.DEVELOPMENT) {
+    overrideCodeSignIdentityForDevelopment(workingDir, targetNames, buildConfiguration);
+  }
+}
+
+function overrideCodeSignIdentityForDevelopment(
+  projectRoot: string,
+  targetNames: string[],
+  buildConfiguration: string
+): void {
+  const project = IOSConfig.XcodeUtils.getPbxproj(projectRoot);
+  for (const targetName of targetNames) {
+    const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
+      targetName,
+      buildConfiguration,
+    });
+    xcBuildConfiguration.buildSettings.CODE_SIGN_IDENTITY = '"Apple Development"';
+  }
+  fs.writeFileSync(project.filepath, project.writeSync());
 }
 
 export async function updateVersionsAsync(
