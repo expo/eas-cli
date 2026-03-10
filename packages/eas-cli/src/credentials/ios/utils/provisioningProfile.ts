@@ -23,7 +23,21 @@ export function readProfileName(dataBase64: string): string {
 export function isAdHocProfile(dataBase64: string): boolean {
   const profilePlist = parse(dataBase64);
   const provisionedDevices = profilePlist['ProvisionedDevices'] as string[] | undefined;
-  return Array.isArray(provisionedDevices);
+  if (!Array.isArray(provisionedDevices)) {
+    return false;
+  }
+  const entitlements = profilePlist['Entitlements'] as PlistObject | undefined;
+  return !entitlements?.['get-task-allow'];
+}
+
+export function isDevelopmentProfile(dataBase64: string): boolean {
+  const profilePlist = parse(dataBase64);
+  const provisionedDevices = profilePlist['ProvisionedDevices'] as string[] | undefined;
+  if (!Array.isArray(provisionedDevices)) {
+    return false;
+  }
+  const entitlements = profilePlist['Entitlements'] as PlistObject | undefined;
+  return !!entitlements?.['get-task-allow'];
 }
 
 export function isEnterpriseUniversalProfile(dataBase64: string): boolean {
