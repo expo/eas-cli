@@ -1,4 +1,4 @@
-import { BuildError, ExpoError, UserFacingError } from '../errors';
+import { BuildError, ExpoError, UserError } from '../errors';
 import { BuildPhase } from '../logs';
 
 class TestExpoError extends ExpoError {
@@ -56,9 +56,9 @@ describe(BuildError, () => {
   });
 });
 
-describe(UserFacingError, () => {
+describe(UserError, () => {
   it('supports docsUrl in options', () => {
-    const error = new UserFacingError('ERR_CODE', 'message', {
+    const error = new UserError('ERR_CODE', 'message', {
       docsUrl: 'https://docs.example.dev',
     });
 
@@ -69,14 +69,14 @@ describe(UserFacingError, () => {
 
   it('supports cause in options', () => {
     const cause = new Error('root cause');
-    const error = new UserFacingError('ERR_CODE', 'message', { cause });
+    const error = new UserError('ERR_CODE', 'message', { cause });
 
     expect(error.cause).toBe(cause);
   });
 
   it('supports docsUrl, metadata, and cause in options', () => {
     const cause = new Error('root cause');
-    const error = new UserFacingError('ERR_CODE', 'message', {
+    const error = new UserError('ERR_CODE', 'message', {
       docsUrl: 'https://docs.example.dev',
       metadata: { packageName: 'expo' },
       cause,

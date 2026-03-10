@@ -1,4 +1,4 @@
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import { UserError } from '@expo/eas-build-job';
 
 import {
   AscApiClient,
@@ -39,7 +39,7 @@ export namespace AscApiUtils {
         // Don't hide the original NOT_FOUND error with a secondary lookup failure.
         throw error;
       }
-      throw new UserFacingError(
+      throw new UserError(
         'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
         `App Store Connect app for application identifier ${appleAppIdentifier} was not found. ` +
           'Verify the configured application identifier and that the App Store Connect API key has access to the application in the correct App Store Connect account.' +
@@ -94,7 +94,7 @@ export namespace AscApiUtils {
         errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');
 
       if (isDuplicateVersionError) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
           `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
             'App Store Connect requires unique build numbers within each app version (version train). ' +
