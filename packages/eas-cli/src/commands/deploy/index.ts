@@ -35,7 +35,7 @@ import {
   getDeploymentUrlFromFullName,
 } from '../../worker/utils/logs';
 
-const MAX_UPLOAD_SIZE = 5e8; // 500MB
+const MAX_UPLOAD_SIZE = 4e9; // 4GB
 
 const isDirectory = (directoryPath: string): Promise<boolean> =>
   fs.promises
