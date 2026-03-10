@@ -71,6 +71,7 @@ export const EASEnvironmentVariableScopeFlag = {
 export const EASNonInteractiveFlag = {
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
+    // eslint-disable-next-line async-protect/async-suffix
     default: async () => {
       return isNonInteractiveByDefault();
     },
