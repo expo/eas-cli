@@ -64,9 +64,7 @@ export async function build({
       case undefined: {
         artifacts = {};
         const buildCtx = ctx as BuildContext<Generic.Job>;
-        const { runResult } = await runGenericJobAsync(buildCtx, {
-          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
-        });
+        const { runResult } = await runGenericJobAsync(buildCtx);
 
         if (!runResult.ok) {
           throw runResult.reason;

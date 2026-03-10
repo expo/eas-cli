@@ -67,6 +67,7 @@ export interface BuildContextOptions {
   reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
+  expoApiV2BaseUrl?: string;
 }
 
 export class SkipNativeBuildError extends Error {}
@@ -82,6 +83,7 @@ export class BuildContext<TJob extends Job = Job> {
     options?: { tags?: Record<string, string>; extras?: Record<string, string> }
   ) => void;
   public readonly skipNativeBuild?: boolean;
+  public readonly expoApiV2BaseUrl?: string;
   public artifacts: Artifacts = {};
 
   private readonly _isLocal: boolean;
@@ -110,6 +112,7 @@ export class BuildContext<TJob extends Job = Job> {
     this._job = job;
     this._metadata = options.metadata;
     this.skipNativeBuild = options.skipNativeBuild;
+    this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
     this.reportBuildPhaseStats = options.reportBuildPhaseStats;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);

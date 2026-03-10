@@ -12,9 +12,11 @@ import {
   ExternalBuildContextProvider,
 } from '../../BuildStepContext';
 import { BuildStepEnv } from '../../BuildStepEnv';
+import { StepMetric } from '../../StepMetrics';
 
 export class MockContextProvider implements ExternalBuildContextProvider {
   private _env: BuildStepEnv = {};
+  public reportStepMetric?: (metric: StepMetric) => void;
 
   constructor(
     public readonly logger: bunyan,
@@ -45,6 +47,7 @@ interface BuildContextParams {
   projectTargetDirectory?: string;
   relativeWorkingDirectory?: string;
   staticContextContent?: JobInterpolationContext;
+  reportStepMetric?: (metric: StepMetric) => void;
 }
 
 export function createStepContextMock({
@@ -81,21 +84,23 @@ export function createGlobalContextMock({
   projectTargetDirectory,
   relativeWorkingDirectory,
   staticContextContent,
+  reportStepMetric,
 }: BuildContextParams = {}): BuildStepGlobalContext {
   const resolvedProjectTargetDirectory =
     projectTargetDirectory ?? path.join(os.tmpdir(), 'eas-build', uuidv4());
-  return new BuildStepGlobalContext(
-    new MockContextProvider(
-      logger ?? createMockLogger(),
-      runtimePlatform ?? BuildRuntimePlatform.LINUX,
-      projectSourceDirectory ?? '/non/existent/dir',
-      resolvedProjectTargetDirectory,
-      relativeWorkingDirectory
-        ? path.resolve(resolvedProjectTargetDirectory, relativeWorkingDirectory)
-        : resolvedProjectTargetDirectory,
-      '/non/existent/dir',
-      staticContextContent ?? ({} as JobInterpolationContext)
-    ),
-    skipCleanup ?? false
+  const provider = new MockContextProvider(
+    logger ?? createMockLogger(),
+    runtimePlatform ?? BuildRuntimePlatform.LINUX,
+    projectSourceDirectory ?? '/non/existent/dir',
+    resolvedProjectTargetDirectory,
+    relativeWorkingDirectory
+      ? path.resolve(resolvedProjectTargetDirectory, relativeWorkingDirectory)
+      : resolvedProjectTargetDirectory,
+    '/non/existent/dir',
+    staticContextContent ?? ({} as JobInterpolationContext)
   );
+  if (reportStepMetric) {
+    provider.reportStepMetric = reportStepMetric;
+  }
+  return new BuildStepGlobalContext(provider, skipCleanup ?? false);
 }
