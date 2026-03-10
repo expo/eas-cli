@@ -5,10 +5,10 @@ import { createTestIosJob } from './utils/job';
 import { createMockLogger } from './utils/logger';
 import { BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
-import { uploadStepMetricToWwwAsync } from '../utils/stepMetrics';
+import { uploadStepMetricsToWwwAsync } from '../utils/stepMetrics';
 
 jest.mock('../utils/stepMetrics');
-const mockUploadStepMetricToWwwAsync = jest.mocked(uploadStepMetricToWwwAsync);
+const mockUploadStepMetricsToWwwAsync = jest.mocked(uploadStepMetricsToWwwAsync);
 
 describe(CustomBuildContext, () => {
   it('should not lose workflowInterpolationContext', () => {
@@ -86,20 +86,20 @@ describe(CustomBuildContext, () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
-      mockUploadStepMetricToWwwAsync.mockResolvedValue(undefined);
+      mockUploadStepMetricsToWwwAsync.mockResolvedValue(undefined);
     });
 
-    it('calls uploadStepMetricToWwwAsync when all required fields are present', () => {
+    it('calls uploadStepMetricsToWwwAsync when all required fields are present', () => {
       const customCtx = createCustomBuildContext();
       customCtx.reportStepMetric(sampleMetric);
 
-      expect(mockUploadStepMetricToWwwAsync).toHaveBeenCalledTimes(1);
-      expect(mockUploadStepMetricToWwwAsync).toHaveBeenCalledWith(
+      expect(mockUploadStepMetricsToWwwAsync).toHaveBeenCalledTimes(1);
+      expect(mockUploadStepMetricsToWwwAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           workflowJobId,
           robotAccessToken,
           expoApiV2BaseUrl,
-          stepMetric: sampleMetric,
+          stepMetrics: [sampleMetric],
         })
       );
     });
@@ -108,21 +108,21 @@ describe(CustomBuildContext, () => {
       const customCtx = createCustomBuildContext({ includeWorkflowJobId: false });
       customCtx.reportStepMetric(sampleMetric);
 
-      expect(mockUploadStepMetricToWwwAsync).not.toHaveBeenCalled();
+      expect(mockUploadStepMetricsToWwwAsync).not.toHaveBeenCalled();
     });
 
     it('does not call upload when robotAccessToken is missing', () => {
       const customCtx = createCustomBuildContext({ includeRobotAccessToken: false });
       customCtx.reportStepMetric(sampleMetric);
 
-      expect(mockUploadStepMetricToWwwAsync).not.toHaveBeenCalled();
+      expect(mockUploadStepMetricsToWwwAsync).not.toHaveBeenCalled();
     });
 
     it('does not call upload when expoApiV2BaseUrl is missing', () => {
       const customCtx = createCustomBuildContext({ expoApiV2BaseUrl: undefined });
       customCtx.reportStepMetric(sampleMetric);
 
-      expect(mockUploadStepMetricToWwwAsync).not.toHaveBeenCalled();
+      expect(mockUploadStepMetricsToWwwAsync).not.toHaveBeenCalled();
     });
 
     it('drainPendingMetricUploads awaits all pending uploads', async () => {
@@ -130,7 +130,7 @@ describe(CustomBuildContext, () => {
       const uploadPromise = new Promise<void>(resolve => {
         resolveUpload = resolve;
       });
-      mockUploadStepMetricToWwwAsync.mockReturnValue(uploadPromise);
+      mockUploadStepMetricsToWwwAsync.mockReturnValue(uploadPromise);
 
       const customCtx = createCustomBuildContext();
       customCtx.reportStepMetric(sampleMetric);
@@ -149,7 +149,7 @@ describe(CustomBuildContext, () => {
     });
 
     it('drainPendingMetricUploads settles even if an upload rejects', async () => {
-      mockUploadStepMetricToWwwAsync.mockRejectedValue(new Error('upload failed'));
+      mockUploadStepMetricsToWwwAsync.mockRejectedValue(new Error('upload failed'));
 
       const customCtx = createCustomBuildContext();
       customCtx.reportStepMetric(sampleMetric);

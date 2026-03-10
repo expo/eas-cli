@@ -1,21 +1,16 @@
 import { StepMetric } from '@expo/steps';
 import { randomUUID } from 'crypto';
 
-import { uploadStepMetricToWwwAsync } from '../stepMetrics';
+import { uploadStepMetricsToWwwAsync } from '../stepMetrics';
 import { turtleFetch } from '../turtleFetch';
-import { sleepAsync } from '../retry';
 
 jest.mock('../turtleFetch', () => ({
   ...jest.requireActual('../turtleFetch'),
   turtleFetch: jest.fn(),
 }));
-jest.mock('../retry', () => ({
-  ...jest.requireActual('../retry'),
-  sleepAsync: jest.fn().mockResolvedValue(undefined),
-}));
 const mockTurtleFetch = turtleFetch as jest.MockedFunction<typeof turtleFetch>;
 
-describe(uploadStepMetricToWwwAsync, () => {
+describe(uploadStepMetricsToWwwAsync, () => {
   const workflowJobId = randomUUID();
   const robotAccessToken = 'test-token';
   const expoApiV2BaseUrl = 'http://exp.test/--/api/v2/';
@@ -31,7 +26,7 @@ describe(uploadStepMetricToWwwAsync, () => {
     jest.clearAllMocks();
   });
 
-  it('uploads a single step metric', async () => {
+  it('uploads step metrics', async () => {
     const stepMetric: StepMetric = {
       metricsId: 'eas/checkout',
       result: 'success',
@@ -39,11 +34,11 @@ describe(uploadStepMetricToWwwAsync, () => {
       platform: 'linux',
     };
 
-    await uploadStepMetricToWwwAsync({
+    await uploadStepMetricsToWwwAsync({
       workflowJobId,
       robotAccessToken,
       expoApiV2BaseUrl,
-      stepMetric,
+      stepMetrics: [stepMetric],
       logger: mockLogger,
     });
 
@@ -54,34 +49,12 @@ describe(uploadStepMetricToWwwAsync, () => {
       expect.objectContaining({
         json: { stepMetrics: [stepMetric] },
         headers: { Authorization: `Bearer ${robotAccessToken}` },
+        retries: 2,
       })
     );
   });
 
-  it('retries on failure then succeeds', async () => {
-    mockTurtleFetch
-      .mockRejectedValueOnce(new Error('network error'))
-      .mockResolvedValueOnce(undefined as any);
-
-    const stepMetric: StepMetric = {
-      metricsId: 'eas/checkout',
-      result: 'success',
-      durationMs: 1000,
-      platform: 'linux',
-    };
-
-    await uploadStepMetricToWwwAsync({
-      workflowJobId,
-      robotAccessToken,
-      expoApiV2BaseUrl,
-      stepMetric,
-      logger: mockLogger,
-    });
-
-    expect(mockTurtleFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it('silently gives up after all retries exhausted', async () => {
+  it('silently gives up on failure', async () => {
     mockTurtleFetch.mockRejectedValue(new Error('persistent failure'));
 
     const stepMetric: StepMetric = {
@@ -91,16 +64,14 @@ describe(uploadStepMetricToWwwAsync, () => {
       platform: 'darwin',
     };
 
-    await uploadStepMetricToWwwAsync({
-      workflowJobId,
-      robotAccessToken,
-      expoApiV2BaseUrl,
-      stepMetric,
-      logger: mockLogger,
-    });
-
-    // 1 initial + 2 retries = 3 total calls
-    expect(mockTurtleFetch).toHaveBeenCalledTimes(3);
-    expect(sleepAsync).toHaveBeenCalledTimes(2);
+    await expect(
+      uploadStepMetricsToWwwAsync({
+        workflowJobId,
+        robotAccessToken,
+        expoApiV2BaseUrl,
+        stepMetrics: [stepMetric],
+        logger: mockLogger,
+      })
+    ).resolves.not.toThrow();
   });
 });

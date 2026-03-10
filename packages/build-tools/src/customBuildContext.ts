@@ -15,7 +15,7 @@ import assert from 'assert';
 import path from 'path';
 
 import { ArtifactToUpload, BuildContext } from './context';
-import { uploadStepMetricToWwwAsync } from './utils/stepMetrics';
+import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
   [Platform.ANDROID]: BuildRuntimePlatform.LINUX,
@@ -155,11 +155,11 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       return;
     }
 
-    const p = uploadStepMetricToWwwAsync({
+    const p = uploadStepMetricsToWwwAsync({
       workflowJobId,
       robotAccessToken,
       expoApiV2BaseUrl: this.expoApiV2BaseUrl,
-      stepMetric: metric,
+      stepMetrics: [metric],
       logger: this.logger,
     });
     this.pendingMetricUploads.push(p);

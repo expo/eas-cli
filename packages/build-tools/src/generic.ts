@@ -15,6 +15,8 @@ import { retryAsync } from './utils/retry';
 export async function runGenericJobAsync(
   ctx: BuildContext<Generic.Job>
 ): Promise<{ runResult: Result<void>; buildWorkflow: BuildWorkflow }> {
+  // expoApiV2BaseUrl is empty when running a local build, but generic jobs
+  // are never executed locally, so it is always present here.
   const expoApiV2BaseUrl = nullthrows(
     ctx.expoApiV2BaseUrl,
     'expoApiV2BaseUrl is required for generic jobs'
@@ -64,13 +66,15 @@ export async function runGenericJobAsync(
   const runResult = await asyncResult(workflow.executeAsync());
 
   await ctx.runBuildPhase(BuildPhase.COMPLETE_JOB, async () => {
-    try {
-      await uploadJobOutputsToWwwAsync(globalContext, {
+    const results = await Promise.allSettled([
+      uploadJobOutputsToWwwAsync(globalContext, {
         logger: ctx.logger,
         expoApiV2BaseUrl,
-      });
-    } finally {
-      await customBuildCtx.drainPendingMetricUploads();
+      }),
+      customBuildCtx.drainPendingMetricUploads(),
+    ]);
+    if (results[0].status === 'rejected') {
+      throw results[0].reason;
     }
   });
 
