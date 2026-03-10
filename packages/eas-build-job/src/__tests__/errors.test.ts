@@ -1,8 +1,10 @@
 import { ErrorCode, ExpoError, SystemError, UserError } from '../errors';
 import { BuildPhase } from '../logs';
 
+type ExpoErrorDetails = ConstructorParameters<typeof ExpoError>[1];
+
 class TestExpoError extends ExpoError {
-  constructor(message: string, details: ConstructorParameters<typeof BuildError>[1]) {
+  constructor(message: string, details: ExpoErrorDetails) {
     super(message, details);
   }
 }
