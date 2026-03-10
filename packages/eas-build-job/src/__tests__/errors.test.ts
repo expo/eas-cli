@@ -27,7 +27,7 @@ describe(ExpoError, () => {
     });
     expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
     expect(error.cause).toBe(cause);
-    expect(error.format()).toEqual({
+    expect(error.toExternalExpoError()).toEqual({
       errorCode: 'ERR_CODE',
       message: 'canonical message',
       docsUrl: 'https://docs.example.dev',
@@ -96,7 +96,7 @@ describe(SystemError, () => {
     expect(error.metadata).toEqual({ packageName: '@expo/config' });
     expect(error.buildPhase).toBe(BuildPhase.PREBUILD);
     expect(error.cause).toBe(cause);
-    expect(error.format()).toEqual({
+    expect(error.toExternalExpoError()).toEqual({
       errorCode: ErrorCode.SERVER_ERROR,
       message: 'system message',
       docsUrl: 'https://docs.example.dev',

@@ -69,24 +69,6 @@ export async function resolveBuildPhaseErrorAsync(
   buildLogsDirectory: string
 ): Promise<errors.ExpoError> {
   const { phase } = errorContext;
-  if (error instanceof errors.SystemError) {
-    return new errors.SystemError(error.message, {
-      trackingCode: error.trackingCode,
-      docsUrl: error.docsUrl,
-      metadata: error.metadata,
-      cause: (error.cause ?? error) as Error,
-      buildPhase: error.buildPhase ?? phase,
-    });
-  }
-  if (error instanceof errors.UserError) {
-    return new errors.UserError(error.errorCode, error.message, {
-      trackingCode: error.trackingCode,
-      docsUrl: error.docsUrl,
-      metadata: error.metadata,
-      cause: (error.cause ?? error) as Error,
-      buildPhase: error.buildPhase ?? phase,
-    });
-  }
   if (error instanceof errors.ExpoError) {
     return error;
   }

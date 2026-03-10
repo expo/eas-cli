@@ -115,7 +115,7 @@ export default class BuildService {
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
       buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-      userError: err,
+      expoError: err,
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
@@ -127,7 +127,7 @@ export default class BuildService {
         type: WorkerMessage.MessageType.ERROR,
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-        externalBuildError: err.format(),
+        externalBuildError: err.toExternalExpoError(),
         internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
@@ -310,7 +310,7 @@ export default class BuildService {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
       const err = toExpoError(error, job);
       const maybeRawError =
-        error instanceof errors.ExpoError ? (error.cause ?? new Error(error.message)) : error;
+        error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {

@@ -54,7 +54,10 @@ export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata>
     this.buildPhase = details.buildPhase;
   }
 
-  public format(): ExternalBuildError {
+  /**
+   * Serialized error payload used by the orchestrator-worker API.
+   */
+  public toExternalExpoError(): ExternalBuildError {
     return {
       errorCode: this.errorCode,
       message: this.message,
