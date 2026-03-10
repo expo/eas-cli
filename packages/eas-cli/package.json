@@ -203,6 +203,9 @@
       "metadata": {
         "description": "manage store configuration"
       },
+      "observe": {
+        "description": "monitor app performance metrics"
+      },
       "project": {
         "description": "manage project"
       },
