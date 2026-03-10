@@ -71,7 +71,9 @@ export const EASEnvironmentVariableScopeFlag = {
 export const EASNonInteractiveFlag = {
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
-    default: () => Promise.resolve(isNonInteractiveByDefault()),
+    default: async () => {
+      return isNonInteractiveByDefault();
+    },
     noCacheDefault: true,
   }),
 };
