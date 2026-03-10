@@ -308,7 +308,12 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-      const err = toExpoError(error, job);
+      const err =
+        error instanceof errors.ExpoError
+          ? error
+          : 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+            ? new errors.UnknownCustomBuildError()
+            : new errors.UnknownBuildError();
       const maybeRawError =
         error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
@@ -367,15 +372,6 @@ export default class BuildService {
       logger.debug('Not uploading XCode logs for Android job');
     }
   }
-}
-
-function toExpoError(error: unknown, job: Job): errors.ExpoError {
-  if (error instanceof errors.ExpoError) {
-    return error;
-  }
-  return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-    ? new errors.UnknownCustomBuildError()
-    : new errors.UnknownBuildError();
 }
 
 function getLastNLines(numberOfLines: number, stream: string): string {
