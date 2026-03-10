@@ -60,8 +60,8 @@ async function getExpoConfigInternalAsync(
         const { stdout } = await spawnAsync(
           'npx',
           ['expo', 'config', '--json', ...(opts.isPublicConfig ? ['--type', 'public'] : [])],
-
           {
+            stdio: ['ignore', 'pipe', 'pipe'],
             cwd: projectDir,
             env: {
               ...process.env,

@@ -33,8 +33,8 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       const { stdout } = await spawnAsync(
         'npx',
         ['expo', 'config', '--json', '--type', 'introspect'],
-
         {
+          stdio: ['ignore', 'pipe', 'pipe'],
           cwd: projectDir,
           env: {
             ...process.env,
