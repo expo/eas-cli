@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make directories marked as read-only in Windows writable when creating a tar, to prevent the cross-filesystem issues when extracting the tar. ([#3489](https://github.com/expo/eas-cli/pull/3489) by [@sswrk](https://github.com/sswrk))
+
 ### 🧹 Chores
 
 ## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
