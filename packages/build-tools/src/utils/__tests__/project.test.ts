@@ -17,6 +17,8 @@ jest.mock('@expo/turtle-spawn', () => ({
 
 describe(runExpoCliCommand, () => {
   describe('Expo SDK >= 46', () => {
+    const logger = {} as any;
+
     it('spawns expo via "npx" when package manager is npm', () => {
       const mockExpoConfig = mock<ExpoConfig>();
       when(mockExpoConfig.sdkVersion).thenReturn('46.0.0');
@@ -27,8 +29,16 @@ describe(runExpoCliCommand, () => {
       when(mockCtx.appConfig).thenReturn(expoConfig);
       const ctx = instance(mockCtx);
 
-      void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
-      expect(spawn).toHaveBeenCalledWith('npx', ['expo', 'doctor'], expect.any(Object));
+      void runExpoCliCommand({
+        args: ['doctor'],
+        options: { logger },
+        packageManager: ctx.packageManager,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'npx',
+        ['expo', 'doctor'],
+        expect.objectContaining({ logger, stdio: ['ignore', 'pipe', 'pipe'] })
+      );
     });
 
     it('spawns expo via "yarn" when package manager is yarn', () => {
@@ -37,12 +47,20 @@ describe(runExpoCliCommand, () => {
       const expoConfig = instance(mockExpoConfig);
 
       const mockCtx = mock<BuildContext<Android.Job>>();
-      when(mockCtx.packageManager).thenReturn(PackageManager.NPM);
+      when(mockCtx.packageManager).thenReturn(PackageManager.YARN);
       when(mockCtx.appConfig).thenReturn(expoConfig);
       const ctx = instance(mockCtx);
 
-      void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
-      expect(spawn).toHaveBeenCalledWith('npx', ['expo', 'doctor'], expect.any(Object));
+      void runExpoCliCommand({
+        args: ['doctor'],
+        options: { logger },
+        packageManager: ctx.packageManager,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'yarn',
+        ['expo', 'doctor'],
+        expect.objectContaining({ logger, stdio: ['ignore', 'pipe', 'pipe'] })
+      );
     });
 
     it('spawns expo via "pnpm" when package manager is pnpm', () => {
@@ -55,8 +73,16 @@ describe(runExpoCliCommand, () => {
       when(mockCtx.appConfig).thenReturn(expoConfig);
       const ctx = instance(mockCtx);
 
-      void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
-      expect(spawn).toHaveBeenCalledWith('pnpm', ['expo', 'doctor'], expect.any(Object));
+      void runExpoCliCommand({
+        args: ['doctor'],
+        options: { logger },
+        packageManager: ctx.packageManager,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'pnpm',
+        ['expo', 'doctor'],
+        expect.objectContaining({ logger, stdio: ['ignore', 'pipe', 'pipe'] })
+      );
     });
 
     it('spawns expo via "bun" when package manager is bun', () => {
@@ -69,8 +95,30 @@ describe(runExpoCliCommand, () => {
       when(mockCtx.appConfig).thenReturn(expoConfig);
       const ctx = instance(mockCtx);
 
-      void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
-      expect(spawn).toHaveBeenCalledWith('bun', ['expo', 'doctor'], expect.any(Object));
+      void runExpoCliCommand({
+        args: ['doctor'],
+        options: { logger },
+        packageManager: ctx.packageManager,
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'bun',
+        ['expo', 'doctor'],
+        expect.objectContaining({ logger, stdio: ['ignore', 'pipe', 'pipe'] })
+      );
+    });
+
+    it('always pipes stdout and stderr while ignoring stdin', () => {
+      void runExpoCliCommand({
+        args: ['doctor'],
+        options: { logger },
+        packageManager: PackageManager.NPM,
+      });
+
+      expect(spawn).toHaveBeenCalledWith(
+        'npx',
+        ['expo', 'doctor'],
+        expect.objectContaining({ logger, stdio: ['ignore', 'pipe', 'pipe'] })
+      );
     });
   });
 });
