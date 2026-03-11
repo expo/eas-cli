@@ -455,7 +455,7 @@ const queueProgressBar = new cliProgress.SingleBar(
   cliProgress.Presets.rect
 );
 
-let newStatusTimestamp: number | null = null;
+let statusNewSetAt: number | null = null;
 const NEW_STATUS_GRACE_PERIOD_MS = 15_000;
 
 async function handleSingleBuildProgressAsync(
@@ -485,8 +485,8 @@ async function handleSingleBuildProgressAsync(
     spinner.start('Build is about to start');
   }
 
-  if (newStatusTimestamp !== null && build.status !== BuildStatus.New) {
-    newStatusTimestamp = null;
+  if (statusNewSetAt !== null && build.status !== BuildStatus.New) {
+    statusNewSetAt = null;
   }
 
   switch (build.status) {
@@ -495,10 +495,8 @@ async function handleSingleBuildProgressAsync(
       return { refetch: false };
     case BuildStatus.New: {
       const now = Date.now();
-      if (newStatusTimestamp === null) {
-        newStatusTimestamp = now;
-      }
-      const newStatusDurationMs = now - newStatusTimestamp;
+      statusNewSetAt ??= now;
+      const newStatusDurationMs = now - statusNewSetAt;
       if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
         spinner.text = 'Waiting for build to get enqueued…';
       } else {
@@ -602,11 +600,9 @@ async function handleMultipleBuildsProgressAsync(
     ).length === buildCount;
 
   if (someNew) {
-    if (newStatusTimestamp === null) {
-      newStatusTimestamp = Date.now();
-    }
+    statusNewSetAt ??= Date.now();
   } else {
-    newStatusTimestamp = null;
+    statusNewSetAt = null;
   }
 
   if (allSettled) {
@@ -619,8 +615,8 @@ async function handleMultipleBuildsProgressAsync(
   } else {
     const showConcurrencyWarning =
       someNew &&
-      newStatusTimestamp !== null &&
-      Date.now() - newStatusTimestamp >= NEW_STATUS_GRACE_PERIOD_MS;
+      statusNewSetAt !== null &&
+      Date.now() - statusNewSetAt >= NEW_STATUS_GRACE_PERIOD_MS;
     spinner.text = formatPendingBuildsText(originalSpinnerText, builds, showConcurrencyWarning);
     return { refetch: true };
   }
