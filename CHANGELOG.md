@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- Add `--skip-build-if-not-found` flag to `eas build:dev`. ([#3495](https://github.com/expo/eas-cli/pull/3495) by [@mmichels-brex](https://github.com/mmichels-brex))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
