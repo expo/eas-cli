@@ -70,6 +70,7 @@ export async function resolveBuildPhaseErrorAsync(
 ): Promise<errors.ExpoError> {
   const { phase } = errorContext;
   if (error instanceof errors.ExpoError) {
+    error.buildPhase ??= phase;
     return error;
   }
   const xcodeBuildLogs = await maybeReadXcodeBuildLogs(phase, buildLogsDirectory);
