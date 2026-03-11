@@ -500,7 +500,7 @@ async function handleSingleBuildProgressAsync(
       }
       const newStatusDurationMs = now - newStatusTimestamp;
       if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
-        spinner.text = 'Waiting for build to be queued...';
+        spinner.text = 'Waiting for build to get enqueued…';
       } else {
         spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
           formatAccountBillingUrl(accountName)
