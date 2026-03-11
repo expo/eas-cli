@@ -42,7 +42,7 @@ export async function runGradleCommand(
         return line;
       }
     },
-    env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.utf8' },
+    env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.UTF-8' },
   });
   if (ctx.env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
