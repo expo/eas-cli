@@ -2454,6 +2454,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/lockfile-utils@npm:18.0.1, @expo/lockfile-utils@workspace:packages/lockfile-utils":
+  version: 0.0.0-use.local
+  resolution: "@expo/lockfile-utils@workspace:packages/lockfile-utils"
+  dependencies:
+    "@types/jest": "npm:^29.5.12"
+    "@types/node": "npm:20.14.2"
+    "@types/semver": "npm:^7.5.8"
+    jest: "npm:^29.7.0"
+    semver: "npm:^7.6.0"
+    ts-jest: "npm:^29.1.4"
+    typescript: "npm:^5.5.4"
+  languageName: unknown
+  linkType: soft
+
 "@expo/logger@npm:18.0.1, @expo/logger@workspace:packages/logger":
   version: 0.0.0-use.local
   resolution: "@expo/logger@workspace:packages/logger"
@@ -10181,6 +10195,7 @@ __metadata:
     "@expo/eas-json": "npm:18.0.2"
     "@expo/env": "npm:^1.0.0"
     "@expo/json-file": "npm:8.3.3"
+    "@expo/lockfile-utils": "npm:18.0.1"
     "@expo/logger": "npm:18.0.1"
     "@expo/multipart-body-parser": "npm:2.0.0"
     "@expo/osascript": "npm:2.1.4"
