@@ -485,10 +485,6 @@ async function handleSingleBuildProgressAsync(
     spinner.start('Build is about to start');
   }
 
-  if (statusNewSetAt !== null && build.status !== BuildStatus.New) {
-    statusNewSetAt = null;
-  }
-
   switch (build.status) {
     case BuildStatus.Finished:
       spinner.succeed('Build finished');
@@ -599,10 +595,8 @@ async function handleMultipleBuildsProgressAsync(
       ].includes(build.status)
     ).length === buildCount;
 
-  if (someNew) {
-    statusNewSetAt ??= Date.now();
-  } else {
-    statusNewSetAt = null;
+  if (someNew && statusNewSetAt === null) {
+    statusNewSetAt = Date.now();
   }
 
   if (allSettled) {
