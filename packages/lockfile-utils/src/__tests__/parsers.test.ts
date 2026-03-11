@@ -1,4 +1,10 @@
-import { parseLockfile, parseNpmLock, parseYarnLock, parsePnpmLock, parseBunLock } from '../parsers';
+import {
+  parseLockfile,
+  parseNpmLock,
+  parseYarnLock,
+  parsePnpmLock,
+  parseBunLock,
+} from '../parsers';
 
 const NPM_LOCKFILE = JSON.stringify({
   lockfileVersion: 3,

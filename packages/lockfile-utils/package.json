@@ -1,7 +1,7 @@
 {
   "name": "@expo/lockfile-utils",
-  "description": "Parse npm, yarn, pnpm, and bun lockfiles and validate them against package.json for version mismatches and peer dependency conflicts",
   "version": "18.0.1",
+  "description": "Parse npm, yarn, pnpm, and bun lockfiles and validate them against package.json for version mismatches and peer dependency conflicts",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "MIT",
   "author": "Expo <support@expo.io>",
