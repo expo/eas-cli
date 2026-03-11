@@ -26,9 +26,9 @@ interface LockfileInfo {
 
 const LOCKFILE_BY_MANAGER: Record<string, LockfileInfo> = {
   npm: { filename: NPM_LOCK_FILE, managerName: 'npm' },
-  yarn: { filename: YARN_LOCK_FILE, managerName: 'Yarn' },
+  yarn: { filename: YARN_LOCK_FILE, managerName: 'yarn' },
   pnpm: { filename: PNPM_LOCK_FILE, managerName: 'pnpm' },
-  bun: { filename: BUN_LOCK_FILE, managerName: 'Bun' },
+  bun: { filename: BUN_LOCK_FILE, managerName: 'bun' },
 };
 
 const ALL_LOCKFILES: { filename: string; manager: string }[] = [
