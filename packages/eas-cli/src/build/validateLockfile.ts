@@ -14,6 +14,9 @@ import semver from 'semver';
 import { CommonContext } from './context';
 import Log from '../log';
 
+const SKIP_HINT =
+  'To skip this check, set the EAS_BUILD_SKIP_LOCKFILE_CHECK=1 environment variable.';
+
 interface LockfileInfo {
   /** Filename of the lockfile (e.g. 'yarn.lock') */
   filename: string;
@@ -360,6 +363,11 @@ function findPeerDependencyConflicts(
 export async function checkLockfileAsync<T extends Platform>(
   ctx: CommonContext<T>
 ): Promise<void> {
+  if (process.env.EAS_BUILD_SKIP_LOCKFILE_CHECK) {
+    Log.warn('Skipping lockfile validation (EAS_BUILD_SKIP_LOCKFILE_CHECK is set).');
+    return;
+  }
+
   const { projectDir, requiredPackageManager, vcsClient } = ctx;
 
   // --- 1. Lockfile existence ---
@@ -371,6 +379,7 @@ export async function checkLockfileAsync<T extends Platform>(
     Log.error(
       'Run your package manager\'s install command (e.g. "npm install") to generate one, then commit it to version control.'
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }
@@ -395,6 +404,7 @@ export async function checkLockfileAsync<T extends Platform>(
     Log.error(
       `Run "${requiredPackageManager} install" to generate a lockfile, then commit it to version control.`
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }
@@ -409,6 +419,7 @@ export async function checkLockfileAsync<T extends Platform>(
     Log.error(
       'Remove the lockfile from .gitignore (and .easignore, if applicable), then commit it.'
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }
@@ -427,6 +438,7 @@ export async function checkLockfileAsync<T extends Platform>(
     Log.error(
       'Having lockfiles from multiple package managers can cause install failures on the EAS builder. Remove the lockfiles you do not need and commit the change.'
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }
@@ -461,6 +473,7 @@ export async function checkLockfileAsync<T extends Platform>(
     Log.error(
       `Run "${requiredPackageManager} install" to update your lockfile, then commit the changes.`
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }
@@ -479,6 +492,7 @@ export async function checkLockfileAsync<T extends Platform>(
       'Update the conflicting packages to compatible versions, then run ' +
         `"${requiredPackageManager} install" and commit the changes.`
     );
+    Log.error(SKIP_HINT);
     process.exit(1);
     return;
   }

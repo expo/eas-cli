@@ -114,9 +114,19 @@ beforeEach(() => {
   vol.reset();
   resolveWorkspaceRoot.mockReturnValue(null);
   mockProcessExit.mockClear();
+  delete process.env.EAS_BUILD_SKIP_LOCKFILE_CHECK;
 });
 
 describe(checkLockfileAsync, () => {
+  it('skips all checks when EAS_BUILD_SKIP_LOCKFILE_CHECK is set', async () => {
+    process.env.EAS_BUILD_SKIP_LOCKFILE_CHECK = '1';
+    // This would normally fail — no lockfile, no package manager
+    vol.fromJSON({ '/project/package.json': '{}' });
+    const ctx = createMockContext({ requiredPackageManager: null });
+    await expect(checkLockfileAsync(ctx)).resolves.not.toThrow();
+    expect(mockProcessExit).not.toHaveBeenCalled();
+  });
+
   it('exits when no package manager is detected', async () => {
     vol.fromJSON({ '/project/package.json': '{}' });
     const ctx = createMockContext({ requiredPackageManager: null });
