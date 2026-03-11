@@ -33,7 +33,7 @@ export async function runGradleCommand({
         return line;
       }
     },
-    env: { ...env, ...extraEnv },
+    env: { ...env, ...extraEnv, LC_ALL: 'C.UTF-8' },
   });
   if (env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
