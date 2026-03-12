@@ -2,6 +2,7 @@
 
 1. Invoke the GitHub workflow ["Manually trigger a release"](https://github.com/expo/eas-cli/actions/workflows/trigger-release.yml). The next version is chosen automatically based on the changelog entries. If you want to use different version, pass the version string as an input to the workflow, in semver format, e.g. "1.2.3"
 2. That's it! GitHub Actions is going to take care of the rest. Watch the #eas-cli Slack channel for a successful release notification.
+3. Testing changelog script
 
 ## Choosing the next version
 
