@@ -171,7 +171,7 @@ async function extractVersionFromAabAsync(
   return parseManifestXml(result.stdout);
 }
 
-function parseAaptOutput(
+export function parseAaptOutput(
   output: string
 ): { appVersion?: string; appBuildVersion?: string } {
   const versionNameMatch = output.match(/versionName='([^']+)'/);
@@ -183,7 +183,7 @@ function parseAaptOutput(
   };
 }
 
-function parseManifestXml(
+export function parseManifestXml(
   xml: string
 ): { appVersion?: string; appBuildVersion?: string } {
   const versionNameMatch = xml.match(/android:versionName="([^"]+)"/);
