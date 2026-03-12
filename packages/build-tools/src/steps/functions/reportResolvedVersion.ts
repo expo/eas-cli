@@ -16,7 +16,7 @@ export function createReportResolvedVersionBuildFunction(
     id: 'report_resolved_version',
     name: 'Report resolved version',
     __metricsId: 'eas/report_resolved_version',
-    fn: async (stepCtx) => {
+    fn: async stepCtx => {
       try {
         const { appVersion, appBuildVersion } =
           ctx.job.platform === Platform.IOS
@@ -110,12 +110,12 @@ async function extractSimulatorAppVersionAsync(
   const infoPlist = parseInfoPlistBuffer(infoPlistBuffer);
 
   return {
-    appVersion: typeof infoPlist.CFBundleShortVersionString === 'string'
-      ? infoPlist.CFBundleShortVersionString
-      : undefined,
-    appBuildVersion: typeof infoPlist.CFBundleVersion === 'string'
-      ? infoPlist.CFBundleVersion
-      : undefined,
+    appVersion:
+      typeof infoPlist.CFBundleShortVersionString === 'string'
+        ? infoPlist.CFBundleShortVersionString
+        : undefined,
+    appBuildVersion:
+      typeof infoPlist.CFBundleVersion === 'string' ? infoPlist.CFBundleVersion : undefined,
   };
 }
 
@@ -162,18 +162,14 @@ async function extractVersionFromApkAsync(
 async function extractVersionFromAabAsync(
   aabPath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const result = await spawnAsync(
-    'bundletool',
-    ['dump', 'manifest', '--bundle', aabPath],
-    { stdio: 'pipe' }
-  );
+  const result = await spawnAsync('bundletool', ['dump', 'manifest', '--bundle', aabPath], {
+    stdio: 'pipe',
+  });
 
   return parseManifestXml(result.stdout);
 }
 
-export function parseAaptOutput(
-  output: string
-): { appVersion?: string; appBuildVersion?: string } {
+export function parseAaptOutput(output: string): { appVersion?: string; appBuildVersion?: string } {
   const versionNameMatch = output.match(/versionName='([^']+)'/);
   const versionCodeMatch = output.match(/versionCode='([^']+)'/);
 
@@ -183,9 +179,7 @@ export function parseAaptOutput(
   };
 }
 
-export function parseManifestXml(
-  xml: string
-): { appVersion?: string; appBuildVersion?: string } {
+export function parseManifestXml(xml: string): { appVersion?: string; appBuildVersion?: string } {
   const versionNameMatch = xml.match(/android:versionName="([^"]+)"/);
   const versionCodeMatch = xml.match(/android:versionCode="([^"]+)"/);
 

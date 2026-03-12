@@ -123,9 +123,9 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createReportResolvedVersionBuildFunction(
-      buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx
+    ),
   ];
 }
 
@@ -220,9 +220,9 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createReportResolvedVersionBuildFunction(
-      buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
@@ -294,9 +294,9 @@ function createStepsForAndroidBuildWithoutCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createReportResolvedVersionBuildFunction(
-      buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
@@ -370,9 +370,9 @@ function createStepsForAndroidBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createReportResolvedVersionBuildFunction(
-      buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
