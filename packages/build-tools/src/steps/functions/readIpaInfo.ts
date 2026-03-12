@@ -109,7 +109,7 @@ export async function readIpaInfoAsync(ipaPath: string): Promise<IpaInfo> {
   }
 }
 
-function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
+export function parseInfoPlistBuffer(data: Buffer): Record<string, unknown> {
   const isBinaryPlist = data.subarray(0, 8).toString('ascii') === 'bplist00';
   if (isBinaryPlist) {
     const parsedBinaryPlists = bplistParser.parseBuffer(data);

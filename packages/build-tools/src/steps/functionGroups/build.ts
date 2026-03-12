@@ -11,6 +11,7 @@ import { configureIosCredentialsFunction } from '../functions/configureIosCreden
 import { configureIosVersionFunction } from '../functions/configureIosVersion';
 import { eagerBundleBuildFunction } from '../functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from '../functions/findAndUploadBuildArtifacts';
+import { createReportResolvedVersionBuildFunction } from '../functions/reportResolvedVersion';
 import { generateGymfileFromTemplateFunction } from '../functions/generateGymfileFromTemplate';
 import { injectAndroidCredentialsFunction } from '../functions/injectAndroidCredentials';
 import { createInstallNodeModulesBuildFunction } from '../functions/installNodeModules';
@@ -122,6 +123,9 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(
+      buildToolsContext
+    ).createBuildStepFromFunctionCall(globalCtx),
   ];
 }
 
@@ -216,6 +220,9 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(
+      buildToolsContext
+    ).createBuildStepFromFunctionCall(globalCtx),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
@@ -285,6 +292,9 @@ function createStepsForAndroidBuildWithoutCredentials({
       : []),
     runGradle,
     createFindAndUploadBuildArtifactsBuildFunction(
+      buildToolsContext
+    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     saveCache,
@@ -358,6 +368,9 @@ function createStepsForAndroidBuildWithCredentials({
         ]
       : []),
     createFindAndUploadBuildArtifactsBuildFunction(
+      buildToolsContext
+    ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     saveCache,
