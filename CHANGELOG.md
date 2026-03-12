@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Testing CHANGELOG script, do not merge. ([#3501](https://github.com/expo/eas-cli/pull/3501) by [@douglowder](https://github.com/douglowder))
+
 ## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
 
 ### 🎉 New features
