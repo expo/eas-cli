@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildFunction } from '@expo/steps';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import os from 'os';
 import path from 'path';
 
 import { XCODE_CACHE_HIT_FLAG } from './restoreXcodeCache';
@@ -58,20 +59,13 @@ export async function saveXcodeCacheAsync({
     // Flag file doesn't exist — cache miss, proceed with save
   }
 
-  const productsPath = path.join('build', 'Build', 'Products');
-  const absoluteProductsPath = path.resolve(workingDirectory, productsPath);
-  logger.info(`[saveXcodeCacheAsync] looking for Products at: ${absoluteProductsPath}`);
-
-  try {
-    const stat = await fs.promises.stat(absoluteProductsPath);
-    if (!stat.isDirectory()) {
-      logger.warn('Products path is not a directory, skipping Xcode cache save');
-      return;
-    }
-  } catch {
+  const productsDir = await findDerivedDataProductsAsync(logger);
+  if (!productsDir) {
     logger.warn('No Products directory found, skipping Xcode cache save');
     return;
   }
+
+  logger.info(`[saveXcodeCacheAsync] found Products at: ${productsDir}`);
 
   try {
     const cacheKey = await generateXcodeCacheKeyAsync(workingDirectory);
@@ -86,9 +80,14 @@ export async function saveXcodeCacheAsync({
 
     logger.info('Compressing Xcode build products...');
 
+    // Use the DerivedData project dir as the working directory for compression
+    // so the archive contains paths relative to it
+    const derivedDataProjectDir = path.resolve(productsDir, '..', '..');
+    const relativePaths = [path.join('Build', 'Products')];
+
     const { archivePath } = await compressCacheAsync({
-      paths: [productsPath],
-      workingDirectory,
+      paths: relativePaths,
+      workingDirectory: derivedDataProjectDir,
       verbose: env.EXPO_DEBUG === '1',
       logger,
     });
@@ -102,7 +101,7 @@ export async function saveXcodeCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: [productsPath],
+      paths: relativePaths,
       size,
       platform: Platform.IOS,
     });
@@ -110,5 +109,36 @@ export async function saveXcodeCacheAsync({
     logger.info('Xcode cache saved successfully');
   } catch (err) {
     logger.error({ err }, 'Failed to save Xcode cache');
+  }
+}
+
+/**
+ * Find a DerivedData project directory that contains Build/Products.
+ * Xcode stores DerivedData at ~/Library/Developer/Xcode/DerivedData/<ProjectName>-<hash>/
+ */
+async function findDerivedDataProductsAsync(logger: bunyan): Promise<string | null> {
+  const derivedDataRoot = path.join(os.homedir(), 'Library', 'Developer', 'Xcode', 'DerivedData');
+
+  try {
+    const entries = await fs.promises.readdir(derivedDataRoot, { withFileTypes: true });
+    const dirs = entries.filter((e) => e.isDirectory() && e.name !== 'ModuleCache.noindex');
+
+    for (const dir of dirs) {
+      const productsPath = path.join(derivedDataRoot, dir.name, 'Build', 'Products');
+      try {
+        const stat = await fs.promises.stat(productsPath);
+        if (stat.isDirectory()) {
+          return productsPath;
+        }
+      } catch {
+        // No Products in this DerivedData dir, try the next one
+      }
+    }
+
+    logger.info(`[findDerivedDataProductsAsync] no Products found in ${derivedDataRoot}`);
+    return null;
+  } catch {
+    logger.info(`[findDerivedDataProductsAsync] DerivedData root not found at ${derivedDataRoot}`);
+    return null;
   }
 }

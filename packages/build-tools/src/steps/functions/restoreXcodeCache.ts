@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildFunction } from '@expo/steps';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import os from 'os';
 import path from 'path';
 
 import { decompressCacheAsync, downloadCacheAsync } from './restoreCache';
@@ -61,12 +62,20 @@ export async function restoreXcodeCacheAsync({
 
     const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
 
+    // The cache archive contains paths relative to a DerivedData project dir (Build/Products/...).
+    // On restore, we need to decompress into the DerivedData directory that Xcode will use.
+    // For now, we create a predictable directory under DerivedData.
+    const derivedDataRoot = path.join(os.homedir(), 'Library', 'Developer', 'Xcode', 'DerivedData');
+    const restoreDir = path.join(derivedDataRoot, 'EASBuildCache');
+    await fs.promises.mkdir(restoreDir, { recursive: true });
+    logger.info(`[restoreXcodeCacheAsync] restoring to: ${restoreDir}`);
+
     const { archivePath, matchedKey } = await downloadCacheAsync({
       logger,
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: [path.join('build', 'Build', 'Products')],
+      paths: [path.join('Build', 'Products')],
       key: cacheKey,
       keyPrefixes: [XCODE_CACHE_KEY_PREFIX],
       platform: Platform.IOS,
@@ -74,7 +83,7 @@ export async function restoreXcodeCacheAsync({
 
     await decompressCacheAsync({
       archivePath,
-      workingDirectory,
+      workingDirectory: restoreDir,
       verbose: env.EXPO_DEBUG === '1',
       logger,
     });
