@@ -40,7 +40,10 @@ export async function saveXcodeCacheAsync({
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 }): Promise<void> {
+  logger.info(`[saveXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}`);
+
   if (env.XCODE_CACHE !== '1') {
+    logger.info('[saveXcodeCacheAsync] XCODE_CACHE not set to 1, skipping');
     return;
   }
 
@@ -55,8 +58,9 @@ export async function saveXcodeCacheAsync({
     // Flag file doesn't exist — cache miss, proceed with save
   }
 
-  const productsPath = path.join('ios', 'build', 'Build', 'Products');
+  const productsPath = path.join('build', 'Build', 'Products');
   const absoluteProductsPath = path.resolve(workingDirectory, productsPath);
+  logger.info(`[saveXcodeCacheAsync] looking for Products at: ${absoluteProductsPath}`);
 
   try {
     const stat = await fs.promises.stat(absoluteProductsPath);

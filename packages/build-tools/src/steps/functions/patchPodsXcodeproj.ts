@@ -59,7 +59,10 @@ export async function patchPodsXcodeprojAsync({
   workingDirectory: string;
   env: Record<string, string | undefined>;
 }): Promise<void> {
+  logger.info(`[patchPodsXcodeprojAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}`);
+
   if (env.XCODE_CACHE !== '1') {
+    logger.info('[patchPodsXcodeprojAsync] XCODE_CACHE not set to 1, skipping');
     return;
   }
 

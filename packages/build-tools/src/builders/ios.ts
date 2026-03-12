@@ -99,7 +99,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
       await restoreXcodeCacheAsync({
         logger: ctx.logger,
-        workingDirectory,
+        workingDirectory: ctx.buildDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
@@ -108,7 +108,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
       await patchPodsXcodeprojAsync({
         logger: ctx.logger,
-        workingDirectory,
+        workingDirectory: ctx.buildDirectory,
         env: ctx.env,
       });
     });
@@ -206,7 +206,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   await ctx.runBuildPhase(BuildPhase.SAVE_XCODE_CACHE, async () => {
     await saveXcodeCacheAsync({
       logger: ctx.logger,
-      workingDirectory,
+      workingDirectory: ctx.buildDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

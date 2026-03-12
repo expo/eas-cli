@@ -42,7 +42,10 @@ export async function restoreXcodeCacheAsync({
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 }): Promise<void> {
+  logger.info(`[restoreXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}`);
+
   if (env.XCODE_CACHE !== '1') {
+    logger.info('[restoreXcodeCacheAsync] XCODE_CACHE not set to 1, skipping');
     return;
   }
 
@@ -63,7 +66,7 @@ export async function restoreXcodeCacheAsync({
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: [path.join('ios', 'build', 'Build', 'Products')],
+      paths: [path.join('build', 'Build', 'Products')],
       key: cacheKey,
       keyPrefixes: [XCODE_CACHE_KEY_PREFIX],
       platform: Platform.IOS,
