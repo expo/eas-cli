@@ -238,6 +238,45 @@ describe(createReportMaestroTestResultsFunction, () => {
     expect(mockGraphqlClient.mutation).not.toHaveBeenCalled();
   });
 
+  it('sends per-attempt results with same name but different retryCount', async () => {
+    vol.fromJSON({
+      // Two JUnit files for same flow (per-attempt)
+      '/junit/junit-report-flow-1-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="1" failures="1">',
+        '    <testcase id="home" name="home" classname="home" time="5.0" status="ERROR">',
+        '      <failure>Tap failed</failure>',
+        '    </testcase>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      '/junit/junit-report-flow-1-attempt-1.xml': JUNIT_PASS,
+      '/tests/2026-01-28_055409/ai-home.json': FLOW_AI,
+      '/tests/2026-01-28_055420/ai-home.json': FLOW_AI,
+    });
+
+    mockMutationFn.mockResolvedValue({
+      data: {
+        workflowDeviceTestCaseResult: {
+          createWorkflowDeviceTestCaseResults: [{ id: 'id-1' }, { id: 'id-2' }],
+        },
+      },
+    });
+
+    await createStep().executeAsync();
+
+    expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
+    const [, variables] = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0];
+    expect(variables.input.testCaseResults).toHaveLength(2);
+    expect(variables.input.testCaseResults[0]).toEqual(
+      expect.objectContaining({ name: 'home', status: 'FAILED', retryCount: 0 })
+    );
+    expect(variables.input.testCaseResults[1]).toEqual(
+      expect.objectContaining({ name: 'home', status: 'PASSED', retryCount: 1 })
+    );
+  });
+
   it('uses default directories when inputs are not provided', async () => {
     vol.fromJSON({
       '/home/expo/.maestro/tests/report.xml': JUNIT_PASS,

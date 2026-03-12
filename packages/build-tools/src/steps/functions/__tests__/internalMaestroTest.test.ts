@@ -177,6 +177,34 @@ describe(createInternalEasMaestroTestFunction, () => {
     );
   });
 
+  it('generates per-attempt report filenames when retrying', async () => {
+    // Mock sequence:
+    // 1. xcrun simctl shutdown → succeeds (beforeEach default is fine)
+    // 2. maestro test attempt 0 → fails (triggers retry)
+    // 3. maestro test attempt 1 → succeeds (beforeEach default)
+    mockedSpawnAsync
+      .mockResolvedValueOnce(undefined as any) // xcrun simctl shutdown
+      .mockRejectedValueOnce(new Error('Maestro test failed')); // maestro attempt 0
+    // Attempt 1 falls through to beforeEach's mockResolvedValue default
+
+    const step = createStep({
+      callInputs: { output_format: 'junit', retries: 2 },
+    });
+    await step.executeAsync();
+
+    // Filter to just the maestro test command calls (skip xcrun simctl shutdown)
+    const maestroCalls = mockedSpawnAsync.mock.calls.filter(([cmd]) => cmd === 'maestro');
+    expect(maestroCalls).toHaveLength(2);
+
+    // Extract --output paths from maestro calls
+    const outputArgs = maestroCalls.map(([, args]) => args[args.indexOf('--output') + 1]);
+
+    expect(outputArgs[0]).toContain('attempt-0');
+    expect(outputArgs[1]).toContain('attempt-1');
+    // Filenames must be unique (not overwriting)
+    expect(outputArgs[0]).not.toBe(outputArgs[1]);
+  });
+
   it('fails Android flow when clone startup exhausts all attempts', async () => {
     mockedAndroidUtils.startAsync
       .mockResolvedValueOnce({

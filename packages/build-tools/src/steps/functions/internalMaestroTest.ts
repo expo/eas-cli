@@ -214,18 +214,17 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
       for (const [flowIndex, flowPath] of flowPathsToExecute.entries()) {
         stepCtx.logger.info('');
 
-        // If output_format is empty or noop, we won't use this.
-        const outputPath = path.join(
-          maestroReportsDir,
-          [
-            `${output_format ? output_format + '-' : ''}report-flow-${flowIndex + 1}`,
-            MaestroOutputFormatToExtensionMap[output_format ?? 'noop'],
-          ]
-            .filter(Boolean)
-            .join('.')
-        );
-
         for (let attemptCount = 0; attemptCount < retries; attemptCount++) {
+          // Generate unique report path per attempt (not overwritten on retry)
+          const outputPath = path.join(
+            maestroReportsDir,
+            [
+              `${output_format ? output_format + '-' : ''}report-flow-${flowIndex + 1}-attempt-${attemptCount}`,
+              MaestroOutputFormatToExtensionMap[output_format ?? 'noop'],
+            ]
+              .filter(Boolean)
+              .join('.')
+          );
           const localDeviceName = `eas-simulator-${flowIndex}-${attemptCount}` as
             | IosSimulatorName
             | AndroidVirtualDeviceName;
@@ -276,12 +275,11 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
           if (logsResult?.ok) {
             try {
               const extension = path.extname(logsResult.value.outputPath);
-              const destinationPath = path.join(deviceLogsDir, `flow-${flowIndex}${extension}`);
+              const destinationPath = path.join(
+                deviceLogsDir,
+                `flow-${flowIndex}-attempt-${attemptCount}${extension}`
+              );
 
-              await fs.promises.rm(destinationPath, {
-                force: true,
-                recursive: true,
-              });
               await fs.promises.rename(logsResult.value.outputPath, destinationPath);
             } catch (err) {
               stepCtx.logger.warn({ err }, 'Failed to prepare device logs for upload.');

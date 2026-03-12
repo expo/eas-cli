@@ -217,6 +217,217 @@ describe(parseMaestroResults, () => {
     ]);
   });
 
+  it('returns per-attempt results when multiple JUnit files exist for the same flow', async () => {
+    vol.fromJSON({
+      // Attempt 0: login FAILED
+      '/junit/junit-report-flow-1-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="1" failures="1">',
+        '    <testcase id="login" name="login" classname="login" time="5.0" status="ERROR">',
+        '      <failure>Timeout</failure>',
+        '    </testcase>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      // Attempt 1: login PASSED
+      '/junit/junit-report-flow-1-attempt-1.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="1" failures="0">',
+        '    <testcase id="login" name="login" classname="login" time="3.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      // ai-*.json metadata (2 timestamp dirs = 2 attempts)
+      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+    });
+
+    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+
+    // Should return 2 results — one per attempt
+    expect(results).toHaveLength(2);
+    expect(results).toEqual([
+      expect.objectContaining({
+        name: 'login',
+        path: '.maestro/login.yml',
+        status: 'failed',
+        errorMessage: 'Timeout',
+        duration: 5000,
+        retryCount: 0,
+      }),
+      expect.objectContaining({
+        name: 'login',
+        path: '.maestro/login.yml',
+        status: 'passed',
+        errorMessage: null,
+        duration: 3000,
+        retryCount: 1,
+      }),
+    ]);
+  });
+
+  it('returns per-attempt results for reuse_devices=true (all flows in every attempt)', async () => {
+    vol.fromJSON({
+      // Attempt 0: home FAILED, login PASSED
+      '/junit-reports/android-maestro-junit-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="2" failures="1">',
+        '    <testcase id="home" name="home" classname="home" time="5.0" status="ERROR">',
+        '      <failure>Timeout</failure>',
+        '    </testcase>',
+        '    <testcase id="login" name="login" classname="login" time="3.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      // Attempt 1: both PASSED
+      '/junit-reports/android-maestro-junit-attempt-1.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="2" failures="0">',
+        '    <testcase id="home" name="home" classname="home" time="4.0" status="SUCCESS"/>',
+        '    <testcase id="login" name="login" classname="login" time="2.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+      '/tests/2026-01-28_055420/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+    });
+
+    const results = await parseMaestroResults('/junit-reports', '/tests', '/root/project');
+
+    // 4 results: 2 flows × 2 attempts
+    expect(results).toHaveLength(4);
+    expect(results).toEqual([
+      expect.objectContaining({ name: 'home', status: 'failed', retryCount: 0 }),
+      expect.objectContaining({ name: 'home', status: 'passed', retryCount: 1 }),
+      expect.objectContaining({ name: 'login', status: 'passed', retryCount: 0 }),
+      expect.objectContaining({ name: 'login', status: 'passed', retryCount: 1 }),
+    ]);
+  });
+
+  it('returns per-attempt results with sharding (multiple testsuites per attempt file)', async () => {
+    vol.fromJSON({
+      // Attempt 0: shard 1 has home (FAILED), shard 2 has login (PASSED)
+      '/junit-reports/android-maestro-junit-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" device="emulator-5554" tests="1" failures="1">',
+        '    <testcase id="home" name="home" classname="home" time="5.0" status="ERROR">',
+        '      <failure>Timeout</failure>',
+        '    </testcase>',
+        '  </testsuite>',
+        '  <testsuite name="Test Suite" device="emulator-5556" tests="1" failures="0">',
+        '    <testcase id="login" name="login" classname="login" time="3.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      // Attempt 1: all passed across shards
+      '/junit-reports/android-maestro-junit-attempt-1.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" device="emulator-5554" tests="1" failures="0">',
+        '    <testcase id="home" name="home" classname="home" time="4.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '  <testsuite name="Test Suite" device="emulator-5556" tests="1" failures="0">',
+        '    <testcase id="login" name="login" classname="login" time="2.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+      '/tests/2026-01-28_055420/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+    });
+
+    const results = await parseMaestroResults('/junit-reports', '/tests', '/root/project');
+
+    expect(results).toHaveLength(4);
+    expect(results).toEqual([
+      expect.objectContaining({ name: 'home', status: 'failed', retryCount: 0 }),
+      expect.objectContaining({ name: 'home', status: 'passed', retryCount: 1 }),
+      expect.objectContaining({ name: 'login', status: 'passed', retryCount: 0 }),
+      expect.objectContaining({ name: 'login', status: 'passed', retryCount: 1 }),
+    ]);
+  });
+
+  it('backward compat: reuse_devices=true with retries but old single JUnit file', async () => {
+    vol.fromJSON({
+      // Single overwritten JUnit (only has final attempt's results)
+      '/maestro-tests/android-maestro-junit.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="2" failures="0">',
+        '    <testcase id="home" name="home" classname="home" time="4.0" status="SUCCESS"/>',
+        '    <testcase id="login" name="login" classname="login" time="2.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+      // 2 timestamp dirs — both flows appear in both (entire suite retried)
+      '/maestro-tests/2026-01-28_055409/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/maestro-tests/2026-01-28_055409/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+      '/maestro-tests/2026-01-28_055420/ai-home.json': JSON.stringify({
+        flow_name: 'home',
+        flow_file_path: '/root/project/.maestro/home.yml',
+      }),
+      '/maestro-tests/2026-01-28_055420/ai-login.json': JSON.stringify({
+        flow_name: 'login',
+        flow_file_path: '/root/project/.maestro/login.yml',
+      }),
+    });
+
+    const results = await parseMaestroResults('/maestro-tests', '/maestro-tests', '/root/project');
+
+    // Both flows have 2 occurrences → retryCount = 1 for both
+    expect(results).toHaveLength(2);
+    expect(results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'home', status: 'passed', retryCount: 1 }),
+        expect.objectContaining({ name: 'login', status: 'passed', retryCount: 1 }),
+      ])
+    );
+  });
+
   it('handles reuse_devices=false (separate junit_report_directory)', async () => {
     vol.fromJSON({
       // JUnit in temp dir (per-flow files)

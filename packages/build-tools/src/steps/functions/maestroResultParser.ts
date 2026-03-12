@@ -38,6 +38,79 @@ const xmlParser = new XMLParser({
   isArray: name => ['testsuite', 'testcase', 'property'].includes(name),
 });
 
+// Internal helper — not exported. Parses a single JUnit XML file.
+async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> {
+  const results: JUnitTestCaseResult[] = [];
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    const parsed = xmlParser.parse(content);
+
+    const testsuites = parsed?.testsuites?.testsuite;
+    if (!Array.isArray(testsuites)) {
+      return results;
+    }
+
+    for (const suite of testsuites) {
+      const testcases = suite?.testcase;
+      if (!Array.isArray(testcases)) {
+        continue;
+      }
+
+      for (const tc of testcases) {
+        const name = tc['@_name'];
+        if (!name) {
+          continue;
+        }
+
+        const timeStr = tc['@_time'];
+        const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
+        const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
+
+        const status: 'passed' | 'failed' = tc['@_status'] === 'SUCCESS' ? 'passed' : 'failed';
+        const failureText =
+          tc.failure != null
+            ? typeof tc.failure === 'string'
+              ? tc.failure
+              : (tc.failure?.['#text'] ?? null)
+            : null;
+        const errorText =
+          tc.error != null
+            ? typeof tc.error === 'string'
+              ? tc.error
+              : (tc.error?.['#text'] ?? null)
+            : null;
+        const errorMessage: string | null = failureText ?? errorText ?? null;
+
+        const rawProperties: { '@_name': string; '@_value': string }[] =
+          tc.properties?.property ?? [];
+        const properties: Record<string, string> = {};
+        for (const prop of rawProperties) {
+          const propName = prop['@_name'];
+          const value = prop['@_value'];
+          if (typeof propName !== 'string' || typeof value !== 'string') {
+            continue;
+          }
+          properties[propName] = value;
+        }
+
+        const tagsValue = properties['tags'];
+        const tags: string[] = tagsValue
+          ? tagsValue
+              .split(',')
+              .map(t => t.trim())
+              .filter(Boolean)
+          : [];
+        delete properties['tags'];
+
+        results.push({ name, status, duration, errorMessage, tags, properties });
+      }
+    }
+  } catch {
+    // Skip malformed XML files
+  }
+  return results;
+}
+
 export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnitTestCaseResult[]> {
   let entries: string[];
   try {
@@ -52,83 +125,9 @@ export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnit
   }
 
   const results: JUnitTestCaseResult[] = [];
-
   for (const xmlFile of xmlFiles) {
-    try {
-      const content = await fs.readFile(path.join(junitDirectory, xmlFile), 'utf-8');
-      const parsed = xmlParser.parse(content);
-
-      const testsuites = parsed?.testsuites?.testsuite;
-      if (!Array.isArray(testsuites)) {
-        continue;
-      }
-
-      for (const suite of testsuites) {
-        const testcases = suite?.testcase;
-        if (!Array.isArray(testcases)) {
-          continue;
-        }
-
-        for (const tc of testcases) {
-          const name = tc['@_name'];
-          if (!name) {
-            continue;
-          }
-
-          const timeStr = tc['@_time'];
-          const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
-          const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
-
-          // Use @_status as primary indicator (more robust than checking <failure> presence)
-          const status: 'passed' | 'failed' = tc['@_status'] === 'SUCCESS' ? 'passed' : 'failed';
-          // Extract error message from <failure> or <error> elements
-          const failureText =
-            tc.failure != null
-              ? typeof tc.failure === 'string'
-                ? tc.failure
-                : (tc.failure?.['#text'] ?? null)
-              : null;
-          const errorText =
-            tc.error != null
-              ? typeof tc.error === 'string'
-                ? tc.error
-                : (tc.error?.['#text'] ?? null)
-              : null;
-          const errorMessage: string | null = failureText ?? errorText ?? null;
-
-          // Extract properties
-          const rawProperties: { '@_name': string; '@_value': string }[] =
-            tc.properties?.property ?? [];
-          const properties: Record<string, string> = {};
-
-          for (const prop of rawProperties) {
-            const propName = prop['@_name'];
-            const value = prop['@_value'];
-            if (typeof propName !== 'string' || typeof value !== 'string') {
-              continue;
-            }
-            properties[propName] = value;
-          }
-
-          // Extract tags from "tags" property (Maestro 2.2.0+, comma-separated)
-          const tagsValue = properties['tags'];
-          const tags: string[] = tagsValue
-            ? tagsValue
-                .split(',')
-                .map(t => t.trim())
-                .filter(Boolean)
-            : [];
-          delete properties['tags'];
-
-          results.push({ name, status, duration, errorMessage, tags, properties });
-        }
-      }
-    } catch {
-      // Skip malformed XML files
-      continue;
-    }
+    results.push(...(await parseJUnitFile(path.join(junitDirectory, xmlFile))));
   }
-
   return results;
 }
 
@@ -167,9 +166,32 @@ export async function parseMaestroResults(
   testsDirectory: string,
   projectRoot: string
 ): Promise<MaestroFlowResult[]> {
-  // 1. Parse JUnit XML files (primary source)
-  const junitResults = await parseJUnitTestCases(junitDirectory);
-  if (junitResults.length === 0) {
+  // 1. Parse JUnit XML files, tracking which file each result came from
+  let junitEntries: string[];
+  try {
+    junitEntries = await fs.readdir(junitDirectory);
+  } catch {
+    return [];
+  }
+  const xmlFiles = junitEntries.filter(f => f.endsWith('.xml')).sort();
+  if (xmlFiles.length === 0) {
+    return [];
+  }
+
+  interface JUnitResultWithSource {
+    result: JUnitTestCaseResult;
+    sourceFile: string;
+  }
+
+  const junitResultsWithSource: JUnitResultWithSource[] = [];
+  for (const xmlFile of xmlFiles) {
+    const fileResults = await parseJUnitFile(path.join(junitDirectory, xmlFile));
+    for (const result of fileResults) {
+      junitResultsWithSource.push({ result, sourceFile: xmlFile });
+    }
+  }
+
+  if (junitResultsWithSource.length === 0) {
     return [];
   }
 
@@ -217,25 +239,63 @@ export async function parseMaestroResults(
   // 3. Merge: JUnit results + ai-*.json metadata
   const results: MaestroFlowResult[] = [];
 
-  for (const junit of junitResults) {
-    const flowFilePath = flowPathMap.get(junit.name);
+  // Parse attempt index from filename pattern: *-attempt-N.*
+  const ATTEMPT_PATTERN = /attempt-(\d+)/;
+
+  // Group results by flow name
+  const resultsByName = new Map<string, JUnitResultWithSource[]>();
+  for (const entry of junitResultsWithSource) {
+    const group = resultsByName.get(entry.result.name) ?? [];
+    group.push(entry);
+    resultsByName.set(entry.result.name, group);
+  }
+
+  for (const [flowName, flowEntries] of resultsByName) {
+    const flowFilePath = flowPathMap.get(flowName);
     const relativePath = flowFilePath
       ? await relativizePathAsync(flowFilePath, projectRoot)
-      : junit.name; // fallback: use flow name if ai-*.json not found
+      : flowName;
 
-    const occurrences = flowOccurrences.get(junit.name) ?? 0;
-    const retryCount = Math.max(0, occurrences - 1);
+    if (flowEntries.length === 1) {
+      // Single result for this flow — use ai-*.json occurrence count for retryCount
+      // (backward compat with old-style single JUnit file that gets overwritten)
+      const { result } = flowEntries[0];
+      const occurrences = flowOccurrences.get(flowName) ?? 0;
+      const retryCount = Math.max(0, occurrences - 1);
 
-    results.push({
-      name: junit.name,
-      path: relativePath,
-      status: junit.status,
-      errorMessage: junit.errorMessage,
-      duration: junit.duration,
-      retryCount,
-      tags: junit.tags,
-      properties: junit.properties,
-    });
+      results.push({
+        name: flowName,
+        path: relativePath,
+        status: result.status,
+        errorMessage: result.errorMessage,
+        duration: result.duration,
+        retryCount,
+        tags: result.tags,
+        properties: result.properties,
+      });
+    } else {
+      // Multiple results — per-attempt JUnit files. Sort by attempt index from filename.
+      const sorted = flowEntries
+        .map(entry => {
+          const match = entry.sourceFile.match(ATTEMPT_PATTERN);
+          const attemptIndex = match ? parseInt(match[1], 10) : 0;
+          return { ...entry, attemptIndex };
+        })
+        .sort((a, b) => a.attemptIndex - b.attemptIndex);
+
+      for (const { result, attemptIndex } of sorted) {
+        results.push({
+          name: flowName,
+          path: relativePath,
+          status: result.status,
+          errorMessage: result.errorMessage,
+          duration: result.duration,
+          retryCount: attemptIndex,
+          tags: result.tags,
+          properties: result.properties,
+        });
+      }
+    }
   }
 
   return results;
