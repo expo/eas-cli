@@ -88,7 +88,7 @@ describe(configureCredentialsAsync, () => {
       '/app/ios/testapp.xcodeproj/project.pbxproj',
       'utf-8'
     ) as string;
-    expect(pbxproj).toContain('CODE_SIGN_IDENTITY = "Apple Development"');
+    expect(pbxproj).toContain('CODE_SIGN_IDENTITY = "Apple Development: Test User"');
     expect(pbxproj).not.toContain('"iPhone Distribution"');
   });
   it('configures credentials for multi target project', async () => {

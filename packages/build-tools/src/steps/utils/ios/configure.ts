@@ -6,7 +6,7 @@ import uniq from 'lodash/uniq';
 import path from 'path';
 
 import { Credentials } from './credentials/manager';
-import { DistributionType } from './credentials/provisioningProfile';
+import { DistributionType, ProvisioningProfileData } from './credentials/provisioningProfile';
 
 export async function configureCredentialsAsync(
   logger: bunyan,
@@ -34,22 +34,26 @@ export async function configureCredentialsAsync(
   }
 
   if (credentials.distributionType === DistributionType.DEVELOPMENT) {
-    overrideCodeSignIdentityForDevelopment(workingDir, targetNames, buildConfiguration);
+    overrideCodeSignIdentityForDevelopment(
+      workingDir,
+      credentials.targetProvisioningProfiles,
+      buildConfiguration
+    );
   }
 }
 
 function overrideCodeSignIdentityForDevelopment(
   projectRoot: string,
-  targetNames: string[],
+  targetProvisioningProfiles: Record<string, ProvisioningProfileData>,
   buildConfiguration: string
 ): void {
   const project = IOSConfig.XcodeUtils.getPbxproj(projectRoot);
-  for (const targetName of targetNames) {
+  for (const [targetName, profile] of Object.entries(targetProvisioningProfiles)) {
     const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
       targetName,
       buildConfiguration,
     });
-    xcBuildConfiguration.buildSettings.CODE_SIGN_IDENTITY = '"Apple Development"';
+    xcBuildConfiguration.buildSettings.CODE_SIGN_IDENTITY = `"${profile.certificateCommonName}"`;
   }
   fs.writeFileSync(project.filepath, project.writeSync());
 }

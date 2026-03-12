@@ -183,7 +183,7 @@ export default class IosCredentialsProvider {
       }
     } else if (isAdHoc || isDevelopment) {
       throw new Error(
-        `You can't use an ${isAdHoc ? 'adhoc' : 'development'} provisioning profile${
+        `You can't use ${isAdHoc ? 'an adhoc' : 'a development'} provisioning profile${
           targetName ? ` (target '${targetName}')` : ''
         } for app store distribution.`
       );
