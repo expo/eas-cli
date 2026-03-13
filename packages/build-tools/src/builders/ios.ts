@@ -16,6 +16,10 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
+import {
+  extractIosVersionAsync,
+  reportResolvedVersionAsync,
+} from '../steps/functions/reportResolvedVersion';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
@@ -175,13 +179,34 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
-  await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
-    await uploadApplicationArchive(ctx, {
-      patternOrPath: resolveArtifactPath(ctx),
-      rootDir: ctx.getReactNativeProjectDirectory(),
-      logger: ctx.logger,
-    });
-  });
+  const archivePath = await ctx.runBuildPhase(
+    BuildPhase.UPLOAD_APPLICATION_ARCHIVE,
+    async () => {
+      return await uploadApplicationArchive(ctx, {
+        patternOrPath: resolveArtifactPath(ctx),
+        rootDir: ctx.getReactNativeProjectDirectory(),
+        logger: ctx.logger,
+      });
+    }
+  );
+
+  if (archivePath) {
+    try {
+      const { appVersion, appBuildVersion } = await extractIosVersionAsync(archivePath);
+      const buildId = ctx.env.EAS_BUILD_ID;
+      if (buildId && (appVersion || appBuildVersion)) {
+        await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
+          appVersion,
+          appBuildVersion,
+        });
+        ctx.logger.info(
+          `Reported resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
+        );
+      }
+    } catch (err) {
+      ctx.logger.warn({ err }, 'Failed to report resolved version (non-fatal)');
+    }
+  }
 
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {

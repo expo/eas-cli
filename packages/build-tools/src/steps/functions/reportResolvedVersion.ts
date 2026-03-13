@@ -7,6 +7,7 @@ import {
 } from '@expo/steps';
 import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
+import { Client } from '@urql/core';
 import { graphql } from 'gql.tada';
 import path from 'node:path';
 
@@ -56,7 +57,7 @@ export function createReportResolvedVersionBuildFunction(
           return;
         }
 
-        await reportResolvedVersionAsync(ctx, buildId, {
+        await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
           appVersion,
           appBuildVersion,
         });
@@ -69,7 +70,7 @@ export function createReportResolvedVersionBuildFunction(
   });
 }
 
-async function extractIosVersionAsync(
+export async function extractIosVersionAsync(
   archivePath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
   const ext = path.extname(archivePath).toLowerCase();
@@ -107,7 +108,7 @@ async function extractSimulatorAppVersionAsync(
   };
 }
 
-async function extractAndroidVersionAsync(
+export async function extractAndroidVersionAsync(
   archivePath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
   const ext = path.extname(archivePath).toLowerCase();
@@ -169,8 +170,8 @@ export function parseManifestXml(xml: string): { appVersion?: string; appBuildVe
   };
 }
 
-async function reportResolvedVersionAsync(
-  ctx: CustomBuildContext<BuildJob>,
+export async function reportResolvedVersionAsync(
+  graphqlClient: Client,
   buildId: string,
   {
     appVersion,
@@ -180,7 +181,7 @@ async function reportResolvedVersionAsync(
     appBuildVersion?: string;
   }
 ): Promise<void> {
-  const result = await ctx.graphqlClient
+  const result = await graphqlClient
     .mutation(
       graphql(`
         mutation ReportResolvedVersionMutation(
