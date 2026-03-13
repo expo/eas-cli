@@ -267,7 +267,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         if (state.state === 'FAILED') {
           if (isMissingBackgroundTaskIdentifiersError(errors)) {
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_MISSING_BG_TASK_IDENTIFIERS',
               'Build upload was rejected by App Store Connect because Info.plist is missing `BGTaskSchedulerPermittedIdentifiers` while `UIBackgroundModes` includes `processing`. ' +
                 'Add the required task identifiers to your app configuration, rebuild, and submit again. ' +
