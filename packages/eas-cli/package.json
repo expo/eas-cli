@@ -51,6 +51,7 @@
     "@expo/eas-json": "18.2.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
+    "@expo/lockfile-utils": "18.0.1",
     "@expo/logger": "18.0.1",
     "@expo/multipart-body-parser": "2.0.0",
     "@expo/osascript": "2.1.4",
