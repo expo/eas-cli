@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
@@ -45,14 +45,13 @@ export default class EnvDelete extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Current environment of the variable to delete. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,

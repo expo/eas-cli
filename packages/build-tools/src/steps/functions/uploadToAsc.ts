@@ -1,3 +1,5 @@
+import { UserError } from '@expo/eas-build-job';
+import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
   BuildStepInput,
@@ -12,6 +14,8 @@ import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
+import { AscApiUtils } from '../utils/ios/AscApiUtils';
+import { readIpaInfoAsync } from './readIpaInfo';
 
 export function createUploadToAscBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -101,34 +105,21 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
-      stepsCtx.logger.info('Reading App information...');
-      const appResponse = await client.getAsync(
-        '/v1/apps/:id',
-        { 'fields[apps]': ['bundleId', 'name'] },
-        { id: appleAppIdentifier }
-      );
       stepsCtx.logger.info(
-        `Uploading Build to "${appResponse.data.attributes.name}" (${appResponse.data.attributes.bundleId})...`
+        `Reading App information for Apple app identifier: ${appleAppIdentifier}...`
+      );
+      const appResponse = await AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier });
+      const ascAppBundleIdentifier = appResponse.data.attributes.bundleId;
+      stepsCtx.logger.info(
+        `Uploading Build to "${appResponse.data.attributes.name}" (${ascAppBundleIdentifier})...`
       );
 
       stepsCtx.logger.info('Creating Build Upload...');
-      const buildUploadResponse = await client.postAsync('/v1/buildUploads', {
-        data: {
-          type: 'buildUploads',
-          attributes: {
-            platform: 'IOS',
-            cfBundleShortVersionString: bundleShortVersion,
-            cfBundleVersion: bundleVersion,
-          },
-          relationships: {
-            app: {
-              data: {
-                type: 'apps',
-                id: appleAppIdentifier,
-              },
-            },
-          },
-        },
+      const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
+        client,
+        appleAppIdentifier,
+        bundleShortVersion,
+        bundleVersion,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
@@ -234,6 +225,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
       stepsCtx.logger.info('Checking build upload status...');
       const waitingForBuildStartedAt = Date.now();
+      const waitingLogIntervalMs = 10 * 1000;
+      let lastWaitLogTime = 0;
+      let lastWaitLogState: string | null = null;
       while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
         const {
           data: {
@@ -246,7 +240,14 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         );
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
-          stepsCtx.logger.info(`Waiting for build upload to complete... (status = ${state.state})`);
+          const now = Date.now();
+          if (lastWaitLogState !== state.state || now - lastWaitLogTime >= waitingLogIntervalMs) {
+            stepsCtx.logger.info(
+              `Waiting for build upload to complete... (status = ${state.state})`
+            );
+            lastWaitLogTime = now;
+            lastWaitLogState = state.state;
+          }
           await setTimeout(2000);
           continue;
         }
@@ -265,6 +266,50 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isInvalidBundleIdentifierError(errors)) {
+            const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
+            const ipaBundleIdentifier = ipaInfoResult.ok
+              ? ipaInfoResult.value.bundleIdentifier
+              : null;
+
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
+              `Build upload was rejected by App Store Connect because the app bundle identifier in the IPA does not match the selected App Store Connect app.\n\n` +
+                `IPA bundle identifier: ${ipaBundleIdentifier ?? '(unavailable)'}\n` +
+                `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
+                'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
+                'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
+                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+            );
+          }
+          if (isMissingPurposeStringError(errors)) {
+            const missingUsageDescriptionKeys = parseMissingUsageDescriptionKeys(errors);
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_MISSING_PURPOSE_STRING',
+              `Build upload was rejected by App Store Connect because Info.plist is missing one or more privacy purpose strings.\n\n` +
+                `${
+                  missingUsageDescriptionKeys.length > 0
+                    ? `Missing keys reported by App Store Connect:\n- ${missingUsageDescriptionKeys.join(
+                        '\n- '
+                      )}\n\n`
+                    : ''
+                }` +
+                'Add the missing keys with clear user-facing explanations, then rebuild and submit again.\n' +
+                'If you use Continuous Native Generation (CNG), update `ios.infoPlist` in app.json/app.config.js.\n' +
+                'If you do not use CNG, update your app target Info.plist directly.',
+              {
+                docsUrl: 'https://docs.expo.dev/guides/permissions/#ios',
+              }
+            );
+          }
+          if (isClosedVersionTrainError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
+              `Build upload was rejected by App Store Connect because the ${bundleShortVersion} app version is not accepted for new build submissions. ` +
+                'This usually means the version train is closed or lower than a previously approved version. ' +
+                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version, then rebuild and submit again.'
+            );
+          }
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
         } else if (state.state === 'COMPLETE') {
           stepsCtx.logger.info(`Build upload (ID: ${buildUploadId}) complete!`);
@@ -277,6 +322,36 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
 function itemizeMessages(messages: { description: string; code: string }[]): string {
   return `- ${messages.map(m => `${m.description} (${m.code})`).join('\n- ')}`;
+}
+
+export function isClosedVersionTrainError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 &&
+    messages.every(message => ['90062', '90186', '90478'].includes(message.code))
+  );
+}
+
+export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
+  return (
+    messages.length > 0 && messages.every(message => ['90054', '90055'].includes(message.code))
+  );
+}
+
+export function isMissingPurposeStringError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90683');
+}
+
+export function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
+  const usageDescriptionKeyRegex = /\b(\w+UsageDescription)\b/g;
+  const keys = new Set<string>();
+  for (const message of messages) {
+    const matches = message.description.matchAll(usageDescriptionKeyRegex);
+    for (const match of matches) {
+      keys.add(match[1]);
+    }
+  }
+
+  return [...keys];
 }
 
 async function uploadChunksAsync({

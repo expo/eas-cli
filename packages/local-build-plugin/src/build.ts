@@ -75,7 +75,7 @@ export async function buildAsync(job: BuildJob, metadata: Metadata): Promise<voi
     console.error();
     console.error(chalk.red(`Build failed`));
     if (logger.level() === DEBUG) {
-      console.error(e.innerError);
+      console.error(e.cause);
     }
     throw e;
   } finally {

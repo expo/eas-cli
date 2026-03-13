@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
@@ -29,13 +29,12 @@ import { WorkflowFile } from '../../utils/workflowFile';
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       description: 'Name of the workflow file (must end with .yml or .yaml)',
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     'skip-validation': Flags.boolean({

@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import { print } from 'graphql';
 import gql from 'graphql-tag';
@@ -6,7 +6,10 @@ import gql from 'graphql-tag';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   ResumeUpdateChannelMutation,
@@ -50,13 +53,12 @@ export async function resumeUpdateChannelAsync(
 export default class ChannelResume extends EasCommand {
   static override description = 'resume a channel to start sending updates';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to edit',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     branch: Flags.string({
@@ -71,10 +73,8 @@ export default class ChannelResume extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const {
-      args,
-      flags: { json, 'non-interactive': nonInteractive },
-    } = await this.parse(ChannelResume);
+    const { args, flags } = await this.parse(ChannelResume);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

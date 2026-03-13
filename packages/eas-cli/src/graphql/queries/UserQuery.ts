@@ -16,6 +16,9 @@ export const UserQuery = {
               meActor {
                 __typename
                 id
+                ... on User {
+                  email
+                }
                 ... on UserActor {
                   username
                   primaryAccount {

@@ -89,6 +89,7 @@ export function createBuildContext<TJob extends Job>({
     cacheManager: new GCSCacheManager(),
     metadata,
     reportBuildPhaseStats: reportBuildPhaseStatsFn,
+    expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
   });
   return ctx;
 }

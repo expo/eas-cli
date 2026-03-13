@@ -1,7 +1,13 @@
 import { ExpoConfig } from '@expo/config';
-import { BuildJob, BuildPhase, Ios, Job, Platform } from '@expo/eas-build-job';
-import { BuildTrigger } from '@expo/eas-build-job/dist/common';
-import { UserFacingError } from '@expo/eas-build-job/dist/errors';
+import {
+  BuildJob,
+  BuildPhase,
+  BuildTrigger,
+  Ios,
+  Job,
+  Platform,
+  UserError,
+} from '@expo/eas-build-job';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
@@ -281,7 +287,7 @@ async function validateAppConfigAsync(
       extraMessage =
         'If you are using environment variables to switch between projects in app.config.js/app.config.ts, make sure those variables are also set inside EAS Build. You can do that using "env" field in eas.json or EAS environment variables. ';
     }
-    throw new UserFacingError(
+    throw new UserError(
       'EAS_BUILD_PROJECT_ID_MISMATCH',
       `The value of the "extra.eas.projectId" field (${appConfig.extra.eas.projectId}) in the app config does not match the current project id (${ctx.env.EAS_BUILD_PROJECT_ID}). ${extraMessage}Learn more: https://expo.fyi/eas-config-mismatch.`
     );

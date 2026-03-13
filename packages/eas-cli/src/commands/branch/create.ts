@@ -1,9 +1,13 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import { createUpdateBranchOnAppAsync } from '../../branch/queries';
 import { getDefaultBranchNameAsync } from '../../branch/utils';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
@@ -12,13 +16,12 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class BranchCreate extends EasCommand {
   static override description = 'create a branch';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the branch to create',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -33,8 +36,9 @@ export default class BranchCreate extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       args: { name },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(BranchCreate);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -61,6 +65,9 @@ export default class BranchCreate extends EasCommand {
         initial: (await getDefaultBranchNameAsync(vcsClient)) ?? undefined,
         validate: value => (value ? true : validationMessage),
       }));
+      if (!name) {
+        throw new Error(validationMessage);
+      }
     }
 
     const newBranch = await createUpdateBranchOnAppAsync(graphqlClient, { appId: projectId, name });

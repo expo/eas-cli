@@ -1,7 +1,11 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
 import { scheduleUpdateGroupDeletionAsync } from '../../update/delete';
@@ -11,13 +15,12 @@ import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJ
 export default class UpdateDelete extends EasCommand {
   static override description = 'delete all the updates in an update group';
 
-  static override args = [
-    {
-      name: 'groupId',
+  static override args = {
+    groupId: Args.string({
       required: true,
       description: 'The ID of an update group to delete.',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -30,8 +33,9 @@ export default class UpdateDelete extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { groupId: group },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(UpdateDelete);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       loggedIn: { graphqlClient },

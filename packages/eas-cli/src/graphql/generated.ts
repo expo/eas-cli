@@ -16519,6 +16519,7 @@ export type CurrentUserQuery = {
       }
     | {
         __typename: 'User';
+        email: string;
         username: string;
         id: string;
         featureGates: any;

@@ -10,7 +10,10 @@ import path from 'path';
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
@@ -45,10 +48,10 @@ export default class Build extends EasCommand {
   static override description = 'start a build';
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios', 'all'],
-    }),
+      options: ['android', 'ios', 'all'] as const,
+    })(),
     'skip-credentials-check': Flags.boolean({
       default: false,
       hidden: true,
@@ -96,7 +99,7 @@ export default class Build extends EasCommand {
       description:
         'Specify the "What to Test" information for the build in TestFlight (iOS-only). To be used with the `auto-submit` flag',
     }),
-    'resource-class': Flags.enum({
+    'resource-class': Flags.option({
       options: Object.values(ResourceClass),
       hidden: true,
       deprecated: {
@@ -105,15 +108,15 @@ export default class Build extends EasCommand {
         ),
       },
       description: 'The instance type that will be used to run this build [experimental]',
-    }),
+    })(),
     message: Flags.string({
       char: 'm',
       description: 'A short message describing the build',
     }),
-    'build-logger-level': Flags.enum({
+    'build-logger-level': Flags.option({
       description: 'The level of logs to output during the build process. Defaults to "info".',
       options: Object.values(LoggerLevel),
-    }),
+    })(),
     'freeze-credentials': Flags.boolean({
       default: false,
       description: 'Prevent the build from updating credentials in non-interactive mode',
@@ -184,15 +187,12 @@ export default class Build extends EasCommand {
   private sanitizeFlags(
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
-    const nonInteractive = flags['non-interactive'];
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
     }
     if (!flags.platform && nonInteractive) {
       Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
-    }
-    if (flags.json && !nonInteractive) {
-      Errors.error('--json is allowed only when building in non-interactive mode', { exit: 1 });
     }
     const autoSubmit = flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined;
     if (flags['what-to-test'] && !autoSubmit) {
@@ -242,7 +242,7 @@ export default class Build extends EasCommand {
         : {},
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
-      json: flags['json'],
+      json,
       autoSubmit,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,
       resourceClass: flags['resource-class'],

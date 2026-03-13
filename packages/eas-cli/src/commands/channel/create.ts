@@ -1,8 +1,12 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import { createAndLinkChannelAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { enableJsonOutput } from '../../utils/json';
@@ -10,13 +14,12 @@ import { enableJsonOutput } from '../../utils/json';
 export default class ChannelCreate extends EasCommand {
   static override description = 'create a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to create',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -30,8 +33,9 @@ export default class ChannelCreate extends EasCommand {
   async runAsync(): Promise<void> {
     let {
       args: { name: channelName },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(ChannelCreate);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -53,6 +57,9 @@ export default class ChannelCreate extends EasCommand {
         message: 'Provide a channel name:',
         validate: value => (value ? true : validationMessage),
       }));
+      if (!channelName) {
+        throw new Error(validationMessage);
+      }
     }
 
     await createAndLinkChannelAsync(graphqlClient, {

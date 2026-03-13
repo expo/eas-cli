@@ -3,7 +3,10 @@ import chalk from 'chalk';
 
 import EasCommand from '../../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../../commandUtils/flags';
 import { WorkerDeploymentAliasFragment } from '../../../graphql/generated';
 import Log from '../../../log';
 import { Ora, ora } from '../../../ora';
@@ -163,9 +166,10 @@ export default class WorkerAlias extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawDeployAliasFlags): DeployAliasFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim().toLowerCase(),
       isProduction: flags.prod,

@@ -3,7 +3,10 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
 import Log from '../../log';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
@@ -76,12 +79,12 @@ export default class UpdateRepublish extends EasCommand {
       description: 'Short message describing the republished update group',
       required: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
-      options: [...defaultRepublishPlatforms, 'all'],
+      options: [...defaultRepublishPlatforms, 'all'] as const,
       default: 'all',
       required: false,
-    }),
+    })(),
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
@@ -178,12 +181,12 @@ export default class UpdateRepublish extends EasCommand {
   }
 
   private sanitizeFlags(rawFlags: UpdateRepublishRawFlags): UpdateRepublishFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
     const branchName = rawFlags.branch;
     const channelName = rawFlags.channel;
     const groupId = rawFlags.group;
     const destinationChannelName = rawFlags['destination-channel'];
     const destinationBranchName = rawFlags['destination-branch'];
-    const nonInteractive = rawFlags['non-interactive'];
     const privateKeyPath = rawFlags['private-key-path'];
 
     if (nonInteractive && !groupId) {
@@ -203,7 +206,7 @@ export default class UpdateRepublish extends EasCommand {
       updateMessage: rawFlags.message,
       privateKeyPath,
       rolloutPercentage: rawFlags['rollout-percentage'],
-      json: rawFlags.json ?? false,
+      json,
       nonInteractive,
     };
   }

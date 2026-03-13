@@ -1,5 +1,6 @@
 import { Ios } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
+import crypto from 'crypto';
 
 import { provisioningProfile } from './fixtures';
 import { BuildContext } from '../../../context';
@@ -69,6 +70,46 @@ describe('ProvisioningProfile class', () => {
         expect(() => {
           pp.verifyCertificate('2137');
         }).toThrowError(/don't match/);
+      } finally {
+        await pp.destroy();
+      }
+    });
+
+    it('should match a certificate that is not at index 0 in DeveloperCertificates', async () => {
+      const pp = new ProvisioningProfile(
+        ctx,
+        Buffer.from(provisioningProfile.dataBase64, 'base64'),
+        keychain.data.path,
+        'testapp',
+        'Abc 123'
+      );
+
+      try {
+        await pp.init();
+
+        // Prepend an unrelated certificate so the real one moves to index 1
+        const dummyCert = Buffer.from('dummy-certificate-data');
+        (pp as any).developerCertificates = [dummyCert, ...(pp as any).developerCertificates];
+
+        // The original cert fingerprint should still match
+        expect(() => {
+          pp.verifyCertificate(provisioningProfile.certFingerprint);
+        }).not.toThrow();
+
+        // A non-matching fingerprint should still fail
+        expect(() => {
+          pp.verifyCertificate('2137');
+        }).toThrowError(/don't match/);
+
+        // The dummy cert's fingerprint should also match
+        const dummyFingerprint = crypto
+          .createHash('sha1')
+          .update(new Uint8Array(dummyCert))
+          .digest('hex')
+          .toUpperCase();
+        expect(() => {
+          pp.verifyCertificate(dummyFingerprint);
+        }).not.toThrow();
       } finally {
         await pp.destroy();
       }

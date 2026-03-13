@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import assert from 'assert';
 
 import {
@@ -5,20 +6,22 @@ import {
   selectChannelOnAppAsync,
 } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
 
 export default class ChannelView extends EasCommand {
   static override description = 'view a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to view',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
@@ -36,7 +39,7 @@ export default class ChannelView extends EasCommand {
       flags,
     } = await this.parse(ChannelView);
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
-    const { json: jsonFlag, 'non-interactive': nonInteractive } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

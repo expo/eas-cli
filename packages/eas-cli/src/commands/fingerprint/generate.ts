@@ -9,6 +9,7 @@ import {
   EASEnvironmentFlag,
   EasEnvironmentFlagParameters,
   EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import {
   appPlatformToPlatform,
@@ -34,10 +35,10 @@ export default class FingerprintGenerate extends EasCommand {
   ];
 
   static override flags = {
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
-      options: ['android', 'ios'],
-    }),
+      options: ['android', 'ios'] as const,
+    })(),
     ...EASEnvironmentFlag,
     environment: Flags.string({
       ...EasEnvironmentFlagParameters,
@@ -62,13 +63,8 @@ export default class FingerprintGenerate extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(FingerprintGenerate);
-    const {
-      json,
-      'non-interactive': nonInteractive,
-      platform: platformStringFlag,
-      environment,
-      'build-profile': buildProfileName,
-    } = flags;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    const { platform: platformStringFlag, environment, 'build-profile': buildProfileName } = flags;
 
     const {
       projectId,

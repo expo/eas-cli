@@ -133,9 +133,21 @@ export function mockTestCommand<T extends Command>(
   argv: string[],
   ctx: any
 ): T {
-  const cmd = new commandConstructor(argv, new Config({ root: __dirname }));
+  const config = getMockOclifConfig();
+  const cmd = new commandConstructor(argv, config);
   (cmd as any).getContextAsync = jest.fn(() => ctx);
   return cmd;
+}
+
+export function getMockOclifConfig(
+  options: Partial<ConstructorParameters<typeof Config>[0]> = {}
+): Config {
+  const config = new Config({ root: __dirname, ...options });
+  config.runHook = async () => ({
+    failures: [],
+    successes: [],
+  });
+  return config;
 }
 
 export class NoErrorThrownError extends Error {}

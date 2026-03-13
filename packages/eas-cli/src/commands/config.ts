@@ -6,7 +6,10 @@ import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../build/evaluateConfigWithEnvVarsAsync';
 import EasCommand from '../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../commandUtils/flags';
 import { toAppPlatform } from '../graphql/types/AppPlatform';
 import Log from '../log';
 import { appPlatformEmojis } from '../platform';
@@ -17,7 +20,7 @@ export default class Config extends EasCommand {
   static override description = 'display project configuration (app.json + eas.json)';
 
   static override flags = {
-    platform: Flags.enum<Platform>({ char: 'p', options: [Platform.ANDROID, Platform.IOS] }),
+    platform: Flags.option({ char: 'p', options: [Platform.ANDROID, Platform.IOS] as const })(),
     profile: Flags.string({
       char: 'e',
       description:
@@ -39,14 +42,11 @@ export default class Config extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(Config);
-    if (flags.json) {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (json) {
       enableJsonOutput();
     }
-    const {
-      platform: maybePlatform,
-      profile: maybeProfile,
-      'non-interactive': nonInteractive,
-    } = flags;
+    const { platform: maybePlatform, profile: maybeProfile } = flags;
     const { getDynamicPublicProjectConfigAsync, projectDir, getDynamicLoggedInAsync } =
       await this.getContextAsync(Config, {
         nonInteractive,
@@ -80,7 +80,7 @@ export default class Config extends EasCommand {
 
     const profile = await EasJsonUtils.getBuildProfileAsync(accessor, platform, profileName);
     if (flags['eas-json-only']) {
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput({ buildProfile: profile });
       } else {
         const appPlatform = toAppPlatform(platform);
@@ -99,7 +99,7 @@ export default class Config extends EasCommand {
         opts: { env: profile.env },
       });
 
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput({ buildProfile: profile, appConfig });
       } else {
         Log.addNewLineIfNone();

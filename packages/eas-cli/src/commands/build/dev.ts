@@ -34,14 +34,18 @@ export default class BuildDev extends EasCommand {
     'run dev client simulator/emulator build with matching fingerprint or create a new one';
 
   static override flags = {
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
-    }),
+      options: [Platform.IOS, Platform.ANDROID] as const,
+    })(),
     profile: Flags.string({
       char: 'e',
       description: `Name of the build profile from eas.json. It must be a profile allowing to create emulator/simulator internal distribution dev client builds. The "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile will be selected by default.`,
       helpValue: 'PROFILE_NAME',
+    }),
+    'skip-build-if-not-found': Flags.boolean({
+      description: 'Skip build if no successful build with matching fingerprint is found.',
+      default: false,
     }),
   };
 
@@ -128,8 +132,13 @@ export default class BuildDev extends EasCommand {
         await this.startDevServerAsync({ projectDir, platform });
         return;
       } else {
-        Log.warn('Artifacts for this build expired. New build will be started.');
+        Log.warn('Artifacts for this build expired.');
       }
+    }
+
+    if (flags['skip-build-if-not-found']) {
+      Log.log('No successful build with matching fingerprint found. Skipping build.');
+      return;
     }
 
     Log.log('🚀 No successful build with matching fingerprint found. Starting a new build...');

@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
@@ -24,14 +24,13 @@ export default class EnvPull extends EasCommand {
     ...this.ContextOptions.ProjectDir,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Environment to pull variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     ...EASNonInteractiveFlag,

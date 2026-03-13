@@ -3,7 +3,10 @@ import { Errors, Flags } from '@oclif/core';
 
 import { ensureBranchExistsAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { StatuspageServiceName } from '../../graphql/generated';
 import { RequestedPlatform } from '../../platform';
@@ -63,16 +66,16 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: 'A short message describing the rollback to embedded update',
       required: false,
     }),
-    platform: Flags.enum({
+    platform: Flags.option({
       char: 'p',
       options: [
         // TODO: Add web when it's fully supported
         ...defaultPublishPlatforms,
         'all',
-      ],
+      ] as const,
       default: 'all',
       required: false,
-    }),
+    })(),
     'private-key-path': Flags.string({
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
@@ -195,7 +198,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
-    const nonInteractive = flags['non-interactive'] ?? false;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       branch: branchName,
@@ -221,7 +224,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
       nonInteractive,
-      json: flags.json ?? false,
+      json,
     };
   }
 }

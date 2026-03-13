@@ -2,6 +2,7 @@ import { BuildPhase, Generic } from '@expo/eas-build-job';
 import { Result, asyncResult } from '@expo/results';
 import { BuildStepGlobalContext, BuildWorkflow, StepsConfigParser, errors } from '@expo/steps';
 import fs from 'fs/promises';
+import nullthrows from 'nullthrows';
 
 import { prepareProjectSourcesAsync } from './common/projectSources';
 import { BuildContext } from './context';
@@ -10,12 +11,17 @@ import { getEasFunctionGroups } from './steps/easFunctionGroups';
 import { getEasFunctions } from './steps/easFunctions';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
 import { retryAsync } from './utils/retry';
-import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 export async function runGenericJobAsync(
-  ctx: BuildContext<Generic.Job>,
-  { expoApiV2BaseUrl }: { expoApiV2BaseUrl: string }
+  ctx: BuildContext<Generic.Job>
 ): Promise<{ runResult: Result<void>; buildWorkflow: BuildWorkflow }> {
+  // expoApiV2BaseUrl is empty when running a local build, but generic jobs
+  // are never executed locally, so it is always present here.
+  const expoApiV2BaseUrl = nullthrows(
+    ctx.expoApiV2BaseUrl,
+    'expoApiV2BaseUrl is required for generic jobs'
+  );
+
   const customBuildCtx = new CustomBuildContext(ctx);
 
   await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
@@ -60,22 +66,15 @@ export async function runGenericJobAsync(
   const runResult = await asyncResult(workflow.executeAsync());
 
   await ctx.runBuildPhase(BuildPhase.COMPLETE_JOB, async () => {
-    await uploadJobOutputsToWwwAsync(globalContext, {
-      logger: ctx.logger,
-      expoApiV2BaseUrl,
-    });
-
-    const workflowJobId = globalContext.env.__WORKFLOW_JOB_ID;
-    const robotAccessToken = ctx.job.secrets?.robotAccessToken;
-
-    if (workflowJobId && robotAccessToken) {
-      await uploadStepMetricsToWwwAsync({
-        workflowJobId,
-        robotAccessToken,
-        expoApiV2BaseUrl,
-        stepMetrics: globalContext.stepMetrics,
+    const results = await Promise.allSettled([
+      uploadJobOutputsToWwwAsync(globalContext, {
         logger: ctx.logger,
-      });
+        expoApiV2BaseUrl,
+      }),
+      customBuildCtx.drainPendingMetricUploads(),
+    ]);
+    if (results[0].status === 'rejected') {
+      throw results[0].reason;
     }
   });
 

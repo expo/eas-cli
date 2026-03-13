@@ -8,8 +8,12 @@ import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags, EasUpdateEnvironmentFlag } from '../../commandUtils/flags';
-import { assertEnvironmentFlagForSdk55OrGreater } from '../../update/utils';
+import {
+  EasNonInteractiveAndJsonFlags,
+  EasUpdateEnvironmentRequiredFlag,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import { environmentFlagNeededForSdk550OrGreater } from '../../update/utils';
 import { getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import fetch from '../../fetch';
 import {
@@ -65,6 +69,7 @@ import uniqBy from '../../utils/expodash/uniqBy';
 import formatFields from '../../utils/formatFields';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { maybeWarnAboutEasOutagesAsync } from '../../utils/statuspageService';
+import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 /**
  * Preprocess argv to handle --source-maps with optional value.
@@ -176,12 +181,12 @@ export default class UpdatePublish extends EasCommand {
       min: 0,
       max: 100,
     }),
-    platform: Flags.enum<RequestedPlatform>({
+    platform: Flags.option({
       char: 'p',
       options: Object.values(RequestedPlatform), // TODO: Add web when it's fully supported
       default: RequestedPlatform.All,
       required: false,
-    }),
+    })(),
     auto: Flags.boolean({
       description:
         'Use the current git branch and commit message for the EAS branch and update message',
@@ -191,7 +196,7 @@ export default class UpdatePublish extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
-    ...EasUpdateEnvironmentFlag,
+    ...EasUpdateEnvironmentRequiredFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -223,7 +228,7 @@ export default class UpdatePublish extends EasCommand {
       branchName: branchNameArg,
       emitMetadata,
       rolloutPercentage,
-      environment,
+      environment: environmentFromFlags,
     } = this.sanitizeFlags(rawFlags);
 
     const {
@@ -234,7 +239,7 @@ export default class UpdatePublish extends EasCommand {
       getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: environment ?? null,
+      withServerSideEnvironment: environmentFromFlags ?? null,
     });
 
     if (jsonFlag) {
@@ -250,10 +255,23 @@ export default class UpdatePublish extends EasCommand {
       projectDir,
     } = await getDynamicPublicProjectConfigAsync();
 
-    assertEnvironmentFlagForSdk55OrGreater({
-      sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
-      environment,
-    });
+    let environment: string | undefined = environmentFromFlags;
+
+    // Environment handling
+    if (
+      !autoFlag &&
+      environmentFlagNeededForSdk550OrGreater({
+        sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
+        environment: environmentFromFlags,
+      })
+    ) {
+      environment = await promptVariableEnvironmentAsync({
+        multiple: false,
+        graphqlClient,
+        nonInteractive,
+        projectId,
+      });
+    }
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
@@ -293,8 +311,11 @@ export default class UpdatePublish extends EasCommand {
       jsonFlag,
     });
 
-    const maybeServerEnv = environment
-      ? { ...(await getServerSideEnvironmentVariablesAsync()), EXPO_NO_DOTENV: '1' }
+    const maybeServerEnv = environmentFromFlags
+      ? {
+          ...(await getServerSideEnvironmentVariablesAsync()),
+          EXPO_NO_DOTENV: '1',
+        }
       : {};
 
     // build bundle and upload assets for a new publish
@@ -319,7 +340,9 @@ export default class UpdatePublish extends EasCommand {
     }
 
     // After possibly bundling, assert that the input directory can be found.
-    const distRoot = await resolveInputDirectoryAsync(inputDir, { skipBundler });
+    const distRoot = await resolveInputDirectoryAsync(inputDir, {
+      skipBundler,
+    });
 
     const assetSpinner = ora().start('Uploading...');
     let unsortedUpdateInfoGroups: UpdateInfoGroup = {};
@@ -717,7 +740,7 @@ export default class UpdatePublish extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawUpdateFlags): UpdateFlags {
-    const nonInteractive = flags['non-interactive'] ?? false;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { auto, branch: branchName, channel: channelName, message: updateMessage } = flags;
     if (nonInteractive && !auto && !(updateMessage && (branchName || channelName))) {
@@ -752,7 +775,7 @@ export default class UpdatePublish extends EasCommand {
       rolloutPercentage: flags['rollout-percentage'],
       nonInteractive,
       emitMetadata,
-      json: flags.json ?? false,
+      json,
       environment: flags['environment'],
     };
   }

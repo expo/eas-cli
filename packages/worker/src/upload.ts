@@ -331,6 +331,13 @@ async function createUploadSessionAsync(
     throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
   }
 
+  if (!responseResult.value.ok) {
+    const textResult = await asyncResult(responseResult.value.text());
+    throw new Error(
+      `Unexpected response from server (${responseResult.value.status}): ${textResult.ok ? textResult.value : 'Could not read response body'}`
+    );
+  }
+
   const jsonResult = await asyncResult(responseResult.value.json());
   if (!jsonResult.ok) {
     throw new ErrorWithMetadata(`Malformed response from server: ${jsonResult.reason}.`, {

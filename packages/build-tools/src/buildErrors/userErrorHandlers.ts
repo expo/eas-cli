@@ -2,9 +2,9 @@ import { BuildMode, BuildPhase, Platform, Workflow, errors } from '@expo/eas-bui
 
 import { ErrorHandler, XCODE_BUILD_PHASE } from './errors.types';
 
-import UserFacingError = errors.UserFacingError;
+import UserError = errors.UserError;
 
-export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
+export const userErrorHandlers: ErrorHandler<UserError>[] = [
   {
     platform: Platform.IOS,
     phase: BuildPhase.INSTALL_PODS,
@@ -12,7 +12,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // example log:
     // [!] `React` requires CocoaPods version `>= 1.10.1`, which is not satisfied by your current version, `1.10.0`.
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_UNSUPPORTED_COCOAPODS_VERSION_ERROR',
         `Your project requires a newer version of CocoaPods. You can update it in the build profile in eas.json by either:
 - changing the current version under key "cocoapods"
@@ -27,7 +27,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // example log:
     // /System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/rubygems/dependency.rb:313:in `to_specs': Could not find 'bundler' (2.2.3) required by your /Users/expo/project/build/ios/Gemfile.lock. (Gem::MissingSpecVersionError)
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_UNSUPPORTED_BUNDLER_VERSION_ERROR',
         `Your project requires a different version of the Ruby "bundler" program than the version installed in this EAS Build environment. You can specify which version of "bundler" to install by specifying the version under "build"→[buildProfileName]→"ios"→"bundler" in eas.json.`,
         { docsUrl: 'https://docs.expo.dev/build-reference/eas-json/' }
@@ -40,7 +40,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // > Failed to read key keyalias from store "/build/workingdir/build/generic/keystore-5787e6af-3002-4cb7-8a57-3e73d13313c2.jks": Invalid keystore format
     regexp: /Invalid keystore format/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_INVALID_KEYSTORE_FORMAT_ERROR',
         'The keystore used in this build is malformed or it has an unsupported type. Make sure you provided the correct file.'
       ),
@@ -52,7 +52,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // > Failed to read key keyalias from store "/build/workingdir/build/generic/keystore-286069a8-4bb9-48a6-add9-acf6b58ea06d.jks": null
     regexp: /Failed to read key[^\n]+from store/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_INVALID_KEYSTORE_ALIAS_ERROR',
         'The alias specified for this keystore does not exist. Make sure you specified the correct value.'
       ),
@@ -67,7 +67,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // [11:17:29] Error: [android.dangerous]: withAndroidDangerousBaseMod: Cannot copy google-services.json from /home/expo/workingdir/build/test/test-google-services.json to /home/expo/workingdir/build/android/app/google-services.json. Please make sure the source and destination paths exist.
     regexp: /Cannot copy google-services\.json/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR',
         '"google-services.json" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
         { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
@@ -82,7 +82,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     regexp:
       /File google-services\.json is missing\. The Google Services Plugin cannot function without it/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR',
         '"google-services.json" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
         { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
@@ -95,7 +95,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     // [08:44:18] ENOENT: no such file or directory, copyfile '/Users/expo/workingdir/build/managed/abc' -> '/Users/expo/workingdir/build/managed/ios/testapp/GoogleService-Info.plist'
     regexp: /ENOENT: no such file or directory, copyfile .*GoogleService-Info.plist/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_MISSING_GOOGLE_SERVICES_PLIST_ERROR',
         '"GoogleService-Info.plist" is missing, make sure that the file exists. Remember that EAS Build only uploads the files tracked by git. Use EAS environment variables to provide EAS Build with the file.',
         { docsUrl: 'https://docs.expo.dev/eas/environment-variables/#file-environment-variables' }
@@ -113,7 +113,7 @@ export const userErrorHandlers: ErrorHandler<UserFacingError>[] = [
     regexp:
       /Specs satisfying the `(.*)` dependency were found, but they required a higher minimum deployment target/,
     createError: (_, { job }) => {
-      return new UserFacingError(
+      return new UserError(
         'EAS_BUILD_HIGHER_MINIMUM_DEPLOYMENT_TARGET_ERROR',
         `Some pods require a higher minimum deployment target.
 ${
@@ -141,7 +141,7 @@ ${
     //    You should run `pod update Firebase/Core` to apply changes you've made.
     regexp: /CocoaPods could not find compatible versions for pod /,
     createError: () => {
-      return new UserFacingError(
+      return new UserError(
         'EAS_BUILD_INCOMPATIBLE_PODS_ERROR',
         `Compatible versions of some pods could not be resolved.
 You are seeing this error because either:
@@ -161,7 +161,7 @@ You are seeing this error because either:
       /Fix the upstream dependency conflict, or retry.*\s.*this command with --force, or --legacy-peer-deps/,
     createError: (matchResult: RegExpMatchArray) => {
       if (matchResult.length >= 2) {
-        return new UserFacingError(
+        return new UserError(
           'EAS_BUILD_NPM_CONFLICTING_PEER_DEPENDENCIES',
           `Some of your peer dependencies are not compatible. The recommended approach is to fix your dependencies by resolving any conflicts listed by "npm install". As a temporary workaround you can:
 - Add ".npmrc" file with "legacy-peer-deps=true" and commit that to your repo.
@@ -179,7 +179,7 @@ You are seeing this error because either:
     regexp: /Integrity check failed for "(.*)" \(computed integrity doesn't match our records, got/,
     createError: (matchResult: RegExpMatchArray) => {
       if (matchResult.length >= 2) {
-        return new UserFacingError(
+        return new UserError(
           'EAS_BUILD_YARN_LOCK_CHECKSUM_ERROR',
           `Checksum for package "${matchResult[1]}" does not match value in registry. To fix that:
 - run "yarn cache clean"
@@ -203,7 +203,7 @@ You are seeing this error because either:
       /\[1\/4\] Resolving packages...\s*\[2\/4\] Fetching packages...\s*\[1\/4\] Resolving packages...\s*\[2\/4\] Fetching packages.../,
     createError: (matchResult: RegExpMatchArray) => {
       if (matchResult) {
-        return new UserFacingError(
+        return new UserError(
           'EAS_BUILD_YARN_MULTIPLE_INSTANCES_ERROR',
           `One of project dependencies is starting new install process while the main one is still in progress, which might result in corrupted packages. Most likely the reason for error is "prepare" script in git-referenced dependency of your project. Learn more: https://github.com/yarnpkg/yarn/issues/7212#issuecomment-493720324`
         );
@@ -230,7 +230,7 @@ You are seeing this error because either:
     regexp: /error: Signing for "[a-zA-Z-0-9_]+" requires a development team/,
     createError: (_, { job }) =>
       'type' in job && job.type === Workflow.MANAGED
-        ? new UserFacingError(
+        ? new UserError(
             'XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR',
             `Starting from Xcode 14, resource bundles are signed by default, which requires setting the development team for each resource bundle target.
 To resolve this issue, downgrade to an older Xcode version using the "image" field in eas.json, or upgrade to SDK 46 or higher.`,
@@ -239,7 +239,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
                 'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations',
             }
           )
-        : new UserFacingError(
+        : new UserError(
             'XCODE_RESOURCE_BUNDLE_CODE_SIGNING_ERROR',
             `Starting from Xcode 14, resource bundles are signed by default, which requires setting the development team for each resource bundle target.
 To resolve this issue, downgrade to an older Xcode version using the "image" field in eas.json, or turn off signing resource bundles in your Podfile: https://expo.fyi/r/disable-bundle-resource-signing`,
@@ -254,7 +254,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     phase: BuildPhase.RUN_GRADLEW,
     regexp: /.*/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         errors.ErrorCode.UNKNOWN_GRADLE_ERROR,
         'Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.'
       ),
@@ -265,7 +265,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     mode: BuildMode.RESIGN,
     regexp: /No provisioning profile for application: '(.+)' with bundle identifier '(.+)'/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         'EAS_BUILD_RESIGN_PROVISIONING_PROFILE_MISMATCH_ERROR',
         `The bundle identifier in provisioning profile used to resign the app does not match the bundle identifier of the app selected to be resigned. See logs above for more information.`
       ),
@@ -276,7 +276,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     mode: BuildMode.RESIGN,
     regexp: /.*/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         errors.ErrorCode.UNKNOWN_FASTLANE_RESIGN_ERROR,
         `The "Run fastlane" step failed with an unknown error.`
       ),
@@ -297,7 +297,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     // file modified: /Users/expo/workingdir/build/packages/video/ios/Vendor/dependency/ProgrammaticAccessLibrary.xcframework/ios-arm64/ProgrammaticAccessLibrary.framework/ProgrammaticAccessLibrary
     regexp: /error: .+/g,
     createError: matchResult =>
-      new UserFacingError(
+      new UserError(
         'XCODE_BUILD_ERROR',
         `The "Run fastlane" step failed because of an error in the Xcode build process. We automatically detected following errors in your Xcode build logs:\n${matchResult
           .map(match => `- ${match.replace('error: ', '')}`)
@@ -309,7 +309,7 @@ To resolve this issue, downgrade to an older Xcode version using the "image" fie
     phase: BuildPhase.RUN_FASTLANE,
     regexp: /.*/,
     createError: () =>
-      new UserFacingError(
+      new UserError(
         errors.ErrorCode.UNKNOWN_FASTLANE_ERROR,
         `The "Run fastlane" step failed with an unknown error. Refer to "Xcode Logs" below for additional, more detailed logs.`
       ),

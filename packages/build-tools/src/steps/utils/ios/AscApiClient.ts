@@ -11,7 +11,43 @@ type ApiSchema = {
   };
 };
 
+const AscErrorResponseSchema = z.object({
+  errors: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        status: z.string().optional(),
+        code: z.string().optional(),
+        title: z.string().optional(),
+        detail: z.string().optional(),
+        source: z.unknown().optional(),
+      })
+    )
+    .min(1),
+});
+
 const GetApi = {
+  '/v1/apps': {
+    path: z.object({}),
+    request: z.object({
+      'fields[apps]': z.array(z.enum(['bundleId', 'name'])).refine(opts => {
+        return opts.includes('bundleId') && opts.includes('name');
+      }),
+      limit: z.number().int().min(1).max(200).optional(),
+    }),
+    response: z.object({
+      data: z.array(
+        z.object({
+          type: z.literal('apps'),
+          id: z.string(),
+          attributes: z.object({
+            bundleId: z.string(),
+            name: z.string(),
+          }),
+        })
+      ),
+    }),
+  },
   '/v1/apps/:id': {
     path: z.object({
       id: z.string(),
@@ -222,6 +258,13 @@ const PatchApi = {
   },
 } satisfies ApiSchema;
 
+export type AscApiClientGetApi = {
+  [Path in keyof typeof GetApi]: {
+    request: z.input<(typeof GetApi)[Path]['request']>;
+    response: z.output<(typeof GetApi)[Path]['response']>;
+  };
+};
+
 export type AscApiClientPostApi = {
   [Path in keyof typeof PostApi]: {
     request: z.input<(typeof PostApi)[Path]['request']>;
@@ -235,6 +278,17 @@ export type AscApiClientPatchApi = {
     response: z.output<(typeof PatchApi)[Path]['response']>;
   };
 };
+
+export class AscApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly responseJson: z.output<typeof AscErrorResponseSchema>,
+    options?: { cause?: unknown }
+  ) {
+    super(message, { cause: options?.cause });
+  }
+}
 
 export class AscApiClient {
   private readonly baseUrl = 'https://api.appstoreconnect.apple.com';
@@ -346,12 +400,31 @@ export class AscApiClient {
 
     if (!response.ok) {
       const text = await response.text();
+      const parsedAscErrorResponse = await asyncResult(
+        (async () => AscErrorResponseSchema.parse(JSON.parse(text)))()
+      );
+      if (parsedAscErrorResponse.ok) {
+        throw new AscApiRequestError(
+          `Unexpected response (${response.status}) from App Store Connect: ${text}`,
+          response.status,
+          parsedAscErrorResponse.value,
+          { cause: response }
+        );
+      }
+
       throw new Error(`Unexpected response (${response.status}) from App Store Connect: ${text}`, {
         cause: response,
       });
     }
 
-    const json = await response.json();
+    const text = await response.text();
+    const parsedJson = await asyncResult((async () => JSON.parse(text))());
+    if (!parsedJson.ok) {
+      throw new Error(
+        `Malformed JSON response from App Store Connect (${response.status}): ${text}`
+      );
+    }
+    const json = parsedJson.value;
 
     this.logger?.debug(`Response from App Store Connect: ${JSON.stringify(json, null, 2)}`);
 

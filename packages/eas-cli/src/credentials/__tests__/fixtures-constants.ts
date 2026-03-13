@@ -6,6 +6,7 @@ import { Actor } from '../../user/User';
 export const jester: Actor = {
   __typename: 'User' as const,
   id: 'jester-id',
+  email: 'jester@example.com',
   username: 'jester',
   primaryAccount: {
     id: 'jester-account-id',

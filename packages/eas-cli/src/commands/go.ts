@@ -179,14 +179,13 @@ export default class Go extends EasCommand {
 
     const { flags } = await this.parse(Go);
 
-    const spinner = ora('Logging in to Expo...').start();
     const {
       loggedIn: { actor, graphqlClient },
       analytics,
     } = await this.getContextAsync(Go, {
       nonInteractive: false,
     });
-    spinner.succeed(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
+    Log.withTick(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
 
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
     const appName = flags.name ?? 'My Expo Go';

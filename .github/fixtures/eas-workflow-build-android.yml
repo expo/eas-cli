@@ -12,6 +12,8 @@ jobs:
       profile: system-test
   custom_job:
     name: Custom Job
+    runs_on: linux-medium-nested-virtualization
     steps:
       - name: Echo
         run: echo "This is a custom job step"
+      - uses: eas/start_android_emulator

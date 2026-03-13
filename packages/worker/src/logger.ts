@@ -1,11 +1,12 @@
 import { GCSLoggerStream, LogBuffer } from '@expo/build-tools';
-import { BuildPhase, EnvironmentSecret } from '@expo/eas-build-job';
+import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { uuidv7 } from 'uuidv7';
+import HttpLogStream from './utils/HttpLogStream';
 
 const defaultLogger = createLogger({
   name: config.loggers.base.name,
@@ -103,7 +104,7 @@ function createDiscardStream(): Writable {
   });
 }
 
-export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSecret[]): Promise<{
+export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']): Promise<{
   logger: bunyan;
   cleanUp: () => Promise<void>;
   logBuffer: WorkerLogBuffer;
@@ -111,7 +112,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
 }> {
   const buildLogger = defaultLogger.child({ phase: BuildPhase.UNKNOWN });
 
-  const transformStream = createTransformStream(secrets ?? []);
+  const transformStream = createTransformStream(secrets?.environmentSecrets ?? []);
   const discardStream = createDiscardStream();
   transformStream.pipe(discardStream);
 
@@ -127,7 +128,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
     gcsLoggerStream = new GCSLoggerStream({
       uploadMethod: { signedUrl: config.loggers.gcs.signedUploadUrlForLogs },
       options: {
-        uploadIntervalMs: config.loggers.base.uploadIntervalMs,
+        uploadIntervalMs: config.loggers.gcs.uploadIntervalMs,
         compress: config.loggers.gcs.compressionMethod,
       },
       logger: defaultLogger,
@@ -144,13 +145,28 @@ export async function createBuildLoggerWithSecretsFilter(secrets?: EnvironmentSe
     level: buildLogger.level(),
   });
 
+  let httpLogStream: HttpLogStream | null = null;
+  if (config.loggers.http.baseUrl && secrets?.robotAccessToken) {
+    httpLogStream = new HttpLogStream({
+      url: new URL(config.buildId, config.loggers.http.baseUrl).toString(),
+      headers: {
+        Authorization: `Bearer ${secrets.robotAccessToken}`,
+      },
+      logger: buildLogger,
+      bufferRetentionMs: config.loggers.gcs.signedUploadUrlForLogs
+        ? Math.max(30_000, config.loggers.gcs.uploadIntervalMs * 2)
+        : null,
+    });
+    transformStream.pipe(httpLogStream);
+  }
+
   return {
     logger: buildLogger,
     cleanUp: async () => {
-      await gcsLoggerStream?.cleanUp();
+      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
-    logBuffer,
     outputStream: transformStream,
+    logBuffer,
   };
 }
 

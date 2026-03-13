@@ -9,10 +9,50 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add lockfile preflight checks to `eas build`. Validates lockfile existence, VCS tracking, conflicting lockfiles, dependency version sync, and peer dependency conflicts before uploading to the builder. Parsing and validation logic is published as `@expo/lockfile-utils`. ([#3434](https://github.com/expo/eas-cli/pull/3434) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- Auto-detect non-interactive mode in CI and non-TTY environments. ([#3486](https://github.com/expo/eas-cli/pull/3486) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `skip-build-if-not-found` flag to `eas build:dev`. ([#3495](https://github.com/expo/eas-cli/pull/3495) by [@mmichels-brex](https://github.com/mmichels-brex))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
+
+### 🎉 New features
+
+- Show user email in `eas account:view` output. ([#3485](https://github.com/expo/eas-cli/pull/3485) by [@brentvatne](https://github.com/brentvatne))
+
+## [18.2.0](https://github.com/expo/eas-cli/releases/tag/v18.2.0) - 2026-03-09
+
+### 🎉 New features
+
+- Auto-enable `--non-interactive` when `--json` is passed, so users no longer need to specify both flags. ([#3476](https://github.com/expo/eas-cli/pull/3476) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- Auto-generate Android keystore in non-interactive mode instead of throwing an error. ([#3477](https://github.com/expo/eas-cli/pull/3477) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `--source-maps` flag to prevent uploading server sourcemaps ([#3478](https://github.com/expo/eas-cli/pull/3478) by [@hassankhan](https://github.com/hassankhan))
+
+### 🐛 Bug fixes
+
+- Check all certificates in provisioning profile during verification instead of only the first one. ([#3484](https://github.com/expo/eas-cli/pull/3484) by [@qwertey6](https://github.com/qwertey6))
+- Provide an override for the new --environment flag requirement in the update command. ([#3442](https://github.com/expo/eas-cli/pull/3442) by [@douglowder](https://github.com/douglowder))
+- Add missing `--include=dev` for `npm install` commands ([#3459](https://github.com/expo/eas-cli/pull/3459) by [@kitten](https://github.com/kitten))
+- Add missing `--production false` for `yarn install` commands for Yarn Classic ([#3459](https://github.com/expo/eas-cli/pull/3459) by [@kitten](https://github.com/kitten))
+
+### 🧹 Chores
+
+- Upgrade `oclif` to v4. ([#3472](https://github.com/expo/eas-cli/pull/3472) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [18.1.0](https://github.com/expo/eas-cli/releases/tag/v18.1.0) - 2026-03-04
+
+### 🎉 New features
+
+- Support YAML anchors and aliases when parsing workflow files. ([#3435](https://github.com/expo/eas-cli/pull/3435) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🐛 Bug fixes
+
+- Remove --environment flag requirement for update:configure. ([#3440](https://github.com/expo/eas-cli/pull/3440) by [@douglowder](https://github.com/douglowder))
+- Fix login spinner interfering with prompts in `eas go` command when not logged in. ([#3451](https://github.com/expo/eas-cli/pull/3451) by [@byronkarlen](https://github.com/byronkarlen))
+
+## [18.0.6](https://github.com/expo/eas-cli/releases/tag/v18.0.6) - 2026-02-27
 
 ## [18.0.5](https://github.com/expo/eas-cli/releases/tag/v18.0.5) - 2026-02-25
 
@@ -1637,7 +1677,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - Add rollback disambiguation command. ([#2004](https://github.com/expo/eas-cli/pull/2004) by [@wschurman](https://github.com/wschurman))
 - Detect devices that fail to be provisioned, list them to the user and show the explanation message with the link to the devices page to check actual status. ([#2011](https://github.com/expo/eas-cli/pull/2011) by [@radoslawkrzemien](https://github.com/radoslawkrzemien))
 - Add info to EAS Update asset upload process about asset counts and limits. ([#2013](https://github.com/expo/eas-cli/pull/2013) by [@wschurman](https://github.com/wschurman))
-- .nvmrc support for setting node version. ([#1954](https://github.com/expo/eas-cli/pull/1954) by [@khamilowicz](https://github.com/khamilowicz))
 
 ### 🐛 Bug fixes
 

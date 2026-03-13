@@ -109,13 +109,13 @@ export default class BuildService {
     this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
-  public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
+  public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
       buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-      userError: err,
+      expoError: err,
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
@@ -127,8 +127,8 @@ export default class BuildService {
         type: WorkerMessage.MessageType.ERROR,
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-        externalBuildError: err.format(),
-        internalErrorCode: err.errorCode,
+        externalBuildError: err.toExternalExpoError(),
+        internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
     this.checkForHangingWorker(isSocketClosed);
@@ -281,7 +281,7 @@ export default class BuildService {
         logger: buildLogger,
         cleanUp,
         logBuffer,
-      } = await createBuildLoggerWithSecretsFilter(job.secrets?.environmentSecrets);
+      } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
@@ -308,34 +308,36 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-
-      const unknownError =
-        'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-          ? new errors.UnknownCustomBuildError()
-          : new errors.UnknownBuildError();
-      const err = error instanceof errors.BuildError ? error : unknownError;
-      const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
+      const err =
+        error instanceof errors.ExpoError
+          ? error
+          : 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+            ? new errors.UnknownCustomBuildError()
+            : new errors.UnknownBuildError();
+      const maybeRawError =
+        error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: err.errorCode,
+          errorCode: err.trackingCode ?? err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(err.metadata ? { errorMetadata: err.metadata } : {}),
+          ...(maybeRawError?.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
+          ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
         let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
+        if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
         }
-        if (maybeRawError.stdout) {
+        if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 
