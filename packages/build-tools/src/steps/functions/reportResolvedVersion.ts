@@ -1,5 +1,6 @@
 import { Android, BuildJob, Ios, Platform } from '@expo/eas-build-job';
 import { BuildFunction, spawnAsync } from '@expo/steps';
+import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
 import { graphql } from 'gql.tada';
 import path from 'node:path';
@@ -180,12 +181,20 @@ export function parseAaptOutput(output: string): { appVersion?: string; appBuild
 }
 
 export function parseManifestXml(xml: string): { appVersion?: string; appBuildVersion?: string } {
-  const versionNameMatch = xml.match(/android:versionName="([^"]+)"/);
-  const versionCodeMatch = xml.match(/android:versionCode="([^"]+)"/);
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+  const parsed = parser.parse(xml);
+
+  const manifest = parsed?.manifest;
+  if (!manifest) {
+    return {};
+  }
+
+  const versionName = manifest['@_android:versionName'];
+  const versionCode = manifest['@_android:versionCode'];
 
   return {
-    appVersion: versionNameMatch?.[1],
-    appBuildVersion: versionCodeMatch?.[1],
+    appVersion: versionName != null ? String(versionName) : undefined,
+    appBuildVersion: versionCode != null ? String(versionCode) : undefined,
   };
 }
 
