@@ -29,7 +29,7 @@ export namespace AscApiUtils {
       const isAuthError =
         authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
       if (isAuthError) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
           'App Store Connect rejected the API authentication credentials. ' +
             'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',
@@ -110,7 +110,7 @@ export namespace AscApiUtils {
       const isAuthError =
         authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
       if (isAuthError) {
-        throw new UserFacingError(
+        throw new UserError(
           'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
           'App Store Connect rejected the API authentication credentials. ' +
             'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',

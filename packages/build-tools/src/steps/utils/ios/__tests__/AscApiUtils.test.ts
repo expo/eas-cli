@@ -95,7 +95,7 @@ describe('AscApiUtils', () => {
       ).rejects.toBe(notFoundError);
     });
 
-    it('throws UserFacingError when ASC rejects API credentials', async () => {
+    it('throws UserError when ASC rejects API credentials', async () => {
       const payload = {
         errors: [
           {
@@ -217,7 +217,7 @@ describe('AscApiUtils', () => {
       ).rejects.toBe(mixedError);
     });
 
-    it('throws UserFacingError when ASC rejects API credentials', async () => {
+    it('throws UserError when ASC rejects API credentials', async () => {
       const payload = {
         errors: [
           {
