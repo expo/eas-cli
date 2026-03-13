@@ -1,5 +1,10 @@
-import { Android, BuildJob, Ios, Platform } from '@expo/eas-build-job';
-import { BuildFunction, spawnAsync } from '@expo/steps';
+import { BuildJob, Platform } from '@expo/eas-build-job';
+import {
+  BuildFunction,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  spawnAsync,
+} from '@expo/steps';
 import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
 import { graphql } from 'gql.tada';
@@ -7,7 +12,6 @@ import path from 'node:path';
 
 import { parseInfoPlistBuffer, readIpaInfoAsync } from './readIpaInfo';
 import { CustomBuildContext } from '../../customBuildContext';
-import { findArtifacts } from '../../utils/artifacts';
 
 export function createReportResolvedVersionBuildFunction(
   ctx: CustomBuildContext<BuildJob>
@@ -17,12 +21,25 @@ export function createReportResolvedVersionBuildFunction(
     id: 'report_resolved_version',
     name: 'Report resolved version',
     __metricsId: 'eas/report_resolved_version',
-    fn: async stepCtx => {
+    inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'application_archive_path',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+    ],
+    fn: async (stepCtx, { inputs }) => {
       try {
+        const archivePath = inputs.application_archive_path.value as string | undefined;
+        if (!archivePath) {
+          stepCtx.logger.info('No application archive path provided, skipping.');
+          return;
+        }
+
         const { appVersion, appBuildVersion } =
           ctx.job.platform === Platform.IOS
-            ? await extractIosVersionAsync(ctx, stepCtx.workingDirectory, stepCtx.logger)
-            : await extractAndroidVersionAsync(ctx, stepCtx.workingDirectory, stepCtx.logger);
+            ? await extractIosVersionAsync(archivePath)
+            : await extractAndroidVersionAsync(archivePath);
 
         if (!appVersion && !appBuildVersion) {
           stepCtx.logger.info('No resolved version found, skipping.');
@@ -53,30 +70,15 @@ export function createReportResolvedVersionBuildFunction(
 }
 
 async function extractIosVersionAsync(
-  ctx: CustomBuildContext<BuildJob>,
-  workingDirectory: string,
-  logger: any
+  archivePath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const iosJob = ctx.job as Ios.Job;
+  const ext = path.extname(archivePath).toLowerCase();
 
-  if (iosJob.simulator) {
-    return await extractSimulatorAppVersionAsync(iosJob, workingDirectory, logger);
+  if (ext === '.app') {
+    return await extractSimulatorAppVersionAsync(archivePath);
   }
 
-  const artifactPattern = iosJob.applicationArchivePath ?? 'ios/build/*.ipa';
-  const artifacts = await findArtifacts({
-    rootDir: workingDirectory,
-    patternOrPath: artifactPattern,
-    logger,
-  });
-
-  if (artifacts.length === 0) {
-    return {};
-  }
-
-  const ipaPath = artifacts[0];
-  const ipaInfo = await readIpaInfoAsync(ipaPath);
-
+  const ipaInfo = await readIpaInfoAsync(archivePath);
   return {
     appVersion: ipaInfo.bundleShortVersion,
     appBuildVersion: ipaInfo.bundleVersion,
@@ -84,23 +86,8 @@ async function extractIosVersionAsync(
 }
 
 async function extractSimulatorAppVersionAsync(
-  iosJob: Ios.Job,
-  workingDirectory: string,
-  logger: any
+  appPath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const artifactPattern =
-    iosJob.applicationArchivePath ?? 'ios/build/Build/Products/*simulator/*.app';
-  const artifacts = await findArtifacts({
-    rootDir: workingDirectory,
-    patternOrPath: artifactPattern,
-    logger,
-  });
-
-  if (artifacts.length === 0) {
-    return {};
-  }
-
-  const appPath = artifacts[0];
   const infoPlistPath = path.join(appPath, 'Info.plist');
 
   if (!(await fs.pathExists(infoPlistPath))) {
@@ -121,30 +108,14 @@ async function extractSimulatorAppVersionAsync(
 }
 
 async function extractAndroidVersionAsync(
-  ctx: CustomBuildContext<BuildJob>,
-  workingDirectory: string,
-  logger: any
+  archivePath: string
 ): Promise<{ appVersion?: string; appBuildVersion?: string }> {
-  const androidJob = ctx.job as Android.Job;
-  const artifactPattern =
-    androidJob.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}';
-  const artifacts = await findArtifacts({
-    rootDir: workingDirectory,
-    patternOrPath: artifactPattern,
-    logger,
-  });
-
-  if (artifacts.length === 0) {
-    return {};
-  }
-
-  const artifactPath = artifacts[0];
-  const ext = path.extname(artifactPath).toLowerCase();
+  const ext = path.extname(archivePath).toLowerCase();
 
   if (ext === '.apk') {
-    return await extractVersionFromApkAsync(artifactPath);
+    return await extractVersionFromApkAsync(archivePath);
   } else if (ext === '.aab') {
-    return await extractVersionFromAabAsync(artifactPath);
+    return await extractVersionFromAabAsync(archivePath);
   }
 
   return {};

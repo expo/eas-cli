@@ -124,7 +124,13 @@ function createStepsForIosSimulatorBuild({
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
     ),
   ];
 }
@@ -221,7 +227,13 @@ function createStepsForIosBuildWithCredentials({
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
     ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
@@ -295,7 +307,13 @@ function createStepsForAndroidBuildWithoutCredentials({
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
     ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
@@ -371,7 +389,13 @@ function createStepsForAndroidBuildWithCredentials({
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
     createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
     ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
