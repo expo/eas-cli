@@ -267,7 +267,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         if (state.state === 'FAILED') {
           if (isSdkVersionIssueError(errors)) {
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
               'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
                 'Rebuild the app with a newer Xcode/iOS SDK and submit again. ' +
