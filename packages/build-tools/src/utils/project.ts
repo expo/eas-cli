@@ -2,15 +2,20 @@ import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spa
 import fs from 'fs-extra';
 import path from 'path';
 
-import { PackageManager, findPackagerRootDir } from '../utils/packageManager';
+import { PackageManager } from '../utils/packageManager';
 
 /**
- * check if .yarnrc.yml exists in the project dir or in the workspace root dir
+ * Check if yarn version is 2 or later (modern yarn) by running `yarn --version`
  */
 export async function isUsingModernYarnVersion(projectDir: string): Promise<boolean> {
-  const yarnrcPath = path.join(projectDir, '.yarnrc.yml');
-  const yarnrcRootPath = path.join(findPackagerRootDir(projectDir), '.yarnrc.yml');
-  return (await fs.pathExists(yarnrcPath)) || (await fs.pathExists(yarnrcRootPath));
+  try {
+    const result = await spawn('yarn', ['--version'], { cwd: projectDir, stdio: 'pipe' });
+    const version = result.stdout.trim();
+    const majorVersion = parseInt(version.split('.')[0], 10);
+    return majorVersion >= 2;
+  } catch {
+    return false;
+  }
 }
 
 export function runExpoCliCommand({
