@@ -109,13 +109,13 @@ export default class BuildService {
     this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
-  public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
+  public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
       buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-      userError: err,
+      expoError: err,
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
@@ -127,7 +127,7 @@ export default class BuildService {
         type: WorkerMessage.MessageType.ERROR,
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-        externalBuildError: err.format(),
+        externalBuildError: err.toExternalExpoError(),
         internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
@@ -308,31 +308,36 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-      const err = toBuildError(error, job);
-      const maybeRawError = error instanceof errors.BuildError ? (error.cause ?? error) : error;
-      const internalErrorCode = err.trackingCode ?? err.errorCode;
+      const err =
+        error instanceof errors.ExpoError
+          ? error
+          : 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+            ? new errors.UnknownCustomBuildError()
+            : new errors.UnknownBuildError();
+      const maybeRawError =
+        error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: internalErrorCode,
+          errorCode: err.trackingCode ?? err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
           ...(err.metadata ? { errorMetadata: err.metadata } : {}),
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(maybeRawError?.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
+          ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
         let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
+        if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
         }
-        if (maybeRawError.stdout) {
+        if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 
@@ -367,25 +372,6 @@ export default class BuildService {
       logger.debug('Not uploading XCode logs for Android job');
     }
   }
-}
-
-function toBuildError(error: unknown, job: Job): errors.BuildError {
-  if (error instanceof errors.BuildError) {
-    return error;
-  }
-
-  if (error instanceof errors.UserError) {
-    return new errors.BuildError(error.message, {
-      errorCode: error.errorCode,
-      docsUrl: error.docsUrl,
-      cause: error.cause ?? error,
-      metadata: error.metadata,
-    });
-  }
-
-  return 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-    ? new errors.UnknownCustomBuildError()
-    : new errors.UnknownBuildError();
 }
 
 function getLastNLines(numberOfLines: number, stream: string): string {
