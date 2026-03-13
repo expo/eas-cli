@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
@@ -244,11 +244,13 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           state = response.data.attributes.state;
         } catch (error) {
           if (isAscUnexpectedServerError(error)) {
-            throw new UserFacingError(
-              'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
+            throw new SystemError(
               'App Store Connect returned a temporary server error while processing the uploaded build. ' +
                 'Wait a few minutes and retry submit. If this keeps happening, try again later or contact Apple Developer Support.',
-              { cause: error }
+              {
+                trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
+                cause: error,
+              }
             );
           }
           throw error;
