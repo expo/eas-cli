@@ -1,7 +1,6 @@
 import { bunyan } from '@expo/logger';
 import * as sentry from '@sentry/node';
 import Flatted from 'flatted';
-import { ZodError } from 'zod';
 
 import { boomify } from '../utils/boom';
 
@@ -34,20 +33,13 @@ class Sentry {
     const l = options.logger ?? this.logger;
     const tags = { ...this.options.tags, ...options.tags };
     const extras = options.extras ?? {};
-
-    // TurtleErrors don't need the explanatory ${msg} prefix,
-    // because their message should already be user-facing.
-    // ZodError#message can't be modified, so we don't reassign either.
-    if (err instanceof Error && !(err instanceof ZodError)) {
-      err.message = `${msg}\n${err.message}`;
-    }
-
     const boom = err instanceof Error ? boomify(err) : err;
     l.error({ tags, extras, err: boom }, msg);
 
     sentry.withScope((scope: sentry.Scope) => {
       scope.setTags(tags);
       scope.setExtras(extras);
+      scope.setExtra('message', msg);
       if (options?.level) {
         scope.setLevel(options?.level);
       }
