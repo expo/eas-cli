@@ -97,7 +97,6 @@ describe('AscApiUtils', () => {
   });
 
   describe('createBuildUploadAsync', () => {
-    it('throws UserError when ASC duplicate version error is returned', async () => {
     it('throws UserError when app relationship is invalid', async () => {
       const payload = {
         errors: [
