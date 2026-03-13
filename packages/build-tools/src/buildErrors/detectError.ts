@@ -75,10 +75,8 @@ export async function resolveBuildPhaseErrorAsync(
   }
   const xcodeBuildLogs = await maybeReadXcodeBuildLogs(phase, buildLogsDirectory);
   const userError =
-    error instanceof errors.UserError
-      ? error
-      : (resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
-        new errors.UnknownError(errorContext.phase));
+    resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
+    new errors.UnknownError(errorContext.phase);
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
   const trackingCode =

@@ -326,18 +326,18 @@ export default class BuildService {
         extras: {
           buildId: this.buildId,
           ...(err.metadata ? { errorMetadata: err.metadata } : {}),
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(maybeRawError?.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
+          ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
         let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
+        if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
         }
-        if (maybeRawError.stdout) {
+        if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 
