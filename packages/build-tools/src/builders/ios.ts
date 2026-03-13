@@ -179,16 +179,13 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
-  const archivePath = await ctx.runBuildPhase(
-    BuildPhase.UPLOAD_APPLICATION_ARCHIVE,
-    async () => {
-      return await uploadApplicationArchive(ctx, {
-        patternOrPath: resolveArtifactPath(ctx),
-        rootDir: ctx.getReactNativeProjectDirectory(),
-        logger: ctx.logger,
-      });
-    }
-  );
+  const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
+    return await uploadApplicationArchive(ctx, {
+      patternOrPath: resolveArtifactPath(ctx),
+      rootDir: ctx.getReactNativeProjectDirectory(),
+      logger: ctx.logger,
+    });
+  });
 
   if (archivePath) {
     try {

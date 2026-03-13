@@ -178,17 +178,13 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
-  const archivePath = await ctx.runBuildPhase(
-    BuildPhase.UPLOAD_APPLICATION_ARCHIVE,
-    async () => {
-      return await uploadApplicationArchive(ctx, {
-        patternOrPath:
-          ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
-        rootDir: ctx.getReactNativeProjectDirectory(),
-        logger: ctx.logger,
-      });
-    }
-  );
+  const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
+    return await uploadApplicationArchive(ctx, {
+      patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
+      rootDir: ctx.getReactNativeProjectDirectory(),
+      logger: ctx.logger,
+    });
+  });
 
   if (archivePath) {
     try {
