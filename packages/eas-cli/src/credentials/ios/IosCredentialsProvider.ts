@@ -10,7 +10,11 @@ import { getAppFromContextAsync } from './actions/BuildCredentialsUtils';
 import { SetUpBuildCredentials } from './actions/SetUpBuildCredentials';
 import { SetUpPushKey } from './actions/SetUpPushKey';
 import { App, IosCredentials, Target } from './types';
-import { isAdHocProfile, isEnterpriseUniversalProfile } from './utils/provisioningProfile';
+import {
+  isAdHocProfile,
+  isDevelopmentProfile,
+  isEnterpriseUniversalProfile,
+} from './utils/provisioningProfile';
 import { CommonIosAppCredentialsFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { findApplicationTarget } from '../../project/ios/target';
@@ -150,6 +154,7 @@ export default class IosCredentialsProvider {
 
   private assertProvisioningProfileType(provisioningProfile: string, targetName?: string): void {
     const isAdHoc = isAdHocProfile(provisioningProfile);
+    const isDevelopment = isDevelopmentProfile(provisioningProfile);
     const isEnterprise = isEnterpriseUniversalProfile(provisioningProfile);
     if (this.options.distribution === 'internal') {
       if (this.options.enterpriseProvisioning === 'universal' && !isEnterprise) {
@@ -164,16 +169,21 @@ export default class IosCredentialsProvider {
             targetName ? ` (target '${targetName})'` : ''
           } for internal distribution if you specified "enterpriseProvisioning": "adhoc" in eas.json`
         );
-      } else if (!this.options.enterpriseProvisioning && !isEnterprise && !isAdHoc) {
+      } else if (
+        !this.options.enterpriseProvisioning &&
+        !isEnterprise &&
+        !isAdHoc &&
+        !isDevelopment
+      ) {
         throw new Error(
-          `You must use an adhoc provisioning profile${
+          `You must use an adhoc or development provisioning profile${
             targetName ? ` (target '${targetName})'` : ''
           } for internal distribution.`
         );
       }
-    } else if (isAdHoc) {
+    } else if (isAdHoc || isDevelopment) {
       throw new Error(
-        `You can't use an adhoc provisioning profile${
+        `You can't use ${isAdHoc ? 'an adhoc' : 'a development'} provisioning profile${
           targetName ? ` (target '${targetName}')` : ''
         } for app store distribution.`
       );

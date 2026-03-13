@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
+
 ### 🧹 Chores
 
 ## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
@@ -31,7 +33,11 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+<<<<<<< HEAD
 - Check all certificates in provisioning profile during verification instead of only the first one. ([#3484](https://github.com/expo/eas-cli/pull/3484) by [@qwertey6](https://github.com/qwertey6))
+=======
+- Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
+>>>>>>> cf7b3fe3 ([build-tools] Add CHANGELOG entry for development provisioning profile fix)
 - Provide an override for the new --environment flag requirement in the update command. ([#3442](https://github.com/expo/eas-cli/pull/3442) by [@douglowder](https://github.com/douglowder))
 - Add missing `--include=dev` for `npm install` commands ([#3459](https://github.com/expo/eas-cli/pull/3459) by [@kitten](https://github.com/kitten))
 - Add missing `--production false` for `yarn install` commands for Yarn Classic ([#3459](https://github.com/expo/eas-cli/pull/3459) by [@kitten](https://github.com/kitten))

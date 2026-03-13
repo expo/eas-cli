@@ -23,6 +23,7 @@ export interface ProvisioningProfileData {
 export enum DistributionType {
   AD_HOC = 'ad-hoc',
   APP_STORE = 'app-store',
+  DEVELOPMENT = 'development',
   ENTERPRISE = 'enterprise',
 }
 
@@ -133,6 +134,10 @@ export default class ProvisioningProfile {
     if (plistData.ProvisionsAllDevices) {
       return DistributionType.ENTERPRISE;
     } else if (plistData.ProvisionedDevices) {
+      const entitlements = plistData.Entitlements as plist.PlistObject | undefined;
+      if (entitlements?.['get-task-allow']) {
+        return DistributionType.DEVELOPMENT;
+      }
       return DistributionType.AD_HOC;
     } else {
       return DistributionType.APP_STORE;

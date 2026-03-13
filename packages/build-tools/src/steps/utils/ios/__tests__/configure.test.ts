@@ -50,6 +50,47 @@ describe(configureCredentialsAsync, () => {
       vol.readFileSync('/app/ios/testapp.xcodeproj/project.pbxproj', 'utf-8')
     ).toMatchSnapshot();
   });
+  it('configures credentials with Apple Development identity for development profile', async () => {
+    vol.fromJSON(
+      {
+        'ios/testapp.xcodeproj/project.pbxproj': originalFs.readFileSync(
+          path.join(__dirname, 'fixtures/simple-project.pbxproj'),
+          'utf-8'
+        ),
+        'ios/testapp/AppDelegate.m': 'placeholder',
+      },
+      '/app'
+    );
+    const options = {
+      credentials: {
+        keychainPath: 'fake/path',
+        targetProvisioningProfiles: {
+          testapp: {
+            path: 'fake/path.mobileprovision',
+            target: 'testapp',
+            bundleIdentifier: 'abc',
+            teamId: 'ABCDEFGH',
+            uuid: 'abc',
+            name: 'profile name',
+            developerCertificate: Buffer.from('test'),
+            certificateCommonName: 'Apple Development: Test User',
+            distributionType: DistributionType.DEVELOPMENT,
+          },
+        },
+        distributionType: DistributionType.DEVELOPMENT,
+        teamId: 'ABCDEFGH',
+        applicationTargetProvisioningProfile: {} as ProvisioningProfile,
+      },
+      buildConfiguration: 'Release',
+    };
+    await configureCredentialsAsync({ info: jest.fn() } as any, '/app', options);
+    const pbxproj = vol.readFileSync(
+      '/app/ios/testapp.xcodeproj/project.pbxproj',
+      'utf-8'
+    ) as string;
+    expect(pbxproj).toContain('CODE_SIGN_IDENTITY = "Apple Development: Test User"');
+    expect(pbxproj).not.toContain('"iPhone Distribution"');
+  });
   it('configures credentials for multi target project', async () => {
     vol.fromJSON(
       {
