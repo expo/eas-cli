@@ -1,9 +1,11 @@
 import {
+  isAscUnexpectedServerError,
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
   isMissingPurposeStringError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
+import { AscApiRequestError } from '../../utils/ios/AscApiClient';
 
 describe(isClosedVersionTrainError, () => {
   it('returns true when all errors are closed-version-train codes', () => {
@@ -93,5 +95,25 @@ describe(parseMissingUsageDescriptionKeys, () => {
     expect(
       parseMissingUsageDescriptionKeys([{ description: 'Some other upload validation error.' }])
     ).toEqual([]);
+  });
+});
+
+describe(isAscUnexpectedServerError, () => {
+  it('returns true for ASC 500 UNEXPECTED_ERROR payloads', () => {
+    const error = new AscApiRequestError('Unexpected response (500)', 500, {
+      errors: [{ status: '500', code: 'UNEXPECTED_ERROR' }],
+    });
+    expect(isAscUnexpectedServerError(error)).toBe(true);
+  });
+
+  it('returns false for non-500 ASC errors', () => {
+    const error = new AscApiRequestError('Unexpected response (401)', 401, {
+      errors: [{ status: '401', code: 'NOT_AUTHORIZED' }],
+    });
+    expect(isAscUnexpectedServerError(error)).toBe(false);
+  });
+
+  it('returns false for non-AscApiRequestError values', () => {
+    expect(isAscUnexpectedServerError(new Error('oops'))).toBe(false);
   });
 });
