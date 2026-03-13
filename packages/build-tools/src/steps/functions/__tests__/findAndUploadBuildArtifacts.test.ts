@@ -51,6 +51,24 @@ describe(createFindAndUploadBuildArtifactsBuildFunction, () => {
     await expect(buildStep.executeAsync()).resolves.not.toThrow();
   });
 
+  it('sets application_archive_path output to first archive', async () => {
+    const globalContext = createGlobalContextMock({});
+    vol.fromJSON(
+      {
+        'ios/build/test.ipa': '',
+      },
+      globalContext.defaultWorkingDirectory
+    );
+    const buildStep = findAndUploadBuildArtifacts.createBuildStepFromFunctionCall(
+      globalContext,
+      {}
+    );
+
+    await buildStep.executeAsync();
+
+    expect(buildStep.outputById.application_archive_path.value).toMatch(/ios\/build\/test\.ipa$/);
+  });
+
   it('throws build artifacts error', async () => {
     const globalContext = createGlobalContextMock({});
     ctx.job.buildArtifactPaths = ['worker.log'];

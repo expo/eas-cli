@@ -11,6 +11,7 @@ import { configureIosCredentialsFunction } from '../functions/configureIosCreden
 import { configureIosVersionFunction } from '../functions/configureIosVersion';
 import { eagerBundleBuildFunction } from '../functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from '../functions/findAndUploadBuildArtifacts';
+import { createReportResolvedVersionBuildFunction } from '../functions/reportResolvedVersion';
 import { generateGymfileFromTemplateFunction } from '../functions/generateGymfileFromTemplate';
 import { injectAndroidCredentialsFunction } from '../functions/injectAndroidCredentials';
 import { createInstallNodeModulesBuildFunction } from '../functions/installNodeModules';
@@ -122,6 +123,15 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
   ];
 }
 
@@ -216,6 +226,15 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
@@ -287,6 +306,15 @@ function createStepsForAndroidBuildWithoutCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
@@ -360,6 +388,15 @@ function createStepsForAndroidBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createReportResolvedVersionBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        callInputs: {
+          application_archive_path:
+            '${ steps.find_and_upload_build_artifacts.application_archive_path }',
+        },
+      }
+    ),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];

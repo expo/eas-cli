@@ -22,6 +22,7 @@ import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
+import { createReportResolvedVersionBuildFunction } from './functions/reportResolvedVersion';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -90,6 +91,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     functions.push(
       ...[
         createFindAndUploadBuildArtifactsBuildFunction(ctx),
+        createReportResolvedVersionBuildFunction(ctx),
         createResolveBuildConfigBuildFunction(ctx),
         createGetCredentialsForBuildTriggeredByGithubIntegration(ctx),
       ]

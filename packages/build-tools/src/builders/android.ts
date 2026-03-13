@@ -10,6 +10,10 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
+import {
+  extractAndroidVersionAsync,
+  reportResolvedVersionAsync,
+} from '../steps/functions/reportResolvedVersion';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
@@ -174,13 +178,31 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
   });
 
-  await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
-    await uploadApplicationArchive(ctx, {
+  const archivePath = await ctx.runBuildPhase(BuildPhase.UPLOAD_APPLICATION_ARCHIVE, async () => {
+    return await uploadApplicationArchive(ctx, {
       patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
     });
   });
+
+  if (archivePath) {
+    try {
+      const { appVersion, appBuildVersion } = await extractAndroidVersionAsync(archivePath);
+      const buildId = ctx.env.EAS_BUILD_ID;
+      if (buildId && (appVersion || appBuildVersion)) {
+        await reportResolvedVersionAsync(ctx.graphqlClient, buildId, {
+          appVersion,
+          appBuildVersion,
+        });
+        ctx.logger.info(
+          `Reported resolved version: ${appVersion ?? 'N/A'} (${appBuildVersion ?? 'N/A'})`
+        );
+      }
+    } catch (err) {
+      ctx.logger.warn({ err }, 'Failed to report resolved version (non-fatal)');
+    }
+  }
 
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {
