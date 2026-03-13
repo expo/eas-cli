@@ -8,14 +8,10 @@ import { PackageManager } from '../utils/packageManager';
  * Check if yarn version is 2 or later (modern yarn) by running `yarn --version`
  */
 export async function isUsingModernYarnVersion(projectDir: string): Promise<boolean> {
-  try {
-    const result = await spawn('yarn', ['--version'], { cwd: projectDir, stdio: 'pipe' });
-    const version = result.stdout.trim();
-    const majorVersion = parseInt(version.split('.')[0], 10);
-    return majorVersion >= 2;
-  } catch {
-    return false;
-  }
+  const result = await spawn('yarn', ['--version'], { cwd: projectDir, stdio: 'pipe' });
+  const version = result.stdout.trim();
+  const majorVersion = parseInt(version.split('.')[0], 10);
+  return majorVersion >= 2;
 }
 
 export function runExpoCliCommand({

@@ -7,7 +7,7 @@ import { instance, mock, when } from 'ts-mockito';
 
 import { BuildContext } from '../../context';
 import { PackageManager } from '../packageManager';
-import { readEasJsonContents, runExpoCliCommand } from '../project';
+import { isUsingModernYarnVersion, readEasJsonContents, runExpoCliCommand } from '../project';
 
 jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => ({
@@ -85,5 +85,29 @@ describe(readEasJsonContents, () => {
     await fs.writeFile(easJsonPath, contents);
 
     expect(readEasJsonContents(projectDir)).toBe(contents);
+  });
+});
+
+describe(isUsingModernYarnVersion, () => {
+  const mockSpawn = spawn as jest.Mock;
+
+  beforeEach(() => {
+    mockSpawn.mockReset();
+  });
+
+  it('returns false for yarn 1.x', async () => {
+    mockSpawn.mockResolvedValue({ stdout: '1.22.22' });
+
+    const result = await isUsingModernYarnVersion('/project');
+
+    expect(result).toBe(false);
+  });
+
+  it('returns true for yarn 4.x', async () => {
+    mockSpawn.mockResolvedValue({ stdout: '4.13.0' });
+
+    const result = await isUsingModernYarnVersion('/project');
+
+    expect(result).toBe(true);
   });
 });
