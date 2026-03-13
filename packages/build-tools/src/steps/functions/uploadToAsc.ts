@@ -267,7 +267,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         if (state.state === 'FAILED') {
           if (isMissingAppIconsError(errors)) {
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_MISSING_APP_ICONS',
               'Build upload was rejected by App Store Connect because required app icons are missing or misconfigured in one of the iOS bundles (for example a watch app target). ' +
                 'Ensure icon assets are included and required Info.plist icon keys (such as `CFBundleIconName` / `CFBundleIconFiles`) are set for the failing target, then rebuild and submit again.',
