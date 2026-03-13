@@ -267,7 +267,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
         if (state.state === 'FAILED') {
           if (isRedundantBinaryUploadError(errors)) {
-            throw new UserFacingError(
+            throw new UserError(
               'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
               `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
                 'App Store Connect requires unique build numbers within each app version (version train). ' +
