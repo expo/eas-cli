@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- Make `language` an optional property in `IosSubmitProfile` type in `@expo/eas-json`. ([#3225](https://github.com/expo/eas-cli/pull/3225) by [@byCedric](https://github.com/byCedric))
+
 ### 🧹 Chores
 
 ## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
