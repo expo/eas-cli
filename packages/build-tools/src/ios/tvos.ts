@@ -13,7 +13,7 @@ import { BuildContext } from '../context';
  * @returns true if this is an Apple TV configuration, false otherwise
  */
 export async function isTVOS(ctx: BuildContext<Ios.Job>): Promise<boolean> {
-  const scheme = resolveScheme(ctx);
+  const scheme = await resolveScheme(ctx);
 
   const project = IOSConfig.XcodeUtils.getPbxproj(ctx.getReactNativeProjectDirectory());
 
