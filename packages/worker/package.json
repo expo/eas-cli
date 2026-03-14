@@ -38,7 +38,7 @@
     "filesize": "7.0.0",
     "flatted": "3.2.5",
     "fs-extra": "11.2.0",
-    "koa": "3.1.1",
+    "koa": "3.1.2",
     "koa-body": "7.0.1",
     "koa-router": "14.0.0",
     "lodash": "4.17.21",
