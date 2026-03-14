@@ -143,9 +143,27 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
 
   try {
     await vcsClient.makeShallowCopyAsync(shallowClonePath);
-    await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
-      '.',
-    ]);
+    await tar.create(
+      {
+        cwd: shallowClonePath,
+        file: tarPath,
+        prefix: 'project',
+        gzip: true,
+        ...(process.platform === 'win32' && {
+          onWriteEntry(entry) {
+            // On Windows, read-only directories can have files created inside them.
+            // However, Node.js maps this to the `0o555` mode, which when moved to POSIX,
+            // prevents creating files inside them. This causes trouble on tar extraction.
+            // Hence, we're forcing the owner write bit on directories in Windows
+            // to avoid this issue.
+            if (entry.type === 'Directory' && entry.stat) {
+              entry.stat.mode |= 0o200;
+            }
+          },
+        }),
+      },
+      ['.']
+    );
   } catch (err) {
     clearTimeout(timer);
     if (spinner.isSpinning) {
