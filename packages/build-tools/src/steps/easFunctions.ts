@@ -40,6 +40,9 @@ import { createStartIosSimulatorBuildFunction } from './functions/startIosSimula
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
+import { createRestoreXcodeCacheFunction } from './functions/restoreXcodeCache';
+import { createPatchPodsXcodeprojFunction } from './functions/patchPodsXcodeproj';
+import { createSaveXcodeCacheFunction } from './functions/saveXcodeCache';
 import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
@@ -84,6 +87,10 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createInternalEasMaestroTestFunction(ctx),
 
     createReportMaestroTestResultsFunction(ctx),
+
+    createRestoreXcodeCacheFunction(),
+    createPatchPodsXcodeprojFunction(),
+    createSaveXcodeCacheFunction(),
   ];
 
   if (ctx.hasBuildJob()) {

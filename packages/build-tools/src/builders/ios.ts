@@ -17,7 +17,10 @@ import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
+import { restoreXcodeCacheAsync } from '../steps/functions/restoreXcodeCache';
+import { patchPodsXcodeprojAsync } from '../steps/functions/patchPodsXcodeproj';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import { saveXcodeCacheAsync } from '../steps/functions/saveXcodeCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -91,6 +94,23 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
 
     await ctx.runBuildPhase(BuildPhase.INSTALL_PODS, async () => {
       await runInstallPodsAsync(ctx);
+    });
+
+    await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
+      await restoreXcodeCacheAsync({
+        logger: ctx.logger,
+        workingDirectory: ctx.buildDirectory,
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      });
+    });
+
+    await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
+      await patchPodsXcodeprojAsync({
+        logger: ctx.logger,
+        workingDirectory: ctx.buildDirectory,
+        env: ctx.env,
+      });
     });
 
     await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
@@ -180,6 +200,15 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       patternOrPath: resolveArtifactPath(ctx),
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
+    });
+  });
+
+  await ctx.runBuildPhase(BuildPhase.SAVE_XCODE_CACHE, async () => {
+    await saveXcodeCacheAsync({
+      logger: ctx.logger,
+      workingDirectory: ctx.buildDirectory,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
     });
   });
 

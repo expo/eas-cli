@@ -26,6 +26,9 @@ import { runFastlaneFunction } from '../functions/runFastlane';
 import { runGradleFunction } from '../functions/runGradle';
 import { createSaveBuildCacheFunction } from '../functions/saveBuildCache';
 import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
+import { createRestoreXcodeCacheFunction } from '../functions/restoreXcodeCache';
+import { createPatchPodsXcodeprojFunction } from '../functions/patchPodsXcodeproj';
+import { createSaveXcodeCacheFunction } from '../functions/saveXcodeCache';
 
 interface HelperFunctionsInput {
   globalCtx: BuildStepGlobalContext;
@@ -106,6 +109,8 @@ function createStepsForIosSimulatorBuild({
     createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
     calculateEASUpdateRuntimeVersion,
     installPods,
+    createRestoreXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
+    createPatchPodsXcodeprojFunction().createBuildStepFromFunctionCall(globalCtx),
     configureEASUpdate,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
@@ -122,6 +127,7 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createSaveXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
 }
 
@@ -198,6 +204,8 @@ function createStepsForIosBuildWithCredentials({
     restoreCache,
     calculateEASUpdateRuntimeVersion,
     installPods,
+    createRestoreXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
+    createPatchPodsXcodeprojFunction().createBuildStepFromFunctionCall(globalCtx),
     configureEASUpdate,
     configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx),
     configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx),
@@ -216,6 +224,7 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createSaveXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];

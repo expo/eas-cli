@@ -141,6 +141,7 @@ async function ensureGymfileExists<TJob extends Ios.Job>(
       credentials: nullthrows(credentials, 'credentials must exist for non-simulator builds'),
       scheme,
       buildConfiguration,
+      derivedDataPath: './build',
       outputDirectory: './build',
       clean: false,
       logsDirectory,
