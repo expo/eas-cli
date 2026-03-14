@@ -70,7 +70,7 @@
     "@segment/ajv-human-errors": "^2.1.2",
     "@urql/core": "4.0.11",
     "@urql/exchange-retry": "1.2.0",
-    "ajv": "8.11.0",
+    "ajv": "8.18.0",
     "ajv-formats": "2.1.1",
     "better-opn": "3.0.2",
     "bplist-parser": "^0.3.0",
