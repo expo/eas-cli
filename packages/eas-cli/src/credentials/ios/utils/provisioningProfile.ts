@@ -26,6 +26,20 @@ export function isAdHocProfile(dataBase64: string): boolean {
   return Array.isArray(provisionedDevices);
 }
 
+export function isDevelopmentProfile(dataBase64: string): boolean {
+  const profilePlist = parse(dataBase64);
+
+  // Usually, aps-environment is set to 'development' for development profiles and 'production' for any others.
+  // https://developer.apple.com/documentation/bundleresources/entitlements/aps-environment#discussion
+  //@ts-ignore
+  const apsEnvironment = profilePlist['Entitlements']['aps-environment'] as string | undefined;
+
+  const provisionedDevices = profilePlist['ProvisionedDevices'] as string[] | undefined;
+
+  // We can assume that the profile is development if it has provisioned devices and has aps-environment set to 'development'.
+  return apsEnvironment === 'development' && Array.isArray(provisionedDevices);
+}
+
 export function isEnterpriseUniversalProfile(dataBase64: string): boolean {
   const profilePlist = parse(dataBase64);
   return !!profilePlist['ProvisionsAllDevices'];
