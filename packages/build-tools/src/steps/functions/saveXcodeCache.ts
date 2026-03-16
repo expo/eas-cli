@@ -5,7 +5,6 @@ import fs from 'fs';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import { XCODE_CACHE_HIT_FLAG } from './restoreXcodeCache';
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
 import { generateXcodeCacheKeyAsync } from '../../utils/xcodeCacheKey';
 
@@ -24,6 +23,7 @@ export function createSaveXcodeCacheFunction(): BuildFunction {
         workingDirectory,
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
+        cacheHit: false,
       });
     },
   });
@@ -34,50 +34,44 @@ export async function saveXcodeCacheAsync({
   workingDirectory,
   env,
   secrets,
+  cacheHit,
+  simulator,
 }: {
   logger: bunyan;
   workingDirectory: string;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
+  cacheHit: boolean;
+  simulator?: boolean;
 }): Promise<void> {
-  logger.info(`[saveXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}`);
+  logger.info(`[saveXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}, cacheHit=${cacheHit}`);
 
   if (env.XCODE_CACHE !== '1') {
     logger.info('[saveXcodeCacheAsync] XCODE_CACHE not set to 1, skipping');
     return;
   }
 
-  // Don't save if cache was already hit (products came from cache)
-  try {
-    const flag = await fs.promises.readFile(XCODE_CACHE_HIT_FLAG, 'utf-8');
-    if (flag.trim() === '1') {
-      logger.info('Xcode cache was restored — skipping save');
-      return;
-    }
-  } catch {
-    // Flag file doesn't exist — cache miss, proceed with save
-  }
-
-  // derived_data_path is set to ./build in the Gymfile, so intermediates are at
-  // <workingDirectory>/build/Build/Intermediates.noindex
-  const intermediatesPath = path.join(workingDirectory, 'build', 'Build', 'Intermediates.noindex');
-  logger.info(`[saveXcodeCacheAsync] looking for intermediates at: ${intermediatesPath}`);
-
-  try {
-    const stat = await fs.promises.stat(intermediatesPath);
-    if (!stat.isDirectory()) {
-      logger.warn('Intermediates path is not a directory, skipping Xcode cache save');
-      return;
-    }
-  } catch {
-    logger.warn('No Intermediates directory found, skipping Xcode cache save');
+  if (cacheHit) {
+    logger.info('Xcode cache was restored — skipping save');
     return;
   }
 
-  const relativePaths = [path.join('build', 'Build', 'Intermediates.noindex')];
+  const productsPath = await findBuildProductsPathAsync(workingDirectory, logger);
+  if (!productsPath) {
+    logger.warn('No build products found, skipping Xcode cache save');
+    return;
+  }
+
+  logger.info(`[saveXcodeCacheAsync] found products at: ${productsPath}`);
+
+  // Cache the contents of the products directory directly (flat).
+  // The archive will contain files like EXAV/libEXAV.a, EXAV/EXAV.modulemap, etc.
+  // On restore, we extract to a stable path outside DerivedData.
+  const cachePaths = ['pods-products-v2'];
+  const compressPaths = ['.'];
 
   try {
-    const cacheKey = await generateXcodeCacheKeyAsync(workingDirectory);
+    const cacheKey = await generateXcodeCacheKeyAsync(workingDirectory, simulator);
     logger.info(`Saving Xcode cache key: ${cacheKey}`);
 
     const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
@@ -87,11 +81,11 @@ export async function saveXcodeCacheAsync({
     );
     const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
 
-    logger.info('Compressing Xcode build intermediates...');
+    logger.info('Compressing Xcode build products...');
 
     const { archivePath } = await compressCacheAsync({
-      paths: relativePaths,
-      workingDirectory,
+      paths: compressPaths,
+      workingDirectory: productsPath,
       verbose: env.EXPO_DEBUG === '1',
       logger,
     });
@@ -105,7 +99,7 @@ export async function saveXcodeCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: relativePaths,
+      paths: cachePaths,
       size,
       platform: Platform.IOS,
     });
@@ -114,4 +108,50 @@ export async function saveXcodeCacheAsync({
   } catch (err) {
     logger.error({ err }, 'Failed to save Xcode cache');
   }
+}
+
+/**
+ * Find the build products directory. Checks both archive and simulator paths.
+ */
+async function findBuildProductsPathAsync(workingDirectory: string, logger: bunyan): Promise<string | null> {
+  const iosBuildDir = path.join(workingDirectory, 'ios', 'build');
+
+  // Archive build: Build/Intermediates.noindex/ArchiveIntermediates/<AppName>/BuildProductsPath/Release-iphoneos/
+  const archiveIntermediatesDir = path.join(iosBuildDir, 'Build', 'Intermediates.noindex', 'ArchiveIntermediates');
+  try {
+    const entries = await fs.promises.readdir(archiveIntermediatesDir);
+    for (const entry of entries) {
+      const buildProductsPath = path.join(archiveIntermediatesDir, entry, 'BuildProductsPath');
+      try {
+        const configs = await fs.promises.readdir(buildProductsPath);
+        const releaseDir = configs.find((c) => c.startsWith('Release-'));
+        if (releaseDir) {
+          const fullPath = path.join(buildProductsPath, releaseDir);
+          logger.info(`[findBuildProductsPathAsync] found archive products: ${fullPath}`);
+          return fullPath;
+        }
+      } catch {
+        // No BuildProductsPath in this entry
+      }
+    }
+  } catch {
+    // No ArchiveIntermediates directory
+  }
+
+  // Simulator build: Build/Products/Release-iphonesimulator/
+  const productsDir = path.join(iosBuildDir, 'Build', 'Products');
+  try {
+    const configs = await fs.promises.readdir(productsDir);
+    const releaseDir = configs.find((c) => c.startsWith('Release-'));
+    if (releaseDir) {
+      const fullPath = path.join(productsDir, releaseDir);
+      logger.info(`[findBuildProductsPathAsync] found simulator products: ${fullPath}`);
+      return fullPath;
+    }
+  } catch {
+    // No Products directory
+  }
+
+  logger.info('[findBuildProductsPathAsync] no build products found');
+  return null;
 }

@@ -54,6 +54,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
   const workingDirectory = ctx.getReactNativeProjectDirectory();
+  let xcodeCacheHit = false;
   try {
     const credentials = await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       return await credentialsManager.prepare();
@@ -96,20 +97,22 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       await runInstallPodsAsync(ctx);
     });
 
-    await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
-      await restoreXcodeCacheAsync({
+    xcodeCacheHit = (await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
+      return await restoreXcodeCacheAsync({
         logger: ctx.logger,
         workingDirectory: ctx.buildDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
+        simulator: ctx.job.simulator,
       });
-    });
+    })) ?? false;
 
     await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
       await patchPodsXcodeprojAsync({
         logger: ctx.logger,
         workingDirectory: ctx.buildDirectory,
         env: ctx.env,
+        cacheHit: xcodeCacheHit,
       });
     });
 
@@ -209,6 +212,8 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       workingDirectory: ctx.buildDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
+      cacheHit: xcodeCacheHit,
+      simulator: ctx.job.simulator,
     });
   });
 
