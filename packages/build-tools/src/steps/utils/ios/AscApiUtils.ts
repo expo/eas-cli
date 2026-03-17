@@ -125,9 +125,7 @@ export namespace AscApiUtils {
     return appsResponse.data;
   }
 
-  export function formatAppsList(
-    apps: AscApiClientGetApi['/v1/apps']['response']['data']
-  ): string {
+  export function formatAppsList(apps: AscApiClientGetApi['/v1/apps']['response']['data']): string {
     return (
       apps
         .map(app => `- ${app.attributes.name} (${app.attributes.bundleId}) (ID: ${app.id})`)
