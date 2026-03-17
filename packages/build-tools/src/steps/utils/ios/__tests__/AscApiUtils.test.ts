@@ -60,8 +60,8 @@ describe('AscApiUtils', () => {
         expect.objectContaining({
           errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
           docsUrl: 'https://expo.fyi/asc-app-id',
-          message: expect.stringContaining(
-            'App Store Connect app for application identifier 1234567890 was not found'
+          message: expect.stringMatching(
+            /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
           ),
         })
       );
@@ -93,6 +93,49 @@ describe('AscApiUtils', () => {
       await expect(
         AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
       ).rejects.toBe(notFoundError);
+    });
+  });
+
+  describe('getVisibleAppsSummaryAsync', () => {
+    it('formats visible apps using the requested limit', async () => {
+      const client = {
+        getAsync: jest.fn().mockResolvedValue({
+          data: [
+            {
+              type: 'apps',
+              id: '1111111111',
+              attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+            },
+            {
+              type: 'apps',
+              id: '2222222222',
+              attributes: { name: 'Second App', bundleId: 'com.second.app' },
+            },
+          ],
+        }),
+      };
+
+      await expect(
+        AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 5 })
+      ).resolves.toBe(
+        '- Visible App (com.visible.app) (ID: 1111111111)\n- Second App (com.second.app) (ID: 2222222222)'
+      );
+      expect(client.getAsync).toHaveBeenCalledWith('/v1/apps', {
+        'fields[apps]': ['bundleId', 'name'],
+        limit: 5,
+      });
+    });
+
+    it('returns a placeholder when no visible apps are found', async () => {
+      const client = {
+        getAsync: jest.fn().mockResolvedValue({ data: [] }),
+      };
+
+      await expect(AscApiUtils.getVisibleAppsSummaryAsync({ client })).resolves.toBe('  (none)');
+      expect(client.getAsync).toHaveBeenCalledWith('/v1/apps', {
+        'fields[apps]': ['bundleId', 'name'],
+        limit: 10,
+      });
     });
   });
 

@@ -34,11 +34,12 @@ export namespace AscApiUtils {
 
       let visibleAppsSummary: string | null = null;
       try {
-        visibleAppsSummary = await getVisibleAppsSummaryAsync(client);
+        visibleAppsSummary = await AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 10 });
       } catch {
         // Don't hide the original NOT_FOUND error with a secondary lookup failure.
         throw error;
       }
+
       throw new UserError(
         'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
         `App Store Connect app for application identifier ${appleAppIdentifier} was not found. ` +
@@ -108,19 +109,39 @@ export namespace AscApiUtils {
       throw error;
     }
   }
-}
 
-async function getVisibleAppsSummaryAsync(
-  client: Pick<AscApiClient, 'getAsync'>
-): Promise<string | null> {
-  const appsResponse = await client.getAsync('/v1/apps', {
-    'fields[apps]': ['bundleId', 'name'],
-    limit: 10,
-  });
-  if (appsResponse.data.length === 0) {
-    return '  (none)';
+  export async function getAppsAsync({
+    client,
+    limit,
+  }: {
+    client: Pick<AscApiClient, 'getAsync'>;
+    limit?: number;
+  }): Promise<AscApiClientGetApi['/v1/apps']['response']['data']> {
+    const appsResponse = await client.getAsync('/v1/apps', {
+      'fields[apps]': ['bundleId', 'name'],
+      limit: limit ?? 10,
+    });
+    return appsResponse.data;
   }
-  return appsResponse.data
-    .map(app => `- ${app.attributes.name} (${app.attributes.bundleId}) (ID: ${app.id})`)
-    .join('\n');
+
+  export async function getVisibleAppsSummaryAsync({
+    client,
+    limit,
+  }: {
+    client: Pick<AscApiClient, 'getAsync'>;
+    limit?: number;
+  }): Promise<string> {
+    const apps = await getAppsAsync({ client, limit });
+    return formatVisibleAppsSummary(apps);
+  }
+
+  export function formatVisibleAppsSummary(
+    apps: AscApiClientGetApi['/v1/apps']['response']['data']
+  ): string {
+    return (
+      apps
+        .map(app => `- ${app.attributes.name} (${app.attributes.bundleId}) (ID: ${app.id})`)
+        .join('\n') || '  (none)'
+    );
+  }
 }

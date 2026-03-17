@@ -283,6 +283,13 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               ? ipaInfoResult.value.bundleIdentifier
               : null;
 
+            let visibleAppsSummary: string | null = null;
+            try {
+              visibleAppsSummary = await AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 5 });
+            } catch {
+              // Ok to fail, this is just trying to be helpful.
+            }
+
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
               `Build upload was rejected by App Store Connect because the app bundle identifier in the IPA does not match the selected App Store Connect app.\n\n` +
@@ -290,7 +297,12 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
-                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).' +
+                '\n\nOther example Apple app identifiers visible to this API key:\n' +
+                (visibleAppsSummary ?? '  (unable to retrieve)'),
+              {
+                docsUrl: 'https://expo.fyi/asc-app-id',
+              }
             );
           }
           if (isMissingPurposeStringError(errors)) {
