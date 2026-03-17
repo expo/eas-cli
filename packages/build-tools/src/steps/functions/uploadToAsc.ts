@@ -270,8 +270,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_MISSING_BG_TASK_IDENTIFIERS',
               'Build upload was rejected by App Store Connect because Info.plist is missing `BGTaskSchedulerPermittedIdentifiers` while `UIBackgroundModes` includes `processing`. ' +
-                'Add the required task identifiers to your app configuration, rebuild, and submit again. ' +
-                'If you use Continuous Native Generation (CNG), set this in `ios.infoPlist` in app.json/app.config.js.',
+                'In an Expo project, add `BGTaskSchedulerPermittedIdentifiers` to `ios.infoPlist` in your app config and include every background task identifier the app schedules. ' +
+                'If you do not use Continuous Native Generation (CNG), add the same key to the native target Info.plist. Then rebuild and submit again.',
               {
                 docsUrl: 'https://docs.expo.dev/versions/latest/config/app/#infoplist',
               }
