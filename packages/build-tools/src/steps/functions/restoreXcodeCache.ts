@@ -125,10 +125,7 @@ async function rewriteModulemapPathsAsync(cacheDir: string, logger: bunyan): Pro
     if (!filePath) continue;
     let content = await fs.promises.readFile(filePath, 'utf-8');
     // Match absolute paths ending with /Release-<platform>/ (iphoneos, iphonesimulator, appletvos, etc.)
-    const replaced = content.replace(
-      /\"[^"]*\/Release-[a-z]+\//g,
-      `"${cacheDir}/`
-    );
+    const replaced = content.replace(/\"[^"]*\/Release-[a-z]+\//g, `"${cacheDir}/`);
     if (replaced !== content) {
       await fs.promises.writeFile(filePath, replaced);
       patchCount++;

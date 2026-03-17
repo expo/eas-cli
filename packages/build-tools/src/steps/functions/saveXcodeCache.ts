@@ -102,18 +102,26 @@ export async function saveXcodeCacheAsync({
 /**
  * Find the build products directory. Checks both archive and simulator paths.
  */
-async function findBuildProductsPathAsync(workingDirectory: string, logger: bunyan): Promise<string | null> {
+async function findBuildProductsPathAsync(
+  workingDirectory: string,
+  logger: bunyan
+): Promise<string | null> {
   const iosBuildDir = path.join(workingDirectory, 'ios', 'build');
 
   // Archive build: Build/Intermediates.noindex/ArchiveIntermediates/<AppName>/BuildProductsPath/Release-iphoneos/
-  const archiveIntermediatesDir = path.join(iosBuildDir, 'Build', 'Intermediates.noindex', 'ArchiveIntermediates');
+  const archiveIntermediatesDir = path.join(
+    iosBuildDir,
+    'Build',
+    'Intermediates.noindex',
+    'ArchiveIntermediates'
+  );
   try {
     const entries = await fs.promises.readdir(archiveIntermediatesDir);
     for (const entry of entries) {
       const buildProductsPath = path.join(archiveIntermediatesDir, entry, 'BuildProductsPath');
       try {
         const configs = await fs.promises.readdir(buildProductsPath);
-        const releaseDir = configs.find((c) => c.startsWith('Release-'));
+        const releaseDir = configs.find(c => c.startsWith('Release-'));
         if (releaseDir) {
           const fullPath = path.join(buildProductsPath, releaseDir);
           logger.info(`Found archive build products: ${fullPath}`);
@@ -131,7 +139,7 @@ async function findBuildProductsPathAsync(workingDirectory: string, logger: buny
   const productsDir = path.join(iosBuildDir, 'Build', 'Products');
   try {
     const configs = await fs.promises.readdir(productsDir);
-    const releaseDir = configs.find((c) => c.startsWith('Release-'));
+    const releaseDir = configs.find(c => c.startsWith('Release-'));
     if (releaseDir) {
       const fullPath = path.join(productsDir, releaseDir);
       logger.info(`Found simulator build products: ${fullPath}`);

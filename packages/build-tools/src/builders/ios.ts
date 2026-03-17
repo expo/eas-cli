@@ -98,15 +98,16 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
 
     if (ctx.env.XCODE_CACHE === '1') {
-      xcodeCacheHit = (await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
-        return await restoreXcodeCacheAsync({
-          logger: ctx.logger,
-          workingDirectory: ctx.buildDirectory,
-          env: ctx.env,
-          secrets: ctx.job.secrets,
-          simulator: ctx.job.simulator,
-        });
-      })) ?? false;
+      xcodeCacheHit =
+        (await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
+          return await restoreXcodeCacheAsync({
+            logger: ctx.logger,
+            workingDirectory: ctx.buildDirectory,
+            env: ctx.env,
+            secrets: ctx.job.secrets,
+            simulator: ctx.job.simulator,
+          });
+        })) ?? false;
 
       await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
         await patchPodsXcodeprojAsync({
