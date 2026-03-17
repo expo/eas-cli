@@ -246,7 +246,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           if (isAscUnexpectedServerError(error)) {
             throw new SystemError(
               'App Store Connect returned a temporary server error while processing the uploaded build. ' +
-                'Wait a few minutes and retry submit. If this keeps happening, try again later or contact Apple Developer Support.',
+                'This is usually an App Store Connect outage or transient Apple-side failure, not a problem with your Expo project configuration or IPA. ' +
+                'Wait a few minutes and retry submit. If it keeps happening, try again later or contact Apple Developer Support.',
               {
                 trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
                 cause: error,
