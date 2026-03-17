@@ -269,8 +269,9 @@ export function createUploadToAscBuildFunction(): BuildFunction {
           if (isMissingAppIconsError(errors)) {
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_MISSING_APP_ICONS',
-              'Build upload was rejected by App Store Connect because required app icons are missing or misconfigured in one of the iOS bundles (for example a watch app target). ' +
-                'Ensure icon assets are included and required Info.plist icon keys (such as `CFBundleIconName` / `CFBundleIconFiles`) are set for the failing target, then rebuild and submit again.',
+              'Build upload was rejected by App Store Connect because required app icons are missing or misconfigured in one of the iOS bundles. ' +
+                'In an Expo project, check your icon config (`expo.icon`, `ios.icon`) and any custom native targets or plugins that create extra bundles, such as watch extensions. ' +
+                'Make sure the affected target has the required icon assets and Info.plist icon keys (for example `CFBundleIconName` / `CFBundleIconFiles`), then rebuild and submit again.',
               {
                 docsUrl: 'https://docs.expo.dev/develop/user-interface/splash-screen-and-app-icon/',
               }
