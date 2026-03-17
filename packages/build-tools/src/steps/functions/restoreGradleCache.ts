@@ -6,6 +6,7 @@ import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 
+import { AndroidConfig } from '@expo/config-plugins';
 import spawn from '@expo/turtle-spawn';
 
 import { downloadCacheAsync } from './restoreCache';
@@ -48,12 +49,25 @@ export async function restoreGradleCacheAsync({
     return false;
   }
 
-  const gradleHome = path.join(os.homedir(), '.gradle');
-  await fs.promises.mkdir(gradleHome, { recursive: true });
-  await fs.promises.appendFile(
-    path.join(gradleHome, 'gradle.properties'),
-    '\norg.gradle.caching=true\n'
-  );
+  const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
+  const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
+  const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
+
+  let modified = false;
+  if (!properties.some((p) => p.type === 'property' && p.key === 'org.gradle.caching')) {
+    properties.push({ type: 'property', key: 'org.gradle.caching', value: 'true' });
+    modified = true;
+  }
+  if (!properties.some((p) => p.type === 'property' && p.key === 'org.gradle.cache.cleanup')) {
+    properties.push({ type: 'property', key: 'org.gradle.cache.cleanup', value: 'ALWAYS' });
+    modified = true;
+  }
+  if (modified) {
+    await fs.promises.writeFile(
+      gradlePropertiesPath,
+      AndroidConfig.Properties.propertiesListToString(properties)
+    );
+  }
 
   const robotAccessToken = nullthrows(
     secrets?.robotAccessToken,
