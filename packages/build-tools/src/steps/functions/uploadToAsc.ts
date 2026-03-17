@@ -266,6 +266,17 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isRedundantBinaryUploadError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
+              `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
+                'App Store Connect requires unique build numbers within each app version (version train). ' +
+                'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+              {
+                docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
@@ -279,7 +290,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
-                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+                'If you selected the right app, upload a build that was created for that bundle identifier (for example by rebuilding with the correct Expo config or profile).',
+              {
+                docsUrl: 'https://expo.fyi/asc-app-id',
+              }
             );
           }
           if (isMissingPurposeStringError(errors)) {
@@ -295,6 +309,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                     : ''
                 }` +
                 'Add the missing keys with clear user-facing explanations, then rebuild and submit again.\n' +
+                'If a library or config plugin requires the permission, make sure the corresponding purpose strings are also added in your Expo config.\n' +
                 'If you use Continuous Native Generation (CNG), update `ios.infoPlist` in app.json/app.config.js.\n' +
                 'If you do not use CNG, update your app target Info.plist directly.',
               {
@@ -307,7 +322,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
               `Build upload was rejected by App Store Connect because the ${bundleShortVersion} app version is not accepted for new build submissions. ` +
                 'This usually means the version train is closed or lower than a previously approved version. ' +
-                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version, then rebuild and submit again.'
+                'Bump the iOS app version (CFBundleShortVersionString, for Expo projects usually `expo.version` in `app.json`, `app.config.js`, or `app.config.ts`), then rebuild and submit again.',
+              {
+                docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+              }
             );
           }
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
@@ -329,6 +347,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
     messages.length > 0 &&
     messages.every(message => ['90062', '90186', '90478'].includes(message.code))
   );
+}
+
+export function isRedundantBinaryUploadError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90189');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {
