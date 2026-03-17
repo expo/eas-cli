@@ -96,46 +96,28 @@ describe('AscApiUtils', () => {
     });
   });
 
-  describe('getVisibleAppsSummaryAsync', () => {
-    it('formats visible apps using the requested limit', async () => {
-      const client = {
-        getAsync: jest.fn().mockResolvedValue({
-          data: [
-            {
-              type: 'apps',
-              id: '1111111111',
-              attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
-            },
-            {
-              type: 'apps',
-              id: '2222222222',
-              attributes: { name: 'Second App', bundleId: 'com.second.app' },
-            },
-          ],
-        }),
-      };
-
-      await expect(
-        AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 5 })
-      ).resolves.toBe(
+  describe('formatAppsList', () => {
+    it('formats visible apps', () => {
+      expect(
+        AscApiUtils.formatAppsList([
+          {
+            type: 'apps',
+            id: '1111111111',
+            attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+          },
+          {
+            type: 'apps',
+            id: '2222222222',
+            attributes: { name: 'Second App', bundleId: 'com.second.app' },
+          },
+        ])
+      ).toBe(
         '- Visible App (com.visible.app) (ID: 1111111111)\n- Second App (com.second.app) (ID: 2222222222)'
       );
-      expect(client.getAsync).toHaveBeenCalledWith('/v1/apps', {
-        'fields[apps]': ['bundleId', 'name'],
-        limit: 5,
-      });
     });
 
-    it('returns a placeholder when no visible apps are found', async () => {
-      const client = {
-        getAsync: jest.fn().mockResolvedValue({ data: [] }),
-      };
-
-      await expect(AscApiUtils.getVisibleAppsSummaryAsync({ client })).resolves.toBe('  (none)');
-      expect(client.getAsync).toHaveBeenCalledWith('/v1/apps', {
-        'fields[apps]': ['bundleId', 'name'],
-        limit: 10,
-      });
+    it('returns a placeholder when no visible apps are found', () => {
+      expect(AscApiUtils.formatAppsList([])).toBe('  (none)');
     });
   });
 

@@ -285,7 +285,8 @@ export function createUploadToAscBuildFunction(): BuildFunction {
 
             let visibleAppsSummary: string | null = null;
             try {
-              visibleAppsSummary = await AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 5 });
+              const apps = await AscApiUtils.getAppsAsync({ client, limit: 5 });
+              visibleAppsSummary = AscApiUtils.formatAppsList(apps);
             } catch {
               // Ok to fail, this is just trying to be helpful.
             }

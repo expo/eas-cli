@@ -34,7 +34,8 @@ export namespace AscApiUtils {
 
       let visibleAppsSummary: string | null = null;
       try {
-        visibleAppsSummary = await AscApiUtils.getVisibleAppsSummaryAsync({ client, limit: 10 });
+        const apps = await AscApiUtils.getAppsAsync({ client, limit: 10 });
+        visibleAppsSummary = AscApiUtils.formatAppsList(apps);
       } catch {
         // Don't hide the original NOT_FOUND error with a secondary lookup failure.
         throw error;
@@ -124,18 +125,7 @@ export namespace AscApiUtils {
     return appsResponse.data;
   }
 
-  export async function getVisibleAppsSummaryAsync({
-    client,
-    limit,
-  }: {
-    client: Pick<AscApiClient, 'getAsync'>;
-    limit?: number;
-  }): Promise<string> {
-    const apps = await getAppsAsync({ client, limit });
-    return formatVisibleAppsSummary(apps);
-  }
-
-  export function formatVisibleAppsSummary(
+  export function formatAppsList(
     apps: AscApiClientGetApi['/v1/apps']['response']['data']
   ): string {
     return (
