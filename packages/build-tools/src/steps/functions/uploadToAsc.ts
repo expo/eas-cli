@@ -270,11 +270,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
               'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
-                'Rebuild the app with a newer Xcode/iOS SDK and submit again. ' +
-                'If you use EAS Build, select a newer iOS build image in eas.json.',
+                'In an Expo project, this usually means the build used an outdated EAS iOS image or the project still depends on an Expo SDK / native setup that does not support the required Xcode toolchain. ' +
+                'Upgrade to a supported Expo SDK if needed, select a newer iOS image in `eas.json`, rebuild, and submit again.',
               {
-                docsUrl:
-                  'https://docs.expo.dev/build-reference/infrastructure/#ios-build-server-configurations',
+                docsUrl: 'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/',
               }
             );
           }
