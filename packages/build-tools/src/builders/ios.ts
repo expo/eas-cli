@@ -97,24 +97,26 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       await runInstallPodsAsync(ctx);
     });
 
-    xcodeCacheHit = (await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
-      return await restoreXcodeCacheAsync({
-        logger: ctx.logger,
-        workingDirectory: ctx.buildDirectory,
-        env: ctx.env,
-        secrets: ctx.job.secrets,
-        simulator: ctx.job.simulator,
-      });
-    })) ?? false;
+    if (ctx.env.XCODE_CACHE === '1') {
+      xcodeCacheHit = (await ctx.runBuildPhase(BuildPhase.RESTORE_XCODE_CACHE, async () => {
+        return await restoreXcodeCacheAsync({
+          logger: ctx.logger,
+          workingDirectory: ctx.buildDirectory,
+          env: ctx.env,
+          secrets: ctx.job.secrets,
+          simulator: ctx.job.simulator,
+        });
+      })) ?? false;
 
-    await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
-      await patchPodsXcodeprojAsync({
-        logger: ctx.logger,
-        workingDirectory: ctx.buildDirectory,
-        env: ctx.env,
-        cacheHit: xcodeCacheHit,
+      await ctx.runBuildPhase(BuildPhase.PATCH_PODS_XCODEPROJ, async () => {
+        await patchPodsXcodeprojAsync({
+          logger: ctx.logger,
+          workingDirectory: ctx.buildDirectory,
+          env: ctx.env,
+          cacheHit: xcodeCacheHit,
+        });
       });
-    });
+    }
 
     await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
       await runHookIfPresent(ctx, Hook.POST_INSTALL);
@@ -206,16 +208,18 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
   });
 
-  await ctx.runBuildPhase(BuildPhase.SAVE_XCODE_CACHE, async () => {
-    await saveXcodeCacheAsync({
-      logger: ctx.logger,
-      workingDirectory: ctx.buildDirectory,
-      env: ctx.env,
-      secrets: ctx.job.secrets,
-      cacheHit: xcodeCacheHit,
-      simulator: ctx.job.simulator,
+  if (ctx.env.XCODE_CACHE === '1') {
+    await ctx.runBuildPhase(BuildPhase.SAVE_XCODE_CACHE, async () => {
+      await saveXcodeCacheAsync({
+        logger: ctx.logger,
+        workingDirectory: ctx.buildDirectory,
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+        cacheHit: xcodeCacheHit,
+        simulator: ctx.job.simulator,
+      });
     });
-  });
+  }
 
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {
