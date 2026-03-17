@@ -103,7 +103,8 @@ export namespace AscApiUtils {
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
           `App Store Connect rejected Apple app identifier ${appleAppIdentifier} while creating the build upload. ` +
-            'Verify that this Apple app identifier points to the intended iOS app in the correct App Store Connect account and that your API key has access to it.',
+            'In an Expo project, this usually means the Apple app identifier in the submit profile points to the wrong App Store Connect app, or the API key cannot access that app. ' +
+            'Select the correct submit profile or update the Apple app identifier, then submit again.',
           {
             cause: error,
             docsUrl: 'https://expo.fyi/asc-app-id',
