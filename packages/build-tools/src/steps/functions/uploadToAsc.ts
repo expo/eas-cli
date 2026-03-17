@@ -299,7 +299,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
                 'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).' +
-                '\n\nOther example Apple app identifiers visible to this API key:\n' +
+                '\n\nOther App Store Connect apps visible to this API key:\n' +
                 (visibleAppsSummary ?? '  (unable to retrieve)'),
               {
                 docsUrl: 'https://expo.fyi/asc-app-id',
