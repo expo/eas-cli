@@ -13,7 +13,7 @@ import {
 } from '../../utils/gradleCacheKey';
 import { TurtleFetchError } from '../../utils/turtleFetch';
 
-const GRADLE_BUILD_CACHE_DIR = '.gradle/caches/build-cache-1';
+const GRADLE_CACHES_DIR = '.gradle/caches';
 
 export function createRestoreGradleCacheFunction(): BuildFunction {
   return new BuildFunction({
@@ -60,14 +60,14 @@ export async function restoreGradleCacheAsync({
     logger.info(`Restoring Gradle cache key: ${cacheKey}`);
 
     const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
-    const gradleCachesPath = path.join(os.homedir(), GRADLE_BUILD_CACHE_DIR);
+    const gradleCachesPath = path.join(os.homedir(), GRADLE_CACHES_DIR);
 
     const { archivePath, matchedKey } = await downloadCacheAsync({
       logger,
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: ['gradle-caches-v1'],
+      paths: ['gradle-caches-v2'],
       key: cacheKey,
       keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
       platform: Platform.ANDROID,

@@ -10,7 +10,8 @@ import { compressCacheAsync, uploadCacheAsync } from './saveCache';
 import { formatBytes } from '../../utils/artifacts';
 import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 
-const GRADLE_BUILD_CACHE_DIR = '.gradle/caches/build-cache-1';
+const GRADLE_CACHES_DIR = '.gradle/caches';
+const CACHE_SUBDIRS = ['build-cache-1', 'modules-2'];
 
 export function createSaveGradleCacheFunction(): BuildFunction {
   return new BuildFunction({
@@ -54,12 +55,27 @@ export async function saveGradleCacheAsync({
     return;
   }
 
-  const gradleCachesPath = path.join(os.homedir(), GRADLE_BUILD_CACHE_DIR);
+  const gradleCachesPath = path.join(os.homedir(), GRADLE_CACHES_DIR);
 
   try {
     await fs.promises.access(gradleCachesPath);
   } catch {
     logger.warn('No Gradle caches directory found, skipping save');
+    return;
+  }
+
+  const existingDirs = [];
+  for (const subdir of CACHE_SUBDIRS) {
+    try {
+      await fs.promises.access(path.join(gradleCachesPath, subdir));
+      existingDirs.push(subdir);
+    } catch {
+      // skip
+    }
+  }
+
+  if (existingDirs.length === 0) {
+    logger.warn('No cacheable Gradle directories found, skipping save');
     return;
   }
 
@@ -74,9 +90,9 @@ export async function saveGradleCacheAsync({
     );
     const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
 
-    logger.info('Compressing Gradle caches...');
+    logger.info(`Compressing Gradle caches (${existingDirs.join(', ')})...`);
     const { archivePath } = await compressCacheAsync({
-      paths: ['.'],
+      paths: existingDirs,
       workingDirectory: gradleCachesPath,
       verbose: env.EXPO_DEBUG === '1',
       logger,
@@ -92,7 +108,7 @@ export async function saveGradleCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: ['gradle-caches-v1'],
+      paths: ['gradle-caches-v2'],
       size,
       platform: Platform.ANDROID,
     });
