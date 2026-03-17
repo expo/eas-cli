@@ -22,6 +22,26 @@ export namespace AscApiUtils {
         { id: appleAppIdentifier }
       );
     } catch (error) {
+      const authErrors =
+        error instanceof AscApiRequestError && error.status === 401
+          ? error.responseJson.errors
+          : [];
+      const isAuthError =
+        authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
+      if (isAuthError) {
+        throw new UserError(
+          'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          'App Store Connect rejected the API authentication credentials. ' +
+            'If this submit profile uses an App Store Connect API key stored in EAS credentials, replace or reconfigure that key. ' +
+            'If you provide the key locally, verify `issuer_id`, `key_id`, and `key`. ' +
+            'Make sure the key is active in App Store Connect, belongs to the correct App Store Connect account, and has sufficient access to the app. Then retry submit.',
+          {
+            cause: error,
+            docsUrl: 'https://docs.expo.dev/submit/ios/',
+          }
+        );
+      }
+
       const notFoundErrors =
         error instanceof AscApiRequestError && error.status === 404
           ? error.responseJson.errors
@@ -42,7 +62,7 @@ export namespace AscApiUtils {
       throw new UserError(
         'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
         `App Store Connect app for application identifier ${appleAppIdentifier} was not found. ` +
-          'Verify the configured application identifier and that the App Store Connect API key has access to the application in the correct App Store Connect account.' +
+          'In an Expo project, verify the Apple app identifier configured in the submit profile and that the App Store Connect API key has access to that app in the correct App Store Connect account.' +
           (visibleAppsSummary
             ? `\n\nExample applications visible to this API key:\n${visibleAppsSummary}`
             : ''),
@@ -85,6 +105,26 @@ export namespace AscApiUtils {
         },
       });
     } catch (error) {
+      const authErrors =
+        error instanceof AscApiRequestError && error.status === 401
+          ? error.responseJson.errors
+          : [];
+      const isAuthError =
+        authErrors.length > 0 && authErrors.every(item => item.code === 'NOT_AUTHORIZED');
+      if (isAuthError) {
+        throw new UserError(
+          'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
+          'App Store Connect rejected the API authentication credentials. ' +
+            'If this submit profile uses an App Store Connect API key stored in EAS credentials, replace or reconfigure that key. ' +
+            'If you provide the key locally, verify `issuer_id`, `key_id`, and `key`. ' +
+            'Make sure the key is active in App Store Connect, belongs to the correct App Store Connect account, and has sufficient access to the app. Then retry submit.',
+          {
+            cause: error,
+            docsUrl: 'https://docs.expo.dev/submit/ios/',
+          }
+        );
+      }
+
       const errors =
         error instanceof AscApiRequestError && error.status === 409
           ? error.responseJson.errors
@@ -98,7 +138,7 @@ export namespace AscApiUtils {
           'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
           `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
             'App Store Connect requires unique build numbers within each app version (version train). ' +
-            'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+            'Increment it by setting `ios.buildNumber` in your Expo app config (`app.json`, `app.config.js`, or `app.config.ts`), or set `"autoIncrement": true` in `eas.json` (recommended). Then rebuild and resubmit.',
           {
             docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
             cause: error,
