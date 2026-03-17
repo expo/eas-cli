@@ -14,10 +14,12 @@ import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { restoreGradleCacheAsync } from '../steps/functions/restoreGradleCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
-import { saveGradleCacheAsync } from '../steps/functions/saveGradleCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreGradleCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveGradleCacheAsync } from '../steps/functions/saveBuildCache';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
@@ -70,6 +72,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     });
   });
 
+  let gradleCacheHit = false;
   await ctx.runBuildPhase(BuildPhase.RESTORE_CACHE, async () => {
     if (ctx.isLocal) {
       ctx.logger.info('Local builds do not support restoring cache');
@@ -83,14 +86,6 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
-  });
-
-  let gradleCacheHit = false;
-  await ctx.runBuildPhase(BuildPhase.RESTORE_GRADLE_CACHE, async () => {
-    if (ctx.isLocal) {
-      ctx.logger.info('Local builds do not support restoring Gradle cache');
-      return;
-    }
     gradleCacheHit = await restoreGradleCacheAsync({
       logger: ctx.logger,
       workingDirectory,
@@ -198,20 +193,6 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     });
   });
 
-  await ctx.runBuildPhase(BuildPhase.SAVE_GRADLE_CACHE, async () => {
-    if (ctx.isLocal) {
-      ctx.logger.info('Local builds do not support saving Gradle cache.');
-      return;
-    }
-    await saveGradleCacheAsync({
-      logger: ctx.logger,
-      workingDirectory,
-      env: ctx.env,
-      secrets: ctx.job.secrets,
-      cacheHit: gradleCacheHit,
-    });
-  });
-
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {
       ctx.logger.info('Local builds do not support saving cache.');
@@ -225,6 +206,13 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       evictUsedBefore,
       env: ctx.env,
       secrets: ctx.job.secrets,
+    });
+    await saveGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+      cacheHit: gradleCacheHit,
     });
   });
 
