@@ -11,7 +11,7 @@ import { formatBytes } from '../../utils/artifacts';
 import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 
 const GRADLE_CACHES_DIR = '.gradle/caches';
-const CACHE_SUBDIRS = ['build-cache-1', 'modules-2'];
+const CACHE_SUBDIRS = ['build-cache-1'];
 
 export function createSaveGradleCacheFunction(): BuildFunction {
   return new BuildFunction({
