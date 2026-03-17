@@ -108,7 +108,7 @@ export async function saveGradleCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: ['gradle-caches-v2'],
+      paths: ['gradle-caches'],
       size,
       platform: Platform.ANDROID,
     });

@@ -64,7 +64,7 @@ export async function restoreGradleCacheAsync({
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: ['gradle-caches-v2'],
+      paths: ['gradle-caches'],
       key: cacheKey,
       keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
       platform: Platform.ANDROID,
