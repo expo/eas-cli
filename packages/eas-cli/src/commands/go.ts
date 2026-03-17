@@ -384,25 +384,23 @@ export default class Go extends EasCommand {
       },
     ];
 
-    const ascApp = await withSuppressedOutputAsync(async () => {
-      await new SetUpBuildCredentials({
-        app,
-        targets,
-        distribution: 'store',
-      }).runAsync(credentialsCtx);
+    await new SetUpBuildCredentials({
+      app,
+      targets,
+      distribution: 'store',
+    }).runAsync(credentialsCtx);
 
-      const appLookupParams = {
-        ...app,
-        bundleIdentifier: bundleId,
-      };
-      await new SetUpAscApiKey(appLookupParams, AppStoreApiKeyPurpose.SUBMISSION_SERVICE).runAsync(
-        credentialsCtx
-      );
+    const appLookupParams = {
+      ...app,
+      bundleIdentifier: bundleId,
+    };
+    await new SetUpAscApiKey(appLookupParams, AppStoreApiKeyPurpose.SUBMISSION_SERVICE).runAsync(
+      credentialsCtx
+    );
 
-      return await ensureAppExistsAsync(userAuthCtx, {
-        name: appName,
-        bundleIdentifier: bundleId,
-      });
+    const ascApp = await ensureAppExistsAsync(userAuthCtx, {
+      name: appName,
+      bundleIdentifier: bundleId,
     });
 
     // Set up push notifications (outside suppressed block so prompts are visible)
