@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
@@ -13,7 +13,7 @@ import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
-import { AscApiClient, AscApiClientPostApi } from '../utils/ios/AscApiClient';
+import { AscApiClient, AscApiClientPostApi, AscApiRequestError } from '../utils/ios/AscApiClient';
 import { AscApiUtils } from '../utils/ios/AscApiUtils';
 import { readIpaInfoAsync } from './readIpaInfo';
 
@@ -229,15 +229,33 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       let lastWaitLogTime = 0;
       let lastWaitLogState: string | null = null;
       while (Date.now() - waitingForBuildStartedAt < 30 * 60 * 1000 /* 30 minutes */) {
-        const {
-          data: {
-            attributes: { state },
-          },
-        } = await client.getAsync(
-          `/v1/buildUploads/:id`,
-          { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
-          { id: buildUploadId }
-        );
+        let state: {
+          state: 'AWAITING_UPLOAD' | 'PROCESSING' | 'COMPLETE' | 'FAILED';
+          infos?: { code: string; description: string }[];
+          errors?: { code: string; description: string }[];
+          warnings?: { code: string; description: string }[];
+        };
+        try {
+          const response = await client.getAsync(
+            `/v1/buildUploads/:id`,
+            { 'fields[buildUploads]': ['state', 'build'], include: ['build'] },
+            { id: buildUploadId }
+          );
+          state = response.data.attributes.state;
+        } catch (error) {
+          if (isAscUnexpectedServerError(error)) {
+            throw new SystemError(
+              'App Store Connect returned a temporary server error while processing the uploaded build. ' +
+                'This is usually an App Store Connect outage or transient Apple-side failure, not a problem with your Expo project configuration or IPA. ' +
+                'Wait a few minutes and retry submit. If it keeps happening, try again later or contact Apple Developer Support.',
+              {
+                trackingCode: 'EAS_UPLOAD_TO_ASC_SERVER_ERROR',
+                cause: error,
+              }
+            );
+          }
+          throw error;
+        }
 
         if (state.state === 'AWAITING_UPLOAD' || state.state === 'PROCESSING') {
           const now = Date.now();
@@ -279,7 +297,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
-                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+                'If you selected the right app, upload a build that was created for that bundle identifier (for example by rebuilding with the correct Expo config or profile).',
+              {
+                docsUrl: 'https://expo.fyi/asc-app-id',
+              }
             );
           }
           if (isMissingPurposeStringError(errors)) {
@@ -295,6 +316,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                     : ''
                 }` +
                 'Add the missing keys with clear user-facing explanations, then rebuild and submit again.\n' +
+                'If a library or config plugin requires the permission, make sure the corresponding purpose strings are also added in your Expo config.\n' +
                 'If you use Continuous Native Generation (CNG), update `ios.infoPlist` in app.json/app.config.js.\n' +
                 'If you do not use CNG, update your app target Info.plist directly.',
               {
@@ -307,7 +329,10 @@ export function createUploadToAscBuildFunction(): BuildFunction {
               'EAS_UPLOAD_TO_ASC_CLOSED_VERSION_TRAIN',
               `Build upload was rejected by App Store Connect because the ${bundleShortVersion} app version is not accepted for new build submissions. ` +
                 'This usually means the version train is closed or lower than a previously approved version. ' +
-                'Bump the iOS app version (CFBundleShortVersionString, e.g. expo.version) to a higher version, then rebuild and submit again.'
+                'Bump the iOS app version (CFBundleShortVersionString, for Expo projects usually `expo.version` in `app.json`, `app.config.js`, or `app.config.ts`), then rebuild and submit again.',
+              {
+                docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
+              }
             );
           }
           throw new Error(`Build upload (ID: ${buildUploadId}) failed.`);
@@ -339,6 +364,14 @@ export function isInvalidBundleIdentifierError(messages: { code: string }[]): bo
 
 export function isMissingPurposeStringError(messages: { code: string }[]): boolean {
   return messages.length > 0 && messages.every(message => message.code === '90683');
+}
+
+export function isAscUnexpectedServerError(error: unknown): boolean {
+  if (!(error instanceof AscApiRequestError) || error.status !== 500) {
+    return false;
+  }
+  const errors = error.responseJson.errors;
+  return errors.length > 0 && errors.every(item => item.code === 'UNEXPECTED_ERROR');
 }
 
 export function parseMissingUsageDescriptionKeys(messages: { description: string }[]): string[] {
