@@ -54,11 +54,11 @@ export async function restoreGradleCacheAsync({
   const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
 
   let modified = false;
-  if (!properties.some((p) => p.type === 'property' && p.key === 'org.gradle.caching')) {
+  if (!properties.some(p => p.type === 'property' && p.key === 'org.gradle.caching')) {
     properties.push({ type: 'property', key: 'org.gradle.caching', value: 'true' });
     modified = true;
   }
-  if (!properties.some((p) => p.type === 'property' && p.key === 'org.gradle.cache.cleanup')) {
+  if (!properties.some(p => p.type === 'property' && p.key === 'org.gradle.cache.cleanup')) {
     properties.push({ type: 'property', key: 'org.gradle.cache.cleanup', value: 'ALWAYS' });
     modified = true;
   }
