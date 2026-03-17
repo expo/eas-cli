@@ -46,7 +46,7 @@ export async function saveGradleCacheAsync({
   secrets?: { robotAccessToken?: string };
   cacheHit: boolean;
 }): Promise<void> {
-  if (env.GRADLE_CACHE !== '1') {
+  if (env.EAS_GRADLE_CACHE !== '1') {
     return;
   }
 

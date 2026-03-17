@@ -20,15 +20,14 @@ export async function runGradleCommand({
   extraEnv?: BuildStepEnv;
 }): Promise<void> {
   const verboseFlag = env['EAS_VERBOSE'] === '1' ? '--info' : '';
-  const buildCacheFlag = env['GRADLE_CACHE'] === '1' ? '--build-cache' : '';
 
   logger.info(
-    `Running 'gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}' in ${androidDir}`
+    `Running 'gradlew ${gradleCommand} ${verboseFlag}' in ${androidDir}`
   );
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const spawnPromise = spawn(
     'bash',
-    ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`],
+    ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`],
     {
       cwd: androidDir,
       logger,

@@ -6,6 +6,8 @@ import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 
+import spawn from '@expo/turtle-spawn';
+
 import { downloadCacheAsync } from './restoreCache';
 import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 import { TurtleFetchError } from '../../utils/turtleFetch';
@@ -42,9 +44,16 @@ export async function restoreGradleCacheAsync({
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 }): Promise<boolean> {
-  if (env.GRADLE_CACHE !== '1') {
+  if (env.EAS_GRADLE_CACHE !== '1') {
     return false;
   }
+
+  const gradleHome = path.join(os.homedir(), '.gradle');
+  await fs.promises.mkdir(gradleHome, { recursive: true });
+  await fs.promises.appendFile(
+    path.join(gradleHome, 'gradle.properties'),
+    '\norg.gradle.caching=true\n'
+  );
 
   const robotAccessToken = nullthrows(
     secrets?.robotAccessToken,
@@ -71,9 +80,7 @@ export async function restoreGradleCacheAsync({
     });
 
     await fs.promises.mkdir(gradleCachesPath, { recursive: true });
-
-    const { execSync } = require('child_process');
-    execSync(`tar xzf ${archivePath} -C ${gradleCachesPath}`);
+    await spawn('tar', ['xzf', archivePath, '-C', gradleCachesPath], { logger });
 
     logger.info(
       `Gradle cache restored to ${gradleCachesPath} ${matchedKey === cacheKey ? '(direct hit)' : '(prefix match)'}`
