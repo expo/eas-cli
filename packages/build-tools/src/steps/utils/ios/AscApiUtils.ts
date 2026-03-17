@@ -42,7 +42,7 @@ export namespace AscApiUtils {
       throw new UserError(
         'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
         `App Store Connect app for application identifier ${appleAppIdentifier} was not found. ` +
-          'Verify the configured application identifier and that the App Store Connect API key has access to the application in the correct App Store Connect account.' +
+          'In an Expo project, verify the Apple app identifier configured in the submit profile and that the App Store Connect API key has access to that app in the correct App Store Connect account.' +
           (visibleAppsSummary
             ? `\n\nExample applications visible to this API key:\n${visibleAppsSummary}`
             : ''),
@@ -119,7 +119,7 @@ export namespace AscApiUtils {
           'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
           `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
             'App Store Connect requires unique build numbers within each app version (version train). ' +
-            'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+            'Increment it by setting `ios.buildNumber` in your Expo app config (`app.json`, `app.config.js`, or `app.config.ts`), or set `"autoIncrement": true` in `eas.json` (recommended). Then rebuild and resubmit.',
           {
             docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
             cause: error,
