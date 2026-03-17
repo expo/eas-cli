@@ -23,7 +23,6 @@ export function createSaveXcodeCacheFunction(): BuildFunction {
         workingDirectory,
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
-        cacheHit: false,
       });
     },
   });
@@ -34,25 +33,15 @@ export async function saveXcodeCacheAsync({
   workingDirectory,
   env,
   secrets,
-  cacheHit,
   simulator,
 }: {
   logger: bunyan;
   workingDirectory: string;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
-  cacheHit: boolean;
   simulator?: boolean;
 }): Promise<void> {
-  logger.info(`[saveXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}, cacheHit=${cacheHit}`);
-
   if (env.XCODE_CACHE !== '1') {
-    logger.info('[saveXcodeCacheAsync] XCODE_CACHE not set to 1, skipping');
-    return;
-  }
-
-  if (cacheHit) {
-    logger.info('Xcode cache was restored — skipping save');
     return;
   }
 
@@ -62,7 +51,7 @@ export async function saveXcodeCacheAsync({
     return;
   }
 
-  logger.info(`[saveXcodeCacheAsync] found products at: ${productsPath}`);
+  logger.info(`Found build products at: ${productsPath}`);
 
   // Cache the contents of the products directory directly (flat).
   // The archive will contain files like EXAV/libEXAV.a, EXAV/EXAV.modulemap, etc.
@@ -127,7 +116,7 @@ async function findBuildProductsPathAsync(workingDirectory: string, logger: buny
         const releaseDir = configs.find((c) => c.startsWith('Release-'));
         if (releaseDir) {
           const fullPath = path.join(buildProductsPath, releaseDir);
-          logger.info(`[findBuildProductsPathAsync] found archive products: ${fullPath}`);
+          logger.info(`Found archive build products: ${fullPath}`);
           return fullPath;
         }
       } catch {
@@ -145,13 +134,13 @@ async function findBuildProductsPathAsync(workingDirectory: string, logger: buny
     const releaseDir = configs.find((c) => c.startsWith('Release-'));
     if (releaseDir) {
       const fullPath = path.join(productsDir, releaseDir);
-      logger.info(`[findBuildProductsPathAsync] found simulator products: ${fullPath}`);
+      logger.info(`Found simulator build products: ${fullPath}`);
       return fullPath;
     }
   } catch {
     // No Products directory
   }
 
-  logger.info('[findBuildProductsPathAsync] no build products found');
+  logger.info('No build products found');
   return null;
 }

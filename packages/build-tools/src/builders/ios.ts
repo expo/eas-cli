@@ -215,7 +215,6 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
         workingDirectory: ctx.buildDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
-        cacheHit: xcodeCacheHit,
         simulator: ctx.job.simulator,
       });
     });

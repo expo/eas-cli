@@ -63,10 +63,7 @@ export async function patchPodsXcodeprojAsync({
   env: Record<string, string | undefined>;
   cacheHit: boolean;
 }): Promise<void> {
-  logger.info(`[patchPodsXcodeprojAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}, cacheHit=${cacheHit}`);
-
   if (env.XCODE_CACHE !== '1' || !cacheHit) {
-    logger.info('[patchPodsXcodeprojAsync] skipping (cache not enabled or no cache hit)');
     return;
   }
 

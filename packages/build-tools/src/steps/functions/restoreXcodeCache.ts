@@ -46,10 +46,7 @@ export async function restoreXcodeCacheAsync({
   secrets?: { robotAccessToken?: string };
   simulator?: boolean;
 }): Promise<boolean> {
-  logger.info(`[restoreXcodeCacheAsync] entered, XCODE_CACHE=${env.XCODE_CACHE ?? 'unset'}`);
-
   if (env.XCODE_CACHE !== '1') {
-    logger.info('[restoreXcodeCacheAsync] XCODE_CACHE not set to 1, skipping');
     return false;
   }
 
