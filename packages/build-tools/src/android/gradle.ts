@@ -33,18 +33,22 @@ export async function runGradleCommand(
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
   const buildCacheFlag = ctx.env['GRADLE_CACHE'] === '1' ? '--build-cache' : '';
 
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`], {
-    cwd: androidDir,
-    logger,
-    lineTransformer: (line?: string) => {
-      if (!line || /^\.+$/.exec(line)) {
-        return null;
-      } else {
-        return line;
-      }
-    },
-    env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.UTF-8' },
-  });
+  const spawnPromise = spawn(
+    'bash',
+    ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`],
+    {
+      cwd: androidDir,
+      logger,
+      lineTransformer: (line?: string) => {
+        if (!line || /^\.+$/.exec(line)) {
+          return null;
+        } else {
+          return line;
+        }
+      },
+      env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.UTF-8' },
+    }
+  );
   if (ctx.env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
   }

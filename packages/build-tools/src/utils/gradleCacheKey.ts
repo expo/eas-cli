@@ -6,9 +6,7 @@ import { findPackagerRootDir } from './packageManager';
 
 export const GRADLE_CACHE_KEY_PREFIX = 'android-gradle-cache-';
 
-export async function generateGradleCacheKeyAsync(
-  workingDirectory: string
-): Promise<string> {
+export async function generateGradleCacheKeyAsync(workingDirectory: string): Promise<string> {
   const packagerRunDir = findPackagerRootDir(workingDirectory);
   const manager = PackageManagerUtils.createForProject(packagerRunDir);
   const lockPath = path.join(packagerRunDir, manager.lockFile);
@@ -16,8 +14,6 @@ export async function generateGradleCacheKeyAsync(
   try {
     return `${GRADLE_CACHE_KEY_PREFIX}${hashFiles([lockPath])}`;
   } catch (err: any) {
-    throw new Error(
-      `Failed to read lockfile for Gradle cache key generation: ${err.message}`
-    );
+    throw new Error(`Failed to read lockfile for Gradle cache key generation: ${err.message}`);
   }
 }

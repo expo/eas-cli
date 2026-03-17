@@ -22,20 +22,26 @@ export async function runGradleCommand({
   const verboseFlag = env['EAS_VERBOSE'] === '1' ? '--info' : '';
   const buildCacheFlag = env['GRADLE_CACHE'] === '1' ? '--build-cache' : '';
 
-  logger.info(`Running 'gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}' in ${androidDir}`);
+  logger.info(
+    `Running 'gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}' in ${androidDir}`
+  );
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`], {
-    cwd: androidDir,
-    logger,
-    lineTransformer: (line?: string) => {
-      if (!line || /^\.+$/.exec(line)) {
-        return null;
-      } else {
-        return line;
-      }
-    },
-    env: { ...env, ...extraEnv, LC_ALL: 'C.UTF-8' },
-  });
+  const spawnPromise = spawn(
+    'bash',
+    ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`],
+    {
+      cwd: androidDir,
+      logger,
+      lineTransformer: (line?: string) => {
+        if (!line || /^\.+$/.exec(line)) {
+          return null;
+        } else {
+          return line;
+        }
+      },
+      env: { ...env, ...extraEnv, LC_ALL: 'C.UTF-8' },
+    }
+  );
   if (env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
   }

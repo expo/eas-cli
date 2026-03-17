@@ -7,10 +7,7 @@ import os from 'os';
 import path from 'path';
 
 import { downloadCacheAsync } from './restoreCache';
-import {
-  GRADLE_CACHE_KEY_PREFIX,
-  generateGradleCacheKeyAsync,
-} from '../../utils/gradleCacheKey';
+import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 import { TurtleFetchError } from '../../utils/turtleFetch';
 
 const GRADLE_CACHES_DIR = '.gradle/caches';
