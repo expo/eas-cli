@@ -42,7 +42,7 @@ export namespace AscApiUtils {
       throw new UserError(
         'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
         `App Store Connect app for application identifier ${appleAppIdentifier} was not found. ` +
-          'Verify the configured application identifier and that the App Store Connect API key has access to the application in the correct App Store Connect account.' +
+          'In an Expo project, verify the Apple app identifier configured in the submit profile and that the App Store Connect API key has access to that app in the correct App Store Connect account.' +
           (visibleAppsSummary
             ? `\n\nExample applications visible to this API key:\n${visibleAppsSummary}`
             : ''),
@@ -89,6 +89,28 @@ export namespace AscApiUtils {
         error instanceof AscApiRequestError && error.status === 409
           ? error.responseJson.errors
           : [];
+      const isInvalidAppRelationshipError =
+        errors.length > 0 &&
+        errors.every(
+          item =>
+            item.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID' &&
+            typeof item.source === 'object' &&
+            item.source !== null &&
+            'pointer' in item.source &&
+            (item.source as { pointer?: unknown }).pointer === '/data/relationships/app/data/id'
+        );
+      if (isInvalidAppRelationshipError) {
+        throw new UserError(
+          'EAS_UPLOAD_TO_ASC_INVALID_APP_RELATIONSHIP',
+          `App Store Connect rejected Apple app identifier ${appleAppIdentifier} while creating the build upload. ` +
+            'In an Expo project, this usually means the Apple app identifier in the submit profile points to the wrong App Store Connect app, or the API key cannot access that app. ' +
+            'Select the correct submit profile or update the Apple app identifier, then submit again.',
+          {
+            cause: error,
+            docsUrl: 'https://expo.fyi/asc-app-id',
+          }
+        );
+      }
       const isDuplicateVersionError =
         errors.length > 0 &&
         errors.every(item => item.code === 'ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE');
@@ -98,7 +120,7 @@ export namespace AscApiUtils {
           'EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE',
           `Increment Build Number: Build number ${bundleVersion} for app version ${bundleShortVersion} has already been used. ` +
             'App Store Connect requires unique build numbers within each app version (version train). ' +
-            'Increment it by setting ios.buildNumber in app.json, or set "autoIncrement": true in eas.json (recommended). Then rebuild and resubmit.',
+            'Increment it by setting `ios.buildNumber` in your Expo app config (`app.json`, `app.config.js`, or `app.config.ts`), or set `"autoIncrement": true` in `eas.json` (recommended). Then rebuild and resubmit.',
           {
             docsUrl: 'https://docs.expo.dev/build-reference/app-versions/',
             cause: error,
