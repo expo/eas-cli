@@ -78,12 +78,16 @@ export function mockCommandContext<
     projectId?: string;
     getDynamicPrivateProjectConfigAsync?: DynamicConfigContextFn;
     getDynamicPublicProjectConfigAsync?: DynamicConfigContextFn;
+    optionalPrivateProjectConfig?: { exp: ExpoConfig; projectId: string; projectDir: string } | null;
   }
 ): ContextOutput<C> {
   const projectDir = path.join('/test', uuidv4());
   vol.reset();
   vol.fromJSON({ 'eas.json': JSON.stringify(overrides.easJson ?? getMockEasJson()) }, projectDir);
   const contextDefinition = commandClass.contextDefinition;
+  const exp = overrides.exp ?? getMockExpoConfig();
+  const projectId = overrides.projectId ?? mockProjectId;
+  const projectConfig = { exp, projectId, projectDir };
 
   const result: any = {};
   for (const [contextKey] of Object.entries(contextDefinition)) {
@@ -91,7 +95,7 @@ export function mockCommandContext<
       result.loggedIn = {};
     }
     if (contextKey === 'projectId') {
-      result.projectId = overrides.projectId ?? mockProjectId;
+      result.projectId = projectId;
     }
     if (contextKey === 'projectDir') {
       result.projectDir = projectDir;
@@ -103,26 +107,30 @@ export function mockCommandContext<
       result.sessionManager = {};
     }
     if (contextKey === 'projectConfig') {
-      result.projectConfig = {
-        exp: overrides.exp ?? getMockExpoConfig(),
-        projectId: overrides.projectId ?? mockProjectId,
-        projectDir,
-      };
+      result.projectConfig = projectConfig;
+    }
+    if (contextKey === 'optionalPrivateProjectConfig') {
+      result.optionalPrivateProjectConfig =
+        overrides.optionalPrivateProjectConfig !== undefined
+          ? overrides.optionalPrivateProjectConfig
+          : projectConfig;
     }
     if (contextKey === 'getDynamicPrivateProjectConfigAsync') {
-      result.getDynamicPrivateProjectConfigAsync = () => ({
-        exp: overrides.exp ?? getMockExpoConfig(),
-        projectId: overrides.projectId ?? mockProjectId,
-        projectDir,
-      });
+      result.getDynamicPrivateProjectConfigAsync =
+        overrides.getDynamicPrivateProjectConfigAsync ??
+        (() => Promise.resolve(projectConfig));
     }
 
     if (contextKey === 'getDynamicPublicProjectConfigAsync') {
-      result.getDynamicPublicProjectConfigAsync = () => ({
-        exp: overrides.exp ?? getMockExpoConfig(),
-        projectId: overrides.projectId ?? mockProjectId,
-        projectDir,
-      });
+      result.getDynamicPublicProjectConfigAsync =
+        overrides.getDynamicPublicProjectConfigAsync ??
+        (() => Promise.resolve(projectConfig));
+    }
+    if (contextKey === 'analytics') {
+      result.analytics = {};
+    }
+    if (contextKey === 'vcsClient') {
+      result.vcsClient = {};
     }
   }
   return result;
