@@ -32,7 +32,9 @@ export namespace AscApiUtils {
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
           'App Store Connect rejected the API authentication credentials. ' +
-            'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',
+            'If this submit profile uses an App Store Connect API key stored in EAS credentials, replace or reconfigure that key. ' +
+            'If you provide the key locally, verify `issuer_id`, `key_id`, and `key`. ' +
+            'Make sure the key is active in App Store Connect, belongs to the correct App Store Connect account, and has sufficient access to the app. Then retry submit.',
           {
             cause: error,
             docsUrl: 'https://docs.expo.dev/submit/ios/',
@@ -113,7 +115,9 @@ export namespace AscApiUtils {
         throw new UserError(
           'EAS_UPLOAD_TO_ASC_INVALID_AUTH',
           'App Store Connect rejected the API authentication credentials. ' +
-            'Verify that the API key JSON is valid (`issuer_id`, `key_id`, `key`), the key is active in App Store Connect, and it belongs to the correct App Store Connect account with sufficient access. Then retry submit.',
+            'If this submit profile uses an App Store Connect API key stored in EAS credentials, replace or reconfigure that key. ' +
+            'If you provide the key locally, verify `issuer_id`, `key_id`, and `key`. ' +
+            'Make sure the key is active in App Store Connect, belongs to the correct App Store Connect account, and has sufficient access to the app. Then retry submit.',
           {
             cause: error,
             docsUrl: 'https://docs.expo.dev/submit/ios/',
