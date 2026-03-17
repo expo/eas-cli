@@ -15,7 +15,9 @@ import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
+import { restoreGradleCacheAsync } from '../steps/functions/restoreGradleCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import { saveGradleCacheAsync } from '../steps/functions/saveGradleCache';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
@@ -78,6 +80,20 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       logger: ctx.logger,
       workingDirectory,
       platform: ctx.job.platform,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+  });
+
+  let gradleCacheHit = false;
+  await ctx.runBuildPhase(BuildPhase.RESTORE_GRADLE_CACHE, async () => {
+    if (ctx.isLocal) {
+      ctx.logger.info('Local builds do not support restoring Gradle cache');
+      return;
+    }
+    gradleCacheHit = await restoreGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
@@ -179,6 +195,20 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       patternOrPath: ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}',
       rootDir: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
+    });
+  });
+
+  await ctx.runBuildPhase(BuildPhase.SAVE_GRADLE_CACHE, async () => {
+    if (ctx.isLocal) {
+      ctx.logger.info('Local builds do not support saving Gradle cache.');
+      return;
+    }
+    await saveGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+      cacheHit: gradleCacheHit,
     });
   });
 

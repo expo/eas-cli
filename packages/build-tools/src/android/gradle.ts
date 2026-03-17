@@ -31,8 +31,9 @@ export async function runGradleCommand(
   logger.info(`Running 'gradlew ${gradleCommand}' in ${androidDir}`);
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
+  const buildCacheFlag = ctx.env['GRADLE_CACHE'] === '1' ? '--build-cache' : '';
 
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`], {
+  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag} ${buildCacheFlag}`], {
     cwd: androidDir,
     logger,
     lineTransformer: (line?: string) => {
