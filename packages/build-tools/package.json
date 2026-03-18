@@ -75,7 +75,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@expo/repack-app": "~0.2.5",
+    "@expo/repack-app": "~0.4.1",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.12",
     "@types/lodash": "^4.17.4",

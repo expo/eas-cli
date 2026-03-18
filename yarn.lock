@@ -2712,7 +2712,7 @@ __metadata:
     "@expo/logger": "npm:18.0.1"
     "@expo/package-manager": "npm:1.9.10"
     "@expo/plist": "npm:^0.2.0"
-    "@expo/repack-app": "npm:~0.2.5"
+    "@expo/repack-app": "npm:~0.4.1"
     "@expo/results": "npm:^1.0.0"
     "@expo/spawn-async": "npm:1.7.2"
     "@expo/steps": "npm:18.4.0"
@@ -3278,15 +3278,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/repack-app@npm:~0.2.5":
-  version: 0.2.16
-  resolution: "@expo/repack-app@npm:0.2.16"
+"@expo/repack-app@npm:~0.4.1":
+  version: 0.4.1
+  resolution: "@expo/repack-app@npm:0.4.1"
   dependencies:
-    commander: "npm:^13.1.0"
+    commander: "npm:^14.0.2"
     picocolors: "npm:^1.1.1"
   bin:
     repack-app: bin/cli.js
-  checksum: 10c0/7a53dd748563d95083f2445e3aec887adf973c5dbccb3cb117dfe46e36eed8bf1fb80da77071032ef4e933e73c50104170a770e351576c2170ff409411b25e46
+  checksum: 10c0/4bc30a7ca95221f079026633802c32894ef25d55677212e86859194bf1a042598eaa5977510a277c3ceee6af6bd0d0a3aff3e21c4510c37b7dea584dd927ed0e
   languageName: node
   linkType: hard
 
@@ -9834,10 +9834,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:^13.1.0":
-  version: 13.1.0
-  resolution: "commander@npm:13.1.0"
-  checksum: 10c0/7b8c5544bba704fbe84b7cab2e043df8586d5c114a4c5b607f83ae5060708940ed0b5bd5838cf8ce27539cde265c1cbd59ce3c8c6b017ed3eec8943e3a415164
+"commander@npm:^14.0.2":
+  version: 14.0.3
+  resolution: "commander@npm:14.0.3"
+  checksum: 10c0/755652564bbf56ff2ff083313912b326450d3f8d8c85f4b71416539c9a05c3c67dbd206821ca72635bf6b160e2afdefcb458e86b317827d5cb333b69ce7f1a24
   languageName: node
   linkType: hard
 

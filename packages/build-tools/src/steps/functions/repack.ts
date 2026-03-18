@@ -52,6 +52,11 @@ export function createRepackBuildFunction(): BuildFunction {
         required: false,
       }),
       BuildStepInput.createProvider({
+        id: 'js_bundle_only',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
         id: 'repack_version',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         required: false,
@@ -82,7 +87,10 @@ export function createRepackBuildFunction(): BuildFunction {
         );
       }
 
-      const repackSpawnAsync = createSpawnAsyncStepAdapter({ verbose, logger: stepsCtx.logger });
+      const repackSpawnAsync = createSpawnAsyncStepAdapter({
+        verbose,
+        logger: stepsCtx.logger,
+      });
 
       const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-`));
       const workingDirectory = path.join(tmpDir, 'working-directory');
@@ -98,6 +106,7 @@ export function createRepackBuildFunction(): BuildFunction {
             sourcemapOutput: undefined,
           }
         : undefined;
+      const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
       stepsCtx.logger.info(
         `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value}`
@@ -118,6 +127,7 @@ export function createRepackBuildFunction(): BuildFunction {
             outputPath,
             workingDirectory,
             exportEmbedOptions,
+            jsBundleOnly,
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
@@ -146,6 +156,7 @@ export function createRepackBuildFunction(): BuildFunction {
                 outputPath,
                 workingDirectory,
                 exportEmbedOptions,
+                jsBundleOnly,
                 androidSigningOptions,
                 logger: stepsCtx.logger,
                 spawnAsync: repackSpawnAsync,
