@@ -39,9 +39,6 @@ export enum BuildPhase {
 
   // IOS
   INSTALL_PODS = 'INSTALL_PODS',
-  RESTORE_XCODE_CACHE = 'RESTORE_XCODE_CACHE',
-  PATCH_PODS_XCODEPROJ = 'PATCH_PODS_XCODEPROJ',
-  SAVE_XCODE_CACHE = 'SAVE_XCODE_CACHE',
   CONFIGURE_XCODE_PROJECT = 'CONFIGURE_XCODE_PROJECT',
   RUN_FASTLANE = 'RUN_FASTLANE',
 
@@ -109,9 +106,6 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'Install pods',
-  [BuildPhase.RESTORE_XCODE_CACHE]: 'Restore Xcode cache',
-  [BuildPhase.PATCH_PODS_XCODEPROJ]: 'Patch Pods Xcode project',
-  [BuildPhase.SAVE_XCODE_CACHE]: 'Save Xcode cache',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'Configure Xcode project',
   [BuildPhase.RUN_FASTLANE]: 'Run fastlane',
 
@@ -176,9 +170,6 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'install-pods',
-  [BuildPhase.RESTORE_XCODE_CACHE]: 'restore-xcode-cache',
-  [BuildPhase.PATCH_PODS_XCODEPROJ]: 'patch-pods-xcodeproj',
-  [BuildPhase.SAVE_XCODE_CACHE]: 'save-xcode-cache',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'configure-xcode-project',
   [BuildPhase.RUN_FASTLANE]: 'run-fastlane',
 

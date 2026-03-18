@@ -26,9 +26,6 @@ import { runFastlaneFunction } from '../functions/runFastlane';
 import { runGradleFunction } from '../functions/runGradle';
 import { createSaveBuildCacheFunction } from '../functions/saveBuildCache';
 import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
-import { createRestoreXcodeCacheFunction } from '../functions/restoreXcodeCache';
-import { createPatchPodsXcodeprojFunction } from '../functions/patchPodsXcodeproj';
-import { createSaveXcodeCacheFunction } from '../functions/saveXcodeCache';
 
 interface HelperFunctionsInput {
   globalCtx: BuildStepGlobalContext;
@@ -77,6 +74,8 @@ function createStepsForIosSimulatorBuild({
   globalCtx,
   buildToolsContext,
 }: HelperFunctionsInput): BuildStep[] {
+  const evictUsedBefore = new Date();
+
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
@@ -109,8 +108,11 @@ function createStepsForIosSimulatorBuild({
     createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
     calculateEASUpdateRuntimeVersion,
     installPods,
-    createRestoreXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
-    createPatchPodsXcodeprojFunction().createBuildStepFromFunctionCall(globalCtx),
+    createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: Platform.IOS,
+      },
+    }),
     configureEASUpdate,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
@@ -127,7 +129,11 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createSaveXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
+    createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: Platform.IOS,
+      },
+    }),
   ];
 }
 
@@ -201,11 +207,9 @@ function createStepsForIosBuildWithCredentials({
     ),
     resolveAppleTeamIdFromCredentials,
     prebuildStep,
-    restoreCache,
     calculateEASUpdateRuntimeVersion,
     installPods,
-    createRestoreXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
-    createPatchPodsXcodeprojFunction().createBuildStepFromFunctionCall(globalCtx),
+    restoreCache,
     configureEASUpdate,
     configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx),
     configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx),
@@ -224,7 +228,6 @@ function createStepsForIosBuildWithCredentials({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
-    createSaveXcodeCacheFunction().createBuildStepFromFunctionCall(globalCtx),
     saveCache,
     createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
   ];
