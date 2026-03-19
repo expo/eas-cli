@@ -17,7 +17,7 @@
     "lint-changelog": "./scripts/bin/run lint-changelog",
     "release": "lerna run rebuild --concurrency 1 && ./scripts/bin/run release",
     "test": "lerna run test",
-    "clean": "lerna run clean && rm -rf node_modules coverage"
+    "clean": "lerna run clean && rimraf node_modules coverage"
   },
   "devDependencies": {
     "@types/jest": "29.5.11",
@@ -30,6 +30,7 @@
     "oxfmt": "0.28.0",
     "oxlint": "1.43.0",
     "oxlint-tsgolint": "0.11.1",
+    "rimraf": "3.0.2",
     "ts-jest": "29.1.1",
     "typescript": "5.5.4"
   },

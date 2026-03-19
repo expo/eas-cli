@@ -26,9 +26,9 @@
     "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "prepack": "yarn rebuild",
-    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
+    "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
     "test": "jest",
-    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
+    "clean": "rimraf build node_modules yarn-error.log \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@babel/code-frame": "7.23.5",

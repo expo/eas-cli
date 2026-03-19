@@ -28,7 +28,7 @@
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
     "prepack": "yarn rebuild && node ./scripts/prepack.js",
-    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
+    "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
     "build": "yarn typecheck-for-build && yarn copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
     "watch": "yarn typecheck-for-build --watch --preserveWatchOutput",
@@ -39,7 +39,7 @@
     "version": "yarn run -T oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
-    "clean": "rimraf dist build tmp node_modules yarn-error.log *.tsbuildinfo",
+    "clean": "rimraf dist build tmp node_modules yarn-error.log \"*.tsbuildinfo\"",
     "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "dependencies": {
