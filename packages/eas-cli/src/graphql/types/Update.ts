@@ -23,6 +23,9 @@ export const UpdateFragmentNode = gql`
       ... on Robot {
         firstName
       }
+      ... on PartnerActor {
+        username
+      }
     }
     branch {
       id
