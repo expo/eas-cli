@@ -88,7 +88,9 @@ export function choicesFromWorkflowLogs(
     .map(step => {
       const logLines = logs.get(step);
       const stepStatus =
-        logLines?.filter((line: WorkflowLogLine) => line.marker === 'end-step')[0]?.result ?? '';
+        logLines?.filter(
+          (line: WorkflowLogLine) => line.marker === 'end-step' || line.marker === 'END_PHASE'
+        )[0]?.result ?? '';
       return {
         title: `${step} - ${stepStatus}`,
         name: step,
@@ -144,9 +146,9 @@ export async function fetchAndProcessLogsFromJobAsync(
     Log.debug(`line ${index} = ${JSON.stringify(line, null, 2)}`);
     try {
       const parsedLine = JSON.parse(line);
-      const { buildStepDisplayName, buildStepInternalId, time, msg, result, marker, err } =
+      const { buildStepDisplayName, buildStepInternalId, phase, time, msg, result, marker, err } =
         parsedLine;
-      const stepId = buildStepDisplayName ?? buildStepInternalId;
+      const stepId = buildStepDisplayName ?? buildStepInternalId ?? phase;
       if (stepId) {
         if (!logKeys.has(stepId)) {
           logKeys.add(stepId);
@@ -238,7 +240,7 @@ export async function infoForFailedWorkflowRunAsync(
     statusValues.push({ label: '', value: '' });
     statusValues.push({ label: '  Failed job', value: job.name });
     if (steps.length > 0) {
-      const failedStep = steps.find(step => step.status === 'fail');
+      const failedStep = steps.find(step => step.status === 'fail' || step.status === 'failed');
       if (failedStep) {
         const logs = failedStep.logLines?.map(line => line.msg).slice(-logLinesToKeep) ?? [];
         statusValues.push({ label: '  Failed step', value: failedStep.name });
