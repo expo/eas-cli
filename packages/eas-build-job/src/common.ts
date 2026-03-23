@@ -259,6 +259,15 @@ export const StaticWorkflowInterpolationContextZ = z.object({
     id: z.string(),
     name: z.string(),
   }),
+  app_store_connect: z
+    .looseObject({
+      event: z.looseObject({
+        app: z.looseObject({
+          id: z.string(),
+        }),
+      }),
+    })
+    .optional(),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<
