@@ -226,17 +226,16 @@ export async function restoreGradleCacheAsync({
     );
   }
 
-  const robotAccessToken = nullthrows(
-    secrets?.robotAccessToken,
-    'Robot access token is required for cache operations'
-  );
-  const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
-
   try {
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
     const cacheKey = await generateGradleCacheKeyAsync(workingDirectory);
     logger.info(`Restoring Gradle cache key: ${cacheKey}`);
 
-    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
     const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
 
     const { archivePath, matchedKey } = await downloadCacheAsync({
