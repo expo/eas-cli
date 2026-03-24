@@ -6,7 +6,7 @@ import uniq from 'lodash/uniq';
 import path from 'path';
 
 import { Credentials } from './credentials/manager';
-import { DistributionType, ProvisioningProfileData } from './credentials/provisioningProfile';
+import { DistributionType } from './credentials/provisioningProfile';
 import { BuildContext } from '../context';
 
 async function configureXcodeProject(
@@ -57,33 +57,12 @@ async function configureCredentialsAsync(
         profileName: profile.name,
         appleTeamId: profile.teamId,
         buildConfiguration,
+        ...(credentials.distributionType === DistributionType.DEVELOPMENT && {
+          codeSignIdentity: profile.certificateCommonName,
+        }),
       }
     );
   }
-
-  if (credentials.distributionType === DistributionType.DEVELOPMENT) {
-    overrideCodeSignIdentityForDevelopment(
-      ctx.getReactNativeProjectDirectory(),
-      credentials.targetProvisioningProfiles,
-      buildConfiguration
-    );
-  }
-}
-
-function overrideCodeSignIdentityForDevelopment(
-  projectRoot: string,
-  targetProvisioningProfiles: Record<string, ProvisioningProfileData>,
-  buildConfiguration: string
-): void {
-  const project = IOSConfig.XcodeUtils.getPbxproj(projectRoot);
-  for (const [targetName, profile] of Object.entries(targetProvisioningProfiles)) {
-    const xcBuildConfiguration = IOSConfig.Target.getXCBuildConfigurationFromPbxproj(project, {
-      targetName,
-      buildConfiguration,
-    });
-    xcBuildConfiguration.buildSettings.CODE_SIGN_IDENTITY = `"${profile.certificateCommonName}"`;
-  }
-  fs.writeFileSync(project.filepath, project.writeSync());
 }
 
 async function updateVersionsAsync(
