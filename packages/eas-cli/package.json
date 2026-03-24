@@ -26,6 +26,7 @@
     "/schema"
   ],
   "scripts": {
+    "postinstall": "node ./scripts/patch-apple-utils-pagination.js",
     "postpack": "rimraf oclif.manifest.json",
     "prepack": "yarn rebuild && node ./scripts/prepack.js",
     "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
