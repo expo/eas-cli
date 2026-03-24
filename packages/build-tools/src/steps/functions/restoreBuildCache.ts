@@ -13,7 +13,6 @@ import os from 'os';
 import path from 'path';
 
 import { AndroidConfig } from '@expo/config-plugins';
-import spawn from '@expo/turtle-spawn';
 
 import { sendCcacheStatsAsync } from './ccacheStats';
 import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
@@ -252,7 +251,12 @@ export async function restoreGradleCacheAsync({
     });
 
     await fs.promises.mkdir(gradleCachesPath, { recursive: true });
-    await spawn('tar', ['xzf', archivePath, '-C', gradleCachesPath], { logger });
+    await decompressCacheAsync({
+      archivePath,
+      workingDirectory: gradleCachesPath,
+      verbose: env.EXPO_DEBUG === '1',
+      logger,
+    });
 
     logger.info(
       `Gradle cache restored to ${gradleCachesPath} ${matchedKey === cacheKey ? '(direct hit)' : '(prefix match)'}`
