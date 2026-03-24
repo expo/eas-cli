@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli][build-tools][worker] Bump `@expo/config` and `@expo/config-plugins`. ([#3527](https://github.com/expo/eas-cli/pull/3527))
+
 ## [18.4.0](https://github.com/expo/eas-cli/releases/tag/v18.4.0) - 2026-03-16
 
 ### 🎉 New features
