@@ -201,30 +201,33 @@ export async function restoreGradleCacheAsync({
   workingDirectory: string;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
-}): Promise<boolean> {
-  if (env.EAS_GRADLE_CACHE !== '1') {
-    return false;
+}): Promise<void> {
+  if (env.EXPERIMENTAL_EAS_GRADLE_CACHE !== '1') {
+    return;
   }
 
   const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
   const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
   const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
 
-  let modified = false;
-  if (!properties.some(p => p.type === 'property' && p.key === 'org.gradle.caching')) {
-    properties.push({ type: 'property', key: 'org.gradle.caching', value: 'true' });
-    modified = true;
+  const propsToSet: Record<string, string> = {
+    'org.gradle.caching': 'true',
+    'org.gradle.cache.cleanup': 'ALWAYS',
+  };
+
+  for (const [key, value] of Object.entries(propsToSet)) {
+    const existing = properties.find(p => p.type === 'property' && p.key === key);
+    if (existing && existing.type === 'property') {
+      existing.value = value;
+    } else {
+      properties.push({ type: 'property', key, value });
+    }
   }
-  if (!properties.some(p => p.type === 'property' && p.key === 'org.gradle.cache.cleanup')) {
-    properties.push({ type: 'property', key: 'org.gradle.cache.cleanup', value: 'ALWAYS' });
-    modified = true;
-  }
-  if (modified) {
-    await fs.promises.writeFile(
-      gradlePropertiesPath,
-      AndroidConfig.Properties.propertiesListToString(properties)
-    );
-  }
+
+  await fs.promises.writeFile(
+    gradlePropertiesPath,
+    AndroidConfig.Properties.propertiesListToString(properties)
+  );
 
   try {
     const robotAccessToken = nullthrows(
@@ -260,14 +263,12 @@ export async function restoreGradleCacheAsync({
     logger.info(
       `Gradle cache restored to ${gradleCachesPath} ${matchedKey === cacheKey ? '(direct hit)' : '(prefix match)'}`
     );
-    return true;
   } catch (err: unknown) {
     if (err instanceof TurtleFetchError && err.response?.status === 404) {
       logger.info('No Gradle cache found for this key');
     } else {
       logger.warn('Failed to restore Gradle cache: ', err);
     }
-    return false;
   }
 }
 

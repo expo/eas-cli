@@ -58,7 +58,6 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
           workingDirectory,
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
-          cacheHit: false,
         });
       }
     },
@@ -151,51 +150,28 @@ export async function saveCcacheAsync({
   }
 }
 
-const GRADLE_CACHE_SUBDIRS = ['build-cache-1'];
-
 export async function saveGradleCacheAsync({
   logger,
   workingDirectory,
   env,
   secrets,
-  cacheHit,
 }: {
   logger: bunyan;
   workingDirectory: string;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
-  cacheHit: boolean;
 }): Promise<void> {
-  if (env.EAS_GRADLE_CACHE !== '1') {
-    return;
-  }
-
-  if (cacheHit) {
-    logger.info('Gradle cache was restored — skipping save');
+  if (env.EXPERIMENTAL_EAS_GRADLE_CACHE !== '1') {
     return;
   }
 
   const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
+  const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
 
   try {
-    await fs.promises.access(gradleCachesPath);
+    await fs.promises.access(buildCachePath);
   } catch {
-    logger.warn('No Gradle caches directory found, skipping save');
-    return;
-  }
-
-  const existingDirs = [];
-  for (const subdir of GRADLE_CACHE_SUBDIRS) {
-    try {
-      await fs.promises.access(path.join(gradleCachesPath, subdir));
-      existingDirs.push(subdir);
-    } catch {
-      // skip
-    }
-  }
-
-  if (existingDirs.length === 0) {
-    logger.warn('No cacheable Gradle directories found, skipping save');
+    logger.warn('No Gradle build cache found, skipping save');
     return;
   }
 
@@ -210,9 +186,9 @@ export async function saveGradleCacheAsync({
     );
     const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
 
-    logger.info(`Compressing Gradle caches (${existingDirs.join(', ')})...`);
+    logger.info('Compressing Gradle build cache...');
     const { archivePath } = await compressCacheAsync({
-      paths: existingDirs,
+      paths: ['build-cache-1'],
       workingDirectory: gradleCachesPath,
       verbose: env.EXPO_DEBUG === '1',
       logger,
