@@ -131,15 +131,10 @@ async function resolveNewArchEnabled(
   }
 
   if (
-    (appConfig?.[job.platform] as unknown as Record<string, unknown>)?.newArchEnabled !==
-      undefined ||
-    (appConfig as unknown as Record<string, unknown>).newArchEnabled !== undefined
+    appConfig?.[job.platform]?.newArchEnabled !== undefined ||
+    appConfig.newArchEnabled !== undefined
   ) {
-    return (
-      ((appConfig?.[job.platform] as unknown as Record<string, unknown>)
-        ?.newArchEnabled as boolean) ??
-      ((appConfig as unknown as Record<string, unknown>).newArchEnabled as boolean)
-    );
+    return appConfig?.[job.platform]?.newArchEnabled ?? appConfig.newArchEnabled;
   }
 
   if (job.type === Workflow.GENERIC) {
@@ -223,10 +218,7 @@ async function getPackageManagerVersion(
   }
 ): Promise<string | undefined> {
   try {
-    const { stdout } = await spawnAsync(packageManager, ['--version'], {
-      cwd,
-      env,
-    });
+    const { stdout } = await spawnAsync(packageManager, ['--version'], { cwd, env });
     return stdout.toString().trim();
   } catch {
     // Some package managers can fail version checks in project dirs with mismatched packageManager fields.

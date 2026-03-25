@@ -7,23 +7,6 @@ import { ensureNonExemptEncryptionIsDefinedForManagedProjectAsync } from '../exe
 jest.mock('fs');
 jest.mock('../../../prompts');
 
-// @expo/require-utils uses require() to load JS configs, which bypasses the
-// mocked fs. Override loadModuleSync to read from the mocked fs and evaluate.
-jest.mock('@expo/require-utils', () => {
-  const actual = jest.requireActual('@expo/require-utils');
-  return {
-    ...actual,
-    loadModuleSync: (filename: string) => {
-      const fs = require('fs');
-      const content = fs.readFileSync(filename, 'utf-8');
-      const mod = { exports: {} as any };
-      // eslint-disable-next-line no-new-func
-      new Function('module', 'exports', content)(mod, mod.exports);
-      return mod.exports;
-    },
-  };
-});
-
 beforeEach(async () => {
   jest.resetAllMocks();
   vol.reset();
