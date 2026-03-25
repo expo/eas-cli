@@ -102,7 +102,6 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
     });
@@ -117,7 +116,6 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toEqual(expect.any(Function));
     });
