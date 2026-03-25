@@ -82,6 +82,7 @@ export async function logProjectDependenciesAsync(
     });
   } catch (error: any) {
     sentry.handleError('Failed to report project dependencies metrics', error, {
+      level: 'warning',
       tags: {
         errorCode: 'FAILED_TO_REPORT_PROJECT_DEPENDENCIES_EVENT',
       },
