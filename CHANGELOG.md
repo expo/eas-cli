@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix iOS build failure caused by Apple Developer Portal pagination returning absolute URLs that bypass the authenticated session domain, resulting in `Cookie not in this host's domain` errors during capability/provisioning profile sync. ([#3533](https://github.com/expo/eas-cli/pull/3533) by [@adityapsbisht](https://github.com/adityapsbisht))
 - [eas-cli] Fix workflow:logs for builds using built-in EAS build steps. ([#3523](https://github.com/expo/eas-cli/pull/3523) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores

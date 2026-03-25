@@ -39,7 +39,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const TARGET = path.join(__dirname, '..', 'node_modules', '@expo', 'apple-utils', 'build', 'index.js');
+const TARGET = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  '@expo',
+  'apple-utils',
+  'build',
+  'index.js'
+);
 
 const OLD =
   'getNextUrl(){var e,t,r;return null!==(r=null===(t=null===(e=this.data)||void 0===e?void 0:e.links)||void 0===t?void 0:t.next)&&void 0!==r?r:null}';
@@ -60,9 +68,13 @@ if (content.includes(NEW)) {
 }
 
 if (!content.includes(OLD)) {
-  console.warn('[patch-apple-utils] Target pattern not found. @expo/apple-utils may have changed — patch may no longer be needed or needs updating.');
+  console.warn(
+    '[patch-apple-utils] Target pattern not found. @expo/apple-utils may have changed — patch may no longer be needed or needs updating.'
+  );
   process.exit(0);
 }
 
 fs.writeFileSync(TARGET, content.replace(OLD, NEW), 'utf8');
-console.log('[patch-apple-utils] ✔ Applied getNextUrl() pagination domain fix to @expo/apple-utils.');
+console.log(
+  '[patch-apple-utils] ✔ Applied getNextUrl() pagination domain fix to @expo/apple-utils.'
+);
