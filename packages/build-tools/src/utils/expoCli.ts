@@ -1,7 +1,5 @@
-// See: `eas-cli/src/utils/expoCli.ts`
-
 import resolveFrom from 'resolve-from';
-import spawnAsync from '@expo/spawn-async';
+import spawnAsync, { type SpawnOptions } from '@expo/turtle-spawn';
 
 export class ExpoCLIModuleNotFoundError extends Error {}
 
@@ -21,7 +19,7 @@ function resolveExpoCLI(projectRoot: string): string {
 export async function expoCommandAsync(
   projectDir: string,
   args: string[],
-  options: Omit<spawnAsync.SpawnOptions, 'cwd'>
+  options: Omit<SpawnOptions, 'cwd'>
 ) {
   const expoCliPath = resolveExpoCLI(projectDir);
   return spawnAsync(expoCliPath, args, {
