@@ -143,7 +143,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   protected executed = false;
 
   public static getNewId(userDefinedId?: string): string {
-    return userDefinedId ?? `step-${BuildStep.nextGeneratedId++}`;
+    return userDefinedId ?? `step-${String(BuildStep.nextGeneratedId++).padStart(3, '0')}`;
   }
 
   constructor(
