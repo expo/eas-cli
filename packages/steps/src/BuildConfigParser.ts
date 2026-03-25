@@ -128,7 +128,13 @@ export class BuildConfigParser extends AbstractConfigParser {
     } = run;
     const id = BuildStep.getNewId(maybeId);
     const displayName =
-      name ?? maybeId ?? command.split('\n').find(line => line.trim())?.trim() ?? command;
+      name ??
+      maybeId ??
+      command
+        .split('\n')
+        .find(line => line.trim())
+        ?.trim() ??
+      command;
     const inputs =
       inputsConfig && this.createBuildStepInputsFromDefinition(inputsConfig, displayName);
     const outputs =
@@ -153,7 +159,11 @@ export class BuildConfigParser extends AbstractConfigParser {
     run: command,
   }: BuildStepBareCommandRun): BuildStep {
     const id = BuildStep.getNewId();
-    const displayName = command.split('\n').find(line => line.trim())?.trim() ?? command;
+    const displayName =
+      command
+        .split('\n')
+        .find(line => line.trim())
+        ?.trim() ?? command;
     return new BuildStep(this.ctx, {
       id,
       displayName,
