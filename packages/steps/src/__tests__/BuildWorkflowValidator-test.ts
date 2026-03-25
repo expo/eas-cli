@@ -139,7 +139,7 @@ describe(BuildWorkflowValidator, () => {
     });
     expect(error).toBeInstanceOf(BuildWorkflowError);
     expect((error as BuildWorkflowError).errors[0].message).toBe(
-      'Input parameter "id1" for step "say_hi" is required but it was not set.'
+      'Input parameter "id1" for step "step_id" is required but it was not set.'
     );
   });
   test('invalid input type passed to step', async () => {
@@ -210,16 +210,16 @@ describe(BuildWorkflowValidator, () => {
     });
     expect(error).toBeInstanceOf(BuildWorkflowError);
     expect((error as BuildWorkflowError).errors[0].message).toBe(
-      'Input parameter "id1" for step "say_hi" is set to "123" which is not of type "string" or is not step or context reference.'
+      'Input parameter "id1" for step "step_id" is set to "123" which is not of type "string" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[1].message).toBe(
-      'Input parameter "id2" for step "say_hi" is set to "{"a":1,"b":2}" which is not of type "number" or is not step or context reference.'
+      'Input parameter "id2" for step "step_id" is set to "{"a":1,"b":2}" which is not of type "number" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[2].message).toBe(
-      'Input parameter "id3" for step "say_hi" is set to "abc" which is not of type "json" or is not step or context reference.'
+      'Input parameter "id3" for step "step_id" is set to "abc" which is not of type "json" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[3].message).toBe(
-      'Input parameter "id6" for step "say_hi" is set to "${ wrong.aaa }" which is not of type "number" or is not step or context reference.'
+      'Input parameter "id6" for step "step_id" is set to "${ wrong.aaa }" which is not of type "number" or is not step or context reference.'
     );
   });
   test('output from future step', async () => {

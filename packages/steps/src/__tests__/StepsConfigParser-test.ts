@@ -273,7 +273,7 @@ describe(StepsConfigParser, () => {
 
       const step1 = result.buildSteps[0];
       expect(step1.id).toMatch(UUID_REGEX);
-      expect(step1.name).toBeUndefined();
+      expect(step1.displayName).toBe('command1');
       expect(step1.command).toBe('command1');
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
       expect(step1.fn).toBeUndefined();
@@ -285,7 +285,7 @@ describe(StepsConfigParser, () => {
 
       const step2 = result.buildSteps[1];
       expect(step2.id).toEqual('step2');
-      expect(step2.name).toBeUndefined();
+      expect(step2.displayName).toBe('step2');
       expect(step2.command).toBeUndefined();
       expect(step2.fn).toBeDefined();
       expect(step2.ctx.workingDirectory).toBe(path.join(ctx.defaultWorkingDirectory, 'test'));
@@ -298,7 +298,7 @@ describe(StepsConfigParser, () => {
 
       const step3 = result.buildSteps[2];
       expect(step3.id).toEqual('step3');
-      expect(step3.name).toEqual('Step 3');
+      expect(step3.displayName).toEqual('Step 3');
       expect(step3.command).toBe('command2');
       expect(step3.shell).toBe('sh');
       expect(step3.fn).toBeUndefined();
@@ -325,7 +325,7 @@ describe(StepsConfigParser, () => {
 
       const step4 = result.buildSteps[3];
       expect(step4.id).toEqual('step4');
-      expect(step4.name).toEqual('Step 4');
+      expect(step4.displayName).toEqual('Step 4');
       expect(step4.command).toBeUndefined();
       expect(step4.fn).toBeDefined();
       expect(step4.ctx.workingDirectory).toBe(path.join(ctx.defaultWorkingDirectory, 'dir'));

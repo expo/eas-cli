@@ -123,7 +123,6 @@ export class BuildStepOutputAccessor {
 
 export class BuildStep extends BuildStepOutputAccessor {
   public readonly id: string;
-  public readonly name?: string;
   public readonly displayName: string;
   public readonly supportedRuntimePlatforms?: BuildRuntimePlatform[];
   public readonly inputs?: BuildStepInput[];
@@ -152,7 +151,6 @@ export class BuildStep extends BuildStepOutputAccessor {
     ctx: BuildStepGlobalContext,
     {
       id,
-      name,
       displayName,
       inputs,
       outputs,
@@ -167,7 +165,6 @@ export class BuildStep extends BuildStepOutputAccessor {
       __metricsId,
     }: {
       id: string;
-      name?: string;
       displayName: string;
       inputs?: BuildStepInput[];
       outputs?: BuildStepOutput[];
@@ -188,7 +185,6 @@ export class BuildStep extends BuildStepOutputAccessor {
     super(id, displayName, false, outputById);
 
     this.id = id;
-    this.name = name;
     this.displayName = displayName;
     this.supportedRuntimePlatforms = maybeSupportedRuntimePlatforms;
     this.inputs = inputs;

@@ -165,7 +165,6 @@ describe(BuildStep, () => {
 
       const step = new BuildStep(ctx, {
         id,
-        name,
         displayName,
         command,
       });

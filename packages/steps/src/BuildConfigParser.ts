@@ -127,7 +127,8 @@ export class BuildConfigParser extends AbstractConfigParser {
       __metrics_id,
     } = run;
     const id = BuildStep.getNewId(maybeId);
-    const stepDisplayName = name ?? command.split('\n').find(line => line.trim()) ?? command;
+    const stepDisplayName =
+      name ?? maybeId ?? command.split('\n').find(line => line.trim()) ?? command;
     const inputs =
       inputsConfig && this.createBuildStepInputsFromDefinition(inputsConfig, stepDisplayName);
     const outputs =
@@ -138,7 +139,6 @@ export class BuildConfigParser extends AbstractConfigParser {
       displayName: stepDisplayName,
       inputs,
       outputs,
-      name,
       workingDirectory,
       shell,
       command,

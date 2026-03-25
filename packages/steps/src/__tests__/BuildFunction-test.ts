@@ -87,7 +87,6 @@ describe(BuildFunction, () => {
       });
       expect(step).toBeInstanceOf(BuildStep);
       expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
       expect(step.displayName).toBe('Test function');
       expect(step.command).toBe('echo 123');
     });
@@ -104,7 +103,6 @@ describe(BuildFunction, () => {
       });
       expect(step).toBeInstanceOf(BuildStep);
       expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
     });
@@ -120,7 +118,6 @@ describe(BuildFunction, () => {
       });
       expect(step).toBeInstanceOf(BuildStep);
       expect(step.id).toMatch(UUID_REGEX);
-      expect(step.name).toBe('Test function');
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toEqual(expect.any(Function));
     });
