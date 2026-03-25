@@ -204,12 +204,10 @@ export async function saveGradleCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: ['gradle-caches'],
+      paths: ['build-cache-1'],
       size,
       platform: Platform.ANDROID,
     });
-
-    logger.info('Gradle cache saved successfully');
   } catch (err) {
     logger.error({ err }, 'Failed to save Gradle cache');
   }
