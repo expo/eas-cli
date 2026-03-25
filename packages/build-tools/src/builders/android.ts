@@ -93,7 +93,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
         cwd: ctx.getReactNativeProjectDirectory(),
         logger: ctx.logger,
-        appConfig: ctx.appConfig,
+        appConfig: await ctx.appConfig,
         platform: ctx.job.platform,
         workflow: ctx.job.type,
         env: ctx.env,

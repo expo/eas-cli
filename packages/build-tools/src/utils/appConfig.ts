@@ -16,7 +16,7 @@ export async function readAppConfig(params: ReadAppConfigParams): Promise<Projec
   const shouldLoadEnvVarsFromDotenvFile =
     params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
   if (shouldLoadEnvVarsFromDotenvFile) {
-    const envVarsFromDotenvFile = load(params.projectDir);
+    const envVarsFromDotenvFile = load(params.projectDir) as Env;
     const env = { ...params.env, ...envVarsFromDotenvFile };
     params = { ...params, env };
   }

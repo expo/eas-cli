@@ -24,7 +24,7 @@ describe(runExpoCliCommand, () => {
 
       const mockCtx = mock<BuildContext<Android.Job>>();
       when(mockCtx.packageManager).thenReturn(PackageManager.NPM);
-      when(mockCtx.appConfig).thenReturn(expoConfig);
+      when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
       const ctx = instance(mockCtx);
 
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
@@ -38,7 +38,7 @@ describe(runExpoCliCommand, () => {
 
       const mockCtx = mock<BuildContext<Android.Job>>();
       when(mockCtx.packageManager).thenReturn(PackageManager.NPM);
-      when(mockCtx.appConfig).thenReturn(expoConfig);
+      when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
       const ctx = instance(mockCtx);
 
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
@@ -52,7 +52,7 @@ describe(runExpoCliCommand, () => {
 
       const mockCtx = mock<BuildContext<Android.Job>>();
       when(mockCtx.packageManager).thenReturn(PackageManager.PNPM);
-      when(mockCtx.appConfig).thenReturn(expoConfig);
+      when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
       const ctx = instance(mockCtx);
 
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
@@ -66,7 +66,7 @@ describe(runExpoCliCommand, () => {
 
       const mockCtx = mock<BuildContext<Android.Job>>();
       when(mockCtx.packageManager).thenReturn(PackageManager.BUN);
-      when(mockCtx.appConfig).thenReturn(expoConfig);
+      when(mockCtx.appConfig).thenReturn(Promise.resolve(expoConfig));
       const ctx = instance(mockCtx);
 
       void runExpoCliCommand({ args: ['doctor'], options: {}, packageManager: ctx.packageManager });
