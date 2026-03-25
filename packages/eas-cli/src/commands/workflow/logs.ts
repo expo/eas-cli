@@ -13,12 +13,13 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 function printLogsForAllSteps(logs: WorkflowLogs): void {
   [...logs.values()].forEach(({ label, logLines }) => {
-    if (logLines.length > 0) {
-      Log.log(`Step: ${label}`);
-      logLines.forEach(line => {
-        Log.log(`  ${line.time} ${line.msg}`);
-      });
+    if (logLines.length === 0) {
+      return;
     }
+    Log.log(`Step: ${label}`);
+    logLines.forEach(line => {
+      Log.log(`  ${line.time} ${line.msg}`);
+    });
     Log.addNewLineIfNone();
   });
 }

@@ -4,7 +4,6 @@ import * as fs from 'node:fs';
 import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
 import {
   WorkflowJobResult,
-  WorkflowLogGroup,
   WorkflowLogLine,
   WorkflowLogs,
   WorkflowRunResult,
@@ -157,7 +156,7 @@ export async function fetchAndProcessLogsFromJobAsync(
             logLines: [],
           });
         }
-        const logGroup = logs.get(stepKey) as WorkflowLogGroup;
+        const logGroup = logs.get(stepKey)!;
         if (buildStepDisplayName) {
           logGroup.label = buildStepDisplayName;
         }
