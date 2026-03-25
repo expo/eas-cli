@@ -1,4 +1,5 @@
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
+import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -20,17 +21,21 @@ export function runExpoCliCommand({
 }: {
   packageManager: PackageManager;
   args: string[];
-  options: SpawnOptions;
+  options: Omit<SpawnOptions, 'stdio' | 'logger'> & { logger: bunyan };
 }): SpawnPromise<SpawnResult> {
+  const normalizedOptions: SpawnOptions = {
+    ...options,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  };
   const argsWithExpo = ['expo', ...args];
   if (packageManager === PackageManager.NPM) {
-    return spawn('npx', argsWithExpo, options);
+    return spawn('npx', argsWithExpo, normalizedOptions);
   } else if (packageManager === PackageManager.YARN) {
-    return spawn('yarn', argsWithExpo, options);
+    return spawn('yarn', argsWithExpo, normalizedOptions);
   } else if (packageManager === PackageManager.PNPM) {
-    return spawn('pnpm', argsWithExpo, options);
+    return spawn('pnpm', argsWithExpo, normalizedOptions);
   } else if (packageManager === PackageManager.BUN) {
-    return spawn('bun', argsWithExpo, options);
+    return spawn('bun', argsWithExpo, normalizedOptions);
   } else {
     throw new Error(`Unsupported package manager: ${packageManager}`);
   }
