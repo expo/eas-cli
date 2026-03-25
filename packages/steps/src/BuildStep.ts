@@ -3,7 +3,6 @@ import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
@@ -122,6 +121,7 @@ export class BuildStepOutputAccessor {
 }
 
 export class BuildStep extends BuildStepOutputAccessor {
+  private static nextGeneratedId = 1;
   public readonly id: string;
   public readonly displayName: string;
   public readonly supportedRuntimePlatforms?: BuildRuntimePlatform[];
@@ -143,7 +143,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   protected executed = false;
 
   public static getNewId(userDefinedId?: string): string {
-    return userDefinedId ?? uuidv4();
+    return userDefinedId ?? `step-${BuildStep.nextGeneratedId++}`;
   }
 
   constructor(

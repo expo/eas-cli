@@ -6,7 +6,7 @@ import { instance, mock, verify, when } from 'ts-mockito';
 import { createGlobalContextMock } from './utils/context';
 import { getError, getErrorAsync } from './utils/error';
 import { createMockLogger } from './utils/logger';
-import { UUID_REGEX } from './utils/uuid';
+import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction, BuildStepStatus } from '../BuildStep';
@@ -20,8 +20,15 @@ import { spawnAsync } from '../utils/shell/spawn';
 
 describe(BuildStep, () => {
   describe(BuildStep.getNewId, () => {
-    it('returns a uuid if the user-defined id is undefined', () => {
-      expect(BuildStep.getNewId()).toMatch(UUID_REGEX);
+    it('returns a generated step id if the user-defined id is undefined', () => {
+      expect(BuildStep.getNewId()).toMatch(GENERATED_STEP_ID_REGEX);
+    });
+    it('returns unique generated step ids', () => {
+      const stepId1 = BuildStep.getNewId();
+      const stepId2 = BuildStep.getNewId();
+      expect(stepId1).not.toBe(stepId2);
+      expect(stepId1).toMatch(GENERATED_STEP_ID_REGEX);
+      expect(stepId2).toMatch(GENERATED_STEP_ID_REGEX);
     });
     it('returns the user-defined id if defined', () => {
       expect(BuildStep.getNewId('test1')).toBe('test1');

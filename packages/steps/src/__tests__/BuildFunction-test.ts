@@ -1,5 +1,5 @@
 import { createGlobalContextMock } from './utils/context';
-import { UUID_REGEX } from './utils/uuid';
+import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildStep, BuildStepFunction } from '../BuildStep';
 import {
@@ -86,7 +86,7 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
+      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step.displayName).toBe('Test function');
       expect(step.command).toBe('echo 123');
     });
@@ -102,7 +102,7 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
+      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
     });
@@ -117,7 +117,7 @@ describe(BuildFunction, () => {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
       expect(step).toBeInstanceOf(BuildStep);
-      expect(step.id).toMatch(UUID_REGEX);
+      expect(step.id).toMatch(GENERATED_STEP_ID_REGEX);
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toEqual(expect.any(Function));
     });
