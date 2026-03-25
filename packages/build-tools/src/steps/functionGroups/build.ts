@@ -74,6 +74,8 @@ function createStepsForIosSimulatorBuild({
   globalCtx,
   buildToolsContext,
 }: HelperFunctionsInput): BuildStep[] {
+  const evictUsedBefore = new Date();
+
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
@@ -106,6 +108,11 @@ function createStepsForIosSimulatorBuild({
     createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
     calculateEASUpdateRuntimeVersion,
     installPods,
+    createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: Platform.IOS,
+      },
+    }),
     configureEASUpdate,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
@@ -122,6 +129,11 @@ function createStepsForIosSimulatorBuild({
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
     ).createBuildStepFromFunctionCall(globalCtx),
+    createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: {
+        platform: Platform.IOS,
+      },
+    }),
   ];
 }
 
@@ -195,9 +207,9 @@ function createStepsForIosBuildWithCredentials({
     ),
     resolveAppleTeamIdFromCredentials,
     prebuildStep,
-    restoreCache,
     calculateEASUpdateRuntimeVersion,
     installPods,
+    restoreCache,
     configureEASUpdate,
     configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx),
     configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx),

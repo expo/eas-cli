@@ -10,6 +10,7 @@ interface ArchiveBuildOptions {
   credentials: Credentials;
   scheme: string;
   buildConfiguration?: string;
+  derivedDataPath: string;
   outputDirectory: string;
   clean: boolean;
   logsDirectory: string;
@@ -32,6 +33,7 @@ export async function createGymfileForArchiveBuild({
   credentials,
   scheme,
   buildConfiguration,
+  derivedDataPath,
   entitlements,
   outputDirectory,
   logsDirectory,
@@ -58,6 +60,7 @@ export async function createGymfileForArchiveBuild({
       KEYCHAIN_PATH: credentials.keychainPath,
       SCHEME: scheme,
       SCHEME_BUILD_CONFIGURATION: buildConfiguration,
+      DERIVED_DATA_PATH: derivedDataPath,
       OUTPUT_DIRECTORY: outputDirectory,
       EXPORT_METHOD: credentials.distributionType,
       CLEAN: String(clean),

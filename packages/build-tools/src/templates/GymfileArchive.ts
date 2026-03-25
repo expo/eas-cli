@@ -17,6 +17,8 @@ export_options({
 
 export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain <%- KEYCHAIN_PATH %>\\""
 
+derived_data_path("<%- DERIVED_DATA_PATH %>")
+
 disable_xcpretty(true)
 buildlog_path("<%- LOGS_DIRECTORY %>")
 

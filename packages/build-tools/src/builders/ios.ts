@@ -16,8 +16,13 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  patchPodsXcodeprojAsync,
+  restoreCcacheAsync,
+  restoreXcodeCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveXcodeCacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -51,6 +56,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
   const workingDirectory = ctx.getReactNativeProjectDirectory();
+  let xcodeCacheHit = false;
   try {
     const credentials = await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       return await credentialsManager.prepare();
@@ -87,10 +93,23 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
+      xcodeCacheHit = await restoreXcodeCacheAsync({
+        logger: ctx.logger,
+        workingDirectory: ctx.buildDirectory,
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+        simulator: ctx.job.simulator,
+      });
     });
 
     await ctx.runBuildPhase(BuildPhase.INSTALL_PODS, async () => {
       await runInstallPodsAsync(ctx);
+      await patchPodsXcodeprojAsync({
+        logger: ctx.logger,
+        workingDirectory: ctx.buildDirectory,
+        env: ctx.env,
+        cacheHit: xcodeCacheHit,
+      });
     });
 
     await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
@@ -188,6 +207,13 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       ctx.logger.info('Local builds do not support saving cache.');
       return;
     }
+    await saveXcodeCacheAsync({
+      logger: ctx.logger,
+      workingDirectory: ctx.buildDirectory,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+      simulator: ctx.job.simulator,
+    });
     await ctx.cacheManager?.saveCache(ctx);
     await saveCcacheAsync({
       logger: ctx.logger,
