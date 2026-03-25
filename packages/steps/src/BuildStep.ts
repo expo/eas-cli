@@ -139,7 +139,6 @@ export class BuildStep extends BuildStepOutputAccessor {
   private readonly outputsDir: string;
   private readonly envsDir: string;
 
-  private readonly internalId: string;
   private readonly inputById: BuildStepInputById;
   protected executed = false;
 
@@ -198,10 +197,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.__metricsId = __metricsId;
     this.status = BuildStepStatus.NEW;
 
-    this.internalId = uuidv4();
-
     const logger = ctx.baseLogger.child({
-      buildStepInternalId: this.internalId,
       buildStepId: this.id,
       buildStepDisplayName: this.displayName,
     });

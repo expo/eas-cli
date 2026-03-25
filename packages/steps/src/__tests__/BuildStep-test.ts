@@ -170,7 +170,6 @@ describe(BuildStep, () => {
       });
       expect(ctx.baseLogger.child).toHaveBeenCalledWith(
         expect.objectContaining({
-          buildStepInternalId: expect.stringMatching(UUID_REGEX),
           buildStepId: 'test1',
           buildStepDisplayName: 'Test step',
         })
