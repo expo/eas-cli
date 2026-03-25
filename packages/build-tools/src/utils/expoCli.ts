@@ -25,12 +25,12 @@ export async function expoCommandAsync(
   return spawnAsync(expoCliPath, args, {
     cwd: projectDir,
     stdio: 'pipe',
+    ...options,
     env: {
       ...options.env,
       // NOTE: If we're reading user configs, if a user has set this, it might cause excessive output
       // that can stop the command from being readable
       EXPO_DEBUG: '0',
     },
-    ...options,
   });
 }
