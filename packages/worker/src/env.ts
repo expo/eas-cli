@@ -36,6 +36,7 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD', 'true');
   setEnv(env, 'EAS_BUILD_RUNNER', 'eas-build');
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
+  setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
   setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);

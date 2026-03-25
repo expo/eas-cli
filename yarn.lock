@@ -10858,6 +10858,7 @@ __metadata:
     "@oclif/core": "npm:^4.8.3"
     "@oclif/plugin-autocomplete": "npm:^3.2.40"
     "@segment/ajv-human-errors": "npm:^2.1.2"
+    "@sentry/node": "npm:7.77.0"
     "@tsconfig/node20": "npm:20.1.8"
     "@types/cli-progress": "npm:3.11.5"
     "@types/dateformat": "npm:3.0.1"

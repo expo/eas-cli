@@ -68,6 +68,7 @@
     "@oclif/core": "^4.8.3",
     "@oclif/plugin-autocomplete": "^3.2.40",
     "@segment/ajv-human-errors": "^2.1.2",
+    "@sentry/node": "7.77.0",
     "@urql/core": "4.0.11",
     "@urql/exchange-retry": "1.2.0",
     "ajv": "8.11.0",
