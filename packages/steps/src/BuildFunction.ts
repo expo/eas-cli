@@ -105,11 +105,7 @@ export class BuildFunction {
   ): BuildStep {
     const buildStepId = BuildStep.getNewId(id);
     const buildStepName = name ?? this.name;
-    const buildStepDisplayName = BuildStep.getDisplayName({
-      id: buildStepId,
-      command: this.command,
-      name: buildStepName,
-    });
+    const buildStepDisplayName = buildStepName ?? this.getFullId();
 
     const inputs = this.inputProviders?.map(inputProvider => {
       const input = inputProvider(ctx, buildStepId);

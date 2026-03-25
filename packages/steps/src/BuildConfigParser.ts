@@ -127,18 +127,18 @@ export class BuildConfigParser extends AbstractConfigParser {
       __metrics_id,
     } = run;
     const id = BuildStep.getNewId(maybeId);
-    const displayName = BuildStep.getDisplayName({ id, name, command });
+    const stepDisplayName = name ?? command.split('\n').find(line => line.trim()) ?? command;
     const inputs =
-      inputsConfig && this.createBuildStepInputsFromDefinition(inputsConfig, displayName);
+      inputsConfig && this.createBuildStepInputsFromDefinition(inputsConfig, stepDisplayName);
     const outputs =
-      outputsConfig && this.createBuildStepOutputsFromDefinition(outputsConfig, displayName);
+      outputsConfig && this.createBuildStepOutputsFromDefinition(outputsConfig, stepDisplayName);
     const timeoutMs = timeout_minutes !== undefined ? timeout_minutes * 60 * 1000 : undefined;
     return new BuildStep(this.ctx, {
       id,
+      displayName: stepDisplayName,
       inputs,
       outputs,
       name,
-      displayName,
       workingDirectory,
       shell,
       command,
@@ -153,7 +153,7 @@ export class BuildConfigParser extends AbstractConfigParser {
     run: command,
   }: BuildStepBareCommandRun): BuildStep {
     const id = BuildStep.getNewId();
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command.split('\n').find(line => line.trim()) ?? command;
     return new BuildStep(this.ctx, {
       id,
       displayName,

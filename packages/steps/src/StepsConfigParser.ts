@@ -114,14 +114,14 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepFromShellStepConfig(step: ShellStep): BuildStep {
     const id = BuildStep.getNewId(step.id);
-    const displayName = BuildStep.getDisplayName({ id, name: step.name, command: step.run });
+    const stepDisplayName = step.name ?? step.run.split('\n').find(line => line.trim()) ?? step.run;
     const outputs =
-      step.outputs && this.createBuildStepOutputsFromDefinition(step.outputs, displayName);
+      step.outputs && this.createBuildStepOutputsFromDefinition(step.outputs, stepDisplayName);
     return new BuildStep(this.ctx, {
       id,
+      displayName: stepDisplayName,
       outputs,
       name: step.name,
-      displayName,
       workingDirectory: step.working_directory,
       shell: step.shell,
       command: step.run,

@@ -57,10 +57,6 @@ export type BuildStepFunction = (
   }
 ) => unknown;
 
-// TODO: move to a place common with tests
-const UUID_REGEX =
-  /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/;
-
 export interface SerializedBuildStepOutputAccessor {
   id: string;
   executed: boolean;
@@ -150,33 +146,6 @@ export class BuildStep extends BuildStepOutputAccessor {
 
   public static getNewId(userDefinedId?: string): string {
     return userDefinedId ?? uuidv4();
-  }
-
-  public static getDisplayName({
-    id,
-    name,
-    command,
-  }: {
-    id: string;
-    name?: string;
-    command?: string;
-  }): string {
-    if (name) {
-      return name;
-    }
-    if (!id.match(UUID_REGEX)) {
-      return id;
-    }
-    if (command) {
-      const splits = command.trim().split('\n');
-      for (const split of splits) {
-        const trimmed = split.trim();
-        if (trimmed && !trimmed.startsWith('#')) {
-          return trimmed;
-        }
-      }
-    }
-    return id;
   }
 
   constructor(

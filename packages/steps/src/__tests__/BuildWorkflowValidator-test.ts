@@ -18,27 +18,27 @@ describe(BuildWorkflowValidator, () => {
       buildSteps: [
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 123' }),
+          displayName: 'echo 123',
           command: 'echo 123',
         }),
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 456' }),
+          displayName: 'echo 456',
           command: 'echo 456',
         }),
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 789' }),
+          displayName: 'echo 789',
           command: 'echo 789',
         }),
         new BuildStep(ctx, {
           id: 'test3',
-          displayName: BuildStep.getDisplayName({ id: 'test3', command: 'echo 123' }),
+          displayName: 'echo 123',
           command: 'echo 123',
         }),
         new BuildStep(ctx, {
           id: 'test3',
-          displayName: BuildStep.getDisplayName({ id: 'test3', command: 'echo 456' }),
+          displayName: 'echo 456',
           command: 'echo 456',
         }),
       ],
@@ -60,7 +60,7 @@ describe(BuildWorkflowValidator, () => {
 
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = command1;
 
     const workflow = new BuildWorkflow(ctx, {
       buildSteps: [
@@ -100,10 +100,10 @@ describe(BuildWorkflowValidator, () => {
     expect(error.errors.length).toBe(2);
     expect(error.errors[0]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[0].message).toBe(
-      'Input parameter "input1" for step "test1" is set to "3" which is not one of the allowed values: "1", "2".'
+      'Input parameter "input1" for step "set-output output1 123" is set to "3" which is not one of the allowed values: "1", "2".'
     );
     expect(error.errors[1].message).toBe(
-      'Input parameter "input2" for step "test1" is set to "3" which is not one of the allowed values: "true", "false".'
+      'Input parameter "input2" for step "set-output output1 123" is set to "3" which is not one of the allowed values: "true", "false".'
     );
   });
   test('required function input without default value and value passed to step', async () => {
@@ -139,7 +139,7 @@ describe(BuildWorkflowValidator, () => {
     });
     expect(error).toBeInstanceOf(BuildWorkflowError);
     expect((error as BuildWorkflowError).errors[0].message).toBe(
-      'Input parameter "id1" for step "step_id" is required but it was not set.'
+      'Input parameter "id1" for step "say_hi" is required but it was not set.'
     );
   });
   test('invalid input type passed to step', async () => {
@@ -210,16 +210,16 @@ describe(BuildWorkflowValidator, () => {
     });
     expect(error).toBeInstanceOf(BuildWorkflowError);
     expect((error as BuildWorkflowError).errors[0].message).toBe(
-      'Input parameter "id1" for step "step_id" is set to "123" which is not of type "string" or is not step or context reference.'
+      'Input parameter "id1" for step "say_hi" is set to "123" which is not of type "string" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[1].message).toBe(
-      'Input parameter "id2" for step "step_id" is set to "{"a":1,"b":2}" which is not of type "number" or is not step or context reference.'
+      'Input parameter "id2" for step "say_hi" is set to "{"a":1,"b":2}" which is not of type "number" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[2].message).toBe(
-      'Input parameter "id3" for step "step_id" is set to "abc" which is not of type "json" or is not step or context reference.'
+      'Input parameter "id3" for step "say_hi" is set to "abc" which is not of type "json" or is not step or context reference.'
     );
     expect((error as BuildWorkflowError).errors[3].message).toBe(
-      'Input parameter "id6" for step "step_id" is set to "${ wrong.aaa }" which is not of type "number" or is not step or context reference.'
+      'Input parameter "id6" for step "say_hi" is set to "${ wrong.aaa }" which is not of type "number" or is not step or context reference.'
     );
   });
   test('output from future step', async () => {
@@ -227,11 +227,11 @@ describe(BuildWorkflowValidator, () => {
 
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = command1;
 
     const id2 = 'test2';
     const command2 = 'set-output output1 123';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = command2;
 
     const workflow = new BuildWorkflow(ctx, {
       buildSteps: [
@@ -274,13 +274,13 @@ describe(BuildWorkflowValidator, () => {
     expect(error.errors.length).toBe(1);
     expect(error.errors[0]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[0].message).toBe(
-      'Input parameter "input1" for step "test1" uses an expression that references an output parameter from the future step "test2".'
+      'Input parameter "input1" for step "set-output output1 123" uses an expression that references an output parameter from the future step "test2".'
     );
   });
   test('output from non-existent step', async () => {
     const id = 'test2';
     const command = 'echo ${ inputs.input1 }';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -312,21 +312,21 @@ describe(BuildWorkflowValidator, () => {
     expect(error.errors.length).toBe(1);
     expect(error.errors[0]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[0].message).toBe(
-      'Input parameter "input1" for step "test2" uses an expression that references an output parameter from a non-existent step "test1".'
+      'Input parameter "input1" for step "echo ${ inputs.input1 }" uses an expression that references an output parameter from a non-existent step "test1".'
     );
   });
   test('undefined output', async () => {
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = command1;
 
     const id2 = 'test2';
     const command2 = 'echo ${ inputs.input1 }';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = command2;
 
     const id3 = 'test3';
     const command3 = 'echo ${ inputs.input1 }';
-    const displayName3 = BuildStep.getDisplayName({ id: id3, command: command3 });
+    const displayName3 = command3;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -384,21 +384,21 @@ describe(BuildWorkflowValidator, () => {
     expect(error.errors.length).toBe(1);
     expect(error.errors[0]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[0].message).toBe(
-      'Input parameter "input2" for step "test3" uses an expression that references an undefined output parameter "output2" from step "test2".'
+      'Input parameter "input2" for step "echo ${ inputs.input1 }" uses an expression that references an undefined output parameter "output2" from step "test2".'
     );
   });
   test('multiple config errors', async () => {
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = command1;
 
     const id2 = 'test2';
     const command2 = 'echo ${ inputs.input1 }';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = command2;
 
     const id3 = 'test3';
     const command3 = 'echo ${ inputs.input1 }';
-    const displayName3 = BuildStep.getDisplayName({ id: id3, command: command3 });
+    const displayName3 = command3;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -456,16 +456,16 @@ describe(BuildWorkflowValidator, () => {
     expect(error.errors.length).toBe(2);
     expect(error.errors[0]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[0].message).toBe(
-      'Input parameter "input1" for step "test2" uses an expression that references an output parameter from a non-existent step "test4".'
+      'Input parameter "input1" for step "echo ${ inputs.input1 }" uses an expression that references an output parameter from a non-existent step "test4".'
     );
     expect(error.errors[1]).toBeInstanceOf(BuildConfigError);
     expect(error.errors[1].message).toBe(
-      'Input parameter "input2" for step "test3" uses an expression that references an undefined output parameter "output2" from step "test2".'
+      'Input parameter "input2" for step "echo ${ inputs.input1 }" uses an expression that references an undefined output parameter "output2" from step "test2".'
     );
   });
   test('unallowed platform for build step', async () => {
     const id = 'test';
-    const displayName = BuildStep.getDisplayName({ id });
+    const displayName = id;
     const fn: BuildStepFunction = () => {};
 
     const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });
