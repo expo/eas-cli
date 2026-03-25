@@ -206,30 +206,30 @@ export async function restoreGradleCacheAsync({
     return;
   }
 
-  const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
-  const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
-  const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
-
-  const propsToSet: Record<string, string> = {
-    'org.gradle.caching': 'true',
-    'org.gradle.cache.cleanup': 'ALWAYS',
-  };
-
-  for (const [key, value] of Object.entries(propsToSet)) {
-    const existing = properties.find(p => p.type === 'property' && p.key === key);
-    if (existing && existing.type === 'property') {
-      existing.value = value;
-    } else {
-      properties.push({ type: 'property', key, value });
-    }
-  }
-
-  await fs.promises.writeFile(
-    gradlePropertiesPath,
-    AndroidConfig.Properties.propertiesListToString(properties)
-  );
-
   try {
+    const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
+    const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
+    const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
+
+    const propsToSet: Record<string, string> = {
+      'org.gradle.caching': 'true',
+      'org.gradle.cache.cleanup': 'ALWAYS',
+    };
+
+    for (const [key, value] of Object.entries(propsToSet)) {
+      const existing = properties.find(p => p.type === 'property' && p.key === key);
+      if (existing && existing.type === 'property') {
+        existing.value = value;
+      } else {
+        properties.push({ type: 'property', key, value });
+      }
+    }
+
+    await fs.promises.writeFile(
+      gradlePropertiesPath,
+      AndroidConfig.Properties.propertiesListToString(properties)
+    );
+
     const robotAccessToken = nullthrows(
       secrets?.robotAccessToken,
       'Robot access token is required for cache operations'

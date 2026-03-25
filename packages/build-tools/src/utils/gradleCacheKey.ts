@@ -13,7 +13,9 @@ export async function generateGradleCacheKeyAsync(workingDirectory: string): Pro
 
   try {
     return `${GRADLE_CACHE_KEY_PREFIX}${hashFiles([lockPath])}`;
-  } catch (err: any) {
-    throw new Error(`Failed to read lockfile for Gradle cache key generation: ${err.message}`);
+  } catch (err: unknown) {
+    throw new Error(
+      `Failed to read lockfile for Gradle cache key generation: ${err instanceof Error ? err.message : err}`
+    );
   }
 }
