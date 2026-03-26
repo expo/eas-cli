@@ -228,7 +228,7 @@ export async function restoreGradleCacheAsync({
         '        settings.caches {',
         '            cleanup = Cleanup.ALWAYS',
         '            buildCache {',
-        '                setRemoveUnusedEntriesAfterDays(7)',
+        '                setRemoveUnusedEntriesAfterDays(3)',
         '            }',
         '        }',
         '        println "[EAS] Configured Gradle cache cleanup via init script"',
