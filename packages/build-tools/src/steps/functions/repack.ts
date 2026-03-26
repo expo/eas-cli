@@ -108,8 +108,14 @@ export function createRepackBuildFunction(): BuildFunction {
         : undefined;
       const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
+      const resolvedRepackVersion =
+        (await resolveVersionAsync({
+          logger: stepsCtx.logger,
+          packageName: inputs.repack_package.value as string,
+          version: inputs.repack_version.value as string,
+        })) ?? 'unknown';
       stepsCtx.logger.info(
-        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value}`
+        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value} (${resolvedRepackVersion})`
       );
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
@@ -195,6 +201,34 @@ async function installAndImportRepackAsync({
     cwd: sandbox,
   });
   return require(resolveFrom(sandbox, packageName));
+}
+
+async function resolveVersionAsync({
+  logger,
+  packageName,
+  version,
+}: {
+  logger: bunyan;
+  packageName: string;
+  version: string;
+}): Promise<string | null> {
+  try {
+    const { stdout: distTagsJson } = await spawnAsync(
+      'yarn',
+      ['info', packageName, 'dist-tags', '--json'],
+      {
+        stdio: 'pipe',
+      }
+    );
+    const distTags = JSON.parse(distTagsJson);
+    if (version in distTags) {
+      return distTags[version];
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.warn(`Unable to resolve version for ${packageName}@${version}: ${message}`);
+  }
+  return null;
 }
 
 /**
