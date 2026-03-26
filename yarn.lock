@@ -2691,12 +2691,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/apple-utils@npm:2.1.13":
-  version: 2.1.13
-  resolution: "@expo/apple-utils@npm:2.1.13"
+"@expo/apple-utils@npm:2.1.15":
+  version: 2.1.15
+  resolution: "@expo/apple-utils@npm:2.1.15"
   bin:
     apple-utils: bin.js
-  checksum: 10c0/38f62fcd59c901a3f7c372034ea0a2d0275dd22a2c22c3b408e1a151014760f3cc8a9e420de13a9836439fe78b90d23ee9f31113a0ee040094c4dd8ea6b4ff45
+  checksum: 10c0/956abdb77d1d3bcb09d42b70745705305d23b9aa4ed50e3da795e93e50dc3ada126cc16f73a55b49538f0d793ccdc455bad0caf7aaadbadd5ee7a3d0f3c69465
   languageName: node
   linkType: hard
 
@@ -10839,7 +10839,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "eas-cli@workspace:packages/eas-cli"
   dependencies:
-    "@expo/apple-utils": "npm:2.1.13"
+    "@expo/apple-utils": "npm:2.1.15"
     "@expo/code-signing-certificates": "npm:0.0.5"
     "@expo/config": "npm:10.0.6"
     "@expo/config-plugins": "npm:9.0.12"
