@@ -50,4 +50,11 @@ export type WorkflowLogLine = {
   err?: any;
 };
 
-export type WorkflowLogs = Map<string, WorkflowLogLine[]>;
+export type WorkflowLogs = Map<
+  string,
+  {
+    key: string;
+    label: string;
+    logLines: WorkflowLogLine[];
+  }
+>;

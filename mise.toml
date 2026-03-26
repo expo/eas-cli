@@ -1,0 +1,6 @@
+[env]
+_.path = "./tools/bin"
+MISE_NODE_COREPACK = "true"
+
+[tools]
+node = "20.19.4"

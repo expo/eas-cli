@@ -1,0 +1,4 @@
+appId: com.example.app
+name: "basic-flow"
+---
+- assertTrue: true

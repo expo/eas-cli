@@ -1,7 +1,11 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { Ora, ora } from '../../ora';
 import { toggleConfirmAsync } from '../../prompts';
@@ -23,7 +27,9 @@ export default class WorkerDelete extends EasCommand {
   static override aliases = ['worker:delete'];
   static override state = 'preview';
 
-  static override args = [{ name: 'DEPLOYMENT_ID' }];
+  static override args = {
+    DEPLOYMENT_ID: Args.string({}),
+  };
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -104,9 +110,10 @@ export default class WorkerDelete extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawDeployDeleteFlags): DeployDeleteFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
     };
   }
 }

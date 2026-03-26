@@ -1,0 +1,4 @@
+{
+  "someKey": {{ SOME_KEY }},
+  "anotherKey": {{ ANOTHER_KEY }}
+}

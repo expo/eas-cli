@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AccountUsageQuery } from '../../graphql/queries/AccountUsageQuery';
+import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
 
 const THRESHOLD_PERCENT = 85;
@@ -19,11 +19,7 @@ export async function maybeWarnAboutUsageOveragesAsync({
       name,
       subscription,
       usageMetrics: { EAS_BUILD },
-    } = await AccountUsageQuery.getUsageForOverageWarningAsync(
-      graphqlClient,
-      accountId,
-      currentDate
-    );
+    } = await AccountQuery.getUsageForOverageWarningAsync(graphqlClient, accountId, currentDate);
 
     const planMetric = EAS_BUILD?.planMetrics?.[0];
     if (!planMetric || !subscription) {
@@ -65,10 +61,12 @@ export function displayOverageWarning({
   hasFreePlan: boolean;
   name: string;
 }): void {
-  Log.warn(
-    chalk.bold(`You've used ${percentUsed}% of your included build credits for this month. `) +
-      createProgressBar(percentUsed)
+  const message = chalk.bold(
+    `You've used ${percentUsed}% of your included build credits for this month.`
   );
+  // Don't show progress bar at 100% - it's redundant when the limit is reached
+  const progressBar = percentUsed < 100 ? ' ' + createProgressBar(percentUsed) : '';
+  Log.warn(message + progressBar);
 
   const billingUrl = `https://expo.dev/accounts/${name}/settings/billing`;
   const warning = hasFreePlan

@@ -70,9 +70,7 @@ export const AppleDistributionCertificateMutation = {
       graphqlClient
         .mutation<DeleteAppleDistributionCertificateMutation>(
           gql`
-            mutation DeleteAppleDistributionCertificateMutation(
-              $appleDistributionCertificateId: ID!
-            ) {
+            mutation DeleteAppleDistributionCertificateMutation($appleDistributionCertificateId: ID!) {
               appleDistributionCertificate {
                 deleteAppleDistributionCertificate(id: $appleDistributionCertificateId) {
                   id

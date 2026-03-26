@@ -9,6 +9,7 @@ initscript {
         maven {
             url 'https://plugins.gradle.org/m2/'
         }
+        mavenCentral()
     }
     dependencies {
         classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:5.2.5'
@@ -25,6 +26,9 @@ gradle.beforeSettings { settings ->
                     allowInsecureProtocol = true
                 }
             }
+            gradlePluginPortal()
+            google()
+            mavenCentral()
         }
     }
     
@@ -37,6 +41,8 @@ gradle.beforeSettings { settings ->
                     allowInsecureProtocol = true
                 }
             }
+            google()
+            mavenCentral()
         }
     }
 }
@@ -50,6 +56,9 @@ allprojects {
                     allowInsecureProtocol = true
                 }
             }
+            google()
+            mavenCentral()
+            gradlePluginPortal()
         }
     }
     repositories {
@@ -59,6 +68,8 @@ allprojects {
                 allowInsecureProtocol = true
             }
         }
+        google()
+        mavenCentral()
     }
 }
 

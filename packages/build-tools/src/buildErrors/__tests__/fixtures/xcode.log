@@ -1,0 +1,1 @@
+/Users/expo/workingdir/build/managed/ios/Pods/Pods.xcodeproj: error: Signing for "EXConstants-EXConstants" requires a development team. Select a development team in the Signing & Capabilities editor. (in target 'EXConstants-EXConstants' from project 'Pods')

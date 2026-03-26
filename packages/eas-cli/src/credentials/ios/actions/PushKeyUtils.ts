@@ -14,7 +14,7 @@ import { pushKeySchema } from '../credentials';
 import { isPushKeyValidAndTrackedAsync } from '../validators/validatePushKey';
 
 export async function provideOrGeneratePushKeyAsync(ctx: CredentialsContext): Promise<PushKey> {
-  if (!ctx.nonInteractive) {
+  if (!ctx.nonInteractive && !ctx.autoAcceptCredentialReuse) {
     const userProvided = await promptForPushKeyAsync(ctx);
     if (userProvided) {
       if (!ctx.appStore.authCtx) {

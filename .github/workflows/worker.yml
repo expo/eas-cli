@@ -5,13 +5,16 @@ on:
     branches: [main]
     paths:
       - "packages/worker/**"
+      - "packages/build-tools/**"
+      - "packages/eas-build-job/**"
+      - "packages/steps/**"
+      - "packages/logger/**"
+      - "packages/downloader/**"
+      - "packages/template-file/**"
+      - "packages/turtle-spawn/**"
       - .github/workflows/worker.yml
       - .github/workflows/build-and-deploy-worker.yml
-  pull_request:
-    paths:
-      - "packages/worker/**"
-      - .github/workflows/worker.yml
-      - .github/workflows/build-and-deploy-worker.yml
+      - yarn.lock
 
 concurrency:
   group: worker-${{ github.ref }}-${{ github.event_name }}
@@ -23,9 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+      - uses: ./.github/actions/setup-mise
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --immutable
+
+      - run: yarn typecheck
 
       - name: Run unit tests
         working-directory: packages/worker

@@ -41,7 +41,13 @@ export class ManageRollout implements EASUpdateAction<EASUpdateAction> {
   public async runAsync(ctx: EASUpdateContext): Promise<EASUpdateAction> {
     const { nonInteractive } = ctx;
     if (nonInteractive) {
-      throw new Error(`rollout selection cannot be run in non-interactive mode.`);
+      throw new Error(
+        `Rollout selection cannot be run in non-interactive mode. Available actions: ${[
+          ManageRolloutActions.EDIT,
+          ManageRolloutActions.END,
+          ManageRolloutActions.VIEW,
+        ].join(', ')}.`
+      );
     }
     const channelObject = await this.getChannelObjectAsync(ctx);
     printRollout(channelObject);

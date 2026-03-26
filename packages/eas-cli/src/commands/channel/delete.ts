@@ -1,7 +1,11 @@
+import { Args } from '@oclif/core';
 import { scheduleChannelDeletionAsync } from '../../channel/delete';
 import { selectChannelOnAppAsync } from '../../channel/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import Log from '../../log';
 import { toggleConfirmAsync } from '../../prompts';
@@ -11,13 +15,12 @@ import { pollForBackgroundJobReceiptAsync } from '../../utils/pollForBackgroundJ
 export default class ChannelDelete extends EasCommand {
   static override description = 'Delete a channel';
 
-  static override args = [
-    {
-      name: 'name',
+  static override args = {
+    name: Args.string({
       required: false,
       description: 'Name of the channel to delete',
-    },
-  ];
+    }),
+  };
   static override flags = {
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -30,8 +33,9 @@ export default class ChannelDelete extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { name: nameArg },
-      flags: { json: jsonFlag, 'non-interactive': nonInteractive },
+      flags,
     } = await this.parse(ChannelDelete);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -70,7 +74,7 @@ export default class ChannelDelete extends EasCommand {
     if (!nonInteractive) {
       Log.addNewLineIfNone();
       Log.warn(
-        `You are about to permanently delete channel: "${channelName}".\nThis action is irreversible.`
+        `You are about to permanently delete channel: "${channelName}". Deleting this channel will also permanently remove all associated builds from your account. \nThis action is irreversible.`
       );
       Log.newLine();
       const confirmed = await toggleConfirmAsync({ message: 'Are you sure you wish to proceed?' });

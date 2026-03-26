@@ -1,28 +1,12 @@
-import {
-  AnyVariables,
-  Client,
-  OperationContext,
-  OperationResult,
-  OperationResultSource,
-  TypedDocumentNode,
-  cacheExchange,
-  createClient as createUrqlClient,
-  fetchExchange,
-} from '@urql/core';
+import { Client, cacheExchange, createClient as createUrqlClient, fetchExchange } from '@urql/core';
 import { retryExchange } from '@urql/exchange-retry';
-import { DocumentNode } from 'graphql';
 import fetch from 'node-fetch';
 
 import { getExpoApiBaseUrl } from '../../../api';
 import { httpsProxyAgent } from '../../../fetch';
 
-export interface ExpoGraphqlClient extends Client {
-  query<Data = any, Variables extends AnyVariables = AnyVariables>(
-    query: DocumentNode | TypedDocumentNode<Data, Variables> | string,
-    variables: Variables,
-    context: Partial<OperationContext> & { additionalTypenames: string[] }
-  ): OperationResultSource<OperationResult<Data, Variables>>;
-}
+// Extend the urql Client to allow for future customizations or type additions ahead of upstream type support.
+export interface ExpoGraphqlClient extends Client {}
 
 export function createGraphqlClient(authInfo: {
   accessToken: string | null;

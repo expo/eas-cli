@@ -3,13 +3,18 @@ import downloadFile from '@expo/downloader';
 import { Cache, Platform } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
 import fs from 'fs-extra';
-import { vol } from 'memfs';
+import os from 'os';
+import path from 'path';
 import { Readable } from 'stream';
 
-import { GCSCacheManager } from '../CacheManager';
+// These tests use real fs and directories in os.tmpdir().
+// Something about tar v7 makes mocking fs with memfs problematic.
+// Mocking all variants of fs/node:fs/fs/promises does not help.
+// Last Codex research indicated it might be something related to fs-minipass
+// and fs.writev, mocking fs.writev did not help though.
+jest.unmock('fs');
+jest.unmock('node:fs');
 
-jest.mock('fs');
-jest.mock('fs/promises');
 jest.mock('@expo/downloader', () => {
   return jest.fn();
 });
@@ -23,59 +28,67 @@ jest.mock('../sentry', () => ({
   handleError: jest.fn(),
 }));
 
-async function saveAndRestoreCacheAsync(
-  setupBeforeSave: () => Promise<void> | void,
-  setupBeforeRestore: () => Promise<void> | void,
-  cacheConfig: Partial<Cache>
-): Promise<void> {
-  await setupBeforeSave();
-  const manager = new GCSCacheManager();
-  const mockCtx = {
-    logger: { info: jest.fn(), error: console.error },
-    workingdir: '/projectRoot',
-    buildDirectory: '/projectRoot/build',
-    job: {
-      platform: Platform.ANDROID,
-      projectRootDirectory: '.',
-      cache: cacheConfig,
-    },
-  } as any;
-  let tarReadStream: Readable;
-  jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
-    const result = await srcGeneratorAsync();
-    tarReadStream = result;
-    return randomUUID();
-  });
-
-  await manager.saveCache(mockCtx);
-  const chunks = [];
-  for await (const chunk of tarReadStream!) {
-    chunks.push(chunk);
-  }
-  const tarContent = Buffer.concat(chunks);
-  vol.reset();
-  await setupBeforeRestore();
-  jest.mocked(downloadFile).mockImplementation(async (_url, archivePath: string) => {
-    await fs.mkdirp(mockCtx.workingdir);
-    await fs.writeFile(archivePath, tarContent);
-  });
-  await manager.restoreCache(mockCtx);
-}
+const { GCSCacheManager } = require('../CacheManager');
 
 describe(GCSCacheManager, () => {
-  beforeEach(() => {
-    vol.reset();
+  let tmpDir: string;
+  let outsideDir: string;
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-test-'));
+    outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-outside-test-'));
   });
-  afterEach(() => {
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(outsideDir, { recursive: true, force: true });
     jest.mocked(GCS.uploadWithSignedUrl).mockReset();
     jest.mocked(downloadFile).mockReset();
   });
+
+  async function saveAndRestoreCacheAsync(
+    setupBeforeSave: () => Promise<void> | void,
+    setupBeforeRestore: () => Promise<void> | void,
+    cacheConfig: Partial<Cache>
+  ): Promise<void> {
+    await setupBeforeSave();
+    const manager = new GCSCacheManager();
+    const mockCtx = {
+      logger: { info: jest.fn(), error: console.error },
+      workingdir: tmpDir,
+      buildDirectory: `${tmpDir}/build`,
+      job: {
+        platform: Platform.ANDROID,
+        projectRootDirectory: '.',
+        cache: cacheConfig,
+      },
+    } as any;
+    let tarReadStream: Readable;
+    jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
+      const result = await srcGeneratorAsync();
+      tarReadStream = result;
+      return randomUUID();
+    });
+
+    await manager.saveCache(mockCtx);
+    const chunks = [];
+    for await (const chunk of tarReadStream!) {
+      chunks.push(chunk);
+    }
+    const tarContent = Buffer.concat(chunks);
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(outsideDir, { recursive: true, force: true });
+    await setupBeforeRestore();
+    jest.mocked(downloadFile).mockImplementation(async (_url, archivePath: string) => {
+      await fs.mkdirp(mockCtx.workingdir);
+      await fs.writeFile(archivePath, tarContent);
+    });
+    await manager.restoreCache(mockCtx);
+  }
+
   test('save and restore for a single file', async () => {
     await saveAndRestoreCacheAsync(
       () => {
-        vol.fromJSON({
-          '/projectRoot/build/index.ts': 'index.ts',
-        });
+        return fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
       },
       () => {},
       {
@@ -83,18 +96,18 @@ describe(GCSCacheManager, () => {
       }
     );
 
-    expect(vol.toJSON()).toStrictEqual({
-      '/projectRoot/build/index.ts': 'index.ts',
-      '/projectRoot/cache-restore.tar.gz': expect.anything(),
-    });
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'index.ts'), 'utf8')).resolves.toBe(
+      'index.ts'
+    );
+    await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
   });
   test('save and restore for a single directory', async () => {
     await saveAndRestoreCacheAsync(
-      () => {
-        vol.fromJSON({
-          '/projectRoot/build/src/index.ts': 'index.ts',
-          '/projectRoot/build/src/main.ts': 'index.ts',
-        });
+      async () => {
+        await Promise.all([
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'index.ts'),
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'main.ts'), 'index.ts'),
+        ]);
       },
       () => {},
       {
@@ -102,73 +115,78 @@ describe(GCSCacheManager, () => {
       }
     );
 
-    expect(vol.toJSON()).toStrictEqual({
-      '/projectRoot/build/src/index.ts': 'index.ts',
-      '/projectRoot/build/src/main.ts': 'index.ts',
-      '/projectRoot/cache-restore.tar.gz': expect.anything(),
-    });
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'utf8')).resolves.toBe(
+      'index.ts'
+    );
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'src', 'main.ts'), 'utf8')).resolves.toBe(
+      'index.ts'
+    );
+    await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
   });
   test('save and restore for a single directory outside of the project structure', async () => {
     await saveAndRestoreCacheAsync(
-      () => {
-        vol.fromJSON({
-          '/projectRoot/build/src/index.ts': 'index.ts',
-          '/outsideProjectRoot/build/src/index.ts': 'index.ts',
-        });
+      async () => {
+        await Promise.all([
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'index.ts'),
+          fs.outputFile(path.join(outsideDir, 'build', 'src', 'index.ts'), 'index.ts'),
+        ]);
       },
       () => {},
       {
-        paths: ['/outsideProjectRoot/build'],
+        paths: [path.join(outsideDir, 'build')],
       }
     );
 
-    expect(vol.toJSON()).toStrictEqual({
-      '/outsideProjectRoot/build/src/index.ts': 'index.ts',
-      '/projectRoot/cache-restore.tar.gz': expect.anything(),
-    });
+    await expect(
+      fs.readFile(path.join(outsideDir, 'build', 'src', 'index.ts'), 'utf8')
+    ).resolves.toBe('index.ts');
+    await expect(fs.pathExists(path.join(tmpDir, 'build', 'src', 'index.ts'))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
   });
   test('that save and restore does not override existing files', async () => {
     await saveAndRestoreCacheAsync(
-      () => {
-        vol.fromJSON({
-          '/projectRoot/build/src/index.ts': 'index.ts',
-          '/projectRoot/build/src/main': 'index.ts',
-        });
+      async () => {
+        await Promise.all([
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'index.ts'),
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'main'), 'index.ts'),
+        ]);
       },
       () => {
-        vol.fromJSON({
-          '/projectRoot/build/src/index.ts': 'index2.ts',
-        });
+        return fs.outputFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'index2.ts');
       },
       {
         paths: ['src'],
       }
     );
 
-    expect(vol.toJSON()).toStrictEqual({
-      '/projectRoot/build/src/index.ts': 'index2.ts',
-      '/projectRoot/build/src/main': 'index.ts',
-      '/projectRoot/cache-restore.tar.gz': expect.anything(),
-    });
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'utf8')).resolves.toBe(
+      'index2.ts'
+    );
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'src', 'main'), 'utf8')).resolves.toBe(
+      'index.ts'
+    );
+    await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
   });
   test('save and restore for multiple locations', async () => {
     await saveAndRestoreCacheAsync(
-      () => {
-        vol.fromJSON({
-          '/projectRoot/build/src/index.ts': 'index.ts',
-          '/outsideProjectRoot/build/src/index.ts': 'index.ts',
-        });
+      async () => {
+        await Promise.all([
+          fs.outputFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'index.ts'),
+          fs.outputFile(path.join(outsideDir, 'build', 'src', 'index.ts'), 'index.ts'),
+        ]);
       },
       () => {},
       {
-        paths: ['src', '/outsideProjectRoot/build'],
+        paths: ['src', path.join(outsideDir, 'build')],
       }
     );
 
-    expect(vol.toJSON()).toStrictEqual({
-      '/outsideProjectRoot/build/src/index.ts': 'index.ts',
-      '/projectRoot/build/src/index.ts': 'index.ts',
-      '/projectRoot/cache-restore.tar.gz': expect.anything(),
-    });
+    await expect(fs.readFile(path.join(tmpDir, 'build', 'src', 'index.ts'), 'utf8')).resolves.toBe(
+      'index.ts'
+    );
+    await expect(
+      fs.readFile(path.join(outsideDir, 'build', 'src', 'index.ts'), 'utf8')
+    ).resolves.toBe('index.ts');
+    await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
   });
 });

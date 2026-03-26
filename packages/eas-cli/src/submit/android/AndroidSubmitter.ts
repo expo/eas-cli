@@ -23,11 +23,10 @@ import {
   printSummary,
 } from '../utils/summary';
 
-export interface AndroidSubmissionOptions
-  extends Pick<
-    AndroidSubmissionConfigInput,
-    'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
-  > {
+export interface AndroidSubmissionOptions extends Pick<
+  AndroidSubmissionConfigInput,
+  'track' | 'releaseStatus' | 'changesNotSentForReview' | 'rollout'
+> {
   projectId: string;
   archiveSource: ArchiveSource;
   serviceAccountSource: ServiceAccountSource;

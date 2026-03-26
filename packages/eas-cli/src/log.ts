@@ -6,7 +6,7 @@ import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
-// eslint-disable-next-line import/no-extraneous-dependencies
+// eslint-disable-next-line eslint-import/no-extraneous-dependencies
 const nodeDebug = require('debug')('eas:log:debug') as (...args: any[]) => void;
 
 export default class Log {
@@ -24,6 +24,15 @@ export default class Log {
     if (!Log.isLastLineNewLine) {
       Log.newLine();
     }
+  }
+
+  /**
+   * Signal that the cursor is already at the start of a fresh line (e.g. after
+   * a spinner clears itself), so that the next `addNewLineIfNone()` call knows
+   * it doesn't need to emit an extra blank line.
+   */
+  public static markFreshLine(): void {
+    Log.isLastLineNewLine = true;
   }
 
   public static error(...args: any[]): void {

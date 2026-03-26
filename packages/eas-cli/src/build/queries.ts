@@ -77,7 +77,26 @@ export async function listAndSelectBuildOnAppAsync(
   }
 ): Promise<BuildFragment | null> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select a build in non-interactive mode.');
+    const builds = await BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
+      appId: projectId,
+      limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,
+      offset: paginatedQueryOptions.offset,
+      filter,
+    });
+    if (builds.length === 0) {
+      throw new Error('No builds found for this project.');
+    }
+    const buildList = builds
+      .map(
+        b =>
+          `${b.id} (platform: ${b.platform}, status: ${b.status}${
+            b.buildProfile ? `, profile: ${b.buildProfile}` : ''
+          })`
+      )
+      .join('\n  ');
+    throw new Error(
+      `Unable to select a build in non-interactive mode. Available builds:\n  ${buildList}`
+    );
   } else {
     const selectedBuild = await paginatedQueryWithSelectPromptAsync({
       limit: paginatedQueryOptions.limit ?? BUILDS_LIMIT,

@@ -1,0 +1,19 @@
+{
+  "data": {
+    "type": "buildUploadFiles",
+    "id": "5b110930-f947-4998-a129-5926ffcedde5",
+    "attributes": {
+      "assetDeliveryState": {
+        "errors": [],
+        "warnings": [],
+        "state": "COMPLETE"
+      }
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/buildUploadFiles/5b110930-f947-4998-a129-5926ffcedde5"
+    }
+  },
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/buildUploadFiles/5b110930-f947-4998-a129-5926ffcedde5?fields%5BbuildUploadFiles%5D=assetDeliveryState"
+  }
+}

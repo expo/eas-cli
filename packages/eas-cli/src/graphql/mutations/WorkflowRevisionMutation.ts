@@ -39,17 +39,9 @@ export namespace WorkflowRevisionMutation {
           GetOrCreateWorkflowRevisionFromGitRefMutationVariables
         >(
           gql`
-            mutation GetOrCreateWorkflowRevisionFromGitRef(
-              $appId: ID!
-              $fileName: String!
-              $gitRef: String!
-            ) {
+            mutation GetOrCreateWorkflowRevisionFromGitRef($appId: ID!, $fileName: String!, $gitRef: String!) {
               workflowRevision {
-                getOrCreateWorkflowRevisionFromGitRef(
-                  appId: $appId
-                  fileName: $fileName
-                  gitRef: $gitRef
-                ) {
+                getOrCreateWorkflowRevisionFromGitRef(appId: $appId, fileName: $fileName, gitRef: $gitRef) {
                   id
                   yamlConfig
                   blobSha

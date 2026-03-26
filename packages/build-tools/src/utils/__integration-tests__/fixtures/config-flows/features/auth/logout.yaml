@@ -1,0 +1,5 @@
+appId: com.example.app
+name: "logout"
+tags: ["auth"]
+---
+- assertTrue: true

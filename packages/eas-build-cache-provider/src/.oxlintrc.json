@@ -1,0 +1,17 @@
+{
+  "extends": ["../.oxlintrc.json"],
+  "jsPlugins": [
+    {
+      "name": "async-protect",
+      "specifier": "eslint-plugin-async-protect"
+    }
+  ],
+  "rules": {
+    "typescript/explicit-function-return-type": [
+      "warn",
+      {
+        "allowExpressions": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "name": "create-eas-build-function",
+  "version": "18.4.0",
+  "description": "Create functions for use in EAS Build custom builds.",
+  "keywords": [
+    "expo",
+    "react",
+    "react-native"
+  ],
+  "homepage": "https://docs.expo.dev",
+  "license": "BSD-3-Clause",
+  "author": "Expo <support@expo.io>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/create-eas-build-function"
+  },
+  "bin": "./build/index.js",
+  "files": [
+    "build",
+    "templates"
+  ],
+  "main": "build",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "yarn run clean && yarn run build",
+    "lint": "oxlint --type-aware --tsconfig ../../tsconfig.oxlint.json .",
+    "test": "echo 'No tests yet.'",
+    "watch": "yarn run build:dev -w",
+    "build:dev": "ncc build ./src/index.ts -o build/",
+    "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register",
+    "typecheck": "tsc",
+    "clean": "rimraf ./build/ \"*.tsbuildinfo\""
+  },
+  "dependencies": {
+    "@expo/steps": "18.4.0"
+  },
+  "devDependencies": {
+    "@expo/package-manager": "1.9.10",
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "20.14.2",
+    "@types/prompts": "^2.4.9",
+    "@vercel/ncc": "^0.38.1",
+    "chalk": "4.1.2",
+    "fs-extra": "^11.2.0",
+    "ora": "^6.3.1",
+    "oxlint": "1.43.0",
+    "prompts": "^2.4.2",
+    "rimraf": "3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
+    "update-check": "^1.5.4"
+  }
+}

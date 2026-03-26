@@ -1,0 +1,10 @@
+import:
+  - functions1.yml
+  - functions3.yml
+
+build:
+  name: Imports
+  steps:
+    - say_hi
+    - say_hello
+    - say_good_morning

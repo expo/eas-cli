@@ -5,7 +5,7 @@ import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 import { z } from 'zod';
 
 import config from './config';
@@ -329,6 +329,13 @@ async function createUploadSessionAsync(
     const response = responseResult.reason.response;
     const textResult = await asyncResult(response.text());
     throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
+  }
+
+  if (!responseResult.value.ok) {
+    const textResult = await asyncResult(responseResult.value.text());
+    throw new Error(
+      `Unexpected response from server (${responseResult.value.status}): ${textResult.ok ? textResult.value : 'Could not read response body'}`
+    );
   }
 
   const jsonResult = await asyncResult(responseResult.value.json());

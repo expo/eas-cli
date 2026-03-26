@@ -7,7 +7,11 @@ import * as path from 'node:path';
 
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EASEnvironmentFlag,
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
@@ -48,6 +52,7 @@ interface DeployFlags {
   deploymentIdentifier?: string;
   exportDir: string;
   dryRun: boolean;
+  sourceMaps: boolean;
 }
 
 interface RawDeployFlags {
@@ -59,6 +64,7 @@ interface RawDeployFlags {
   id?: string;
   'export-dir': string;
   'dry-run': boolean;
+  'source-maps': boolean;
 }
 
 interface UploadAssetBatchInstruction {
@@ -102,6 +108,11 @@ export default class WorkerDeploy extends EasCommand {
       description: 'Outputs a tarball of the new deployment instead of uploading it.',
       default: false,
     }),
+    'source-maps': Flags.boolean({
+      description: 'Include source maps in the deployment.',
+      default: true,
+      allowNo: true,
+    }),
     ...EASEnvironmentFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -142,7 +153,9 @@ export default class WorkerDeploy extends EasCommand {
       yield ['assets.json', JSON.stringify(params.assetMap)];
       yield ['manifest.json', JSON.stringify(params.manifest)];
       if (projectDist.type === 'server' && projectDist.serverPath) {
-        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath);
+        const workerFiles = WorkerAssets.listWorkerFilesAsync(projectDist.serverPath, {
+          skipSourceMaps: !flags.sourceMaps,
+        });
         for await (const workerFile of workerFiles) {
           yield [`server/${workerFile.normalizedPath}`, workerFile.data];
         }
@@ -439,15 +452,17 @@ export default class WorkerDeploy extends EasCommand {
   }
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     return {
-      nonInteractive: flags['non-interactive'],
-      json: flags['json'],
+      nonInteractive,
+      json,
       isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
       exportDir: flags['export-dir'],
       environment: flags['environment'],
       dryRun: flags['dry-run'],
+      sourceMaps: flags['source-maps'],
     };
   }
 }

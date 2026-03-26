@@ -1,0 +1,60 @@
+{
+  "name": "eas-cli-local-build-plugin",
+  "version": "18.4.0",
+  "description": "Tool for running EAS compatible builds on a local machine.",
+  "bugs": "https://github.com/expo/eas-cli/issues",
+  "license": "BUSL-1.1",
+  "author": "Expo <support@expo.io>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "packages/local-build-plugin"
+  },
+  "bin": "./bin/run",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "yarn watch",
+    "watch": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
+    "typecheck": "tsc",
+    "prepack": "rimraf dist \"*.tsbuildinfo\" && tsc -p tsconfig.build.json",
+    "test": "jest --passWithNoTests",
+    "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\""
+  },
+  "dependencies": {
+    "@expo/build-tools": "18.4.0",
+    "@expo/eas-build-job": "18.4.0",
+    "@expo/logger": "18.0.1",
+    "@expo/spawn-async": "^1.7.2",
+    "@expo/turtle-spawn": "18.0.1",
+    "bunyan": "^1.8.15",
+    "chalk": "4.1.2",
+    "env-paths": "^2.2.1",
+    "fs-extra": "^11.2.0",
+    "joi": "^17.13.1",
+    "lodash": "^4.17.21",
+    "nullthrows": "^1.1.1",
+    "semver": "^7.6.2",
+    "tar": "7.5.7",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/bunyan": "^1.8.11",
+    "@types/fs-extra": "^11.0.4",
+    "@types/hapi__joi": "^17.1.14",
+    "@types/lodash": "^4.17.4",
+    "@types/semver": "^7.5.8",
+    "@types/uuid": "^9.0.7",
+    "jest": "^29.7.0",
+    "rimraf": "3.0.2",
+    "ts-jest": "^29.1.4",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

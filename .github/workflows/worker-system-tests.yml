@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
 
-      - uses: volta-cli/action@5c175f92dea6f48441c436471e6479dbc192e194 # v4
+      - uses: ./.github/actions/setup-mise
 
       - name: Create test app
         run: npx -y create-expo-app@latest ${{ runner.temp }}/test-app --template tabs

@@ -9,6 +9,7 @@ import {
   CreateWorkflowRunFromGitRefMutationVariables,
   CreateWorkflowRunMutation,
   CreateWorkflowRunMutationVariables,
+  WorkflowProjectSourceInput,
   WorkflowRevisionInput,
   WorkflowRunInput,
 } from '../generated';
@@ -101,6 +102,40 @@ export namespace WorkflowRunMutation {
         .toPromise()
     );
     return { id: data.workflowRun.createWorkflowRunFromGitRef.id };
+  }
+
+  export async function createExpoGoRepackWorkflowRunAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      projectSource,
+    }: {
+      appId: string;
+      projectSource: WorkflowProjectSourceInput;
+    }
+  ): Promise<{ id: string }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<
+          { workflowRun: { createExpoGoRepackWorkflowRun: { id: string } } },
+          { appId: string; projectSource: WorkflowProjectSourceInput }
+        >(
+          /* eslint-disable graphql/template-strings */
+          gql`
+            mutation CreateExpoGoRepackWorkflowRun($appId: ID!, $projectSource: WorkflowProjectSourceInput!) {
+              workflowRun {
+                createExpoGoRepackWorkflowRun(appId: $appId, projectSource: $projectSource) {
+                  id
+                }
+              }
+            }
+          `,
+          /* eslint-enable graphql/template-strings */
+          { appId, projectSource }
+        )
+        .toPromise()
+    );
+    return { id: data.workflowRun.createExpoGoRepackWorkflowRun.id };
   }
 
   export async function cancelWorkflowRunAsync(

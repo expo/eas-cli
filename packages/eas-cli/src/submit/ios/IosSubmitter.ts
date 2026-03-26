@@ -26,8 +26,10 @@ import {
   printSummary,
 } from '../utils/summary';
 
-export interface IosSubmissionOptions
-  extends Pick<IosSubmissionConfigInput, 'appleIdUsername' | 'ascAppIdentifier'> {
+export interface IosSubmissionOptions extends Pick<
+  IosSubmissionConfigInput,
+  'appleIdUsername' | 'ascAppIdentifier'
+> {
   projectId: string;
   archiveSource: ArchiveSource;
   appSpecificPasswordSource?: AppSpecificPasswordSource;

@@ -11,6 +11,7 @@ import mime from 'mime';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import promiseLimit from 'promise-limit';
+import semver from 'semver';
 
 import { maybeUploadFingerprintAsync } from './maybeUploadFingerprintAsync';
 import { isModernExpoUpdatesCLIWithRuntimeVersionCommandSupportedAsync } from './projectUtils';
@@ -208,6 +209,8 @@ export async function buildBundlesAsync({
   exp,
   platformFlag,
   clearCache,
+  noBytecode,
+  sourceMaps,
   extraEnv,
 }: {
   projectDir: string;
@@ -215,6 +218,8 @@ export async function buildBundlesAsync({
   exp: Pick<ExpoConfig, 'sdkVersion' | 'web'>;
   platformFlag: ExpoCLIExportPlatformFlag;
   clearCache?: boolean;
+  noBytecode?: boolean;
+  sourceMaps?: string;
   extraEnv?: Record<string, string | undefined> | undefined;
 }): Promise<void> {
   const packageJSON = JsonFile.read(path.resolve(projectDir, 'package.json'));
@@ -252,16 +257,19 @@ export async function buildBundlesAsync({
         ? ['--platform', 'ios', '--platform', 'android']
         : ['--platform', platformFlag];
 
+    const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
+
     await expoCommandAsync(
       projectDir,
       [
         'export',
         '--output-dir',
         inputDir,
-        '--dump-sourcemap',
+        ...sourceMapArgs,
         '--dump-assetmap',
         ...platformArgs,
         ...(clearCache ? ['--clear'] : []),
+        ...(noBytecode ? ['--no-bytecode'] : []),
       ],
       {
         extraEnv,
@@ -280,16 +288,19 @@ export async function buildBundlesAsync({
     );
   }
 
+  const sourceMapArgs = getSourceMapExportCommandArgs({ sourceMaps, sdkVersion: exp.sdkVersion });
+
   await expoCommandAsync(
     projectDir,
     [
       'export',
       '--output-dir',
       inputDir,
-      '--dump-sourcemap',
+      ...sourceMapArgs,
       '--dump-assetmap',
       `--platform=${platformFlag}`,
       ...(clearCache ? ['--clear'] : []),
+      ...(noBytecode ? ['--no-bytecode'] : []),
     ],
     {
       extraEnv,
@@ -1110,4 +1121,35 @@ export async function getUpdateRolloutInfoGroupAsync(
       })
     )
   );
+}
+
+/**
+ * Get the command line arguments for source map generation in expo export.
+ *
+ * Uses --source-maps if provided, otherwise falls back to --dump-sourcemap.
+ * SDK 55+ supports --source-maps with a value (e.g., 'inline'), but older SDKs
+ * only support it as a boolean flag. Passing a value to older SDKs causes it
+ * to be parsed as the project root positional argument.
+ */
+export function getSourceMapExportCommandArgs({
+  sourceMaps,
+  sdkVersion,
+}: {
+  sourceMaps: string | undefined;
+  sdkVersion: string | undefined;
+}): string[] {
+  if (!sourceMaps) {
+    return ['--dump-sourcemap'];
+  }
+
+  if (sourceMaps === 'false') {
+    return [];
+  }
+
+  const supportsSourceMapModes = sdkVersion && semver.satisfies(sdkVersion, '>=55.0.0');
+  if (supportsSourceMapModes && sourceMaps !== 'true') {
+    return ['--source-maps', sourceMaps];
+  }
+
+  return ['--source-maps'];
 }

@@ -137,10 +137,7 @@ export const EnvironmentVariableMutation = {
               $appId: ID!
             ) {
               environmentVariable {
-                createBulkEnvironmentVariablesForApp(
-                  environmentVariablesData: $input
-                  appId: $appId
-                ) {
+                createBulkEnvironmentVariablesForApp(environmentVariablesData: $input, appId: $appId) {
                   id
                 }
               }

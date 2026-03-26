@@ -16,6 +16,9 @@ export const UserQuery = {
               meActor {
                 __typename
                 id
+                ... on User {
+                  email
+                }
                 ... on UserActor {
                   username
                   primaryAccount {
@@ -39,6 +42,9 @@ export const UserQuery = {
                 accounts {
                   id
                   ...AccountFragment
+                }
+                ... on PartnerActor {
+                  username
                 }
                 featureGates
                 isExpoAdmin

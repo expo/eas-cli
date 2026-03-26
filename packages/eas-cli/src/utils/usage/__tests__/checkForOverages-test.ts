@@ -6,7 +6,7 @@ import {
   EstimatedUsage,
   UsageMetricType,
 } from '../../../graphql/generated';
-import { AccountUsageQuery } from '../../../graphql/queries/AccountUsageQuery';
+import { AccountQuery } from '../../../graphql/queries/AccountQuery';
 import Log, { link } from '../../../log';
 import {
   createProgressBar,
@@ -14,7 +14,7 @@ import {
   maybeWarnAboutUsageOveragesAsync,
 } from '../checkForOverages';
 
-jest.mock('../../../graphql/queries/AccountUsageQuery');
+jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log', () => ({
   ...jest.requireActual('../../../log'),
   warn: jest.fn(),
@@ -72,7 +72,7 @@ function createMockAccountUsage({
 describe('maybeWarnAboutUsageOveragesAsync', () => {
   const mockGraphqlClient = {} as ExpoGraphqlClient;
   const mockGetUsageForOverageWarningAsync = jest.mocked(
-    AccountUsageQuery.getUsageForOverageWarningAsync
+    AccountQuery.getUsageForOverageWarningAsync
   );
   const mockWarn = jest.mocked(Log.warn);
   const mockDebug = jest.mocked(Log.debug);
@@ -254,5 +254,28 @@ describe('displayOverageWarning', () => {
       'https://expo.dev/accounts/my-custom-account/settings/billing',
       expect.objectContaining({ text: 'Upgrade your plan to continue service.' })
     );
+  });
+
+  it('shows progress bar when usage is under 100%', () => {
+    displayOverageWarning({
+      percentUsed: 85,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
+  });
+
+  it('does not show progress bar when usage is at 100%', () => {
+    displayOverageWarning({
+      percentUsed: 100,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("You've used 100% of your included build credits for this month.")
+    );
+    expect(mockWarn).not.toHaveBeenCalledWith(expect.stringMatching(/[█░]/));
   });
 });

@@ -32,10 +32,7 @@ export const DeploymentsMutation = {
           gql`
             mutation createDeploymentUrlMutation($appId: ID!, $deploymentIdentifier: ID) {
               deployments {
-                createSignedDeploymentUrl(
-                  appId: $appId
-                  deploymentIdentifier: $deploymentIdentifier
-                ) {
+                createSignedDeploymentUrl(appId: $appId, deploymentIdentifier: $deploymentIdentifier) {
                   pendingWorkerDeploymentId
                   deploymentIdentifier
                   url
@@ -152,10 +149,7 @@ export const DeploymentsMutation = {
           gql`
             mutation DeleteDeployment($appId: ID!, $deploymentIdentifier: ID!) {
               deployments {
-                deleteWorkerDeploymentByIdentifier(
-                  appId: $appId
-                  deploymentIdentifier: $deploymentIdentifier
-                ) {
+                deleteWorkerDeploymentByIdentifier(appId: $appId, deploymentIdentifier: $deploymentIdentifier) {
                   id
                   deploymentIdentifier
                 }

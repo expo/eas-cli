@@ -65,6 +65,12 @@ export class SetUpAscApiKey {
       return await new AssignAscApiKey(this.app).runAsync(ctx, maybeAutoselectedKey, this.purpose);
     }
 
+    // When auto-accepting credentials and no valid key was found, generate a new one without prompting
+    if (ctx.autoAcceptCredentialReuse) {
+      const ascApiKey = await new CreateAscApiKey(this.app.account).runAsync(ctx, this.purpose);
+      return await new AssignAscApiKey(this.app).runAsync(ctx, ascApiKey, this.purpose);
+    }
+
     const availableChoices =
       keysForAccount.length === 0
         ? this.choices.filter(choice => choice.value !== SetupAscApiKeyChoice.USE_EXISTING)
@@ -90,9 +96,11 @@ export class SetUpAscApiKey {
       return null;
     }
     const [autoselectedKey] = sortAscApiKeysByUpdatedAtDesc(validKeys);
-    const useAutoselected = await confirmAsync({
-      message: `Reuse this App Store Connect API Key?\n${formatAscApiKey(autoselectedKey)}`,
-    });
+    const useAutoselected =
+      ctx.autoAcceptCredentialReuse ||
+      (await confirmAsync({
+        message: `Reuse this App Store Connect API Key?\n${formatAscApiKey(autoselectedKey)}`,
+      }));
 
     if (useAutoselected) {
       Log.log(`Using App Store Connect API Key with ID ${autoselectedKey.keyIdentifier}`);

@@ -162,7 +162,7 @@ Remember that Apple Distribution Certificates are not application specific!
 export async function provideOrGenerateDistributionCertificateAsync(
   ctx: CredentialsContext
 ): Promise<DistributionCertificate> {
-  if (!ctx.nonInteractive) {
+  if (!ctx.nonInteractive && !ctx.autoAcceptCredentialReuse) {
     const userProvided = await promptForDistCertAsync(ctx);
     if (userProvided) {
       if (!ctx.appStore.authCtx) {

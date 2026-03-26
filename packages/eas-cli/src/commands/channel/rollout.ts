@@ -1,7 +1,10 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { NonInteractiveOptions as CreateRolloutNonInteractiveOptions } from '../../rollout/actions/CreateRollout';
 import { NonInteractiveOptions as EditRolloutNonInteractiveOptions } from '../../rollout/actions/EditRollout';
 import {
@@ -49,15 +52,14 @@ type ChannelRolloutArgsAndFlags = {
 export default class ChannelRollout extends EasCommand {
   static override description = 'Roll a new branch out on a channel incrementally.';
 
-  static override args = [
-    {
-      name: 'channel',
+  static override args = {
+    channel: Args.string({
       description: 'channel on which the rollout should be done',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
-    action: Flags.enum({
+    action: Flags.option({
       description: 'Rollout action to perform',
       options: Object.values(ActionRawFlagValue),
       required: false,
@@ -97,17 +99,17 @@ export default class ChannelRollout extends EasCommand {
           ],
         },
       ],
-    }),
+    })(),
     percent: Flags.integer({
       description:
         'Percent of users to send to the new branch. Use with --action=edit or --action=create',
       required: false,
     }),
-    outcome: Flags.enum({
+    outcome: Flags.option({
       description: 'End outcome of rollout. Use with --action=end',
       options: Object.values(EndOutcome),
       required: false,
-    }),
+    })(),
     branch: Flags.string({
       description: 'Branch to roll out. Use with --action=create',
       required: false,
@@ -183,8 +185,7 @@ export default class ChannelRollout extends EasCommand {
       runtimeVersion: rawFlags['runtime-version'],
       privateKeyPath: rawFlags['private-key-path'] ?? null,
       action: action ? this.getAction(action) : undefined,
-      nonInteractive: rawFlags['non-interactive'],
-      json: rawFlags.json,
+      ...resolveNonInteractiveAndJsonFlags(rawFlags),
     };
   }
 }

@@ -29,6 +29,7 @@ The package uses **Joi** for schema validation:
 **Location**: `src/schema.ts`
 
 The schema defines valid structure for:
+
 - Build profiles
 - Submit profiles
 - Deploy profiles
@@ -37,6 +38,7 @@ The schema defines valid structure for:
 ### JSON5 Support
 
 Uses **golden-fleece** library to support JSON5 syntax in `eas.json`:
+
 - Comments
 - Trailing commas
 - Unquoted keys
@@ -101,6 +103,7 @@ try {
 ### Build Profiles
 
 Build profiles can contain:
+
 - `distribution`: Distribution type (store, internal, simulator)
 - `platform`: Platform-specific configuration (iOS/Android)
 - `env`: Environment variables
@@ -113,12 +116,14 @@ Build profiles can contain:
 ### Submit Profiles
 
 Submit profiles contain app store submission configuration:
+
 - iOS: App Store Connect credentials, ASC App ID
 - Android: Google Service Account key, track
 
 ### Deploy Profiles
 
 Deploy profiles for EAS Deploy (worker deployments):
+
 - `region`: Deployment region
 - `nodeVersion`: Node.js version
 - Environment configuration

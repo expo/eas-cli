@@ -12,8 +12,8 @@ import slash from 'slash';
 
 import { AndroidCredentials } from '../../credentials/android/AndroidCredentialsProvider';
 import { getCustomBuildConfigPathForJob } from '../../project/customBuildConfig';
-import { getUsernameForBuildMetadataAndBuildJob } from '../../project/projectUtils';
 import { BuildContext } from '../context';
+import { getActorUsername } from '../../user/User';
 
 interface JobData {
   projectArchive: ArchiveSource;
@@ -29,7 +29,7 @@ export async function prepareJobAsync(
   ctx: BuildContext<Platform.ANDROID>,
   jobData: JobData
 ): Promise<Android.Job> {
-  const username = getUsernameForBuildMetadataAndBuildJob(ctx.user);
+  const username = getActorUsername(ctx.user) ?? undefined;
   const buildProfile: BuildProfile<Platform.ANDROID> = ctx.buildProfile;
   const projectRootDirectory =
     slash(path.relative(await ctx.vcsClient.getRootPathAsync(), ctx.projectDir)) || '.';

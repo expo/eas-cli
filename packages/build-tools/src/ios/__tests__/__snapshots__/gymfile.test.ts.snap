@@ -1,0 +1,157 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`gymfile createGymfileForArchiveBuild should create Gymfile with all variables substituted correctly 1`] = `
+"suppress_xcode_output(true)
+clean(true)
+
+scheme("MyApp")
+
+configuration("Release")
+
+
+export_options({
+  method: "app-store",
+  provisioningProfiles: {
+    "com.example.app" => "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "com.example.app.widget" => "ffffffff-0000-1111-2222-333333333333",
+  }
+})
+
+export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /Users/expo/Library/Keychains/login.keychain\\""
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+
+output_directory("/tmp/output")
+"
+`;
+
+exports[`gymfile createGymfileForArchiveBuild should create Gymfile without build configuration when not provided 1`] = `
+"suppress_xcode_output(true)
+clean(false)
+
+scheme("TestScheme")
+
+
+export_options({
+  method: "ad-hoc",
+  provisioningProfiles: {
+    "com.example.app" => "test-uuid",
+  }
+})
+
+export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+
+output_directory("/tmp/output")
+"
+`;
+
+exports[`gymfile createGymfileForArchiveBuild should handle multiple provisioning profiles correctly 1`] = `
+"suppress_xcode_output(true)
+clean(true)
+
+scheme("MyApp")
+
+
+export_options({
+  method: "enterprise",
+  provisioningProfiles: {
+    "com.example.app" => "main-app-uuid",
+    "com.example.app.widget" => "widget-uuid",
+    "com.example.app.extension" => "extension-uuid",
+  }
+})
+
+export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+
+output_directory("/tmp/output")
+"
+`;
+
+exports[`gymfile createGymfileForArchiveBuild should include iCloud container environment when provided in entitlements 1`] = `
+"suppress_xcode_output(true)
+clean(true)
+
+scheme("MyApp")
+
+configuration("Release")
+
+
+export_options({
+  method: "app-store",
+  provisioningProfiles: {
+    "com.example.app" => "test-uuid",
+  },
+  iCloudContainerEnvironment: "Production"
+
+})
+
+export_xcargs "OTHER_CODE_SIGN_FLAGS=\\"--keychain /tmp/keychain\\""
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+
+output_directory("/tmp/output")
+"
+`;
+
+exports[`gymfile createGymfileForSimulatorBuild should create Gymfile with all simulator variables substituted correctly 1`] = `
+"suppress_xcode_output(true)
+clean(true)
+
+scheme("MyApp")
+
+configuration("Debug")
+
+
+derived_data_path("/tmp/derived-data")
+skip_package_ipa(true)
+skip_archive(true)
+destination("generic/platform=iOS Simulator")
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+"
+`;
+
+exports[`gymfile createGymfileForSimulatorBuild should create Gymfile without configuration when not provided 1`] = `
+"suppress_xcode_output(true)
+clean(false)
+
+scheme("TestApp")
+
+
+derived_data_path("/tmp/derived")
+skip_package_ipa(true)
+skip_archive(true)
+destination("platform=iOS Simulator,name=iPhone 15")
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+"
+`;
+
+exports[`gymfile createGymfileForSimulatorBuild should handle tvOS simulator destination 1`] = `
+"suppress_xcode_output(true)
+clean(true)
+
+scheme("MyTVApp")
+
+configuration("Debug")
+
+
+derived_data_path("/tmp/derived")
+skip_package_ipa(true)
+skip_archive(true)
+destination("generic/platform=tvOS Simulator")
+
+disable_xcpretty(true)
+buildlog_path("/tmp/logs")
+"
+`;

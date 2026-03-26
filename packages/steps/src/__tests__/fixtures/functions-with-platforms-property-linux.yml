@@ -1,0 +1,14 @@
+functions:
+  say_hi_linux:
+    name: Hi!
+    inputs:
+      - name
+    command: echo "Hi, ${ inputs.name }!"
+    supported_platforms: [linux]
+
+  say_bye_linux:
+    name: Bye!
+    inputs:
+      - name
+    command: echo "Bye, ${ inputs.name }!"
+    supported_platforms: [linux]

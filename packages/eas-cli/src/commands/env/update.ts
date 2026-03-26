@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 import fs from 'fs-extra';
@@ -79,24 +79,23 @@ export default class EnvUpdate extends EasCommand {
     value: Flags.string({
       description: 'New value or the variable',
     }),
-    type: Flags.enum<'string' | 'file'>({
+    type: Flags.option({
       description: 'The type of variable',
-      options: ['string', 'file'],
-    }),
+      options: ['string', 'file'] as const,
+    })(),
     ...EASVariableVisibilityFlag,
     ...EASEnvironmentVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Current environment of the variable to update. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,

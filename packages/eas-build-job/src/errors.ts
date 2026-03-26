@@ -1,0 +1,151 @@
+import { BuildPhase, buildPhaseDisplayName } from './logs';
+
+export enum ErrorCode {
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  UNKNOWN_CUSTOM_BUILD_ERROR = 'UNKNOWN_CUSTOM_BUILD_ERROR',
+  SERVER_ERROR = 'SERVER_ERROR',
+  UNKNOWN_FASTLANE_ERROR = 'EAS_BUILD_UNKNOWN_FASTLANE_ERROR',
+  UNKNOWN_FASTLANE_RESIGN_ERROR = 'EAS_BUILD_UNKNOWN_FASTLANE_RESIGN_ERROR',
+  UNKNOWN_GRADLE_ERROR = 'EAS_BUILD_UNKNOWN_GRADLE_ERROR',
+  BUILD_TIMEOUT_ERROR = 'EAS_BUILD_TIMEOUT_ERROR',
+}
+
+export interface ExternalBuildError {
+  errorCode: string;
+  message: string;
+  docsUrl?: string;
+  buildPhase?: BuildPhase;
+}
+
+export type ErrorMetadata = Record<string, unknown>;
+
+interface ExpoErrorDetails<TMetadata extends ErrorMetadata = ErrorMetadata> {
+  errorCode: string;
+  trackingCode?: string;
+  docsUrl?: string;
+  buildPhase?: BuildPhase;
+  /**
+   * Metadata object for the error. Used internally for Sentry/logging/debugging.
+   * It is not included in the external build error payload.
+   */
+  metadata?: TMetadata;
+  /**
+   * Underlying error that caused this error to be created. Used internally to
+   * propagate blame stack traces to the response.
+   */
+  cause?: unknown;
+}
+
+export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata> extends Error {
+  public errorCode: string;
+  // Internal-only classification used for Sentry, analytics, and worker internalErrorCode.
+  // The public error saved on builds and job runs is always `errorCode`.
+  public trackingCode?: string;
+  public docsUrl?: string;
+  public readonly metadata?: TMetadata;
+  public buildPhase?: BuildPhase;
+
+  constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
+    super(message, { cause: details.cause });
+    this.errorCode = details.errorCode;
+    this.trackingCode = details.trackingCode;
+    this.docsUrl = details.docsUrl;
+    this.metadata = details.metadata;
+    this.buildPhase = details.buildPhase;
+  }
+
+  /**
+   * Serialized error payload used by the orchestrator-worker API.
+   */
+  public toExternalExpoError(): ExternalBuildError {
+    return {
+      errorCode: this.errorCode,
+      message: this.message,
+      docsUrl: this.docsUrl,
+      buildPhase: this.buildPhase,
+    };
+  }
+}
+
+export class UserError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
+  constructor(
+    public errorCode: string,
+    message: string,
+    options?: {
+      trackingCode?: string;
+      docsUrl?: string;
+      buildPhase?: BuildPhase;
+      metadata?: TMetadata;
+      cause?: unknown;
+    }
+  ) {
+    super(message, {
+      errorCode,
+      trackingCode: options?.trackingCode,
+      docsUrl: options?.docsUrl,
+      buildPhase: options?.buildPhase,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
+  }
+}
+
+export class SystemError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
+  constructor(
+    message: string,
+    options?: {
+      trackingCode?: string;
+      docsUrl?: string;
+      buildPhase?: BuildPhase;
+      metadata?: TMetadata;
+      cause?: unknown;
+    }
+  ) {
+    super(message, {
+      errorCode: ErrorCode.SERVER_ERROR,
+      trackingCode: options?.trackingCode,
+      docsUrl: options?.docsUrl,
+      buildPhase: options?.buildPhase,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
+  }
+}
+
+export class UnknownError extends UserError {
+  constructor(buildPhase?: BuildPhase) {
+    super(
+      ErrorCode.UNKNOWN_ERROR,
+      buildPhase
+        ? `Unknown error. See logs of the ${buildPhaseDisplayName[buildPhase]} build phase for more information.`
+        : 'Unknown error. See logs for more information.',
+      { buildPhase }
+    );
+  }
+}
+
+export class UnknownBuildError extends UserError {
+  constructor() {
+    const errorCode = ErrorCode.UNKNOWN_ERROR;
+    const message = 'Unknown error. See logs for more information.';
+    super(errorCode, message);
+  }
+}
+
+export class UnknownCustomBuildError extends UserError {
+  constructor() {
+    const errorCode = ErrorCode.UNKNOWN_CUSTOM_BUILD_ERROR;
+    const message = 'Unknown custom build error. See logs for more information.';
+    super(errorCode, message);
+  }
+}
+
+export class CredentialsDistCertMismatchError extends UserError {
+  constructor(message: string) {
+    super('EAS_BUILD_CREDENTIALS_DIST_CERT_MISMATCH', message);
+  }
+}

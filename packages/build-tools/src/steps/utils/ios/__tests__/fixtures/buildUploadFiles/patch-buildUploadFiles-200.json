@@ -1,0 +1,32 @@
+{
+  "data": {
+    "type": "buildUploadFiles",
+    "id": "5b110930-f947-4998-a129-5926ffcedde5",
+    "attributes": {
+      "assetDeliveryState": {
+        "errors": [],
+        "warnings": [],
+        "state": "COMPLETE"
+      },
+      "assetToken": "token.json",
+      "assetType": "ASSET",
+      "fileName": "app.ipa",
+      "fileSize": 359,
+      "sourceFileChecksums": {
+        "file": null,
+        "composite": {
+          "hash": "hash",
+          "algorithm": "MD5"
+        }
+      },
+      "uploadOperations": null,
+      "uti": "com.apple.ipa"
+    },
+    "links": {
+      "self": "https://api.appstoreconnect.apple.com/v1/buildUploadFiles/5b110930-f947-4998-a129-5926ffcedde5"
+    }
+  },
+  "links": {
+    "self": "https://api.appstoreconnect.apple.com/v1/buildUploadFiles/5b110930-f947-4998-a129-5926ffcedde5"
+  }
+}

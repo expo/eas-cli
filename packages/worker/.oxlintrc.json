@@ -1,0 +1,28 @@
+{
+  "extends": ["../../.oxlintrc.json"],
+  "jsPlugins": [
+    {
+      "name": "async-protect",
+      "specifier": "eslint-plugin-async-protect"
+    }
+  ],
+  "rules": {
+    "async-protect/async-suffix": "off",
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": ["__typename", "__WORKFLOW_JOB_ID"],
+        "allowAfterThis": true
+      }
+    ],
+    "node/no-sync": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

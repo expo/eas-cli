@@ -2,7 +2,10 @@ import { Flags } from '@oclif/core';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import {
   EasPaginatedQueryFlags,
   getLimitFlagWithCustomValues,
@@ -29,11 +32,11 @@ export default class UpdateList extends EasCommand {
       exclusive: ['branch'],
       default: false,
     }),
-    platform: Flags.enum<RequestedPlatform>({
+    platform: Flags.option({
       options: Object.values(RequestedPlatform),
       char: 'p',
       description: 'Filter updates by platform',
-    }),
+    })(),
     'runtime-version': Flags.string({
       description: 'Filter updates by runtime version',
     }),
@@ -49,13 +52,8 @@ export default class UpdateList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(UpdateList);
-    const {
-      branch: branchFlag,
-      all,
-      json: jsonFlag,
-      'non-interactive': nonInteractive,
-      platform: requestedPlatform,
-    } = flags;
+    const { branch: branchFlag, all, platform: requestedPlatform } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

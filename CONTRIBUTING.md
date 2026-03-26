@@ -65,11 +65,11 @@ For development against staging API:
 
 ## Working on local builds (`eas build --local`)
 
-See https://github.com/expo/eas-build/blob/main/DEVELOPMENT.md for how to set up your environment when making changes to [`eas-cli-local-build-plugin`](https://github.com/expo/eas-build/tree/main/packages/local-build-plugin) and/or [`build-tools`](https://github.com/expo/eas-build/tree/main/packages/build-tools).
+See [`CLAUDE.md`](./CLAUDE.md) for how to set up your environment when making changes to [`eas-cli-local-build-plugin`](./packages/local-build-plugin) and/or [`build-tools`](./packages/build-tools).
 
 ## Testing
 
-Run `yarn test` either in the repository root or in a package directory that you're working on.
+From the repository root, run `yarn run -T lerna run test`. For a single package, run `yarn test` in that package directory.
 
 ## Releasing
 

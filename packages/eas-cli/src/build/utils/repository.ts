@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 import { v4 as uuidv4 } from 'uuid';
 
 import Log, { learnMore } from '../../log';

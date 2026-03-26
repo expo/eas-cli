@@ -126,7 +126,18 @@ export async function selectRuntimeAndGetLatestUpdateGroupForEachPublishPlatform
   }
 ): Promise<Record<UpdatePublishPlatform, UpdateFragment[] | undefined>> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an update in non-interactive mode.');
+    const runtimes = await RuntimeQuery.getRuntimesOnBranchAsync(graphqlClient, {
+      appId: projectId,
+      name: branchName,
+      first: RUNTIME_VERSIONS_LIMIT,
+    });
+    if (runtimes.edges.length === 0) {
+      throw new Error(`No runtime versions found on branch "${branchName}".`);
+    }
+    const runtimeList = runtimes.edges.map(e => e.node.version).join('\n  ');
+    throw new Error(
+      `Unable to select a runtime in non-interactive mode. Available runtime versions on branch "${branchName}":\n  ${runtimeList}`
+    );
   }
 
   const runtimeVersion = await selectRuntimeOnBranchAsync(graphqlClient, {
@@ -178,7 +189,26 @@ export async function selectUpdateGroupOnBranchAsync(
   }
 ): Promise<UpdateFragment[]> {
   if (paginatedQueryOptions.nonInteractive) {
-    throw new Error('Unable to select an update in non-interactive mode.');
+    const updateGroups = await queryUpdateGroupsOnBranchAsync(graphqlClient, {
+      appId: projectId,
+      branchName,
+      limit: paginatedQueryOptions.limit ?? UPDATE_GROUPS_LIMIT,
+      offset: paginatedQueryOptions.offset,
+    });
+    if (updateGroups.length === 0) {
+      throw new Error(`No update groups found on branch "${branchName}".`);
+    }
+    const updateList = updateGroups
+      .map(group => {
+        const first = group[0];
+        return first
+          ? `${first.group} (runtime: ${first.runtimeVersion}, message: ${first.message ?? 'N/A'})`
+          : 'unknown';
+      })
+      .join('\n  ');
+    throw new Error(
+      `Unable to select an update in non-interactive mode. Use the --group flag to specify the update group. Available update groups on branch "${branchName}":\n  ${updateList}`
+    );
   }
 
   const updateGroup = await paginatedQueryWithSelectPromptAsync({

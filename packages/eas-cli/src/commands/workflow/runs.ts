@@ -21,11 +21,11 @@ export default class WorkflowRunList extends EasCommand {
         'If present, the query will only return runs for the specified workflow file name',
       required: false,
     }),
-    status: Flags.enum({
+    status: Flags.option({
       description: 'If present, filter the returned runs to select those with the specified status',
       required: false,
       options: Object.values(WorkflowRunStatus),
-    }),
+    })(),
     ...EasJsonOnlyFlag,
     limit: getLimitFlagWithCustomValues({ defaultTo: 10, limit: 100 }),
   };

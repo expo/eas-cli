@@ -1,6 +1,7 @@
 name: CHANGELOG.md PR check
 
 on:
+  workflow_dispatch:
   pull_request:
     types:
       - opened
@@ -29,7 +30,7 @@ jobs:
         with:
           script: |
             core.setFailed('Please add a changelog entry!')
-      - uses: mshick/add-pr-comment@v2.1.0
+      - uses: mshick/add-pr-comment@v2.8.2
         if: always()
         with:
           message-id: changelog-entry-check

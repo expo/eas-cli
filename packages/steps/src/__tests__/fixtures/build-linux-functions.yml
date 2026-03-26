@@ -1,0 +1,11 @@
+import:
+  - functions-with-platforms-property-linux.yml
+
+build:
+  steps:
+    - say_hi_linux:
+        inputs:
+          name: Wojtek
+    - say_bye_linux:
+        inputs:
+          name: Wojtek

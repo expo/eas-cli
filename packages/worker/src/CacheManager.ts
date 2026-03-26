@@ -4,7 +4,7 @@ import { BuildJob } from '@expo/eas-build-job';
 import filesize from 'filesize';
 import fs from 'fs-extra';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 
 import config from './config';
 
@@ -87,7 +87,7 @@ export class GCSCacheManager implements CacheManager {
       this.skipCacheUpdate = true; // if restore failed we don't want to update cache with new values
       return;
     }
-    // @ts-expect-error
+
     await tar.extract(
       {
         file: archivePath,

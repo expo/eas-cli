@@ -1,0 +1,5 @@
+appId: com.example.app
+name: "api.spec"
+tags: ["api", "integration"]
+---
+- assertTrue: true

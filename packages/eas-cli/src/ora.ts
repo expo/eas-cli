@@ -24,7 +24,7 @@ const isCi = boolish('CI', false);
  * @returns
  */
 export function ora(options?: Options | string): Ora {
-  const inputOptions = typeof options === 'string' ? { text: options } : options ?? {};
+  const inputOptions = typeof options === 'string' ? { text: options } : (options ?? {});
   const disabled = Log.isDebug || !process.stdin.isTTY || isCi;
   const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
