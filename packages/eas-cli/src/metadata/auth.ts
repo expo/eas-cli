@@ -11,7 +11,7 @@ import {
   Options as AuthOptions,
   getRequestContext,
 } from '../credentials/ios/appstore/authenticate';
-import { AuthenticationMode } from '../credentials/ios/appstore/authenticateTypes';
+import { AppleTeamType, AuthenticationMode } from '../credentials/ios/appstore/authenticateTypes';
 import { hasAscEnvVars } from '../credentials/ios/appstore/resolveCredentials';
 import { MinimalAscApiKey } from '../credentials/ios/credentials';
 import { AppStoreConnectApiKeyQuery } from '../graphql/queries/AppStoreConnectApiKeyQuery';
@@ -44,6 +44,12 @@ async function resolveAppStoreBundleIdentifierAsync(
   return await getBundleIdentifierAsync(projectDir, exp, vcsClient);
 }
 
+type ResolvedAscApiKey = {
+  ascApiKey: MinimalAscApiKey;
+  teamId?: string;
+  teamName?: string;
+};
+
 /**
  * Try to resolve an ASC API key from the submit profile or EAS credentials service.
  * Returns null if no key is available from these sources.
@@ -60,13 +66,18 @@ async function tryResolveAscApiKeyAsync({
   projectId: string;
   exp: ExpoConfig;
   bundleId: string;
-}): Promise<MinimalAscApiKey | null> {
+}): Promise<ResolvedAscApiKey | null> {
   // 1. Check submit profile for ASC API key fields
   if ('ascApiKeyPath' in profile && 'ascApiKeyIssuerId' in profile && 'ascApiKeyId' in profile) {
     const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = profile;
     if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
       const keyP8 = await fs.readFile(ascApiKeyPath, 'utf-8');
-      return { keyP8, keyId: ascApiKeyId, issuerId: ascApiKeyIssuerId };
+      // Also try to get teamId from the profile if available
+      const teamId = 'appleTeamId' in profile ? (profile as any).appleTeamId : undefined;
+      return {
+        ascApiKey: { keyP8, keyId: ascApiKeyId, issuerId: ascApiKeyIssuerId },
+        teamId,
+      };
     }
   }
 
@@ -91,9 +102,13 @@ async function tryResolveAscApiKeyAsync({
         ascKeyFragment.id
       );
       return {
-        keyP8: fullKey.keyP8,
-        keyId: fullKey.keyIdentifier,
-        issuerId: fullKey.issuerIdentifier,
+        ascApiKey: {
+          keyP8: fullKey.keyP8,
+          keyId: fullKey.keyIdentifier,
+          issuerId: fullKey.issuerIdentifier,
+        },
+        teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
+        teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
       };
     }
   } catch (error: any) {
@@ -139,7 +154,7 @@ export async function getAppStoreAuthAsync({
   );
 
   // Try to resolve an ASC API key from profile or credentials service
-  const ascApiKey = await tryResolveAscApiKeyAsync({
+  const resolvedKey = await tryResolveAscApiKeyAsync({
     profile,
     graphqlClient,
     projectId,
@@ -147,10 +162,18 @@ export async function getAppStoreAuthAsync({
     bundleId,
   });
 
-  if (ascApiKey || hasAscEnvVars()) {
+  if (resolvedKey || hasAscEnvVars()) {
     const authOptions: AuthOptions = {
       mode: AuthenticationMode.API_KEY,
-      ...(ascApiKey ? { ascApiKey } : {}),
+      ...(resolvedKey
+        ? {
+            ascApiKey: resolvedKey.ascApiKey,
+            teamId: resolvedKey.teamId,
+            teamName: resolvedKey.teamName,
+            // Default to COMPANY_OR_ORGANIZATION to avoid prompting for team type
+            teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
+          }
+        : {}),
     };
     const authCtx = await credentialsCtx.appStore.ensureAuthenticatedAsync(authOptions);
     assert(authCtx.authState, 'Failed to authenticate with App Store Connect');
