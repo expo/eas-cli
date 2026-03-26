@@ -188,7 +188,7 @@ export async function saveGradleCacheAsync({
 
     logger.info('Compressing Gradle build cache...');
     const { archivePath } = await compressCacheAsync({
-      paths: ['build-cache-1'],
+      paths: [buildCachePath],
       workingDirectory: gradleCachesPath,
       verbose: env.EXPO_DEBUG === '1',
       logger,
@@ -204,7 +204,7 @@ export async function saveGradleCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: ['build-cache-1'],
+      paths: [buildCachePath],
       size,
       platform: Platform.ANDROID,
     });

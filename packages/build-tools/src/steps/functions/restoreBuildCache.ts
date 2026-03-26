@@ -12,8 +12,6 @@ import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 
-import { AndroidConfig } from '@expo/config-plugins';
-
 import { sendCcacheStatsAsync } from './ccacheStats';
 import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
 import {
@@ -209,25 +207,42 @@ export async function restoreGradleCacheAsync({
   try {
     const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
     const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
-    const properties = AndroidConfig.Properties.parsePropertiesFile(gradlePropertiesContent);
-
-    const propsToSet: Record<string, string> = {
-      'org.gradle.caching': 'true',
-      'org.gradle.cache.cleanup': 'ALWAYS',
-    };
-
-    for (const [key, value] of Object.entries(propsToSet)) {
-      const existing = properties.find(p => p.type === 'property' && p.key === key);
-      if (existing && existing.type === 'property') {
-        existing.value = value;
-      } else {
-        properties.push({ type: 'property', key, value });
-      }
-    }
-
     await fs.promises.writeFile(
       gradlePropertiesPath,
-      AndroidConfig.Properties.propertiesListToString(properties)
+      `${gradlePropertiesContent}\n\norg.gradle.caching=true\n`
+    );
+
+    // Configure cache cleanup via init script (works with both Gradle 8 and 9,
+    // org.gradle.cache.cleanup property was removed in Gradle 9)
+    const initScriptDir = path.join(os.homedir(), '.gradle', 'init.d');
+    await fs.promises.mkdir(initScriptDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(initScriptDir, 'eas-cache-cleanup.gradle'),
+      [
+        'def cacheDir = new File(System.getProperty("user.home"), ".gradle/caches/build-cache-1")',
+        'def countBefore = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        'println "[EAS] Gradle build cache entries before cleanup: ${countBefore}"',
+        '',
+        'beforeSettings { settings ->',
+        '    try {',
+        '        settings.caches {',
+        '            cleanup = Cleanup.ALWAYS',
+        '            buildCache {',
+        '                setRemoveUnusedEntriesAfterDays(7)',
+        '            }',
+        '        }',
+        '        println "[EAS] Configured Gradle cache cleanup via init script"',
+        '    } catch (Exception e) {',
+        '        println "[EAS] Failed to configure cache cleanup: ${e.message}"',
+        '    }',
+        '}',
+        '',
+        'gradle.buildFinished {',
+        '    def countAfter = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        '    println "[EAS] Gradle build cache entries after build: ${countAfter} (was ${countBefore})"',
+        '}',
+        '',
+      ].join('\n')
     );
 
     const robotAccessToken = nullthrows(
@@ -241,12 +256,14 @@ export async function restoreGradleCacheAsync({
 
     const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
 
+    const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+
     const { archivePath, matchedKey } = await downloadCacheAsync({
       logger,
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: ['build-cache-1'],
+      paths: [buildCachePath],
       key: cacheKey,
       keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
       platform: Platform.ANDROID,
