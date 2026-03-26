@@ -2,7 +2,7 @@ import { App, Session } from '@expo/apple-utils';
 import { ExpoConfig } from '@expo/config';
 import { SubmitProfile } from '@expo/eas-json';
 import assert from 'assert';
-import * as fs from 'fs-extra';
+import fs from 'fs';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
@@ -71,7 +71,7 @@ async function tryResolveAscApiKeyAsync({
   if ('ascApiKeyPath' in profile && 'ascApiKeyIssuerId' in profile && 'ascApiKeyId' in profile) {
     const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = profile;
     if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
-      const keyP8 = await fs.readFile(ascApiKeyPath, 'utf-8');
+      const keyP8 = await fs.promises.readFile(ascApiKeyPath, 'utf-8');
       // Also try to get teamId from the profile if available
       const teamId = 'appleTeamId' in profile ? (profile as any).appleTeamId : undefined;
       return {

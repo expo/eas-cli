@@ -38,8 +38,10 @@ jest.mock('../../graphql/queries/AppStoreConnectApiKeyQuery', () => ({
   },
 }));
 
-jest.mock('fs-extra', () => ({
-  readFile: jest.fn(() => 'mock-key-p8-content'),
+jest.mock('fs', () => ({
+  promises: {
+    readFile: jest.fn(() => 'mock-key-p8-content'),
+  },
 }));
 
 jest.mock('../../log');
