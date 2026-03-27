@@ -1,6 +1,8 @@
 import { BuildFunction } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
+import { waitForPrecompiledModulesPreparationAsync } from '../../utils/precompiledModules';
+
 export function createInstallPodsBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -8,6 +10,7 @@ export function createInstallPodsBuildFunction(): BuildFunction {
     name: 'Install Pods',
     __metricsId: 'eas/install_pods',
     fn: async (stepsCtx, { env }) => {
+      await waitForPrecompiledModulesPreparationAsync();
       stepsCtx.logger.info('Installing pods');
       const verboseFlag = stepsCtx.global.env['EAS_VERBOSE'] === '1' ? ['--verbose'] : [];
       const cocoapodsDeploymentFlag =
