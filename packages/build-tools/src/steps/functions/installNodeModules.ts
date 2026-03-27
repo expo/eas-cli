@@ -27,8 +27,8 @@ export async function installNodeModules(
   env: BuildStepEnv
 ): Promise<void> {
   const { logger } = stepCtx;
-  const packageManager = resolvePackageManager(stepCtx.workingDirectory);
   const packagerRunDir = findPackagerRootDir(stepCtx.workingDirectory);
+  const packageManager = resolvePackageManager(packagerRunDir);
 
   if (packagerRunDir !== stepCtx.workingDirectory) {
     const relativeReactNativeProjectDirectory = path.relative(
