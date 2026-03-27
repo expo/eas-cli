@@ -114,13 +114,13 @@ export function createRepackBuildFunction(): BuildFunction {
           logger: stepsCtx.logger,
           packageName: inputs.repack_package.value as string,
           distTag: inputs.repack_version.value as string,
-        })) ?? 'unknown';
+        })) ?? (inputs.repack_version.value as string);
       stepsCtx.logger.info(
         `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value} (${resolvedRepackVersion})`
       );
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
-        version: inputs.repack_version.value as string,
+        version: resolvedRepackVersion,
       });
       const { repackAppIosAsync, repackAppAndroidAsync } = repackApp;
 
