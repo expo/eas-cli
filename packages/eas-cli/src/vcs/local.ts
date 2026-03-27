@@ -16,6 +16,7 @@ const GITIGNORE_FILENAME = '.gitignore';
  * Inconsistencies with git behavior:
  * - if parent .gitignore has ignore rule and child has exception to that rule,
  *   file will still be ignored,
+ * - !dir/ patterns may incorrectly un-ignore a file with the same name,
  * - node_modules is always ignored,
  * - if .easignore exists, .gitignore files are not used.
  */
@@ -62,6 +63,7 @@ node_modules
         cwd: this.rootDir,
         ignore: ['node_modules'],
         followSymbolicLinks: false,
+        dot: true,
       })
     )
       // ensure that parent dir is before child directories
@@ -84,12 +86,22 @@ node_modules
   }
 
   public ignores(relativePath: string): boolean {
+    let ignored = false;
     for (const [prefix, ignore] of this.ignoreMapping) {
-      if (relativePath.startsWith(prefix) && ignore.ignores(relativePath.slice(prefix.length))) {
-        return true;
+      if (!relativePath.startsWith(prefix)) continue;
+      const slicedPath = relativePath.slice(prefix.length);
+      const result = ignore.test(slicedPath);
+      if (result.ignored) ignored = true;
+      else if (result.unignored) ignored = false;
+      // fs.cp omits trailing slashes from directory paths, but patterns like !dir/ need one.
+      // Re-test with a slash to catch directory negations. Only unignored is applied here
+      // to avoid treating a file named "build" as ignored just because "build/" is a pattern.
+      if (!slicedPath.endsWith('/')) {
+        const resultWithSlash = ignore.test(`${slicedPath}/`);
+        if (resultWithSlash.unignored) ignored = false;
       }
     }
-    return false;
+    return ignored;
   }
 }
 
