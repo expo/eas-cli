@@ -136,9 +136,9 @@ describe(Ignore, () => {
       );
 
       const ignore = await Ignore.createForCopyingAsync('/root');
-      expect(ignore.ignores('.eas/build')).toBe(false);
+      expect(ignore.ignores('.eas/build/')).toBe(false);
       expect(ignore.ignores('.eas/build/foo.txt')).toBe(false);
-      expect(ignore.ignores('.eas/other')).toBe(true);
+      expect(ignore.ignores('.eas/other/')).toBe(true);
       expect(ignore.ignores('.eas/other.txt')).toBe(true);
     });
 
@@ -154,7 +154,7 @@ describe(Ignore, () => {
       expect(ignore.ignores('.eas/build/foo.txt')).toBe(true);
     });
 
-    it('known limitation: a file whose name matches a directory negation pattern is incorrectly un-ignored', async () => {
+    it('does not un-ignore a file whose name matches a directory negation pattern', async () => {
       vol.fromJSON(
         {
           '.gitignore': 'build\n!build/\n',
@@ -163,7 +163,8 @@ describe(Ignore, () => {
       );
 
       const ignore = await Ignore.createForCopyingAsync('/root');
-      expect(ignore.ignores('build')).toBe(false); // known incorrect behavior
+      expect(ignore.ignores('build')).toBe(true);
+      expect(ignore.ignores('build/')).toBe(false);
     });
   });
 });

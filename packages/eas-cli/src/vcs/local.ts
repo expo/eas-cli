@@ -16,7 +16,6 @@ const GITIGNORE_FILENAME = '.gitignore';
  * Inconsistencies with git behavior:
  * - if parent .gitignore has ignore rule and child has exception to that rule,
  *   file will still be ignored,
- * - !dir/ patterns may incorrectly un-ignore a file with the same name,
  * - node_modules is always ignored,
  * - if .easignore exists, .gitignore files are not used.
  */
@@ -93,13 +92,6 @@ node_modules
       const result = ignore.test(slicedPath);
       if (result.ignored) ignored = true;
       else if (result.unignored) ignored = false;
-      // fs.cp omits trailing slashes from directory paths, but patterns like !dir/ need one.
-      // Re-test with a slash to catch directory negations. Only unignored is applied here
-      // to avoid treating a file named "build" as ignored just because "build/" is a pattern.
-      if (!slicedPath.endsWith('/')) {
-        const resultWithSlash = ignore.test(`${slicedPath}/`);
-        if (resultWithSlash.unignored) ignored = false;
-      }
     }
     return ignored;
   }
@@ -127,7 +119,10 @@ export async function makeShallowCopyAsync(_src: string, dst: string): Promise<v
         return true;
       }
       const relativePath = path.relative(src, srcFilePath);
-      const shouldCopyTheItem = !ignore.ignores(relativePath);
+
+      // Append a trailing slash for directories so patterns like !dir/ match correctly.
+      const isDirectory = fsExtra.lstatSync(srcFilePath).isDirectory();
+      const shouldCopyTheItem = !ignore.ignores(isDirectory ? `${relativePath}/` : relativePath);
 
       Log.debug(shouldCopyTheItem ? 'copying' : 'skipping', {
         src,
