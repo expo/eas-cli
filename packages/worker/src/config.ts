@@ -98,10 +98,10 @@ export default {
     transform: createBase64EnvTransformer('cocoapodsCacheUrl'),
     defaultValue: null,
   }),
-  precompiledModulesUrl:
-    process.env.ENVIRONMENT === 'staging'
-      ? 'https://storage.googleapis.com/eas-build-precompiled-modules-staging/ios/precompiled-modules.tar.gz'
-      : 'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules.tar.gz',
+  precompiledModulesUrls: [
+    'https://storage.googleapis.com/turtle-v2/precompiled-modules/db65b4afac835ff71269ce53937fb20627b133c0/xcframeworks-Debug.zip',
+    'https://storage.googleapis.com/turtle-v2/precompiled-modules/db65b4afac835ff71269ce53937fb20627b133c0/xcframeworks-Release.zip',
+  ],
   runMetricsServer: env<boolean | null>('WORKER_RUNTIME_CONFIG_BASE64', {
     transform: createBase64EnvTransformer('runMetricsServer'),
     defaultValue: null,

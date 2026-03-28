@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import * as tar from 'tar';
+import StreamZip from 'node-stream-zip';
 
 import { BuildContext } from '../context';
 
@@ -16,19 +16,19 @@ export function shouldUsePrecompiledDependencies(env: Record<string, string | un
 
 export function maybeStartPreparingPrecompiledModules(
   ctx: BuildContext,
-  config: { precompiledModulesUrl: string }
+  config: { precompiledModulesUrls: string[] }
 ): void {
   if (!shouldUsePrecompiledDependencies(ctx.env)) {
     return;
   }
 
-  startPreparingPrecompiledDependencies(ctx, config.precompiledModulesUrl);
+  startPreparingPrecompiledDependencies(ctx, config.precompiledModulesUrls);
 }
 
-export function startPreparingPrecompiledDependencies(ctx: BuildContext, url: string): void {
+export function startPreparingPrecompiledDependencies(ctx: BuildContext, urls: string[]): void {
   precompiledModulesPreparationPromise = preparePrecompiledDependenciesAsync({
     logger: ctx.logger,
-    url,
+    urls,
     destinationDirectory: PRECOMPILED_MODULES_PATH,
     cocoapodsProxyUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
   });
@@ -40,22 +40,21 @@ export async function waitForPrecompiledModulesPreparationAsync(): Promise<void>
 
 async function preparePrecompiledDependenciesAsync({
   logger,
-  url,
+  urls,
   destinationDirectory,
   cocoapodsProxyUrl,
 }: {
   logger: bunyan;
-  url: string;
+  urls: string[];
   destinationDirectory: string;
   cocoapodsProxyUrl?: string;
 }): Promise<void> {
   const archiveDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'precompiled-modules-'));
-  const archivePath = path.join(archiveDirectory, 'precompiled-modules.tar.gz');
 
   logger.info(
     {
       destinationDirectory,
-      url,
+      urls,
     },
     'Starting precompiled dependencies download'
   );
@@ -64,17 +63,27 @@ async function preparePrecompiledDependenciesAsync({
   await fs.mkdirp(destinationDirectory);
 
   try {
-    await downloadPrecompiledModulesAsync({
+    const archives = urls.map((url, index) => ({
       url,
-      archivePath,
-      cocoapodsProxyUrl,
-      logger,
-    });
-    logger.info({ archivePath }, 'Downloaded precompiled dependencies, extracting archive');
-    await tar.extract({
-      file: archivePath,
-      cwd: destinationDirectory,
-    });
+      archivePath: path.join(archiveDirectory, `precompiled-modules-${index}.zip`),
+    }));
+
+    await Promise.all(
+      archives.map(async ({ url, archivePath }) => {
+        await downloadPrecompiledModulesAsync({
+          url,
+          archivePath,
+          cocoapodsProxyUrl,
+          logger,
+        });
+      })
+    );
+
+    for (const { url, archivePath } of archives) {
+      logger.info({ archivePath, url }, 'Downloaded precompiled dependencies, extracting archive');
+      await extractZipAsync(archivePath, destinationDirectory);
+    }
+
     logger.info({ destinationDirectory }, 'Prepared precompiled dependencies');
   } finally {
     await fs.remove(archiveDirectory);
@@ -93,7 +102,10 @@ async function downloadPrecompiledModulesAsync({
   logger: bunyan;
 }): Promise<void> {
   const proxiedUrl = cocoapodsProxyUrl
-    ? rewriteUrlThroughCocoapodsProxy({ url, cocoapodsProxyUrl })
+    ? (() => {
+        const parsedUrl = new URL(url);
+        return `${cocoapodsProxyUrl}/${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+      })()
     : null;
   if (proxiedUrl) {
     try {
@@ -110,13 +122,11 @@ async function downloadPrecompiledModulesAsync({
   await downloadFile(url, archivePath, { retry: 3 });
 }
 
-function rewriteUrlThroughCocoapodsProxy({
-  url,
-  cocoapodsProxyUrl,
-}: {
-  url: string;
-  cocoapodsProxyUrl: string;
-}): string {
-  const parsedUrl = new URL(url);
-  return `${cocoapodsProxyUrl}/${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+async function extractZipAsync(archivePath: string, destinationDirectory: string): Promise<void> {
+  const zip = new StreamZip.async({ file: archivePath });
+  try {
+    await zip.extract(null, destinationDirectory);
+  } finally {
+    await zip.close();
+  }
 }

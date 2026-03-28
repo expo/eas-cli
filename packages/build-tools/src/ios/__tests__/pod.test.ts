@@ -1,7 +1,7 @@
 import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
 import { mkdirp, mkdtemp, remove } from 'fs-extra';
-import * as tar from 'tar';
+import StreamZip from 'node-stream-zip';
 
 import { createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -14,15 +14,31 @@ import { installPods } from '../pod';
 
 jest.mock('@expo/downloader');
 jest.mock('fs-extra');
-jest.mock('tar');
 jest.mock('@expo/turtle-spawn');
+jest.mock('node-stream-zip', () => ({
+  __esModule: true,
+  default: {
+    async: jest.fn(),
+  },
+}));
 
 describe(installPods.name, () => {
+  const extract = jest.fn();
+  const close = jest.fn();
+
   beforeEach(() => {
     jest.mocked(remove).mockImplementation(async () => undefined as any);
     jest.mocked(mkdirp).mockImplementation(async () => undefined as any);
     jest.mocked(mkdtemp).mockImplementation(async () => '/tmp/precompiled-modules-test' as any);
-    jest.mocked(tar.extract).mockResolvedValue(undefined);
+    extract.mockReset().mockResolvedValue(undefined);
+    close.mockReset().mockResolvedValue(undefined);
+    jest.mocked(StreamZip.async).mockImplementation(
+      () =>
+        ({
+          extract,
+          close,
+        }) as any
+    );
   });
 
   it('waits for precompiled dependencies before running pod install', async () => {
@@ -45,7 +61,10 @@ describe(installPods.name, () => {
         uploadArtifact: jest.fn(),
       }
     );
-    startPreparingPrecompiledDependencies(ctx, 'https://example.com/precompiled-modules.tar.gz');
+    startPreparingPrecompiledDependencies(ctx, [
+      'https://example.com/precompiled-modules-0.zip',
+      'https://example.com/precompiled-modules-1.zip',
+    ]);
 
     jest.mocked(spawn).mockResolvedValue({} as any);
 
