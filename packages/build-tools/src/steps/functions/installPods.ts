@@ -10,7 +10,14 @@ export function createInstallPodsBuildFunction(): BuildFunction {
     name: 'Install Pods',
     __metricsId: 'eas/install_pods',
     fn: async (stepsCtx, { env }) => {
-      await waitForPrecompiledModulesPreparationAsync();
+      try {
+        await waitForPrecompiledModulesPreparationAsync();
+      } catch (err) {
+        stepsCtx.logger.warn(
+          { err },
+          'Precompiled dependencies were not prepared successfully, continuing with pod install'
+        );
+      }
       stepsCtx.logger.info('Installing pods');
       const verboseFlag = stepsCtx.global.env['EAS_VERBOSE'] === '1' ? ['--verbose'] : [];
       const cocoapodsDeploymentFlag =

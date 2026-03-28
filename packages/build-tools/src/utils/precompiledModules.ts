@@ -8,6 +8,7 @@ import StreamZip from 'node-stream-zip';
 import { BuildContext } from '../context';
 
 let precompiledModulesPreparationPromise: Promise<void> | null = null;
+const PRECOMPILED_MODULES_WAIT_TIMEOUT_MS = 30_000;
 export const PRECOMPILED_MODULES_PATH = path.join(os.homedir(), '.expo', 'precompiled-modules');
 
 export function shouldUsePrecompiledDependencies(env: Record<string, string | undefined>): boolean {
@@ -35,7 +36,30 @@ export function startPreparingPrecompiledDependencies(ctx: BuildContext, urls: s
 }
 
 export async function waitForPrecompiledModulesPreparationAsync(): Promise<void> {
-  await precompiledModulesPreparationPromise;
+  if (!precompiledModulesPreparationPromise) {
+    return;
+  }
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      precompiledModulesPreparationPromise,
+      new Promise<void>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(
+            new Error(
+              `Timed out waiting for precompiled dependencies after ${PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`
+            )
+          );
+        }, PRECOMPILED_MODULES_WAIT_TIMEOUT_MS);
+        timeoutHandle.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
 }
 
 async function preparePrecompiledDependenciesAsync({
@@ -50,7 +74,13 @@ async function preparePrecompiledDependenciesAsync({
   cocoapodsProxyUrl?: string;
 }): Promise<void> {
   const archiveDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'precompiled-modules-'));
+  const destinationParentDirectory = path.dirname(destinationDirectory);
+  await fs.mkdirp(destinationParentDirectory);
+  const stagingDirectory = await fs.mkdtemp(
+    path.join(destinationParentDirectory, `${path.basename(destinationDirectory)}-staging-`)
+  );
 
+  logger.info('');
   logger.info(
     {
       destinationDirectory,
@@ -64,6 +94,7 @@ async function preparePrecompiledDependenciesAsync({
 
   try {
     const archives = urls.map((url, index) => ({
+      archiveName: path.basename(new URL(url).pathname),
       url,
       archivePath: path.join(archiveDirectory, `precompiled-modules-${index}.zip`),
     }));
@@ -79,12 +110,23 @@ async function preparePrecompiledDependenciesAsync({
       })
     );
 
-    for (const { url, archivePath } of archives) {
-      logger.info({ archivePath, url }, 'Downloaded precompiled dependencies, extracting archive');
-      await extractZipAsync(archivePath, destinationDirectory);
+    for (const { archiveName, url, archivePath } of archives) {
+      logger.info({ archivePath, url }, `Downloaded ${archiveName}, extracting archive`);
+      await extractZipAsync(archivePath, stagingDirectory);
+      logger.info(
+        { destinationDirectory: stagingDirectory },
+        `Extracted ${archiveName} into staging precompiled dependencies directory`
+      );
     }
 
-    logger.info({ destinationDirectory }, 'Prepared precompiled dependencies');
+    await fs.remove(destinationDirectory);
+    await fs.move(stagingDirectory, destinationDirectory);
+    logger.info({ destinationDirectory }, `Precompiled modules ready in ${destinationDirectory}`);
+  } catch (error) {
+    await fs.remove(stagingDirectory);
+    await fs.remove(destinationDirectory);
+    await fs.mkdirp(destinationDirectory);
+    throw error;
   } finally {
     await fs.remove(archiveDirectory);
   }

@@ -9,7 +9,14 @@ export async function installPods<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
   { infoCallbackFn }: SpawnOptions
 ): Promise<{ spawnPromise: SpawnPromise<SpawnResult> }> {
-  await waitForPrecompiledModulesPreparationAsync();
+  try {
+    await waitForPrecompiledModulesPreparationAsync();
+  } catch (err) {
+    ctx.logger.warn(
+      { err },
+      'Precompiled dependencies were not prepared successfully, continuing with pod install'
+    );
+  }
 
   const iosDir = path.join(ctx.getReactNativeProjectDirectory(), 'ios');
 

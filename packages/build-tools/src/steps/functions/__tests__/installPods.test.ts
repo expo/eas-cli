@@ -32,4 +32,28 @@ describe(createInstallPodsBuildFunction, () => {
       })
     );
   });
+
+  it('continues with pod install when precompiled dependencies preparation fails', async () => {
+    jest.mocked(spawn).mockResolvedValue({} as any);
+    jest
+      .mocked(waitForPrecompiledModulesPreparationAsync)
+      .mockRejectedValue(new Error('precompiled dependencies failed'));
+
+    const installPods = createInstallPodsBuildFunction();
+    const globalContext = createGlobalContextMock({});
+    const buildStep = installPods.createBuildStepFromFunctionCall(globalContext, {
+      callInputs: {},
+    });
+
+    await expect(buildStep.executeAsync()).resolves.toBeUndefined();
+
+    expect(waitForPrecompiledModulesPreparationAsync).toHaveBeenCalled();
+    expect(spawn).toHaveBeenCalledWith(
+      'pod',
+      ['install'],
+      expect.objectContaining({
+        cwd: globalContext.defaultWorkingDirectory,
+      })
+    );
+  });
 });

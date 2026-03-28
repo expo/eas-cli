@@ -1,6 +1,6 @@
 import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
-import { mkdirp, mkdtemp, remove } from 'fs-extra';
+import { mkdirp, mkdtemp, move, remove } from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 
 import { createTestIosJob } from '../../__tests__/utils/job';
@@ -29,7 +29,14 @@ describe(installPods.name, () => {
   beforeEach(() => {
     jest.mocked(remove).mockImplementation(async () => undefined as any);
     jest.mocked(mkdirp).mockImplementation(async () => undefined as any);
-    jest.mocked(mkdtemp).mockImplementation(async () => '/tmp/precompiled-modules-test' as any);
+    jest.mocked(move).mockImplementation(async () => undefined as any);
+    let mkdtempCallCount = 0;
+    jest.mocked(mkdtemp).mockImplementation(async () => {
+      mkdtempCallCount += 1;
+      return mkdtempCallCount === 1
+        ? ('/tmp/precompiled-modules-archive' as any)
+        : ('/tmp/precompiled-modules-staging' as any);
+    });
     extract.mockReset().mockResolvedValue(undefined);
     close.mockReset().mockResolvedValue(undefined);
     jest.mocked(StreamZip.async).mockImplementation(
@@ -84,5 +91,37 @@ describe(installPods.name, () => {
       })
     );
     expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
+  });
+
+  it('continues with pod install when precompiled dependencies preparation fails', async () => {
+    jest.mocked(downloadFile).mockRejectedValue(new Error('download failed'));
+    const ctx = new BuildContext(
+      createTestIosJob({
+        buildCredentials: undefined,
+      }),
+      {
+        workingdir: '/workingdir',
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        logger: createMockLogger(),
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+        },
+        uploadArtifact: jest.fn(),
+      }
+    );
+    startPreparingPrecompiledDependencies(ctx, ['https://example.com/precompiled-modules-0.zip']);
+
+    jest.mocked(spawn).mockResolvedValue({} as any);
+
+    await expect(installPods(ctx, {})).resolves.toEqual({
+      spawnPromise: expect.any(Promise),
+    });
+    expect(spawn).toHaveBeenCalledWith(
+      'pod',
+      ['install'],
+      expect.objectContaining({
+        cwd: '/workingdir/build/ios',
+      })
+    );
   });
 });
