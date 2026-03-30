@@ -35,14 +35,15 @@ const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
 
-function createStep(callInputs?: Record<string, unknown>) {
+function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
   const globalCtx = createGlobalContextMock({ logger });
-  globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home' });
-  return fn.createBuildStepFromFunctionCall(globalCtx, {
+  globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home', ...envOverrides });
+  const step = fn.createBuildStepFromFunctionCall(globalCtx, {
     callInputs,
   });
+  return Object.assign(step, { logger });
 }
 
 function createStartResult(serialId: string) {
@@ -58,6 +59,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
+    mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-default'));
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
@@ -199,5 +201,15 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips animation scale adjustments when opt out env var is disabled', async () => {
+    const step = createStep(undefined, {
+      ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE: 'false',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
   });
 });

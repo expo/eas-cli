@@ -400,16 +400,6 @@ export namespace AndroidEmulatorUtils {
     env: NodeJS.ProcessEnv;
     logger: bunyan;
   }): Promise<void> {
-    const shouldDisableWindowAndTransitionAnimations =
-      env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
-      env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
-    if (!shouldDisableWindowAndTransitionAnimations) {
-      logger.info(
-        'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
-      );
-      return;
-    }
-
     logger.info('Disabling Android emulator window animations.');
     try {
       await spawn(
