@@ -161,6 +161,24 @@ describe('AndroidEmulatorUtils', () => {
       );
     });
 
+    it('skips animation scale adjustments when opt out env var is disabled', async () => {
+      const logger = createMockLogger();
+
+      await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+        serialId: 'emulator-5554' as any,
+        env: {
+          ...process.env,
+          ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE: 'false',
+        },
+        logger,
+      });
+
+      expect(logger.info).toHaveBeenCalledWith(
+        'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
+      );
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
     it('logs and swallows failures when disabling animations', async () => {
       const logger = createMockLogger();
       mockedSpawn
