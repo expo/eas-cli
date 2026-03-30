@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Add `--non-interactive` flag to `metadata:push` and `metadata:pull` commands with ASC API Key auth support. ([#3548](https://github.com/expo/eas-cli/pull/3548) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
@@ -108,6 +108,22 @@ This is the log of notable changes to EAS CLI and related packages.
 - List available options in non-interactive mode errors instead of generic "unable to select" messages, making CLI usable by agents and scripts. ([#3359](https://github.com/expo/eas-cli/pull/3359) by [@EvanBacon](https://github.com/EvanBacon))
 - Hidden beta version of new `eas account:usage` command for viewing account usage and billing estimates. ([#3334](https://github.com/expo/eas-cli/pull/3334) by [@douglowder](https://github.com/douglowder), [@EvanBacon](https://github.com/EvanBacon))
 - Add `--no-bytecode` and `--source-maps [mode]` flags to `eas update`. ([#3339](https://github.com/expo/eas-cli/pull/3339) by [@brentvatne](https://github.com/brentvatne))
+- Add App Clip bundle identifier registration support for multi-target iOS builds. ([#3300](https://github.com/expo/eas-cli/pull/3300) by [@evanbacon](https://github.com/evanbacon))
+- Warn in `eas build` when creating a production build from an app that uses Expo Go for development ([#3073](https://github.com/expo/eas-cli/pull/3073) by [@vonovak](https://github.com/vonovak))
+- Add `--runtime-version` and `--platform` filters to `eas update:list`. ([#3261](https://github.com/expo/eas-cli/pull/3261) by [@HarelSultan](https://github.com/HarelSultan))
+
+### 🐛 Bug fixes
+
+- Fix `--source-maps` flag compatibility with older SDKs that only support it as a boolean flag. ([#3341](https://github.com/expo/eas-cli/pull/3341) by [@brentvatne](https://github.com/brentvatne))
+- Use `--dump-sourcemaps` as fallback when `--source-maps` is not provided to `eas update`, for backwards compatibility. ([8cc324e1](https://github.com/expo/eas-cli/commit/8cc324e1) by [@brentvatne](https://github.com/brentvatne))
+- Fix `metadata:pull` failing for apps with only a live version by falling back to live app version and info. ([#3299](https://github.com/expo/eas-cli/pull/3299) by [@EvanBacon](https://github.com/EvanBacon))
+- eas init should fix and validate project name and slug. ([#3277](https://github.com/expo/eas-cli/pull/3277) by [@douglowder](https://github.com/douglowder))
+
+### 🧹 Chores
+
+- Test with node 24. ([#3270](https://github.com/expo/eas-cli/pull/3270) by [@wschurman](https://github.com/wschurman))
+- Delete channel in background. ([#3278](https://github.com/expo/eas-cli/pull/3278) by [@quinlanj](https://github.com/quinlanj))
+- Add warning to channel:delete. ([#3335](https://github.com/expo/eas-cli/pull/3335) by [@quinlanj](https://github.com/quinlanj))
 
 ## [16.28.0](https://github.com/expo/eas-cli/releases/tag/v16.28.0) - 2025-11-20
 
