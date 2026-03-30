@@ -90,8 +90,9 @@ export default class SessionManager {
       const apiV2Client = new ApiV2Client({ accessToken: null, sessionSecret });
       try {
         await apiV2Client.postAsync('auth/logout', { body: {} });
-      } catch {
+      } catch (e) {
         // Best-effort: clear the local session even if the server request fails
+        Log.debug('Failed to invalidate session secret on server:', e);
       }
     }
     this.currentActor = undefined;
