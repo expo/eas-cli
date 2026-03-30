@@ -391,6 +391,25 @@ export namespace AndroidEmulatorUtils {
     );
   }
 
+  export async function disableWindowAndTransitionAnimationsAsync({
+    serialId,
+    env,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    await spawn(
+      'adb',
+      ['-s', serialId, 'shell', 'settings', 'put', 'global', 'window_animation_scale', '0'],
+      { env }
+    );
+    await spawn(
+      'adb',
+      ['-s', serialId, 'shell', 'settings', 'put', 'global', 'transition_animation_scale', '0'],
+      { env }
+    );
+  }
+
   async function hasNetworkConnectionAsync({
     serialId,
     env,

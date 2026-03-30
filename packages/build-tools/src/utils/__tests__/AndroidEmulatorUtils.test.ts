@@ -110,6 +110,46 @@ describe('AndroidEmulatorUtils', () => {
     });
   });
 
+  describe(AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync, () => {
+    it('sets window and transition animation scales to zero', async () => {
+      await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+        serialId: 'emulator-5554' as any,
+        env: process.env,
+      });
+
+      expect(mockedSpawn).toHaveBeenNthCalledWith(
+        1,
+        'adb',
+        [
+          '-s',
+          'emulator-5554',
+          'shell',
+          'settings',
+          'put',
+          'global',
+          'window_animation_scale',
+          '0',
+        ],
+        { env: process.env }
+      );
+      expect(mockedSpawn).toHaveBeenNthCalledWith(
+        2,
+        'adb',
+        [
+          '-s',
+          'emulator-5554',
+          'shell',
+          'settings',
+          'put',
+          'global',
+          'transition_animation_scale',
+          '0',
+        ],
+        { env: process.env }
+      );
+    });
+  });
+
   describe(AndroidEmulatorUtils.stopAsync, () => {
     it('kills emulator and waits for it to detach', async () => {
       mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {

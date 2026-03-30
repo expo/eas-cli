@@ -26,6 +26,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     cloneAsync: jest.fn(),
     startAsync: jest.fn(),
     waitForReadyAsync: jest.fn(),
+    disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
   },
 }));
@@ -58,6 +59,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
+    mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
 
     mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
@@ -95,6 +97,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         serialId: 'emulator-2222',
         timeoutMs: 120_000,
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-2222',
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -145,6 +153,24 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         serialId: 'emulator-clone-2-attempt-1',
         timeoutMs: 60_000,
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-base',
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        serialId: 'emulator-clone-1-attempt-2',
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        serialId: 'emulator-clone-2-attempt-1',
       })
     );
 
