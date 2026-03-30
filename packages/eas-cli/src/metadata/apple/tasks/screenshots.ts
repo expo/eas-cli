@@ -5,7 +5,7 @@ import {
   ScreenshotDisplayType,
 } from '@expo/apple-utils';
 import chalk from 'chalk';
-import fs from 'fs-extra';
+import fs from 'fs';
 import path from 'path';
 
 import fetch from '../../../fetch';
@@ -37,17 +37,19 @@ export class ScreenshotsTask extends AppleTask {
       return;
     }
 
-    // Fetch screenshot sets for each locale
-    for (const locale of context.versionLocales) {
-      const sets = await locale.getAppScreenshotSetsAsync();
-      const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
+    // Fetch screenshot sets for all locales in parallel
+    await Promise.all(
+      context.versionLocales.map(async locale => {
+        const sets = await locale.getAppScreenshotSetsAsync();
+        const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
 
-      for (const set of sets) {
-        displayTypeMap.set(set.attributes.screenshotDisplayType, set);
-      }
+        for (const set of sets) {
+          displayTypeMap.set(set.attributes.screenshotDisplayType, set);
+        }
 
-      context.screenshotSets.set(locale.attributes.locale, displayTypeMap);
-    }
+        context.screenshotSets!.set(locale.attributes.locale, displayTypeMap);
+      })
+    );
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
@@ -184,9 +186,14 @@ async function syncScreenshotSetAsync(
     const absolutePath = path.resolve(projectDir, relativePath);
     const fileName = path.basename(absolutePath);
 
-    // Check if screenshot already exists
+    // Check if screenshot already exists with same name and file size
     const existing = existingByFilename.get(fileName);
-    if (existing && existing.isComplete()) {
+    const localSize = fs.existsSync(absolutePath) ? fs.statSync(absolutePath).size : null;
+    if (
+      existing &&
+      existing.isComplete() &&
+      (localSize === null || existing.attributes.fileSize === localSize)
+    ) {
       screenshotIdsToKeep.push(existing.id);
       existingByFilename.delete(fileName);
     } else {
@@ -207,7 +214,7 @@ async function syncScreenshotSetAsync(
   for (const absolutePath of pathsToUpload) {
     const fileName = path.basename(absolutePath);
 
-    if (!(await fs.pathExists(absolutePath))) {
+    if (!fs.existsSync(absolutePath)) {
       Log.warn(chalk`{yellow Screenshot not found: ${absolutePath}}`);
       continue;
     }
@@ -231,8 +238,6 @@ async function syncScreenshotSetAsync(
 
   // Reorder screenshots to match config order
   if (screenshotIdsToKeep.length > 0) {
-    // Build the correct order based on config paths
-    const orderedIds: string[] = [];
     const refreshedSet = await AppScreenshotSet.infoAsync(localization.context, {
       id: screenshotSet.id,
     });
@@ -242,6 +247,8 @@ async function syncScreenshotSetAsync(
       screenshotsByFilename.set(s.attributes.fileName, s);
     }
 
+    // Build the desired order based on config paths
+    const orderedIds: string[] = [];
     for (const relativePath of paths) {
       const fileName = path.basename(relativePath);
       const screenshot = screenshotsByFilename.get(fileName);
@@ -250,7 +257,12 @@ async function syncScreenshotSetAsync(
       }
     }
 
-    if (orderedIds.length > 0) {
+    // Only call reorder if the order actually differs from current
+    const currentIds = refreshedScreenshots.map(s => s.id);
+    if (
+      orderedIds.length > 0 &&
+      (orderedIds.length !== currentIds.length || orderedIds.some((id, i) => id !== currentIds[i]))
+    ) {
       await screenshotSet.reorderScreenshotsAsync({ appScreenshots: orderedIds });
     }
   }
@@ -277,7 +289,7 @@ async function downloadScreenshotAsync(
 
   // Create directory structure: store/apple/screenshot/{locale}/{displayType}/
   const screenshotsDir = path.join(projectDir, 'store', 'apple', 'screenshot', locale, displayType);
-  await fs.ensureDir(screenshotsDir);
+  await fs.promises.mkdir(screenshotsDir, { recursive: true });
 
   // Use original filename for matching during sync
   const fileName = screenshot.attributes.fileName || `${String(index + 1).padStart(2, '0')}.png`;
@@ -291,7 +303,7 @@ async function downloadScreenshotAsync(
     }
 
     const buffer = await response.buffer();
-    await fs.writeFile(outputPath, buffer);
+    await fs.promises.writeFile(outputPath, buffer);
 
     Log.log(chalk`{dim Downloaded screenshot: ${relativePath}}`);
     return relativePath;

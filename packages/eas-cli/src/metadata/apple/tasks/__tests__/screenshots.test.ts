@@ -21,20 +21,12 @@ jest.mock('../../../../fetch', () => ({
   default: (...args: any[]) => mockFetch(...args),
 }));
 
-const mockEnsureDir = jest.fn().mockResolvedValue(undefined);
-const mockWriteFile = jest.fn().mockResolvedValue(undefined);
-const mockPathExists = jest.fn().mockResolvedValue(true);
-jest.mock('fs-extra', () => ({
-  __esModule: true,
-  default: {
-    ensureDir: (...args: any[]) => mockEnsureDir(...args),
-    writeFile: (...args: any[]) => mockWriteFile(...args),
-    pathExists: (...args: any[]) => mockPathExists(...args),
-  },
-  ensureDir: (...args: any[]) => mockEnsureDir(...args),
-  writeFile: (...args: any[]) => mockWriteFile(...args),
-  pathExists: (...args: any[]) => mockPathExists(...args),
-}));
+import fs from 'fs';
+
+jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+jest.spyOn(fs, 'statSync').mockReturnValue({ size: 1024 } as any);
+jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
+jest.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined);
 
 describe(ScreenshotsTask, () => {
   beforeEach(() => {
@@ -304,9 +296,8 @@ describe(ScreenshotsTask, () => {
           waitForProcessing: true,
         })
       );
-      expect(reorderMock).toHaveBeenCalledWith({
-        appScreenshots: ['NEW_SS_1'],
-      });
+      // Reorder is skipped because the current order already matches
+      expect(reorderMock).not.toHaveBeenCalled();
     });
   });
 });

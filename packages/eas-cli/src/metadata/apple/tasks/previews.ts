@@ -5,7 +5,7 @@ import {
   PreviewType,
 } from '@expo/apple-utils';
 import chalk from 'chalk';
-import fs from 'fs-extra';
+import fs from 'fs';
 import path from 'path';
 
 import fetch from '../../../fetch';
@@ -50,25 +50,19 @@ export class PreviewsTask extends AppleTask {
       return;
     }
 
-    // Fetch preview sets for each locale
-    for (const locale of context.versionLocales) {
-      // Check if the method exists - @expo/apple-utils may not have implemented preview support yet
-      if (typeof locale.getAppPreviewSetsAsync !== 'function') {
-        Log.warn(
-          'Video preview support requires a newer version of @expo/apple-utils. Skipping previews.'
-        );
-        return;
-      }
+    // Fetch preview sets for all locales in parallel
+    await Promise.all(
+      context.versionLocales.map(async locale => {
+        const sets = await locale.getAppPreviewSetsAsync();
+        const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
 
-      const sets = await locale.getAppPreviewSetsAsync();
-      const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
+        for (const set of sets) {
+          previewTypeMap.set(set.attributes.previewType, set);
+        }
 
-      for (const set of sets) {
-        previewTypeMap.set(set.attributes.previewType, set);
-      }
-
-      context.previewSets.set(locale.attributes.locale, previewTypeMap);
-    }
+        context.previewSets!.set(locale.attributes.locale, previewTypeMap);
+      })
+    );
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
@@ -99,7 +93,8 @@ export class PreviewsTask extends AppleTask {
           context.projectDir,
           localeCode,
           previewType,
-          preview
+          preview,
+          0
         );
 
         if (relativePath) {
@@ -176,7 +171,7 @@ async function syncPreviewSetAsync(
   const absolutePath = path.resolve(projectDir, previewConfig.path);
   const fileName = path.basename(absolutePath);
 
-  if (!(await fs.pathExists(absolutePath))) {
+  if (!fs.existsSync(absolutePath)) {
     Log.warn(chalk`{yellow Video preview not found: ${absolutePath}}`);
     return;
   }
@@ -200,10 +195,15 @@ async function syncPreviewSetAsync(
 
   const existingPreviews = previewSet.attributes.appPreviews || [];
 
-  // Check if we need to update (different filename or no existing preview)
+  // Check if we need to update (different filename, size, or no existing preview)
   const existingPreview = existingPreviews.find(p => p.attributes.fileName === fileName);
+  const localSize = fs.statSync(absolutePath).size;
 
-  if (existingPreview && existingPreview.isComplete()) {
+  if (
+    existingPreview &&
+    existingPreview.isComplete() &&
+    existingPreview.attributes.fileSize === localSize
+  ) {
     // Preview with same filename exists, check if we need to update preview frame time code
     if (
       previewConfig.previewFrameTimeCode &&
@@ -261,7 +261,8 @@ async function downloadPreviewAsync(
   projectDir: string,
   locale: string,
   previewType: PreviewType,
-  preview: AppPreview
+  preview: AppPreview,
+  index: number
 ): Promise<string | null> {
   const videoUrl = preview.getVideoUrl();
   if (!videoUrl) {
@@ -271,10 +272,10 @@ async function downloadPreviewAsync(
 
   // Create directory structure: store/apple/preview/{locale}/{previewType}/
   const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewType);
-  await fs.ensureDir(previewsDir);
+  await fs.promises.mkdir(previewsDir, { recursive: true });
 
   // Use original filename for matching during sync
-  const fileName = preview.attributes.fileName || '01.mp4';
+  const fileName = preview.attributes.fileName || `${String(index + 1).padStart(2, '0')}.mp4`;
   const outputPath = path.join(previewsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 
@@ -285,7 +286,7 @@ async function downloadPreviewAsync(
     }
 
     const buffer = await response.buffer();
-    await fs.writeFile(outputPath, buffer);
+    await fs.promises.writeFile(outputPath, buffer);
 
     Log.log(chalk`{dim Downloaded video preview: ${relativePath}}`);
     return relativePath;
