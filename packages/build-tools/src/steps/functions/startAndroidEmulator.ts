@@ -109,6 +109,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
             });
             await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
               env,
+              logger,
               serialId: attemptSerialId,
             });
             logger.info(`${deviceName} is ready.`);
@@ -197,6 +198,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                 });
                 await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
                   env,
+                  logger,
                   serialId: cloneSerialId,
                 });
 

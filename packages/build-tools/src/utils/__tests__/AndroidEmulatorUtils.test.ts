@@ -1,5 +1,6 @@
 import spawn from '@expo/turtle-spawn';
 
+import { createMockLogger } from '../../__tests__/utils/logger';
 import { AndroidEmulatorUtils } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
@@ -112,11 +113,18 @@ describe('AndroidEmulatorUtils', () => {
 
   describe(AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync, () => {
     it('sets window and transition animation scales to zero', async () => {
+      const logger = createMockLogger();
+
       await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
         serialId: 'emulator-5554' as any,
         env: process.env,
+        logger,
       });
 
+      expect(logger.info).toHaveBeenNthCalledWith(
+        1,
+        'Disabling Android emulator window animations.'
+      );
       expect(mockedSpawn).toHaveBeenNthCalledWith(
         1,
         'adb',
@@ -132,6 +140,10 @@ describe('AndroidEmulatorUtils', () => {
         ],
         { env: process.env }
       );
+      expect(logger.info).toHaveBeenNthCalledWith(
+        2,
+        'Disabling Android emulator transition animations.'
+      );
       expect(mockedSpawn).toHaveBeenNthCalledWith(
         2,
         'adb',
@@ -146,6 +158,36 @@ describe('AndroidEmulatorUtils', () => {
           '0',
         ],
         { env: process.env }
+      );
+    });
+
+    it('logs and swallows failures when disabling animations', async () => {
+      const logger = createMockLogger();
+      mockedSpawn
+        .mockRejectedValueOnce(new Error('window failed'))
+        .mockRejectedValueOnce(new Error('transition failed'));
+
+      await expect(
+        AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+          serialId: 'emulator-5554' as any,
+          env: process.env,
+          logger,
+        })
+      ).resolves.toBeUndefined();
+
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          err: expect.objectContaining({ message: 'window failed' }),
+        }),
+        'Failed to disable Android emulator window animations.'
+      );
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          err: expect.objectContaining({ message: 'transition failed' }),
+        }),
+        'Failed to disable Android emulator transition animations.'
       );
     });
   });

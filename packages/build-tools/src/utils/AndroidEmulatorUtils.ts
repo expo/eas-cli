@@ -394,20 +394,33 @@ export namespace AndroidEmulatorUtils {
   export async function disableWindowAndTransitionAnimationsAsync({
     serialId,
     env,
+    logger,
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
+    logger?: bunyan;
   }): Promise<void> {
-    await spawn(
-      'adb',
-      ['-s', serialId, 'shell', 'settings', 'put', 'global', 'window_animation_scale', '0'],
-      { env }
-    );
-    await spawn(
-      'adb',
-      ['-s', serialId, 'shell', 'settings', 'put', 'global', 'transition_animation_scale', '0'],
-      { env }
-    );
+    logger?.info('Disabling Android emulator window animations.');
+    try {
+      await spawn(
+        'adb',
+        ['-s', serialId, 'shell', 'settings', 'put', 'global', 'window_animation_scale', '0'],
+        { env }
+      );
+    } catch (err) {
+      logger?.warn({ err }, 'Failed to disable Android emulator window animations.');
+    }
+
+    logger?.info('Disabling Android emulator transition animations.');
+    try {
+      await spawn(
+        'adb',
+        ['-s', serialId, 'shell', 'settings', 'put', 'global', 'transition_animation_scale', '0'],
+        { env }
+      );
+    } catch (err) {
+      logger?.warn({ err }, 'Failed to disable Android emulator transition animations.');
+    }
   }
 
   async function hasNetworkConnectionAsync({
