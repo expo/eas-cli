@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -106,14 +106,13 @@ export default class EnvList extends EasCommand {
     ...EASEnvironmentVariableScopeFlag,
   };
 
-  static override args = [
-    {
-      name: 'environment',
+  static override args = {
+    environment: Args.string({
       description:
         "Environment to list the variables from. Default environments are 'production', 'preview', and 'development'.",
       required: false,
-    },
-  ];
+    }),
+  };
 
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvList);

@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import { formatGraphQLBuildArtifacts } from '../../build/utils/formatBuild';
@@ -65,7 +66,11 @@ export default class WorkflowView extends EasCommand {
     ...EASNonInteractiveFlag,
   };
 
-  static override args = [{ name: 'id', description: 'ID of the workflow run to view' }];
+  static override args = {
+    id: Args.string({
+      description: 'ID of the workflow run to view',
+    }),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,

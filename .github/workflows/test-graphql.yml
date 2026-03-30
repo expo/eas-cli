@@ -20,6 +20,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup tools
         uses: ./.github/actions/setup-mise
-      - run: yarn install --frozen-lockfile
+      - run: yarn install --immutable
       - run: yarn verify-graphql-code
         working-directory: packages/eas-cli

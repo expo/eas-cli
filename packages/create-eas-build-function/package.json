@@ -1,6 +1,6 @@
 {
   "name": "create-eas-build-function",
-  "version": "18.0.1",
+  "version": "18.4.0",
   "description": "Create functions for use in EAS Build custom builds.",
   "keywords": [
     "expo",
@@ -15,9 +15,7 @@
     "url": "https://github.com/expo/eas-cli.git",
     "directory": "packages/create-eas-build-function"
   },
-  "bin": {
-    "create-eas-build-function": "./build/index.js"
-  },
+  "bin": "./build/index.js",
   "files": [
     "build",
     "templates"
@@ -34,10 +32,10 @@
     "build:dev": "ncc build ./src/index.ts -o build/",
     "build": "ncc build ./src/index.ts -o build/ --minify --no-cache --no-source-map-register",
     "typecheck": "tsc",
-    "clean": "rimraf ./build/ *.tsbuildinfo"
+    "clean": "rimraf ./build/ \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/steps": "18.0.1"
+    "@expo/steps": "18.4.0"
   },
   "devDependencies": {
     "@expo/package-manager": "1.9.10",
@@ -49,7 +47,9 @@
     "chalk": "4.1.2",
     "fs-extra": "^11.2.0",
     "ora": "^6.3.1",
+    "oxlint": "1.43.0",
     "prompts": "^2.4.2",
+    "rimraf": "3.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "update-check": "^1.5.4"

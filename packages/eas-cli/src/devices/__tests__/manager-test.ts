@@ -24,6 +24,7 @@ describe(AccountResolver, () => {
     const user: Actor = {
       __typename: 'User',
       id: 'user_id_666',
+      email: 'dominik@example.com',
       username: 'dominik',
       primaryAccount: {
         id: 'account_id_777',

@@ -8,7 +8,7 @@ class State {
   private status: Worker.Status = Worker.Status.NEW;
   private applicationArchiveName: string | null = null;
   private buildArtifactsName: string | null = null;
-  private userError?: errors.BuildError;
+  private expoError?: errors.ExpoError;
   private abortReason?: LauncherMessage.AbortReason;
   private readonly shouldCloseWorker = false;
 
@@ -25,17 +25,17 @@ class State {
     {
       applicationArchiveName,
       buildArtifactsName,
-      userError,
+      expoError,
     }: {
       applicationArchiveName: string | null;
       buildArtifactsName: string | null;
-      userError?: errors.BuildError;
+      expoError?: errors.ExpoError;
     }
   ): void {
     this.status = result;
     this.applicationArchiveName = applicationArchiveName;
     this.buildArtifactsName = buildArtifactsName;
-    this.userError = userError;
+    this.expoError = expoError;
   }
 
   public setAbortReason(reason: LauncherMessage.AbortReason): void {
@@ -48,9 +48,9 @@ class State {
       status: this.status,
       buildArtifactsName: this.buildArtifactsName ?? null,
       applicationArchiveName: this.applicationArchiveName ?? null,
-      ...(this.userError && {
-        externalBuildError: this.userError.format(),
-        internalErrorCode: this.userError.errorCode,
+      ...(this.expoError && {
+        externalBuildError: this.expoError.toExternalExpoError(),
+        internalErrorCode: this.expoError.trackingCode ?? this.expoError.errorCode,
       }),
       abortReason: this.abortReason,
     };

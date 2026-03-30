@@ -21,6 +21,10 @@ export default class MetadataPull extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
+    'non-interactive': Flags.boolean({
+      default: false,
+      description: 'Run the command in non-interactive mode.',
+    }),
   };
 
   static override contextDefinition = {
@@ -34,18 +38,18 @@ export default class MetadataPull extends EasCommand {
     Log.warn('EAS Metadata is in beta and subject to breaking changes.');
 
     const { flags } = await this.parse(MetadataPull);
+    const nonInteractive = flags['non-interactive'];
     const {
       loggedIn: { actor, graphqlClient },
       privateProjectConfig: { exp, projectId, projectDir },
       analytics,
       vcsClient,
     } = await this.getContextAsync(MetadataPull, {
-      nonInteractive: false,
+      nonInteractive,
       withServerSideEnvironment: null,
     });
 
-    // this command is interactive (all nonInteractive flags passed to utility functions are false)
-    await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false, vcsClient });
+    await ensureProjectConfiguredAsync({ projectDir, nonInteractive, vcsClient });
 
     const submitProfiles = await getProfilesAsync({
       type: 'submit',
@@ -66,7 +70,7 @@ export default class MetadataPull extends EasCommand {
       user: actor,
       graphqlClient,
       analytics,
-      nonInteractive: false,
+      nonInteractive,
       vcsClient,
     });
 
@@ -77,6 +81,9 @@ export default class MetadataPull extends EasCommand {
         credentialsCtx,
         projectDir,
         profile: submitProfile,
+        nonInteractive,
+        graphqlClient,
+        projectId,
       });
       const relativePath = path.relative(process.cwd(), filePath);
 

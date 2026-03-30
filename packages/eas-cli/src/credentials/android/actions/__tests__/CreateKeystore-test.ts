@@ -19,6 +19,7 @@ jest.mock('../../../../graphql/queries/AppQuery');
 describe('CreateKeystore', () => {
   beforeEach(() => {
     jest.mocked(generateRandomKeystoreAsync).mockReset();
+    jest.mocked(askForUserProvidedAsync).mockReset();
     jest.mocked(AppQuery.byIdAsync).mockResolvedValue(testAppQueryByIdResponse);
   });
   it('creates a keystore in Interactive Mode', async () => {
@@ -46,12 +47,17 @@ describe('CreateKeystore', () => {
     );
     expect(generateRandomKeystoreAsync).not.toHaveBeenCalled();
   });
-  it('errors in Non-Interactive Mode', async () => {
+  it('auto-generates keystore in Non-Interactive Mode', async () => {
     const ctx = createCtxMock({ nonInteractive: true });
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx);
     const createKeystoreAction = new CreateKeystore(appLookupParams.account);
 
-    // fail if users are running in non-interactive mode
-    await expect(createKeystoreAction.runAsync(ctx)).rejects.toThrowError();
+    await createKeystoreAction.runAsync(ctx);
+
+    // expect keystore to be auto-generated without user prompts
+    expect(ctx.android.createKeystoreAsync).toHaveBeenCalled();
+    expect(generateRandomKeystoreAsync).toHaveBeenCalled();
+    // askForUserProvidedAsync should NOT be called in non-interactive mode
+    expect(askForUserProvidedAsync).not.toHaveBeenCalled();
   });
 });

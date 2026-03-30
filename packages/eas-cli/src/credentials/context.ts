@@ -25,6 +25,7 @@ export class CredentialsContext {
   public readonly appStore = new AppStoreApi();
   public readonly ios = IosGraphqlClient;
   public readonly nonInteractive: boolean;
+  public readonly autoAcceptCredentialReuse: boolean;
   public readonly freezeCredentials: boolean = false;
   public readonly projectDir: string;
   public readonly user: Actor;
@@ -50,6 +51,7 @@ export class CredentialsContext {
       analytics: Analytics;
       vcsClient: Client;
       freezeCredentials?: boolean;
+      autoAcceptCredentialReuse?: boolean;
       env?: Env;
     }
   ) {
@@ -60,6 +62,7 @@ export class CredentialsContext {
     this.analytics = options.analytics;
     this.vcsClient = options.vcsClient;
     this.nonInteractive = options.nonInteractive ?? false;
+    this.autoAcceptCredentialReuse = options.autoAcceptCredentialReuse ?? false;
     this.projectInfo = options.projectInfo;
     this.freezeCredentials = options.freezeCredentials ?? false;
     this.usesBroadcastPushNotifications =

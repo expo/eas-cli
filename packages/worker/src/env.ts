@@ -1,3 +1,4 @@
+import { PRECOMPILED_MODULES_PATH, shouldUsePrecompiledDependencies } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -36,6 +37,7 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD', 'true');
   setEnv(env, 'EAS_BUILD_RUNNER', 'eas-build');
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
+  setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
   setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);
@@ -52,6 +54,10 @@ export function getBuildEnv({
   if (runnerPlatform === Platform.IOS) {
     setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
+    if (shouldUsePrecompiledDependencies(job.builderEnvironment?.env ?? {})) {
+      setEnv(env, 'EXPO_USE_PRECOMPILED_MODULES', '1');
+      setEnv(env, 'EXPO_PRECOMPILED_MODULES_PATH', PRECOMPILED_MODULES_PATH);
+    }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
       setEnv(env, 'USE_CCACHE', '1');

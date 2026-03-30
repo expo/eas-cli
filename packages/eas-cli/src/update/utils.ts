@@ -2,10 +2,12 @@ import { ExpoConfig } from '@expo/config';
 import { format } from '@expo/timeago.js';
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
+import semver from 'semver';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
+  PartnerActor,
   Robot,
   SsoUser,
   Update,
@@ -21,12 +23,14 @@ import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
 import formatFields from '../utils/formatFields';
+import { boolish } from 'getenv';
 
 export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'> & {
   actor?:
     | Pick<Robot, '__typename' | 'firstName'>
     | Pick<User, '__typename' | 'username'>
     | Pick<SsoUser, '__typename' | 'username'>
+    | Pick<PartnerActor, '__typename' | 'username'>
     | null;
 };
 
@@ -84,7 +88,10 @@ export function formatUpdateGroup(update: FormattedUpdateGroupDescription): stri
     { label: 'Runtime Version', value: update.runtimeVersion },
     { label: 'Message', value: update.message },
     { label: 'Code Signing Key', value: update.codeSigningKey ?? 'N/A' },
-    { label: 'Is Roll Back to Embedded', value: update.isRollBackToEmbedded ? 'Yes' : 'No' },
+    {
+      label: 'Is Roll Back to Embedded',
+      value: update.isRollBackToEmbedded ? 'Yes' : 'No',
+    },
     {
       label: 'Rollout Percentage',
       value: update.rolloutPercentage !== undefined ? `${update.rolloutPercentage}%` : 'N/A',
@@ -189,6 +196,7 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   let actorName: string;
   switch (actor?.__typename) {
     case 'User':
+    case 'PartnerActor':
     case 'SSOUser': {
       actorName = actor.username;
       break;
@@ -357,3 +365,30 @@ export const updatePublishPlatformToAppPlatform: Record<UpdatePublishPlatform, A
   android: AppPlatform.Android,
   ios: AppPlatform.Ios,
 };
+
+const environmentFlagOverride = 'EAS_UPDATE_SKIP_ENVIRONMENT_CHECK';
+
+const ciEnvironmentFlags = ['EAS_BUILD', 'CI'];
+
+export function environmentFlagNeededForSdk550OrGreater({
+  sdkVersion,
+  environment,
+}: {
+  sdkVersion: string | undefined;
+  environment: string | undefined;
+}): boolean {
+  // Skip check if we are in a CI environment
+  for (let flag of ciEnvironmentFlags) {
+    if (process.env[flag]) {
+      return false;
+    }
+  }
+  // Skip check if the env override is set
+  if (boolish(environmentFlagOverride, false)) {
+    return false;
+  }
+  if (sdkVersion === undefined || semver.lt(sdkVersion, '55.0.0')) {
+    return false;
+  }
+  return environment === undefined;
+}

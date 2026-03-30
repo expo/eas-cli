@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { BuildContext } from '@expo/build-tools';
 import { Android, Ios, Job } from '@expo/eas-build-job';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import { pathExists } from 'fs-extra';
-
 import { prepareRuntimeEnvironment } from '../runtimeEnvironment';
 
 jest.mock('fs-extra');
@@ -16,8 +14,12 @@ const spawnResult: SpawnResult = {
   stdout: '',
   stderr: '',
 };
-const ctx: BuildContext<Job> = {
-  env: process.env,
+const ctx = {
+  workingdir: '/tmp/workingdir',
+  env: {
+    ...process.env,
+    EAS_BUILD_ID: 'build-id',
+  },
   logger: {
     info: jest.fn(),
     error: jest.fn(),
@@ -89,9 +91,21 @@ describe('prepareRuntimeEnvironment', () => {
 
         await prepareRuntimeEnvironment(ctx, { bun: '2.0.0' }, false);
 
-        expect(spawn).toHaveBeenCalledWith('yarn', ['--version'], { stdio: 'pipe' });
-        expect(spawn).toHaveBeenCalledWith('pnpm', ['--version'], { stdio: 'pipe' });
-        expect(spawn).toHaveBeenCalledWith('bun', ['--version'], { stdio: 'pipe' });
+        expect(spawn).toHaveBeenCalledWith(
+          'yarn',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'pnpm',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'bun',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
 
         expect(spawn).toHaveBeenCalledWith(
           'curl',
@@ -123,9 +137,21 @@ describe('prepareRuntimeEnvironment', () => {
 
         await prepareRuntimeEnvironment(ctx, { bun: '2.0.0' }, false);
 
-        expect(spawn).toHaveBeenCalledWith('yarn', ['--version'], { stdio: 'pipe' });
-        expect(spawn).toHaveBeenCalledWith('pnpm', ['--version'], { stdio: 'pipe' });
-        expect(spawn).toHaveBeenCalledWith('bun', ['--version'], { stdio: 'pipe' });
+        expect(spawn).toHaveBeenCalledWith(
+          'yarn',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'pnpm',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
+        expect(spawn).toHaveBeenCalledWith(
+          'bun',
+          ['--version'],
+          expect.objectContaining({ stdio: 'pipe', cwd: expect.any(String) })
+        );
 
         expect(spawn).not.toHaveBeenCalledWith(
           'curl',

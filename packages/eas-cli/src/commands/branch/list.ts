@@ -1,6 +1,9 @@
 import { listAndRenderBranchesOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { EasPaginatedQueryFlags, getPaginatedQueryOptions } from '../../commandUtils/pagination';
 import { enableJsonOutput } from '../../utils/json';
 
@@ -19,11 +22,12 @@ export default class BranchList extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BranchList);
+    const { nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BranchList, {
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
 

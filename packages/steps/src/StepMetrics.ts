@@ -9,5 +9,3 @@ export type StepMetricInput = {
 export type StepMetric = StepMetricInput & {
   platform: 'darwin' | 'linux';
 };
-
-export type StepMetricsCollection = StepMetric[];

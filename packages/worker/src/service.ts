@@ -31,7 +31,6 @@ import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { LoggerStream } from './utils/logger';
 import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
@@ -42,7 +41,7 @@ export default class BuildService {
   private readonly state: State = new State();
   private ws: WebSocketServer<LauncherMessage.Message, WorkerMessage.Message> | null = null;
   private shouldCloseWorker = false;
-  private loggerStream?: LoggerStream;
+  private logsCleanUp?: () => Promise<void>;
   private _startBuildTime?: number;
   private buildContext?: BuildContext<Job>;
 
@@ -110,26 +109,26 @@ export default class BuildService {
     this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
   }
 
-  public async finishError(err: errors.BuildError, artifacts: Artifacts | null): Promise<void> {
+  public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
     logger.error({ err }, 'Job finished with error');
 
     this.state.finish(Worker.Status.ERROR, {
       applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
       buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-      userError: err,
+      expoError: err,
     });
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
     await setTimeoutAsync(5 * 1000);
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - error');
       this.ws.send({
         type: WorkerMessage.MessageType.ERROR,
         applicationArchiveName: artifacts?.APPLICATION_ARCHIVE ?? null,
         buildArtifactsName: artifacts?.BUILD_ARTIFACTS ?? null,
-        externalBuildError: err.format(),
-        internalErrorCode: err.errorCode,
+        externalBuildError: err.toExternalExpoError(),
+        internalErrorCode: err.trackingCode ?? err.errorCode,
       });
     }
     this.checkForHangingWorker(isSocketClosed);
@@ -142,7 +141,7 @@ export default class BuildService {
       buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
     });
     const isSocketClosed: boolean = !this.ws;
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - success');
       this.ws.send({
@@ -194,7 +193,7 @@ export default class BuildService {
     }
 
     const isSocketClosed: boolean = !this.ws;
-    await this.loggerStream?.cleanUp();
+    await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - aborted');
       this.ws.send({
@@ -280,10 +279,10 @@ export default class BuildService {
     try {
       const {
         logger: buildLogger,
-        stream,
+        cleanUp,
         logBuffer,
-      } = await createBuildLoggerWithSecretsFilter(job.secrets?.environmentSecrets);
-      this.loggerStream = stream;
+      } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
+      this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
 
@@ -309,34 +308,36 @@ export default class BuildService {
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
-
-      const unknownError =
-        'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
-          ? new errors.UnknownCustomBuildError()
-          : new errors.UnknownBuildError();
-      const err = error instanceof errors.BuildError ? error : unknownError;
-      const maybeRawError = error instanceof errors.BuildError ? error.innerError : error;
+      const err =
+        error instanceof errors.ExpoError
+          ? error
+          : 'mode' in job && [BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)
+            ? new errors.UnknownCustomBuildError()
+            : new errors.UnknownBuildError();
+      const maybeRawError =
+        error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
       sentry.handleError(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
-          errorCode: err.errorCode,
+          errorCode: err.trackingCode ?? err.errorCode,
           ...('type' in job ? { workflow: job.type } : {}),
         },
         extras: {
           buildId: this.buildId,
-          ...(maybeRawError.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
-          ...(maybeRawError.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
+          ...(err.metadata ? { errorMetadata: err.metadata } : {}),
+          ...(maybeRawError?.stdout ? { stdout: getLastNLines(100, maybeRawError.stdout) } : {}),
+          ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
         let rawErrorMessage: string = '';
-        if (maybeRawError.stderr) {
+        if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
         }
-        if (maybeRawError.stdout) {
+        if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
 

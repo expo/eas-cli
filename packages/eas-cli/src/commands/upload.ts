@@ -11,7 +11,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getBuildLogsUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../commandUtils/flags';
 import {
   BuildMetadataInput,
   DistributionType,
@@ -35,10 +38,10 @@ export default class BuildUpload extends EasCommand {
   static override description = 'upload a local build and generate a sharable link';
 
   static override flags = {
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
-    }),
+      options: [Platform.IOS, Platform.ANDROID] as const,
+    })(),
     'build-path': Flags.string({
       description: 'Path for the local build',
     }),
@@ -55,12 +58,8 @@ export default class BuildUpload extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BuildUpload);
-    const {
-      'build-path': buildPath,
-      fingerprint: manualFingerprintHash,
-      json: jsonFlag,
-      'non-interactive': nonInteractive,
-    } = flags;
+    const { 'build-path': buildPath, fingerprint: manualFingerprintHash } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const {
       projectId,
       loggedIn: { graphqlClient },

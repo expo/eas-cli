@@ -51,7 +51,6 @@ export function createEasMaestroTestFunctionGroup(
         steps.push(
           new BuildStep(globalCtx, {
             id: BuildStep.getNewId(),
-            name: 'install_app',
             displayName: `Install app to Simulator`,
             command: `
               # shopt -s nullglob is necessary not to try to install
@@ -97,7 +96,6 @@ export function createEasMaestroTestFunctionGroup(
         steps.push(
           new BuildStep(globalCtx, {
             id: BuildStep.getNewId(),
-            name: 'install_app',
             displayName: `Install app to Emulator`,
             command: `
               # shopt -s globstar is necessary to add /**/ support
@@ -134,7 +132,6 @@ export function createEasMaestroTestFunctionGroup(
         steps.push(
           new BuildStep(globalCtx, {
             id: BuildStep.getNewId(),
-            name: 'maestro_test',
             ifCondition: '${ always() }',
             displayName: `maestro test ${flowPath}`,
             command: `maestro test ${flowPath}`,

@@ -9,11 +9,13 @@ import {
   StaticJobInterpolationContext,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, ExternalBuildContextProvider } from '@expo/steps';
+import { BuildRuntimePlatform, ExternalBuildContextProvider, StepMetric } from '@expo/steps';
+import { Client } from '@urql/core';
 import assert from 'assert';
 import path from 'path';
 
 import { ArtifactToUpload, BuildContext } from './context';
+import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
   [Platform.ANDROID]: BuildRuntimePlatform.LINUX,
@@ -53,11 +55,14 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   public readonly startTime: Date;
 
   public readonly logger: bunyan;
+  public readonly graphqlClient: Client;
   public readonly runtimeApi: BuilderRuntimeApi;
   public job: TJob;
   public metadata?: Metadata;
 
   private _env: Env;
+  private readonly expoApiV2BaseUrl?: string;
+  private readonly pendingMetricUploads: Promise<void>[] = [];
 
   constructor(buildCtx: BuildContext<TJob>) {
     this._env = buildCtx.env;
@@ -65,6 +70,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.metadata = buildCtx.metadata;
 
     this.logger = buildCtx.logger.child({ phase: BuildPhase.CUSTOM });
+    this.graphqlClient = buildCtx.graphqlClient;
     this.projectSourceDirectory = path.join(buildCtx.workingdir, 'temporary-custom-build');
     this.projectTargetDirectory = path.join(buildCtx.workingdir, 'build');
     this.defaultWorkingDirectory = buildCtx.getReactNativeProjectDirectory();
@@ -72,6 +78,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     this.runtimeApi = {
       uploadArtifact: (...args) => buildCtx['uploadArtifact'](...args),
     };
+    this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;
     this.startTime = new Date();
   }
 
@@ -138,5 +145,27 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       ...(this.job.platform ? { expoBuildUrl: this.job.expoBuildUrl } : null),
     };
     this.metadata = metadata;
+  }
+
+  public reportStepMetric(metric: StepMetric): void {
+    const workflowJobId = this._env.__WORKFLOW_JOB_ID;
+    const robotAccessToken = this.job.secrets?.robotAccessToken;
+
+    if (!workflowJobId || !robotAccessToken || !this.expoApiV2BaseUrl) {
+      return;
+    }
+
+    const p = uploadStepMetricsToWwwAsync({
+      workflowJobId,
+      robotAccessToken,
+      expoApiV2BaseUrl: this.expoApiV2BaseUrl,
+      stepMetrics: [metric],
+      logger: this.logger,
+    });
+    this.pendingMetricUploads.push(p);
+  }
+
+  public async drainPendingMetricUploads(): Promise<void> {
+    await Promise.allSettled(this.pendingMetricUploads);
   }
 }

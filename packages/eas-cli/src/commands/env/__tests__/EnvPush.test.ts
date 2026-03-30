@@ -1,6 +1,6 @@
-import { Config } from '@oclif/core';
 import * as fs from 'fs-extra';
 
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../credentials/__tests__/fixtures-constants';
@@ -23,7 +23,7 @@ jest.mock('../../../prompts');
 
 describe(EnvPush, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
-  const mockConfig = {} as unknown as Config;
+  const mockConfig = getMockOclifConfig();
   const testProjectDir = '/test/project';
   const testEnvPath = '.env.test';
 

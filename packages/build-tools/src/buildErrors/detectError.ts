@@ -67,40 +67,26 @@ export async function resolveBuildPhaseErrorAsync(
   logLines: string[],
   errorContext: ErrorContext,
   buildLogsDirectory: string
-): Promise<errors.BuildError> {
+): Promise<errors.ExpoError> {
   const { phase } = errorContext;
-  if (error instanceof errors.BuildError) {
+  if (error instanceof errors.ExpoError) {
+    error.buildPhase ??= phase;
     return error;
   }
   const xcodeBuildLogs = await maybeReadXcodeBuildLogs(phase, buildLogsDirectory);
-  const userFacingError =
-    error instanceof errors.UserFacingError
-      ? error
-      : (resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
-        new errors.UnknownError(errorContext.phase));
+  const userError =
+    resolveError(userErrorHandlers, logLines, errorContext, xcodeBuildLogs) ??
+    new errors.UnknownError(errorContext.phase);
   const buildError = resolveError(buildErrorHandlers, logLines, errorContext, xcodeBuildLogs);
 
-  const isUnknownUserError =
-    !userFacingError ||
-    (
-      [
-        errors.ErrorCode.UNKNOWN_ERROR,
-        errors.ErrorCode.UNKNOWN_GRADLE_ERROR,
-        errors.ErrorCode.UNKNOWN_FASTLANE_ERROR,
-      ] as string[]
-    ).includes(userFacingError.errorCode);
-  const message =
-    (isUnknownUserError ? buildError?.message : userFacingError.message) ?? userFacingError.message;
-  const errorCode =
-    (isUnknownUserError ? buildError?.errorCode : userFacingError.errorCode) ??
-    userFacingError.errorCode;
+  const trackingCode =
+    buildError && buildError.errorCode !== userError.errorCode ? buildError.errorCode : undefined;
 
-  return new errors.BuildError(message, {
-    errorCode,
-    userFacingErrorCode: userFacingError.errorCode,
-    userFacingMessage: userFacingError.message,
-    docsUrl: userFacingError.docsUrl,
-    innerError: error,
+  return new errors.UserError(userError.errorCode, userError.message, {
+    trackingCode,
+    docsUrl: userError.docsUrl,
     buildPhase: phase,
+    metadata: buildError?.metadata,
+    cause: error,
   });
 }

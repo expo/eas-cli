@@ -37,6 +37,7 @@ describe(getProjectIdAsync, () => {
       actor: {
         __typename: 'User',
         id: 'user_id',
+        email: 'notnotbrent@example.com',
         username: 'notnotbrent',
         primaryAccount: {
           id: 'account_id_1',

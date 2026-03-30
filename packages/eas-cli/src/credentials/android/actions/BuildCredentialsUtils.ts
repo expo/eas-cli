@@ -132,10 +132,6 @@ export async function createOrUpdateDefaultAndroidAppBuildCredentialsAsync(
     androidKeystoreId: string;
   }
 ): Promise<AndroidAppBuildCredentialsFragment> {
-  assert(
-    !ctx.nonInteractive,
-    'createOrUpdateDefaultAndroidAppBuildCredentialsAsync must be run in interactive mode'
-  );
   const existingDefaultBuildCredentials =
     await ctx.android.getDefaultAndroidAppBuildCredentialsAsync(ctx.graphqlClient, appLookupParams);
   if (existingDefaultBuildCredentials) {

@@ -24,6 +24,7 @@ import {
 } from '../../utils/AndroidEmulatorUtils';
 import { IosSimulatorName, IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import { findMaestroPathsFlowsToExecuteAsync } from '../../utils/findMaestroPathsFlowsToExecuteAsync';
+import { retryAsync } from '../../utils/retry';
 import { PlatformToProperNounMap } from '../../utils/strings';
 
 export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): BuildFunction {
@@ -79,6 +80,10 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
     outputProviders: [
       BuildStepOutput.createProvider({
         id: 'test_reports_artifact_id',
+        required: false,
+      }),
+      BuildStepOutput.createProvider({
+        id: 'junit_report_directory',
         required: false,
       }),
     ],
@@ -209,18 +214,17 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
       for (const [flowIndex, flowPath] of flowPathsToExecute.entries()) {
         stepCtx.logger.info('');
 
-        // If output_format is empty or noop, we won't use this.
-        const outputPath = path.join(
-          maestroReportsDir,
-          [
-            `${output_format ? output_format + '-' : ''}report-flow-${flowIndex + 1}`,
-            MaestroOutputFormatToExtensionMap[output_format ?? 'noop'],
-          ]
-            .filter(Boolean)
-            .join('.')
-        );
-
         for (let attemptCount = 0; attemptCount < retries; attemptCount++) {
+          // Generate unique report path per attempt (not overwritten on retry)
+          const outputPath = path.join(
+            maestroReportsDir,
+            [
+              `${output_format ? output_format + '-' : ''}report-flow-${flowIndex + 1}-attempt-${attemptCount}`,
+              MaestroOutputFormatToExtensionMap[output_format ?? 'noop'],
+            ]
+              .filter(Boolean)
+              .join('.')
+          );
           const localDeviceName = `eas-simulator-${flowIndex}-${attemptCount}` as
             | IosSimulatorName
             | AndroidVirtualDeviceName;
@@ -271,12 +275,11 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
           if (logsResult?.ok) {
             try {
               const extension = path.extname(logsResult.value.outputPath);
-              const destinationPath = path.join(deviceLogsDir, `flow-${flowIndex}${extension}`);
+              const destinationPath = path.join(
+                deviceLogsDir,
+                `flow-${flowIndex}-attempt-${attemptCount}${extension}`
+              );
 
-              await fs.promises.rm(destinationPath, {
-                force: true,
-                recursive: true,
-              });
               await fs.promises.rename(logsResult.value.outputPath, destinationPath);
             } catch (err) {
               stepCtx.logger.warn({ err }, 'Failed to prepare device logs for upload.');
@@ -348,6 +351,10 @@ export function createInternalEasMaestroTestFunction(ctx: CustomBuildContext): B
         }
       }
 
+      if (output_format === 'junit') {
+        outputs.junit_report_directory.set(maestroReportsDir);
+      }
+
       const generatedDeviceLogs = await fs.promises.readdir(deviceLogsDir);
       if (generatedDeviceLogs.length === 0) {
         stepCtx.logger.warn('No device logs were successfully collected.');
@@ -405,6 +412,9 @@ const MaestroOutputFormatToExtensionMap: Record<string, string | undefined> = {
   html: 'html',
 };
 
+const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
+const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
+
 async function withCleanDeviceAsync<TResult>({
   platform,
   sourceDeviceIdentifier,
@@ -426,7 +436,7 @@ async function withCleanDeviceAsync<TResult>({
 }): Promise<{ fnResult: TResult; logsResult: Result<{ outputPath: string }> | null }> {
   // Clone and start the device
 
-  let localDeviceIdentifier: IosSimulatorName | AndroidDeviceSerialId;
+  let localDeviceIdentifier: IosSimulatorName | AndroidDeviceSerialId | null = null;
 
   switch (platform) {
     case 'ios': {
@@ -450,26 +460,79 @@ async function withCleanDeviceAsync<TResult>({
       break;
     }
     case 'android': {
-      logger.info(`Cloning Android Emulator ${sourceDeviceIdentifier} to ${localDeviceName}...`);
-      await AndroidEmulatorUtils.cloneAsync({
-        sourceDeviceName: sourceDeviceIdentifier as AndroidVirtualDeviceName,
-        destinationDeviceName: localDeviceName as AndroidVirtualDeviceName,
-        env,
-        logger,
-      });
-      logger.info(`Starting Android Emulator ${localDeviceName}...`);
-      const { serialId } = await AndroidEmulatorUtils.startAsync({
-        deviceName: localDeviceName as AndroidVirtualDeviceName,
-        env,
-      });
-      logger.info(`Waiting for Android Emulator ${localDeviceName} to be ready...`);
-      await AndroidEmulatorUtils.waitForReadyAsync({
-        serialId,
-        env,
-      });
-      localDeviceIdentifier = serialId;
+      await retryAsync(
+        async attemptCount => {
+          const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
+          const attempt = attemptCount + 1;
+          const maxAttempts = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length;
+          let serialId: AndroidDeviceSerialId | null = null;
+          try {
+            logger.info(
+              `Cloning Android Emulator ${sourceDeviceIdentifier} to ${localDeviceName} (attempt ${attempt}/${maxAttempts})...`
+            );
+            await AndroidEmulatorUtils.cloneAsync({
+              sourceDeviceName: sourceDeviceIdentifier as AndroidVirtualDeviceName,
+              destinationDeviceName: localDeviceName as AndroidVirtualDeviceName,
+              env,
+              logger,
+            });
+            logger.info(
+              `Starting Android Emulator ${localDeviceName} (attempt ${attempt}/${maxAttempts})...`
+            );
+            const startResult = await AndroidEmulatorUtils.startAsync({
+              deviceName: localDeviceName as AndroidVirtualDeviceName,
+              env,
+            });
+            serialId = startResult.serialId;
+            logger.info(`Waiting for Android Emulator ${localDeviceName} to be ready...`);
+            await AndroidEmulatorUtils.waitForReadyAsync({
+              serialId,
+              env,
+              timeoutMs,
+              logger,
+            });
+            localDeviceIdentifier = serialId;
+          } catch (err) {
+            logger.warn(
+              { err },
+              `Failed to start Android Emulator ${localDeviceName} on attempt ${attempt}/${maxAttempts}.`
+            );
+            try {
+              if (serialId) {
+                await AndroidEmulatorUtils.deleteAsync({
+                  serialId,
+                  deviceName: localDeviceName as AndroidVirtualDeviceName,
+                  env,
+                });
+              } else {
+                await AndroidEmulatorUtils.deleteAsync({
+                  deviceName: localDeviceName as AndroidVirtualDeviceName,
+                  env,
+                });
+              }
+            } catch (cleanupErr) {
+              logger.warn(
+                { err: cleanupErr },
+                `Failed to clean up Android Emulator ${localDeviceName}.`
+              );
+            }
+            throw err;
+          }
+        },
+        {
+          logger,
+          retryOptions: {
+            retries: ANDROID_STARTUP_RETRIES_COUNT,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
       break;
     }
+  }
+
+  if (!localDeviceIdentifier) {
+    throw new Error('Device did not return an identifier after startup.');
   }
 
   // Run the function
@@ -502,14 +565,14 @@ async function withCleanDeviceAsync<TResult>({
         logger.info(`Collecting logs from ${localDeviceName}...`);
         logsResult = await asyncResult(
           AndroidEmulatorUtils.collectLogsAsync({
-            serialId: localDeviceIdentifier as AndroidDeviceSerialId,
+            serialId: localDeviceIdentifier as unknown as AndroidDeviceSerialId,
             env,
           })
         );
 
         logger.info(`Cleaning up ${localDeviceName}...`);
         await AndroidEmulatorUtils.deleteAsync({
-          serialId: localDeviceIdentifier as AndroidDeviceSerialId,
+          serialId: localDeviceIdentifier as unknown as AndroidDeviceSerialId,
           env,
         });
         break;

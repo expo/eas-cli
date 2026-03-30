@@ -340,6 +340,60 @@ describe('Android.JobSchema', () => {
     expect(error).toBeFalsy();
   });
 
+  test('can set hooks with arbitrary names', () => {
+    const job = {
+      mode: BuildMode.BUILD,
+      type: Workflow.GENERIC,
+      platform: Platform.ANDROID,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'https://expo.dev/builds/123',
+      },
+      projectRootDirectory: '.',
+      hooks: {
+        before_install_node_modules: [
+          {
+            id: 'before-install',
+            run: 'echo before install',
+            shell: 'sh',
+          },
+        ],
+        my_custom_hook: [],
+      },
+      secrets,
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(value).toMatchObject(job);
+    expect(error).toBeFalsy();
+  });
+
+  test('can set hooks in custom mode', () => {
+    const customBuildJob = {
+      mode: BuildMode.CUSTOM,
+      type: Workflow.UNKNOWN,
+      platform: Platform.ANDROID,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'https://expo.dev/builds/123',
+      },
+      projectRootDirectory: '.',
+      customBuildConfig: {
+        path: 'production.android.yml',
+      },
+      hooks: {
+        before_install_node_modules: [],
+      },
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+
+    const { value, error } = Android.JobSchema.validate(customBuildJob, joiOptions);
+    expect(value).toMatchObject(customBuildJob);
+    expect(error).toBeFalsy();
+  });
+
   test('can set github trigger options', () => {
     const job = {
       mode: BuildMode.BUILD,

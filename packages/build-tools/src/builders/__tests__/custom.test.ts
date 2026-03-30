@@ -1,10 +1,12 @@
 import { BuildJob } from '@expo/eas-build-job';
+import { BuildWorkflow } from '@expo/steps';
 import { vol } from 'memfs';
 
 import { createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { prepareProjectSourcesAsync } from '../../common/projectSources';
 import { BuildContext } from '../../context';
+import { CustomBuildContext } from '../../customBuildContext';
 import { findAndUploadXcodeBuildLogsAsync } from '../../ios/xcodeBuildLogs';
 import { runCustomBuildAsync } from '../custom';
 
@@ -73,5 +75,61 @@ describe(runCustomBuildAsync, () => {
     await runCustomBuildAsync(ctx);
 
     expect(prepareProjectSourcesAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('awaits drainPendingMetricUploads after workflow execution', async () => {
+    let resolveDrain!: () => void;
+    const drainSpy = jest
+      .spyOn(CustomBuildContext.prototype, 'drainPendingMetricUploads')
+      .mockReturnValue(
+        new Promise<void>(resolve => {
+          resolveDrain = resolve;
+        })
+      );
+
+    let resolved = false;
+    const resultPromise = runCustomBuildAsync(ctx).then(() => {
+      resolved = true;
+    });
+
+    await new Promise(r => setImmediate(r));
+    expect(resolved).toBe(false);
+
+    resolveDrain();
+    await resultPromise;
+    expect(resolved).toBe(true);
+
+    drainSpy.mockRestore();
+  });
+
+  it('awaits drainPendingMetricUploads even when workflow throws', async () => {
+    let resolveDrain!: () => void;
+    const drainSpy = jest
+      .spyOn(CustomBuildContext.prototype, 'drainPendingMetricUploads')
+      .mockReturnValue(
+        new Promise<void>(resolve => {
+          resolveDrain = resolve;
+        })
+      );
+
+    const executeSpy = jest
+      .spyOn(BuildWorkflow.prototype, 'executeAsync')
+      .mockRejectedValue(new Error('workflow failed'));
+
+    let rejected = false;
+    const resultPromise = runCustomBuildAsync(ctx).catch(err => {
+      rejected = true;
+      throw err;
+    });
+
+    await new Promise(r => setImmediate(r));
+    expect(rejected).toBe(false);
+
+    resolveDrain();
+    await expect(resultPromise).rejects.toThrow('workflow failed');
+    expect(rejected).toBe(true);
+
+    drainSpy.mockRestore();
+    executeSpy.mockRestore();
   });
 });

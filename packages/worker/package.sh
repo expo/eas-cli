@@ -45,21 +45,42 @@ copy_package() {
   fi
 }
 
+copy_manifest() {
+  src=$1
+  dst=$2
+  mkdir -p $dst
+  cp "$src/package.json" "$dst/package.json"
+  if [[ -f "$src/tsconfig.json" ]]; then
+    cp "$src/tsconfig.json" "$dst/tsconfig.json"
+  fi
+  if [[ -f "$src/tsconfig.build.json" ]]; then
+    cp "$src/tsconfig.build.json" "$dst/tsconfig.build.json"
+  fi
+}
+
 cp "$ROOT_DIR/yarn.lock" $target_root_dir
+cp "$ROOT_DIR/.yarnrc.yml" $target_root_dir
 cp "$ROOT_DIR/package.json" $target_root_dir
 cp "$ROOT_DIR/lerna.json" $target_root_dir
+
+for package_dir in "$ROOT_DIR"/packages/*; do
+  if [[ -f "$package_dir/package.json" ]]; then
+    package_name=$(basename "$package_dir")
+    copy_manifest "$package_dir" "$target_root_dir/packages/$package_name"
+  fi
+done
 
 copy_package $WORKER_DIR $target_worker_dir
 while IFS= read -r package_dir; do
   package_name=$(basename "$package_dir")
   copy_package "$package_dir" "$target_root_dir/packages/$package_name"
-done <<< "$(yarn --silent lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
+done <<< "$(cd "$ROOT_DIR" && yarn run -T lerna list --scope "@expo/worker" --include-dependencies --parseable --loglevel silent)"
 
 
 pushd $target_root_dir >/dev/null 2>&1
-yarn install --silent --frozen-lockfile
-yarn build
-yarn install --silent --production=true --frozen-lockfile
+yarn install --immutable
+yarn run -T lerna run build --scope @expo/worker --include-dependencies
+yarn workspaces focus @expo/worker --production
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 

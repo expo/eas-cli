@@ -1,5 +1,5 @@
 import { bunyan } from '@expo/logger';
-import { StepMetricsCollection } from '@expo/steps';
+import { StepMetric } from '@expo/steps';
 
 import { turtleFetch } from './turtleFetch';
 
@@ -13,29 +13,22 @@ export async function uploadStepMetricsToWwwAsync({
   workflowJobId: string;
   robotAccessToken: string;
   expoApiV2BaseUrl: string;
-  stepMetrics: StepMetricsCollection;
+  stepMetrics: StepMetric[];
   logger: bunyan;
 }): Promise<void> {
-  if (stepMetrics.length === 0) {
-    logger.debug('No step metrics to upload');
-    return;
-  }
-
   try {
     await turtleFetch(
       new URL(`workflows/${workflowJobId}/metrics`, expoApiV2BaseUrl).toString(),
       'POST',
       {
         json: { stepMetrics },
-        headers: {
-          Authorization: `Bearer ${robotAccessToken}`,
-        },
-        timeout: 20000,
+        headers: { Authorization: `Bearer ${robotAccessToken}` },
+        timeout: 5000,
+        retries: 2,
         logger,
       }
     );
-    logger.info(`Uploaded ${stepMetrics.length} step metrics`);
   } catch {
-    // Don't display unactionable error to the user, let's send it to Sentry in the future
+    // Don't fail the build for metrics — silently give up
   }
 }

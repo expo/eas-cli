@@ -232,8 +232,14 @@ interface WorkerFileEntry {
 }
 
 /** Reads worker files while normalizing sourcemaps and providing normalized paths */
-export async function* listWorkerFilesAsync(workerPath: string): AsyncGenerator<WorkerFileEntry> {
+export async function* listWorkerFilesAsync(
+  workerPath: string,
+  options?: { skipSourceMaps?: boolean }
+): AsyncGenerator<WorkerFileEntry> {
   for await (const file of listFilesRecursively(workerPath)) {
+    if (options?.skipSourceMaps && file.normalizedPath.endsWith('.map')) {
+      continue;
+    }
     yield {
       normalizedPath: file.normalizedPath,
       path: file.path,

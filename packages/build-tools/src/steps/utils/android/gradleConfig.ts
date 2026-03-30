@@ -1,4 +1,5 @@
 import { AndroidConfig } from '@expo/config-plugins';
+import { Android } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { templateString } from '@expo/template-file';
 import fs from 'fs-extra';
@@ -6,6 +7,7 @@ import path from 'path';
 
 import { EasBuildConfigureVersionGradleTemplate } from '../../../templates/EasBuildConfigureVersionGradle';
 import { EasBuildInjectAndroidCredentialsGradle } from '../../../templates/EasBuildInjectAndroidCredentialsGradle';
+import { BuildContext } from '../../../context';
 
 const APPLY_EAS_BUILD_INJECT_CREDENTIALS_GRADLE_LINE =
   'apply from: "./eas-build-inject-android-credentials.gradle"';
@@ -49,6 +51,26 @@ async function deleteEasBuildInjectCredentialsGradle(workingDir: string): Promis
 async function deleteEasBuildConfigureVersionGradle(workingDir: string): Promise<void> {
   const targetPath = getEasBuildConfigureVersionGradlePath(workingDir);
   await fs.remove(targetPath);
+}
+
+let legacyEasBuildGradleWarningEmitted = false;
+
+export async function warnIfLegacyEasBuildGradleExists(
+  ctx: BuildContext<Android.Job>
+): Promise<void> {
+  const legacyGradlePath = getLegacyEasBuildGradlePath(ctx.getReactNativeProjectDirectory());
+  if (
+    (await fs.pathExists(legacyGradlePath)) &&
+    (process.env.NODE_ENV === 'test' || !legacyEasBuildGradleWarningEmitted)
+  ) {
+    legacyEasBuildGradleWarningEmitted = true;
+    ctx.logger.warn('eas-build.gradle script is deprecated, please remove it from your project.');
+    ctx.markBuildPhaseHasWarnings();
+  }
+}
+
+function getLegacyEasBuildGradlePath(projectRoot: string): string {
+  return path.join(projectRoot, 'android/app/eas-build.gradle');
 }
 
 function getEasBuildInjectCredentialsGradlePath(workingDir: string): string {
@@ -113,7 +135,7 @@ function hasLine(haystack: string, needle: string): boolean {
     haystack
       .replace(/\r\n/g, '\n')
       .split('\n')
-      // Check for both single and double quotes
+      // Check for both single and double quotes.
       .some(line => line === needle || line === needle.replace(/"/g, "'"))
   );
 }

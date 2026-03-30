@@ -19,7 +19,9 @@ import { createInstallNodeModulesBuildFunction } from './functions/installNodeMo
 import { createInstallPodsBuildFunction } from './functions/installPods';
 import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
 import { createPrebuildBuildFunction } from './functions/prebuild';
+import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
 import { createRepackBuildFunction } from './functions/repack';
+import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
 import {
@@ -48,6 +50,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createSetUpNpmrcBuildFunction(),
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
+    createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(),
     createRepackBuildFunction(),
     createRestoreCacheFunction(),
@@ -79,6 +82,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadToAscBuildFunction(),
 
     createInternalEasMaestroTestFunction(ctx),
+
+    createReportMaestroTestResultsFunction(ctx),
   ];
 
   if (ctx.hasBuildJob()) {

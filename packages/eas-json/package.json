@@ -1,6 +1,6 @@
 {
   "name": "@expo/eas-json",
-  "version": "18.0.1",
+  "version": "18.4.0",
   "description": "A library for interacting with eas.json",
   "homepage": "https://github.com/expo/eas-cli",
   "bugs": "https://github.com/expo/eas-cli/issues",
@@ -26,13 +26,13 @@
     "watch-allow-unused": "yarn build-allow-unused --watch --preserveWatchOutput",
     "typecheck": "tsc",
     "prepack": "yarn rebuild",
-    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
+    "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
     "test": "jest",
-    "clean": "rimraf build node_modules yarn-error.log *.tsbuildinfo"
+    "clean": "rimraf build node_modules yarn-error.log \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@babel/code-frame": "7.23.5",
-    "@expo/eas-build-job": "18.0.1",
+    "@expo/eas-build-job": "18.4.0",
     "chalk": "4.1.2",
     "env-string": "1.0.1",
     "fs-extra": "11.2.0",
@@ -47,6 +47,7 @@
     "@tsconfig/node20": "20.1.8",
     "@types/babel__code-frame": "7.0.3",
     "@types/fs-extra": "11.0.4",
+    "jest": "29.7.0",
     "memfs": "3.4.13",
     "rimraf": "3.0.2",
     "typescript": "5.5.4"

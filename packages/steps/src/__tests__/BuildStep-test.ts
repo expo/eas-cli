@@ -2,12 +2,11 @@ import { jest } from '@jest/globals';
 import fs from 'fs/promises';
 import path from 'path';
 import { instance, mock, verify, when } from 'ts-mockito';
-import { v4 as uuidv4 } from 'uuid';
 
 import { createGlobalContextMock } from './utils/context';
 import { getError, getErrorAsync } from './utils/error';
 import { createMockLogger } from './utils/logger';
-import { UUID_REGEX } from './utils/uuid';
+import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction, BuildStepStatus } from '../BuildStep';
@@ -21,34 +20,18 @@ import { spawnAsync } from '../utils/shell/spawn';
 
 describe(BuildStep, () => {
   describe(BuildStep.getNewId, () => {
-    it('returns a uuid if the user-defined id is undefined', () => {
-      expect(BuildStep.getNewId()).toMatch(UUID_REGEX);
+    it('returns a generated step id if the user-defined id is undefined', () => {
+      expect(BuildStep.getNewId()).toMatch(GENERATED_STEP_ID_REGEX);
+    });
+    it('returns unique generated step ids', () => {
+      const stepId1 = BuildStep.getNewId();
+      const stepId2 = BuildStep.getNewId();
+      expect(stepId1).not.toBe(stepId2);
+      expect(stepId1).toMatch(GENERATED_STEP_ID_REGEX);
+      expect(stepId2).toMatch(GENERATED_STEP_ID_REGEX);
     });
     it('returns the user-defined id if defined', () => {
       expect(BuildStep.getNewId('test1')).toBe('test1');
-    });
-  });
-
-  describe(BuildStep.getDisplayName, () => {
-    it('returns the name if defined', () => {
-      expect(BuildStep.getDisplayName({ id: 'test1', name: 'Step 1' })).toBe('Step 1');
-    });
-    it("returns the id if it's not a uuid", () => {
-      expect(BuildStep.getDisplayName({ id: 'test1' })).toBe('test1');
-    });
-    it('returns the first line of the command if name is undefined and id is a uuid', () => {
-      expect(BuildStep.getDisplayName({ id: uuidv4(), command: 'echo 123\necho 456' })).toBe(
-        'echo 123'
-      );
-    });
-    it('returns the first non-comment line of the command', async () => {
-      expect(
-        BuildStep.getDisplayName({ id: uuidv4(), command: '# list files\nls -la\necho 123' })
-      ).toBe('ls -la');
-    });
-    it('returns the uuid id if neither name nor command is defined', () => {
-      const id = uuidv4();
-      expect(BuildStep.getDisplayName({ id })).toBe(id);
     });
   });
 
@@ -62,7 +45,7 @@ describe(BuildStep, () => {
         // eslint-disable-next-line no-new
         new BuildStep(ctx, {
           id,
-          displayName: BuildStep.getDisplayName({ id }),
+          displayName: id,
           workingDirectory: '/tmp',
         });
       }).toThrowError(/Either command or fn must be defined/);
@@ -75,7 +58,7 @@ describe(BuildStep, () => {
       expect(() => {
         const id = 'test1';
         const command = 'echo 123';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         // eslint-disable-next-line no-new
         new BuildStep(ctx, {
@@ -96,7 +79,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -113,7 +96,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -129,7 +112,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -149,7 +132,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -169,7 +152,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -185,17 +168,15 @@ describe(BuildStep, () => {
       const id = 'test1';
       const name = 'Test step';
       const command = 'ls -la';
-      const displayName = BuildStep.getDisplayName({ id, name, command });
+      const displayName = name;
 
       const step = new BuildStep(ctx, {
         id,
-        name,
         displayName,
         command,
       });
       expect(ctx.baseLogger.child).toHaveBeenCalledWith(
         expect.objectContaining({
-          buildStepInternalId: expect.stringMatching(UUID_REGEX),
           buildStepId: 'test1',
           buildStepDisplayName: 'Test step',
         })
@@ -208,7 +189,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'echo hello';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -224,7 +205,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'echo hello';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(ctx, {
         id,
@@ -252,7 +233,7 @@ describe(BuildStep, () => {
     it('sets status to FAIL when step fails', async () => {
       const id = 'test1';
       const command = 'false';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -266,7 +247,7 @@ describe(BuildStep, () => {
     it('sets status to SUCCESS when step succeeds', async () => {
       const id = 'test1';
       const command = 'true';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -281,7 +262,7 @@ describe(BuildStep, () => {
       it('logs an error if the command is to be executed in non-existing working directory', async () => {
         const id = 'test1';
         const command = 'ls -la';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -312,7 +293,7 @@ describe(BuildStep, () => {
       it('does not log an error if the command is to be executed in a directory that exists', async () => {
         const id = 'test1';
         const command = 'ls -la';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         await fs.mkdir(path.join(baseStepCtx.defaultWorkingDirectory, 'existing-directory'), {
           recursive: true,
@@ -368,7 +349,7 @@ describe(BuildStep, () => {
 
         const id = 'test1';
         const command = 'ls -la';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -385,7 +366,7 @@ describe(BuildStep, () => {
       it('interpolates the inputs in command template', async () => {
         const id = 'test1';
         const command = "set-output foo2 '${inputs.foo1}  ${inputs.foo2} ${inputs.foo3}'";
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -466,7 +447,7 @@ describe(BuildStep, () => {
       it('collects the outputs after calling the script', async () => {
         const id = 'test1';
         const command = 'set-output abc 123';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -493,7 +474,7 @@ describe(BuildStep, () => {
             env,
           });
         });
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -512,7 +493,7 @@ describe(BuildStep, () => {
             env,
           });
         });
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -536,7 +517,7 @@ describe(BuildStep, () => {
       it('succeeds when step completes within timeout', async () => {
         const id = 'test1';
         const command = 'sleep 0.1';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -551,7 +532,7 @@ describe(BuildStep, () => {
       it('fails when command exceeds timeout', async () => {
         const id = 'test1';
         const command = 'sleep 2';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -574,7 +555,7 @@ describe(BuildStep, () => {
               setTimeout(resolve, 2000); // 2 second delay
             })
         );
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -592,7 +573,7 @@ describe(BuildStep, () => {
       it('works without timeout when timeoutMs is undefined', async () => {
         const id = 'test1';
         const command = 'sleep 0.1';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -609,7 +590,7 @@ describe(BuildStep, () => {
       it('works with strings with whitespaces passed as a value for an output parameter', async () => {
         const id = 'test1';
         const command = 'set-output abc "d o m i n i k"';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -631,7 +612,7 @@ describe(BuildStep, () => {
       it('throws an error if some required outputs have not been set with set-output in script', async () => {
         const id = 'test1';
         const command = 'echo 123';
-        const displayName = BuildStep.getDisplayName({ id, command });
+        const displayName = command;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -661,7 +642,7 @@ describe(BuildStep, () => {
         baseStepCtx.updateEnv(globalEnv);
 
         const id = 'test1';
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -694,7 +675,7 @@ describe(BuildStep, () => {
         baseStepCtx.updateEnv(globalEnv);
 
         const id = 'test1';
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const step = new BuildStep(baseStepCtx, {
           id,
@@ -722,7 +703,7 @@ describe(BuildStep, () => {
         baseStepCtx.updateEnv(env);
 
         const id = 'test1';
-        const displayName = BuildStep.getDisplayName({ id });
+        const displayName = id;
 
         const inputs: BuildStepInput[] = [
           new BuildStepInput(baseStepCtx, {
@@ -807,7 +788,7 @@ describe(BuildStep, () => {
     it('throws an error when the step has not been executed yet', async () => {
       const id = 'test1';
       const command = 'set-output abc 123';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -831,7 +812,7 @@ describe(BuildStep, () => {
     it('throws an error when trying to access a non-existent output', async () => {
       const id = 'test1';
       const command = 'set-output abc 123';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -850,13 +831,13 @@ describe(BuildStep, () => {
         step.getOutputValueByName('def');
       });
       expect(error).toBeInstanceOf(BuildStepRuntimeError);
-      expect(error.message).toMatch(/Step "test1" does not have output "def"/);
+      expect(error.message).toMatch(/Step "set-output abc 123" does not have output "def"/);
     });
 
     it('returns the output value', async () => {
       const id = 'test1';
       const command = 'set-output abc 123';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -889,7 +870,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'echo "$TEST_ABC $TEST_DEF"';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       (baseStepCtx as any).baseLogger = logger;
 
@@ -920,7 +901,7 @@ describe(BuildStep, () => {
 
       const id = 'test1';
       const command = 'echo $TEST_ABC';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       (baseStepCtx as any).baseLogger = logger;
 
@@ -952,7 +933,7 @@ describe(BuildStep, () => {
       const id = 'test1';
       const command =
         'echo $__EXPO_STEPS_BUILD_ID\necho $__EXPO_STEPS_OUTPUTS_DIR\necho $__EXPO_STEPS_ENVS_DIR\necho $__EXPO_STEPS_WORKING_DIRECTORY';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       (baseStepCtx as any).baseLogger = logger;
       const step = new BuildStep(baseStepCtx, {
@@ -976,7 +957,7 @@ describe(BuildStep, () => {
     it('can update global env object with set-env', async () => {
       const id = 'test1';
       const command = 'set-env EXAMPLE value';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       const step = new BuildStep(baseStepCtx, {
         id,
@@ -989,7 +970,7 @@ describe(BuildStep, () => {
     it('can override existing envs in global env object with set-env', async () => {
       const id = 'test1';
       const command = 'set-env EXAMPLE value';
-      const displayName = BuildStep.getDisplayName({ id, command });
+      const displayName = command;
 
       baseStepCtx.updateEnv({
         EXAMPLE: 'test1',
@@ -1022,7 +1003,7 @@ describe(BuildStep.prototype.canBeRunOnRuntimePlatform, () => {
   it('returns true when the step does not have a platform filter', async () => {
     const id = 'test1';
     const command = 'set-output abc 123';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command;
 
     const step = new BuildStep(baseStepCtx, {
       id,
@@ -1035,7 +1016,7 @@ describe(BuildStep.prototype.canBeRunOnRuntimePlatform, () => {
   it('returns true when the step has a platform filter and the platform matches', async () => {
     const id = 'test1';
     const command = 'set-output abc 123';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command;
 
     const step = new BuildStep(baseStepCtx, {
       id,
@@ -1049,7 +1030,7 @@ describe(BuildStep.prototype.canBeRunOnRuntimePlatform, () => {
   it('returns false when the step has a platform filter and the platform does not match', async () => {
     const id = 'test1';
     const command = 'set-output abc 123';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command;
 
     const step = new BuildStep(baseStepCtx, {
       id,
@@ -1076,7 +1057,7 @@ describe(BuildStep.prototype.serialize, () => {
   it('serializes correctly', async () => {
     const id = 'test1';
     const command = 'set-output abc 123';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = command;
 
     const outputs = [
       new BuildStepOutput(baseStepCtx, {

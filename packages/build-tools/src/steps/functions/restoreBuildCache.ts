@@ -7,7 +7,10 @@ import {
   BuildStepInputValueTypeName,
   spawnAsync,
 } from '@expo/steps';
+import fs from 'fs';
 import nullthrows from 'nullthrows';
+import os from 'os';
+import path from 'path';
 
 import { sendCcacheStatsAsync } from './ccacheStats';
 import { decompressCacheAsync, downloadCacheAsync, downloadPublicCacheAsync } from './restoreCache';
@@ -16,6 +19,7 @@ import {
   generateDefaultBuildCacheKeyAsync,
   getCcachePath,
 } from '../../utils/cacheKey';
+import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 import { TurtleFetchError } from '../../utils/turtleFetch';
 
 export function createRestoreBuildCacheFunction(): BuildFunction {
@@ -50,6 +54,15 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
       });
+
+      if (platform === Platform.ANDROID) {
+        await restoreGradleCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
+      }
     },
   });
 }
@@ -172,6 +185,106 @@ export async function restoreCcacheAsync({
       } catch (err: unknown) {
         logger.warn({ err }, 'Failed to download public cache');
       }
+    }
+  }
+}
+
+export async function restoreGradleCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EXPERIMENTAL_EAS_GRADLE_CACHE !== '1') {
+    return;
+  }
+
+  try {
+    const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
+    const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
+    await fs.promises.writeFile(
+      gradlePropertiesPath,
+      `${gradlePropertiesContent}\n\norg.gradle.caching=true\n`
+    );
+
+    // Configure cache cleanup via init script (works with both Gradle 8 and 9,
+    // org.gradle.cache.cleanup property was removed in Gradle 9)
+    const initScriptDir = path.join(os.homedir(), '.gradle', 'init.d');
+    await fs.promises.mkdir(initScriptDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(initScriptDir, 'eas-cache-cleanup.gradle'),
+      [
+        'def cacheDir = new File(System.getProperty("user.home"), ".gradle/caches/build-cache-1")',
+        'def countBefore = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        'println "[EAS] Gradle build cache entries before cleanup: ${countBefore}"',
+        '',
+        'beforeSettings { settings ->',
+        '    try {',
+        '        settings.caches {',
+        '            cleanup = Cleanup.ALWAYS',
+        '            buildCache {',
+        '                setRemoveUnusedEntriesAfterDays(3)',
+        '            }',
+        '        }',
+        '        println "[EAS] Configured Gradle cache cleanup via init script"',
+        '    } catch (Exception e) {',
+        '        println "[EAS] Failed to configure cache cleanup: ${e.message}"',
+        '    }',
+        '}',
+        '',
+        'gradle.buildFinished {',
+        '    def countAfter = cacheDir.exists() ? cacheDir.listFiles()?.length ?: 0 : 0',
+        '    println "[EAS] Gradle build cache entries after build: ${countAfter} (was ${countBefore})"',
+        '}',
+        '',
+      ].join('\n')
+    );
+
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const cacheKey = await generateGradleCacheKeyAsync(workingDirectory);
+    logger.info(`Restoring Gradle cache key: ${cacheKey}`);
+
+    const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
+
+    const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [buildCachePath],
+      key: cacheKey,
+      keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
+      platform: Platform.ANDROID,
+    });
+
+    await fs.promises.mkdir(gradleCachesPath, { recursive: true });
+    await decompressCacheAsync({
+      archivePath,
+      workingDirectory: gradleCachesPath,
+      verbose: env.EXPO_DEBUG === '1',
+      logger,
+    });
+
+    logger.info(
+      `Gradle cache restored to ${gradleCachesPath} ${matchedKey === cacheKey ? '(direct hit)' : '(prefix match)'}`
+    );
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No Gradle cache found for this key');
+    } else {
+      logger.warn('Failed to restore Gradle cache: ', err);
     }
   }
 }

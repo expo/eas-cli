@@ -5,7 +5,10 @@ import { pathExists } from 'fs-extra';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { AppPlatform, BuildFragment, BuildStatus, DistributionType } from '../../graphql/generated';
 import { BuildQuery } from '../../graphql/queries/BuildQuery';
 import { toAppPlatform } from '../../graphql/types/AppPlatform';
@@ -23,10 +26,10 @@ export default class Download extends EasCommand {
       description: 'Fingerprint hash of the build to download',
       required: true,
     }),
-    platform: Flags.enum<Platform.IOS | Platform.ANDROID>({
+    platform: Flags.option({
       char: 'p',
-      options: [Platform.IOS, Platform.ANDROID],
-    }),
+      options: [Platform.IOS, Platform.ANDROID] as const,
+    })(),
     'dev-client': Flags.boolean({
       description: 'Filter only dev-client builds.',
       allowNo: true,
@@ -42,13 +45,13 @@ export default class Download extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       flags: {
-        json: jsonFlag,
         platform,
         fingerprint,
         'dev-client': developmentClient,
-        'non-interactive': nonInteractive,
+        ...rawFlags
       },
     } = await this.parse(Download);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
 
     const {
       loggedIn: { graphqlClient },

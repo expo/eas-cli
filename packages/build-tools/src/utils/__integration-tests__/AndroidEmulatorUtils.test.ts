@@ -9,6 +9,7 @@ import {
   AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../AndroidEmulatorUtils';
+import { retryAsync } from '../retry';
 
 // We need to use real fs for cloning devices to work.
 jest.unmock('fs');
@@ -104,7 +105,10 @@ describe('AndroidEmulatorUtils', () => {
     });
     expect(stdout).toContain('data');
 
-    await spawn('adb', ['-s', serialId, 'emu', 'kill'], { env: process.env });
+    await AndroidEmulatorUtils.stopAsync({
+      serialId,
+      env: process.env,
+    });
     await asyncResult(emulatorPromise);
 
     const cloneDeviceName = (deviceName + '-clone') as AndroidVirtualDeviceName;
@@ -131,11 +135,132 @@ describe('AndroidEmulatorUtils', () => {
     expect(stdoutClone).toContain('data');
 
     await AndroidEmulatorUtils.deleteAsync({
-      serialId,
+      deviceName,
       env: process.env,
     });
     await asyncResult(emulatorPromiseClone);
   }, 60_000);
+
+  it('should delete a running emulator by device name', async () => {
+    const deviceName = 'android-emulator-delete-by-name-test' as AndroidVirtualDeviceName;
+    const avdPath = `${process.env.HOME}/.android/avd/${deviceName}.avd`;
+
+    await AndroidEmulatorUtils.createAsync({
+      deviceName,
+      systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+      deviceIdentifier: null,
+      env: process.env,
+      logger: createMockLogger({ logToConsole: true }),
+    });
+
+    const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
+      deviceName,
+      env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+    });
+    await AndroidEmulatorUtils.waitForReadyAsync({
+      serialId,
+      env: process.env,
+    });
+
+    await AndroidEmulatorUtils.deleteAsync({
+      deviceName,
+      env: process.env,
+    });
+    await asyncResult(emulatorPromise);
+
+    const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env: process.env });
+    expect(devices.map(device => device.serialId)).not.toContain(serialId);
+
+    await expect(fs.promises.access(avdPath)).rejects.toThrow();
+  }, 60_000);
+
+  it('should retry when first startup forces network check command failure', async () => {
+    const deviceName = 'android-emulator-network-retry-test' as AndroidVirtualDeviceName;
+    let attemptCounter = 0;
+    let sawNetworkNotReadyError = false;
+
+    await retryAsync(
+      async attemptCount => {
+        attemptCounter += 1;
+        const shouldFailNetworkCheck = attemptCount === 0;
+        const envForAttempt: NodeJS.ProcessEnv = {
+          ...process.env,
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1',
+          ANDROID_EMULATOR_NETWORK_READY_COMMAND: shouldFailNetworkCheck
+            ? 'echo "network not ready" && exit 1'
+            : 'echo "network ready"',
+        };
+
+        let serialId: AndroidDeviceSerialId | null = null;
+        let emulatorPromise: Promise<unknown> | null = null;
+
+        try {
+          await AndroidEmulatorUtils.createAsync({
+            deviceName,
+            systemImagePackage: AndroidEmulatorUtils.defaultSystemImagePackage,
+            deviceIdentifier: null,
+            env: envForAttempt,
+            logger: createMockLogger({ logToConsole: true }),
+          });
+
+          const startResult = await AndroidEmulatorUtils.startAsync({
+            deviceName,
+            env: envForAttempt,
+          });
+          serialId = startResult.serialId;
+          emulatorPromise = asyncResult(startResult.emulatorPromise);
+
+          await AndroidEmulatorUtils.waitForReadyAsync({
+            serialId,
+            env: envForAttempt,
+            timeoutMs: 30_000,
+            logger: createMockLogger({ logToConsole: true }),
+          });
+
+          await AndroidEmulatorUtils.deleteAsync({
+            serialId,
+            deviceName,
+            env: process.env,
+          });
+          await emulatorPromise;
+        } catch (err: any) {
+          if (err?.message?.includes('network is not ready')) {
+            sawNetworkNotReadyError = true;
+          }
+          try {
+            if (serialId) {
+              await AndroidEmulatorUtils.deleteAsync({
+                serialId,
+                deviceName,
+                env: process.env,
+              });
+            } else {
+              await AndroidEmulatorUtils.deleteAsync({
+                deviceName,
+                env: process.env,
+              });
+            }
+          } catch (cleanupError) {
+            console.warn('Cleanup failed during retry test', cleanupError);
+          }
+          if (emulatorPromise) {
+            await emulatorPromise;
+          }
+          throw err;
+        }
+      },
+      {
+        logger: createMockLogger({ logToConsole: true }),
+        retryOptions: {
+          retries: 1,
+          retryIntervalMs: 1_000,
+        },
+      }
+    );
+
+    expect(sawNetworkNotReadyError).toBe(true);
+    expect(attemptCounter).toBe(2);
+  }, 360_000);
 
   it('should work with screen recording', async () => {
     const deviceName = 'android-emulator-screen-recording-test' as AndroidVirtualDeviceName;

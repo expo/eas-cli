@@ -30,10 +30,10 @@ export default {
   }),
   loggers: {
     base: {
-      name: env('LOGGER_NAME', { defaultValue: 'turtle-worker' }),
-      uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
+      name: env('LOGGER_NAME', { defaultValue: 'worker' }),
     },
     gcs: {
+      uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
       compressionMethod: GCSLoggerStream.CompressionMethod.BR,
       signedUploadUrlForLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForLogs'),
@@ -43,6 +43,14 @@ export default {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForXcodeBuildLogs'),
         defaultValue: null,
       }),
+    },
+    http: {
+      baseUrl:
+        process.env.ENVIRONMENT === 'development'
+          ? 'http://localhost:4999/logs/'
+          : process.env.ENVIRONMENT === 'staging'
+            ? 'https://staging-logs.expo.dev/logs/'
+            : null,
     },
   },
   buildCache: {
@@ -90,6 +98,10 @@ export default {
     transform: createBase64EnvTransformer('cocoapodsCacheUrl'),
     defaultValue: null,
   }),
+  precompiledModulesUrls: [
+    'https://storage.googleapis.com/turtle-v2/precompiled-modules/db65b4afac835ff71269ce53937fb20627b133c0/xcframeworks-Debug.zip',
+    'https://storage.googleapis.com/turtle-v2/precompiled-modules/db65b4afac835ff71269ce53937fb20627b133c0/xcframeworks-Release.zip',
+  ],
   runMetricsServer: env<boolean | null>('WORKER_RUNTIME_CONFIG_BASE64', {
     transform: createBase64EnvTransformer('runMetricsServer'),
     defaultValue: null,

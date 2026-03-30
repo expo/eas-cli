@@ -10,20 +10,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AccountFragment } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { learnMore } from '../log';
-import { Actor } from '../user/User';
 import { expoCommandAsync } from '../utils/expoCli';
-
-export function getUsernameForBuildMetadataAndBuildJob(user: Actor): string | undefined {
-  switch (user.__typename) {
-    case 'User':
-      return user.username;
-    case 'SSOUser':
-      return user.username;
-    case 'Robot':
-      // robot users don't have usernames
-      return undefined;
-  }
-}
 
 /**
  * Return a useful name describing the project config.

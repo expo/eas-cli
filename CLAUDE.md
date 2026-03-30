@@ -98,8 +98,8 @@ yarn start-allow-unused
 ### Testing
 
 ```bash
-yarn lerna run test                      # Run all tests across packages
-yarn lerna run test -- --watch           # Watch mode across packages (heavier)
+yarn run -T lerna run test               # Run all tests across packages
+yarn run -T lerna run test -- --watch    # Watch mode across packages (heavier)
 #
 # If you use `yarn test`, remember to pass args through two separators:
 # yarn test -- -- --watch
@@ -296,9 +296,11 @@ export EXPO_DEBUG=1     # Enable debug logging
 
 ### Validation
 
-All changes should be validated with TypeScript and the linter before committing:
+All changes should be validated before committing. At minimum run package-level tests (e.g. `jest-unit`)
+for touched code, then run type checks/linting and format the repo:
 
 ```bash
+yarn fmt            # Apply Oxfmt formatting
 yarn typecheck      # Validate TypeScript types
 yarn lint           # Run Oxlint
 yarn fmt:check      # Run Oxfmt format check
@@ -349,5 +351,5 @@ See `LICENSE` (MIT) and `LICENSE-BUSL` (BUSL-1.1) for details.
 ## Important Notes
 
 - **Node Version**: Requires Node.js (managed via Mise)
-- **Package Manager**: Uses Yarn 1.22.21
+- **Package Manager**: Uses Yarn 4.12.0
 - **Compilation Target**: CommonJS with Node resolution

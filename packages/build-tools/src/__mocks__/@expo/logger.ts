@@ -19,3 +19,7 @@ export enum LoggerLevel {
   ERROR = 'error',
   FATAL = 'fatal',
 }
+
+export enum PipeMode {
+  COMBINED = 'combined',
+}

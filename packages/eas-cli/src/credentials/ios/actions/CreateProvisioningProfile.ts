@@ -64,7 +64,7 @@ export class CreateProvisioningProfile {
   private async maybeGetUserProvidedAsync(
     ctx: CredentialsContext
   ): Promise<ProvisioningProfile | null> {
-    if (ctx.nonInteractive) {
+    if (ctx.nonInteractive || ctx.autoAcceptCredentialReuse) {
       return null;
     }
     const userProvided = await askForUserProvidedAsync(provisioningProfileSchema);

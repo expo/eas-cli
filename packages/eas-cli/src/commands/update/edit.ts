@@ -1,10 +1,13 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
 import chalk from 'chalk';
 
 import { selectBranchOnAppAsync } from '../../branch/queries';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import Log from '../../log';
@@ -20,12 +23,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class UpdateEdit extends EasCommand {
   static override description = 'edit all the updates in an update group';
 
-  static override args = [
-    {
-      name: 'groupId',
+  static override args = {
+    groupId: Args.string({
       description: 'The ID of an update group to edit.',
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     'rollout-percentage': Flags.integer({
@@ -48,13 +50,10 @@ export default class UpdateEdit extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { groupId: maybeGroupId },
-      flags: {
-        'rollout-percentage': rolloutPercentage,
-        json: jsonFlag,
-        'non-interactive': nonInteractive,
-        branch: branchFlag,
-      },
+      flags,
     } = await this.parse(UpdateEdit);
+    const { 'rollout-percentage': rolloutPercentage, branch: branchFlag } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       projectId,

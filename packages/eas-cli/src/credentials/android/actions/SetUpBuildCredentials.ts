@@ -13,7 +13,6 @@ import {
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
 import { AppLookupParams } from '../api/GraphqlClient';
 
 interface Options {
@@ -45,11 +44,6 @@ export class SetUpBuildCredentials {
     });
     if (alreadySetupBuildCredentials) {
       return alreadySetupBuildCredentials;
-    }
-    if (ctx.nonInteractive) {
-      throw new MissingCredentialsNonInteractiveError(
-        'Generating a new Keystore is not supported in --non-interactive mode'
-      );
     }
 
     const keystore = await new CreateKeystore(app.account).runAsync(ctx);

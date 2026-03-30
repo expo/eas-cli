@@ -4,7 +4,10 @@ import gql from 'graphql-tag';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { withErrorHandlingAsync } from '../../graphql/client';
 import {
   EditUpdateBranchInput,
@@ -69,8 +72,9 @@ export default class BranchRename extends EasCommand {
 
   async runAsync(): Promise<void> {
     let {
-      flags: { json: jsonFlag, from: currentName, to: newName, 'non-interactive': nonInteractive },
+      flags: { from: currentName, to: newName, ...rawFlags },
     } = await this.parse(BranchRename);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
     const {
       projectId,
       loggedIn: { graphqlClient },

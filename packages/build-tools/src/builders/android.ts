@@ -10,13 +10,21 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
-import { configureBuildGradle } from '../android/gradleConfig';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreGradleCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveGradleCacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  injectConfigureVersionGradleConfig,
+  injectCredentialsGradleConfig,
+  warnIfLegacyEasBuildGradleExists,
+} from '../steps/utils/android/gradleConfig';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -77,6 +85,12 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
+    await restoreGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
   });
 
   await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
@@ -89,7 +103,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
         cwd: ctx.getReactNativeProjectDirectory(),
         logger: ctx.logger,
-        appConfig: ctx.appConfig,
+        appConfig: await ctx.appConfig,
         platform: ctx.job.platform,
         workflow: ctx.job.type,
         env: ctx.env,
@@ -101,10 +115,22 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     nullthrows(ctx.job.secrets, 'Secrets must be defined for non-custom builds').buildCredentials
   ) {
     await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
+      await warnIfLegacyEasBuildGradleExists(ctx);
       await restoreCredentials(ctx);
-      await configureBuildGradle(ctx);
+      await injectCredentialsGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory());
     });
   }
+
+  if (ctx.job.version?.versionCode || ctx.job.version?.versionName) {
+    await ctx.runBuildPhase(BuildPhase.CONFIGURE_ANDROID_VERSION, async () => {
+      await warnIfLegacyEasBuildGradleExists(ctx);
+      await injectConfigureVersionGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory(), {
+        versionCode: ctx.job.version?.versionCode,
+        versionName: ctx.job.version?.versionName,
+      });
+    });
+  }
+
   await ctx.runBuildPhase(BuildPhase.CONFIGURE_EXPO_UPDATES, async () => {
     await configureExpoUpdatesIfInstalledAsync(ctx, {
       resolvedRuntimeVersion: resolvedExpoUpdatesRuntimeVersion?.runtimeVersion ?? null,
@@ -177,6 +203,12 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       workingDirectory,
       platform: ctx.job.platform,
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveGradleCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

@@ -35,7 +35,7 @@ jobs:
           git checkout main
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
-          yarn install --frozen-lockfile --check-files
+          yarn install --immutable
           yarn build
           if [[ "$INPUT_VERSION" == "" ]]; then
             echo "Releasing with default version"

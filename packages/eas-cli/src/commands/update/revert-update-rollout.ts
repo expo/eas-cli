@@ -4,7 +4,10 @@ import assert from 'assert';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log, { learnMore } from '../../log';
 import { enforceRollBackToEmbeddedUpdateSupportAsync } from '../../project/projectUtils';
 import { getUpdateMessageForCommandAsync } from '../../project/publish';
@@ -360,10 +363,10 @@ export default class UpdateRevertUpdateRollout extends EasCommand {
   private sanitizeFlags(
     rawFlags: UpdateRevertUpdateRolloutRawFlags
   ): UpdateRevertUpdateRolloutFlags {
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
     const branchName = rawFlags.branch;
     const channelName = rawFlags.channel;
     const groupId = rawFlags.group;
-    const nonInteractive = rawFlags['non-interactive'];
     const privateKeyPath = rawFlags['private-key-path'];
 
     if (nonInteractive && !groupId) {
@@ -377,7 +380,7 @@ export default class UpdateRevertUpdateRollout extends EasCommand {
 
       updateMessage: rawFlags.message,
       privateKeyPath,
-      json: rawFlags.json ?? false,
+      json,
       nonInteractive,
     };
   }

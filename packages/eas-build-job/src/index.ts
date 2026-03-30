@@ -11,6 +11,7 @@ export {
   Env,
   EnvironmentSecret,
   EnvironmentSecretType,
+  Hooks,
   Workflow,
   Platform,
   Cache,
@@ -19,6 +20,7 @@ export {
 export { Metadata, sanitizeMetadata } from './metadata';
 export * from './job';
 export * from './logs';
+export * from './errors';
 export * as errors from './errors';
 export * from './artifacts';
 export * from './context';
