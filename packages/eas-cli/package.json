@@ -195,6 +195,9 @@
       "channel": {
         "description": "manage update channels"
       },
+      "connections": {
+        "description": "manage service connections"
+      },
       "device": {
         "description": "manage Apple devices for Internal Distribution"
       },
