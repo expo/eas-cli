@@ -3,7 +3,12 @@ import { IssueRule } from '../../config/issue';
 
 /** Only check text properties that may contain restricted words */
 type AppleInfoTextProperty = 'title' | 'subtitle' | 'description' | 'keywords';
-const RESTRICTED_PROPERTIES: AppleInfoTextProperty[] = ['title', 'subtitle', 'description', 'keywords'];
+const RESTRICTED_PROPERTIES: AppleInfoTextProperty[] = [
+  'title',
+  'subtitle',
+  'description',
+  'keywords',
+];
 const RESTRICTED_WORDS = {
   beta: 'Apple restricts the word "beta" and synonyms implying incomplete functionality.',
 };

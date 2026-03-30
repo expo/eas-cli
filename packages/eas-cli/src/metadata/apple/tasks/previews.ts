@@ -265,9 +265,7 @@ async function downloadPreviewAsync(
 ): Promise<string | null> {
   const videoUrl = preview.getVideoUrl();
   if (!videoUrl) {
-    Log.warn(
-      chalk`{yellow Could not get download URL for preview ${preview.attributes.fileName}}`
-    );
+    Log.warn(chalk`{yellow Could not get download URL for preview ${preview.attributes.fileName}}`);
     return null;
   }
 

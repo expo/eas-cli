@@ -276,14 +276,7 @@ async function downloadScreenshotAsync(
   }
 
   // Create directory structure: store/apple/screenshot/{locale}/{displayType}/
-  const screenshotsDir = path.join(
-    projectDir,
-    'store',
-    'apple',
-    'screenshot',
-    locale,
-    displayType
-  );
+  const screenshotsDir = path.join(projectDir, 'store', 'apple', 'screenshot', locale, displayType);
   await fs.ensureDir(screenshotsDir);
 
   // Use original filename for matching during sync

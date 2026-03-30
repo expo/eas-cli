@@ -62,9 +62,7 @@ describe(ScreenshotsTask, () => {
       } as any);
 
       const scope = nock('https://api.appstoreconnect.apple.com')
-        .get(
-          `/v1/${AppStoreVersionLocalization.type}/LOC_1/${AppScreenshotSet.type}`
-        )
+        .get(`/v1/${AppStoreVersionLocalization.type}/LOC_1/${AppScreenshotSet.type}`)
         .query(true)
         .reply(200, {
           data: [

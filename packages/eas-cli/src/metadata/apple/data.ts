@@ -23,4 +23,6 @@ export type AppleData = { app: App; projectDir: string } & AppInfoData &
  * It contains a reference to the app, each task should populate the necessary data.
  * If an entity fails to prepare the data, individual tasks should raise errors about the missing data.
  */
-export type PartialAppleData = { app: App; projectDir: string } & Partial<Omit<AppleData, 'app' | 'projectDir'>>;
+export type PartialAppleData = { app: App; projectDir: string } & Partial<
+  Omit<AppleData, 'app' | 'projectDir'>
+>;
