@@ -398,9 +398,9 @@ export namespace AndroidEmulatorUtils {
   }: {
     serialId: AndroidDeviceSerialId;
     env: NodeJS.ProcessEnv;
-    logger?: bunyan;
+    logger: bunyan;
   }): Promise<void> {
-    logger?.info('Disabling Android emulator window animations.');
+    logger.info('Disabling Android emulator window animations.');
     try {
       await spawn(
         'adb',
@@ -408,10 +408,10 @@ export namespace AndroidEmulatorUtils {
         { env }
       );
     } catch (err) {
-      logger?.warn({ err }, 'Failed to disable Android emulator window animations.');
+      logger.warn({ err }, 'Failed to disable Android emulator window animations.');
     }
 
-    logger?.info('Disabling Android emulator transition animations.');
+    logger.info('Disabling Android emulator transition animations.');
     try {
       await spawn(
         'adb',
@@ -419,7 +419,7 @@ export namespace AndroidEmulatorUtils {
         { env }
       );
     } catch (err) {
-      logger?.warn({ err }, 'Failed to disable Android emulator transition animations.');
+      logger.warn({ err }, 'Failed to disable Android emulator transition animations.');
     }
   }
 
