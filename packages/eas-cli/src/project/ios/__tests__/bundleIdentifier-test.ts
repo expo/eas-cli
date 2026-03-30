@@ -115,20 +115,81 @@ describe(ensureBundleIdentifierIsDefinedForManagedProjectAsync, () => {
         })
       ).rejects.toThrowError(/we can't update this file programmatically/);
     });
-    it('throws an error in non-interactive mode', async () => {
+    it('auto-generates bundle identifier in non-interactive mode when suggestion is available', async () => {
       const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
       vol.fromJSON(
         {
-          'app.json': '{ "blah": {} }',
+          'app.json': '{ "expo": {} }',
         },
         '/app'
       );
+
+      const result = await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir: '/app',
+        projectId: '1234',
+        exp: { slug: 'myapp' } as any,
+        vcsClient,
+        nonInteractive: true,
+      });
+
+      expect(result).toBe('com.jester.myapp');
+      expect(promptAsync).not.toHaveBeenCalled();
+
+      const appJson = JSON.parse(await fs.readFile('/app/app.json', 'utf-8'));
+      expect(appJson).toMatchObject({
+        expo: { ios: { bundleIdentifier: 'com.jester.myapp' } },
+      });
+    });
+
+    it('uses android.package as bundle identifier in non-interactive mode when available', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+      vol.fromJSON(
+        {
+          'app.json': '{ "expo": {} }',
+        },
+        '/app'
+      );
+
+      const result = await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+        graphqlClient,
+        projectDir: '/app',
+        projectId: '1234',
+        exp: { slug: 'myapp', android: { package: 'com.example.myapp' } } as any,
+        vcsClient,
+        nonInteractive: true,
+      });
+
+      expect(result).toBe('com.example.myapp');
+      expect(promptAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws an error in non-interactive mode when no valid suggestion can be generated', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(AppQuery.byIdAsync).mockRejectedValue(new Error('Not found'));
+
+      vol.fromJSON(
+        {
+          'app.json': '{ "expo": {} }',
+        },
+        '/app'
+      );
+
       await expect(
         ensureBundleIdentifierIsDefinedForManagedProjectAsync({
           graphqlClient,
           projectDir: '/app',
           projectId: '1234',
-          exp: {} as any,
+          exp: { slug: '' } as any,
           vcsClient,
           nonInteractive: true,
         })
