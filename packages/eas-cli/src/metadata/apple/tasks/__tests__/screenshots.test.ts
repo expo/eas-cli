@@ -65,6 +65,7 @@ describe(ScreenshotsTask, () => {
         .get(
           `/v1/${AppStoreVersionLocalization.type}/LOC_1/${AppScreenshotSet.type}`
         )
+        .query(true)
         .reply(200, {
           data: [
             {
