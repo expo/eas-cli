@@ -9,6 +9,7 @@ import { MetadataConfig } from './config/schema';
 import { MetadataUploadError, MetadataValidationError, logMetadataValidationError } from './errors';
 import { subscribeTelemetryAsync } from './utils/telemetry';
 import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -23,19 +24,32 @@ export async function uploadMetadataAsync({
   exp,
   analytics,
   credentialsCtx,
+  nonInteractive,
+  graphqlClient,
+  projectId,
 }: {
   projectDir: string;
   profile: SubmitProfile;
   exp: ExpoConfig;
   analytics: Analytics;
   credentialsCtx: CredentialsContext;
+  nonInteractive: boolean;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
 }): Promise<{ appleLink: string }> {
-  const storeConfig = await loadConfigWithValidationPromptAsync(projectDir, profile);
+  const storeConfig = await loadConfigWithValidationPromptAsync(
+    projectDir,
+    profile,
+    nonInteractive
+  );
   const { app, auth } = await getAppStoreAuthAsync({
     exp,
     credentialsCtx,
     projectDir,
     profile,
+    nonInteractive,
+    graphqlClient,
+    projectId,
   });
 
   const { unsubscribeTelemetry, executionId } = await subscribeTelemetryAsync(
@@ -84,12 +98,18 @@ export async function uploadMetadataAsync({
 
 async function loadConfigWithValidationPromptAsync(
   projectDir: string,
-  profile: SubmitProfile
+  profile: SubmitProfile,
+  nonInteractive: boolean
 ): Promise<MetadataConfig> {
   try {
     return await loadConfigAsync({ projectDir, profile });
   } catch (error) {
     if (error instanceof MetadataValidationError) {
+      if (nonInteractive) {
+        logMetadataValidationError(error);
+        throw error;
+      }
+
       logMetadataValidationError(error);
       Log.newLine();
       Log.warn(

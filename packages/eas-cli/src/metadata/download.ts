@@ -10,6 +10,7 @@ import { createAppleWriter, getStaticConfigFilePath } from './config/resolve';
 import { MetadataDownloadError, MetadataValidationError } from './errors';
 import { subscribeTelemetryAsync } from './utils/telemetry';
 import { Analytics, MetadataEvent } from '../analytics/AnalyticsManager';
+import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import Log from '../log';
 import { confirmAsync } from '../prompts';
@@ -24,23 +25,33 @@ export async function downloadMetadataAsync({
   exp,
   analytics,
   credentialsCtx,
+  nonInteractive,
+  graphqlClient,
+  projectId,
 }: {
   projectDir: string;
   profile: SubmitProfile;
   exp: ExpoConfig;
   analytics: Analytics;
   credentialsCtx: CredentialsContext;
+  nonInteractive: boolean;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
 }): Promise<string> {
   const filePath = getStaticConfigFilePath({ projectDir, profile });
 
   const fileExists = await fs.pathExists(filePath);
   if (fileExists) {
-    const filePathRelative = path.relative(projectDir, filePath);
-    const overwrite = await confirmAsync({
-      message: `Do you want to overwrite the existing "${filePathRelative}"?`,
-    });
-    if (!overwrite) {
-      throw new MetadataValidationError(`Store config already exists at "${filePath}"`);
+    if (nonInteractive) {
+      Log.log(`Overwriting existing store config at "${path.relative(projectDir, filePath)}".`);
+    } else {
+      const filePathRelative = path.relative(projectDir, filePath);
+      const overwrite = await confirmAsync({
+        message: `Do you want to overwrite the existing "${filePathRelative}"?`,
+      });
+      if (!overwrite) {
+        throw new MetadataValidationError(`Store config already exists at "${filePath}"`);
+      }
     }
   }
 
@@ -49,6 +60,9 @@ export async function downloadMetadataAsync({
     credentialsCtx,
     projectDir,
     profile,
+    nonInteractive,
+    graphqlClient,
+    projectId,
   });
 
   const { unsubscribeTelemetry, executionId } = await subscribeTelemetryAsync(

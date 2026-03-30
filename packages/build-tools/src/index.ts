@@ -19,5 +19,12 @@ export { PackageManager } from './utils/packageManager';
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
+export {
+  maybeStartPreparingPrecompiledModules,
+  PRECOMPILED_MODULES_PATH,
+  shouldUsePrecompiledDependencies,
+  startPreparingPrecompiledDependencies,
+  waitForPrecompiledModulesPreparationAsync,
+} from './utils/precompiledModules';
 
 export * from './generic';

@@ -1,11 +1,14 @@
+import { type bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
+import semver from 'semver';
 
 import {
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
   resolvePackageManager,
+  resolvePackageVersionAsync,
   shouldUseFrozenLockfile,
 } from '../packageManager';
 
@@ -65,6 +68,33 @@ describe(resolvePackageManager, () => {
     await fs.writeFile(path.join(nestedDir, 'package.json'), 'content');
 
     expect(resolvePackageManager(nestedDir)).toBe('yarn');
+  });
+});
+
+describe(resolvePackageVersionAsync, () => {
+  const logger = {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  } as unknown as bunyan;
+
+  it('should resolve version from package name and dist tag', async () => {
+    const version = await resolvePackageVersionAsync({
+      logger,
+      packageName: '@expo/repack-app',
+      distTag: 'latest',
+    });
+    expect(semver.valid(version)).toBeTruthy();
+  });
+
+  it('should return null if version cannot be resolved', async () => {
+    const version = await resolvePackageVersionAsync({
+      logger,
+      packageName: '@expo/repack-app',
+      distTag: 'nonexistent-dist-tag',
+    });
+    expect(version).toBeNull();
   });
 });
 

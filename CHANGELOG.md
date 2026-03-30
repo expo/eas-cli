@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add `--non-interactive` flag to `metadata:push` and `metadata:pull` commands with ASC API Key auth support. ([#3548](https://github.com/expo/eas-cli/pull/3548) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
 

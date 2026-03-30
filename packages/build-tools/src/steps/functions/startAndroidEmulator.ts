@@ -57,6 +57,15 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       const systemImagePackage = `${inputs.system_image_package.value}`;
       // We can cast because allowedValueTypeName validated this is a string.
       const deviceIdentifier = inputs.device_identifier.value as AndroidDeviceName | undefined;
+      const shouldAdjustAnimationScale =
+        env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== 'false' &&
+        env.ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE !== '0';
+
+      if (!shouldAdjustAnimationScale) {
+        logger.info(
+          'Skipping Android emulator animation scale adjustments because $ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE is disabled.'
+        );
+      }
 
       logger.info('Making sure system image is installed');
       await retryAsync(
@@ -107,6 +116,13 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               timeoutMs,
               logger,
             });
+            if (shouldAdjustAnimationScale) {
+              await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+                env,
+                logger,
+                serialId: attemptSerialId,
+              });
+            }
             logger.info(`${deviceName} is ready.`);
 
             serialId = attemptSerialId;
@@ -191,6 +207,13 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   timeoutMs,
                   logger,
                 });
+                if (shouldAdjustAnimationScale) {
+                  await AndroidEmulatorUtils.disableWindowAndTransitionAnimationsAsync({
+                    env,
+                    logger,
+                    serialId: cloneSerialId,
+                  });
+                }
 
                 logger.info(`${cloneIdentifier} is ready.`);
               } catch (err) {
