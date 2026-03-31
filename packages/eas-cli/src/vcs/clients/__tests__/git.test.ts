@@ -91,14 +91,14 @@ describe('git', () => {
           await fs.rm(`${repoRoot}/.gitignore`);
         });
 
-        it.each(testFiles.filter(file => file.gitignore && !file.commit))(
+        it.each(testFiles.filter(file => file.gitignore))(
           '$filename should be ignored',
           async file => {
             expect(await vcs.isFileIgnoredAsync(file.filename)).toBe(true);
           }
         );
 
-        it.each(testFiles.filter(file => !file.gitignore || file.commit))(
+        it.each(testFiles.filter(file => !file.gitignore))(
           '$filename should not be ignored',
           async file => {
             expect(await vcs.isFileIgnoredAsync(file.filename)).toBe(false);
