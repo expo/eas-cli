@@ -4,34 +4,34 @@ import {
   AppObservePlatform,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
-import { fetchObserveEventsAsync, resolveOrderBy } from '../fetchEvents';
+import { EventsOrderPreset, fetchObserveEventsAsync, resolveOrderBy } from '../fetchEvents';
 
 jest.mock('../../graphql/queries/ObserveQuery');
 
 describe(resolveOrderBy, () => {
   it('maps "slowest" to METRIC_VALUE DESC', () => {
-    expect(resolveOrderBy('slowest')).toEqual({
+    expect(resolveOrderBy(EventsOrderPreset.Slowest)).toEqual({
       field: AppObserveEventsOrderByField.MetricValue,
       direction: AppObserveEventsOrderByDirection.Desc,
     });
   });
 
   it('maps "fastest" to METRIC_VALUE ASC', () => {
-    expect(resolveOrderBy('fastest')).toEqual({
+    expect(resolveOrderBy(EventsOrderPreset.Fastest)).toEqual({
       field: AppObserveEventsOrderByField.MetricValue,
       direction: AppObserveEventsOrderByDirection.Asc,
     });
   });
 
   it('maps "newest" to TIMESTAMP DESC', () => {
-    expect(resolveOrderBy('newest')).toEqual({
+    expect(resolveOrderBy(EventsOrderPreset.Newest)).toEqual({
       field: AppObserveEventsOrderByField.Timestamp,
       direction: AppObserveEventsOrderByDirection.Desc,
     });
   });
 
   it('maps "oldest" to TIMESTAMP ASC', () => {
-    expect(resolveOrderBy('oldest')).toEqual({
+    expect(resolveOrderBy(EventsOrderPreset.Oldest)).toEqual({
       field: AppObserveEventsOrderByField.Timestamp,
       direction: AppObserveEventsOrderByDirection.Asc,
     });
@@ -206,7 +206,11 @@ describe(fetchObserveEventsAsync, () => {
     ];
     mockEventsAsync.mockResolvedValue({
       events: mockEvents as any,
-      pageInfo: { hasNextPage: true, hasPreviousPage: false, endCursor: 'cursor-1' },
+      pageInfo: {
+        hasNextPage: true,
+        hasPreviousPage: false,
+        endCursor: 'cursor-1',
+      },
     });
 
     const result = await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {

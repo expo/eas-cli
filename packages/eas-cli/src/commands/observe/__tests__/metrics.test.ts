@@ -1,6 +1,5 @@
-import { Config } from '@oclif/core';
-
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppPlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
@@ -30,7 +29,7 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 describe(ObserveMetrics, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
-  const mockConfig = {} as unknown as Config;
+  const mockConfig = getMockOclifConfig();
   const projectId = 'test-project-id';
 
   beforeEach(() => {
@@ -117,7 +116,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('passes resolved --stat flags to buildObserveMetricsTable', async () => {
-    const command = createCommand(['--stat', 'p90', '--stat', 'count']);
+    const command = createCommand(['--stat', 'p90', '--stat', 'eventCount']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
@@ -127,7 +126,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('deduplicates --stat flags that resolve to the same key', async () => {
-    const command = createCommand(['--stat', 'med', '--stat', 'median']);
+    const command = createCommand(['--stat', 'median', '--stat', 'median']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
@@ -179,7 +178,7 @@ describe(ObserveMetrics, () => {
       '--stat',
       'min',
       '--stat',
-      'avg',
+      'average',
     ]);
     await command.runAsync();
 

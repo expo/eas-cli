@@ -1,6 +1,5 @@
-import { Config } from '@oclif/core';
-
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveEventsAsync } from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
@@ -22,7 +21,7 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 describe(ObserveEvents, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
-  const mockConfig = {} as unknown as Config;
+  const mockConfig = getMockOclifConfig();
   const projectId = 'test-project-id';
 
   beforeEach(() => {
