@@ -10,7 +10,7 @@ import {
   fetchObserveEventsAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
-import { resolveMetricName } from '../../observe/metricNames';
+import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -22,11 +22,14 @@ export default class ObserveEvents extends EasCommand {
   static override description = 'display individual app performance events ordered by metric value';
 
   static override flags = {
-    metric: Flags.string({
-      description:
-        'Metric to query (full name or alias: tti, ttr, cold_launch, warm_launch, bundle_load)',
+    metric: Flags.option({
+      description: 'Metric to query (full name or alias)',
       required: true,
-    }),
+      options: [
+        ...Object.keys(METRIC_ALIASES),
+        ...Object.keys(METRIC_ALIASES).map(key => METRIC_ALIASES[key]),
+      ],
+    })(),
     sort: Flags.option({
       description: 'Sort order for events',
       options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
