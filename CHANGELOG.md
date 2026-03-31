@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Fix workflow:logs for builds using built-in EAS build steps. ([#3523](https://github.com/expo/eas-cli/pull/3523) by [@douglowder](https://github.com/douglowder))
 - [build-tools][worker] Read Expo app config with `expo config` CLI invocation before falling back to `@expo/config` ([#3536](https://github.com/expo/eas-cli/pull/3536) by [@kitten](https://github.com/kitten))
+- Fix workflow detection for tracked `.gitignore`d native projects when `requireCommit` is disabled. ([#3561](https://github.com/expo/eas-cli/pull/3561) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
 
@@ -62,7 +63,16 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Remove --environment flag requirement for update:configure. ([#3440](https://github.com/expo/eas-cli/pull/3440) by [@douglowder](https://github.com/douglowder))
+<<<<<<< HEAD
 - Fix login spinner interfering with prompts in `eas go` command when not logged in. ([#3451](https://github.com/expo/eas-cli/pull/3451) by [@byronkarlen](https://github.com/byronkarlen))
+||||||| parent of 59b7829a ([eas-cli] Add changelog entry for workflow detection fix)
+
+### 🧹 Chores
+=======
+- Fix workflow detection for tracked `.gitignore`d native projects when `requireCommit` is disabled. ([#3561](https://github.com/expo/eas-cli/pull/3561) by [@sjchmiela](https://github.com/sjchmiela))
+
+### 🧹 Chores
+>>>>>>> 59b7829a ([eas-cli] Add changelog entry for workflow detection fix)
 
 ## [18.0.6](https://github.com/expo/eas-cli/releases/tag/v18.0.6) - 2026-02-27
 
