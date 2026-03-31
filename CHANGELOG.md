@@ -63,16 +63,9 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - Remove --environment flag requirement for update:configure. ([#3440](https://github.com/expo/eas-cli/pull/3440) by [@douglowder](https://github.com/douglowder))
-<<<<<<< HEAD
 - Fix login spinner interfering with prompts in `eas go` command when not logged in. ([#3451](https://github.com/expo/eas-cli/pull/3451) by [@byronkarlen](https://github.com/byronkarlen))
-||||||| parent of c44a3875 ([eas-cli] Add changelog entry for hasIgnoredIosProjectAsync fix)
 
 ### 🧹 Chores
-=======
-- Fix `hasIgnoredIosProjectAsync()` always returning `false` for ignored iOS projects. ([#3562](https://github.com/expo/eas-cli/pull/3562) by [@sjchmiela](https://github.com/sjchmiela))
-
-### 🧹 Chores
->>>>>>> c44a3875 ([eas-cli] Add changelog entry for hasIgnoredIosProjectAsync fix)
 
 ## [18.0.6](https://github.com/expo/eas-cli/releases/tag/v18.0.6) - 2026-02-27
 
