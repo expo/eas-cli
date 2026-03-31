@@ -5284,6 +5284,7 @@ export type EchoRepositoryResult = {
   name: Scalars['String']['output'];
   nodeIdentifier: Scalars['String']['output'];
   owner: Scalars['String']['output'];
+  status: Scalars['String']['output'];
   url: Scalars['String']['output'];
 };
 
@@ -11530,6 +11531,20 @@ export type CreateAppVersionMutationVariables = Exact<{
 
 export type CreateAppVersionMutation = { __typename?: 'RootMutation', appVersion: { __typename?: 'AppVersionMutation', createAppVersion: { __typename?: 'AppVersion', id: string } } };
 
+export type CreateAppStoreConnectAppMutationVariables = Exact<{
+  appStoreConnectAppInput: AppStoreConnectAppInput;
+}>;
+
+
+export type CreateAppStoreConnectAppMutation = { __typename?: 'RootMutation', appStoreConnectApp: { __typename?: 'AppStoreConnectAppMutation', createAppStoreConnectApp: { __typename?: 'AppStoreConnectApp', id: string, ascAppIdentifier: string } } };
+
+export type DeleteAppStoreConnectAppMutationVariables = Exact<{
+  appStoreConnectAppId: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteAppStoreConnectAppMutation = { __typename?: 'RootMutation', appStoreConnectApp: { __typename?: 'AppStoreConnectAppMutation', deleteAppStoreConnectApp: { __typename?: 'DeleteAppStoreConnectAppResult', id: string } } };
+
 export type CreateAndroidBuildMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   job: AndroidJobInput;
@@ -11874,6 +11889,21 @@ export type LatestAppVersionQueryVariables = Exact<{
 
 
 export type LatestAppVersionQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, latestAppVersionByPlatformAndApplicationIdentifier?: { __typename?: 'AppVersion', id: string, storeVersion: string, buildVersion: string } | null } } };
+
+export type AscAppLinkAppMetadataQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type AscAppLinkAppMetadataQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, fullName: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, appStoreConnectApp?: { __typename?: 'AppStoreConnectApp', id: string, ascAppIdentifier: string, remoteAppStoreConnectApp: { __typename?: 'RemoteAppStoreConnectApp', ascAppIdentifier: string, bundleIdentifier: string, name?: string | null, appStoreIconUrl?: string | null } } | null } } };
+
+export type DiscoverAccessibleAppStoreConnectAppsQueryVariables = Exact<{
+  appStoreConnectApiKeyId: Scalars['ID']['input'];
+  bundleIdentifier?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type DiscoverAccessibleAppStoreConnectAppsQuery = { __typename?: 'RootQuery', appStoreConnectApiKey: { __typename?: 'AppStoreConnectApiKeyQuery', byId: { __typename?: 'AppStoreConnectApiKey', id: string, remoteAppStoreConnectApps: Array<{ __typename?: 'RemoteAppStoreConnectApp', ascAppIdentifier: string, bundleIdentifier: string, name?: string | null, appStoreIconUrl?: string | null }> } } };
 
 export type GetAssetSignedUrlsQueryVariables = Exact<{
   updateId: Scalars['ID']['input'];
