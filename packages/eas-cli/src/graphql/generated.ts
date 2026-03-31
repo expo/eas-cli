@@ -1116,7 +1116,6 @@ export type AndroidAppCredentialsMutationCreateAndroidAppCredentialsArgs = {
 
 
 export type AndroidAppCredentialsMutationCreateFcmV1CredentialArgs = {
-  accountId: Scalars['ID']['input'];
   androidAppCredentialsId: Scalars['String']['input'];
   credential: Scalars['String']['input'];
 };
@@ -1358,6 +1357,7 @@ export type App = Project & {
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Android app credentials for the project */
   androidAppCredentials: Array<AndroidAppCredentials>;
+  appStoreConnectApp?: Maybe<AppStoreConnectApp>;
   /**
    * ios.appStoreUrl field from most recent classic update manifest
    * @deprecated Classic updates have been deprecated.
@@ -2376,8 +2376,14 @@ export type AppStoreConnectApiKey = {
   keyIdentifier: Scalars['String']['output'];
   keyP8: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
+  remoteAppStoreConnectApps: Array<RemoteAppStoreConnectApp>;
   roles?: Maybe<Array<AppStoreConnectUserRole>>;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+
+export type AppStoreConnectApiKeyRemoteAppStoreConnectAppsArgs = {
+  bundleIdentifier?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type AppStoreConnectApiKeyInput = {
@@ -2428,6 +2434,43 @@ export type AppStoreConnectApiKeyQueryByIdArgs = {
 
 export type AppStoreConnectApiKeyUpdateInput = {
   appleTeamId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+export type AppStoreConnectApp = {
+  __typename?: 'AppStoreConnectApp';
+  app: App;
+  appStoreConnectApiKey: AppStoreConnectApiKey;
+  ascAppIdentifier: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  remoteAppStoreConnectApp: RemoteAppStoreConnectApp;
+  updatedAt: Scalars['DateTime']['output'];
+  webhookEventTypes: Array<Scalars['String']['output']>;
+  webhookIdentifier: Scalars['ID']['output'];
+};
+
+export type AppStoreConnectAppInput = {
+  appId: Scalars['ID']['input'];
+  appStoreConnectApiKeyId: Scalars['ID']['input'];
+  ascAppIdentifier: Scalars['String']['input'];
+};
+
+export type AppStoreConnectAppMutation = {
+  __typename?: 'AppStoreConnectAppMutation';
+  /** Create an App Store Connect app for an Expo app. */
+  createAppStoreConnectApp: AppStoreConnectApp;
+  /** Delete an App Store Connect app by ID. */
+  deleteAppStoreConnectApp: DeleteAppStoreConnectAppResult;
+};
+
+
+export type AppStoreConnectAppMutationCreateAppStoreConnectAppArgs = {
+  appStoreConnectAppInput: AppStoreConnectAppInput;
+};
+
+
+export type AppStoreConnectAppMutationDeleteAppStoreConnectAppArgs = {
+  appStoreConnectAppId: Scalars['ID']['input'];
 };
 
 export enum AppStoreConnectUserRole {
@@ -4312,6 +4355,11 @@ export type DeleteAndroidKeystoreResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteAppStoreConnectAppResult = {
+  __typename?: 'DeleteAppStoreConnectAppResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteAppleDeviceResult = {
   __typename?: 'DeleteAppleDeviceResult';
   id: Scalars['ID']['output'];
@@ -4788,7 +4836,7 @@ export type EchoMessageEdge = {
 
 export type EchoMessageMutation = {
   __typename?: 'EchoMessageMutation';
-  /** Mark a message as completed (sets completedAt and optionally updates metadata with tokens) */
+  /** Mark a message as completed (sets completedAt and creates billing ledger entry) */
   completeMessage: EchoMessage;
   /** Create a new message */
   createMessage: EchoMessage;
@@ -5223,7 +5271,7 @@ export enum EntityTypeName {
   AndroidKeystoreEntity = 'AndroidKeystoreEntity',
   AppEntity = 'AppEntity',
   AppStoreConnectApiKeyEntity = 'AppStoreConnectApiKeyEntity',
-  AppStoreConnectAppWebhookEntity = 'AppStoreConnectAppWebhookEntity',
+  AppStoreConnectAppEntity = 'AppStoreConnectAppEntity',
   AppleDeviceEntity = 'AppleDeviceEntity',
   AppleDistributionCertificateEntity = 'AppleDistributionCertificateEntity',
   AppleProvisioningProfileEntity = 'AppleProvisioningProfileEntity',
@@ -5880,6 +5928,7 @@ export type GitHubRepository = {
   githubRepositoryIdentifier: Scalars['Int']['output'];
   githubRepositoryUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   metadata: GitHubRepositoryMetadata;
   nodeIdentifier: Scalars['String']['output'];
 };
@@ -5903,8 +5952,13 @@ export type GitHubRepositoryMutation = {
   createAndConfigureRepository: BackgroundJobReceipt;
   /** Create a GitHub repository for an App */
   createGitHubRepository: GitHubRepository;
-  /** Delete a GitHub repository by ID */
+  /**
+   * Delete a GitHub repository by ID
+   * @deprecated Use scheduleGitHubRepositoryDeletion instead
+   */
   deleteGitHubRepository: GitHubRepository;
+  /** Delete a GitHub repository by ID in the background */
+  scheduleGitHubRepositoryDeletion: BackgroundJobReceipt;
 };
 
 
@@ -5924,6 +5978,11 @@ export type GitHubRepositoryMutationCreateGitHubRepositoryArgs = {
 
 
 export type GitHubRepositoryMutationDeleteGitHubRepositoryArgs = {
+  githubRepositoryId: Scalars['ID']['input'];
+};
+
+
+export type GitHubRepositoryMutationScheduleGitHubRepositoryDeletionArgs = {
   githubRepositoryId: Scalars['ID']['input'];
 };
 
@@ -7091,6 +7150,14 @@ export type PublishUpdateGroupInput = {
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
 };
 
+export type RemoteAppStoreConnectApp = {
+  __typename?: 'RemoteAppStoreConnectApp';
+  appStoreIconUrl?: Maybe<Scalars['String']['output']>;
+  ascAppIdentifier: Scalars['String']['output'];
+  bundleIdentifier: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+};
+
 export enum RequestMethod {
   Delete = 'DELETE',
   Get = 'GET',
@@ -7270,6 +7337,8 @@ export type RootMutation = {
   app?: Maybe<AppMutation>;
   /** Mutations that modify an App Store Connect Api Key */
   appStoreConnectApiKey: AppStoreConnectApiKeyMutation;
+  /** Mutations for App Store Connect apps. */
+  appStoreConnectApp: AppStoreConnectAppMutation;
   /** Mutations that modify an AppVersion */
   appVersion: AppVersionMutation;
   /** Mutations that modify an Identifier for an iOS App */
@@ -7705,6 +7774,7 @@ export type SsoUser = Actor & UserActor & {
   /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
+  isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
@@ -7865,6 +7935,13 @@ export type SentryProjectMutationCreateSentryProjectArgs = {
 
 export type SentryProjectMutationDeleteSentryProjectArgs = {
   sentryProjectId: Scalars['ID']['input'];
+};
+
+export type SizeBreakdownCategory = {
+  __typename?: 'SizeBreakdownCategory';
+  assetCount: Scalars['Int']['output'];
+  category: Scalars['String']['output'];
+  totalBytes: Scalars['Float']['output'];
 };
 
 export type Snack = Project & {
@@ -8674,6 +8751,7 @@ export type UpdateInsights = {
   cumulativeAverageMetrics: CumulativeAverageMetrics;
   cumulativeMetrics: CumulativeMetrics;
   id: Scalars['ID']['output'];
+  sizeBreakdownByCategory: Array<SizeBreakdownCategory>;
   totalUniqueUsers: Scalars['Int']['output'];
 };
 
@@ -8903,6 +8981,7 @@ export type User = Actor & UserActor & {
   /** @deprecated No longer supported */
   isLegacy: Scalars['Boolean']['output'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean']['output'];
+  isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
@@ -9010,6 +9089,7 @@ export type UserActor = {
   /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
+  isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   /** @deprecated No longer supported */
@@ -10587,6 +10667,10 @@ export type WorkflowRunTimeRangeInput = {
 };
 
 export enum WorkflowRunTriggerEventType {
+  AppStoreConnectAppVersionStateChanged = 'APP_STORE_CONNECT_APP_VERSION_STATE_CHANGED',
+  AppStoreConnectBetaFeedbackSubmitted = 'APP_STORE_CONNECT_BETA_FEEDBACK_SUBMITTED',
+  AppStoreConnectBuildUploadStateChanged = 'APP_STORE_CONNECT_BUILD_UPLOAD_STATE_CHANGED',
+  AppStoreConnectExternalBetaStateChanged = 'APP_STORE_CONNECT_EXTERNAL_BETA_STATE_CHANGED',
   EasSubmit = 'EAS_SUBMIT',
   ExpoLaunch = 'EXPO_LAUNCH',
   GithubPullRequestLabeled = 'GITHUB_PULL_REQUEST_LABELED',
@@ -11791,6 +11875,25 @@ export type GoogleServiceAccountKeyByIdQueryVariables = Exact<{
 
 export type GoogleServiceAccountKeyByIdQuery = { __typename?: 'RootQuery', googleServiceAccountKey: { __typename?: 'GoogleServiceAccountKeyQuery', byId: { __typename?: 'GoogleServiceAccountKey', id: string, keyJson: string } } };
 
+export type AppObserveTimeSeriesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  input: AppObserveTimeSeriesInput;
+}>;
+
+
+export type AppObserveTimeSeriesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', timeSeries: { __typename?: 'AppObserveTimeSeries', versionMarkers: Array<{ __typename?: 'AppObserveVersionMarker', appVersion: string, eventCount: number, firstSeenAt: any, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> } } } } };
+
+export type AppObserveEventsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter?: InputMaybe<AppObserveEventsFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveEventsOrderBy>;
+}>;
+
+
+export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string } }> } } } } };
+
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
 }>;
@@ -11970,6 +12073,10 @@ export type EnvironmentVariableFragment = { __typename?: 'EnvironmentVariable', 
 export type EnvironmentVariableWithSecretFragment = { __typename?: 'EnvironmentVariableWithSecret', id: string, name: string, value?: string | null, environments?: Array<any> | null, createdAt: any, updatedAt: any, scope: EnvironmentVariableScope, visibility: EnvironmentVariableVisibility, type: EnvironmentSecretType };
 
 export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } };
+
+export type AppObserveTimeSeriesFragment = { __typename?: 'AppObserveTimeSeries', versionMarkers: Array<{ __typename?: 'AppObserveVersionMarker', appVersion: string, eventCount: number, firstSeenAt: any, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
+
+export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string };
 
 export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: string };
 

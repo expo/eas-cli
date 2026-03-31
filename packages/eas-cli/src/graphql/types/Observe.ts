@@ -1,0 +1,37 @@
+import gql from 'graphql-tag';
+
+export const AppObserveTimeSeriesFragmentNode = gql`
+  fragment AppObserveTimeSeriesFragment on AppObserveTimeSeries {
+    versionMarkers {
+      appVersion
+      eventCount
+      firstSeenAt
+      statistics {
+        min
+        max
+        median
+        average
+        p80
+        p90
+        p99
+      }
+    }
+  }
+`;
+
+export const AppObserveEventFragmentNode = gql`
+  fragment AppObserveEventFragment on AppObserveEvent {
+    id
+    metricName
+    metricValue
+    timestamp
+    appVersion
+    appBuildNumber
+    deviceModel
+    deviceOs
+    deviceOsVersion
+    countryCode
+    sessionId
+    easClientId
+  }
+`;

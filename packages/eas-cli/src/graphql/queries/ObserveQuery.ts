@@ -11,6 +11,8 @@ import {
   AppObserveVersionMarker,
   PageInfo,
 } from '../generated';
+import { print } from 'graphql';
+import { AppObserveTimeSeriesFragmentNode, AppObserveEventFragmentNode } from '../types/Observe';
 
 type AppObserveTimeSeriesQuery = {
   app: {
@@ -76,31 +78,22 @@ export const ObserveQuery = {
       graphqlClient
         .query<AppObserveTimeSeriesQuery, AppObserveTimeSeriesQueryVariables>(
           gql`
-            query AppObserveTimeSeries($appId: String!, $input: AppObserveTimeSeriesInput!) {
+            query AppObserveTimeSeries(
+              $appId: String!
+              $input: AppObserveTimeSeriesInput!
+            ) {
               app {
                 byId(appId: $appId) {
                   id
                   observe {
                     timeSeries(input: $input) {
-                      versionMarkers {
-                        appVersion
-                        eventCount
-                        firstSeenAt
-                        statistics {
-                          min
-                          max
-                          median
-                          average
-                          p80
-                          p90
-                          p99
-                        }
-                      }
+                      ...AppObserveTimeSeriesFragment
                     }
                   }
                 }
               }
             }
+            ${print(AppObserveTimeSeriesFragmentNode)}
           `,
           {
             appId,
@@ -132,7 +125,12 @@ export const ObserveQuery = {
                 byId(appId: $appId) {
                   id
                   observe {
-                    events(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+                    events(
+                      filter: $filter
+                      first: $first
+                      after: $after
+                      orderBy: $orderBy
+                    ) {
                       pageInfo {
                         hasNextPage
                         hasPreviousPage
@@ -142,17 +140,7 @@ export const ObserveQuery = {
                         cursor
                         node {
                           id
-                          metricName
-                          metricValue
-                          timestamp
-                          appVersion
-                          appBuildNumber
-                          deviceModel
-                          deviceOs
-                          deviceOsVersion
-                          countryCode
-                          sessionId
-                          easClientId
+                          ...AppObserveEventFragment
                         }
                       }
                     }
@@ -160,6 +148,7 @@ export const ObserveQuery = {
                 }
               }
             }
+            ${print(AppObserveEventFragmentNode)}
           `,
           variables
         )
