@@ -90,6 +90,9 @@ eas --help COMMAND
 * [`eas channel:rollout [CHANNEL]`](#eas-channelrollout-channel)
 * [`eas channel:view [NAME]`](#eas-channelview-name)
 * [`eas config`](#eas-config)
+* [`eas connections:asc:connect`](#eas-connectionsascconnect)
+* [`eas connections:asc:disconnect`](#eas-connectionsascdisconnect)
+* [`eas connections:asc:status`](#eas-connectionsascstatus)
 * [`eas credentials`](#eas-credentials)
 * [`eas credentials:configure-build`](#eas-credentialsconfigure-build)
 * [`eas deploy [options]`](#eas-deploy-options)
@@ -969,6 +972,65 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/config.ts](https://github.com/expo/eas-cli/blob/v18.6.0/packages/eas-cli/src/commands/config.ts)_
+
+## `eas connections:asc:connect`
+
+connect a project to an App Store Connect app
+
+```
+USAGE
+  $ eas connections:asc:connect [--api-key-id <value>] [--asc-app-id <value>] [--bundle-id <value>] [--json]
+    [--non-interactive]
+
+FLAGS
+  --api-key-id=<value>  Apple App Store Connect API Key ID
+  --asc-app-id=<value>  App Store Connect app identifier
+  --bundle-id=<value>   Filter discovered apps by bundle identifier
+  --json                Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive     Run the command in non-interactive mode.
+
+DESCRIPTION
+  connect a project to an App Store Connect app
+```
+
+_See code: [packages/eas-cli/src/commands/connections/asc/connect.ts](https://github.com/expo/eas-cli/blob/v18.4.0/packages/eas-cli/src/commands/connections/asc/connect.ts)_
+
+## `eas connections:asc:disconnect`
+
+disconnect the current project from its App Store Connect app
+
+```
+USAGE
+  $ eas connections:asc:disconnect [--yes] [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive  Run the command in non-interactive mode.
+  --yes              Skip confirmation prompt
+
+DESCRIPTION
+  disconnect the current project from its App Store Connect app
+```
+
+_See code: [packages/eas-cli/src/commands/connections/asc/disconnect.ts](https://github.com/expo/eas-cli/blob/v18.4.0/packages/eas-cli/src/commands/connections/asc/disconnect.ts)_
+
+## `eas connections:asc:status`
+
+show the App Store Connect app link status for the current project
+
+```
+USAGE
+  $ eas connections:asc:status [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show the App Store Connect app link status for the current project
+```
+
+_See code: [packages/eas-cli/src/commands/connections/asc/status.ts](https://github.com/expo/eas-cli/blob/v18.4.0/packages/eas-cli/src/commands/connections/asc/status.ts)_
 
 ## `eas credentials`
 
