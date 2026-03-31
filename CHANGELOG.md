@@ -40,6 +40,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Add `--non-interactive` flag to `metadata:push` and `metadata:pull` commands with ASC API Key auth support. ([#3548](https://github.com/expo/eas-cli/pull/3548) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Add `observe:metrics`, `observe:events`, and `observe:versions` commands. ([#3401](https://github.com/expo/eas-cli/pull/3401) by [@ubax](https://github.com/ubax)), [@douglowder](https://github.com/douglowder)
+- [eas-cli] Add `eas connections:asc` commands to manage App Store Connect connections for EAS projects. ([#3558](https://github.com/expo/eas-cli/pull/3558) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
