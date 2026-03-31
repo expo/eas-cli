@@ -17,7 +17,6 @@ import { injectAndroidCredentialsFunction } from './functions/injectAndroidCrede
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
-import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
 import { createPrebuildBuildFunction } from './functions/prebuild';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
 import { createRepackBuildFunction } from './functions/repack';
@@ -80,8 +79,6 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
 
     createSubmissionEntityFunction(),
     createUploadToAscBuildFunction(),
-
-    createInternalEasMaestroTestFunction(ctx),
 
     createReportMaestroTestResultsFunction(ctx),
   ];

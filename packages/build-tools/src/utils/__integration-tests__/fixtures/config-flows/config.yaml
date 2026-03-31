@@ -1,3 +1,0 @@
-flows:
-  - 'features/**/*.yaml'
-  - 'specs/*.spec.yaml'
