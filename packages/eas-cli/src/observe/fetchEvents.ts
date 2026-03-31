@@ -10,26 +10,31 @@ import {
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 
-export type EventsOrderPreset = 'slowest' | 'fastest' | 'newest' | 'oldest';
+export enum EventsOrderPreset {
+  Slowest = 'SLOWEST',
+  Fastest = 'FASTEST',
+  Newest = 'NEWEST',
+  Oldest = 'OLDEST',
+}
 
 export function resolveOrderBy(preset: EventsOrderPreset): AppObserveEventsOrderBy {
   switch (preset) {
-    case 'slowest':
+    case EventsOrderPreset.Slowest:
       return {
         field: AppObserveEventsOrderByField.MetricValue,
         direction: AppObserveEventsOrderByDirection.Desc,
       };
-    case 'fastest':
+    case EventsOrderPreset.Fastest:
       return {
         field: AppObserveEventsOrderByField.MetricValue,
         direction: AppObserveEventsOrderByDirection.Asc,
       };
-    case 'newest':
+    case EventsOrderPreset.Newest:
       return {
         field: AppObserveEventsOrderByField.Timestamp,
         direction: AppObserveEventsOrderByDirection.Desc,
       };
-    case 'oldest':
+    case EventsOrderPreset.Oldest:
       return {
         field: AppObserveEventsOrderByField.Timestamp,
         direction: AppObserveEventsOrderByDirection.Asc,

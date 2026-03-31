@@ -120,22 +120,19 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--stat', 'p90', '--stat', 'count']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['p90', 'eventCount']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'p90',
+      'eventCount',
+    ]);
   });
 
   it('deduplicates --stat flags that resolve to the same key', async () => {
     const command = createCommand(['--stat', 'med', '--stat', 'median']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['median']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'median',
+    ]);
   });
 
   it('uses --days-from-now to compute start/end time range', async () => {
@@ -169,11 +166,10 @@ describe(ObserveMetrics, () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['median', 'eventCount']
-    );
+    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'median',
+      'eventCount',
+    ]);
   });
 
   it('passes resolved --stat flags to buildObserveMetricsJson when --json is used', async () => {
@@ -188,11 +184,10 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(
-      expect.any(Map),
-      expect.any(Array),
-      ['min', 'average']
-    );
+    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
+      'min',
+      'average',
+    ]);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 });

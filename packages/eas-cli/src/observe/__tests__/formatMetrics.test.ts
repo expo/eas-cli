@@ -106,7 +106,11 @@ describe(buildObserveMetricsJson, () => {
       ])
     );
 
-    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], DEFAULT_STATS_JSON);
+    const result = buildObserveMetricsJson(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      DEFAULT_STATS_JSON
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -228,10 +232,11 @@ describe('custom stats parameter', () => {
       ])
     );
 
-    const output = buildObserveMetricsTable(metricsMap, ['expo.app_startup.tti'], [
-      'p99',
-      'eventCount',
-    ]);
+    const output = buildObserveMetricsTable(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      ['p99', 'eventCount']
+    );
 
     expect(output).toContain('TTI P99');
     expect(output).toContain('TTI Count');
@@ -293,10 +298,11 @@ describe('custom stats parameter', () => {
       ])
     );
 
-    const result = buildObserveMetricsJson(metricsMap, ['expo.app_startup.tti'], [
-      'p90',
-      'eventCount',
-    ]);
+    const result = buildObserveMetricsJson(
+      metricsMap,
+      ['expo.app_startup.tti'],
+      ['p90', 'eventCount']
+    );
 
     expect(result[0].metrics['expo.app_startup.tti']).toEqual({
       p90: 0.4,

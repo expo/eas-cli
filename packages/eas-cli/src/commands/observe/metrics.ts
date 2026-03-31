@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { AppPlatform } from '../../graphql/generated';
+import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../observe/fetchMetrics';
 import {
@@ -40,10 +40,10 @@ export default class ObserveMetrics extends EasCommand {
   static override description = 'display app performance metrics grouped by app version';
 
   static override flags = {
-    platform: Flags.enum<'android' | 'ios'>({
+    platform: Flags.option({
       description: 'Filter by platform',
-      options: ['android', 'ios'],
-    }),
+      options: Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+    })(),
     metric: Flags.string({
       description:
         'Metric name to display (can be specified multiple times). Supports aliases: tti, ttr, cold_launch, warm_launch, bundle_load',

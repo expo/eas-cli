@@ -6,7 +6,7 @@ import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObservePlatform } from '../../graphql/generated';
 import Log from '../../log';
 import {
-  type EventsOrderPreset,
+  EventsOrderPreset,
   fetchObserveEventsAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
@@ -27,20 +27,24 @@ export default class ObserveEvents extends EasCommand {
         'Metric to query (full name or alias: tti, ttr, cold_launch, warm_launch, bundle_load)',
       required: true,
     }),
-    sort: Flags.enum<EventsOrderPreset>({
+    sort: Flags.option({
       description: 'Sort order for events',
-      options: ['slowest', 'fastest', 'newest', 'oldest'],
-      default: 'slowest',
-    }),
-    platform: Flags.enum<'android' | 'ios'>({
+      options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
+      required: false,
+      default: EventsOrderPreset.Oldest.valueOf().toLowerCase(),
+    })(),
+    platform: Flags.option({
       description: 'Filter by platform',
-      options: ['android', 'ios'],
-    }),
+      options: Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+    })(),
     after: Flags.string({
       description:
         'Cursor for pagination. Use the endCursor from a previous query to fetch the next page.',
     }),
-    limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_EVENTS_LIMIT, limit: 100 }),
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: DEFAULT_EVENTS_LIMIT,
+      limit: 100,
+    }),
     start: Flags.string({
       description: 'Start of time range (ISO date)',
       exclusive: ['days-from-now'],
@@ -91,7 +95,7 @@ export default class ObserveEvents extends EasCommand {
     }
 
     const metricName = resolveMetricName(flags.metric);
-    const orderBy = resolveOrderBy(flags.sort);
+    const orderBy = resolveOrderBy(flags.sort as EventsOrderPreset);
 
     let startTime: string;
     let endTime: string;
