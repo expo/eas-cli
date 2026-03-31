@@ -376,12 +376,18 @@ export default class GitClient extends Client {
       return wouldNotBeCopiedToClone && (!isTracked || wouldBeDeletedFromClone);
     }
 
-    if (isTracked) {
-      return false; // Tracked files aren't ignored even if they match ignore patterns
+    if (isTracked && this.requireCommit) {
+      // With requireCommit=true we rely on a Git checkout, so tracked files are included
+      // even if they match ignore patterns.
+      return false;
     }
 
     try {
-      await spawnAsync('git', ['check-ignore', '-q', filePath], { cwd: rootPath });
+      await spawnAsync(
+        'git',
+        ['check-ignore', '-q', ...(this.requireCommit ? [] : ['--no-index']), filePath],
+        { cwd: rootPath }
+      );
       return true;
     } catch {
       return false;
