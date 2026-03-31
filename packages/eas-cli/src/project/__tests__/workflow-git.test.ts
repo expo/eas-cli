@@ -11,7 +11,9 @@ describe('resolveWorkflowAsync with GitClient', () => {
   let repoRoot: string;
 
   beforeEach(async () => {
-    repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-workflow-test-'));
+    repoRoot = await fs.realpath(
+      await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-workflow-test-'))
+    );
     await spawnAsync('git', ['init'], { cwd: repoRoot });
     await spawnAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: repoRoot });
     await spawnAsync('git', ['config', 'user.name', 'Test User'], { cwd: repoRoot });
@@ -31,7 +33,8 @@ describe('resolveWorkflowAsync with GitClient', () => {
     await fs.writeFile(path.join(repoRoot, 'ios', 'app.xcodeproj', 'project.pbxproj'), 'fake');
     await fs.writeFile(path.join(repoRoot, '.gitignore'), 'ios/\n');
 
-    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+    await spawnAsync('git', ['add', '.gitignore'], { cwd: repoRoot });
+    await spawnAsync('git', ['add', '-f', 'ios/app.xcodeproj/project.pbxproj'], { cwd: repoRoot });
     await spawnAsync('git', ['commit', '-m', 'test setup'], { cwd: repoRoot });
 
     await expect(resolveWorkflowAsync(repoRoot, Platform.IOS, vcsClient)).resolves.toBe(
@@ -49,7 +52,8 @@ describe('resolveWorkflowAsync with GitClient', () => {
     await fs.writeFile(path.join(repoRoot, 'ios', 'app.xcodeproj', 'project.pbxproj'), 'fake');
     await fs.writeFile(path.join(repoRoot, '.gitignore'), 'ios/\n');
 
-    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+    await spawnAsync('git', ['add', '.gitignore'], { cwd: repoRoot });
+    await spawnAsync('git', ['add', '-f', 'ios/app.xcodeproj/project.pbxproj'], { cwd: repoRoot });
     await spawnAsync('git', ['commit', '-m', 'test setup'], { cwd: repoRoot });
 
     await expect(resolveWorkflowAsync(repoRoot, Platform.IOS, vcsClient)).resolves.toBe(
