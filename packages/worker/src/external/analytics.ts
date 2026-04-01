@@ -41,7 +41,7 @@ export async function logProjectDependenciesAsync(
       (packageJSON?.devDependencies as Record<string, string> | undefined) ?? {};
     const projectDirectory = ctx.getReactNativeProjectDirectory();
     const plugins = filterSecretsAndParsePlugins(
-      ctx.appConfig.plugins,
+      (await ctx.appConfig).plugins,
       ctx.job.secrets?.environmentSecrets
     );
 
@@ -71,17 +71,18 @@ export async function logProjectDependenciesAsync(
         cwd: projectDirectory,
         env: ctx.env,
       }),
-      jsEngine: resolveJsEngine(ctx, dependencies),
+      jsEngine: await resolveJsEngine(ctx, dependencies),
       newArchEnabled: await resolveNewArchEnabled(ctx, dependencies['react-native']),
       source: 'Turtle Worker',
       plugins,
       babelPlugins,
-      iosAssociatedDomains: ctx.appConfig.ios?.associatedDomains,
-      // @ts-expect-error - ApiObject is not exactly the same as AndroidIntentFiltersData though they're compatible
-      androidIntentFilters: ctx.appConfig.android?.intentFilters,
+      iosAssociatedDomains: (await ctx.appConfig).ios?.associatedDomains,
+      // NOTE: ApiObject is not exactly the same as AndroidIntentFiltersData though they're compatible
+      androidIntentFilters: (await ctx.appConfig).android?.intentFilters as any,
     });
   } catch (error: any) {
     sentry.handleError('Failed to report project dependencies metrics', error, {
+      level: 'warning',
       tags: {
         errorCode: 'FAILED_TO_REPORT_PROJECT_DEPENDENCIES_EVENT',
       },
@@ -89,11 +90,12 @@ export async function logProjectDependenciesAsync(
   }
 }
 
-function resolveJsEngine(
+async function resolveJsEngine(
   ctx: BuildContext<BuildJob>,
   dependencies: Record<string, string>
-): 'jsc' | 'hermes' | 'v8' | undefined {
-  const { job, appConfig } = ctx;
+): Promise<'jsc' | 'hermes' | 'v8' | undefined> {
+  const { job } = ctx;
+  const appConfig = await ctx.appConfig;
   const appConfigJsEngine = appConfig?.[job.platform]?.jsEngine ?? appConfig.jsEngine;
   if (job.type === Workflow.GENERIC || !ctx.metadata?.sdkVersion) {
     return undefined;
@@ -120,7 +122,8 @@ async function resolveNewArchEnabled(
   ctx: BuildContext<BuildJob>,
   reactNativeVersion: string | undefined
 ): Promise<boolean | undefined> {
-  const { job, appConfig } = ctx;
+  const { job } = ctx;
+  const appConfig = await ctx.appConfig;
 
   // Support for disabling the new architecture was removed in react-native 0.83
   if (
@@ -131,10 +134,15 @@ async function resolveNewArchEnabled(
   }
 
   if (
-    appConfig?.[job.platform]?.newArchEnabled !== undefined ||
-    appConfig.newArchEnabled !== undefined
+    (appConfig?.[job.platform] as unknown as Record<string, unknown>)?.newArchEnabled !==
+      undefined ||
+    (appConfig as unknown as Record<string, unknown>).newArchEnabled !== undefined
   ) {
-    return appConfig?.[job.platform]?.newArchEnabled ?? appConfig.newArchEnabled;
+    return (
+      ((appConfig?.[job.platform] as unknown as Record<string, unknown>)
+        ?.newArchEnabled as boolean) ??
+      ((appConfig as unknown as Record<string, unknown>).newArchEnabled as boolean)
+    );
   }
 
   if (job.type === Workflow.GENERIC) {
@@ -218,7 +226,10 @@ async function getPackageManagerVersion(
   }
 ): Promise<string | undefined> {
   try {
-    const { stdout } = await spawnAsync(packageManager, ['--version'], { cwd, env });
+    const { stdout } = await spawnAsync(packageManager, ['--version'], {
+      cwd,
+      env,
+    });
     return stdout.toString().trim();
   } catch {
     // Some package managers can fail version checks in project dirs with mismatched packageManager fields.

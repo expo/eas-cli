@@ -1,7 +1,6 @@
 import path from 'path';
 
 import { createGlobalContextMock } from './utils/context';
-import { UUID_REGEX } from './utils/uuid';
 import { BuildConfigParser } from '../BuildConfigParser';
 import { BuildFunction } from '../BuildFunction';
 import { BuildStep } from '../BuildStep';
@@ -65,15 +64,7 @@ describe('Publish Update job', () => {
 });
 
 function assertStepsAreMatching(step1: BuildStep, step2: BuildStep): void {
-  expect(step1.id).toMatch(UUID_REGEX);
-  expect(step2.id).toMatch(UUID_REGEX);
-  expect(step1.name).toEqual(step2.name);
-  if (step1.command) {
-    expect(step1.displayName).toEqual(step2.displayName);
-  } else {
-    expect(step1.displayName).toMatch(UUID_REGEX);
-    expect(step2.displayName).toMatch(UUID_REGEX);
-  }
+  expect(step1.displayName).toEqual(step2.displayName);
   expect(step1.inputs).toStrictEqual(step2.inputs);
   expect(step1.outputById).toStrictEqual(step2.outputById);
   expect(step1.command?.trim()).toEqual(step2.command?.trim());

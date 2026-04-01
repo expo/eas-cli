@@ -18,27 +18,27 @@ describe(BuildWorkflowValidator, () => {
       buildSteps: [
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 123' }),
+          displayName: 'echo 123',
           command: 'echo 123',
         }),
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 456' }),
+          displayName: 'echo 456',
           command: 'echo 456',
         }),
         new BuildStep(ctx, {
           id: 'test1',
-          displayName: BuildStep.getDisplayName({ id: 'test1', command: 'echo 789' }),
+          displayName: 'echo 789',
           command: 'echo 789',
         }),
         new BuildStep(ctx, {
           id: 'test3',
-          displayName: BuildStep.getDisplayName({ id: 'test3', command: 'echo 123' }),
+          displayName: 'echo 123',
           command: 'echo 123',
         }),
         new BuildStep(ctx, {
           id: 'test3',
-          displayName: BuildStep.getDisplayName({ id: 'test3', command: 'echo 456' }),
+          displayName: 'echo 456',
           command: 'echo 456',
         }),
       ],
@@ -60,7 +60,7 @@ describe(BuildWorkflowValidator, () => {
 
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = id1;
 
     const workflow = new BuildWorkflow(ctx, {
       buildSteps: [
@@ -227,11 +227,11 @@ describe(BuildWorkflowValidator, () => {
 
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = id1;
 
     const id2 = 'test2';
     const command2 = 'set-output output1 123';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = id2;
 
     const workflow = new BuildWorkflow(ctx, {
       buildSteps: [
@@ -280,7 +280,7 @@ describe(BuildWorkflowValidator, () => {
   test('output from non-existent step', async () => {
     const id = 'test2';
     const command = 'echo ${ inputs.input1 }';
-    const displayName = BuildStep.getDisplayName({ id, command });
+    const displayName = id;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -318,15 +318,15 @@ describe(BuildWorkflowValidator, () => {
   test('undefined output', async () => {
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = id1;
 
     const id2 = 'test2';
     const command2 = 'echo ${ inputs.input1 }';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = id2;
 
     const id3 = 'test3';
     const command3 = 'echo ${ inputs.input1 }';
-    const displayName3 = BuildStep.getDisplayName({ id: id3, command: command3 });
+    const displayName3 = id3;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -390,15 +390,15 @@ describe(BuildWorkflowValidator, () => {
   test('multiple config errors', async () => {
     const id1 = 'test1';
     const command1 = 'set-output output1 123';
-    const displayName1 = BuildStep.getDisplayName({ id: id1, command: command1 });
+    const displayName1 = id1;
 
     const id2 = 'test2';
     const command2 = 'echo ${ inputs.input1 }';
-    const displayName2 = BuildStep.getDisplayName({ id: id2, command: command2 });
+    const displayName2 = id2;
 
     const id3 = 'test3';
     const command3 = 'echo ${ inputs.input1 }';
-    const displayName3 = BuildStep.getDisplayName({ id: id3, command: command3 });
+    const displayName3 = id3;
 
     const ctx = createGlobalContextMock();
     const workflow = new BuildWorkflow(ctx, {
@@ -465,7 +465,7 @@ describe(BuildWorkflowValidator, () => {
   });
   test('unallowed platform for build step', async () => {
     const id = 'test';
-    const displayName = BuildStep.getDisplayName({ id });
+    const displayName = id;
     const fn: BuildStepFunction = () => {};
 
     const ctx = createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX });

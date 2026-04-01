@@ -10,8 +10,13 @@ import {
 import fs from 'fs';
 import nullthrows from 'nullthrows';
 
+import os from 'os';
+import path from 'path';
+
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
+import { formatBytes } from '../../utils/artifacts';
 import { generateDefaultBuildCacheKeyAsync, getCcachePath } from '../../utils/cacheKey';
+import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 
 export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFunction {
   return new BuildFunction({
@@ -46,6 +51,15 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
         env,
         secrets: stepCtx.global.staticContext.job.secrets,
       });
+
+      if (platform === Platform.ANDROID) {
+        await saveGradleCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
+      }
     },
   });
 }
@@ -133,5 +147,68 @@ export async function saveCcacheAsync({
     });
   } catch (err) {
     logger.error({ err }, 'Failed to save cache');
+  }
+}
+
+export async function saveGradleCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EXPERIMENTAL_EAS_GRADLE_CACHE !== '1') {
+    return;
+  }
+
+  const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
+  const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+
+  try {
+    await fs.promises.access(buildCachePath);
+  } catch {
+    logger.warn('No Gradle build cache found, skipping save');
+    return;
+  }
+
+  try {
+    const cacheKey = await generateGradleCacheKeyAsync(workingDirectory);
+    logger.info(`Saving Gradle cache key: ${cacheKey}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+
+    logger.info('Compressing Gradle build cache...');
+    const { archivePath } = await compressCacheAsync({
+      paths: [buildCachePath],
+      workingDirectory: gradleCachesPath,
+      verbose: env.EXPO_DEBUG === '1',
+      logger,
+    });
+
+    const { size } = await fs.promises.stat(archivePath);
+    logger.info(`Gradle cache archive size: ${formatBytes(size)}`);
+
+    await uploadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      archivePath,
+      key: cacheKey,
+      paths: [buildCachePath],
+      size,
+      platform: Platform.ANDROID,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to save Gradle cache');
   }
 }

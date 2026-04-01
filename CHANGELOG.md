@@ -8,11 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add `--non-interactive` flag to `metadata:push` and `metadata:pull` commands with ASC API Key auth support. ([#3548](https://github.com/expo/eas-cli/pull/3548) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix workflow:logs for builds using built-in EAS build steps. ([#3523](https://github.com/expo/eas-cli/pull/3523) by [@douglowder](https://github.com/douglowder))
+- [build-tools][worker] Read Expo app config with `expo config` CLI invocation before falling back to `@expo/config` ([#3536](https://github.com/expo/eas-cli/pull/3536) by [@kitten](https://github.com/kitten))
+- Fix `hasIgnoredIosProjectAsync()` always returning `false` for ignored iOS projects. ([#3562](https://github.com/expo/eas-cli/pull/3562) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🧹 Chores
+
+- Bump apple-utils. ([#3545](https://github.com/expo/eas-cli/pull/3545) by [@quinlanj](https://github.com/quinlanj))
+- [eas-cli][build-tools][worker] Bump `@expo/config` and `@expo/config-plugins`. ([#3527](https://github.com/expo/eas-cli/pull/3527) by [@quinlanj](https://github.com/quinlanj))
 
 ## [18.4.0](https://github.com/expo/eas-cli/releases/tag/v18.4.0) - 2026-03-16
 

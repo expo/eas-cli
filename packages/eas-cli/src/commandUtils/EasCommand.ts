@@ -27,7 +27,9 @@ import {
   createAnalyticsAsync,
 } from '../analytics/AnalyticsManager';
 import Log, { link } from '../log';
+import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
+import { getActorDisplayName } from '../user/User';
 import { Client } from '../vcs/vcs';
 
 export type ContextInput<
@@ -169,7 +171,6 @@ export default abstract class EasCommand extends Command {
    * It is set up here to ensure a consistent setup.
    */
   private analyticsInternal?: AnalyticsWithOrchestration;
-
   /**
    * Execute the context in the contextDefinition to satisfy command prerequisites.
    */
@@ -230,7 +231,13 @@ export default abstract class EasCommand extends Command {
 
     // this is needed for logEvent call below as it identifies the user in the analytics system
     // if possible
-    await this.sessionManager.getUserAsync();
+    const actor = await this.sessionManager.getUserAsync();
+    if (actor) {
+      Sentry.setUser({
+        id: actor.id,
+        username: getActorDisplayName(actor),
+      });
+    }
 
     this.analytics.logEvent(CommandEvent.ACTION, {
       // id is assigned by oclif in constructor based on the filepath:
@@ -244,11 +251,13 @@ export default abstract class EasCommand extends Command {
   // eslint-disable-next-line async-protect/async-suffix
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
+    await Sentry.flush(2000);
     return await super.finally(err);
   }
 
   protected override catch(err: Error): Promise<any> {
-    let baseMessage = `${this.id} command failed.`;
+    const commandId = this.id ?? 'unknown';
+    let baseMessage = `${commandId} command failed.`;
     if (err instanceof EasCommandError) {
       Log.error(err.message);
     } else if (err instanceof CombinedError && err?.graphQLErrors) {
@@ -293,6 +302,17 @@ export default abstract class EasCommand extends Command {
       Log.error(err.message);
     }
     Log.debug(err);
+    Sentry.withScope(scope => {
+      scope.setTag('command', commandId);
+      scope.setTag('error_name', err.name);
+      scope.setExtra('commandId', commandId);
+      scope.setExtra('commandMessage', baseMessage);
+      scope.setExtra('originalMessage', err.message);
+      if (err instanceof CombinedError) {
+        scope.setExtra('graphQLErrorCount', err.graphQLErrors.length);
+      }
+      Sentry.captureException(err);
+    });
     const sanitizedError = new Error(baseMessage);
     sanitizedError.stack = err.stack;
     throw sanitizedError;

@@ -21,9 +21,9 @@
     "watch": "tsc --watch --preserveWatchOutput",
     "build": "tsc",
     "typecheck": "tsc",
-    "prepack": "rm -rf dist *.tsbuildinfo && tsc -p tsconfig.build.json",
+    "prepack": "rimraf dist \"*.tsbuildinfo\" && tsc -p tsconfig.build.json",
     "test": "jest --passWithNoTests",
-    "clean": "rm -rf node_modules dist coverage *.tsbuildinfo"
+    "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\""
   },
   "dependencies": {
     "@expo/build-tools": "18.4.0",
@@ -50,6 +50,7 @@
     "@types/semver": "^7.5.8",
     "@types/uuid": "^9.0.7",
     "jest": "^29.7.0",
+    "rimraf": "3.0.2",
     "ts-jest": "^29.1.4",
     "typescript": "^5.5.4"
   },

@@ -3,7 +3,6 @@ import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
@@ -56,10 +55,6 @@ export type BuildStepFunction = (
     signal?: AbortSignal;
   }
 ) => unknown;
-
-// TODO: move to a place common with tests
-const UUID_REGEX =
-  /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/;
 
 export interface SerializedBuildStepOutputAccessor {
   id: string;
@@ -126,8 +121,8 @@ export class BuildStepOutputAccessor {
 }
 
 export class BuildStep extends BuildStepOutputAccessor {
+  private static nextGeneratedId = 1;
   public readonly id: string;
-  public readonly name?: string;
   public readonly displayName: string;
   public readonly supportedRuntimePlatforms?: BuildRuntimePlatform[];
   public readonly inputs?: BuildStepInput[];
@@ -144,46 +139,17 @@ export class BuildStep extends BuildStepOutputAccessor {
   private readonly outputsDir: string;
   private readonly envsDir: string;
 
-  private readonly internalId: string;
   private readonly inputById: BuildStepInputById;
   protected executed = false;
 
   public static getNewId(userDefinedId?: string): string {
-    return userDefinedId ?? uuidv4();
-  }
-
-  public static getDisplayName({
-    id,
-    name,
-    command,
-  }: {
-    id: string;
-    name?: string;
-    command?: string;
-  }): string {
-    if (name) {
-      return name;
-    }
-    if (!id.match(UUID_REGEX)) {
-      return id;
-    }
-    if (command) {
-      const splits = command.trim().split('\n');
-      for (const split of splits) {
-        const trimmed = split.trim();
-        if (trimmed && !trimmed.startsWith('#')) {
-          return trimmed;
-        }
-      }
-    }
-    return id;
+    return userDefinedId ?? `step-${String(BuildStep.nextGeneratedId++).padStart(3, '0')}`;
   }
 
   constructor(
     ctx: BuildStepGlobalContext,
     {
       id,
-      name,
       displayName,
       inputs,
       outputs,
@@ -198,7 +164,6 @@ export class BuildStep extends BuildStepOutputAccessor {
       __metricsId,
     }: {
       id: string;
-      name?: string;
       displayName: string;
       inputs?: BuildStepInput[];
       outputs?: BuildStepOutput[];
@@ -219,7 +184,6 @@ export class BuildStep extends BuildStepOutputAccessor {
     super(id, displayName, false, outputById);
 
     this.id = id;
-    this.name = name;
     this.displayName = displayName;
     this.supportedRuntimePlatforms = maybeSupportedRuntimePlatforms;
     this.inputs = inputs;
@@ -233,10 +197,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.__metricsId = __metricsId;
     this.status = BuildStepStatus.NEW;
 
-    this.internalId = uuidv4();
-
     const logger = ctx.baseLogger.child({
-      buildStepInternalId: this.internalId,
       buildStepId: this.id,
       buildStepDisplayName: this.displayName,
     });
