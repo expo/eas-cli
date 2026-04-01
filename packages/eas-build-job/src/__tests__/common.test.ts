@@ -43,10 +43,8 @@ describe('StaticWorkflowInterpolationContextZ', () => {
         name: 'account-name',
       },
       app_store_connect: {
-        event: {
-          app: {
-            id: '1234567890',
-          },
+        app: {
+          id: '1234567890',
         },
       },
     };

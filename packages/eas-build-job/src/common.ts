@@ -261,10 +261,8 @@ export const StaticWorkflowInterpolationContextZ = z.object({
   }),
   app_store_connect: z
     .looseObject({
-      event: z.looseObject({
-        app: z.looseObject({
-          id: z.string(),
-        }),
+      app: z.looseObject({
+        id: z.string(),
       }),
     })
     .optional(),
