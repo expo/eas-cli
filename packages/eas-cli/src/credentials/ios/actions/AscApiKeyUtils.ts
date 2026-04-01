@@ -24,6 +24,7 @@ import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
+  ASC_APP_CONNECTION = 'EAS Connect',
 }
 
 export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {

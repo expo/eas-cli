@@ -43,7 +43,7 @@ export async function selectOrCreateAscApiKeyIdAsync({
     ownerAccount,
     await provideOrGenerateAscApiKeyAsync(
       credentialsContext,
-      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+      AppStoreApiKeyPurpose.ASC_APP_CONNECTION
     )
   );
   return newKey.id;
