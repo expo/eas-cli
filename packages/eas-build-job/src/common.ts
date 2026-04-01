@@ -266,7 +266,7 @@ export const StaticWorkflowInterpolationContextZ = z.object({
       }),
       build_upload: z
         .looseObject({
-          id: z.string(),
+          id: z.uuid(),
           state: z.enum(['awaiting_uload', 'processing', 'failed', 'complete']),
         })
         .optional(),
