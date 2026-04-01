@@ -1,4 +1,3 @@
-import { PRECOMPILED_MODULES_PATH } from '@expo/build-tools';
 import { Platform, Workflow } from '@expo/eas-build-job';
 
 import config from '../config';
@@ -35,7 +34,7 @@ describe(getBuildEnv.name, () => {
     expect(env.EAS_CLI_SENTRY_DSN).toBe(config.sentry.dsn);
   });
 
-  it('enables precompiled modules env vars for flagged iOS jobs', () => {
+  it('passes through EXPO_USE_PRECOMPILED_MODULES for flagged iOS jobs', () => {
     const env = getBuildEnv({
       job: {
         platform: Platform.IOS,
@@ -56,6 +55,6 @@ describe(getBuildEnv.name, () => {
     });
 
     expect(env.EXPO_USE_PRECOMPILED_MODULES).toBe('1');
-    expect(env.EXPO_PRECOMPILED_MODULES_PATH).toBe(PRECOMPILED_MODULES_PATH);
+    expect(env.EXPO_PRECOMPILED_MODULES_PATH).toBeUndefined();
   });
 });

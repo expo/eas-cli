@@ -1,4 +1,3 @@
-import { PRECOMPILED_MODULES_PATH, shouldUsePrecompiledDependencies } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -54,9 +53,8 @@ export function getBuildEnv({
   if (runnerPlatform === Platform.IOS) {
     setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
-    if (shouldUsePrecompiledDependencies(job.builderEnvironment?.env ?? {})) {
+    if (job.builderEnvironment?.env?.EAS_USE_PRECOMPILED_MODULES === '1') {
       setEnv(env, 'EXPO_USE_PRECOMPILED_MODULES', '1');
-      setEnv(env, 'EXPO_PRECOMPILED_MODULES_PATH', PRECOMPILED_MODULES_PATH);
     }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {

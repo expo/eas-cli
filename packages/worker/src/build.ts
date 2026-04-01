@@ -1,10 +1,4 @@
-import {
-  Artifacts,
-  BuildContext,
-  Builders,
-  maybeStartPreparingPrecompiledModules,
-  runGenericJobAsync,
-} from '@expo/build-tools';
+import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -47,7 +41,6 @@ export async function build({
           { job: omit(ctx.job, 'secrets', 'projectArchive') },
           'Builder is ready, starting build'
         );
-        maybeStartPreparingPrecompiledModules(ctx, config);
       },
       { doNotMarkStart: true }
     );
