@@ -48,7 +48,7 @@ describe('StaticWorkflowInterpolationContextZ', () => {
         },
         build_upload: {
           id: 'build-upload-id',
-          state: 'PROCESSING',
+          state: 'processing',
         },
       },
     };
@@ -108,7 +108,7 @@ describe('StaticWorkflowInterpolationContextZ', () => {
         },
         build_upload: {
           id: 'build-upload-id',
-          state: 123,
+          state: 'invalid-state',
         },
       },
     };
