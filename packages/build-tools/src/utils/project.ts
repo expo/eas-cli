@@ -40,7 +40,7 @@ export async function isUsingModernYarnVersion(projectDir: string): Promise<bool
 
   // The yarn.lock file is for Yarn Classic, not Modern, if it contains "# yarn lockfile v1"
   const startOfLockfile = await readFirstChars(yarnlockPath, 100);
-  return /yarn lockfile v1/i.test(startOfLockfile);
+  return !/yarn lockfile v1/i.test(startOfLockfile);
 }
 
 export function runExpoCliCommand({
