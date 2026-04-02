@@ -1,5 +1,5 @@
 import downloadFile from '@expo/downloader';
-import { mkdirp, mkdtemp, move, remove } from 'fs-extra';
+import { mkdirp, mkdtemp, moveSync, remove, removeSync } from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 
 import {
@@ -33,7 +33,8 @@ describe('precompiledModules', () => {
   beforeEach(() => {
     jest.mocked(remove).mockImplementation(async () => undefined as any);
     jest.mocked(mkdirp).mockImplementation(async () => undefined as any);
-    jest.mocked(move).mockImplementation(async () => undefined as any);
+    jest.mocked(removeSync).mockImplementation(() => undefined as any);
+    jest.mocked(moveSync).mockImplementation(() => undefined as any);
     getMkdtempPath.mockReset();
     getMkdtempPath
       .mockReturnValueOnce('/tmp/precompiled-modules-archive')
@@ -128,7 +129,10 @@ describe('precompiledModules', () => {
     );
     expect(extract).toHaveBeenNthCalledWith(1, null, '/tmp/precompiled-modules-staging');
     expect(extract).toHaveBeenNthCalledWith(2, null, '/tmp/precompiled-modules-staging');
-    expect(move).toHaveBeenCalledWith('/tmp/precompiled-modules-staging', PRECOMPILED_MODULES_PATH);
+    expect(moveSync).toHaveBeenCalledWith(
+      '/tmp/precompiled-modules-staging',
+      PRECOMPILED_MODULES_PATH
+    );
   });
 
   it('leaves the destination empty when preparation fails', async () => {
@@ -146,13 +150,13 @@ describe('precompiledModules', () => {
       { error: expect.any(Error) },
       'Failed to prepare precompiled dependencies'
     );
-    expect(move).not.toHaveBeenCalled();
+    expect(moveSync).not.toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith('/tmp/precompiled-modules-staging');
     expect(remove).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
     expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
   });
 
-  it('logs and clears background failures even if nobody waits for preparation', async () => {
+  it('logs background failures even if nobody waits for preparation', async () => {
     jest.mocked(downloadFile).mockRejectedValue(new Error('download failed'));
     const ctx = createCtx();
 
@@ -168,22 +172,52 @@ describe('precompiledModules', () => {
     await expect(waitForPrecompiledModulesPreparationAsync()).rejects.toThrow('download failed');
   });
 
-  it('throws when precompiled dependencies are still not ready after 30 seconds', async () => {
+  it('throws when precompiled dependencies are still not ready after 15 seconds', async () => {
     jest.useFakeTimers();
-    jest.mocked(downloadFile).mockImplementation(() => new Promise<void>(() => {}) as any);
+    jest.mocked(downloadFile).mockImplementation(() => new Promise<void>(() => undefined) as any);
+    const ctx = createCtx();
 
-    startPreparingPrecompiledDependencies(createCtx(), [
-      'https://example.com/xcframeworks-Debug.zip',
-    ]);
+    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
 
     const waitPromise = waitForPrecompiledModulesPreparationAsync();
     const waitExpectation = expect(waitPromise).rejects.toThrow(
-      'Timed out waiting for precompiled dependencies after 30 seconds'
+      'Timed out waiting for precompiled dependencies after 15 seconds'
     );
 
     await Promise.resolve();
 
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(15_000);
     await waitExpectation;
+    expect(moveSync).not.toHaveBeenCalled();
+  });
+
+  it('does not publish staged modules after timing out', async () => {
+    jest.useFakeTimers();
+    jest.mocked(downloadFile).mockResolvedValue(undefined);
+    let finishExtraction!: () => void;
+    extract.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finishExtraction = resolve;
+        })
+    );
+    const ctx = createCtx();
+
+    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
+
+    const waitPromise = waitForPrecompiledModulesPreparationAsync();
+    const waitExpectation = expect(waitPromise).rejects.toThrow(
+      'Timed out waiting for precompiled dependencies after 15 seconds'
+    );
+
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(15_000);
+    await waitExpectation;
+
+    finishExtraction();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(moveSync).not.toHaveBeenCalled();
   });
 });

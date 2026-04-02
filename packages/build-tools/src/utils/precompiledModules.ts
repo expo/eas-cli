@@ -8,7 +8,8 @@ import path from 'path';
 import { BuildContext } from '../context';
 
 let precompiledModulesPreparationPromise: Promise<void> | null = null;
-const PRECOMPILED_MODULES_WAIT_TIMEOUT_MS = 30_000;
+let precompiledModulesPreparationAbortController: AbortController | null = null;
+const PRECOMPILED_MODULES_WAIT_TIMEOUT_MS = 15_000;
 export const PRECOMPILED_MODULES_PATH = path.join(os.homedir(), '.expo', 'precompiled-modules');
 
 export function shouldUsePrecompiledDependencies(env: Record<string, string | undefined>): boolean {
@@ -27,11 +28,15 @@ export function maybeStartPreparingPrecompiledModules(
 }
 
 export function startPreparingPrecompiledDependencies(ctx: BuildContext, urls: string[]): void {
+  const abortController = new AbortController();
+  precompiledModulesPreparationAbortController = abortController;
+
   precompiledModulesPreparationPromise = preparePrecompiledDependenciesAsync({
     logger: ctx.logger,
     urls,
     destinationDirectory: PRECOMPILED_MODULES_PATH,
     cocoapodsProxyUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+    signal: abortController.signal,
   });
 
   void precompiledModulesPreparationPromise.catch(error => {
@@ -55,6 +60,7 @@ export async function waitForPrecompiledModulesPreparationAsync(): Promise<void>
               `Timed out waiting for precompiled dependencies after ${PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`
             )
           );
+          precompiledModulesPreparationAbortController?.abort();
         }, PRECOMPILED_MODULES_WAIT_TIMEOUT_MS);
         timeoutHandle.unref?.();
       }),
@@ -71,11 +77,13 @@ async function preparePrecompiledDependenciesAsync({
   urls,
   destinationDirectory,
   cocoapodsProxyUrl,
+  signal,
 }: {
   logger: bunyan;
   urls: string[];
   destinationDirectory: string;
   cocoapodsProxyUrl?: string;
+  signal: AbortSignal;
 }): Promise<void> {
   const archiveDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'precompiled-modules-'));
   const destinationParentDirectory = path.dirname(destinationDirectory);
@@ -97,6 +105,7 @@ async function preparePrecompiledDependenciesAsync({
   await fs.mkdirp(destinationDirectory);
 
   try {
+    throwIfPreparationAborted(signal);
     const archives = urls.map((url, index) => ({
       archiveName: path.basename(new URL(url).pathname),
       url,
@@ -110,11 +119,13 @@ async function preparePrecompiledDependenciesAsync({
           archivePath,
           cocoapodsProxyUrl,
           logger,
+          signal,
         });
       })
     );
 
     for (const { archiveName, url, archivePath } of archives) {
+      throwIfPreparationAborted(signal);
       logger.info({ archivePath, url }, `Downloaded ${archiveName}, extracting archive`);
       await extractZipAsync(archivePath, stagingDirectory);
       logger.info(
@@ -123,8 +134,11 @@ async function preparePrecompiledDependenciesAsync({
       );
     }
 
-    await fs.remove(destinationDirectory);
-    await fs.move(stagingDirectory, destinationDirectory);
+    throwIfPreparationAborted(signal);
+    // Keep the final publish step synchronous so the timeout callback cannot interleave
+    // between removing the old directory and moving the staged one into place.
+    fs.removeSync(destinationDirectory);
+    fs.moveSync(stagingDirectory, destinationDirectory);
     logger.info({ destinationDirectory }, `Precompiled modules ready in ${destinationDirectory}`);
   } catch (error) {
     await fs.remove(stagingDirectory);
@@ -141,11 +155,13 @@ async function downloadPrecompiledModulesAsync({
   archivePath,
   cocoapodsProxyUrl,
   logger,
+  signal,
 }: {
   url: string;
   archivePath: string;
   cocoapodsProxyUrl?: string;
   logger: bunyan;
+  signal: AbortSignal;
 }): Promise<void> {
   const proxiedUrl = cocoapodsProxyUrl
     ? (() => {
@@ -158,6 +174,7 @@ async function downloadPrecompiledModulesAsync({
       await downloadFile(proxiedUrl, archivePath, { retry: 3 });
       return;
     } catch (err) {
+      throwIfPreparationAborted(signal);
       logger.warn(
         { err, proxiedUrl },
         'Failed to download through CocoaPods proxy, retrying directly'
@@ -174,5 +191,11 @@ async function extractZipAsync(archivePath: string, destinationDirectory: string
     await zip.extract(null, destinationDirectory);
   } finally {
     await zip.close();
+  }
+}
+
+function throwIfPreparationAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new Error('Precompiled dependencies preparation aborted');
   }
 }
