@@ -4,13 +4,43 @@ import path from 'path';
 
 import { PackageManager, findPackagerRootDir } from '../utils/packageManager';
 
+async function readFirstChars(filePath: string, chars: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    const stream = fs.createReadStream(filePath, {
+      start: 0,
+      end: chars - 1,
+    });
+    stream.on('error', reject);
+    stream.on('data', chunk => {
+      chunks.push(chunk as Uint8Array);
+    });
+    stream.on('end', () => {
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    });
+  });
+}
+
 /**
- * check if .yarnrc.yml exists in the project dir or in the workspace root dir
+ * check if .yarnrc.yml exists in the project dir or in the workspace root dir,
+ * or if the `yarn.lock` file is classic one, not a modern one
  */
 export async function isUsingModernYarnVersion(projectDir: string): Promise<boolean> {
+  const rootDir = findPackagerRootDir(projectDir);
   const yarnrcPath = path.join(projectDir, '.yarnrc.yml');
   const yarnrcRootPath = path.join(findPackagerRootDir(projectDir), '.yarnrc.yml');
-  return (await fs.pathExists(yarnrcPath)) || (await fs.pathExists(yarnrcRootPath));
+  if ((await fs.pathExists(yarnrcPath)) || (await fs.pathExists(yarnrcRootPath))) {
+    return true;
+  }
+
+  const yarnlockPath = path.join(rootDir, 'yarn.lock');
+  if (!(await fs.pathExists(yarnlockPath))) {
+    return false;
+  }
+
+  // The yarn.lock file is for Yarn Classic, not Modern, if it contains "# yarn lockfile v1"
+  const startOfLockfile = await readFirstChars(yarnlockPath, 100);
+  return !/yarn lockfile v1/i.test(startOfLockfile);
 }
 
 export function runExpoCliCommand({
