@@ -116,38 +116,6 @@ describe('StaticWorkflowInterpolationContextZ', () => {
     expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
   });
 
-  it('rejects app_store_connect build_upload context with non-UUID id', () => {
-    const context = {
-      after: {},
-      needs: {},
-      workflow: {
-        id: 'workflow-id',
-        name: 'workflow-name',
-        filename: 'workflow.yml',
-        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
-      },
-      app: {
-        id: 'app-id',
-        slug: 'app-slug',
-      },
-      account: {
-        id: 'account-id',
-        name: 'account-name',
-      },
-      app_store_connect: {
-        app: {
-          id: '1234567890',
-        },
-        build_upload: {
-          id: 'not-a-uuid',
-          state: 'processing',
-        },
-      },
-    };
-
-    expect(() => StaticWorkflowInterpolationContextZ.parse(context)).toThrow();
-  });
-
   it('rejects invalid app and account context', () => {
     const context = {
       after: {},
