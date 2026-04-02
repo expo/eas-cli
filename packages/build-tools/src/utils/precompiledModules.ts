@@ -122,10 +122,9 @@ async function prepareThirdPartyPrecompiledModulesAsync({
     'Starting third-party precompiled dependencies download'
   );
 
-  await fs.remove(destinationDirectory);
-  await fs.mkdirp(destinationDirectory);
-
   try {
+    await fs.remove(destinationDirectory);
+    await fs.mkdirp(destinationDirectory);
     throwIfPreparationAborted(signal);
     const archives = urls.map((url, index) => ({
       archiveName: path.basename(new URL(url).pathname),
