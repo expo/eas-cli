@@ -2,7 +2,7 @@ import {
   Artifacts,
   BuildContext,
   Builders,
-  maybeStartPreparingPrecompiledModules,
+  maybeStartPreparingThirdPartyPrecompiledModules,
   runGenericJobAsync,
 } from '@expo/build-tools';
 import {
@@ -47,7 +47,7 @@ export async function build({
           { job: omit(ctx.job, 'secrets', 'projectArchive') },
           'Builder is ready, starting build'
         );
-        maybeStartPreparingPrecompiledModules(ctx, config);
+        maybeStartPreparingThirdPartyPrecompiledModules(ctx, config);
       },
       { doNotMarkStart: true }
     );

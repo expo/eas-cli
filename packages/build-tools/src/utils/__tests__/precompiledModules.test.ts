@@ -3,9 +3,10 @@ import { mkdirp, mkdtemp, moveSync, remove, removeSync } from 'fs-extra';
 import StreamZip from 'node-stream-zip';
 
 import {
-  PRECOMPILED_MODULES_PATH,
-  startPreparingPrecompiledDependencies,
-  waitForPrecompiledModulesPreparationAsync,
+  shouldPrepareThirdPartyPrecompiledModules,
+  startPreparingThirdPartyPrecompiledModules,
+  THIRD_PARTY_PRECOMPILED_MODULES_PATH,
+  waitForThirdPartyPrecompiledModulesPreparationAsync,
 } from '../precompiledModules';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
@@ -19,7 +20,7 @@ jest.mock('node-stream-zip', () => ({
   },
 }));
 
-describe('precompiledModules', () => {
+describe('thirdPartyPrecompiledModules', () => {
   const extract = jest.fn();
   const close = jest.fn();
   const getMkdtempPath = jest.fn();
@@ -59,14 +60,14 @@ describe('precompiledModules', () => {
   it('downloads through CocoaPods proxy when enabled', async () => {
     jest.mocked(downloadFile).mockResolvedValue(undefined);
 
-    startPreparingPrecompiledDependencies(
+    startPreparingThirdPartyPrecompiledModules(
       createCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://localhost:9001' }),
       [
         'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
       ]
     );
 
-    await waitForPrecompiledModulesPreparationAsync();
+    await waitForThirdPartyPrecompiledModulesPreparationAsync();
 
     expect(downloadFile).toHaveBeenCalledWith(
       'http://localhost:9001/storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
@@ -75,20 +76,29 @@ describe('precompiledModules', () => {
     );
   });
 
+  it('does not prepare third-party precompiled modules when explicitly disabled', () => {
+    expect(
+      shouldPrepareThirdPartyPrecompiledModules({
+        EAS_USE_PRECOMPILED_MODULES: '1',
+        EAS_DISABLE_THIRD_PARTY_PRECOMPILED_MODULES: '1',
+      })
+    ).toBe(false);
+  });
+
   it('falls back to the direct url when CocoaPods proxy download fails', async () => {
     jest
       .mocked(downloadFile)
       .mockRejectedValueOnce(new Error('proxy failed'))
       .mockResolvedValueOnce(undefined);
 
-    startPreparingPrecompiledDependencies(
+    startPreparingThirdPartyPrecompiledModules(
       createCtx({ EAS_BUILD_COCOAPODS_CACHE_URL: 'http://localhost:9001' }),
       [
         'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
       ]
     );
 
-    await waitForPrecompiledModulesPreparationAsync();
+    await waitForThirdPartyPrecompiledModulesPreparationAsync();
 
     expect(downloadFile).toHaveBeenNthCalledWith(
       1,
@@ -107,14 +117,14 @@ describe('precompiledModules', () => {
   it('extracts all configured archives into the well-known destination path', async () => {
     jest.mocked(downloadFile).mockResolvedValue(undefined);
 
-    startPreparingPrecompiledDependencies(createCtx(), [
+    startPreparingThirdPartyPrecompiledModules(createCtx(), [
       'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
       'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-1.zip',
     ]);
 
-    await waitForPrecompiledModulesPreparationAsync();
+    await waitForThirdPartyPrecompiledModulesPreparationAsync();
 
-    expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
+    expect(mkdirp).toHaveBeenCalledWith(THIRD_PARTY_PRECOMPILED_MODULES_PATH);
     expect(downloadFile).toHaveBeenNthCalledWith(
       1,
       'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
@@ -131,57 +141,61 @@ describe('precompiledModules', () => {
     expect(extract).toHaveBeenNthCalledWith(2, null, '/tmp/precompiled-modules-staging');
     expect(moveSync).toHaveBeenCalledWith(
       '/tmp/precompiled-modules-staging',
-      PRECOMPILED_MODULES_PATH
+      THIRD_PARTY_PRECOMPILED_MODULES_PATH
     );
   });
 
-  it('leaves the destination empty when preparation fails', async () => {
+  it('leaves the destination empty when third-party preparation fails', async () => {
     jest.mocked(downloadFile).mockResolvedValue(undefined);
     extract.mockRejectedValueOnce(new Error('extract failed'));
 
     const ctx = createCtx();
-    startPreparingPrecompiledDependencies(ctx, [
+    startPreparingThirdPartyPrecompiledModules(ctx, [
       'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
     ]);
 
-    await expect(waitForPrecompiledModulesPreparationAsync()).rejects.toThrow('extract failed');
+    await expect(waitForThirdPartyPrecompiledModulesPreparationAsync()).rejects.toThrow(
+      'extract failed'
+    );
 
     expect(ctx.logger.error).toHaveBeenCalledWith(
       { error: expect.any(Error) },
-      'Failed to prepare precompiled dependencies'
+      'Failed to prepare third-party precompiled dependencies'
     );
     expect(moveSync).not.toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith('/tmp/precompiled-modules-staging');
-    expect(remove).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
-    expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
+    expect(remove).toHaveBeenCalledWith(THIRD_PARTY_PRECOMPILED_MODULES_PATH);
+    expect(mkdirp).toHaveBeenCalledWith(THIRD_PARTY_PRECOMPILED_MODULES_PATH);
   });
 
-  it('logs background failures even if nobody waits for preparation', async () => {
+  it('logs background failures even if nobody waits for third-party preparation', async () => {
     jest.mocked(downloadFile).mockRejectedValue(new Error('download failed'));
     const ctx = createCtx();
 
-    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
+    startPreparingThirdPartyPrecompiledModules(ctx, ['https://example.com/xcframeworks-Debug.zip']);
 
     await Promise.resolve();
     await new Promise(resolve => setImmediate(resolve));
 
     expect(ctx.logger.error).toHaveBeenCalledWith(
       { error: expect.any(Error) },
-      'Failed to prepare precompiled dependencies'
+      'Failed to prepare third-party precompiled dependencies'
     );
-    await expect(waitForPrecompiledModulesPreparationAsync()).rejects.toThrow('download failed');
+    await expect(waitForThirdPartyPrecompiledModulesPreparationAsync()).rejects.toThrow(
+      'download failed'
+    );
   });
 
-  it('throws when precompiled dependencies are still not ready after 15 seconds', async () => {
+  it('throws when third-party precompiled dependencies are still not ready after 15 seconds', async () => {
     jest.useFakeTimers();
     jest.mocked(downloadFile).mockImplementation(() => new Promise<void>(() => undefined) as any);
     const ctx = createCtx();
 
-    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
+    startPreparingThirdPartyPrecompiledModules(ctx, ['https://example.com/xcframeworks-Debug.zip']);
 
-    const waitPromise = waitForPrecompiledModulesPreparationAsync();
+    const waitPromise = waitForThirdPartyPrecompiledModulesPreparationAsync();
     const waitExpectation = expect(waitPromise).rejects.toThrow(
-      'Timed out waiting for precompiled dependencies after 15 seconds'
+      'Timed out waiting for third-party precompiled dependencies after 15 seconds'
     );
 
     await Promise.resolve();
@@ -191,7 +205,7 @@ describe('precompiledModules', () => {
     expect(moveSync).not.toHaveBeenCalled();
   });
 
-  it('does not publish staged modules after timing out', async () => {
+  it('does not publish staged third-party modules after timing out', async () => {
     jest.useFakeTimers();
     jest.mocked(downloadFile).mockResolvedValue(undefined);
     let finishExtraction!: () => void;
@@ -203,11 +217,11 @@ describe('precompiledModules', () => {
     );
     const ctx = createCtx();
 
-    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
+    startPreparingThirdPartyPrecompiledModules(ctx, ['https://example.com/xcframeworks-Debug.zip']);
 
-    const waitPromise = waitForPrecompiledModulesPreparationAsync();
+    const waitPromise = waitForThirdPartyPrecompiledModulesPreparationAsync();
     const waitExpectation = expect(waitPromise).rejects.toThrow(
-      'Timed out waiting for precompiled dependencies after 15 seconds'
+      'Timed out waiting for third-party precompiled dependencies after 15 seconds'
     );
 
     await Promise.resolve();

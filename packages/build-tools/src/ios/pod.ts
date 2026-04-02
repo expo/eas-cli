@@ -3,18 +3,18 @@ import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spa
 import path from 'path';
 
 import { BuildContext } from '../context';
-import { waitForPrecompiledModulesPreparationAsync } from '../utils/precompiledModules';
+import { waitForThirdPartyPrecompiledModulesPreparationAsync } from '../utils/precompiledModules';
 
 export async function installPods<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
   { infoCallbackFn }: SpawnOptions
 ): Promise<{ spawnPromise: SpawnPromise<SpawnResult> }> {
   try {
-    await waitForPrecompiledModulesPreparationAsync();
+    await waitForThirdPartyPrecompiledModulesPreparationAsync();
   } catch (err) {
     ctx.logger.warn(
       { err },
-      'Precompiled dependencies were not prepared successfully, continuing with pod install'
+      'Third-party precompiled dependencies were not prepared successfully, continuing with pod install'
     );
   }
 

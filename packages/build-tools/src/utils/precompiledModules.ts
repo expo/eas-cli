@@ -7,61 +7,76 @@ import path from 'path';
 
 import { BuildContext } from '../context';
 
-let precompiledModulesPreparationPromise: Promise<void> | null = null;
-let precompiledModulesPreparationAbortController: AbortController | null = null;
-const PRECOMPILED_MODULES_WAIT_TIMEOUT_MS = 15_000;
-export const PRECOMPILED_MODULES_PATH = path.join(os.homedir(), '.expo', 'precompiled-modules');
+let thirdPartyPrecompiledModulesPreparationPromise: Promise<void> | null = null;
+let thirdPartyPrecompiledModulesPreparationAbortController: AbortController | null = null;
+const THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS = 15_000;
+export const THIRD_PARTY_PRECOMPILED_MODULES_PATH = path.join(
+  os.homedir(),
+  '.expo',
+  'precompiled-modules'
+);
 
 export function shouldUsePrecompiledDependencies(env: Record<string, string | undefined>): boolean {
   return env.EAS_USE_PRECOMPILED_MODULES === '1';
 }
 
-export function maybeStartPreparingPrecompiledModules(
+export function shouldPrepareThirdPartyPrecompiledModules(
+  env: Record<string, string | undefined>
+): boolean {
+  return (
+    shouldUsePrecompiledDependencies(env) && env.EAS_DISABLE_THIRD_PARTY_PRECOMPILED_MODULES !== '1'
+  );
+}
+
+export function maybeStartPreparingThirdPartyPrecompiledModules(
   ctx: BuildContext,
-  config: { precompiledModulesUrls: string[] }
+  config: { thirdPartyPrecompiledModulesUrls: string[] }
 ): void {
-  if (!shouldUsePrecompiledDependencies(ctx.env)) {
+  if (!shouldPrepareThirdPartyPrecompiledModules(ctx.env)) {
     return;
   }
 
-  startPreparingPrecompiledDependencies(ctx, config.precompiledModulesUrls);
+  startPreparingThirdPartyPrecompiledModules(ctx, config.thirdPartyPrecompiledModulesUrls);
 }
 
-export function startPreparingPrecompiledDependencies(ctx: BuildContext, urls: string[]): void {
+export function startPreparingThirdPartyPrecompiledModules(
+  ctx: BuildContext,
+  urls: string[]
+): void {
   const abortController = new AbortController();
-  precompiledModulesPreparationAbortController = abortController;
+  thirdPartyPrecompiledModulesPreparationAbortController = abortController;
 
-  precompiledModulesPreparationPromise = preparePrecompiledDependenciesAsync({
+  thirdPartyPrecompiledModulesPreparationPromise = prepareThirdPartyPrecompiledModulesAsync({
     logger: ctx.logger,
     urls,
-    destinationDirectory: PRECOMPILED_MODULES_PATH,
+    destinationDirectory: THIRD_PARTY_PRECOMPILED_MODULES_PATH,
     cocoapodsProxyUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
     signal: abortController.signal,
   });
 
-  void precompiledModulesPreparationPromise.catch(error => {
-    ctx.logger.error({ error }, 'Failed to prepare precompiled dependencies');
+  void thirdPartyPrecompiledModulesPreparationPromise.catch(error => {
+    ctx.logger.error({ error }, 'Failed to prepare third-party precompiled dependencies');
   });
 }
 
-export async function waitForPrecompiledModulesPreparationAsync(): Promise<void> {
-  if (!precompiledModulesPreparationPromise) {
+export async function waitForThirdPartyPrecompiledModulesPreparationAsync(): Promise<void> {
+  if (!thirdPartyPrecompiledModulesPreparationPromise) {
     return;
   }
 
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
-      precompiledModulesPreparationPromise,
+      thirdPartyPrecompiledModulesPreparationPromise,
       new Promise<void>((_, reject) => {
         timeoutHandle = setTimeout(() => {
           reject(
             new Error(
-              `Timed out waiting for precompiled dependencies after ${PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`
+              `Timed out waiting for third-party precompiled dependencies after ${THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`
             )
           );
-          precompiledModulesPreparationAbortController?.abort();
-        }, PRECOMPILED_MODULES_WAIT_TIMEOUT_MS);
+          thirdPartyPrecompiledModulesPreparationAbortController?.abort();
+        }, THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS);
         timeoutHandle.unref?.();
       }),
     ]);
@@ -72,7 +87,7 @@ export async function waitForPrecompiledModulesPreparationAsync(): Promise<void>
   }
 }
 
-async function preparePrecompiledDependenciesAsync({
+async function prepareThirdPartyPrecompiledModulesAsync({
   logger,
   urls,
   destinationDirectory,
@@ -98,7 +113,7 @@ async function preparePrecompiledDependenciesAsync({
       destinationDirectory,
       urls,
     },
-    'Starting precompiled dependencies download'
+    'Starting third-party precompiled dependencies download'
   );
 
   await fs.remove(destinationDirectory);
@@ -114,7 +129,7 @@ async function preparePrecompiledDependenciesAsync({
 
     await Promise.all(
       archives.map(async ({ url, archivePath }) => {
-        await downloadPrecompiledModulesAsync({
+        await downloadThirdPartyPrecompiledModulesAsync({
           url,
           archivePath,
           cocoapodsProxyUrl,
@@ -130,7 +145,7 @@ async function preparePrecompiledDependenciesAsync({
       await extractZipAsync(archivePath, stagingDirectory);
       logger.info(
         { destinationDirectory: stagingDirectory },
-        `Extracted ${archiveName} into staging precompiled dependencies directory`
+        `Extracted ${archiveName} into staging third-party precompiled dependencies directory`
       );
     }
 
@@ -139,7 +154,10 @@ async function preparePrecompiledDependenciesAsync({
     // between removing the old directory and moving the staged one into place.
     fs.removeSync(destinationDirectory);
     fs.moveSync(stagingDirectory, destinationDirectory);
-    logger.info({ destinationDirectory }, `Precompiled modules ready in ${destinationDirectory}`);
+    logger.info(
+      { destinationDirectory },
+      `Third-party precompiled modules ready in ${destinationDirectory}`
+    );
   } catch (error) {
     await fs.remove(stagingDirectory);
     await fs.remove(destinationDirectory);
@@ -150,7 +168,7 @@ async function preparePrecompiledDependenciesAsync({
   }
 }
 
-async function downloadPrecompiledModulesAsync({
+async function downloadThirdPartyPrecompiledModulesAsync({
   url,
   archivePath,
   cocoapodsProxyUrl,
@@ -196,6 +214,6 @@ async function extractZipAsync(archivePath: string, destinationDirectory: string
 
 function throwIfPreparationAborted(signal: AbortSignal): void {
   if (signal.aborted) {
-    throw new Error('Precompiled dependencies preparation aborted');
+    throw new Error('Third-party precompiled dependencies preparation aborted');
   }
 }

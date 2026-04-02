@@ -7,8 +7,8 @@ import { createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import {
-  PRECOMPILED_MODULES_PATH,
-  startPreparingPrecompiledDependencies,
+  startPreparingThirdPartyPrecompiledModules,
+  THIRD_PARTY_PRECOMPILED_MODULES_PATH,
 } from '../../utils/precompiledModules';
 import { installPods } from '../pod';
 
@@ -48,7 +48,7 @@ describe(installPods.name, () => {
     );
   });
 
-  it('waits for precompiled dependencies before running pod install', async () => {
+  it('waits for third-party precompiled dependencies before running pod install', async () => {
     let resolvePreparation: (() => void) | undefined;
     const preparationPromise = new Promise<void>(resolve => {
       resolvePreparation = resolve;
@@ -68,7 +68,7 @@ describe(installPods.name, () => {
         uploadArtifact: jest.fn(),
       }
     );
-    startPreparingPrecompiledDependencies(ctx, [
+    startPreparingThirdPartyPrecompiledModules(ctx, [
       'https://example.com/precompiled-modules-0.zip',
       'https://example.com/precompiled-modules-1.zip',
     ]);
@@ -90,10 +90,10 @@ describe(installPods.name, () => {
         cwd: '/workingdir/build/ios',
       })
     );
-    expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
+    expect(mkdirp).toHaveBeenCalledWith(THIRD_PARTY_PRECOMPILED_MODULES_PATH);
   });
 
-  it('continues with pod install when precompiled dependencies preparation fails', async () => {
+  it('continues with pod install when third-party precompiled dependencies preparation fails', async () => {
     jest.mocked(downloadFile).mockRejectedValue(new Error('download failed'));
     const ctx = new BuildContext(
       createTestIosJob({
@@ -109,7 +109,9 @@ describe(installPods.name, () => {
         uploadArtifact: jest.fn(),
       }
     );
-    startPreparingPrecompiledDependencies(ctx, ['https://example.com/precompiled-modules-0.zip']);
+    startPreparingThirdPartyPrecompiledModules(ctx, [
+      'https://example.com/precompiled-modules-0.zip',
+    ]);
 
     jest.mocked(spawn).mockResolvedValue({} as any);
 

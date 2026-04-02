@@ -20,11 +20,12 @@ export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
 export {
-  maybeStartPreparingPrecompiledModules,
-  PRECOMPILED_MODULES_PATH,
+  maybeStartPreparingThirdPartyPrecompiledModules,
+  shouldPrepareThirdPartyPrecompiledModules,
   shouldUsePrecompiledDependencies,
-  startPreparingPrecompiledDependencies,
-  waitForPrecompiledModulesPreparationAsync,
+  startPreparingThirdPartyPrecompiledModules,
+  THIRD_PARTY_PRECOMPILED_MODULES_PATH,
+  waitForThirdPartyPrecompiledModulesPreparationAsync,
 } from './utils/precompiledModules';
 
 export * from './generic';

@@ -10,7 +10,7 @@ jest.unmock('node:fs');
 jest.unmock('fs/promises');
 jest.unmock('node:fs/promises');
 
-describe('precompiledModules integration', () => {
+describe('thirdPartyPrecompiledModules integration', () => {
   beforeAll(() => {
     nock.disableNetConnect();
   });
@@ -49,12 +49,12 @@ describe('precompiledModules integration', () => {
         homedir: () => homeDirectory,
       }));
       const {
-        PRECOMPILED_MODULES_PATH,
-        startPreparingPrecompiledDependencies,
-        waitForPrecompiledModulesPreparationAsync,
+        startPreparingThirdPartyPrecompiledModules,
+        THIRD_PARTY_PRECOMPILED_MODULES_PATH,
+        waitForThirdPartyPrecompiledModulesPreparationAsync,
       } = await import('../precompiledModules');
 
-      startPreparingPrecompiledDependencies(
+      startPreparingThirdPartyPrecompiledModules(
         {
           logger: createMockLogger(),
           env: {},
@@ -64,16 +64,16 @@ describe('precompiledModules integration', () => {
           'https://fixtures.expo.test/xcframeworks-Release.zip',
         ]
       );
-      await waitForPrecompiledModulesPreparationAsync();
+      await waitForThirdPartyPrecompiledModulesPreparationAsync();
 
-      expect(PRECOMPILED_MODULES_PATH).toBe(
+      expect(THIRD_PARTY_PRECOMPILED_MODULES_PATH).toBe(
         path.join(homeDirectory, '.expo', 'precompiled-modules')
       );
 
       await expect(
         fs.readFile(
           path.join(
-            PRECOMPILED_MODULES_PATH,
+            THIRD_PARTY_PRECOMPILED_MODULES_PATH,
             'expo-modules-core/output/debug/xcframeworks/ExpoModulesCore.tar.gz'
           ),
           'utf8'
@@ -82,7 +82,7 @@ describe('precompiledModules integration', () => {
       await expect(
         fs.readFile(
           path.join(
-            PRECOMPILED_MODULES_PATH,
+            THIRD_PARTY_PRECOMPILED_MODULES_PATH,
             'expo-modules-core/output/release/xcframeworks/ExpoModulesCore.tar.gz'
           ),
           'utf8'
@@ -91,7 +91,7 @@ describe('precompiledModules integration', () => {
       await expect(
         fs.readFile(
           path.join(
-            PRECOMPILED_MODULES_PATH,
+            THIRD_PARTY_PRECOMPILED_MODULES_PATH,
             'expo-camera/output/debug/xcframeworks/ExpoCamera.tar.gz'
           ),
           'utf8'
@@ -100,7 +100,7 @@ describe('precompiledModules integration', () => {
       await expect(
         fs.readFile(
           path.join(
-            PRECOMPILED_MODULES_PATH,
+            THIRD_PARTY_PRECOMPILED_MODULES_PATH,
             'expo-application/output/release/xcframeworks/EXApplication.tar.gz'
           ),
           'utf8'

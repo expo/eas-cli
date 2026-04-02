@@ -1,7 +1,7 @@
 import { BuildFunction } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
-import { waitForPrecompiledModulesPreparationAsync } from '../../utils/precompiledModules';
+import { waitForThirdPartyPrecompiledModulesPreparationAsync } from '../../utils/precompiledModules';
 
 export function createInstallPodsBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -11,11 +11,11 @@ export function createInstallPodsBuildFunction(): BuildFunction {
     __metricsId: 'eas/install_pods',
     fn: async (stepsCtx, { env }) => {
       try {
-        await waitForPrecompiledModulesPreparationAsync();
+        await waitForThirdPartyPrecompiledModulesPreparationAsync();
       } catch (err) {
         stepsCtx.logger.warn(
           { err },
-          'Precompiled dependencies were not prepared successfully, continuing with pod install'
+          'Third-party precompiled dependencies were not prepared successfully, continuing with pod install'
         );
       }
       stepsCtx.logger.info('Installing pods');
