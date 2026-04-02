@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
+
 ### 🧹 Chores
 
 ## [18.5.0](https://github.com/expo/eas-cli/releases/tag/v18.5.0) - 2026-04-02
