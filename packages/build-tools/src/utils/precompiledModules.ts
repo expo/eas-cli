@@ -33,6 +33,10 @@ export function startPreparingPrecompiledDependencies(ctx: BuildContext, urls: s
     destinationDirectory: PRECOMPILED_MODULES_PATH,
     cocoapodsProxyUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
   });
+
+  void precompiledModulesPreparationPromise.catch(error => {
+    ctx.logger.error({ error }, 'Failed to prepare precompiled dependencies');
+  });
 }
 
 export async function waitForPrecompiledModulesPreparationAsync(): Promise<void> {

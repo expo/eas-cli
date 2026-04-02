@@ -135,16 +135,37 @@ describe('precompiledModules', () => {
     jest.mocked(downloadFile).mockResolvedValue(undefined);
     extract.mockRejectedValueOnce(new Error('extract failed'));
 
-    startPreparingPrecompiledDependencies(createCtx(), [
+    const ctx = createCtx();
+    startPreparingPrecompiledDependencies(ctx, [
       'https://storage.googleapis.com/eas-build-precompiled-modules-production/ios/precompiled-modules-0.zip',
     ]);
 
     await expect(waitForPrecompiledModulesPreparationAsync()).rejects.toThrow('extract failed');
 
+    expect(ctx.logger.error).toHaveBeenCalledWith(
+      { error: expect.any(Error) },
+      'Failed to prepare precompiled dependencies'
+    );
     expect(move).not.toHaveBeenCalled();
     expect(remove).toHaveBeenCalledWith('/tmp/precompiled-modules-staging');
     expect(remove).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
     expect(mkdirp).toHaveBeenCalledWith(PRECOMPILED_MODULES_PATH);
+  });
+
+  it('logs and clears background failures even if nobody waits for preparation', async () => {
+    jest.mocked(downloadFile).mockRejectedValue(new Error('download failed'));
+    const ctx = createCtx();
+
+    startPreparingPrecompiledDependencies(ctx, ['https://example.com/xcframeworks-Debug.zip']);
+
+    await Promise.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(ctx.logger.error).toHaveBeenCalledWith(
+      { error: expect.any(Error) },
+      'Failed to prepare precompiled dependencies'
+    );
+    await expect(waitForPrecompiledModulesPreparationAsync()).rejects.toThrow('download failed');
   });
 
   it('throws when precompiled dependencies are still not ready after 30 seconds', async () => {
