@@ -1,4 +1,5 @@
 import downloadFile from '@expo/downloader';
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import StreamZip from 'node-stream-zip';
@@ -71,8 +72,13 @@ export async function waitForThirdPartyPrecompiledModulesPreparationAsync(): Pro
       new Promise<void>((_, reject) => {
         timeoutHandle = setTimeout(() => {
           reject(
-            new Error(
-              `Timed out waiting for third-party precompiled dependencies after ${THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`
+            new SystemError(
+              `Timed out waiting for third-party precompiled dependencies after ${THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS / 1000} seconds`,
+              {
+                metadata: {
+                  timeoutMs: THIRD_PARTY_PRECOMPILED_MODULES_WAIT_TIMEOUT_MS,
+                },
+              }
             )
           );
           thirdPartyPrecompiledModulesPreparationAbortController?.abort();
