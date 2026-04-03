@@ -1,5 +1,5 @@
 import { BuildJob, Ios, ManagedArtifactType, Platform } from '@expo/eas-build-job';
-import { BuildFunction, BuildStepContext } from '@expo/steps';
+import { BuildFunction, BuildStepContext, BuildStepOutput } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { findXcodeBuildLogsPathAsync } from '../../ios/xcodeBuildLogs';
@@ -13,7 +13,13 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
     id: 'find_and_upload_build_artifacts',
     name: 'Find and upload build artifacts',
     __metricsId: 'eas/find_and_upload_build_artifacts',
-    fn: async stepCtx => {
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'application_archive_path',
+        required: false,
+      }),
+    ],
+    fn: async (stepCtx, { outputs }) => {
       // We want each upload to print logs on its own
       // and we don't want to interleave logs from different uploads
       // so we execute uploads consecutively.
@@ -24,7 +30,10 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
       let firstError: any = null;
 
       try {
-        await uploadApplicationArchivesAsync({ ctx, stepCtx });
+        const archivePath = await uploadApplicationArchivesAsync({ ctx, stepCtx });
+        if (archivePath) {
+          outputs.application_archive_path.set(archivePath);
+        }
       } catch (err: unknown) {
         stepCtx.logger.error(`Failed to upload application archives.`, err);
         firstError ||= err;
@@ -68,7 +77,7 @@ async function uploadApplicationArchivesAsync({
 }: {
   ctx: CustomBuildContext<BuildJob>;
   stepCtx: BuildStepContext;
-}): Promise<void> {
+}): Promise<string | undefined> {
   const applicationArchivePatternOrPath =
     ctx.job.platform === Platform.ANDROID
       ? (ctx.job.applicationArchivePath ?? 'android/app/build/outputs/**/*.{apk,aab}')
@@ -99,6 +108,8 @@ async function uploadApplicationArchivesAsync({
     logger,
   });
   logger.info('Done.');
+
+  return applicationArchives[0];
 }
 
 async function uploadBuildArtifacts({
