@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools][eas-cli] Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
 - [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
+- [worker] Read `WORKER_CAPABILITIES_BASE64` and set `EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED` from declared worker capabilities. ([dca786a9](https://github.com/expo/eas-cli/commit/dca786a9948dce43ddbb753a2c4371bd2b8386f0) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
 
