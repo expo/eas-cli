@@ -3,6 +3,7 @@ import { bunyan } from '@expo/logger';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import os from 'os';
 import path from 'path';
 
 import type { Credentials } from './credentials/manager';
@@ -122,6 +123,8 @@ async function ensureGymfileExists<TJob extends Ios.Job>(
   }
 
   ctx.logger.info('Creating Gymfile');
+  const resultBundlePath = path.join(os.tmpdir(), `result-bundle-${Date.now()}.xcresult`);
+
   if (ctx.job.simulator) {
     const isTV = await isTVOS(ctx);
     const simulatorDestination = `generic/platform=${isTV ? 'tvOS' : 'iOS'} Simulator`;
@@ -131,6 +134,7 @@ async function ensureGymfileExists<TJob extends Ios.Job>(
       scheme,
       buildConfiguration: buildConfiguration ?? 'release',
       derivedDataPath: './build',
+      resultBundlePath,
       clean: false,
       logsDirectory,
       simulatorDestination,
@@ -142,6 +146,8 @@ async function ensureGymfileExists<TJob extends Ios.Job>(
       scheme,
       buildConfiguration,
       outputDirectory: './build',
+      derivedDataPath: './build',
+      resultBundlePath,
       clean: false,
       logsDirectory,
       entitlements: entitlements ?? undefined,

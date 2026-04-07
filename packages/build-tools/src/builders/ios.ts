@@ -3,6 +3,7 @@ import { BuildMode, BuildPhase, Ios, ManagedArtifactType, Workflow } from '@expo
 import plist from '@expo/plist';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
+import path from 'path';
 
 import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
@@ -16,6 +17,7 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
+import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
@@ -168,6 +170,16 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   } finally {
     await ctx.runBuildPhase(BuildPhase.CLEAN_UP_CREDENTIALS, async () => {
       await credentialsManager.cleanUp();
+    });
+  }
+
+  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
+    await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+      await parseAndReportXcactivitylog({
+        derivedDataPath: path.join(ctx.getReactNativeProjectDirectory(), 'ios/build'),
+        workspacePath: path.join(ctx.getReactNativeProjectDirectory(), 'ios'),
+        logger: ctx.logger,
+      });
     });
   }
 
