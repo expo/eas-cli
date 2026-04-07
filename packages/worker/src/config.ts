@@ -21,6 +21,27 @@ function createBase64EnvTransformer<TFieldName extends string>(
   };
 }
 
+/** JSON inside `WORKER_CAPABILITIES_BASE64` (see workflow-orchestration `worker_capabilities.go`). */
+type WorkerCapabilitiesJson = {
+  nested_virtualization_enabled?: boolean;
+};
+
+function createWorkerCapabilitiesEnvTransformer<TFieldName extends keyof WorkerCapabilitiesJson>(
+  field: TFieldName
+): (valueRaw: string) => boolean {
+  return (valueRaw: string) => {
+    // Set-but-empty behaves like unset (`defaultValue: false` is not applied when the key exists).
+    if (!valueRaw.trim()) {
+      return false;
+    }
+    const json = JSON.parse(
+      Buffer.from(valueRaw, 'base64').toString('utf8')
+    ) as WorkerCapabilitiesJson;
+    const value = json?.[field];
+    return typeof value === 'boolean' ? value : false;
+  };
+}
+
 export default {
   env: env<Environment>('ENVIRONMENT', { oneOf: Environment }),
   port: env('PORT', { defaultValue: 3005, transform: Number }),
@@ -98,6 +119,12 @@ export default {
     transform: createBase64EnvTransformer('cocoapodsCacheUrl'),
     defaultValue: null,
   }),
+  capabilities: {
+    nestedVirtualizationEnabled: env<boolean>('WORKER_CAPABILITIES_BASE64', {
+      transform: createWorkerCapabilitiesEnvTransformer('nested_virtualization_enabled'),
+      defaultValue: false,
+    }),
+  },
   runMetricsServer: env<boolean | null>('WORKER_RUNTIME_CONFIG_BASE64', {
     transform: createBase64EnvTransformer('runMetricsServer'),
     defaultValue: null,

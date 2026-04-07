@@ -48,6 +48,12 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
   setEnv(env, 'EAS_BUILD_PROJECT_ID', projectId);
 
+  setEnv(
+    env,
+    'EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED',
+    config.capabilities.nestedVirtualizationEnabled ? '1' : '0'
+  );
+
   const runnerPlatform =
     job.platform ?? (config.resourceClass && ResourceClassToPlatform[config.resourceClass]);
   if (runnerPlatform === Platform.IOS) {
