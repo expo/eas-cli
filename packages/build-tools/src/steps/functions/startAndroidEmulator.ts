@@ -12,6 +12,28 @@ import { retryAsync } from '../../utils/retry';
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
 
+const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
+  'The Android emulator needs a Linux runner with nested virtualization. This job is not on that kind of runner, so the emulator cannot start here.',
+  '',
+  'In your workflow YAML, set runs_on to a nested-virtualization Linux image, for example:',
+  '  runs_on: linux-medium-nested-virtualization',
+  '  runs_on: linux-large-nested-virtualization',
+  '',
+  'If you use your own build hardware, use a Linux host with nested virtualization enabled for Android emulators.',
+].join('\n');
+
+/**
+ * Nested virt flag from the worker (`getBuildEnv` sets `EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED`
+ * from `WORKER_CAPABILITIES_BASE64` / `config.capabilities`). On Linux the emulator step only
+ * treats `'1'` as supported; any other value (including unset) is not supported.
+ */
+function getIsNestedVirtualizationSupported(env: NodeJS.ProcessEnv): boolean {
+  if (process.platform !== 'linux') {
+    return true;
+  }
+  return env.EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED === '1';
+}
+
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -51,6 +73,12 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         logger.info('Failed to list available Android devices.', error);
       } finally {
         logger.info('');
+      }
+
+      const isNestedVirtualizationSupported = getIsNestedVirtualizationSupported(env);
+      if (!isNestedVirtualizationSupported) {
+        logger.error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
+        throw new Error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
       }
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
