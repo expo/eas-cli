@@ -26,7 +26,7 @@ const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
  * On Linux, Android emulator hardware acceleration requires CPU virtualization flags.
  * We detect support by checking `/proc/cpuinfo` for `vmx` (Intel) or `svm` (AMD).
  */
-async function getIsNestedVirtualizationSupportedAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
+async function getIsNestedVirtualizationEnabledAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
   if (process.platform !== 'linux') {
     return true;
   }
@@ -79,8 +79,8 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         logger.info('');
       }
 
-      const isNestedVirtualizationSupported = await getIsNestedVirtualizationSupportedAsync(env);
-      if (!isNestedVirtualizationSupported) {
+      const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(env);
+      if (!isNestedVirtualizationEnabled) {
         logger.error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
         throw new Error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
       }
