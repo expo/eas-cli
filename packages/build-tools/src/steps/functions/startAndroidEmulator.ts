@@ -82,15 +82,6 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
-      try {
-        const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
-        logger.info(`Available Android devices:\n- ${availableDevices.join(`\n- `)}`);
-      } catch (error) {
-        logger.info('Failed to list available Android devices.', error);
-      } finally {
-        logger.info('');
-      }
-
       const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(
         env,
         global.runtimePlatform
@@ -100,6 +91,15 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
           ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE,
           ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR
         );
+      }
+
+      try {
+        const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
+        logger.info(`Available Android devices:\n- ${availableDevices.join(`\n- `)}`);
+      } catch (error) {
+        logger.info('Failed to list available Android devices.', error);
+      } finally {
+        logger.info('');
       }
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
