@@ -3,16 +3,22 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  AppObserveAppVersion,
   AppObserveEvent,
   AppObserveEventsFilter,
   AppObserveEventsOrderBy,
   AppObservePlatform,
+  AppObserveReleasesInput,
   AppObserveTimeSeriesInput,
   AppObserveVersionMarker,
   PageInfo,
 } from '../generated';
 import { print } from 'graphql';
-import { AppObserveTimeSeriesFragmentNode, AppObserveEventFragmentNode } from '../types/Observe';
+import {
+  AppObserveAppVersionFragmentNode,
+  AppObserveTimeSeriesFragmentNode,
+  AppObserveEventFragmentNode,
+} from '../types/Observe';
 
 type AppObserveTimeSeriesQuery = {
   app: {
@@ -30,6 +36,22 @@ type AppObserveTimeSeriesQuery = {
 type AppObserveTimeSeriesQueryVariables = {
   appId: string;
   input: Pick<AppObserveTimeSeriesInput, 'metricName' | 'platform' | 'startTime' | 'endTime'>;
+};
+
+type AppObserveAppVersionsQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        appVersions: AppObserveAppVersion[];
+      };
+    };
+  };
+};
+
+type AppObserveAppVersionsQueryVariables = {
+  appId: string;
+  input: AppObserveReleasesInput;
 };
 
 type AppObserveEventsQuery = {
@@ -104,6 +126,52 @@ export const ObserveQuery = {
     );
 
     return data.app.byId.observe.timeSeries.versionMarkers;
+  },
+
+  async appVersionsAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      platform,
+      startTime,
+      endTime,
+    }: {
+      appId: string;
+      platform: AppObservePlatform;
+      startTime: string;
+      endTime: string;
+    }
+  ): Promise<AppObserveAppVersion[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveAppVersionsQuery, AppObserveAppVersionsQueryVariables>(
+          gql`
+            query AppObserveAppVersions(
+              $appId: String!
+              $input: AppObserveReleasesInput!
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    appVersions(input: $input) {
+                      ...AppObserveAppVersionFragment
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveAppVersionFragmentNode)}
+          `,
+          {
+            appId,
+            input: { platform, startTime, endTime },
+          }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.appVersions;
   },
 
   async eventsAsync(

@@ -35,3 +35,36 @@ export const AppObserveEventFragmentNode = gql`
     easClientId
   }
 `;
+
+export const AppObserveAppVersionFragmentNode = gql`
+  fragment AppObserveAppVersionFragment on AppObserveAppVersion {
+    appVersion
+    firstSeenAt
+    eventCount
+    uniqueUserCount
+    buildNumbers {
+      appBuildNumber
+      firstSeenAt
+      eventCount
+      uniqueUserCount
+      easBuilds {
+        easBuildId
+        firstSeenAt
+        eventCount
+        uniqueUserCount
+      }
+    }
+    updates {
+      appUpdateId
+      firstSeenAt
+      eventCount
+      uniqueUserCount
+      easBuilds {
+        easBuildId
+        firstSeenAt
+        eventCount
+        uniqueUserCount
+      }
+    }
+  }
+`;
