@@ -1,5 +1,10 @@
 import { asyncResult } from '@expo/results';
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import {
+  BuildFunction,
+  BuildRuntimePlatform,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+} from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
 import {
@@ -25,10 +30,14 @@ const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
 /**
  * On Linux, Android emulator hardware acceleration requires CPU virtualization flags.
  * We detect support by checking `/proc/cpuinfo` for `vmx` (Intel) or `svm` (AMD).
+ * Non-Linux hosts are treated as unsupported for this step.
  */
-async function getIsNestedVirtualizationEnabledAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
-  if (process.platform !== 'linux') {
-    return true;
+async function getIsNestedVirtualizationEnabledAsync(
+  env: NodeJS.ProcessEnv,
+  runtimePlatform: BuildRuntimePlatform
+): Promise<boolean> {
+  if (runtimePlatform !== BuildRuntimePlatform.LINUX) {
+    return false;
   }
   try {
     await spawn('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], { env });
@@ -69,7 +78,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env }) => {
       try {
         const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
         logger.info(`Available Android devices:\n- ${availableDevices.join(`\n- `)}`);
@@ -79,7 +88,10 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         logger.info('');
       }
 
-      const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(env);
+      const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(
+        env,
+        global.runtimePlatform
+      );
       if (!isNestedVirtualizationEnabled) {
         logger.error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
         throw new Error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);

@@ -1,4 +1,5 @@
 import spawn from '@expo/turtle-spawn';
+import { BuildRuntimePlatform } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -34,19 +35,14 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
-const ORIGINAL_PROCESS_PLATFORM = process.platform;
-
-function setProcessPlatform(platform: NodeJS.Platform): void {
-  Object.defineProperty(process, 'platform', {
-    value: platform,
-    configurable: true,
-  });
-}
-
-function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
+function createStep(
+  callInputs?: Record<string, unknown>,
+  envOverrides?: NodeJS.ProcessEnv,
+  runtimePlatform: BuildRuntimePlatform = BuildRuntimePlatform.LINUX
+) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
-  const globalCtx = createGlobalContextMock({ logger });
+  const globalCtx = createGlobalContextMock({ logger, runtimePlatform });
   globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home', ...envOverrides });
   const step = fn.createBuildStepFromFunctionCall(globalCtx, {
     callInputs,
@@ -83,10 +79,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       }
       throw lastErr;
     });
-  });
-
-  afterEach(() => {
-    setProcessPlatform(ORIGINAL_PROCESS_PLATFORM as NodeJS.Platform);
   });
 
   it('retries base emulator startup with increasing readiness timeouts', async () => {
@@ -226,7 +218,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
   });
 
   it('fails early on Linux when cpu virtualization flags are not available', async () => {
-    setProcessPlatform('linux');
     mockedSpawn.mockRejectedValueOnce(new Error('grep did not match') as any);
 
     const step = createStep();
@@ -239,8 +230,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
   });
 
   it('continues startup on Linux when cpu virtualization flags are available', async () => {
-    setProcessPlatform('linux');
-
     await createStep().executeAsync();
 
     expect(mockedSpawn).toHaveBeenCalledWith('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], {
@@ -249,12 +238,21 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
   });
 
-  it('does not probe /proc/cpuinfo on non-Linux hosts', async () => {
-    setProcessPlatform('darwin');
-
-    await createStep().executeAsync();
+  it('fails early on non-Linux hosts and does not probe /proc/cpuinfo', async () => {
+    await expect(
+      createStep(undefined, undefined, BuildRuntimePlatform.DARWIN).executeAsync()
+    ).rejects.toThrow(/nested virtualization/i);
 
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'grep')).toBe(false);
-    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
+  });
+
+  it('fails early on any non-Linux runtimePlatform value and does not probe /proc/cpuinfo', async () => {
+    await expect(
+      createStep(undefined, undefined, 'UNKNOWN' as BuildRuntimePlatform).executeAsync()
+    ).rejects.toThrow(/nested virtualization/i);
+
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'grep')).toBe(false);
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
   });
 });
