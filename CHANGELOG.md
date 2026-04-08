@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools][eas-cli] Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
 - [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
-- [build-tools] Stop `eas/start_android_emulator` early on Linux when nested virtualization is not enabled, with an error that points at nested-virtualization-capable build images. ([233500d2](https://github.com/expo/eas-cli/commit/233500d2cfe9f96c4b56ed64a78e199702d37f31) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Stop `eas/start_android_emulator` early on Linux when CPU virtualization flags (`vmx`/`svm`) are not available, with an error that points at nested-virtualization-capable build images. ([233500d2](https://github.com/expo/eas-cli/commit/233500d2cfe9f96c4b56ed64a78e199702d37f31) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
 

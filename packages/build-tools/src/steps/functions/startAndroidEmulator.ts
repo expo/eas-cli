@@ -23,15 +23,19 @@ const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
 ].join('\n');
 
 /**
- * Nested virt flag from the worker (`getBuildEnv` sets `EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED`
- * from `WORKER_CAPABILITIES_BASE64` / `config.capabilities`). On Linux the emulator step only
- * treats `'1'` as supported; any other value (including unset) is not supported.
+ * On Linux, Android emulator hardware acceleration requires CPU virtualization flags.
+ * We detect support by checking `/proc/cpuinfo` for `vmx` (Intel) or `svm` (AMD).
  */
-function getIsNestedVirtualizationSupported(env: NodeJS.ProcessEnv): boolean {
+async function getIsNestedVirtualizationSupportedAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
   if (process.platform !== 'linux') {
     return true;
   }
-  return env.EAS_BUILD_NESTED_VIRTUALIZATION_ENABLED === '1';
+  try {
+    await spawn('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], { env });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
@@ -75,7 +79,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         logger.info('');
       }
 
-      const isNestedVirtualizationSupported = getIsNestedVirtualizationSupported(env);
+      const isNestedVirtualizationSupported = await getIsNestedVirtualizationSupportedAsync(env);
       if (!isNestedVirtualizationSupported) {
         logger.error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
         throw new Error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
