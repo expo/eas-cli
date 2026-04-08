@@ -1,5 +1,12 @@
 import { BuildJob, Platform } from '@expo/eas-build-job';
-import { BuildFunctionGroup, BuildStep, BuildStepGlobalContext } from '@expo/steps';
+import {
+  BuildFunctionGroup,
+  BuildStep,
+  BuildStepGlobalContext,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+} from '@expo/steps';
+import path from 'path';
 
 import { shouldUseEagerBundle } from '../../common/eagerBundle';
 import { CustomBuildContext } from '../../customBuildContext';
@@ -30,6 +37,7 @@ import { createSetUpNpmrcBuildFunction } from '../functions/useNpmToken';
 interface HelperFunctionsInput {
   globalCtx: BuildStepGlobalContext;
   buildToolsContext: CustomBuildContext<BuildJob>;
+  workingDirectory?: string;
 }
 
 export function createEasBuildBuildFunctionGroup(
@@ -38,17 +46,30 @@ export function createEasBuildBuildFunctionGroup(
   return new BuildFunctionGroup({
     namespace: 'eas',
     id: 'build',
-    createBuildStepsFromFunctionGroupCall: globalCtx => {
+    inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'working_directory',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+    ],
+    createBuildStepsFromFunctionGroupCall: (globalCtx, { inputs }) => {
+      const workingDirectory = inputs.working_directory?.getValue({
+        interpolationContext: globalCtx.getInterpolationContext(),
+      }) as string | undefined;
+
       if (buildToolsContext.job.platform === Platform.IOS) {
         if (buildToolsContext.job.simulator) {
           return createStepsForIosSimulatorBuild({
             globalCtx,
             buildToolsContext,
+            workingDirectory,
           });
         } else {
           return createStepsForIosBuildWithCredentials({
             globalCtx,
             buildToolsContext,
+            workingDirectory,
           });
         }
       } else if (buildToolsContext.job.platform === Platform.ANDROID) {
@@ -56,11 +77,13 @@ export function createEasBuildBuildFunctionGroup(
           return createStepsForAndroidBuildWithoutCredentials({
             globalCtx,
             buildToolsContext,
+            workingDirectory,
           });
         } else {
           return createStepsForAndroidBuildWithCredentials({
             globalCtx,
             buildToolsContext,
+            workingDirectory,
           });
         }
       }
@@ -73,16 +96,19 @@ export function createEasBuildBuildFunctionGroup(
 function createStepsForIosSimulatorBuild({
   globalCtx,
   buildToolsContext,
+  workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
+      workingDirectory,
     });
   const installPods = createInstallPodsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-    workingDirectory: './ios',
+    workingDirectory: workingDirectory ? path.join(workingDirectory, './ios') : './ios',
   });
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
       callInputs: {
         throw_if_not_configured: false,
         resolved_eas_update_runtime_version:
@@ -91,6 +117,7 @@ function createStepsForIosSimulatorBuild({
     });
   const runFastlane = runFastlaneFunction().createBuildStepFromFunctionCall(globalCtx, {
     id: 'run_fastlane',
+    workingDirectory,
     callInputs: {
       resolved_eas_update_runtime_version:
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -98,18 +125,26 @@ function createStepsForIosSimulatorBuild({
   });
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     createResolveBuildConfigBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      { workingDirectory }
     ),
-    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     calculateEASUpdateRuntimeVersion,
     installPods,
     configureEASUpdate,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
           eagerBundleBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
             callInputs: {
               resolved_eas_update_runtime_version:
                 '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -117,29 +152,35 @@ function createStepsForIosSimulatorBuild({
           }),
         ]
       : []),
-    generateGymfileFromTemplateFunction().createBuildStepFromFunctionCall(globalCtx),
+    generateGymfileFromTemplateFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     runFastlane,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
   ];
 }
 
 function createStepsForIosBuildWithCredentials({
   globalCtx,
   buildToolsContext,
+  workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
   const evictUsedBefore = new Date();
 
   const resolveAppleTeamIdFromCredentials =
     resolveAppleTeamIdFromCredentialsFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'resolve_apple_team_id_from_credentials',
+      workingDirectory,
     });
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
+      workingDirectory,
     });
   const prebuildStep = createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+    workingDirectory,
     callInputs: {
       apple_team_id: '${ steps.resolve_apple_team_id_from_credentials.apple_team_id }',
     },
@@ -147,16 +188,18 @@ function createStepsForIosBuildWithCredentials({
   const restoreCache = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.IOS,
       },
     }
   );
   const installPods = createInstallPodsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-    workingDirectory: './ios',
+    workingDirectory: workingDirectory ? path.join(workingDirectory, './ios') : './ios',
   });
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
       callInputs: {
         throw_if_not_configured: false,
         resolved_eas_update_runtime_version:
@@ -166,6 +209,7 @@ function createStepsForIosBuildWithCredentials({
   const generateGymfile = generateGymfileFromTemplateFunction().createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         credentials: '${ eas.job.secrets.buildCredentials }',
       },
@@ -173,6 +217,7 @@ function createStepsForIosBuildWithCredentials({
   );
   const runFastlane = runFastlaneFunction().createBuildStepFromFunctionCall(globalCtx, {
     id: 'run_fastlane',
+    workingDirectory,
     callInputs: {
       resolved_eas_update_runtime_version:
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -181,6 +226,7 @@ function createStepsForIosBuildWithCredentials({
   const saveCache = createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.IOS,
       },
@@ -188,10 +234,15 @@ function createStepsForIosBuildWithCredentials({
   );
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     createResolveBuildConfigBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      { workingDirectory }
     ),
     resolveAppleTeamIdFromCredentials,
     prebuildStep,
@@ -199,11 +250,16 @@ function createStepsForIosBuildWithCredentials({
     calculateEASUpdateRuntimeVersion,
     installPods,
     configureEASUpdate,
-    configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx),
-    configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx),
+    configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
           eagerBundleBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
             callInputs: {
               resolved_eas_update_runtime_version:
                 '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -215,24 +271,29 @@ function createStepsForIosBuildWithCredentials({
     runFastlane,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
     saveCache,
-    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
   ];
 }
 
 function createStepsForAndroidBuildWithoutCredentials({
   globalCtx,
   buildToolsContext,
+  workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
   const evictUsedBefore = new Date();
 
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
+      workingDirectory,
     });
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
       callInputs: {
         throw_if_not_configured: false,
         resolved_eas_update_runtime_version:
@@ -242,6 +303,7 @@ function createStepsForAndroidBuildWithoutCredentials({
   const restoreCache = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.ANDROID,
       },
@@ -249,6 +311,7 @@ function createStepsForAndroidBuildWithoutCredentials({
   );
   const runGradle = runGradleFunction().createBuildStepFromFunctionCall(globalCtx, {
     id: 'run_gradle',
+    workingDirectory,
     callInputs: {
       resolved_eas_update_runtime_version:
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -257,6 +320,7 @@ function createStepsForAndroidBuildWithoutCredentials({
   const saveCache = createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.ANDROID,
       },
@@ -264,18 +328,26 @@ function createStepsForAndroidBuildWithoutCredentials({
   );
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     createResolveBuildConfigBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      { workingDirectory }
     ),
-    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     restoreCache,
     calculateEASUpdateRuntimeVersion,
     configureEASUpdate,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
           eagerBundleBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
             callInputs: {
               resolved_eas_update_runtime_version:
                 '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -286,24 +358,29 @@ function createStepsForAndroidBuildWithoutCredentials({
     runGradle,
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
     saveCache,
-    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
   ];
 }
 
 function createStepsForAndroidBuildWithCredentials({
   globalCtx,
   buildToolsContext,
+  workingDirectory,
 }: HelperFunctionsInput): BuildStep[] {
   const evictUsedBefore = new Date();
 
   const calculateEASUpdateRuntimeVersion =
     calculateEASUpdateRuntimeVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
       id: 'calculate_eas_update_runtime_version',
+      workingDirectory,
     });
   const configureEASUpdate =
     configureEASUpdateIfInstalledFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
       callInputs: {
         throw_if_not_configured: false,
         resolved_eas_update_runtime_version:
@@ -313,6 +390,7 @@ function createStepsForAndroidBuildWithCredentials({
   const restoreCache = createRestoreBuildCacheFunction().createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.ANDROID,
       },
@@ -320,6 +398,7 @@ function createStepsForAndroidBuildWithCredentials({
   );
   const runGradle = runGradleFunction().createBuildStepFromFunctionCall(globalCtx, {
     id: 'run_gradle',
+    workingDirectory,
     callInputs: {
       resolved_eas_update_runtime_version:
         '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -328,6 +407,7 @@ function createStepsForAndroidBuildWithCredentials({
   const saveCache = createSaveBuildCacheFunction(evictUsedBefore).createBuildStepFromFunctionCall(
     globalCtx,
     {
+      workingDirectory,
       callInputs: {
         platform: Platform.ANDROID,
       },
@@ -335,21 +415,33 @@ function createStepsForAndroidBuildWithCredentials({
   );
   return [
     createCheckoutBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx),
-    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createSetUpNpmrcBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    createInstallNodeModulesBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     createResolveBuildConfigBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-      globalCtx
+      globalCtx,
+      { workingDirectory }
     ),
-    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createPrebuildBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     restoreCache,
     calculateEASUpdateRuntimeVersion,
     configureEASUpdate,
-    injectAndroidCredentialsFunction().createBuildStepFromFunctionCall(globalCtx),
-    configureAndroidVersionFunction().createBuildStepFromFunctionCall(globalCtx),
+    injectAndroidCredentialsFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
+    configureAndroidVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
     runGradle,
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [
           eagerBundleBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+            workingDirectory,
             callInputs: {
               resolved_eas_update_runtime_version:
                 '${ steps.calculate_eas_update_runtime_version.resolved_eas_update_runtime_version }',
@@ -359,8 +451,10 @@ function createStepsForAndroidBuildWithCredentials({
       : []),
     createFindAndUploadBuildArtifactsBuildFunction(
       buildToolsContext
-    ).createBuildStepFromFunctionCall(globalCtx),
+    ).createBuildStepFromFunctionCall(globalCtx, { workingDirectory }),
     saveCache,
-    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx),
+    createCacheStatsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      workingDirectory,
+    }),
   ];
 }
