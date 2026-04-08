@@ -235,9 +235,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedSpawn).toHaveBeenCalledWith('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], {
       env: expect.any(Object),
     });
-    expect(
-      mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')
-    ).toBe(false);
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
   });
 
   it('continues startup on Linux when cpu virtualization flags are available', async () => {
