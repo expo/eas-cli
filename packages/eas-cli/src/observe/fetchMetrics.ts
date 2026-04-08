@@ -1,7 +1,7 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
-import { AppObservePlatform, AppObserveVersionMarker, AppPlatform } from '../graphql/generated';
-import { ObserveQuery } from '../graphql/queries/ObserveQuery';
+import { AppObservePlatform, AppPlatform } from '../graphql/generated';
+import { AppObserveTimeSeriesResult, ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import { MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
 
@@ -18,7 +18,7 @@ const observePlatformToAppPlatform: Record<AppObservePlatform, AppPlatform> = {
 interface ObserveQueryResult {
   metricName: string;
   platform: AppObservePlatform;
-  markers: AppObserveVersionMarker[];
+  timeSeries: AppObserveTimeSeriesResult;
 }
 
 export function validateDateFlag(value: string, flagName: string): void {
@@ -44,17 +44,17 @@ export async function fetchObserveMetricsAsync(
     for (const appPlatform of platforms) {
       const observePlatform = appPlatformToObservePlatform[appPlatform];
       observeQueries.push(
-        ObserveQuery.timeSeriesVersionMarkersAsync(graphqlClient, {
+        ObserveQuery.timeSeriesAsync(graphqlClient, {
           appId,
           metricName,
           platform: observePlatform,
           startTime,
           endTime,
         })
-          .then(markers => ({
+          .then(timeSeries => ({
             metricName,
             platform: observePlatform,
-            markers,
+            timeSeries,
           }))
           .catch(error => {
             Log.warn(
@@ -74,21 +74,23 @@ export async function fetchObserveMetricsAsync(
     if (!result) {
       continue;
     }
-    const { metricName, platform, markers } = result;
+    const { metricName, platform, timeSeries } = result;
     const appPlatform = observePlatformToAppPlatform[platform];
-    for (const marker of markers) {
+    const { statistics } = timeSeries;
+
+    for (const marker of timeSeries.appVersionMarkers) {
       const key = makeMetricsKey(marker.appVersion, appPlatform);
       if (!metricsMap.has(key)) {
         metricsMap.set(key, new Map());
       }
       const values: MetricValues = {
-        min: marker.statistics.min,
-        max: marker.statistics.max,
-        median: marker.statistics.median,
-        average: marker.statistics.average,
-        p80: marker.statistics.p80,
-        p90: marker.statistics.p90,
-        p99: marker.statistics.p99,
+        min: statistics.min,
+        max: statistics.max,
+        median: statistics.median,
+        average: statistics.average,
+        p80: statistics.p80,
+        p90: statistics.p90,
+        p99: statistics.p99,
         eventCount: marker.eventCount,
       };
       metricsMap.get(key)!.set(metricName, values);

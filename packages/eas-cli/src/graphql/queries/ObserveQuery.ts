@@ -10,7 +10,7 @@ import {
   AppObservePlatform,
   AppObserveReleasesInput,
   AppObserveTimeSeriesInput,
-  AppObserveVersionMarker,
+  AppObserveTimeSeriesStatistics,
   PageInfo,
 } from '../generated';
 import { print } from 'graphql';
@@ -20,14 +20,18 @@ import {
   AppObserveEventFragmentNode,
 } from '../types/Observe';
 
+export type AppObserveTimeSeriesResult = {
+  appVersionMarkers: AppObserveAppVersion[];
+  eventCount: number;
+  statistics: AppObserveTimeSeriesStatistics;
+};
+
 type AppObserveTimeSeriesQuery = {
   app: {
     byId: {
       id: string;
       observe: {
-        timeSeries: {
-          versionMarkers: AppObserveVersionMarker[];
-        };
+        timeSeries: AppObserveTimeSeriesResult;
       };
     };
   };
@@ -80,7 +84,7 @@ type AppObserveEventsQueryVariables = {
 };
 
 export const ObserveQuery = {
-  async timeSeriesVersionMarkersAsync(
+  async timeSeriesAsync(
     graphqlClient: ExpoGraphqlClient,
     {
       appId,
@@ -95,7 +99,7 @@ export const ObserveQuery = {
       startTime: string;
       endTime: string;
     }
-  ): Promise<AppObserveVersionMarker[]> {
+  ): Promise<AppObserveTimeSeriesResult> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<AppObserveTimeSeriesQuery, AppObserveTimeSeriesQueryVariables>(
@@ -115,6 +119,7 @@ export const ObserveQuery = {
                 }
               }
             }
+            ${print(AppObserveAppVersionFragmentNode)}
             ${print(AppObserveTimeSeriesFragmentNode)}
           `,
           {
@@ -125,7 +130,7 @@ export const ObserveQuery = {
         .toPromise()
     );
 
-    return data.app.byId.observe.timeSeries.versionMarkers;
+    return data.app.byId.observe.timeSeries;
   },
 
   async appVersionsAsync(

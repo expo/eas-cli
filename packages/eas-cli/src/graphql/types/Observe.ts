@@ -2,19 +2,18 @@ import gql from 'graphql-tag';
 
 export const AppObserveTimeSeriesFragmentNode = gql`
   fragment AppObserveTimeSeriesFragment on AppObserveTimeSeries {
-    versionMarkers {
-      appVersion
-      eventCount
-      firstSeenAt
-      statistics {
-        min
-        max
-        median
-        average
-        p80
-        p90
-        p99
-      }
+    appVersionMarkers {
+      ...AppObserveAppVersionFragment
+    }
+    eventCount
+    statistics {
+      min
+      max
+      median
+      average
+      p80
+      p90
+      p99
     }
   }
 `;
