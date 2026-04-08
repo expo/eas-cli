@@ -21,13 +21,13 @@ const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE =
   'EAS_ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE';
 
 const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
-  'The Android emulator needs a Linux runner with nested virtualization. This job is not on that kind of runner, so the emulator cannot start here.',
+  'Could not start the Android emulator on this runner.',
   '',
-  'In your workflow YAML, set runs_on to a nested-virtualization Linux image, for example:',
+  'Android emulator requires nested virtualization on Linux. This job does not have the required virtualization support.',
+  '',
+  'Update your workflow YAML to use a nested-virtualization Linux runner, for example:',
   '  runs_on: linux-medium-nested-virtualization',
   '  runs_on: linux-large-nested-virtualization',
-  '',
-  'If you use your own build hardware, use a Linux host with nested virtualization enabled for Android emulators.',
 ].join('\n');
 
 /**
