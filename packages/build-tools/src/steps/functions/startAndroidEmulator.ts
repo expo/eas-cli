@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { asyncResult } from '@expo/results';
 import {
   BuildFunction,
@@ -16,6 +17,8 @@ import { retryAsync } from '../../utils/retry';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
+const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE =
+  'EAS_ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE';
 
 const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
   'The Android emulator needs a Linux runner with nested virtualization. This job is not on that kind of runner, so the emulator cannot start here.',
@@ -93,8 +96,10 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         global.runtimePlatform
       );
       if (!isNestedVirtualizationEnabled) {
-        logger.error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
-        throw new Error(ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR);
+        throw new UserError(
+          ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE,
+          ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR
+        );
       }
 
       const deviceName = `${inputs.device_name.value}` as AndroidVirtualDeviceName;
