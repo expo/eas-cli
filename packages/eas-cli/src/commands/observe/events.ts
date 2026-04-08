@@ -67,6 +67,9 @@ export default class ObserveEvents extends EasCommand {
     'update-id': Flags.string({
       description: 'Filter by EAS update ID',
     }),
+    'project-id': Flags.string({
+      description: 'EAS project ID (defaults to the project ID of the current directory)',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -78,11 +81,13 @@ export default class ObserveEvents extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveEvents);
     const {
-      projectId,
+      projectId: contextProjectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ObserveEvents, {
       nonInteractive: flags['non-interactive'],
     });
+
+    const projectId = flags['project-id'] ?? contextProjectId;
 
     if (flags.json) {
       enableJsonOutput();

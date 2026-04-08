@@ -67,6 +67,9 @@ export default class ObserveMetrics extends EasCommand {
       min: 1,
       exclusive: ['start', 'end'],
     }),
+    'project-id': Flags.string({
+      description: 'EAS project ID (defaults to the project ID of the current directory)',
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -78,11 +81,13 @@ export default class ObserveMetrics extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetrics);
     const {
-      projectId,
+      projectId: contextProjectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(ObserveMetrics, {
       nonInteractive: flags['non-interactive'],
     });
+
+    const projectId = flags['project-id'] ?? contextProjectId;
 
     if (flags.json) {
       enableJsonOutput();
