@@ -188,7 +188,12 @@ const BuildFunctionCallSchema = Joi.object({
   name: Joi.string(),
   workingDirectory: Joi.string(),
   shell: Joi.string(),
-  env: Joi.object().pattern(Joi.string(), Joi.string().allow('')),
+  env: Joi.object().pattern(
+    Joi.string(),
+    Joi.alternatives()
+      .try(Joi.number().strict(), Joi.string().allow(''))
+      .custom(value => String(value))
+  ),
   if: Joi.string(),
   timeout_minutes: Joi.number().positive(),
   // Internal field for metrics collection. Not documented publicly.
