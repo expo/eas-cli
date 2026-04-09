@@ -14,7 +14,7 @@ import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { startAndEndTime } from '../../observe/startAndEndTime';
+import { DEFAULT_DAYS_BACK, startAndEndTime } from '../../observe/startAndEndTime';
 
 const DEFAULT_EVENTS_LIMIT = 10;
 
@@ -103,8 +103,9 @@ export default class ObserveEvents extends EasCommand {
     const metricName = resolveMetricName(flags.metric);
     const orderBy = resolveOrderBy(flags.sort);
 
+    const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
     const { startTime, endTime } = startAndEndTime({
-      daysBack: flags['days'],
+      daysBack,
       start: flags.start,
       end: flags.end,
     });
@@ -131,7 +132,14 @@ export default class ObserveEvents extends EasCommand {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();
-      Log.log(buildObserveEventsTable(events, pageInfo));
+      Log.log(
+        buildObserveEventsTable(events, pageInfo, {
+          metricName,
+          daysBack,
+          startTime,
+          endTime,
+        })
+      );
     }
   }
 }

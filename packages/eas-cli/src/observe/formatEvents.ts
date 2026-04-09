@@ -30,7 +30,27 @@ export interface ObserveEventJson {
   timestamp: string;
 }
 
-export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: PageInfo): string {
+function formatDate(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export interface BuildEventsTableOptions {
+  metricName: string;
+  daysBack?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
+export function buildObserveEventsTable(
+  events: AppObserveEvent[],
+  pageInfo: PageInfo,
+  options?: BuildEventsTableOptions
+): string {
   if (events.length === 0) {
     return chalk.yellow('No events found.');
   }
@@ -38,7 +58,6 @@ export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: Pag
   const hasUpdates = events.some(e => e.appUpdateId);
 
   const headers = [
-    'Metric',
     'Value',
     'App Version',
     ...(hasUpdates ? ['Update'] : []),
@@ -49,7 +68,6 @@ export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: Pag
   ];
 
   const rows: string[][] = events.map(event => [
-    getMetricDisplayName(event.metricName),
     `${event.metricValue.toFixed(2)}s`,
     `${event.appVersion} (${event.appBuildNumber})`,
     ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
@@ -65,7 +83,22 @@ export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: Pag
   const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
   const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
 
-  const lines = [chalk.bold(headerLine), separatorLine, ...dataLines];
+  const lines: string[] = [];
+
+  if (options) {
+    const metricDisplay = getMetricDisplayName(options.metricName);
+    let timeDesc: string;
+    if (options.daysBack) {
+      timeDesc = `for the last ${options.daysBack} days`;
+    } else if (options.startTime && options.endTime) {
+      timeDesc = `from ${formatDate(options.startTime)} to ${formatDate(options.endTime)}`;
+    } else {
+      timeDesc = '';
+    }
+    lines.push(chalk.bold(`${metricDisplay} events ${timeDesc}`.trim()), '');
+  }
+
+  lines.push(chalk.bold(headerLine), separatorLine, ...dataLines);
 
   if (pageInfo.hasNextPage && pageInfo.endCursor) {
     lines.push('', `Next page: --after ${pageInfo.endCursor}`);

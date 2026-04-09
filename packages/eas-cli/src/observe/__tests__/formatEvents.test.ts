@@ -63,10 +63,10 @@ describe(buildObserveEventsTable, () => {
 
     // Escape codes are included, because the header is bolded.
     expect(output).toMatchInlineSnapshot(`
-"[1mMetric  Value  App Version  Platform    Device     Country  Timestamp             [22m
-------  -----  -----------  ----------  ---------  -------  ----------------------
-TTI     1.23s  1.2.0 (42)   iOS 17.0    iPhone 15  US       Jan 15, 2025, 10:30 AM
-TTI     0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 AM"
+"[1mValue  App Version  Platform    Device     Country  Timestamp             [22m
+-----  -----------  ----------  ---------  -------  ----------------------
+1.23s  1.2.0 (42)   iOS 17.0    iPhone 15  US       Jan 15, 2025, 10:30 AM
+0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 AM"
 `);
   });
 
@@ -75,26 +75,25 @@ TTI     0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 
     expect(output).toContain('No events found.');
   });
 
-  it('uses short names for known metrics', () => {
-    const events = [
-      createMockEvent({ metricName: 'expo.app_startup.cold_launch_time' }),
-      createMockEvent({
-        id: 'evt-2',
-        metricName: 'expo.app_startup.warm_launch_time',
-      }),
-      createMockEvent({ id: 'evt-3', metricName: 'expo.app_startup.ttr' }),
-      createMockEvent({
-        id: 'evt-4',
-        metricName: 'expo.app_startup.bundle_load_time',
-      }),
-    ];
+  it('shows metric name in summary header when options are provided', () => {
+    const events = [createMockEvent({ metricName: 'expo.app_startup.tti' })];
+    const output = buildObserveEventsTable(events, noNextPage, {
+      metricName: 'expo.app_startup.tti',
+      daysBack: 30,
+    });
 
-    const output = buildObserveEventsTable(events, noNextPage);
+    expect(output).toContain('TTI events for the last 30 days');
+  });
 
-    expect(output).toContain('Cold Launch');
-    expect(output).toContain('Warm Launch');
-    expect(output).toContain('TTR');
-    expect(output).toContain('Bundle Load');
+  it('shows date range in summary header when start/end provided', () => {
+    const events = [createMockEvent()];
+    const output = buildObserveEventsTable(events, noNextPage, {
+      metricName: 'expo.app_startup.cold_launch_time',
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+    });
+
+    expect(output).toContain('Cold Launch events from Jan 1, 2025 to Feb 1, 2025');
   });
 
   it('shows - for null countryCode', () => {
