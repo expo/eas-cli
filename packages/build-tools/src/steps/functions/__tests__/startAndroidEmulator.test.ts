@@ -1,5 +1,4 @@
 import spawn from '@expo/turtle-spawn';
-import { BuildRuntimePlatform } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -35,14 +34,10 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
-function createStep(
-  callInputs?: Record<string, unknown>,
-  envOverrides?: NodeJS.ProcessEnv,
-  runtimePlatform: BuildRuntimePlatform = BuildRuntimePlatform.LINUX
-) {
+function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
-  const globalCtx = createGlobalContextMock({ logger, runtimePlatform });
+  const globalCtx = createGlobalContextMock({ logger });
   globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home', ...envOverrides });
   const step = fn.createBuildStepFromFunctionCall(globalCtx, {
     callInputs,
