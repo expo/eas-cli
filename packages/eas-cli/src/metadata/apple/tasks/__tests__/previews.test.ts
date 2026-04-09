@@ -354,6 +354,17 @@ describe(PreviewsTask, () => {
       // Mock AppPreview.uploadAsync to avoid real file access
       jest.spyOn(AppPreview, 'uploadAsync').mockResolvedValue(newPreview);
 
+      // Mock AppPreviewSet.infoAsync for the reorder step
+      jest.spyOn(AppPreviewSet, 'infoAsync').mockResolvedValue(
+        new AppPreviewSet(requestContext, 'NEW_PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [newPreview],
+        } as any)
+      );
+
+      const reorderMock = jest.fn().mockResolvedValue([]);
+      AppPreviewSet.prototype.reorderPreviewsAsync = reorderMock;
+
       const previewSets = new Map();
       previewSets.set('en-US', new Map());
 
@@ -375,6 +386,214 @@ describe(PreviewsTask, () => {
           waitForProcessing: true,
         })
       );
+      // Single preview, current order matches: reorder should be skipped.
+      expect(reorderMock).not.toHaveBeenCalled();
+    });
+
+    it('uploads multiple previews when configured as an array', async () => {
+      const config = new AppleConfigReader({
+        info: {
+          'en-US': {
+            title: 'My App',
+            previews: {
+              IPHONE_67: [
+                './previews/intro.mp4',
+                { path: './previews/features.mp4', previewFrameTimeCode: '00:02:00' },
+                './previews/outro.mp4',
+              ],
+            },
+          },
+        },
+      });
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      const intro = new AppPreview(requestContext, 'NEW_PV_INTRO', {
+        fileName: 'intro.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: null,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+      const features = new AppPreview(requestContext, 'NEW_PV_FEATURES', {
+        fileName: 'features.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: '00:02:00',
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+      const outro = new AppPreview(requestContext, 'NEW_PV_OUTRO', {
+        fileName: 'outro.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: null,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+
+      const scope = nock('https://api.appstoreconnect.apple.com')
+        .post(`/v1/${AppPreviewSet.type}`)
+        .reply(201, {
+          data: {
+            id: 'NEW_PSET_1',
+            type: AppPreviewSet.type,
+            attributes: {
+              previewType: PreviewType.IPHONE_67,
+              appPreviews: [],
+            },
+          },
+        });
+
+      const uploadSpy = jest
+        .spyOn(AppPreview, 'uploadAsync')
+        .mockResolvedValueOnce(intro)
+        .mockResolvedValueOnce(features)
+        .mockResolvedValueOnce(outro);
+
+      // After upload Apple returns the previews in upload order, which already matches config.
+      jest.spyOn(AppPreviewSet, 'infoAsync').mockResolvedValue(
+        new AppPreviewSet(requestContext, 'NEW_PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [intro, features, outro],
+        } as any)
+      );
+
+      const reorderMock = jest.fn().mockResolvedValue([]);
+      AppPreviewSet.prototype.reorderPreviewsAsync = reorderMock;
+
+      const previewSets = new Map();
+      previewSets.set('en-US', new Map());
+
+      await new PreviewsTask().uploadAsync({
+        config,
+        context: {
+          previewSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(scope.isDone()).toBeTruthy();
+      expect(uploadSpy).toHaveBeenCalledTimes(3);
+      expect(uploadSpy).toHaveBeenNthCalledWith(
+        1,
+        requestContext,
+        expect.objectContaining({ filePath: '/test/project/previews/intro.mp4' })
+      );
+      expect(uploadSpy).toHaveBeenNthCalledWith(
+        2,
+        requestContext,
+        expect.objectContaining({
+          filePath: '/test/project/previews/features.mp4',
+          previewFrameTimeCode: '00:02:00',
+        })
+      );
+      expect(uploadSpy).toHaveBeenNthCalledWith(
+        3,
+        requestContext,
+        expect.objectContaining({ filePath: '/test/project/previews/outro.mp4' })
+      );
+      // Order already matches config order, no reorder call expected.
+      expect(reorderMock).not.toHaveBeenCalled();
+    });
+
+    it('reorders previews when ASC order differs from config order', async () => {
+      const config = new AppleConfigReader({
+        info: {
+          'en-US': {
+            title: 'My App',
+            previews: {
+              IPHONE_67: ['./previews/a.mp4', './previews/b.mp4'],
+            },
+          },
+        },
+      });
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      // Both previews already exist (matching filename + size), so no upload happens.
+      const previewA = new AppPreview(requestContext, 'PV_A', {
+        fileName: 'a.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: null,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+      const previewB = new AppPreview(requestContext, 'PV_B', {
+        fileName: 'b.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: null,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+
+      const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
+      // ASC reports them in [b, a] order — config wants [a, b].
+      previewTypeMap.set(
+        PreviewType.IPHONE_67,
+        new AppPreviewSet(requestContext, 'PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [previewB, previewA],
+        } as any)
+      );
+
+      jest.spyOn(AppPreview, 'uploadAsync').mockResolvedValue(previewA);
+
+      jest.spyOn(AppPreviewSet, 'infoAsync').mockResolvedValue(
+        new AppPreviewSet(requestContext, 'PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [previewB, previewA],
+        } as any)
+      );
+
+      const reorderMock = jest.fn().mockResolvedValue([]);
+      AppPreviewSet.prototype.reorderPreviewsAsync = reorderMock;
+
+      const previewSets = new Map();
+      previewSets.set('en-US', previewTypeMap);
+
+      await new PreviewsTask().uploadAsync({
+        config,
+        context: {
+          previewSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(AppPreview.uploadAsync).not.toHaveBeenCalled();
+      expect(reorderMock).toHaveBeenCalledWith({ appPreviews: ['PV_A', 'PV_B'] });
+    });
+
+    it('skips a preview type whose array is empty', async () => {
+      const config = new AppleConfigReader({
+        info: {
+          'en-US': {
+            title: 'My App',
+            previews: {
+              IPHONE_67: [],
+            },
+          },
+        },
+      });
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      jest.spyOn(AppPreview, 'uploadAsync');
+
+      const previewSets = new Map();
+      previewSets.set('en-US', new Map());
+
+      await new PreviewsTask().uploadAsync({
+        config,
+        context: {
+          previewSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(AppPreview.uploadAsync).not.toHaveBeenCalled();
     });
 
     it('uploads new preview with object config including previewFrameTimeCode', async () => {
@@ -420,6 +639,16 @@ describe(PreviewsTask, () => {
       // Mock AppPreview.uploadAsync to avoid real file access
       jest.spyOn(AppPreview, 'uploadAsync').mockResolvedValue(newPreview);
 
+      jest.spyOn(AppPreviewSet, 'infoAsync').mockResolvedValue(
+        new AppPreviewSet(requestContext, 'NEW_PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [newPreview],
+        } as any)
+      );
+
+      const reorderMock = jest.fn().mockResolvedValue([]);
+      AppPreviewSet.prototype.reorderPreviewsAsync = reorderMock;
+
       const previewSets = new Map();
       previewSets.set('en-US', new Map());
 
@@ -442,6 +671,69 @@ describe(PreviewsTask, () => {
           previewFrameTimeCode: '00:05:00',
         })
       );
+    });
+  });
+
+  describe('downloadAsync (multi-preview)', () => {
+    it('emits an array when there are multiple previews in a set', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      const previews = [
+        new AppPreview(requestContext, 'PV_1', {
+          fileName: 'intro.mp4',
+          fileSize: 10240,
+          previewFrameTimeCode: null,
+          videoUrl: 'https://example.com/intro.mp4',
+          assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+        } as any),
+        new AppPreview(requestContext, 'PV_2', {
+          fileName: 'features.mp4',
+          fileSize: 10240,
+          previewFrameTimeCode: '00:01:00',
+          videoUrl: 'https://example.com/features.mp4',
+          assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+        } as any),
+      ];
+
+      jest.spyOn(previews[0], 'getVideoUrl').mockReturnValue('https://example.com/intro.mp4');
+      jest.spyOn(previews[1], 'getVideoUrl').mockReturnValue('https://example.com/features.mp4');
+
+      const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
+      previewTypeMap.set(
+        PreviewType.IPHONE_67,
+        new AppPreviewSet(requestContext, 'PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: previews,
+        } as any)
+      );
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        buffer: () => Promise.resolve(Buffer.from('fake-video-data')),
+      });
+
+      await new PreviewsTask().downloadAsync({
+        config: writer,
+        context: {
+          previewSets: new Map([['en-US', previewTypeMap]]),
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(writer.setPreviews).toBeCalledWith('en-US', {
+        [PreviewType.IPHONE_67]: [
+          'store/apple/preview/en-US/IPHONE_67/intro.mp4',
+          {
+            path: 'store/apple/preview/en-US/IPHONE_67/features.mp4',
+            previewFrameTimeCode: '00:01:00',
+          },
+        ],
+      });
     });
   });
 });

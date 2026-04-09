@@ -22,17 +22,33 @@ export type PreviewsData = {
   previewSets: PreviewSetsMap;
 };
 
-/**
- * Normalize preview config to always return an object with path and optional previewFrameTimeCode.
- */
-function normalizePreviewConfig(config: ApplePreviewConfig): {
+/** Normalized preview entry used internally by the upload pipeline. */
+type NormalizedPreviewConfig = {
   path: string;
   previewFrameTimeCode?: string;
-} {
+};
+
+/**
+ * Normalize a single preview config into an object form with path and optional previewFrameTimeCode.
+ */
+function normalizePreviewConfig(config: ApplePreviewConfig): NormalizedPreviewConfig {
   if (typeof config === 'string') {
     return { path: config };
   }
   return config;
+}
+
+/**
+ * Normalize the value stored in `ApplePreviews[previewType]` (which can be a single
+ * config OR an array of configs) into an array of normalized configs.
+ */
+function normalizePreviewConfigs(
+  value: ApplePreviewConfig | ApplePreviewConfig[]
+): NormalizedPreviewConfig[] {
+  if (Array.isArray(value)) {
+    return value.map(normalizePreviewConfig);
+  }
+  return [normalizePreviewConfig(value)];
 }
 
 /**
@@ -86,34 +102,44 @@ export class PreviewsTask extends AppleTask {
           continue;
         }
 
-        // For now, we only handle the first preview per set (App Store allows up to 3)
-        // We can extend this later to support multiple previews
-        const preview = previewModels[0];
-        const downloaded = await downloadPreviewAsync(
-          context.projectDir,
-          localeCode,
-          previewType,
-          preview,
-          0
-        );
+        // Download all previews in this set, preserving order. Mirrors how
+        // screenshots are handled: when a preview is in a broken state
+        // (AWAITING_UPLOAD with no rendered videoUrl) the download will fail,
+        // but we still preserve the entry pointing at its expected local path
+        // so users can either drop in a replacement file or remove the entry
+        // to delete the broken ASC record.
+        const entries: ApplePreviewConfig[] = [];
+        for (let i = 0; i < previewModels.length; i++) {
+          const preview = previewModels[i];
+          const downloaded = await downloadPreviewAsync(
+            context.projectDir,
+            localeCode,
+            previewType,
+            preview,
+            i
+          );
 
-        // When the download succeeds, write the real path. When it fails
-        // (e.g. the preview is in a broken AWAITING_UPLOAD state with no
-        // rendered videoUrl), preserve the entry in config so the user can
-        // either drop in a replacement file or remove the entry to delete
-        // the broken ASC record.
-        const fileName = preview.attributes.fileName || 'preview.mp4';
-        const relativePath =
-          downloaded || path.join('store', 'apple', 'preview', localeCode, previewType, fileName);
+          const fileName = preview.attributes.fileName || `${String(i + 1).padStart(2, '0')}.mp4`;
+          const relativePath =
+            downloaded || path.join('store', 'apple', 'preview', localeCode, previewType, fileName);
 
-        if (preview.attributes.previewFrameTimeCode) {
-          previews[previewType] = {
-            path: relativePath,
-            previewFrameTimeCode: preview.attributes.previewFrameTimeCode,
-          };
-        } else {
-          previews[previewType] = relativePath;
+          if (preview.attributes.previewFrameTimeCode) {
+            entries.push({
+              path: relativePath,
+              previewFrameTimeCode: preview.attributes.previewFrameTimeCode,
+            });
+          } else {
+            entries.push(relativePath);
+          }
         }
+
+        if (entries.length === 0) {
+          continue;
+        }
+
+        // For backwards compatibility with existing single-preview configs,
+        // emit the legacy single-object form when there's exactly one entry.
+        previews[previewType] = entries.length === 1 ? entries[0] : entries;
       }
 
       if (Object.keys(previews).length > 0) {
@@ -146,8 +172,13 @@ export class PreviewsTask extends AppleTask {
         continue;
       }
 
-      for (const [previewType, previewConfig] of Object.entries(previews)) {
-        if (!previewConfig) {
+      for (const [previewType, previewValue] of Object.entries(previews)) {
+        if (!previewValue) {
+          continue;
+        }
+
+        const normalized = normalizePreviewConfigs(previewValue);
+        if (normalized.length === 0) {
           continue;
         }
 
@@ -155,7 +186,7 @@ export class PreviewsTask extends AppleTask {
           context.projectDir,
           localization,
           previewType as PreviewType,
-          normalizePreviewConfig(previewConfig),
+          normalized,
           context.previewSets.get(localeCode)
         );
       }
@@ -164,23 +195,20 @@ export class PreviewsTask extends AppleTask {
 }
 
 /**
- * Sync a preview set - upload new preview, delete old one if changed.
+ * Sync a preview set against the configured previews.
+ *
+ * Mirrors the screenshots task: keeps unchanged previews (matched by filename
+ * + size + completion state), uploads any new/changed previews, deletes
+ * removed entries, and finally reorders the set to match config order.
  */
 async function syncPreviewSetAsync(
   projectDir: string,
   localization: AppStoreVersionLocalization,
   previewType: PreviewType,
-  previewConfig: { path: string; previewFrameTimeCode?: string },
+  previewConfigs: NormalizedPreviewConfig[],
   existingSets: Map<PreviewType, AppPreviewSet> | undefined
 ): Promise<void> {
   const locale = localization.attributes.locale;
-  const absolutePath = path.resolve(projectDir, previewConfig.path);
-  const fileName = path.basename(absolutePath);
-
-  if (!fs.existsSync(absolutePath)) {
-    Log.warn(chalk`{yellow Video preview not found: ${absolutePath}}`);
-    return;
-  }
 
   // Get or create the preview set
   let previewSet = existingSets?.get(previewType);
@@ -201,62 +229,127 @@ async function syncPreviewSetAsync(
 
   const existingPreviews = previewSet.attributes.appPreviews || [];
 
-  // Check if we need to update (different filename, size, or no existing preview)
-  const existingPreview = existingPreviews.find(p => p.attributes.fileName === fileName);
-  const localSize = fs.statSync(absolutePath).size;
-
-  if (
-    existingPreview &&
-    existingPreview.isComplete() &&
-    existingPreview.attributes.fileSize === localSize
-  ) {
-    // Preview with same filename exists, check if we need to update preview frame time code
-    if (
-      previewConfig.previewFrameTimeCode &&
-      existingPreview.attributes.previewFrameTimeCode !== previewConfig.previewFrameTimeCode
-    ) {
-      await logAsync(
-        () =>
-          existingPreview.updateAsync({
-            previewFrameTimeCode: previewConfig.previewFrameTimeCode,
-          }),
-        {
-          pending: `Updating preview frame time code for ${chalk.bold(fileName)} (${locale})...`,
-          success: `Updated preview frame time code for ${chalk.bold(fileName)} (${locale})`,
-          failure: `Failed updating preview frame time code for ${chalk.bold(fileName)} (${locale})`,
-        }
-      );
-    }
-    Log.log(chalk`{dim Preview ${fileName} already exists, skipping upload}`);
-    return;
-  }
-
-  // Delete existing previews that don't match
+  // Build a map of existing previews by filename for comparison.
+  const existingByFilename = new Map<string, AppPreview>();
   for (const preview of existingPreviews) {
-    if (preview.attributes.fileName !== fileName) {
-      await logAsync(() => preview.deleteAsync(), {
-        pending: `Deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})...`,
-        success: `Deleted old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
-        failure: `Failed deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
-      });
-    }
+    existingByFilename.set(preview.attributes.fileName, preview);
   }
 
-  // Upload new preview
-  await logAsync(
-    () =>
-      AppPreview.uploadAsync(localization.context, {
-        id: previewSet!.id,
-        filePath: absolutePath,
-        waitForProcessing: true,
-        previewFrameTimeCode: previewConfig.previewFrameTimeCode,
-      }),
-    {
-      pending: `Uploading video preview ${chalk.bold(fileName)} (${locale})...`,
-      success: `Uploaded video preview ${chalk.bold(fileName)} (${locale})`,
-      failure: `Failed uploading video preview ${chalk.bold(fileName)} (${locale})`,
+  // Track which previews to keep (by id), and which configs need uploading.
+  const keptPreviewIds = new Set<string>();
+  type UploadEntry = {
+    absolutePath: string;
+    fileName: string;
+    previewFrameTimeCode?: string;
+  };
+  const toUpload: UploadEntry[] = [];
+
+  for (const previewConfig of previewConfigs) {
+    const absolutePath = path.resolve(projectDir, previewConfig.path);
+    const fileName = path.basename(absolutePath);
+
+    const existing = existingByFilename.get(fileName);
+    const localSize = fs.existsSync(absolutePath) ? fs.statSync(absolutePath).size : null;
+
+    if (
+      existing &&
+      existing.isComplete() &&
+      (localSize === null || existing.attributes.fileSize === localSize)
+    ) {
+      keptPreviewIds.add(existing.id);
+      existingByFilename.delete(fileName);
+
+      // If only the previewFrameTimeCode changed, patch it in place.
+      if (
+        previewConfig.previewFrameTimeCode &&
+        existing.attributes.previewFrameTimeCode !== previewConfig.previewFrameTimeCode
+      ) {
+        await logAsync(
+          () =>
+            existing.updateAsync({
+              previewFrameTimeCode: previewConfig.previewFrameTimeCode,
+            }),
+          {
+            pending: `Updating preview frame time code for ${chalk.bold(fileName)} (${locale})...`,
+            success: `Updated preview frame time code for ${chalk.bold(fileName)} (${locale})`,
+            failure: `Failed updating preview frame time code for ${chalk.bold(fileName)} (${locale})`,
+          }
+        );
+      } else {
+        Log.log(chalk`{dim Preview ${fileName} already exists, skipping upload}`);
+      }
+      continue;
     }
-  );
+
+    toUpload.push({
+      absolutePath,
+      fileName,
+      previewFrameTimeCode: previewConfig.previewFrameTimeCode,
+    });
+  }
+
+  // Delete previews that are no longer in config.
+  for (const preview of existingByFilename.values()) {
+    await logAsync(() => preview.deleteAsync(), {
+      pending: `Deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})...`,
+      success: `Deleted old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
+      failure: `Failed deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
+    });
+  }
+
+  // Upload new previews.
+  for (const entry of toUpload) {
+    if (!fs.existsSync(entry.absolutePath)) {
+      Log.warn(chalk`{yellow Video preview not found: ${entry.absolutePath}}`);
+      continue;
+    }
+
+    const newPreview = await logAsync(
+      () =>
+        AppPreview.uploadAsync(localization.context, {
+          id: previewSet!.id,
+          filePath: entry.absolutePath,
+          waitForProcessing: true,
+          previewFrameTimeCode: entry.previewFrameTimeCode,
+        }),
+      {
+        pending: `Uploading video preview ${chalk.bold(entry.fileName)} (${locale})...`,
+        success: `Uploaded video preview ${chalk.bold(entry.fileName)} (${locale})`,
+        failure: `Failed uploading video preview ${chalk.bold(entry.fileName)} (${locale})`,
+      }
+    );
+
+    keptPreviewIds.add(newPreview.id);
+  }
+
+  // Reorder previews to match config order (mirrors screenshots).
+  if (keptPreviewIds.size > 0) {
+    const refreshedSet = await AppPreviewSet.infoAsync(localization.context, {
+      id: previewSet.id,
+    });
+    const refreshedPreviews = refreshedSet.attributes.appPreviews || [];
+    const previewsByFilename = new Map<string, AppPreview>();
+    for (const p of refreshedPreviews) {
+      previewsByFilename.set(p.attributes.fileName, p);
+    }
+
+    const orderedIds: string[] = [];
+    for (const previewConfig of previewConfigs) {
+      const fileName = path.basename(previewConfig.path);
+      const preview = previewsByFilename.get(fileName);
+      if (preview) {
+        orderedIds.push(preview.id);
+      }
+    }
+
+    const currentIds = refreshedPreviews.map(p => p.id);
+    if (
+      orderedIds.length > 0 &&
+      (orderedIds.length !== currentIds.length || orderedIds.some((id, i) => id !== currentIds[i]))
+    ) {
+      await previewSet.reorderPreviewsAsync({ appPreviews: orderedIds });
+    }
+  }
 }
 
 /**

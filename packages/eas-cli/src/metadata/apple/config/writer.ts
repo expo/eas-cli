@@ -211,11 +211,42 @@ export class AppleConfigWriter {
       Object.keys(screenshots).length > 0 ? screenshots : undefined;
   }
 
-  /** Set video previews for a specific locale */
+  /**
+   * Set video previews for a specific locale.
+   *
+   * Accepts either the legacy single-config form or the multi-preview array form
+   * for each preview type. When an array contains exactly one entry, it is
+   * unwrapped to the legacy single-object form for stable, minimal config diffs.
+   */
   public setPreviews(locale: string, previews: ApplePreviews): void {
     this.schema.info = this.schema.info ?? {};
     this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
-    this.schema.info[locale].previews = Object.keys(previews).length > 0 ? previews : undefined;
+
+    if (Object.keys(previews).length === 0) {
+      this.schema.info[locale].previews = undefined;
+      return;
+    }
+
+    const normalized: ApplePreviews = {};
+    for (const [previewType, value] of Object.entries(previews)) {
+      if (value == null) {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          continue;
+        }
+        if (value.length === 1) {
+          normalized[previewType as keyof ApplePreviews] = value[0];
+        } else {
+          normalized[previewType as keyof ApplePreviews] = value;
+        }
+      } else {
+        normalized[previewType as keyof ApplePreviews] = value;
+      }
+    }
+
+    this.schema.info[locale].previews = Object.keys(normalized).length > 0 ? normalized : undefined;
   }
 
   /** Set the App Clip default experience attributes (action, releaseWithAppStoreVersion). */
