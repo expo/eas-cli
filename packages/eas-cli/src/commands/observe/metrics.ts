@@ -56,13 +56,13 @@ export default class ObserveMetrics extends EasCommand {
     })(),
     start: Flags.string({
       description: 'Start of time range for metrics data (ISO date).',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
     end: Flags.string({
       description: 'End of time range for metrics data (ISO date).',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
-    'days-from-now': Flags.integer({
+    days: Flags.integer({
       description: 'Show metrics from the last N days (mutually exclusive with --start/--end)',
       min: 1,
       exclusive: ['start', 'end'],
@@ -106,7 +106,7 @@ export default class ObserveMetrics extends EasCommand {
       ? flags.metric.map(resolveMetricName)
       : DEFAULT_METRICS;
 
-    const daysBack = flags['days-from-now'] ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
+    const daysBack = flags['days'] ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
     const { startTime, endTime } = startAndEndTime({
       daysBack,
       start: flags.start,

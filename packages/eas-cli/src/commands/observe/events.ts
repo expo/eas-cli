@@ -48,13 +48,13 @@ export default class ObserveEvents extends EasCommand {
     }),
     start: Flags.string({
       description: 'Start of time range (ISO date)',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
     end: Flags.string({
       description: 'End of time range (ISO date)',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
-    'days-from-now': Flags.integer({
+    days: Flags.integer({
       description: 'Show events from the last N days (mutually exclusive with --start/--end)',
       min: 1,
       exclusive: ['start', 'end'],
@@ -104,7 +104,7 @@ export default class ObserveEvents extends EasCommand {
     const orderBy = resolveOrderBy(flags.sort);
 
     const { startTime, endTime } = startAndEndTime({
-      daysBack: flags['days-from-now'],
+      daysBack: flags['days'],
       start: flags.start,
       end: flags.end,
     });

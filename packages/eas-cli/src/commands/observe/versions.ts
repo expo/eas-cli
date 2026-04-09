@@ -22,13 +22,13 @@ export default class ObserveVersions extends EasCommand {
     })(),
     start: Flags.string({
       description: 'Start of time range (ISO date)',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
     end: Flags.string({
       description: 'End of time range (ISO date)',
-      exclusive: ['days-from-now'],
+      exclusive: ['days'],
     }),
-    'days-from-now': Flags.integer({
+    days: Flags.integer({
       description: 'Show versions from the last N days (mutually exclusive with --start/--end)',
       min: 1,
       exclusive: ['start', 'end'],
@@ -71,9 +71,9 @@ export default class ObserveVersions extends EasCommand {
     let startTime: string;
     let endTime: string;
 
-    if (flags['days-from-now']) {
+    if (flags['days']) {
       endTime = new Date().toISOString();
-      startTime = new Date(Date.now() - flags['days-from-now'] * 24 * 60 * 60 * 1000).toISOString();
+      startTime = new Date(Date.now() - flags['days'] * 24 * 60 * 60 * 1000).toISOString();
     } else {
       endTime = flags.end ?? new Date().toISOString();
       startTime =
