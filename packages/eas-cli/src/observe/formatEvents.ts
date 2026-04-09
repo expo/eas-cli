@@ -20,6 +20,7 @@ export interface ObserveEventJson {
   metricValue: number;
   appVersion: string;
   appBuildNumber: string;
+  appUpdateId: string | null;
   deviceModel: string;
   deviceOs: string;
   deviceOsVersion: string;
@@ -34,12 +35,24 @@ export function buildObserveEventsTable(events: AppObserveEvent[], pageInfo: Pag
     return chalk.yellow('No events found.');
   }
 
-  const headers = ['Metric', 'Value', 'App Version', 'Platform', 'Device', 'Country', 'Timestamp'];
+  const hasUpdates = events.some(e => e.appUpdateId);
+
+  const headers = [
+    'Metric',
+    'Value',
+    'App Version',
+    ...(hasUpdates ? ['Update'] : []),
+    'Platform',
+    'Device',
+    'Country',
+    'Timestamp',
+  ];
 
   const rows: string[][] = events.map(event => [
     getMetricDisplayName(event.metricName),
     `${event.metricValue.toFixed(2)}s`,
     `${event.appVersion} (${event.appBuildNumber})`,
+    ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
     `${event.deviceOs} ${event.deviceOsVersion}`,
     event.deviceModel,
     event.countryCode ?? '-',
@@ -72,6 +85,7 @@ export function buildObserveEventsJson(
       metricValue: event.metricValue,
       appVersion: event.appVersion,
       appBuildNumber: event.appBuildNumber,
+      appUpdateId: event.appUpdateId ?? null,
       deviceModel: event.deviceModel,
       deviceOs: event.deviceOs,
       deviceOsVersion: event.deviceOsVersion,

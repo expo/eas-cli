@@ -120,6 +120,8 @@ export type Account = {
   /** Billing information. Only visible to members with the ADMIN or OWNER role. */
   billing?: Maybe<Billing>;
   billingPeriod: BillingPeriod;
+  /** Convex team connections for this account */
+  convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
   /** Echo projects for this account (paginated, most recent first) */
@@ -4066,13 +4068,6 @@ export type CodeSigningInfoInput = {
   sig: Scalars['String']['input'];
 };
 
-/** Metadata to set when completing a message. */
-export type CompleteEchoMessageMetadataInput = {
-  cost?: InputMaybe<Scalars['Float']['input']>;
-  finishReason?: InputMaybe<Scalars['String']['input']>;
-  tokens?: InputMaybe<EchoMessageTokenUsageInput>;
-};
-
 export type Concurrencies = {
   __typename?: 'Concurrencies';
   android: Scalars['Int']['output'];
@@ -4094,6 +4089,31 @@ export enum ContinentCode {
 export type ConvexIntegrationQuery = {
   __typename?: 'ConvexIntegrationQuery';
   clientIdentifier: Scalars['String']['output'];
+};
+
+export type ConvexTeamConnection = {
+  __typename?: 'ConvexTeamConnection';
+  account: Account;
+  convexTeamIdentifier: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type ConvexTeamConnectionMutation = {
+  __typename?: 'ConvexTeamConnectionMutation';
+  createConvexTeamConnection: ConvexTeamConnection;
+  deleteConvexTeamConnection: ConvexTeamConnection;
+};
+
+
+export type ConvexTeamConnectionMutationCreateConvexTeamConnectionArgs = {
+  convexTeamConnectionData: CreateConvexTeamConnectionInput;
+};
+
+
+export type ConvexTeamConnectionMutationDeleteConvexTeamConnectionArgs = {
+  convexTeamConnectionId: Scalars['ID']['input'];
 };
 
 export enum CrashSampleFor {
@@ -4158,6 +4178,12 @@ export type CreateBuildResult = {
   __typename?: 'CreateBuildResult';
   build: Build;
   deprecationInfo?: Maybe<EasBuildDeprecationInfo>;
+};
+
+export type CreateConvexTeamConnectionInput = {
+  accountId: Scalars['ID']['input'];
+  convexTeamName?: InputMaybe<Scalars['String']['input']>;
+  deploymentRegion: Scalars['String']['input'];
 };
 
 export type CreateEchoChatInput = {
@@ -4952,13 +4978,6 @@ export type EchoMessage = {
   user?: Maybe<User>;
 };
 
-/** Breakdown of cache write input tokens by cache TTL. */
-export type EchoMessageCacheWriteInput = {
-  ttl1h?: InputMaybe<Scalars['Int']['input']>;
-  ttl5m?: InputMaybe<Scalars['Int']['input']>;
-  ttl24h?: InputMaybe<Scalars['Int']['input']>;
-};
-
 export type EchoMessageConnection = {
   __typename?: 'EchoMessageConnection';
   edges: Array<EchoMessageEdge>;
@@ -4974,7 +4993,10 @@ export type EchoMessageEdge = {
 
 export type EchoMessageMutation = {
   __typename?: 'EchoMessageMutation';
-  /** Mark a message as completed (sets completedAt and creates billing ledger entry) */
+  /**
+   * Mark a message as completed (sets completedAt).
+   * metadata is accepted for backward compatibility but ignored — use echoTurn.completeTurn instead.
+   */
   completeMessage: EchoMessage;
   /** Create a new message */
   createMessage: EchoMessage;
@@ -4983,7 +5005,7 @@ export type EchoMessageMutation = {
 
 export type EchoMessageMutationCompleteMessageArgs = {
   id: Scalars['ID']['input'];
-  metadata?: InputMaybe<CompleteEchoMessageMetadataInput>;
+  metadata?: InputMaybe<Scalars['JSONObject']['input']>;
 };
 
 
@@ -5073,16 +5095,6 @@ export enum EchoMessageRole {
   Assistant = 'ASSISTANT',
   User = 'USER'
 }
-
-/** Token usage for billing. Tracks input/output tokens and cache usage. */
-export type EchoMessageTokenUsageInput = {
-  cacheRead?: InputMaybe<Scalars['Int']['input']>;
-  cacheWrite?: InputMaybe<Scalars['Int']['input']>;
-  cacheWriteBreakdown?: InputMaybe<EchoMessageCacheWriteInput>;
-  input: Scalars['Int']['input'];
-  output: Scalars['Int']['input'];
-  reasoning?: InputMaybe<Scalars['Int']['input']>;
-};
 
 export type EchoProject = {
   __typename?: 'EchoProject';
@@ -5314,6 +5326,46 @@ export type EchoTurn = {
   /** Messages in this turn */
   echoMessages: Array<EchoMessage>;
   id: Scalars['ID']['output'];
+};
+
+/** Breakdown of cache write input tokens by cache TTL. */
+export type EchoTurnCacheWriteInput = {
+  ttl1h?: InputMaybe<Scalars['Int']['input']>;
+  ttl5m?: InputMaybe<Scalars['Int']['input']>;
+  ttl24h?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type EchoTurnMutation = {
+  __typename?: 'EchoTurnMutation';
+  /** Mark a turn as completed and create a billing ledger entry */
+  completeTurn: EchoTurn;
+};
+
+
+export type EchoTurnMutationCompleteTurnArgs = {
+  id: Scalars['ID']['input'];
+  usage: EchoTurnUsageInput;
+};
+
+/** Token usage for billing. Tracks input/output tokens and cache usage. */
+export type EchoTurnTokenUsageInput = {
+  cacheRead?: InputMaybe<Scalars['Int']['input']>;
+  cacheWrite?: InputMaybe<Scalars['Int']['input']>;
+  cacheWriteBreakdown?: InputMaybe<EchoTurnCacheWriteInput>;
+  input: Scalars['Int']['input'];
+  output: Scalars['Int']['input'];
+  reasoning?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** Cumulative usage data for a completed turn. */
+export type EchoTurnUsageInput = {
+  agent?: InputMaybe<Scalars['String']['input']>;
+  cost?: InputMaybe<Scalars['Float']['input']>;
+  finishReason?: InputMaybe<Scalars['String']['input']>;
+  model?: InputMaybe<Scalars['String']['input']>;
+  provider?: InputMaybe<Scalars['String']['input']>;
+  sdkCost?: InputMaybe<Scalars['Float']['input']>;
+  tokens?: InputMaybe<EchoTurnTokenUsageInput>;
 };
 
 export type EchoVersion = {
@@ -7502,6 +7554,7 @@ export type RootMutation = {
   build: BuildMutation;
   /** Mutations that create, update, and delete Build Annotations */
   buildAnnotation: BuildAnnotationMutation;
+  convexTeamConnection: ConvexTeamConnectionMutation;
   customDomain: CustomDomainMutation;
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
@@ -7518,6 +7571,8 @@ export type RootMutation = {
   echoProject: EchoProjectMutation;
   /** Mutations for Echo repository management via the GitHub App */
   echoRepository: EchoRepositoryMutation;
+  /** Mutations for Echo turns */
+  echoTurn: EchoTurnMutation;
   /** Mutations for Echo versions */
   echoVersion: EchoVersionMutation;
   /** Mutations that create and delete EnvironmentSecrets */
@@ -12081,7 +12136,7 @@ export type AppObserveEventsQueryVariables = Exact<{
 }>;
 
 
-export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string } }> } } } } };
+export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string } }> } } } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -12265,7 +12320,7 @@ export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash
 
 export type AppObserveTimeSeriesFragment = { __typename?: 'AppObserveTimeSeries', eventCount: number, appVersionMarkers: Array<{ __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }> }>, statistics: { __typename?: 'AppObserveTimeSeriesStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } };
 
-export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string };
+export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string };
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }> };
 

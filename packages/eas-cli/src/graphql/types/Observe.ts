@@ -26,6 +26,7 @@ export const AppObserveEventFragmentNode = gql`
     timestamp
     appVersion
     appBuildNumber
+    appUpdateId
     deviceModel
     deviceOs
     deviceOsVersion

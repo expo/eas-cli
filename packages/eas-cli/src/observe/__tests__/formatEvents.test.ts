@@ -151,6 +151,7 @@ describe(buildObserveEventsJson, () => {
           metricValue: 1.23,
           appVersion: '1.0.0',
           appBuildNumber: '42',
+          appUpdateId: null,
           deviceModel: 'iPhone 15',
           deviceOs: 'iOS',
           deviceOsVersion: '17.0',
