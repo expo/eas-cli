@@ -17,7 +17,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Bump `@expo/apple-utils` to `2.1.18` to fix `metadata:push` failing on `ageRatingDeclarations` due to the removed `gamblingAndContests` attribute. ([#3588](https://github.com/expo/eas-cli/pull/3588) by [@EvanBacon](https://github.com/EvanBacon))
 - [build-tools] Stop `eas/start_android_emulator` early on Linux when CPU virtualization flags (`vmx`/`svm`) are not available, with an error that points at nested-virtualization-capable build images. ([#3580](https://github.com/expo/eas-cli/pull/3580) by [@gwdp](https://github.com/gwdp))
 
-
 ### 🧹 Chores
 
 ## [18.5.0](https://github.com/expo/eas-cli/releases/tag/v18.5.0) - 2026-04-02
