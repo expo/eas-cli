@@ -23,12 +23,9 @@ export default class ObserveEvents extends EasCommand {
 
   static override flags = {
     metric: Flags.option({
-      description: 'Metric to query (full name or alias)',
+      description: 'Metric to query',
       required: true,
-      options: [
-        ...Object.keys(METRIC_ALIASES),
-        ...Object.keys(METRIC_ALIASES).map(key => METRIC_ALIASES[key]),
-      ],
+      options: Object.keys(METRIC_ALIASES),
     })(),
     sort: Flags.option({
       description: 'Sort order for events',
