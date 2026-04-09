@@ -12,6 +12,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 const DEFAULT_DAYS_BACK = 60;
 
 export default class ObserveVersions extends EasCommand {
+  static override hidden = true;
   static override description = 'display app versions with build and update details';
 
   static override flags = {
