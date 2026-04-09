@@ -68,10 +68,17 @@ describe(buildObserveMetricsTable, () => {
 
     // The header is bolded, thus the escape characters in the snapshot
     expect(output).toMatchInlineSnapshot(`
-"[1mApp Version  Platform  Cold Launch Med  Cold Launch Count  TTI Med  TTI Count[22m
------------  --------  ---------------  -----------------  -------  ---------
-1.2.0        iOS       0.35s            110                1.32s    90       
-1.1.0        Android   0.25s            120                1.12s    100      "
+"[1mMed values (event count)[22m
+
+[1miOS[22m
+[1mApp Version  Cold Launch  TTI       [22m
+-----------  -----------  ----------
+1.2.0        0.35s (110)  1.32s (90)
+
+[1mAndroid[22m
+[1mApp Version  Cold Launch  TTI        [22m
+-----------  -----------  -----------
+1.1.0        0.25s (120)  1.12s (100)"
 `);
   });
 
@@ -83,9 +90,12 @@ describe(buildObserveMetricsTable, () => {
     const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, DEFAULT_STATS_TABLE);
 
     expect(output).toMatchInlineSnapshot(`
-"[1mApp Version  Platform  Cold Launch Med  Cold Launch Count  TTI Med  TTI Count[22m
------------  --------  ---------------  -----------------  -------  ---------
-2.0.0        iOS       -                -                  -        -        "
+"[1mMed values (event count)[22m
+
+[1miOS[22m
+[1mApp Version  Cold Launch  TTI  [22m
+-----------  -----------  -----
+2.0.0        - (-)        - (-)"
 `);
   });
 
@@ -238,10 +248,8 @@ describe('custom stats parameter', () => {
       ['p99', 'eventCount']
     );
 
-    expect(output).toContain('TTI P99');
-    expect(output).toContain('TTI Count');
-    expect(output).toContain('0.90s');
-    expect(output).toContain('42');
+    expect(output).toContain('TTI');
+    expect(output).toContain('0.90s (42)');
     expect(output).not.toContain('TTI Min');
     expect(output).not.toContain('TTI Med');
     expect(output).not.toContain('TTI Max');

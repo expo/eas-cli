@@ -104,7 +104,7 @@ export default class ObserveEvents extends EasCommand {
     const orderBy = resolveOrderBy(flags.sort);
 
     const { startTime, endTime } = startAndEndTime({
-      daysFromNow: flags['days-from-now'],
+      daysBack: flags['days-from-now'],
       start: flags.start,
       end: flags.end,
     });

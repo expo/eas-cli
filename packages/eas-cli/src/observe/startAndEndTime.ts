@@ -1,20 +1,20 @@
 export const DEFAULT_DAYS_BACK = 60;
 
 export function startAndEndTime({
-  daysFromNow,
+  daysBack,
   start,
   end,
 }: {
-  daysFromNow?: number;
+  daysBack?: number;
   start?: string;
   end?: string;
 }) {
   let startTime: string;
   let endTime: string;
 
-  if (daysFromNow) {
+  if (daysBack) {
     endTime = new Date().toISOString();
-    startTime = new Date(Date.now() - daysFromNow * 24 * 60 * 60 * 1000).toISOString();
+    startTime = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
   } else {
     endTime = end ?? new Date().toISOString();
     startTime =

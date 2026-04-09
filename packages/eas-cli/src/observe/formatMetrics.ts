@@ -61,6 +61,16 @@ function formatStatValue(stat: StatisticKey, value: number | null | undefined): 
   return `${value.toFixed(2)}s`;
 }
 
+function formatMergedCell(
+  stat: StatisticKey,
+  statValue: number | null | undefined,
+  eventCount: number | null | undefined
+): string {
+  const formatted = formatStatValue(stat, statValue);
+  const count = eventCount != null ? String(eventCount) : '-';
+  return `${formatted} (${count})`;
+}
+
 export interface MetricValues {
   min: number | null | undefined;
   max: number | null | undefined;
@@ -122,10 +132,30 @@ export function buildObserveMetricsJson(
   return results;
 }
 
+function buildStatsDescription(displayStats: StatisticKey[]): string {
+  return displayStats.map(s => STAT_DISPLAY_NAMES[s]).join(', ');
+}
+
+function buildTimeRangeDescription(daysBack?: number): string {
+  if (daysBack) {
+    return `for the last ${daysBack} days`;
+  }
+  return '';
+}
+
+function renderTable(headers: string[], rows: string[][]): string {
+  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
+  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
+  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
+  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
+  return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
+}
+
 export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
-  stats: StatisticKey[]
+  stats: StatisticKey[],
+  options?: { daysBack?: number }
 ): string {
   const results = buildObserveMetricsJson(metricsMap, metricNames, stats);
 
@@ -133,33 +163,73 @@ export function buildObserveMetricsTable(
     return chalk.yellow('No metrics data found.');
   }
 
-  const fixedHeaders = ['App Version', 'Platform'];
+  const displayStats = stats.filter(s => s !== 'eventCount');
+  const hasEventCount = stats.includes('eventCount');
+
+  // Build summary header
+  const statsDesc = displayStats.length > 0 ? buildStatsDescription(displayStats) : 'Event count';
+  const timeDesc = buildTimeRangeDescription(options?.daysBack);
+  const countSuffix = hasEventCount && displayStats.length > 0 ? ' (event count)' : '';
+  const summaryLine = `${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
+
+  // Group results by platform
+  const byPlatform = new Map<AppPlatform, ObserveMetricsVersionResult[]>();
+  for (const result of results) {
+    if (!byPlatform.has(result.platform)) {
+      byPlatform.set(result.platform, []);
+    }
+    byPlatform.get(result.platform)!.push(result);
+  }
+
+  // Build metric column headers
   const metricHeaders: string[] = [];
   for (const m of metricNames) {
     const name = getMetricDisplayName(m);
-    for (const stat of stats) {
-      metricHeaders.push(`${name} ${STAT_DISPLAY_NAMES[stat]}`);
-    }
-  }
-  const headers = [...fixedHeaders, ...metricHeaders];
-
-  const rows: string[][] = results.map(result => {
-    const metricCells: string[] = [];
-    for (const m of metricNames) {
-      const values = result.metrics[m];
-      for (const stat of stats) {
-        metricCells.push(formatStatValue(stat, values?.[stat] ?? null));
+    if (displayStats.length > 0 && hasEventCount) {
+      // Merged mode: one column per metric
+      metricHeaders.push(name);
+    } else {
+      // Separate columns per stat
+      for (const stat of displayStats.length > 0
+        ? displayStats
+        : (['eventCount'] as StatisticKey[])) {
+        metricHeaders.push(`${name} ${STAT_DISPLAY_NAMES[stat]}`);
       }
     }
+  }
+  const headers = ['App Version', ...metricHeaders];
 
-    return [result.appVersion, appPlatformDisplayNames[result.platform], ...metricCells];
-  });
+  const sections: string[] = [chalk.bold(summaryLine)];
 
-  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
+  for (const [platform, platformResults] of byPlatform) {
+    sections.push('');
+    sections.push(chalk.bold(appPlatformDisplayNames[platform]));
 
-  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
-  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
+    const rows: string[][] = platformResults.map(result => {
+      const metricCells: string[] = [];
+      for (const m of metricNames) {
+        const values = result.metrics[m];
+        if (displayStats.length > 0 && hasEventCount) {
+          // Merged: show stat value with event count in parens
+          // Use the first display stat for the merged cell
+          for (const stat of displayStats) {
+            metricCells.push(
+              formatMergedCell(stat, values?.[stat] ?? null, values?.eventCount ?? null)
+            );
+          }
+        } else {
+          for (const stat of displayStats.length > 0
+            ? displayStats
+            : (['eventCount'] as StatisticKey[])) {
+            metricCells.push(formatStatValue(stat, values?.[stat] ?? null));
+          }
+        }
+      }
+      return [result.appVersion, ...metricCells];
+    });
 
-  return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
+    sections.push(renderTable(headers, rows));
+  }
+
+  return sections.join('\n');
 }

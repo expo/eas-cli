@@ -12,8 +12,8 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { DEFAULT_DAYS_BACK, startAndEndTime } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { startAndEndTime } from '../../observe/startAndEndTime';
 
 const DEFAULT_METRICS = [
   'expo.app_startup.cold_launch_time',
@@ -106,8 +106,9 @@ export default class ObserveMetrics extends EasCommand {
       ? flags.metric.map(resolveMetricName)
       : DEFAULT_METRICS;
 
+    const daysBack = flags['days-from-now'] ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
     const { startTime, endTime } = startAndEndTime({
-      daysFromNow: flags['days-from-now'],
+      daysBack,
       start: flags.start,
       end: flags.end,
     });
@@ -135,7 +136,7 @@ export default class ObserveMetrics extends EasCommand {
     } else {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
-      Log.log(buildObserveMetricsTable(metricsMap, metricNames, stats));
+      Log.log(buildObserveMetricsTable(metricsMap, metricNames, stats, { daysBack }));
     }
   }
 }
