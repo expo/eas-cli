@@ -226,6 +226,66 @@ const GitHubContextZ = z.object({
     .optional(),
 });
 
+const AppStoreConnectContextZ = z.looseObject({
+  app: z.looseObject({
+    id: z.string(),
+  }),
+  app_version: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum([
+        'accepted',
+        'developer_rejected',
+        'in_review',
+        'invalid_binary',
+        'metadata_rejected',
+        'pending_apple_release',
+        'pending_developer_release',
+        'prepare_for_submission',
+        'processing_for_distribution',
+        'ready_for_distribution',
+        'ready_for_review',
+        'rejected',
+        'replaced_with_new_version',
+        'waiting_for_export_compliance',
+        'waiting_for_review',
+      ]),
+    })
+    .optional(),
+  build_upload: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum(['awaiting_upload', 'processing', 'failed', 'complete']),
+    })
+    .optional(),
+  external_beta: z
+    .looseObject({
+      id: z.string(),
+      state: z.enum([
+        'processing',
+        'processing_exception',
+        'missing_export_compliance',
+        'ready_for_beta_testing',
+        'in_beta_testing',
+        'expired',
+        'ready_for_beta_submission',
+        'in_export_compliance_review',
+        'waiting_for_beta_review',
+        'in_beta_review',
+        'beta_rejected',
+        'beta_approved',
+      ]),
+    })
+    .optional(),
+  beta_feedback: z
+    .looseObject({
+      id: z.string(),
+      type: z.enum(['crash', 'screenshot']),
+      url: z.string(),
+    })
+    .optional(),
+});
+
 export const StaticWorkflowInterpolationContextZ = z.object({
   after: z.record(
     z.string(),
@@ -259,19 +319,8 @@ export const StaticWorkflowInterpolationContextZ = z.object({
     id: z.string(),
     name: z.string(),
   }),
-  app_store_connect: z
-    .looseObject({
-      app: z.looseObject({
-        id: z.string(),
-      }),
-      build_upload: z
-        .looseObject({
-          id: z.string(),
-          state: z.enum(['awaiting_upload', 'processing', 'failed', 'complete']),
-        })
-        .optional(),
-    })
-    .optional(),
+  // We need to .optional() to support jobs that are not triggered by an App Store Connect event.
+  app_store_connect: AppStoreConnectContextZ.optional(),
 });
 
 export type StaticWorkflowInterpolationContext = z.infer<
