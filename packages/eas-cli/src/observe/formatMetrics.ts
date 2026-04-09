@@ -168,14 +168,11 @@ export function buildObserveMetricsTable(
   const displayStats = stats.filter(s => s !== 'eventCount');
   const hasEventCount = stats.includes('eventCount');
 
-  const timeDesc = buildTimeRangeDescription(options?.daysBack);
+  // Build summary header
   const statsDesc = displayStats.length > 0 ? buildStatsDescription(displayStats) : 'Event count';
+  const timeDesc = buildTimeRangeDescription(options?.daysBack);
   const countSuffix = hasEventCount && displayStats.length > 0 ? ' (event count)' : '';
-
-  // Check if any version has updates
-  const hasUpdates = options?.updateIdsMap
-    ? Array.from(options.updateIdsMap.values()).some(ids => ids.length > 0)
-    : false;
+  const summaryLine = `${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
 
   // Group results by platform
   const byPlatform = new Map<AppPlatform, ObserveMetricsVersionResult[]>();
@@ -186,50 +183,51 @@ export function buildObserveMetricsTable(
     byPlatform.get(result.platform)!.push(result);
   }
 
-  const allSections: string[] = [];
-
-  for (const metricName of metricNames) {
-    const name = getMetricDisplayName(metricName);
-    const summaryLine = `${name} ${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
-
-    if (allSections.length > 0) {
-      allSections.push('');
-    }
-    allSections.push(chalk.bold(summaryLine));
-
-    // Build value column header — just the stat name(s) since metric is in the summary
-    const valueHeaders: string[] = [];
+  // Build metric column headers
+  const metricHeaders: string[] = [];
+  for (const m of metricNames) {
+    const name = getMetricDisplayName(m);
     if (displayStats.length > 0 && hasEventCount) {
-      valueHeaders.push('Value');
+      // Merged mode: one column per metric
+      metricHeaders.push(name);
     } else {
+      // Separate columns per stat
       for (const stat of displayStats.length > 0
         ? displayStats
         : (['eventCount'] as StatisticKey[])) {
-        valueHeaders.push(STAT_DISPLAY_NAMES[stat]);
+        metricHeaders.push(`${name} ${STAT_DISPLAY_NAMES[stat]}`);
       }
     }
+  }
+  // Check if any version has updates
+  const hasUpdates = options?.updateIdsMap
+    ? Array.from(options.updateIdsMap.values()).some(ids => ids.length > 0)
+    : false;
 
-    const headers = ['App Version', ...(hasUpdates ? ['Updates'] : []), ...valueHeaders];
+  const headers = ['App Version', ...(hasUpdates ? ['Updates'] : []), ...metricHeaders];
 
-    for (const [platform, platformResults] of byPlatform) {
-      allSections.push('');
-      allSections.push(chalk.bold(appPlatformDisplayNames[platform]));
+  const sections: string[] = [chalk.bold(summaryLine)];
 
-      const rows: string[][] = platformResults.map(result => {
-        const key = makeMetricsKey(result.appVersion, result.platform);
-        const buildNumbers = options?.buildNumbersMap?.get(key);
-        const versionLabel = buildNumbers?.length
-          ? `${result.appVersion} (${buildNumbers.join(', ')})`
-          : result.appVersion;
+  for (const [platform, platformResults] of byPlatform) {
+    sections.push('');
+    sections.push(chalk.bold(appPlatformDisplayNames[platform]));
 
-        const updateIds = options?.updateIdsMap?.get(key);
-        const updatesLabel = updateIds?.length ? updateIds.join(', ') : '';
+    const rows: string[][] = platformResults.map(result => {
+      const key = makeMetricsKey(result.appVersion, result.platform);
+      const buildNumbers = options?.buildNumbersMap?.get(key);
+      const versionLabel = buildNumbers?.length
+        ? `${result.appVersion} (${buildNumbers.join(', ')})`
+        : result.appVersion;
 
-        const values = result.metrics[metricName];
-        const valueCells: string[] = [];
+      const updateIds = options?.updateIdsMap?.get(key);
+      const updatesLabel = updateIds?.length ? updateIds.join(', ') : '';
+
+      const metricCells: string[] = [];
+      for (const m of metricNames) {
+        const values = result.metrics[m];
         if (displayStats.length > 0 && hasEventCount) {
           for (const stat of displayStats) {
-            valueCells.push(
+            metricCells.push(
               formatMergedCell(stat, values?.[stat] ?? null, values?.eventCount ?? null)
             );
           }
@@ -237,15 +235,15 @@ export function buildObserveMetricsTable(
           for (const stat of displayStats.length > 0
             ? displayStats
             : (['eventCount'] as StatisticKey[])) {
-            valueCells.push(formatStatValue(stat, values?.[stat] ?? null));
+            metricCells.push(formatStatValue(stat, values?.[stat] ?? null));
           }
         }
-        return [versionLabel, ...(hasUpdates ? [updatesLabel] : []), ...valueCells];
-      });
+      }
+      return [versionLabel, ...(hasUpdates ? [updatesLabel] : []), ...metricCells];
+    });
 
-      allSections.push(renderTable(headers, rows));
-    }
+    sections.push(renderTable(headers, rows));
   }
 
-  return allSections.join('\n');
+  return sections.join('\n');
 }
