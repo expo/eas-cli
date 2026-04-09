@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
@@ -11,17 +12,10 @@ import {
   buildObserveMetricsTable,
   resolveStatKey,
 } from '../../observe/formatMetrics';
-import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
 import { DEFAULT_DAYS_BACK, startAndEndTime } from '../../observe/startAndEndTime';
+import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-const DEFAULT_METRICS = [
-  'expo.app_startup.cold_launch_time',
-  'expo.app_startup.warm_launch_time',
-  'expo.app_startup.tti',
-  'expo.app_startup.ttr',
-  'expo.app_startup.bundle_load_time',
-];
 
 const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
 const DEFAULT_STATS_JSON: StatisticKey[] = [
@@ -102,9 +96,22 @@ export default class ObserveMetrics extends EasCommand {
       validateDateFlag(flags.end, '--end');
     }
 
-    const metricNames = flags.metric?.length
-      ? flags.metric.map(resolveMetricName)
-      : DEFAULT_METRICS;
+    let metricNames: string[];
+    if (flags.metric?.length) {
+      metricNames = flags.metric.map(resolveMetricName);
+    } else if (flags['non-interactive']) {
+      throw new EasCommandError(
+        'A --metric flag is required in non-interactive mode. Available metrics: ' +
+          Object.keys(METRIC_ALIASES).join(', ')
+      );
+    } else {
+      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
+        title: `${displayName} (${fullName})`,
+        value: fullName,
+      }));
+      const selected = await selectAsync('Select a metric', choices);
+      metricNames = [selected];
+    }
 
     const daysBack = flags['days'] ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
     const { startTime, endTime } = startAndEndTime({

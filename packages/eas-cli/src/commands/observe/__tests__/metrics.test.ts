@@ -55,7 +55,7 @@ describe(ObserveMetrics, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand([]);
+    const command = createCommand(['--metric', 'tti']);
     await command.runAsync();
 
     expect(mockFetchObserveMetricsAsync).toHaveBeenCalledTimes(1);
@@ -66,7 +66,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('queries only Android when --platform android is passed', async () => {
-    const command = createCommand(['--platform', 'android']);
+    const command = createCommand(['--metric', 'tti', '--platform', 'android']);
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
@@ -74,7 +74,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('queries only iOS when --platform ios is passed', async () => {
-    const command = createCommand(['--platform', 'ios']);
+    const command = createCommand(['--metric', 'tti', '--platform', 'ios']);
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
@@ -93,7 +93,7 @@ describe(ObserveMetrics, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand([]);
+    const command = createCommand(['--metric', 'tti']);
     await command.runAsync();
 
     const startTime = mockFetchObserveMetricsAsync.mock.calls[0][4];
@@ -106,6 +106,8 @@ describe(ObserveMetrics, () => {
 
   it('uses explicit --start and --end when provided', async () => {
     const command = createCommand([
+      '--metric',
+      'tti',
       '--start',
       '2025-01-01T00:00:00.000Z',
       '--end',
@@ -120,7 +122,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('passes resolved --stat flags to buildObserveMetricsTable', async () => {
-    const command = createCommand(['--stat', 'p90', '--stat', 'eventCount']);
+    const command = createCommand(['--metric', 'tti', '--stat', 'p90', '--stat', 'eventCount']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
@@ -132,7 +134,7 @@ describe(ObserveMetrics, () => {
   });
 
   it('deduplicates --stat flags that resolve to the same key', async () => {
-    const command = createCommand(['--stat', 'median', '--stat', 'median']);
+    const command = createCommand(['--metric', 'tti', '--stat', 'median', '--stat', 'median']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
@@ -147,7 +149,7 @@ describe(ObserveMetrics, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--days', '7']);
+    const command = createCommand(['--metric', 'tti', '--days', '7']);
     await command.runAsync();
 
     const startTime = mockFetchObserveMetricsAsync.mock.calls[0][4];
@@ -159,19 +161,33 @@ describe(ObserveMetrics, () => {
   });
 
   it('rejects --days combined with --start', async () => {
-    const command = createCommand(['--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
+    const command = createCommand([
+      '--metric',
+      'tti',
+      '--days',
+      '7',
+      '--start',
+      '2025-01-01T00:00:00.000Z',
+    ]);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
 
   it('rejects --days combined with --end', async () => {
-    const command = createCommand(['--days', '7', '--end', '2025-02-01T00:00:00.000Z']);
+    const command = createCommand([
+      '--metric',
+      'tti',
+      '--days',
+      '7',
+      '--end',
+      '2025-02-01T00:00:00.000Z',
+    ]);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
 
   it('uses default stats when --stat is not provided', async () => {
-    const command = createCommand([]);
+    const command = createCommand(['--metric', 'tti']);
     await command.runAsync();
 
     expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
@@ -186,6 +202,8 @@ describe(ObserveMetrics, () => {
     const command = createCommand([
       '--json',
       '--non-interactive',
+      '--metric',
+      'tti',
       '--stat',
       'min',
       '--stat',
@@ -199,6 +217,14 @@ describe(ObserveMetrics, () => {
       'average',
     ]);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it('throws in non-interactive mode when no --metric is provided', async () => {
+    const command = createCommand(['--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      '--metric flag is required in non-interactive mode'
+    );
   });
 });
 
