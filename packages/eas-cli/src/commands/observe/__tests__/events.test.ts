@@ -52,11 +52,11 @@ describe(ObserveEvents, () => {
     return command;
   }
 
-  it('uses --days-from-now to compute start/end time range', async () => {
+  it('uses --days to compute start/end time range', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--metric', 'tti', '--days-from-now', '7']);
+    const command = createCommand(['--metric', 'tti', '--days', '7']);
     await command.runAsync();
 
     expect(mockFetchObserveEventsAsync).toHaveBeenCalledTimes(1);
@@ -67,7 +67,7 @@ describe(ObserveEvents, () => {
     jest.useRealTimers();
   });
 
-  it('uses DEFAULT_DAYS_BACK (60 days) when neither --days-from-now nor --start/--end are provided', async () => {
+  it('uses DEFAULT_DAYS_BACK (60 days) when neither --days nor --start/--end are provided', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
@@ -111,11 +111,11 @@ describe(ObserveEvents, () => {
     jest.useRealTimers();
   });
 
-  it('rejects --days-from-now combined with --start', async () => {
+  it('rejects --days combined with --start', async () => {
     const command = createCommand([
       '--metric',
       'tti',
-      '--days-from-now',
+      '--days',
       '7',
       '--start',
       '2025-01-01T00:00:00.000Z',
@@ -148,11 +148,11 @@ describe(ObserveEvents, () => {
     expect(options).not.toHaveProperty('after');
   });
 
-  it('rejects --days-from-now combined with --end', async () => {
+  it('rejects --days combined with --end', async () => {
     const command = createCommand([
       '--metric',
       'tti',
-      '--days-from-now',
+      '--days',
       '7',
       '--end',
       '2025-02-01T00:00:00.000Z',

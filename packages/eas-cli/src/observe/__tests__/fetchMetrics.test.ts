@@ -90,7 +90,7 @@ describe('fetchObserveMetricsAsync', () => {
       };
     });
 
-    const metricsMap = await fetchObserveMetricsAsync(
+    const { metricsMap } = await fetchObserveMetricsAsync(
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti', 'expo.app_startup.cold_launch_time'],
@@ -195,7 +195,7 @@ describe('fetchObserveMetricsAsync', () => {
       };
     });
 
-    const metricsMap = await fetchObserveMetricsAsync(
+    const { metricsMap } = await fetchObserveMetricsAsync(
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti', 'bad.metric'],
@@ -224,7 +224,7 @@ describe('fetchObserveMetricsAsync', () => {
   it('returns empty map when all queries fail', async () => {
     mockTimeSeriesAsync.mockRejectedValue(new Error('Network error'));
 
-    const metricsMap = await fetchObserveMetricsAsync(
+    const { metricsMap } = await fetchObserveMetricsAsync(
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],
@@ -263,7 +263,7 @@ describe('fetchObserveMetricsAsync', () => {
       },
     });
 
-    const metricsMap = await fetchObserveMetricsAsync(
+    const { metricsMap } = await fetchObserveMetricsAsync(
       mockGraphqlClient,
       'project-123',
       ['expo.app_startup.tti'],

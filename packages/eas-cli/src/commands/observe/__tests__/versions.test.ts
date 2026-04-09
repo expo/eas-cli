@@ -118,11 +118,11 @@ describe(ObserveVersions, () => {
     jest.useRealTimers();
   });
 
-  it('uses --days-from-now to compute start/end time range', async () => {
+  it('uses --days to compute start/end time range', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--days-from-now', '7']);
+    const command = createCommand(['--days', '7']);
     await command.runAsync();
 
     const startTime = mockFetchObserveVersionsAsync.mock.calls[0][3];
@@ -133,14 +133,14 @@ describe(ObserveVersions, () => {
     jest.useRealTimers();
   });
 
-  it('rejects --days-from-now combined with --start', async () => {
-    const command = createCommand(['--days-from-now', '7', '--start', '2025-01-01T00:00:00.000Z']);
+  it('rejects --days combined with --start', async () => {
+    const command = createCommand(['--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
 
-  it('rejects --days-from-now combined with --end', async () => {
-    const command = createCommand(['--days-from-now', '7', '--end', '2025-02-01T00:00:00.000Z']);
+  it('rejects --days combined with --end', async () => {
+    const command = createCommand(['--days', '7', '--end', '2025-02-01T00:00:00.000Z']);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
