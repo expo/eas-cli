@@ -190,6 +190,7 @@ export class AppleConfigWriter {
   }
 
   public setReviewDetails(attributes: AttributesOf<AppStoreReviewDetail>): void {
+    const existingAttachment = this.schema.review?.attachment;
     this.schema.review = {
       firstName: attributes.contactFirstName ?? '',
       lastName: attributes.contactLastName ?? '',
@@ -199,8 +200,23 @@ export class AppleConfigWriter {
       demoPassword: optional(attributes.demoAccountPassword),
       demoRequired: optional(attributes.demoAccountRequired),
       notes: optional(attributes.notes),
-      // TODO: add attachment
+      attachment: existingAttachment,
     };
+  }
+
+  /** Set the review attachment path (relative to project root) on the review block. */
+  public setReviewAttachment(attachmentPath: string | null): void {
+    this.schema.review = this.schema.review ?? {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+    };
+    if (attachmentPath) {
+      this.schema.review.attachment = attachmentPath;
+    } else {
+      delete this.schema.review.attachment;
+    }
   }
 
   /** Set screenshots for a specific locale */

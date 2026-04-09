@@ -345,6 +345,30 @@ describe('setReviewDetails', () => {
       demoRequired: undefined,
     });
   });
+
+  it('preserves an existing review attachment when re-setting review details', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewDetails(nameOnlyReviewDetails);
+    writer.setReviewAttachment('store/apple/review-attachment/demo.pdf');
+    writer.setReviewDetails(nameAndDemoReviewDetails);
+    expect(writer.schema.review?.attachment).toBe('store/apple/review-attachment/demo.pdf');
+  });
+});
+
+describe('setReviewAttachment', () => {
+  it('initializes a review block with the attachment path', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewAttachment('store/apple/review-attachment/demo.pdf');
+    expect(writer.schema.review?.attachment).toBe('store/apple/review-attachment/demo.pdf');
+  });
+
+  it('clears the attachment when null is passed', () => {
+    const writer = new AppleConfigWriter();
+    writer.setReviewDetails(nameOnlyReviewDetails);
+    writer.setReviewAttachment('store/apple/review-attachment/demo.pdf');
+    writer.setReviewAttachment(null);
+    expect(writer.schema.review?.attachment).toBeUndefined();
+  });
 });
 
 describe('setAppClipDefaultExperience', () => {

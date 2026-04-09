@@ -685,6 +685,10 @@
             "markdownDescription": "Additional information about your app that can help during the review process.\n\n**Do not include demo account details.**",
             "minLength": 2,
             "maxLength": 4000
+          },
+          "attachment": {
+            "type": "string",
+            "description": "Relative path (from project root) to a file shared with the App Store review team. The file is uploaded as an App Store review attachment and only re-uploaded when its content changes."
           }
         }
       },
