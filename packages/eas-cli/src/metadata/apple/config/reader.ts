@@ -57,6 +57,15 @@ export class AppleConfigReader {
       violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
       violenceRealisticProlongedGraphicOrSadistic:
         attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
+      advertising: attributes.advertising ?? false,
+      ageAssurance: attributes.ageAssurance ?? false,
+      ageRatingOverrideV2: attributes.ageRatingOverrideV2 ?? null,
+      developerAgeRatingInfoUrl: attributes.developerAgeRatingInfoUrl ?? null,
+      gunsOrOtherWeapons: attributes.gunsOrOtherWeapons ?? Rating.NONE,
+      healthOrWellnessTopics: attributes.healthOrWellnessTopics ?? false,
+      messagingAndChat: attributes.messagingAndChat ?? false,
+      parentalControls: attributes.parentalControls ?? false,
+      userGeneratedContent: attributes.userGeneratedContent ?? false,
     };
   }
 

@@ -515,6 +515,57 @@
           "lootBox": {
             "type": "boolean",
             "description": "Does your app contain purchasable loot boxes? These virtual containers provide players with in-game items, including functional cards or cosmetic modifications, based on random chance."
+          },
+          "advertising": {
+            "type": "boolean",
+            "description": "Does your app display advertising?"
+          },
+          "ageAssurance": {
+            "type": "boolean",
+            "description": "Does your app implement age assurance mechanisms?"
+          },
+          "ageRatingOverrideV2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/definitions/apple/AppleAgeRatingOverrideV2"
+              }
+            ],
+            "description": "Override the age rating using the V2 rating system. Allows setting a more granular age rating than the auto-calculated value."
+          },
+          "developerAgeRatingInfoUrl": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "uri"
+              }
+            ],
+            "description": "URL to additional developer-provided information about the app's age rating."
+          },
+          "gunsOrOtherWeapons": {
+            "$ref": "#/definitions/apple/AppleRating",
+            "description": "Does the app contain depictions of guns or other weapons?"
+          },
+          "healthOrWellnessTopics": {
+            "type": "boolean",
+            "description": "Does your app contain health or wellness topics?"
+          },
+          "messagingAndChat": {
+            "type": "boolean",
+            "description": "Does your app contain messaging or chat functionality?"
+          },
+          "parentalControls": {
+            "type": "boolean",
+            "description": "Does your app implement parental controls?"
+          },
+          "userGeneratedContent": {
+            "type": "boolean",
+            "description": "Does your app contain or display user-generated content?"
           }
         }
       },
@@ -649,6 +700,16 @@
           "NONE",
           "FIFTEEN_PLUS",
           "NINETEEN_PLUS"
+        ]
+      },
+      "AppleAgeRatingOverrideV2": {
+        "enum": [
+          "NONE",
+          "NINE_PLUS",
+          "THIRTEEN_PLUS",
+          "SIXTEEN_PLUS",
+          "EIGHTEEN_PLUS",
+          "UNRATED"
         ]
       }
     },

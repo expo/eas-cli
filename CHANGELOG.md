@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add missing Apple metadata attributes for age ratings and content descriptions. ([#3584](https://github.com/expo/eas-cli/pull/3584) by [@EvanBacon](https://github.com/EvanBacon))
+
 ### 🐛 Bug fixes
 
 - [build-tools][eas-cli] Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
 - [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
+- [eas-cli] Bump `@expo/apple-utils` to `2.1.18` to fix `metadata:push` failing on `ageRatingDeclarations` due to the removed `gamblingAndContests` attribute. ([#3588](https://github.com/expo/eas-cli/pull/3588) by [@EvanBacon](https://github.com/EvanBacon))
 - [build-tools] Stop `eas/start_android_emulator` early on Linux when CPU virtualization flags (`vmx`/`svm`) are not available, with an error that points at nested-virtualization-capable build images. ([233500d2](https://github.com/expo/eas-cli/commit/233500d2cfe9f96c4b56ed64a78e199702d37f31) by [@gwdp](https://github.com/gwdp))
+
 
 ### 🧹 Chores
 

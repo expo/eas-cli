@@ -34,6 +34,15 @@ export const emptyAdvisory: AgeRatingDeclarationProps = {
   ageRatingOverride: null,
   koreaAgeRatingOverride: null,
   lootBox: null,
+  advertising: null,
+  ageAssurance: null,
+  ageRatingOverrideV2: null,
+  developerAgeRatingInfoUrl: null,
+  gunsOrOtherWeapons: null,
+  healthOrWellnessTopics: null,
+  messagingAndChat: null,
+  parentalControls: null,
+  userGeneratedContent: null,
 };
 
 export const leastRestrictiveAdvisory: AgeRatingDeclarationProps = {
@@ -55,6 +64,15 @@ export const leastRestrictiveAdvisory: AgeRatingDeclarationProps = {
   ageRatingOverride: RatingOverride.NONE,
   koreaAgeRatingOverride: KoreaRatingOverride.NONE,
   lootBox: false,
+  advertising: false,
+  ageAssurance: false,
+  ageRatingOverrideV2: null,
+  developerAgeRatingInfoUrl: null,
+  gunsOrOtherWeapons: Rating.NONE,
+  healthOrWellnessTopics: false,
+  messagingAndChat: false,
+  parentalControls: false,
+  userGeneratedContent: false,
 };
 
 export const mostRestrictiveAdvisory: AgeRatingDeclarationProps = {
@@ -76,6 +94,15 @@ export const mostRestrictiveAdvisory: AgeRatingDeclarationProps = {
   ageRatingOverride: RatingOverride.SEVENTEEN_PLUS,
   koreaAgeRatingOverride: KoreaRatingOverride.NINETEEN_PLUS,
   lootBox: true,
+  advertising: true,
+  ageAssurance: true,
+  ageRatingOverrideV2: null,
+  developerAgeRatingInfoUrl: null,
+  gunsOrOtherWeapons: Rating.FREQUENT_OR_INTENSE,
+  healthOrWellnessTopics: true,
+  messagingAndChat: true,
+  parentalControls: true,
+  userGeneratedContent: true,
 };
 
 export const kidsSixToEightAdvisory: AgeRatingDeclarationProps = {
@@ -97,4 +124,13 @@ export const kidsSixToEightAdvisory: AgeRatingDeclarationProps = {
   ageRatingOverride: RatingOverride.NONE,
   koreaAgeRatingOverride: KoreaRatingOverride.NONE,
   lootBox: false,
+  advertising: false,
+  ageAssurance: false,
+  ageRatingOverrideV2: null,
+  developerAgeRatingInfoUrl: null,
+  gunsOrOtherWeapons: Rating.NONE,
+  healthOrWellnessTopics: false,
+  messagingAndChat: false,
+  parentalControls: false,
+  userGeneratedContent: false,
 };
