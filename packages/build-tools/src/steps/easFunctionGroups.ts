@@ -8,7 +8,7 @@ export function getEasFunctionGroups(ctx: CustomBuildContext): BuildFunctionGrou
   const functionGroups = [createEasMaestroTestFunctionGroup(ctx)];
 
   if (ctx.hasBuildJob()) {
-    functionGroups.push(...[createEasBuildBuildFunctionGroup(ctx)]);
+    functionGroups.push(createEasBuildBuildFunctionGroup(ctx));
   }
 
   return functionGroups;
