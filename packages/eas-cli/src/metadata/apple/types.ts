@@ -1,5 +1,6 @@
 import type {
   AgeRatingDeclarationProps,
+  AppClipAction,
   PreviewType,
   ScreenshotDisplayType,
 } from '@expo/apple-utils';
@@ -51,6 +52,38 @@ export interface AppleMetadata {
   /** @deprecated Use screenshots/previews in AppleInfo instead */
   preview?: Record<string, string[]>;
   review?: AppleReview;
+  /** App Clip metadata. Only applies to apps that ship an App Clip target. */
+  appClip?: AppleAppClip;
+}
+
+/** App Clip action enum values from App Store Connect API */
+export type AppleAppClipAction = `${AppClipAction}`;
+
+export interface AppleAppClip {
+  /** The default experience for this App Clip. There is exactly one per app. */
+  defaultExperience?: AppleAppClipDefaultExperience;
+}
+
+export interface AppleAppClipDefaultExperience {
+  /** Action button shown in the App Clip card. Defaults to OPEN if unset. */
+  action?: AppleAppClipAction;
+  /** Whether to release this default experience alongside the next App Store version. */
+  releaseWithAppStoreVersion?: boolean;
+  /** App Store review invocation URLs (used by App Review to launch the clip). */
+  reviewDetail?: AppleAppClipReviewDetail;
+  /** Per-locale subtitle and header image. */
+  info?: Record<AppleLocale, AppleAppClipLocalizedInfo>;
+}
+
+export interface AppleAppClipReviewDetail {
+  invocationUrls: string[];
+}
+
+export interface AppleAppClipLocalizedInfo {
+  /** Subtitle shown in the App Clip card. Apple limits this to 43 characters. */
+  subtitle?: string;
+  /** Relative path (from project root) to the App Clip header image PNG. */
+  headerImage?: string;
 }
 
 // The omited properties are deprecated
