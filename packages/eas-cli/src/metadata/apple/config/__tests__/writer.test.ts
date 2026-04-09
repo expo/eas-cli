@@ -12,6 +12,7 @@ import { nameAndDemoReviewDetails, nameOnlyReviewDetails } from './fixtures/appS
 import { automaticRelease, manualRelease, scheduledRelease } from './fixtures/appStoreVersion';
 import { dutchVersion, englishVersion } from './fixtures/appStoreVersionLocalization';
 import { phasedRelease } from './fixtures/appStoreVersionPhasedRelease';
+import { validateConfig } from '../../../config/validate';
 import { AppleConfigWriter } from '../writer';
 
 describe('toSchema', () => {
@@ -41,6 +42,22 @@ describe('setAgeRating', () => {
     const writer = new AppleConfigWriter();
     writer.setAgeRating(mostRestrictiveAdvisory);
     expect(writer.schema.advisory).toMatchObject(mostRestrictiveAdvisory);
+  });
+
+  // Drift guard: every advisory field that the writer emits must be allowed by
+  // metadata-0.json. If you add a field to writer.ts (or apple-utils surfaces a
+  // new one upstream), update the schema in the same change. Without this
+  // test, the drift only shows up at `metadata:push` time as a confusing
+  // validation error against the user's freshly pulled config.
+  it.each([
+    ['emptyAdvisory', emptyAdvisory],
+    ['leastRestrictiveAdvisory', leastRestrictiveAdvisory],
+    ['mostRestrictiveAdvisory', mostRestrictiveAdvisory],
+    ['kidsSixToEightAdvisory', kidsSixToEightAdvisory],
+  ])('writer output for %s passes JSON schema validation', (_name, advisory) => {
+    const writer = new AppleConfigWriter();
+    writer.setAgeRating(advisory);
+    expect(validateConfig(writer.toSchema())).toEqual([]);
   });
 });
 

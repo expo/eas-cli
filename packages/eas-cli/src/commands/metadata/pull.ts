@@ -6,6 +6,7 @@ import path from 'path';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { downloadMetadataAsync } from '../../metadata/download';
@@ -21,10 +22,7 @@ export default class MetadataPull extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run the command in non-interactive mode.',
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {

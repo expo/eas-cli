@@ -4,6 +4,7 @@ import { Flags } from '@oclif/core';
 
 import { ensureProjectConfiguredAsync } from '../../build/configure';
 import EasCommand from '../../commandUtils/EasCommand';
+import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import { CredentialsContext } from '../../credentials/context';
 import Log, { learnMore } from '../../log';
 import { handleMetadataError } from '../../metadata/errors';
@@ -19,10 +20,7 @@ export default class MetadataPush extends EasCommand {
       description:
         'Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.',
     }),
-    'non-interactive': Flags.boolean({
-      default: false,
-      description: 'Run the command in non-interactive mode.',
-    }),
+    ...EASNonInteractiveFlag,
   };
 
   static override contextDefinition = {
