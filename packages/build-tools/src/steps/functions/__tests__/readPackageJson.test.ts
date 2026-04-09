@@ -28,14 +28,18 @@ describe(createReadPackageJsonBuildFunction, () => {
     );
   });
 
-  it('throws if reading package.json fails', async () => {
-    const globalContext = createGlobalContextMock({ logger: createMockLogger() });
+  it('does not throw if reading package.json fails', async () => {
+    const stepLogger = createMockLogger();
+    const logger = createMockLogger();
+    logger.child = jest.fn().mockReturnValue(stepLogger);
+    const globalContext = createGlobalContextMock({ logger });
     const buildStep =
       createReadPackageJsonBuildFunction().createBuildStepFromFunctionCall(globalContext);
     jest.mocked(readPackageJson).mockImplementation(() => {
       throw new Error('failed to read package.json');
     });
 
-    await expect(buildStep.executeAsync()).rejects.toThrow('failed to read package.json');
+    await expect(buildStep.executeAsync()).resolves.toBeUndefined();
+    expect(stepLogger.error).toHaveBeenCalledWith('Error: failed to read package.json');
   });
 });

@@ -21,7 +21,9 @@ describe(createReadAppConfigBuildFunction, () => {
     globalContext.updateEnv({ EXPO_PUBLIC_TEST: '1' });
     const buildStep =
       createReadAppConfigBuildFunction().createBuildStepFromFunctionCall(globalContext);
-    jest.mocked(readAppConfig).mockResolvedValue({ exp: { name: 'my-app' } } as any);
+    jest.mocked(readAppConfig).mockResolvedValue(
+      { exp: { name: 'my-app', slug: 'my-app-slug', version: '1.2.3' } } as any
+    );
 
     await buildStep.executeAsync();
 
@@ -34,15 +36,35 @@ describe(createReadAppConfigBuildFunction, () => {
       })
     );
     expect(stepLogger.info).toHaveBeenCalledWith('Using app configuration:');
-    expect(stepLogger.info).toHaveBeenCalledWith(JSON.stringify({ name: 'my-app' }, null, 2));
+    expect(stepLogger.info).toHaveBeenCalledWith(
+      JSON.stringify({ name: 'my-app', slug: 'my-app-slug', version: '1.2.3' }, null, 2)
+    );
+    expect(buildStep.outputById.app_name.value).toBe('my-app');
+    expect(buildStep.outputById.app_slug.value).toBe('my-app-slug');
+    expect(buildStep.outputById.app_version.value).toBe('1.2.3');
   });
 
-  it('throws if reading app config fails', async () => {
+  it('does not throw if reading app config fails', async () => {
     const globalContext = createGlobalContextMock({ logger: createMockLogger() });
     const buildStep =
       createReadAppConfigBuildFunction().createBuildStepFromFunctionCall(globalContext);
     jest.mocked(readAppConfig).mockRejectedValue(new Error('failed to read app config'));
 
-    await expect(buildStep.executeAsync()).rejects.toThrow('failed to read app config');
+    await expect(buildStep.executeAsync()).resolves.toBeUndefined();
+  });
+
+  it('exports app fields as returned by app config', async () => {
+    const globalContext = createGlobalContextMock({ logger: createMockLogger() });
+    const buildStep =
+      createReadAppConfigBuildFunction().createBuildStepFromFunctionCall(globalContext);
+    jest.mocked(readAppConfig).mockResolvedValue(
+      { exp: { name: 'my-app', slug: 123, version: undefined } } as any
+    );
+
+    await buildStep.executeAsync();
+
+    expect(buildStep.outputById.app_name.value).toBe('my-app');
+    expect(buildStep.outputById.app_slug.value).toBe(123);
+    expect(buildStep.outputById.app_version.value).toBeUndefined();
   });
 });

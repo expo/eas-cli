@@ -9,9 +9,13 @@ export function createReadPackageJsonBuildFunction(): BuildFunction {
     name: 'Read package.json',
     __metricsId: 'eas/read_package_json',
     fn: async stepCtx => {
-      stepCtx.logger.info('Using package.json:');
-      const packageJson = readPackageJson(stepCtx.workingDirectory);
-      stepCtx.logger.info(JSON.stringify(packageJson, null, 2));
+      try {
+        stepCtx.logger.info('Using package.json:');
+        const packageJson = readPackageJson(stepCtx.workingDirectory);
+        stepCtx.logger.info(JSON.stringify(packageJson, null, 2));
+      } catch (err: unknown) {
+        stepCtx.logger.error(String(err));
+      }
     },
   });
 }
