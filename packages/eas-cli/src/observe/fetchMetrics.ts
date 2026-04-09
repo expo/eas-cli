@@ -3,7 +3,13 @@ import { EasCommandError } from '../commandUtils/errors';
 import { AppObservePlatform, AppPlatform } from '../graphql/generated';
 import { AppObserveTimeSeriesResult, ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
-import { BuildNumbersMap, MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
+import {
+  BuildNumbersMap,
+  MetricValues,
+  ObserveMetricsMap,
+  UpdateIdsMap,
+  makeMetricsKey,
+} from './formatMetrics';
 
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
   [AppPlatform.Android]: AppObservePlatform.Android,
@@ -33,6 +39,7 @@ export function validateDateFlag(value: string, flagName: string): void {
 export interface FetchObserveMetricsResult {
   metricsMap: ObserveMetricsMap;
   buildNumbersMap: BuildNumbersMap;
+  updateIdsMap: UpdateIdsMap;
 }
 
 export async function fetchObserveMetricsAsync(
@@ -75,6 +82,7 @@ export async function fetchObserveMetricsAsync(
 
   const metricsMap: ObserveMetricsMap = new Map();
   const buildNumbersMap: BuildNumbersMap = new Map();
+  const updateIdsMap: UpdateIdsMap = new Map();
 
   for (const result of observeResults) {
     if (!result) {
@@ -95,6 +103,12 @@ export async function fetchObserveMetricsAsync(
           marker.buildNumbers.map(bn => bn.appBuildNumber)
         );
       }
+      if (!updateIdsMap.has(key)) {
+        updateIdsMap.set(
+          key,
+          marker.updates.map(u => u.appUpdateId)
+        );
+      }
       const values: MetricValues = {
         min: statistics.min,
         max: statistics.max,
@@ -109,5 +123,5 @@ export async function fetchObserveMetricsAsync(
     }
   }
 
-  return { metricsMap, buildNumbersMap };
+  return { metricsMap, buildNumbersMap, updateIdsMap };
 }

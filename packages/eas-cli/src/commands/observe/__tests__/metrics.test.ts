@@ -37,6 +37,7 @@ describe(ObserveMetrics, () => {
     mockFetchObserveMetricsAsync.mockResolvedValue({
       metricsMap: new Map(),
       buildNumbersMap: new Map(),
+      updateIdsMap: new Map(),
     });
   });
 

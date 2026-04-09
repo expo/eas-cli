@@ -117,7 +117,7 @@ export default class ObserveMetrics extends EasCommand {
       ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]
       : [AppPlatform.Android, AppPlatform.Ios];
 
-    const { metricsMap, buildNumbersMap } = await fetchObserveMetricsAsync(
+    const { metricsMap, buildNumbersMap, updateIdsMap } = await fetchObserveMetricsAsync(
       graphqlClient,
       projectId,
       metricNames,
@@ -137,7 +137,11 @@ export default class ObserveMetrics extends EasCommand {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
       Log.log(
-        buildObserveMetricsTable(metricsMap, metricNames, stats, { daysBack, buildNumbersMap })
+        buildObserveMetricsTable(metricsMap, metricNames, stats, {
+          daysBack,
+          buildNumbersMap,
+          updateIdsMap,
+        })
       );
     }
   }

@@ -86,6 +86,7 @@ type ObserveMetricsKey = `${string}:${AppPlatform}`;
 
 export type ObserveMetricsMap = Map<ObserveMetricsKey, Map<string, MetricValues>>;
 export type BuildNumbersMap = Map<ObserveMetricsKey, string[]>;
+export type UpdateIdsMap = Map<ObserveMetricsKey, string[]>;
 
 export function makeMetricsKey(appVersion: string, platform: AppPlatform): ObserveMetricsKey {
   return `${appVersion}:${platform}`;
@@ -156,7 +157,7 @@ export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[],
-  options?: { daysBack?: number; buildNumbersMap?: BuildNumbersMap }
+  options?: { daysBack?: number; buildNumbersMap?: BuildNumbersMap; updateIdsMap?: UpdateIdsMap }
 ): string {
   const results = buildObserveMetricsJson(metricsMap, metricNames, stats);
 
@@ -198,7 +199,12 @@ export function buildObserveMetricsTable(
       }
     }
   }
-  const headers = ['App Version', ...metricHeaders];
+  // Check if any version has updates
+  const hasUpdates = options?.updateIdsMap
+    ? Array.from(options.updateIdsMap.values()).some(ids => ids.length > 0)
+    : false;
+
+  const headers = ['App Version', ...(hasUpdates ? ['Updates'] : []), ...metricHeaders];
 
   const sections: string[] = [chalk.bold(summaryLine)];
 
@@ -212,6 +218,9 @@ export function buildObserveMetricsTable(
       const versionLabel = buildNumbers?.length
         ? `${result.appVersion} (${buildNumbers.join(', ')})`
         : result.appVersion;
+
+      const updateIds = options?.updateIdsMap?.get(key);
+      const updatesLabel = updateIds?.length ? updateIds.join(', ') : '';
 
       const metricCells: string[] = [];
       for (const m of metricNames) {
@@ -230,7 +239,7 @@ export function buildObserveMetricsTable(
           }
         }
       }
-      return [versionLabel, ...metricCells];
+      return [versionLabel, ...(hasUpdates ? [updatesLabel] : []), ...metricCells];
     });
 
     sections.push(renderTable(headers, rows));
