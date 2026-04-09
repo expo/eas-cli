@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
@@ -22,12 +22,15 @@ export default class ObserveEvents extends EasCommand {
   static override hidden = true;
   static override description = 'display individual app performance events ordered by metric value';
 
-  static override flags = {
-    metric: Flags.option({
-      description: 'Metric to query',
-      required: true,
+  static override args = {
+    metric: Args.string({
+      description: 'Metric to query (e.g. tti, cold_launch). Defaults to tti.',
+      required: false,
       options: Object.keys(METRIC_ALIASES),
-    })(),
+    }),
+  };
+
+  static override flags = {
     sort: Flags.option({
       description: 'Sort order for events',
       options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
@@ -77,7 +80,7 @@ export default class ObserveEvents extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ObserveEvents);
+    const { flags, args } = await this.parse(ObserveEvents);
     const {
       projectId: contextProjectId,
       loggedIn: { graphqlClient },
@@ -100,7 +103,7 @@ export default class ObserveEvents extends EasCommand {
       validateDateFlag(flags.end, '--end');
     }
 
-    const metricName = resolveMetricName(flags.metric);
+    const metricName = resolveMetricName(args.metric ?? 'tti');
     const orderBy = resolveOrderBy(flags.sort);
 
     const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);

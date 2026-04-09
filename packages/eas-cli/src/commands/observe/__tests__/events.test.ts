@@ -56,7 +56,7 @@ describe(ObserveEvents, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--metric', 'tti', '--days', '7']);
+    const command = createCommand(['--days', '7']);
     await command.runAsync();
 
     expect(mockFetchObserveEventsAsync).toHaveBeenCalledTimes(1);
@@ -71,7 +71,7 @@ describe(ObserveEvents, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--metric', 'tti']);
+    const command = createCommand([]);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -83,8 +83,6 @@ describe(ObserveEvents, () => {
 
   it('uses explicit --start and --end when provided', async () => {
     const command = createCommand([
-      '--metric',
-      'tti',
       '--start',
       '2025-01-01T00:00:00.000Z',
       '--end',
@@ -101,7 +99,7 @@ describe(ObserveEvents, () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--metric', 'tti', '--start', '2025-01-01T00:00:00.000Z']);
+    const command = createCommand(['--start', '2025-01-01T00:00:00.000Z']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -112,20 +110,13 @@ describe(ObserveEvents, () => {
   });
 
   it('rejects --days combined with --start', async () => {
-    const command = createCommand([
-      '--metric',
-      'tti',
-      '--days',
-      '7',
-      '--start',
-      '2025-01-01T00:00:00.000Z',
-    ]);
+    const command = createCommand(['--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
 
   it('passes --limit to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['--metric', 'tti', '--limit', '42']);
+    const command = createCommand(['--limit', '42']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -133,7 +124,7 @@ describe(ObserveEvents, () => {
   });
 
   it('passes --after cursor to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['--metric', 'tti', '--after', 'cursor-xyz']);
+    const command = createCommand(['--after', 'cursor-xyz']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -141,7 +132,7 @@ describe(ObserveEvents, () => {
   });
 
   it('does not pass after when --after flag is not provided', async () => {
-    const command = createCommand(['--metric', 'tti']);
+    const command = createCommand([]);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -149,20 +140,13 @@ describe(ObserveEvents, () => {
   });
 
   it('rejects --days combined with --end', async () => {
-    const command = createCommand([
-      '--metric',
-      'tti',
-      '--days',
-      '7',
-      '--end',
-      '2025-02-01T00:00:00.000Z',
-    ]);
+    const command = createCommand(['--days', '7', '--end', '2025-02-01T00:00:00.000Z']);
 
     await expect(command.runAsync()).rejects.toThrow();
   });
 
   it('passes --platform ios to fetchObserveEventsAsync as AppObservePlatform.Ios', async () => {
-    const command = createCommand(['--metric', 'tti', '--platform', 'ios']);
+    const command = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -170,7 +154,7 @@ describe(ObserveEvents, () => {
   });
 
   it('passes --platform android to fetchObserveEventsAsync as AppObservePlatform.Android', async () => {
-    const command = createCommand(['--metric', 'tti', '--platform', 'android']);
+    const command = createCommand(['--platform', 'android']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -178,7 +162,7 @@ describe(ObserveEvents, () => {
   });
 
   it('passes --app-version to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['--metric', 'tti', '--app-version', '2.1.0']);
+    const command = createCommand(['--app-version', '2.1.0']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -186,7 +170,7 @@ describe(ObserveEvents, () => {
   });
 
   it('passes --update-id to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['--metric', 'tti', '--update-id', 'update-xyz']);
+    const command = createCommand(['--update-id', 'update-xyz']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -194,7 +178,7 @@ describe(ObserveEvents, () => {
   });
 
   it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
-    const command = createCommand(['--metric', 'tti']);
+    const command = createCommand([]);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
@@ -225,7 +209,7 @@ describe(ObserveEvents, () => {
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
 
-    const command = createCommand(['--metric', 'tti', '--json', '--non-interactive']);
+    const command = createCommand(['--json', '--non-interactive']);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
@@ -237,7 +221,7 @@ describe(ObserveEvents, () => {
   });
 
   it('does not call enableJsonOutput when --json is not provided', async () => {
-    const command = createCommand(['--metric', 'tti']);
+    const command = createCommand([]);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).not.toHaveBeenCalled();
@@ -245,7 +229,7 @@ describe(ObserveEvents, () => {
   });
 
   it('passes --sort flag through to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['--metric', 'tti', '--sort', 'slowest']);
+    const command = createCommand(['--sort', 'slowest']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
