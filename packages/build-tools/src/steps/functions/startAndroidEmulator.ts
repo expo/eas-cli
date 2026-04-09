@@ -18,7 +18,7 @@ import { retryAsync } from '../../utils/retry';
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
 const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE =
-  'EAS_ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE';
+  'ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE';
 
 const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
   'Could not start the Android emulator on this runner.',
@@ -29,26 +29,6 @@ const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
   '  runs_on: linux-medium-nested-virtualization',
   '  runs_on: linux-large-nested-virtualization',
 ].join('\n');
-
-/**
- * On Linux, Android emulator hardware acceleration requires CPU virtualization flags.
- * We detect support by checking `/proc/cpuinfo` for `vmx` (Intel) or `svm` (AMD).
- * Non-Linux hosts are treated as unsupported for this step.
- */
-async function getIsNestedVirtualizationEnabledAsync(
-  env: NodeJS.ProcessEnv,
-  runtimePlatform: BuildRuntimePlatform
-): Promise<boolean> {
-  if (runtimePlatform !== BuildRuntimePlatform.LINUX) {
-    return false;
-  }
-  try {
-    await spawn('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], { env });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -81,17 +61,8 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env }) => {
-      const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(
-        env,
-        global.runtimePlatform
-      );
-      if (!isNestedVirtualizationEnabled) {
-        throw new UserError(
-          ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE,
-          ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR
-        );
-      }
+    fn: async ({ logger }, { inputs, env }) => {
+      await assertNestedVirtualizationIsAvailableAsync({ env });
 
       try {
         const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
@@ -301,4 +272,31 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+async function assertNestedVirtualizationIsAvailableAsync({
+  env,
+}: {
+  env: NodeJS.ProcessEnv;
+}): Promise<void> {
+  const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(env);
+  if (!isNestedVirtualizationEnabled) {
+    throw new UserError(
+      ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE,
+      ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR
+    );
+  }
+}
+
+async function getIsNestedVirtualizationEnabledAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
+  const androidSdkPath = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT;
+  if (!androidSdkPath) {
+    return false;
+  }
+  try {
+    await spawn(`${androidSdkPath}/emulator/emulator`, ['-accel-check'], { env });
+    return true;
+  } catch {
+    return false;
+  }
 }

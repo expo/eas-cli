@@ -217,42 +217,50 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
   });
 
-  it('fails early on Linux when cpu virtualization flags are not available', async () => {
-    mockedSpawn.mockRejectedValueOnce(new Error('grep did not match') as any);
+  it('fails early on Linux when emulator acceleration check fails', async () => {
+    mockedSpawn.mockRejectedValueOnce(new Error('accel check failed') as any);
 
     const step = createStep();
     await expect(step.executeAsync()).rejects.toThrow(/nested virtualization/i);
 
-    expect(mockedSpawn).toHaveBeenCalledWith('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], {
+    expect(mockedSpawn).toHaveBeenCalledWith('/android/home/emulator/emulator', ['-accel-check'], {
       env: expect.any(Object),
     });
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
   });
 
-  it('continues startup on Linux when cpu virtualization flags are available', async () => {
+  it('continues startup on Linux when emulator acceleration check succeeds', async () => {
     await createStep().executeAsync();
 
-    expect(mockedSpawn).toHaveBeenCalledWith('grep', ['-Eq', '(vmx|svm)', '/proc/cpuinfo'], {
+    expect(mockedSpawn).toHaveBeenCalledWith('/android/home/emulator/emulator', ['-accel-check'], {
       env: expect.any(Object),
     });
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
   });
 
-  it('fails early on non-Linux hosts and does not probe /proc/cpuinfo', async () => {
+  it('fails early when Android SDK path env vars are missing', async () => {
     await expect(
-      createStep(undefined, undefined, BuildRuntimePlatform.DARWIN).executeAsync()
+      createStep(undefined, { ANDROID_HOME: undefined, ANDROID_SDK_ROOT: undefined }).executeAsync()
     ).rejects.toThrow(/nested virtualization/i);
 
-    expect(mockedSpawn.mock.calls.some(([command]) => command === 'grep')).toBe(false);
+    expect(
+      mockedSpawn.mock.calls.some(([command]) => command === '/android/home/emulator/emulator')
+    ).toBe(false);
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
   });
 
-  it('fails early on any non-Linux runtimePlatform value and does not probe /proc/cpuinfo', async () => {
-    await expect(
-      createStep(undefined, undefined, 'UNKNOWN' as BuildRuntimePlatform).executeAsync()
-    ).rejects.toThrow(/nested virtualization/i);
+  it('uses ANDROID_SDK_ROOT when ANDROID_HOME is missing', async () => {
+    await createStep(undefined, {
+      ANDROID_HOME: undefined,
+      ANDROID_SDK_ROOT: '/android/sdk/root',
+    }).executeAsync();
 
-    expect(mockedSpawn.mock.calls.some(([command]) => command === 'grep')).toBe(false);
-    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      '/android/sdk/root/emulator/emulator',
+      ['-accel-check'],
+      {
+        env: expect.any(Object),
+      }
+    );
   });
 });
