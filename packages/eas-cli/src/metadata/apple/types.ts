@@ -54,6 +54,37 @@ export interface AppleMetadata {
   review?: AppleReview;
   /** App Clip metadata. Only applies to apps that ship an App Clip target. */
   appClip?: AppleAppClip;
+  /**
+   * In-App Purchase listing. Currently limited to a declarative round-trip
+   * of `productId`, `referenceName`, and `type`. Localizations, pricing,
+   * and review screenshots are intentionally out of scope for now.
+   */
+  inAppPurchases?: AppleInAppPurchase[];
+}
+
+/**
+ * In-App Purchase enum values from App Store Connect API. The published
+ * `@expo/apple-utils` enum uses `AUTOMATICALLY_RENEWABLE_SUBSCRIPTION` for
+ * the auto-renewable subscription type, but we accept both spellings to
+ * mirror what most callers expect from the OpenAPI spec.
+ */
+export type AppleInAppPurchaseType =
+  | 'CONSUMABLE'
+  | 'NON_CONSUMABLE'
+  | 'NON_RENEWING_SUBSCRIPTION'
+  | 'AUTO_RENEWABLE_SUBSCRIPTION'
+  | 'AUTOMATICALLY_RENEWABLE_SUBSCRIPTION'
+  | 'FREE_SUBSCRIPTION';
+
+export interface AppleInAppPurchase {
+  /** Product identifier (primary key, must be unique within the app). */
+  productId: string;
+  /** Internal reference name shown in App Store Connect. */
+  referenceName: string;
+  /** IAP type. */
+  type: AppleInAppPurchaseType | string;
+  /** Read-only review/state from App Store Connect. Only populated on pull. */
+  state?: string;
 }
 
 /** App Clip action enum values from App Store Connect API */

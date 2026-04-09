@@ -800,6 +800,39 @@
           "vi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Vietnamese" }
         }
       },
+      "AppleInAppPurchase": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Basic listing of an In-App Purchase. Localizations, pricing, and review screenshots are intentionally out of scope for this schema iteration.",
+        "required": ["productId", "referenceName", "type"],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "description": "Unique product identifier for the IAP. Acts as the primary key when reconciling against App Store Connect.",
+            "minLength": 1
+          },
+          "referenceName": {
+            "type": "string",
+            "description": "Internal reference name shown in App Store Connect.",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "CONSUMABLE",
+              "NON_CONSUMABLE",
+              "NON_RENEWING_SUBSCRIPTION",
+              "AUTO_RENEWABLE_SUBSCRIPTION",
+              "AUTOMATICALLY_RENEWABLE_SUBSCRIPTION",
+              "FREE_SUBSCRIPTION"
+            ],
+            "description": "In-App Purchase type."
+          },
+          "state": {
+            "type": "string",
+            "description": "Read-only review state from App Store Connect. Only populated by `metadata:pull`; ignored on `metadata:push`."
+          }
+        }
+      },
       "AppleAgeRatingOverride": {
         "enum": [
           "NONE",
@@ -1034,6 +1067,13 @@
         "appClip": {
           "$ref": "#/definitions/apple/AppleAppClip",
           "description": "App Clip metadata. Only applies to apps that ship an App Clip target."
+        },
+        "inAppPurchases": {
+          "type": "array",
+          "description": "Basic listing of In-App Purchases. Currently limited to a declarative round-trip of productId / referenceName / type. Pull is supported; push only reports diffs because the underlying apple-utils API is read-only for now.",
+          "items": {
+            "$ref": "#/definitions/apple/AppleInAppPurchase"
+          }
         }
       }
     }

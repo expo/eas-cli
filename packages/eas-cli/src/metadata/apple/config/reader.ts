@@ -20,6 +20,7 @@ import {
   AppleAppClip,
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
+  AppleInAppPurchase,
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
@@ -256,5 +257,15 @@ export class AppleConfigReader {
   /** Get the localized App Clip info (subtitle + header image) for a specific locale. */
   public getAppClipLocalizedInfo(locale: string): AppleAppClipLocalizedInfo | null {
     return this.schema.appClip?.defaultExperience?.info?.[locale] ?? null;
+  }
+
+  /**
+   * Get the desired In-App Purchase listing from config, or null if the
+   * key is missing entirely. An empty array is preserved as an empty array
+   * (the user explicitly cleared their list) so callers can distinguish
+   * "unconfigured" from "intentionally empty".
+   */
+  public getInAppPurchases(): AppleInAppPurchase[] | null {
+    return this.schema.inAppPurchases ?? null;
   }
 }
