@@ -18,7 +18,9 @@ import { createInstallMaestroBuildFunction } from './functions/installMaestro';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
 import { createPrebuildBuildFunction } from './functions/prebuild';
+import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
+import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
@@ -47,6 +49,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createDownloadArtifactFunction(),
     createUploadArtifactBuildFunction(ctx),
     createSetUpNpmrcBuildFunction(),
+    createReadPackageJsonBuildFunction(),
+    createReadAppConfigBuildFunction(),
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
