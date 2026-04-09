@@ -17,7 +17,8 @@ export enum EventsOrderPreset {
   Oldest = 'OLDEST',
 }
 
-export function resolveOrderBy(preset: EventsOrderPreset): AppObserveEventsOrderBy {
+export function resolveOrderBy(input: string): AppObserveEventsOrderBy {
+  const preset = input.toUpperCase() as EventsOrderPreset;
   switch (preset) {
     case EventsOrderPreset.Slowest:
       return {

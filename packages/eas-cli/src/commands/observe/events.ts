@@ -100,7 +100,7 @@ export default class ObserveEvents extends EasCommand {
     }
 
     const metricName = resolveMetricName(flags.metric);
-    const orderBy = resolveOrderBy(flags.sort as EventsOrderPreset);
+    const orderBy = resolveOrderBy(flags.sort);
 
     const { startTime, endTime } = startAndEndTime({
       daysFromNow: flags['days-from-now'],

@@ -1,12 +1,22 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppObservePlatform } from '../../../graphql/generated';
-import { fetchObserveEventsAsync } from '../../../observe/fetchEvents';
+import {
+  AppObserveEventsOrderByDirection,
+  AppObserveEventsOrderByField,
+  AppObservePlatform,
+} from '../../../graphql/generated';
+import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveEvents from '../events';
 
-jest.mock('../../../observe/fetchEvents');
+jest.mock('../../../observe/fetchEvents', () => {
+  const actual = jest.requireActual('../../../observe/fetchEvents');
+  return {
+    ...actual,
+    fetchObserveEventsAsync: jest.fn(),
+  };
+});
 jest.mock('../../../observe/formatEvents', () => ({
   buildObserveEventsTable: jest.fn().mockReturnValue('table'),
   buildObserveEventsJson: jest.fn().mockReturnValue({}),
@@ -232,5 +242,46 @@ describe(ObserveEvents, () => {
 
     expect(mockEnableJsonOutput).not.toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+  });
+
+  it('passes --sort flag through to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['--metric', 'tti', '--sort', 'slowest']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.orderBy).toEqual({
+      field: AppObserveEventsOrderByField.MetricValue,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+});
+
+describe(resolveOrderBy, () => {
+  it('resolves lowercase "slowest" to MetricValue DESC', () => {
+    expect(resolveOrderBy('slowest')).toEqual({
+      field: AppObserveEventsOrderByField.MetricValue,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+
+  it('resolves lowercase "fastest" to MetricValue ASC', () => {
+    expect(resolveOrderBy('fastest')).toEqual({
+      field: AppObserveEventsOrderByField.MetricValue,
+      direction: AppObserveEventsOrderByDirection.Asc,
+    });
+  });
+
+  it('resolves lowercase "newest" to Timestamp DESC', () => {
+    expect(resolveOrderBy('newest')).toEqual({
+      field: AppObserveEventsOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+
+  it('resolves lowercase "oldest" to Timestamp ASC', () => {
+    expect(resolveOrderBy('oldest')).toEqual({
+      field: AppObserveEventsOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Asc,
+    });
   });
 });
