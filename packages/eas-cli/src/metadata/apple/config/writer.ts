@@ -17,6 +17,7 @@ import {
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
   AppleAppClipReviewDetail,
+  AppleDataUsage,
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
@@ -216,6 +217,24 @@ export class AppleConfigWriter {
     this.schema.info = this.schema.info ?? {};
     this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
     this.schema.info[locale].previews = Object.keys(previews).length > 0 ? previews : undefined;
+  }
+
+  /**
+   * Set the privacy data usage block. Pass `null` to clear it (e.g. when the
+   * remote app has no data usage entries declared yet).
+   */
+  public setDataUsage(dataUsage: AppleDataUsage | null): void {
+    if (!dataUsage) {
+      if (this.schema.privacy) {
+        delete this.schema.privacy.dataUsage;
+        if (Object.keys(this.schema.privacy).length === 0) {
+          delete this.schema.privacy;
+        }
+      }
+      return;
+    }
+    this.schema.privacy = this.schema.privacy ?? {};
+    this.schema.privacy.dataUsage = dataUsage;
   }
 
   /** Set the App Clip default experience attributes (action, releaseWithAppStoreVersion). */
