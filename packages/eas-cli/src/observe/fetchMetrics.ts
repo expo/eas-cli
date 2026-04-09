@@ -3,7 +3,7 @@ import { EasCommandError } from '../commandUtils/errors';
 import { AppObservePlatform, AppPlatform } from '../graphql/generated';
 import { AppObserveTimeSeriesResult, ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
-import { MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
+import { BuildNumbersMap, MetricValues, ObserveMetricsMap, makeMetricsKey } from './formatMetrics';
 
 const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
   [AppPlatform.Android]: AppObservePlatform.Android,
@@ -30,6 +30,11 @@ export function validateDateFlag(value: string, flagName: string): void {
   }
 }
 
+export interface FetchObserveMetricsResult {
+  metricsMap: ObserveMetricsMap;
+  buildNumbersMap: BuildNumbersMap;
+}
+
 export async function fetchObserveMetricsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
@@ -37,7 +42,7 @@ export async function fetchObserveMetricsAsync(
   platforms: AppPlatform[],
   startTime: string,
   endTime: string
-): Promise<ObserveMetricsMap> {
+): Promise<FetchObserveMetricsResult> {
   const observeQueries: Promise<ObserveQueryResult | null>[] = [];
 
   for (const metricName of metricNames) {
@@ -69,6 +74,7 @@ export async function fetchObserveMetricsAsync(
   const observeResults = await Promise.all(observeQueries);
 
   const metricsMap: ObserveMetricsMap = new Map();
+  const buildNumbersMap: BuildNumbersMap = new Map();
 
   for (const result of observeResults) {
     if (!result) {
@@ -82,6 +88,12 @@ export async function fetchObserveMetricsAsync(
       const key = makeMetricsKey(marker.appVersion, appPlatform);
       if (!metricsMap.has(key)) {
         metricsMap.set(key, new Map());
+      }
+      if (!buildNumbersMap.has(key)) {
+        buildNumbersMap.set(
+          key,
+          marker.buildNumbers.map(bn => bn.appBuildNumber)
+        );
       }
       const values: MetricValues = {
         min: statistics.min,
@@ -97,5 +109,5 @@ export async function fetchObserveMetricsAsync(
     }
   }
 
-  return metricsMap;
+  return { metricsMap, buildNumbersMap };
 }

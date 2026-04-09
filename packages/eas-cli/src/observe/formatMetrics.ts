@@ -85,6 +85,7 @@ export interface MetricValues {
 type ObserveMetricsKey = `${string}:${AppPlatform}`;
 
 export type ObserveMetricsMap = Map<ObserveMetricsKey, Map<string, MetricValues>>;
+export type BuildNumbersMap = Map<ObserveMetricsKey, string[]>;
 
 export function makeMetricsKey(appVersion: string, platform: AppPlatform): ObserveMetricsKey {
   return `${appVersion}:${platform}`;
@@ -155,7 +156,7 @@ export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[],
-  options?: { daysBack?: number }
+  options?: { daysBack?: number; buildNumbersMap?: BuildNumbersMap }
 ): string {
   const results = buildObserveMetricsJson(metricsMap, metricNames, stats);
 
@@ -206,12 +207,16 @@ export function buildObserveMetricsTable(
     sections.push(chalk.bold(appPlatformDisplayNames[platform]));
 
     const rows: string[][] = platformResults.map(result => {
+      const key = makeMetricsKey(result.appVersion, result.platform);
+      const buildNumbers = options?.buildNumbersMap?.get(key);
+      const versionLabel = buildNumbers?.length
+        ? `${result.appVersion} (${buildNumbers.join(', ')})`
+        : result.appVersion;
+
       const metricCells: string[] = [];
       for (const m of metricNames) {
         const values = result.metrics[m];
         if (displayStats.length > 0 && hasEventCount) {
-          // Merged: show stat value with event count in parens
-          // Use the first display stat for the merged cell
           for (const stat of displayStats) {
             metricCells.push(
               formatMergedCell(stat, values?.[stat] ?? null, values?.eventCount ?? null)
@@ -225,7 +230,7 @@ export function buildObserveMetricsTable(
           }
         }
       }
-      return [result.appVersion, ...metricCells];
+      return [versionLabel, ...metricCells];
     });
 
     sections.push(renderTable(headers, rows));
