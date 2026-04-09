@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add missing Apple metadata attributes for age ratings and content descriptions. ([#3584](https://github.com/expo/eas-cli/pull/3584) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Add App Clip metadata support to `metadata:push` and `metadata:pull` (default experience action, per-locale subtitle and header image, App Store review invocation URLs). ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Allow up to 3 video previews per device type in `metadata:push` and `metadata:pull`. Each preview type now accepts an array of preview configs in addition to the existing single-config form (which remains supported for backwards compatibility). ([@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
 

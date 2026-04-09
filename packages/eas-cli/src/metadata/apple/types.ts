@@ -36,11 +36,16 @@ export type ApplePreviewConfig =
 
 /**
  * Video previews organized by display type.
- * Key is the display type (e.g., 'IPHONE_67'), value is the preview config.
+ * Key is the display type (e.g., 'IPHONE_67'), value is the preview config or an array of preview configs.
+ * Apple supports up to 3 previews per device type. A single object/string is still
+ * accepted for backwards compatibility with existing store configs.
  * @example { "IPHONE_67": "./previews/demo.mp4" }
  * @example { "IPHONE_67": { path: "./previews/demo.mp4", previewFrameTimeCode: "00:05:00" } }
+ * @example { "IPHONE_67": ["./previews/intro.mp4", "./previews/features.mp4"] }
  */
-export type ApplePreviews = Partial<Record<ApplePreviewType, ApplePreviewConfig>>;
+export type ApplePreviews = Partial<
+  Record<ApplePreviewType, ApplePreviewConfig | ApplePreviewConfig[]>
+>;
 
 export interface AppleMetadata {
   version?: string;

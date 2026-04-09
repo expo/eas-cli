@@ -328,7 +328,7 @@
           },
           "previews": {
             "type": "object",
-            "description": "Video previews for this locale, organized by display type (e.g., IPHONE_67, IPAD_PRO_129)",
+            "description": "Video previews for this locale, organized by display type (e.g., IPHONE_67, IPAD_PRO_129). Each device type accepts a single preview config (string or object) or an array of up to 3 preview configs.",
             "additionalProperties": {
               "oneOf": [
                 {
@@ -348,6 +348,31 @@
                   },
                   "required": ["path"],
                   "additionalProperties": false
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Video file path (relative to project root)"
+                          },
+                          "previewFrameTimeCode": {
+                            "type": "string",
+                            "description": "Optional preview frame time code (e.g., '00:05:00' for 5 seconds)"
+                          }
+                        },
+                        "required": ["path"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
                 }
               ]
             }
