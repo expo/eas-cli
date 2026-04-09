@@ -1,6 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObservePlatform } from '../../graphql/generated';
@@ -10,9 +11,10 @@ import {
   fetchObserveEventsAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
-import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
@@ -23,7 +25,7 @@ export default class ObserveEvents extends EasCommand {
 
   static override args = {
     metric: Args.string({
-      description: 'Metric to query (e.g. tti, cold_launch). Defaults to tti.',
+      description: 'Metric to query (e.g. tti, cold_launch)',
       required: false,
       options: Object.keys(METRIC_ALIASES),
     }),
@@ -95,7 +97,21 @@ export default class ObserveEvents extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    const metricName = resolveMetricName(args.metric ?? 'tti');
+    let metricName: string;
+    if (args.metric) {
+      metricName = resolveMetricName(args.metric);
+    } else if (flags['non-interactive']) {
+      throw new EasCommandError(
+        'A metric argument is required in non-interactive mode. Available metrics: ' +
+          Object.keys(METRIC_ALIASES).join(', ')
+      );
+    } else {
+      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
+        title: `${displayName} (${fullName})`,
+        value: fullName,
+      }));
+      metricName = await selectAsync('Select a metric', choices);
+    }
     const orderBy = resolveOrderBy(flags.sort);
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
