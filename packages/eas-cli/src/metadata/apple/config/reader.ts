@@ -20,8 +20,10 @@ import {
   AppleAppClip,
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
+  AppleAvailability,
   AppleMetadata,
   ApplePreviews,
+  ApplePricing,
   AppleScreenshots,
 } from '../types';
 
@@ -256,5 +258,15 @@ export class AppleConfigReader {
   /** Get the localized App Clip info (subtitle + header image) for a specific locale. */
   public getAppClipLocalizedInfo(locale: string): AppleAppClipLocalizedInfo | null {
     return this.schema.appClip?.defaultExperience?.info?.[locale] ?? null;
+  }
+
+  /** Get the pricing block, or null if not configured. */
+  public getPricing(): ApplePricing | null {
+    return this.schema.pricing ?? null;
+  }
+
+  /** Get the availability block, or null if not configured. */
+  public getAvailability(): AppleAvailability | null {
+    return this.schema.availability ?? null;
   }
 }

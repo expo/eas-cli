@@ -4,6 +4,7 @@ import { AppInfoTask } from './app-info';
 import { AppReviewDetailTask } from './app-review-detail';
 import { AppVersionOptions, AppVersionTask } from './app-version';
 import { PreviewsTask } from './previews';
+import { PricingTask } from './pricing';
 import { ScreenshotsTask } from './screenshots';
 import { AppleTask } from '../task';
 
@@ -23,5 +24,6 @@ export function createAppleTasks({ version }: AppleTaskOptions = {}): AppleTask[
     new ScreenshotsTask(),
     new PreviewsTask(),
     new AppClipTask(),
+    new PricingTask(),
   ];
 }

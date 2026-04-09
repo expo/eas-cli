@@ -17,8 +17,10 @@ import {
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
   AppleAppClipReviewDetail,
+  AppleAvailability,
   AppleMetadata,
   ApplePreviews,
+  ApplePricing,
   AppleScreenshots,
 } from '../types';
 
@@ -239,6 +241,29 @@ export class AppleConfigWriter {
     } else {
       delete this.schema.appClip.defaultExperience.reviewDetail;
     }
+  }
+
+  /** Set the pricing configuration (price tier + scheduled changes). */
+  public setPricing(pricing: ApplePricing | null): void {
+    if (!pricing || (pricing.tier == null && !pricing.schedule?.length)) {
+      delete this.schema.pricing;
+      return;
+    }
+    this.schema.pricing = {
+      tier: pricing.tier,
+      schedule: pricing.schedule && pricing.schedule.length > 0 ? pricing.schedule : undefined,
+    };
+  }
+
+  /** Set the territory availability configuration. */
+  public setAvailability(availability: AppleAvailability | null): void {
+    if (!availability || availability.territories == null) {
+      delete this.schema.availability;
+      return;
+    }
+    this.schema.availability = {
+      territories: availability.territories,
+    };
   }
 
   /** Set per-locale App Clip info (subtitle + header image). */
