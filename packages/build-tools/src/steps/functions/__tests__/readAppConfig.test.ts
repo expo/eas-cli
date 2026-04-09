@@ -21,9 +21,9 @@ describe(createReadAppConfigBuildFunction, () => {
     globalContext.updateEnv({ EXPO_PUBLIC_TEST: '1' });
     const buildStep =
       createReadAppConfigBuildFunction().createBuildStepFromFunctionCall(globalContext);
-    jest.mocked(readAppConfig).mockResolvedValue(
-      { exp: { name: 'my-app', slug: 'my-app-slug', version: '1.2.3' } } as any
-    );
+    jest
+      .mocked(readAppConfig)
+      .mockResolvedValue({ exp: { name: 'my-app', slug: 'my-app-slug', version: '1.2.3' } } as any);
 
     await buildStep.executeAsync();
 
@@ -57,9 +57,9 @@ describe(createReadAppConfigBuildFunction, () => {
     const globalContext = createGlobalContextMock({ logger: createMockLogger() });
     const buildStep =
       createReadAppConfigBuildFunction().createBuildStepFromFunctionCall(globalContext);
-    jest.mocked(readAppConfig).mockResolvedValue(
-      { exp: { name: 'my-app', slug: 123, version: undefined } } as any
-    );
+    jest
+      .mocked(readAppConfig)
+      .mockResolvedValue({ exp: { name: 'my-app', slug: 123, version: undefined } } as any);
 
     await buildStep.executeAsync();
 
