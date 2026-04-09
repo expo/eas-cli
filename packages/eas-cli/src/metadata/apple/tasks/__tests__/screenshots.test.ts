@@ -170,6 +170,95 @@ describe(ScreenshotsTask, () => {
         ],
       });
     });
+
+    it('preserves entries with placeholder paths when imageAsset is null (broken state)', async () => {
+      // Regression test for screenshots stuck in AWAITING_UPLOAD with no
+      // rendered imageAsset. Pull used to drop these from config entirely,
+      // which made it impossible to recover via push (since push only acts on
+      // entries present in config). Now pull writes a placeholder path so the
+      // user can drop in a replacement file or remove the entry to delete the
+      // broken ASC record.
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      const broken = new AppScreenshot(requestContext, 'SS_BROKEN', {
+        fileName: '01.png',
+        fileSize: 599307,
+        imageAsset: null,
+        assetDeliveryState: { state: 'AWAITING_UPLOAD', errors: [], warnings: [] },
+      } as any);
+      // getImageAssetUrl returns null when imageAsset is null.
+      jest.spyOn(broken, 'getImageAssetUrl').mockReturnValue(null);
+
+      const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
+      const screenshotSet = new AppScreenshotSet(requestContext, 'SET_1', {
+        screenshotDisplayType: ScreenshotDisplayType.APP_IPHONE_67,
+        appScreenshots: [broken],
+      } as any);
+      displayTypeMap.set(ScreenshotDisplayType.APP_IPHONE_67, screenshotSet);
+
+      const screenshotSets = new Map([['en-US', displayTypeMap]]);
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      await new ScreenshotsTask().downloadAsync({
+        config: writer,
+        context: {
+          screenshotSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      // No fetch should have been attempted (URL was null).
+      expect(mockFetch).not.toBeCalled();
+      // Entry should still be present in config with the original filename.
+      expect(writer.setScreenshots).toBeCalledWith('en-US', {
+        [ScreenshotDisplayType.APP_IPHONE_67]: [
+          'store/apple/screenshot/en-US/APP_IPHONE_67/01.png',
+        ],
+      });
+    });
+
+    it('uses index-based fallback filename when fileName is also null', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      const broken = new AppScreenshot(requestContext, 'SS_BROKEN', {
+        fileName: null,
+        fileSize: 0,
+        imageAsset: null,
+        assetDeliveryState: { state: 'AWAITING_UPLOAD', errors: [], warnings: [] },
+      } as any);
+      jest.spyOn(broken, 'getImageAssetUrl').mockReturnValue(null);
+
+      const displayTypeMap = new Map<ScreenshotDisplayType, AppScreenshotSet>();
+      displayTypeMap.set(
+        ScreenshotDisplayType.APP_IPAD_PRO_3GEN_129,
+        new AppScreenshotSet(requestContext, 'SET_2', {
+          screenshotDisplayType: ScreenshotDisplayType.APP_IPAD_PRO_3GEN_129,
+          appScreenshots: [broken],
+        } as any)
+      );
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      await new ScreenshotsTask().downloadAsync({
+        config: writer,
+        context: {
+          screenshotSets: new Map([['en-US', displayTypeMap]]),
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(writer.setScreenshots).toBeCalledWith('en-US', {
+        [ScreenshotDisplayType.APP_IPAD_PRO_3GEN_129]: [
+          'store/apple/screenshot/en-US/APP_IPAD_PRO_3GEN_129/01.png',
+        ],
+      });
+    });
   });
 
   describe('uploadAsync', () => {

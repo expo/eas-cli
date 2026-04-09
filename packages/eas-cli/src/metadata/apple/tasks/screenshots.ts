@@ -73,20 +73,32 @@ export class ScreenshotsTask extends AppleTask {
           continue;
         }
 
-        // Download screenshots and save to local filesystem
+        // Download screenshots and save to local filesystem. When a screenshot
+        // is in a broken state (AWAITING_UPLOAD with no rendered imageAsset)
+        // the download will fail, but we still preserve the entry pointing at
+        // its expected local path so users can either drop in a replacement
+        // file or remove the entry to delete the broken ASC record.
         const paths: string[] = [];
         for (let i = 0; i < screenshotModels.length; i++) {
           const screenshot = screenshotModels[i];
-          const relativePath = await downloadScreenshotAsync(
+          const downloaded = await downloadScreenshotAsync(
             context.projectDir,
             localeCode,
             displayType,
             screenshot,
             i
           );
-          if (relativePath) {
-            paths.push(relativePath);
+          if (downloaded) {
+            paths.push(downloaded);
+            continue;
           }
+          // Fall back to a placeholder path so the entry isn't lost from
+          // config. Push will detect that the existing screenshot isn't
+          // complete and either re-upload (if a local file exists at this
+          // path) or warn and skip (if it doesn't).
+          const fileName =
+            screenshot.attributes.fileName || `${String(i + 1).padStart(2, '0')}.png`;
+          paths.push(path.join('store', 'apple', 'screenshot', localeCode, displayType, fileName));
         }
 
         if (paths.length > 0) {

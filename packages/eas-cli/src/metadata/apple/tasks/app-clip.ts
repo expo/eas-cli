@@ -136,7 +136,10 @@ export class AppClipTask extends AppleTask {
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    const experience = context.appClipDefaultExperience;
+    // Pull data from the current version's experience when present, otherwise
+    // fall back to the template experience. The localizations and review
+    // detail in `context` were populated from whichever was used.
+    const experience = context.appClipDefaultExperience ?? context.appClipTemplateExperience;
     if (!experience) {
       return;
     }
