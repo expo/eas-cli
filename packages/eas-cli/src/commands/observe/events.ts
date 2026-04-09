@@ -14,9 +14,9 @@ import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
 import { validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { startAndEndTime } from '../../observe/startAndEndTime';
 
 const DEFAULT_EVENTS_LIMIT = 10;
-const DEFAULT_DAYS_BACK = 60;
 
 export default class ObserveEvents extends EasCommand {
   static override description = 'display individual app performance events ordered by metric value';
@@ -102,17 +102,11 @@ export default class ObserveEvents extends EasCommand {
     const metricName = resolveMetricName(flags.metric);
     const orderBy = resolveOrderBy(flags.sort as EventsOrderPreset);
 
-    let startTime: string;
-    let endTime: string;
-
-    if (flags['days-from-now']) {
-      endTime = new Date().toISOString();
-      startTime = new Date(Date.now() - flags['days-from-now'] * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      endTime = flags.end ?? new Date().toISOString();
-      startTime =
-        flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
-    }
+    const { startTime, endTime } = startAndEndTime({
+      daysFromNow: flags['days-from-now'],
+      start: flags.start,
+      end: flags.end,
+    });
 
     const platform = flags.platform
       ? flags.platform === 'android'
