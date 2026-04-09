@@ -4,12 +4,10 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
-import { validateDateFlag } from '../../observe/fetchMetrics';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
+import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-const DEFAULT_DAYS_BACK = 60;
 
 export default class ObserveVersions extends EasCommand {
   static override hidden = true;
@@ -61,24 +59,7 @@ export default class ObserveVersions extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    if (flags.start) {
-      validateDateFlag(flags.start, '--start');
-    }
-    if (flags.end) {
-      validateDateFlag(flags.end, '--end');
-    }
-
-    let startTime: string;
-    let endTime: string;
-
-    if (flags['days']) {
-      endTime = new Date().toISOString();
-      startTime = new Date(Date.now() - flags['days'] * 24 * 60 * 60 * 1000).toISOString();
-    } else {
-      endTime = flags.end ?? new Date().toISOString();
-      startTime =
-        flags.start ?? new Date(Date.now() - DEFAULT_DAYS_BACK * 24 * 60 * 60 * 1000).toISOString();
-    }
+    const { startTime, endTime } = resolveTimeRange(flags);
 
     const platforms: AppPlatform[] = flags.platform
       ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]

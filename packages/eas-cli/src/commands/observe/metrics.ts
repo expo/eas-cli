@@ -5,7 +5,7 @@ import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
-import { fetchObserveMetricsAsync, validateDateFlag } from '../../observe/fetchMetrics';
+import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
   StatisticKey,
   buildObserveMetricsJson,
@@ -13,7 +13,7 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
-import { DEFAULT_DAYS_BACK, startAndEndTime } from '../../observe/startAndEndTime';
+import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -89,13 +89,6 @@ export default class ObserveMetrics extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    if (flags.start) {
-      validateDateFlag(flags.start, '--start');
-    }
-    if (flags.end) {
-      validateDateFlag(flags.end, '--end');
-    }
-
     let metricNames: string[];
     if (flags.metric?.length) {
       metricNames = flags.metric.map(resolveMetricName);
@@ -113,12 +106,7 @@ export default class ObserveMetrics extends EasCommand {
       metricNames = [selected];
     }
 
-    const daysBack = flags['days'] ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
-    const { startTime, endTime } = startAndEndTime({
-      daysBack,
-      start: flags.start,
-      end: flags.end,
-    });
+    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
     const platforms: AppPlatform[] = flags.platform
       ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]

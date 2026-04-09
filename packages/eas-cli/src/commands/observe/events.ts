@@ -11,10 +11,9 @@ import {
   resolveOrderBy,
 } from '../../observe/fetchEvents';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
-import { validateDateFlag } from '../../observe/fetchMetrics';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
+import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { DEFAULT_DAYS_BACK, startAndEndTime } from '../../observe/startAndEndTime';
 
 const DEFAULT_EVENTS_LIMIT = 10;
 
@@ -96,22 +95,10 @@ export default class ObserveEvents extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    if (flags.start) {
-      validateDateFlag(flags.start, '--start');
-    }
-    if (flags.end) {
-      validateDateFlag(flags.end, '--end');
-    }
-
     const metricName = resolveMetricName(args.metric ?? 'tti');
     const orderBy = resolveOrderBy(flags.sort);
 
-    const daysBack = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS_BACK);
-    const { startTime, endTime } = startAndEndTime({
-      daysBack,
-      start: flags.start,
-      end: flags.end,
-    });
+    const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
     const platform = flags.platform
       ? flags.platform === 'android'
