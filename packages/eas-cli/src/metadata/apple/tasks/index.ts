@@ -1,4 +1,5 @@
 import { AgeRatingTask } from './age-rating';
+import { AppClipTask } from './app-clip';
 import { AppInfoTask } from './app-info';
 import { AppReviewDetailTask } from './app-review-detail';
 import { AppVersionOptions, AppVersionTask } from './app-version';
@@ -21,5 +22,6 @@ export function createAppleTasks({ version }: AppleTaskOptions = {}): AppleTask[
     new AppReviewDetailTask(),
     new ScreenshotsTask(),
     new PreviewsTask(),
+    new AppClipTask(),
   ];
 }

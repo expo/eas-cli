@@ -1,6 +1,7 @@
 import type { App } from '@expo/apple-utils';
 
 import type { AgeRatingData } from './tasks/age-rating';
+import type { AppClipData } from './tasks/app-clip';
 import type { AppInfoData } from './tasks/app-info';
 import type { AppReviewData } from './tasks/app-review-detail';
 import type { AppVersionData } from './tasks/app-version';
@@ -16,7 +17,8 @@ export type AppleData = { app: App; projectDir: string } & AppInfoData &
   AgeRatingData &
   AppReviewData &
   ScreenshotsData &
-  PreviewsData;
+  PreviewsData &
+  AppClipData;
 
 /**
  * The unprepared partial apple data, used within the `prepareAsync` tasks.

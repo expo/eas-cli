@@ -9,13 +9,16 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add missing Apple metadata attributes for age ratings and content descriptions. ([#3584](https://github.com/expo/eas-cli/pull/3584) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add App Clip metadata support to `metadata:push` and `metadata:pull` (default experience action, per-locale subtitle and header image, App Store review invocation URLs). ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🐛 Bug fixes
 
 - [build-tools][eas-cli] Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
 - [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
+- [build-tools] Early stop `eas/start_android_emulator` when emulator hardware accelaration is not available. ([#3580](https://github.com/expo/eas-cli/pull/3580) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Bump `@expo/apple-utils` to `2.1.18` to fix `metadata:push` failing on `ageRatingDeclarations` due to the removed `gamblingAndContests` attribute. ([#3588](https://github.com/expo/eas-cli/pull/3588) by [@EvanBacon](https://github.com/EvanBacon))
-- [build-tools] Stop `eas/start_android_emulator` early on Linux when CPU virtualization flags (`vmx`/`svm`) are not available, with an error that points at nested-virtualization-capable build images. ([#3580](https://github.com/expo/eas-cli/pull/3580) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Bump `@expo/apple-utils` to `2.1.19` to fix image and video uploads via `metadata:push` getting stuck in `AWAITING_UPLOAD` state. The asset client was inheriting Bearer token injection from the App Store Connect API client, which caused S3 presigned URL uploads to be silently mishandled by Apple's CDN. Fixes screenshots, previews, and App Clip header image uploads. ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] `metadata:pull` now preserves screenshot, video preview, and App Clip header image entries with placeholder paths when the asset is in an unrendered state, so users can recover broken records by replacing the file or removing the entry instead of having entries silently dropped from `store.config.json`. ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
 
 ### 🧹 Chores
 

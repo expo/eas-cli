@@ -688,6 +688,118 @@
           }
         }
       },
+      "AppleAppClip": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "App Clip metadata. Only applies to apps that ship an App Clip target.",
+        "properties": {
+          "defaultExperience": {
+            "$ref": "#/definitions/apple/AppleAppClipDefaultExperience",
+            "description": "The default experience for this App Clip. There is exactly one per app."
+          }
+        }
+      },
+      "AppleAppClipDefaultExperience": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Default experience for an App Clip - the configuration shown when invoked without a custom experience.",
+        "properties": {
+          "action": {
+            "enum": ["OPEN", "VIEW", "PLAY"],
+            "description": "Action button shown in the App Clip card."
+          },
+          "releaseWithAppStoreVersion": {
+            "type": "boolean",
+            "description": "Whether to release this default experience alongside the next App Store version."
+          },
+          "reviewDetail": {
+            "$ref": "#/definitions/apple/AppleAppClipReviewDetail",
+            "description": "App Store review information for the App Clip default experience."
+          },
+          "info": {
+            "$ref": "#/definitions/apple/AppleAppClipInfo",
+            "description": "Localized subtitle and header image for the App Clip default experience."
+          }
+        }
+      },
+      "AppleAppClipReviewDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "App Store review detail for an App Clip default experience.",
+        "required": ["invocationUrls"],
+        "properties": {
+          "invocationUrls": {
+            "type": "array",
+            "description": "Invocation URLs that App Review will use to launch the App Clip during review.",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "AppleAppClipLocalizedInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Localized subtitle and header image for an App Clip default experience.",
+        "properties": {
+          "subtitle": {
+            "type": "string",
+            "description": "Subtitle shown in the App Clip card. Apple limits this to 43 characters.",
+            "maxLength": 43
+          },
+          "headerImage": {
+            "type": "string",
+            "description": "Relative path (from project root) to the App Clip header image PNG."
+          }
+        }
+      },
+      "AppleAppClipInfo": {
+        "type": "object",
+        "description": "Localized App Clip information, keyed by locale.",
+        "additionalProperties": false,
+        "properties": {
+          "ar-SA": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Arabic" },
+          "ca": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Catalan" },
+          "zh-Hans": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Chinese (Simplified)" },
+          "zh-Hant": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Chinese (Traditional)" },
+          "hr": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Croatian" },
+          "cs": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Czech" },
+          "da": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Danish" },
+          "nl-NL": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Dutch" },
+          "en-AU": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "English (Australia)" },
+          "en-CA": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "English (Canada)" },
+          "en-GB": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "English (U.K.)" },
+          "en-US": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "English (U.S.)" },
+          "fi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Finnish" },
+          "fr-FR": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "French" },
+          "fr-CA": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "French (Canada)" },
+          "de-DE": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "German" },
+          "el": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Greek" },
+          "he": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hebrew" },
+          "hi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hindi" },
+          "hu": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Hungarian" },
+          "id": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Indonesian" },
+          "it": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Italian" },
+          "ja": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Japanese" },
+          "ko": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Korean" },
+          "ms": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Malay" },
+          "no": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Norwegian" },
+          "pl": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Polish" },
+          "pt-BR": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Portuguese (Brazil)" },
+          "pt-PT": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Portuguese (Portugal)" },
+          "ro": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Romanian" },
+          "ru": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Russian" },
+          "sk": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Slovak" },
+          "es-MX": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Spanish (Mexico)" },
+          "es-ES": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Spanish (Spain)" },
+          "sv": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Swedish" },
+          "th": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Thai" },
+          "tr": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Turkish" },
+          "uk": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Ukrainian" },
+          "vi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Vietnamese" }
+        }
+      },
       "AppleAgeRatingOverride": {
         "enum": [
           "NONE",
@@ -918,6 +1030,10 @@
         "review": {
           "$ref": "#/definitions/apple/AppleReview",
           "description": "Info for the App Store reviewer"
+        },
+        "appClip": {
+          "$ref": "#/definitions/apple/AppleAppClip",
+          "description": "App Clip metadata. Only applies to apps that ship an App Clip target."
         }
       }
     }

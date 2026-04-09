@@ -89,7 +89,7 @@ export class PreviewsTask extends AppleTask {
         // For now, we only handle the first preview per set (App Store allows up to 3)
         // We can extend this later to support multiple previews
         const preview = previewModels[0];
-        const relativePath = await downloadPreviewAsync(
+        const downloaded = await downloadPreviewAsync(
           context.projectDir,
           localeCode,
           previewType,
@@ -97,16 +97,22 @@ export class PreviewsTask extends AppleTask {
           0
         );
 
-        if (relativePath) {
-          // Include preview frame time code if available
-          if (preview.attributes.previewFrameTimeCode) {
-            previews[previewType] = {
-              path: relativePath,
-              previewFrameTimeCode: preview.attributes.previewFrameTimeCode,
-            };
-          } else {
-            previews[previewType] = relativePath;
-          }
+        // When the download succeeds, write the real path. When it fails
+        // (e.g. the preview is in a broken AWAITING_UPLOAD state with no
+        // rendered videoUrl), preserve the entry in config so the user can
+        // either drop in a replacement file or remove the entry to delete
+        // the broken ASC record.
+        const fileName = preview.attributes.fileName || 'preview.mp4';
+        const relativePath =
+          downloaded || path.join('store', 'apple', 'preview', localeCode, previewType, fileName);
+
+        if (preview.attributes.previewFrameTimeCode) {
+          previews[previewType] = {
+            path: relativePath,
+            previewFrameTimeCode: preview.attributes.previewFrameTimeCode,
+          };
+        } else {
+          previews[previewType] = relativePath;
         }
       }
 

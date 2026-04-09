@@ -219,6 +219,48 @@ describe(PreviewsTask, () => {
         },
       });
     });
+
+    it('preserves entries with placeholder paths when videoUrl is null (broken state)', async () => {
+      // Same regression as for screenshots: previews stuck in AWAITING_UPLOAD
+      // with no rendered videoUrl used to be dropped from config. Now we
+      // preserve the entry so the user can recover.
+      const writer = jest.mocked(new AppleConfigWriter());
+
+      const broken = new AppPreview(requestContext, 'PV_BROKEN', {
+        fileName: 'demo.mp4',
+        fileSize: 12345,
+        videoUrl: null,
+        assetDeliveryState: { state: 'AWAITING_UPLOAD', errors: [], warnings: [] },
+      } as any);
+      jest.spyOn(broken, 'getVideoUrl').mockReturnValue(null);
+
+      const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
+      previewTypeMap.set(
+        PreviewType.IPHONE_67,
+        new AppPreviewSet(requestContext, 'PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [broken],
+        } as any)
+      );
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      await new PreviewsTask().downloadAsync({
+        config: writer,
+        context: {
+          previewSets: new Map([['en-US', previewTypeMap]]),
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(mockFetch).not.toBeCalled();
+      expect(writer.setPreviews).toBeCalledWith('en-US', {
+        [PreviewType.IPHONE_67]: 'store/apple/preview/en-US/IPHONE_67/demo.mp4',
+      });
+    });
   });
 
   describe('uploadAsync', () => {

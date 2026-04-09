@@ -13,7 +13,14 @@ import {
 } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../utils/asc';
-import { AppleMetadata, ApplePreviews, AppleScreenshots } from '../types';
+import {
+  AppleAppClipDefaultExperience,
+  AppleAppClipLocalizedInfo,
+  AppleAppClipReviewDetail,
+  AppleMetadata,
+  ApplePreviews,
+  AppleScreenshots,
+} from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -209,6 +216,44 @@ export class AppleConfigWriter {
     this.schema.info = this.schema.info ?? {};
     this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
     this.schema.info[locale].previews = Object.keys(previews).length > 0 ? previews : undefined;
+  }
+
+  /** Set the App Clip default experience attributes (action, releaseWithAppStoreVersion). */
+  public setAppClipDefaultExperience(
+    attributes: Pick<AppleAppClipDefaultExperience, 'action' | 'releaseWithAppStoreVersion'>
+  ): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = {
+      ...this.schema.appClip.defaultExperience,
+      action: attributes.action,
+      releaseWithAppStoreVersion: attributes.releaseWithAppStoreVersion,
+    };
+  }
+
+  /** Set the App Clip App Store review detail (invocation URLs). */
+  public setAppClipReviewDetail(reviewDetail: AppleAppClipReviewDetail | null): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = this.schema.appClip.defaultExperience ?? {};
+    if (reviewDetail && reviewDetail.invocationUrls.length > 0) {
+      this.schema.appClip.defaultExperience.reviewDetail = reviewDetail;
+    } else {
+      delete this.schema.appClip.defaultExperience.reviewDetail;
+    }
+  }
+
+  /** Set per-locale App Clip info (subtitle + header image). */
+  public setAppClipLocalizedInfo(locale: string, info: AppleAppClipLocalizedInfo): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = this.schema.appClip.defaultExperience ?? {};
+    this.schema.appClip.defaultExperience.info = this.schema.appClip.defaultExperience.info ?? {};
+    if (info.subtitle || info.headerImage) {
+      this.schema.appClip.defaultExperience.info[locale] = {
+        subtitle: optional(info.subtitle ?? null),
+        headerImage: optional(info.headerImage ?? null),
+      };
+    } else {
+      delete this.schema.appClip.defaultExperience.info[locale];
+    }
   }
 }
 
