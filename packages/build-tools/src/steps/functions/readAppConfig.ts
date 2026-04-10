@@ -11,15 +11,7 @@ export function createReadAppConfigBuildFunction(): BuildFunction {
     __metricsId: 'eas/read_app_config',
     outputProviders: [
       BuildStepOutput.createProvider({
-        id: 'app_name',
-        required: false,
-      }),
-      BuildStepOutput.createProvider({
-        id: 'app_slug',
-        required: false,
-      }),
-      BuildStepOutput.createProvider({
-        id: 'app_version',
+        id: 'app_config',
         required: false,
       }),
     ],
@@ -42,9 +34,7 @@ export function createReadAppConfigBuildFunction(): BuildFunction {
         ).exp;
         stepCtx.logger.info('Using app configuration:');
         stepCtx.logger.info(JSON.stringify(appConfig, null, 2));
-        outputs.app_name.set(appConfig.name);
-        outputs.app_slug.set(appConfig.slug);
-        outputs.app_version.set(appConfig.version);
+        outputs.app_config.set(JSON.stringify(appConfig));
       } catch {
         // readAppConfig logs underlying failures.
       }

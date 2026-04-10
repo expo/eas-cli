@@ -39,9 +39,13 @@ describe(createReadAppConfigBuildFunction, () => {
     expect(stepLogger.info).toHaveBeenCalledWith(
       JSON.stringify({ name: 'my-app', slug: 'my-app-slug', version: '1.2.3' }, null, 2)
     );
-    expect(buildStep.outputById.app_name.value).toBe('my-app');
-    expect(buildStep.outputById.app_slug.value).toBe('my-app-slug');
-    expect(buildStep.outputById.app_version.value).toBe('1.2.3');
+    const firstOutput = buildStep.outputById.app_config.value;
+    expect(firstOutput).toBeDefined();
+    expect(JSON.parse(firstOutput!)).toEqual({
+      name: 'my-app',
+      slug: 'my-app-slug',
+      version: '1.2.3',
+    });
   });
 
   it('does not throw if reading app config fails', async () => {
@@ -63,8 +67,11 @@ describe(createReadAppConfigBuildFunction, () => {
 
     await buildStep.executeAsync();
 
-    expect(buildStep.outputById.app_name.value).toBe('my-app');
-    expect(buildStep.outputById.app_slug.value).toBe(123);
-    expect(buildStep.outputById.app_version.value).toBeUndefined();
+    const secondOutput = buildStep.outputById.app_config.value;
+    expect(secondOutput).toBeDefined();
+    expect(JSON.parse(secondOutput!)).toEqual({
+      name: 'my-app',
+      slug: 123,
+    });
   });
 });
