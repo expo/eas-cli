@@ -105,14 +105,15 @@ export default class ObserveMetrics extends EasCommand {
       ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]
       : [AppPlatform.Android, AppPlatform.Ios];
 
-    const { metricsMap, buildNumbersMap, updateIdsMap } = await fetchObserveMetricsAsync(
-      graphqlClient,
-      projectId,
-      metricNames,
-      platforms,
-      startTime,
-      endTime
-    );
+    const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
+      await fetchObserveMetricsAsync(
+        graphqlClient,
+        projectId,
+        metricNames,
+        platforms,
+        startTime,
+        endTime
+      );
 
     const argumentsStat = flags.stat?.length
       ? Array.from(new Set(flags.stat.map(resolveStatKey)))
@@ -120,7 +121,9 @@ export default class ObserveMetrics extends EasCommand {
 
     if (flags.json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
-      printJsonOnlyOutput(buildObserveMetricsJson(metricsMap, metricNames, stats));
+      printJsonOnlyOutput(
+        buildObserveMetricsJson(metricsMap, metricNames, stats, totalEventCounts)
+      );
     } else {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
@@ -129,6 +132,7 @@ export default class ObserveMetrics extends EasCommand {
           daysBack,
           buildNumbersMap,
           updateIdsMap,
+          totalEventCounts,
         })
       );
     }

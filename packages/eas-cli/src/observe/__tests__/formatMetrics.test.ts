@@ -122,8 +122,8 @@ describe(buildObserveMetricsJson, () => {
       DEFAULT_STATS_JSON
     );
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({
+    expect(result.versions).toHaveLength(1);
+    expect(result.versions[0]).toEqual({
       appVersion: '1.0.0',
       platform: AppPlatform.Ios,
       metrics: {
@@ -152,7 +152,7 @@ describe(buildObserveMetricsJson, () => {
       DEFAULT_STATS_JSON
     );
 
-    expect(result[0].metrics).toEqual({
+    expect(result.versions[0].metrics).toEqual({
       'expo.app_startup.tti': {
         min: null,
         median: null,
@@ -312,7 +312,7 @@ describe('custom stats parameter', () => {
       ['p90', 'eventCount']
     );
 
-    expect(result[0].metrics['expo.app_startup.tti']).toEqual({
+    expect(result.versions[0].metrics['expo.app_startup.tti']).toEqual({
       p90: 0.4,
       eventCount: 42,
     });
@@ -346,7 +346,7 @@ describe('custom stats parameter', () => {
       DEFAULT_STATS_JSON
     );
 
-    expect(result[0].metrics['expo.app_startup.tti']).toEqual({
+    expect(result.versions[0].metrics['expo.app_startup.tti']).toEqual({
       min: 0.02,
       median: 0.1,
       max: 0.4,

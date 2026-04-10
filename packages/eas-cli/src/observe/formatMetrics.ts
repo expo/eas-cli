@@ -108,12 +108,18 @@ export interface ObserveMetricsVersionResult {
   metrics: Record<string, MetricValuesJson>;
 }
 
+export interface ObserveMetricsJsonOutput {
+  versions: ObserveMetricsVersionResult[];
+  totalEventCounts: Record<string, Record<string, number>>;
+}
+
 export function buildObserveMetricsJson(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
-  stats: StatisticKey[]
-): ObserveMetricsVersionResult[] {
-  const results: ObserveMetricsVersionResult[] = [];
+  stats: StatisticKey[],
+  totalEventCounts?: Map<string, number>
+): ObserveMetricsJsonOutput {
+  const versions: ObserveMetricsVersionResult[] = [];
 
   for (const [key, versionMetrics] of metricsMap) {
     const { appVersion, platform } = parseMetricsKey(key);
@@ -128,10 +134,24 @@ export function buildObserveMetricsJson(
       metrics[metricName] = statValues;
     }
 
-    results.push({ appVersion, platform, metrics });
+    versions.push({ appVersion, platform, metrics });
   }
 
-  return results;
+  // Group total event counts by metric → platform
+  const counts: Record<string, Record<string, number>> = {};
+  if (totalEventCounts) {
+    for (const [key, count] of totalEventCounts) {
+      const lastColon = key.lastIndexOf(':');
+      const metricName = key.slice(0, lastColon);
+      const platform = key.slice(lastColon + 1);
+      if (!counts[metricName]) {
+        counts[metricName] = {};
+      }
+      counts[metricName][platform] = count;
+    }
+  }
+
+  return { versions, totalEventCounts: counts };
 }
 
 function buildStatsDescription(displayStats: StatisticKey[]): string {
@@ -145,21 +165,34 @@ function buildTimeRangeDescription(daysBack?: number): string {
   return '';
 }
 
-function renderTable(headers: string[], rows: string[][]): string {
-  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
+function renderTable(headers: string[], rows: string[][], footerRow?: string[]): string {
+  const allRows = footerRow ? [...rows, footerRow] : rows;
+  const colWidths = headers.map((h, i) =>
+    Math.max(h.length, ...allRows.map(r => (r[i] ?? '').length))
+  );
   const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
   const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
   const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
-  return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
+  const lines = [chalk.bold(headerLine), separatorLine, ...dataLines];
+  if (footerRow) {
+    lines.push(separatorLine);
+    lines.push(footerRow.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
+  }
+  return lines.join('\n');
 }
 
 export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[],
-  options?: { daysBack?: number; buildNumbersMap?: BuildNumbersMap; updateIdsMap?: UpdateIdsMap }
+  options?: {
+    daysBack?: number;
+    buildNumbersMap?: BuildNumbersMap;
+    updateIdsMap?: UpdateIdsMap;
+    totalEventCounts?: Map<string, number>;
+  }
 ): string {
-  const results = buildObserveMetricsJson(metricsMap, metricNames, stats);
+  const { versions: results } = buildObserveMetricsJson(metricsMap, metricNames, stats);
 
   if (results.length === 0) {
     return chalk.yellow('No metrics data found.');
@@ -242,7 +275,19 @@ export function buildObserveMetricsTable(
       return [versionLabel, ...(hasUpdates ? [updatesLabel] : []), ...metricCells];
     });
 
-    sections.push(renderTable(headers, rows));
+    let footerRow: string[] | undefined;
+    if (options?.totalEventCounts) {
+      const countCells: string[] = [];
+      for (const m of metricNames) {
+        const count = options.totalEventCounts.get(`${m}:${platform}`);
+        countCells.push(count != null ? count.toLocaleString() : '-');
+      }
+      if (countCells.some(c => c !== '-')) {
+        footerRow = ['Total events', ...(hasUpdates ? [''] : []), ...countCells];
+      }
+    }
+
+    sections.push(renderTable(headers, rows, footerRow));
   }
 
   return sections.join('\n');

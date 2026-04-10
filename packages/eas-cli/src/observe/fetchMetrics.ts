@@ -40,6 +40,7 @@ export interface FetchObserveMetricsResult {
   metricsMap: ObserveMetricsMap;
   buildNumbersMap: BuildNumbersMap;
   updateIdsMap: UpdateIdsMap;
+  totalEventCounts: Map<string, number>;
 }
 
 export async function fetchObserveMetricsAsync(
@@ -83,6 +84,7 @@ export async function fetchObserveMetricsAsync(
   const metricsMap: ObserveMetricsMap = new Map();
   const buildNumbersMap: BuildNumbersMap = new Map();
   const updateIdsMap: UpdateIdsMap = new Map();
+  const totalEventCounts = new Map<string, number>();
 
   for (const result of observeResults) {
     if (!result) {
@@ -91,6 +93,9 @@ export async function fetchObserveMetricsAsync(
     const { metricName, platform, timeSeries } = result;
     const appPlatform = observePlatformToAppPlatform[platform];
     const { statistics } = timeSeries;
+
+    const eventCountKey = `${metricName}:${appPlatform}`;
+    totalEventCounts.set(eventCountKey, timeSeries.eventCount);
 
     for (const marker of timeSeries.appVersionMarkers) {
       const key = makeMetricsKey(marker.appVersion, appPlatform);
@@ -123,5 +128,5 @@ export async function fetchObserveMetricsAsync(
     }
   }
 
-  return { metricsMap, buildNumbersMap, updateIdsMap };
+  return { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts };
 }

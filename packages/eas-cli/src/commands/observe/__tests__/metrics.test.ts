@@ -38,6 +38,7 @@ describe(ObserveMetrics, () => {
       metricsMap: new Map(),
       buildNumbersMap: new Map(),
       updateIdsMap: new Map(),
+      totalEventCounts: new Map(),
     });
   });
 
@@ -194,10 +195,12 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(expect.any(Map), expect.any(Array), [
-      'min',
-      'average',
-    ]);
+    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(
+      expect.any(Map),
+      expect.any(Array),
+      ['min', 'average'],
+      expect.any(Map)
+    );
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 });
