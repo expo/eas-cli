@@ -276,7 +276,7 @@ async function assertAndroidEmulatorHostSupportAsync({
   const isAndroidEmulatorHostSupported = await isAndroidEmulatorHostSupportedAsync(env);
   if (!isAndroidEmulatorHostSupported) {
     throw new UserError(
-      'ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE',
+      'ANDROID_EMULATOR_ACCEL_CHECK_UNAVAILABLE',
       'Could not start the Android emulator on this runner.\n\n' +
         'Android emulator requires nested virtualization on Linux. This job does not have the required virtualization support.\n\n' +
         'Update your workflow YAML to use a nested-virtualization Linux runner, for example:\n' +
