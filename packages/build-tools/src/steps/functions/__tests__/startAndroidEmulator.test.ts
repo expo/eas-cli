@@ -212,7 +212,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
   });
 
-  it('fails early on Linux when emulator acceleration check fails', async () => {
+  it('fails early on Linux when emulator host support check fails', async () => {
     mockedSpawn.mockRejectedValueOnce(new Error('accel check failed') as any);
 
     const step = createStep();
@@ -224,7 +224,7 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
   });
 
-  it('continues startup on Linux when emulator acceleration check succeeds', async () => {
+  it('continues startup on Linux when emulator host support check succeeds', async () => {
     await createStep().executeAsync();
 
     expect(mockedSpawn).toHaveBeenCalledWith('/android/home/emulator/emulator', ['-accel-check'], {
@@ -233,15 +233,25 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
   });
 
-  it('fails early when Android SDK path env vars are missing', async () => {
-    await expect(
-      createStep(undefined, { ANDROID_HOME: undefined, ANDROID_SDK_ROOT: undefined }).executeAsync()
-    ).rejects.toThrow(/nested virtualization/i);
+  it('skips emulator host support check when opt out env var is enabled', async () => {
+    const step = createStep(undefined, {
+      EAS_NO_EMULATOR_HOST_SUPPORT_CHECK: '1',
+    });
+
+    await step.executeAsync();
 
     expect(
-      mockedSpawn.mock.calls.some(([command]) => command === '/android/home/emulator/emulator')
+      mockedSpawn.mock.calls.some(([command]) => command.includes('/emulator/emulator'))
     ).toBe(false);
-    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
+  });
+
+  it('falls back to empty SDK path when Android SDK path env vars are missing', async () => {
+    await createStep(undefined, { ANDROID_HOME: undefined, ANDROID_SDK_ROOT: undefined }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith('/emulator/emulator', ['-accel-check'], {
+      env: expect.any(Object),
+    });
   });
 
   it('uses ANDROID_SDK_ROOT when ANDROID_HOME is missing', async () => {

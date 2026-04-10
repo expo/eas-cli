@@ -17,18 +17,6 @@ import { retryAsync } from '../../utils/retry';
 
 const ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS = [60_000, 120_000, 180_000];
 const ANDROID_STARTUP_RETRIES_COUNT = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS.length - 1;
-const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE =
-  'ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE';
-
-const ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR = [
-  'Could not start the Android emulator on this runner.',
-  '',
-  'Android emulator requires nested virtualization on Linux. This job does not have the required virtualization support.',
-  '',
-  'Update your workflow YAML to use a nested-virtualization Linux runner, for example:',
-  '  runs_on: linux-medium-nested-virtualization',
-  '  runs_on: linux-large-nested-virtualization',
-].join('\n');
 
 export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -62,7 +50,13 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger }, { inputs, env }) => {
-      await assertNestedVirtualizationIsAvailableAsync({ env });
+      if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
+        await assertAndroidEmulatorHostSupportAsync({ env });
+      } else {
+        logger.info(
+          'Skipping Android emulator host support check because $EAS_NO_EMULATOR_HOST_SUPPORT_CHECK is enabled.'
+        );
+      }
 
       try {
         const availableDevices = await AndroidEmulatorUtils.getAvailableDevicesAsync({ env });
@@ -274,25 +268,26 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
   });
 }
 
-async function assertNestedVirtualizationIsAvailableAsync({
+async function assertAndroidEmulatorHostSupportAsync({
   env,
 }: {
   env: NodeJS.ProcessEnv;
 }): Promise<void> {
-  const isNestedVirtualizationEnabled = await getIsNestedVirtualizationEnabledAsync(env);
-  if (!isNestedVirtualizationEnabled) {
+  const isAndroidEmulatorHostSupported = await isAndroidEmulatorHostSupportedAsync(env);
+  if (!isAndroidEmulatorHostSupported) {
     throw new UserError(
-      ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR_CODE,
-      ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_ERROR
+      'ANDROID_EMULATOR_LINUX_HARDWARE_VIRT_UNAVAILABLE',
+      'Could not start the Android emulator on this runner.\n\n' +
+        'Android emulator requires nested virtualization on Linux. This job does not have the required virtualization support.\n\n' +
+        'Update your workflow YAML to use a nested-virtualization Linux runner, for example:\n' +
+        '  runs_on: linux-medium-nested-virtualization\n' +
+        '  runs_on: linux-large-nested-virtualization'
     );
   }
 }
 
-async function getIsNestedVirtualizationEnabledAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
-  const androidSdkPath = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT;
-  if (!androidSdkPath) {
-    return false;
-  }
+async function isAndroidEmulatorHostSupportedAsync(env: NodeJS.ProcessEnv): Promise<boolean> {
+  const androidSdkPath = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT ?? '';
   try {
     await spawn(`${androidSdkPath}/emulator/emulator`, ['-accel-check'], { env });
     return true;
