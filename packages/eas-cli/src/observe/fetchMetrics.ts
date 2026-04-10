@@ -1,7 +1,7 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
 import { AppObservePlatform, AppPlatform } from '../graphql/generated';
-import { AppObserveTimeSeriesResult, ObserveQuery } from '../graphql/queries/ObserveQuery';
+import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import {
   BuildNumbersMap,
@@ -15,17 +15,6 @@ const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
   [AppPlatform.Android]: AppObservePlatform.Android,
   [AppPlatform.Ios]: AppObservePlatform.Ios,
 };
-
-const observePlatformToAppPlatform: Record<AppObservePlatform, AppPlatform> = {
-  [AppObservePlatform.Android]: AppPlatform.Android,
-  [AppObservePlatform.Ios]: AppPlatform.Ios,
-};
-
-interface ObserveQueryResult {
-  metricName: string;
-  platform: AppObservePlatform;
-  timeSeries: AppObserveTimeSeriesResult;
-}
 
 export function validateDateFlag(value: string, flagName: string): void {
   const parsed = new Date(value);
@@ -51,80 +40,73 @@ export async function fetchObserveMetricsAsync(
   startTime: string,
   endTime: string
 ): Promise<FetchObserveMetricsResult> {
-  const observeQueries: Promise<ObserveQueryResult | null>[] = [];
-
-  for (const metricName of metricNames) {
-    for (const appPlatform of platforms) {
-      const observePlatform = appPlatformToObservePlatform[appPlatform];
-      observeQueries.push(
-        ObserveQuery.timeSeriesAsync(graphqlClient, {
-          appId,
-          metricName,
-          platform: observePlatform,
-          startTime,
-          endTime,
-        })
-          .then(timeSeries => ({
-            metricName,
-            platform: observePlatform,
-            timeSeries,
-          }))
-          .catch(error => {
-            Log.warn(
-              `Failed to fetch observe data for metric "${metricName}" on ${observePlatform}: ${error.message}`
-            );
-            return null;
-          })
-      );
+  const queries = platforms.map(async appPlatform => {
+    const observePlatform = appPlatformToObservePlatform[appPlatform];
+    try {
+      const appVersions = await ObserveQuery.appVersionsAsync(graphqlClient, {
+        appId,
+        platform: observePlatform,
+        startTime,
+        endTime,
+        metricNames,
+      });
+      return { appPlatform, appVersions };
+    } catch (error: any) {
+      Log.warn(`Failed to fetch observe data on ${observePlatform}: ${error.message}`);
+      return null;
     }
-  }
+  });
 
-  const observeResults = await Promise.all(observeQueries);
+  const results = await Promise.all(queries);
 
   const metricsMap: ObserveMetricsMap = new Map();
   const buildNumbersMap: BuildNumbersMap = new Map();
   const updateIdsMap: UpdateIdsMap = new Map();
   const totalEventCounts = new Map<string, number>();
 
-  for (const result of observeResults) {
+  for (const result of results) {
     if (!result) {
       continue;
     }
-    const { metricName, platform, timeSeries } = result;
-    const appPlatform = observePlatformToAppPlatform[platform];
-    const { statistics } = timeSeries;
+    const { appPlatform, appVersions } = result;
 
-    const eventCountKey = `${metricName}:${appPlatform}`;
-    totalEventCounts.set(eventCountKey, timeSeries.eventCount);
-
-    for (const marker of timeSeries.appVersionMarkers) {
-      const key = makeMetricsKey(marker.appVersion, appPlatform);
+    for (const version of appVersions) {
+      const key = makeMetricsKey(version.appVersion, appPlatform);
       if (!metricsMap.has(key)) {
         metricsMap.set(key, new Map());
       }
       if (!buildNumbersMap.has(key)) {
         buildNumbersMap.set(
           key,
-          marker.buildNumbers.map(bn => bn.appBuildNumber)
+          version.buildNumbers.map(bn => bn.appBuildNumber)
         );
       }
       if (!updateIdsMap.has(key)) {
         updateIdsMap.set(
           key,
-          marker.updates.map(u => u.appUpdateId)
+          version.updates.map(u => u.appUpdateId)
         );
       }
-      const values: MetricValues = {
-        min: statistics.min,
-        max: statistics.max,
-        median: statistics.median,
-        average: statistics.average,
-        p80: statistics.p80,
-        p90: statistics.p90,
-        p99: statistics.p99,
-        eventCount: marker.eventCount,
-      };
-      metricsMap.get(key)!.set(metricName, values);
+
+      for (const metric of version.metrics) {
+        const values: MetricValues = {
+          min: metric.statistics.min,
+          max: metric.statistics.max,
+          median: metric.statistics.median,
+          average: metric.statistics.average,
+          p80: metric.statistics.p80,
+          p90: metric.statistics.p90,
+          p99: metric.statistics.p99,
+          eventCount: metric.eventCount,
+        };
+        metricsMap.get(key)!.set(metric.metricName, values);
+
+        const eventCountKey = `${metric.metricName}:${appPlatform}`;
+        totalEventCounts.set(
+          eventCountKey,
+          (totalEventCounts.get(eventCountKey) ?? 0) + metric.eventCount
+        );
+      }
     }
   }
 

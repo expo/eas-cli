@@ -140,11 +140,13 @@ export const ObserveQuery = {
       platform,
       startTime,
       endTime,
+      metricNames,
     }: {
       appId: string;
       platform: AppObservePlatform;
       startTime: string;
       endTime: string;
+      metricNames?: string[];
     }
   ): Promise<AppObserveAppVersion[]> {
     const data = await withErrorHandlingAsync(
@@ -170,7 +172,7 @@ export const ObserveQuery = {
           `,
           {
             appId,
-            input: { platform, startTime, endTime },
+            input: { platform, startTime, endTime, ...(metricNames && { metricNames }) },
           }
         )
         .toPromise()

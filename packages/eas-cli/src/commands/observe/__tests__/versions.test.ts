@@ -173,6 +173,7 @@ describe(ObserveVersions, () => {
             uniqueUserCount: 50,
             buildNumbers: [],
             updates: [],
+            metrics: [],
           },
         ],
       },

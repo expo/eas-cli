@@ -66,5 +66,18 @@ export const AppObserveAppVersionFragmentNode = gql`
         uniqueUserCount
       }
     }
+    metrics {
+      metricName
+      eventCount
+      statistics {
+        min
+        max
+        median
+        average
+        p80
+        p90
+        p99
+      }
+    }
   }
 `;
