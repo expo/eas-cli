@@ -2077,8 +2077,6 @@ export type AppObserve = {
   appVersions: Array<AppObserveAppVersion>;
   environments: Array<Scalars['String']['output']>;
   events: AppObserveEventsConnection;
-  /** @deprecated Use appVersions instead */
-  releases: Array<AppObserveRelease>;
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
 };
@@ -2103,11 +2101,6 @@ export type AppObserveEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveEventsOrderBy>;
-};
-
-
-export type AppObserveReleasesArgs = {
-  input: AppObserveReleasesInput;
 };
 
 
@@ -2147,8 +2140,16 @@ export type AppObserveAppVersion = {
   buildNumbers: Array<AppObserveAppBuildNumber>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  metrics: Array<AppObserveAppVersionMetric>;
   uniqueUserCount: Scalars['Int']['output'];
   updates: Array<AppObserveAppUpdate>;
+};
+
+export type AppObserveAppVersionMetric = {
+  __typename?: 'AppObserveAppVersionMetric';
+  eventCount: Scalars['Int']['output'];
+  metricName: Scalars['String']['output'];
+  statistics: AppObserveVersionMarkerStatistics;
 };
 
 export type AppObserveEvent = {
@@ -2160,6 +2161,7 @@ export type AppObserveEvent = {
   appVersion: Scalars['String']['output'];
   clientVersion?: Maybe<Scalars['String']['output']>;
   countryCode?: Maybe<Scalars['String']['output']>;
+  customParams?: Maybe<Scalars['JSON']['output']>;
   deviceLanguageTag?: Maybe<Scalars['String']['output']>;
   deviceModel: Scalars['String']['output'];
   deviceName?: Maybe<Scalars['String']['output']>;
@@ -2229,22 +2231,10 @@ export enum AppObservePlatform {
   Ios = 'IOS'
 }
 
-export type AppObserveRelease = {
-  __typename?: 'AppObserveRelease';
-  appUpdateId?: Maybe<Scalars['String']['output']>;
-  appVersion: Scalars['String']['output'];
-  firstSeenAt: Scalars['DateTime']['output'];
-  type: AppObserveReleaseType;
-};
-
-export enum AppObserveReleaseType {
-  Update = 'UPDATE',
-  Version = 'VERSION'
-}
-
 export type AppObserveReleasesInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
+  metricNames?: InputMaybe<Array<Scalars['String']['input']>>;
   platform: AppObservePlatform;
   startTime: Scalars['DateTime']['input'];
 };
@@ -2257,10 +2247,6 @@ export type AppObserveTimeSeries = {
   latestVersionStatistics?: Maybe<AppObserveVersionStatistics>;
   previousVersionStatistics?: Maybe<AppObserveVersionStatistics>;
   statistics: AppObserveTimeSeriesStatistics;
-  /** @deprecated Use appVersionMarkers instead */
-  updateMarkers: Array<AppObserveUpdateMarker>;
-  /** @deprecated Use appVersionMarkers instead */
-  versionMarkers: Array<AppObserveVersionMarker>;
 };
 
 export type AppObserveTimeSeriesBucket = {
@@ -2299,22 +2285,6 @@ export type AppObserveTimeSeriesStatistics = {
   p80?: Maybe<Scalars['Float']['output']>;
   p90?: Maybe<Scalars['Float']['output']>;
   p99?: Maybe<Scalars['Float']['output']>;
-};
-
-export type AppObserveUpdateMarker = {
-  __typename?: 'AppObserveUpdateMarker';
-  appUpdateId: Scalars['String']['output'];
-  appVersion: Scalars['String']['output'];
-  eventCount: Scalars['Int']['output'];
-  firstSeenAt: Scalars['DateTime']['output'];
-};
-
-export type AppObserveVersionMarker = {
-  __typename?: 'AppObserveVersionMarker';
-  appVersion: Scalars['String']['output'];
-  eventCount: Scalars['Int']['output'];
-  firstSeenAt: Scalars['DateTime']['output'];
-  statistics: AppObserveVersionMarkerStatistics;
 };
 
 export type AppObserveVersionMarkerStatistics = {
