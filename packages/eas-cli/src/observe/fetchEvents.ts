@@ -6,6 +6,7 @@ import {
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
   AppObservePlatform,
+  AppPlatform,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
@@ -81,4 +82,39 @@ export async function fetchObserveEventsAsync(
     ...(options.after && { after: options.after }),
     orderBy: options.orderBy,
   });
+}
+
+const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
+  [AppPlatform.Android]: AppObservePlatform.Android,
+  [AppPlatform.Ios]: AppObservePlatform.Ios,
+};
+
+export async function fetchTotalEventCountAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  metricName: string,
+  platforms: AppPlatform[],
+  startTime: string,
+  endTime: string
+): Promise<number> {
+  const queries = platforms.map(async appPlatform => {
+    try {
+      const versions = await ObserveQuery.appVersionsAsync(graphqlClient, {
+        appId,
+        platform: appPlatformToObservePlatform[appPlatform],
+        startTime,
+        endTime,
+        metricNames: [metricName],
+      });
+      return versions.reduce((sum, v) => {
+        const metric = v.metrics.find(m => m.metricName === metricName);
+        return sum + (metric?.eventCount ?? 0);
+      }, 0);
+    } catch {
+      return 0;
+    }
+  });
+
+  const counts = await Promise.all(queries);
+  return counts.reduce((a, b) => a + b, 0);
 }

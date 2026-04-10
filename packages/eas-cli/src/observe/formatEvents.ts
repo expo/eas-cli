@@ -44,6 +44,7 @@ export interface BuildEventsTableOptions {
   daysBack?: number;
   startTime?: string;
   endTime?: string;
+  totalEventCount?: number;
 }
 
 export function buildObserveEventsTable(
@@ -95,7 +96,11 @@ export function buildObserveEventsTable(
     } else {
       timeDesc = '';
     }
-    lines.push(chalk.bold(`${metricDisplay} events ${timeDesc}`.trim()), '');
+    const totalDesc =
+      options.totalEventCount != null
+        ? ` — ${options.totalEventCount.toLocaleString()} total events`
+        : '';
+    lines.push(chalk.bold(`${metricDisplay} events ${timeDesc}${totalDesc}`.trim()), '');
   }
 
   lines.push(chalk.bold(headerLine), separatorLine, ...dataLines);

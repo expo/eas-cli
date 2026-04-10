@@ -4,11 +4,12 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { AppObservePlatform } from '../../graphql/generated';
+import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import {
   EventsOrderPreset,
   fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
@@ -122,17 +123,31 @@ export default class ObserveEvents extends EasCommand {
         : AppObservePlatform.Ios
       : undefined;
 
-    const { events, pageInfo } = await fetchObserveEventsAsync(graphqlClient, projectId, {
-      metricName,
-      orderBy,
-      limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-      ...(flags.after && { after: flags.after }),
-      startTime,
-      endTime,
-      platform,
-      appVersion: flags['app-version'],
-      updateId: flags['update-id'],
-    });
+    const platforms: AppPlatform[] = platform
+      ? [platform === AppObservePlatform.Android ? AppPlatform.Android : AppPlatform.Ios]
+      : [AppPlatform.Android, AppPlatform.Ios];
+
+    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
+      fetchObserveEventsAsync(graphqlClient, projectId, {
+        metricName,
+        orderBy,
+        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+        ...(flags.after && { after: flags.after }),
+        startTime,
+        endTime,
+        platform,
+        appVersion: flags['app-version'],
+        updateId: flags['update-id'],
+      }),
+      fetchTotalEventCountAsync(
+        graphqlClient,
+        projectId,
+        metricName,
+        platforms,
+        startTime,
+        endTime
+      ),
+    ]);
 
     if (flags.json) {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
@@ -144,6 +159,7 @@ export default class ObserveEvents extends EasCommand {
           daysBack,
           startTime,
           endTime,
+          totalEventCount,
         })
       );
     }
