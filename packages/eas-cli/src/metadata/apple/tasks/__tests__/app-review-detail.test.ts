@@ -85,6 +85,37 @@ describe(AppReviewDetailTask, () => {
       existsSyncSpy.mockRestore();
     });
 
+    it('logs an info message when attachment exists remotely but not on disk', async () => {
+      const writer = jest.mocked(new AppleConfigWriter());
+      const attachment = new AppStoreReviewAttachment(requestContext, 'ATTACH_1', {
+        fileName: 'demo-instructions.pdf',
+        fileSize: 1024,
+        sourceFileChecksum: 'abc123',
+        uploaded: true,
+      } as any);
+      const reviewDetail = new AppStoreReviewDetail(requestContext, 'stub-id', {
+        appStoreReviewAttachments: [attachment],
+      } as any);
+
+      const existsSyncSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined);
+
+      await new AppReviewDetailTask().downloadAsync({
+        config: writer,
+        context: { reviewDetail, projectDir: '/test/project' } as any,
+      });
+
+      // Should still record the path in config for round-trip support
+      expect(writer.setReviewAttachment).toBeCalledWith(
+        'store/apple/review-attachment/demo-instructions.pdf'
+      );
+      // Should NOT create directories on disk (no placeholder file)
+      expect(mkdirSpy).not.toBeCalled();
+
+      existsSyncSpy.mockRestore();
+      mkdirSpy.mockRestore();
+    });
+
     it('does not call setReviewAttachment when there is no attachment', async () => {
       const writer = jest.mocked(new AppleConfigWriter());
       const reviewDetail = new AppStoreReviewDetail(requestContext, 'stub-id', {

@@ -39,11 +39,12 @@ export class AppReviewDetailTask extends AppleTask {
 
     config.setReviewDetails(context.reviewDetail.attributes);
 
-    // Persist the review attachment entry, if one exists. The App Store Connect
-    // API does not currently expose a download URL for review attachments, so
-    // we cannot fetch the original bytes back. Instead we record a placeholder
-    // path so that the user knows an attachment exists and can either drop in
-    // a replacement file or remove the entry to delete the remote attachment.
+    // ASC limitation — see expo/third-party#146. AppStoreReviewAttachment has no
+    // download URL (contrast with AppScreenshot.imageAsset.templateUrl). The API
+    // only exposes fileName, fileSize, sourceFileChecksum, uploadOperations, and
+    // assetDeliveryState. We record the expected path in the config so that the
+    // pull -> push round-trip preserves the attachment entry, but we cannot
+    // download the actual file bytes.
     const attachments = context.reviewDetail.attributes.appStoreReviewAttachments ?? [];
     const attachment = attachments[0];
     if (!attachment) {
@@ -55,17 +56,14 @@ export class AppReviewDetailTask extends AppleTask {
     const absolutePath = path.resolve(context.projectDir, relativePath);
 
     if (!fs.existsSync(absolutePath)) {
-      try {
-        await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
-      } catch {
-        // Ignore directory creation failures - we still want to record the path.
-      }
-      Log.warn(
-        chalk`{yellow Review attachment ${chalk.bold(
+      Log.log(
+        chalk`{yellow Review attachment "${chalk.bold(
           fileName
-        )} exists in App Store Connect but cannot be downloaded; place the file at ${chalk.bold(
-          relativePath
-        )} to keep it in sync.}`
+        )}" exists in App Store Connect but cannot be downloaded.}\n` +
+          chalk`  App Store Connect does not expose a download URL for review attachments\n` +
+          chalk`  (unlike screenshots which have {dim imageAsset.templateUrl}). Only {dim fileName},\n` +
+          chalk`  {dim fileSize}, and {dim sourceFileChecksum} are available from the API.\n` +
+          chalk`  To keep the attachment in sync, place the file at: {bold ${relativePath}}`
       );
     }
 
