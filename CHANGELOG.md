@@ -27,8 +27,12 @@ This is the log of notable changes to EAS CLI and related packages.
 >>>>>>> a57f80e6 (Update changelog to proper format)
 - [eas-cli] Add missing Apple metadata attributes for age ratings and content descriptions. ([#3584](https://github.com/expo/eas-cli/pull/3584) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Add App Clip metadata support to `metadata:push` and `metadata:pull` (default experience action, per-locale subtitle and header image, App Store review invocation URLs). ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+<<<<<<< HEAD
 - [build-tools] Add `eas/read_package_json` and `eas/read_app_config` workflow functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
 >>>>>>> 6f8ed628 ([changelog] Classify fingerprint read steps as new feature)
+=======
+- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
+>>>>>>> e312d16f (Update CHANGELOG)
 
 ### 🐛 Bug fixes
 
