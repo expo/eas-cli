@@ -240,14 +240,17 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
 
     await step.executeAsync();
 
-    expect(
-      mockedSpawn.mock.calls.some(([command]) => command.includes('/emulator/emulator'))
-    ).toBe(false);
+    expect(mockedSpawn.mock.calls.some(([command]) => command.includes('/emulator/emulator'))).toBe(
+      false
+    );
     expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
   });
 
   it('falls back to empty SDK path when Android SDK path env vars are missing', async () => {
-    await createStep(undefined, { ANDROID_HOME: undefined, ANDROID_SDK_ROOT: undefined }).executeAsync();
+    await createStep(undefined, {
+      ANDROID_HOME: undefined,
+      ANDROID_SDK_ROOT: undefined,
+    }).executeAsync();
 
     expect(mockedSpawn).toHaveBeenCalledWith('/emulator/emulator', ['-accel-check'], {
       env: expect.any(Object),
