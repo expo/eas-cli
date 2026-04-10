@@ -58,22 +58,41 @@ export interface AppleMetadata {
    * In-App Purchase listing. Currently limited to a declarative round-trip
    * of `productId`, `referenceName`, and `type`. Localizations, pricing,
    * and review screenshots are intentionally out of scope for now.
+   *
+   * Note: auto-renewable subscriptions are a separate Apple resource
+   * (`subscriptionGroups` / `subscriptions`) and are intentionally out of
+   * scope for this task. They may appear here as legacy v1 entries on pull
+   * but cannot be created/managed via IAP APIs.
+   *
+   * TODO: Once apple-utils is bumped with InAppPurchaseLocalization
+   * (expo/third-party#148), add an optional `localizations` array per IAP
+   * entry for localized name/description round-trip.
    */
   inAppPurchases?: AppleInAppPurchase[];
 }
 
 /**
- * In-App Purchase enum values from App Store Connect API. The published
- * `@expo/apple-utils` enum uses `AUTOMATICALLY_RENEWABLE_SUBSCRIPTION` for
- * the auto-renewable subscription type, but we accept both spellings to
- * mirror what most callers expect from the OpenAPI spec.
+ * In-App Purchase type values from App Store Connect API.
+ *
+ * The v2 `inAppPurchasesV2` resource only supports CONSUMABLE, NON_CONSUMABLE,
+ * and NON_RENEWING_SUBSCRIPTION. Auto-renewable subscriptions are a completely
+ * separate Apple resource (`subscriptionGroups` / `subscriptions`) and are NOT
+ * part of the IAP v2 API. See expo/third-party#148 for details.
+ *
+ * The legacy v1 types are preserved so that `metadata:pull` can still surface
+ * existing auto-renewable and free subscription IAPs that were created before
+ * the v2 split.
  */
 export type AppleInAppPurchaseType =
+  /** v2 IAP types (supported for CRUD once apple-utils is bumped) */
   | 'CONSUMABLE'
   | 'NON_CONSUMABLE'
   | 'NON_RENEWING_SUBSCRIPTION'
+  /** @deprecated v1 legacy — auto-renewable subscriptions live on `subscriptionGroups`/`subscriptions` in v2 */
   | 'AUTO_RENEWABLE_SUBSCRIPTION'
+  /** @deprecated v1 legacy — same as AUTO_RENEWABLE_SUBSCRIPTION, apple-utils v1 spelling */
   | 'AUTOMATICALLY_RENEWABLE_SUBSCRIPTION'
+  /** @deprecated v1 legacy */
   | 'FREE_SUBSCRIPTION';
 
 export interface AppleInAppPurchase {

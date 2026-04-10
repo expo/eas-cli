@@ -4,6 +4,20 @@ import chalk from 'chalk';
 import Log from '../../../log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
+// TODO(expo/third-party#148): Once @expo/apple-utils is bumped to include the
+// InAppPurchaseV2 and InAppPurchaseLocalization models, switch from v1
+// read-only to v2 CRUD:
+//   - Use App.getInAppPurchasesV2Async() for listing instead of getInAppPurchasesAsync()
+//   - Use InAppPurchaseV2.createAsync() for creation
+//   - Use InAppPurchaseV2.updateAsync() for referenceName changes
+//   - Use InAppPurchaseLocalization for localized name/description round-trip
+//     (schema should add an optional `localizations` array per IAP entry)
+//
+// Note: auto-renewable subscriptions are a separate Apple resource
+// (`subscriptionGroups` / `subscriptions`) and are intentionally out of scope
+// for this task. The v2 InAppPurchaseV2Type enum only has CONSUMABLE,
+// NON_CONSUMABLE, and NON_RENEWING_SUBSCRIPTION.
+
 export type InAppPurchasesData = {
   /**
    * The list of in-app purchases registered for the app, keyed by `productId`.
@@ -117,7 +131,7 @@ export class InAppPurchasesTask extends AppleTask {
       chalk`{yellow In-app purchase mutations are not yet supported by EAS metadata.}`
     );
     Log.warn(
-      chalk`{yellow @expo/apple-utils currently exposes the deprecated v1 inAppPurchases resource as read-only. Mutations require the v2 (inAppPurchasesV2) wrapper, which is tracked as a follow-up.}`
+      chalk`{yellow IAP mutations require @expo/apple-utils with InAppPurchaseV2 support (see expo/third-party#148).}`
     );
 
     for (const entry of toCreate) {
