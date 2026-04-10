@@ -26,7 +26,7 @@ import {
   shouldUseFrozenLockfile,
 } from '../utils/packageManager';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
-import { readEasJsonContents, readPackageJson } from '../utils/project';
+import { readAndLogPackageJson, readEasJsonContents } from '../utils/project';
 import { retryAsync } from '../utils/retry';
 
 const MAX_EXPO_DOCTOR_TIMEOUT_MS = 30 * 1000;
@@ -82,10 +82,7 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
   });
 
   const packageJson = await ctx.runBuildPhase(BuildPhase.READ_PACKAGE_JSON, async () => {
-    ctx.logger.info('Using package.json:');
-    const packageJson = readPackageJson(ctx.getReactNativeProjectDirectory());
-    ctx.logger.info(JSON.stringify(packageJson, null, 2));
-    return packageJson;
+    return readAndLogPackageJson(ctx.logger, ctx.getReactNativeProjectDirectory());
   });
 
   await ctx.runBuildPhase(BuildPhase.INSTALL_DEPENDENCIES, async () => {

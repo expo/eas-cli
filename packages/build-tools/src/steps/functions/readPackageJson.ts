@@ -1,6 +1,6 @@
-import { BuildFunction } from '@expo/steps';
+import { BuildFunction, BuildStepOutput } from '@expo/steps';
 
-import { readPackageJson } from '../../utils/project';
+import { readAndLogPackageJson } from '../../utils/project';
 
 export function createReadPackageJsonBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -8,13 +8,18 @@ export function createReadPackageJsonBuildFunction(): BuildFunction {
     id: 'read_package_json',
     name: 'Read package.json',
     __metricsId: 'eas/read_package_json',
-    fn: async stepCtx => {
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'package_json',
+        required: false,
+      }),
+    ],
+    fn: async (stepCtx, { outputs }) => {
       try {
-        stepCtx.logger.info('Using package.json:');
-        const packageJson = readPackageJson(stepCtx.workingDirectory);
-        stepCtx.logger.info(JSON.stringify(packageJson, null, 2));
+        const packageJson = readAndLogPackageJson(stepCtx.logger, stepCtx.workingDirectory);
+        outputs.package_json.set(JSON.stringify(packageJson));
       } catch (err: unknown) {
-        stepCtx.logger.error(String(err));
+        stepCtx.logger.error({ err });
       }
     },
   });

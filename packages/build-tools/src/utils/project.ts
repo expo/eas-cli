@@ -78,6 +78,16 @@ export function readPackageJson(projectDir: string): any {
   }
 }
 
+export function readAndLogPackageJson(
+  logger: { info: (message: string) => void },
+  projectDir: string
+): any {
+  logger.info('Using package.json:');
+  const packageJson = readPackageJson(projectDir);
+  logger.info(JSON.stringify(packageJson, null, 2));
+  return packageJson;
+}
+
 export function readEasJsonContents(projectDir: string): string {
   const easJsonPath = path.join(projectDir, 'eas.json');
   if (!fs.pathExistsSync(easJsonPath)) {

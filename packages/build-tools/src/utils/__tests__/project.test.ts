@@ -9,7 +9,12 @@ import { instance, mock, when } from 'ts-mockito';
 
 import { BuildContext } from '../../context';
 import { PackageManager, findPackagerRootDir } from '../packageManager';
-import { isUsingModernYarnVersion, readEasJsonContents, runExpoCliCommand } from '../project';
+import {
+  isUsingModernYarnVersion,
+  readAndLogPackageJson,
+  readEasJsonContents,
+  runExpoCliCommand,
+} from '../project';
 
 jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => ({
@@ -146,5 +151,25 @@ describe(readEasJsonContents, () => {
     await fs.writeFile(easJsonPath, contents);
 
     expect(readEasJsonContents(projectDir)).toBe(contents);
+  });
+});
+
+describe(readAndLogPackageJson, () => {
+  beforeEach(() => {
+    vol.reset();
+  });
+
+  it('reads package.json, logs it, and returns parsed contents', async () => {
+    const projectDir = '/project';
+    const packageJsonPath = path.join(projectDir, 'package.json');
+    const packageJson = { name: 'app', version: '1.0.0' };
+    const logger = { info: jest.fn() };
+
+    await fs.mkdirp(projectDir);
+    await fs.writeJson(packageJsonPath, packageJson);
+
+    expect(readAndLogPackageJson(logger, projectDir)).toEqual(packageJson);
+    expect(logger.info).toHaveBeenNthCalledWith(1, 'Using package.json:');
+    expect(logger.info).toHaveBeenNthCalledWith(2, JSON.stringify(packageJson, null, 2));
   });
 });
