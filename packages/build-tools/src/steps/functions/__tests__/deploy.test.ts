@@ -138,9 +138,7 @@ describe(createEasDeployBuildFunction, () => {
       },
     });
 
-    await expect(buildStep.executeAsync()).rejects.toThrow(
-      'Deploy command failed: deploy failed'
-    );
+    await expect(buildStep.executeAsync()).rejects.toThrow('Deploy command failed: deploy failed');
   });
 
   it('throws with export phase in error message when export command fails', async () => {
@@ -158,9 +156,7 @@ describe(createEasDeployBuildFunction, () => {
       },
     });
 
-    await expect(buildStep.executeAsync()).rejects.toThrow(
-      'Export command failed: export failed'
-    );
+    await expect(buildStep.executeAsync()).rejects.toThrow('Export command failed: export failed');
     expect(runEasCliCommand).not.toHaveBeenCalled();
   });
 });
