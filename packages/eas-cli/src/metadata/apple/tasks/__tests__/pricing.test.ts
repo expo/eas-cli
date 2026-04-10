@@ -170,9 +170,10 @@ describe(PricingTask, () => {
       expect(updateSpy).toHaveBeenCalledWith({ appPriceTier: '5', territories: undefined });
     });
 
-    it('warns and skips push for scheduled price changes', async () => {
+    it('warns and skips push for scheduled price changes (pending expo/third-party#147)', async () => {
       const app = makeApp();
       const updateSpy = jest.spyOn(app, 'updateAsync').mockResolvedValue(app);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await new PricingTask().uploadAsync({
         config: new AppleConfigReader({
@@ -186,6 +187,7 @@ describe(PricingTask, () => {
 
       // Tier still gets pushed; schedule is logged as a warning.
       expect(updateSpy).toHaveBeenCalledWith({ appPriceTier: '0', territories: undefined });
+      warnSpy.mockRestore();
     });
 
     it('pushes a single-territory availability list', async () => {

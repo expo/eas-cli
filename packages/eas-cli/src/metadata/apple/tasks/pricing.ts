@@ -35,6 +35,29 @@ export type PricingData = {
  * but those endpoints are not yet wrapped by `@expo/apple-utils`. The reader
  * accepts a `pricing.schedule` block that we can wire up once the new
  * helpers land.
+ *
+ * TODO(expo/third-party#147): Once `@expo/apple-utils` is bumped to include
+ * the new pricing helpers, wire up schedule push:
+ *
+ *   - Use `AppPriceSchedule.createAsync(context, { appId, baseTerritoryId, manualPrices })`
+ *     to push the full schedule. Each `manualPrices` entry takes
+ *     `{ appPricePointId, startDate?, endDate? }`.
+ *
+ *   - IMPORTANT: `AppPriceSchedule.createAsync` REPLACES the entire prior
+ *     schedule. When pushing, the full schedule from config must be sent --
+ *     omitting entries will remove them from App Store Connect. There is no
+ *     diff/merge behavior.
+ *
+ *   - Use `AppPricePoint.getForAppAsync(context, appId, { query })` to
+ *     resolve tier names to `appPricePointId` values, filterable by territory.
+ *
+ *   - Use `App.getPriceScheduleAsync()` to read the current schedule (singular
+ *     relationship: `apps/{id}/appPriceSchedule`).
+ *
+ *   - Territory availability is separate from pricing in the modern API --
+ *     it's managed via `TerritoryAvailability`, not via price schedules.
+ *     The legacy `App.updateAsync({ territories })` path used below still
+ *     works for setting availability.
  */
 export class PricingTask extends AppleTask {
   public name = (): string => 'pricing and availability';
@@ -116,11 +139,19 @@ export class PricingTask extends AppleTask {
     }
 
     if (pricing?.schedule && pricing.schedule.length > 0) {
+      // TODO(expo/third-party#147): Replace this warning with a call to
+      // AppPriceSchedule.createAsync once @expo/apple-utils is bumped.
+      // Remember: createAsync REPLACES the entire schedule, so the full
+      // config must be sent (not just the diff).
       Log.warn(
-        chalk`{yellow pricing.schedule is not yet pushed - the underlying ASC endpoint (appPriceSchedules) is not exposed by @expo/apple-utils. Only pricing.tier is applied.}`
+        chalk`{yellow pricing.schedule is not yet pushed. Scheduled price changes require a newer @expo/apple-utils with AppPriceSchedule support (see expo/third-party#147). Only pricing.tier is applied.}`
       );
     }
 
+    // Territory availability is set via the legacy App.updateAsync({ territories })
+    // endpoint below. The modern ASC API uses TerritoryAvailability as a separate
+    // resource from pricing (not part of appPriceSchedules). The legacy path works
+    // for both old and new pricing-model accounts.
     let resolvedTerritories: AppleTerritoryCode[] | undefined;
     if (availability?.territories) {
       resolvedTerritories = await resolveTerritoriesAsync({
