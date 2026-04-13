@@ -281,10 +281,8 @@ async function assertAndroidEmulatorHostSupportAsync({
         'Android emulator requires nested virtualization on Linux. This job does not have the required virtualization support.\n\n' +
         'Update your workflow YAML to use a nested-virtualization Linux runner, for example:\n' +
         '  runs_on: linux-medium-nested-virtualization\n' +
-        '  runs_on: linux-large-nested-virtualization',
-      {
-        docsUrl: 'https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idruns_on',
-      }
+        '  runs_on: linux-large-nested-virtualization\n\n' +
+        'See https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idruns_on for more information.'
     );
   }
 }
