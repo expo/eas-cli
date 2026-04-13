@@ -1,12 +1,4 @@
-jest.mock('@expo/steps', () => {
-  const actual = jest.requireActual('@expo/steps');
-  return {
-    ...actual,
-    spawnAsync: jest.fn(),
-  };
-});
-
-import { BuildRuntimePlatform, spawnAsync } from '@expo/steps';
+import { BuildRuntimePlatform } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -17,15 +9,22 @@ jest.mock('../../../utils/easCli', () => ({
   runEasCliCommand: jest.fn(),
 }));
 
+const mockDeployStdout = JSON.stringify({
+  url: 'https://example.dev',
+  production: { url: 'https://example.prod' },
+  aliases: [{ url: 'https://example.alias' }],
+  identifier: 'abc',
+  dashboardUrl: 'https://expo.dev/dashboard',
+});
+
 describe(createEasDeployBuildFunction, () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    jest.mocked(spawnAsync).mockResolvedValue({} as any);
   });
 
   it('passes deploy flags from function inputs and sets deploy_json output', async () => {
     jest.mocked(runEasCliCommand).mockResolvedValue({
-      stdout: Buffer.from('{"url":"https://example.dev"}'),
+      stdout: Buffer.from(mockDeployStdout),
       stderr: Buffer.from(''),
       pid: 1,
       output: [],
@@ -50,33 +49,26 @@ describe(createEasDeployBuildFunction, () => {
         alias: 'preview-link',
         prod: true,
         source_maps: false,
-        export_command: 'echo exported',
       },
       env: { HOME: '/tmp/home' },
     });
     await buildStep.executeAsync();
 
-    expect(buildStep.ctx.logger.info).toHaveBeenCalledWith('Running export command: echo exported');
     expect(buildStep.ctx.logger.info).toHaveBeenCalledWith(
-      'Running deploy command: eas deploy --non-interactive --json --environment production --alias preview-link --prod --no-source-maps'
+      'Running deploy command: eas deploy --non-interactive --json --export-dir dist --environment production --alias preview-link --prod'
     );
-    expect(spawnAsync).toHaveBeenCalledWith('sh', ['-c', 'echo exported'], {
-      cwd: buildStep.ctx.workingDirectory,
-      env: expect.objectContaining({ HOME: '/tmp/home' }),
-      logger: buildStep.ctx.logger,
-      stdio: 'pipe',
-    });
     expect(runEasCliCommand).toHaveBeenCalledWith({
       args: [
         'deploy',
         '--non-interactive',
         '--json',
+        '--export-dir',
+        'dist',
         '--environment',
         'production',
         '--alias',
         'preview-link',
         '--prod',
-        '--no-source-maps',
       ],
       options: expect.objectContaining({
         cwd: buildStep.ctx.workingDirectory,
@@ -84,12 +76,17 @@ describe(createEasDeployBuildFunction, () => {
         logger: buildStep.ctx.logger,
       }),
     });
-    expect(buildStep.outputById.deploy_json.value).toBe('{"url":"https://example.dev"}');
+    expect(buildStep.outputById.deploy_json.value).toBe(mockDeployStdout);
+    expect(buildStep.outputById.deploy_url.value).toBe('https://example.prod');
+    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.dev');
+    expect(buildStep.outputById.deploy_identifier.value).toBe('abc');
+    expect(buildStep.outputById.deploy_dashboard_url.value).toBe('https://expo.dev/dashboard');
+    expect(buildStep.outputById.deploy_alias_url.value).toBe('https://example.alias');
   });
 
   it('uses metadata environment when available', async () => {
     jest.mocked(runEasCliCommand).mockResolvedValue({
-      stdout: Buffer.from('{"url":"https://example.dev"}'),
+      stdout: Buffer.from(mockDeployStdout),
       stderr: Buffer.from(''),
       pid: 1,
       output: [],
@@ -112,7 +109,6 @@ describe(createEasDeployBuildFunction, () => {
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
       callInputs: {
         source_maps: true,
-        export_command: 'echo exported',
       },
     });
     await buildStep.executeAsync();
@@ -132,17 +128,21 @@ describe(createEasDeployBuildFunction, () => {
       logger,
       runtimePlatform: BuildRuntimePlatform.LINUX,
     });
-    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: {
-        export_command: 'echo exported',
-      },
-    });
+    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
 
     await expect(buildStep.executeAsync()).rejects.toThrow('Deploy command failed: deploy failed');
   });
 
-  it('throws with export phase in error message when export command fails', async () => {
-    jest.mocked(spawnAsync).mockRejectedValue(new Error('export failed'));
+  it('passes custom export_dir to eas deploy', async () => {
+    jest.mocked(runEasCliCommand).mockResolvedValue({
+      stdout: Buffer.from(mockDeployStdout),
+      stderr: Buffer.from(''),
+      pid: 1,
+      output: [],
+      status: 0,
+      signal: null,
+      error: null,
+    } as any);
 
     const logger = createMockLogger();
     const globalCtx = createGlobalContextMock({
@@ -151,12 +151,68 @@ describe(createEasDeployBuildFunction, () => {
     });
 
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: {
-        export_command: 'echo exported',
-      },
+      callInputs: { export_dir: 'web-build' },
+    });
+    await buildStep.executeAsync();
+
+    expect(runEasCliCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining(['--export-dir', 'web-build']),
+      })
+    );
+  });
+
+  it('does not pass --source-maps when source_maps is false', async () => {
+    jest.mocked(runEasCliCommand).mockResolvedValue({
+      stdout: Buffer.from(mockDeployStdout),
+      stderr: Buffer.from(''),
+      pid: 1,
+      output: [],
+      status: 0,
+      signal: null,
+      error: null,
+    } as any);
+
+    const logger = createMockLogger();
+    const globalCtx = createGlobalContextMock({
+      logger,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
     });
 
-    await expect(buildStep.executeAsync()).rejects.toThrow('Export command failed: export failed');
-    expect(runEasCliCommand).not.toHaveBeenCalled();
+    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: { source_maps: false },
+    });
+    await buildStep.executeAsync();
+
+    const { args } = jest.mocked(runEasCliCommand).mock.calls[0][0];
+    expect(args).not.toContain('--source-maps');
+  });
+
+  it('sets deploy_json and skips optional outputs when stdout is not valid JSON', async () => {
+    jest.mocked(runEasCliCommand).mockResolvedValue({
+      stdout: Buffer.from('not-json'),
+      stderr: Buffer.from(''),
+      pid: 1,
+      output: [],
+      status: 0,
+      signal: null,
+      error: null,
+    } as any);
+
+    const logger = createMockLogger();
+    const globalCtx = createGlobalContextMock({
+      logger,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+    });
+
+    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
+    await buildStep.executeAsync();
+
+    expect(buildStep.outputById.deploy_json.value).toBe('not-json');
+    expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to parse deploy JSON'),
+      expect.any(Object)
+    );
+    expect(buildStep.outputById.deploy_url.value).toBeUndefined();
   });
 });

@@ -10,6 +10,7 @@ import { createSubmissionEntityFunction } from './functions/createSubmissionEnti
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
 import { createEasDeployBuildFunction } from './functions/deploy';
+import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
@@ -56,6 +57,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(),
+    createEasExportBuildFunction(),
     createEasDeployBuildFunction(),
     createRepackBuildFunction(),
     createRestoreCacheFunction(),
