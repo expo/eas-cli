@@ -118,10 +118,8 @@ function getDeployCommand({
     deployCommand.push('--prod');
   }
 
-  if (sourceMaps === true) {
+  if (sourceMaps) {
     deployCommand.push('--source-maps');
-  } else if (sourceMaps === false) {
-    deployCommand.push('--no-source-maps');
   }
 
   return deployCommand;
