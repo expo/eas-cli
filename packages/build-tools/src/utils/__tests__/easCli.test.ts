@@ -16,18 +16,69 @@ jest.mock('../packageManager', () => ({
 describe(resolveEasCommandPrefixAndEnvAsync, () => {
   const originalEnvironment = process.env.ENVIRONMENT;
 
+  beforeEach(() => {
+    jest.mocked(spawn).mockReset();
+  });
+
   afterEach(() => {
     process.env.ENVIRONMENT = originalEnvironment;
   });
 
-  it('resolves staging tag in development environment', async () => {
+  it('resolves easd in development when easd --help succeeds', async () => {
     process.env.ENVIRONMENT = 'development';
+    jest.mocked(spawn).mockResolvedValueOnce({ status: 0 } as any);
+
     const result = await resolveEasCommandPrefixAndEnvAsync();
+
+    expect(result).toEqual({
+      cmd: 'easd',
+      args: [],
+      extraEnv: {},
+    });
+    expect(spawn).toHaveBeenCalledWith(
+      'easd',
+      ['--help'],
+      expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
+    );
+  });
+
+  it('logs when using easd in development', async () => {
+    process.env.ENVIRONMENT = 'development';
+    const info = jest.fn();
+    const logger = { info } as any;
+    jest.mocked(spawn).mockResolvedValueOnce({ status: 0 } as any);
+
+    await resolveEasCommandPrefixAndEnvAsync({ logger });
+
+    expect(info).toHaveBeenCalledWith('Using easd (local EAS CLI) for development.');
+  });
+
+  it('resolves staging tag in development when easd --help fails', async () => {
+    process.env.ENVIRONMENT = 'development';
+    jest.mocked(spawn).mockResolvedValueOnce({ status: 1 } as any);
+
+    const result = await resolveEasCommandPrefixAndEnvAsync();
+
     expect(result).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${EasCliNpmTags.STAGING}`],
       extraEnv: {},
     });
+  });
+
+  it('logs info when falling back to npx in development', async () => {
+    process.env.ENVIRONMENT = 'development';
+    const info = jest.fn();
+    const logger = { info } as any;
+    jest.mocked(spawn).mockResolvedValueOnce({ status: 1 } as any);
+
+    await resolveEasCommandPrefixAndEnvAsync({ logger });
+
+    expect(info).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /easd not found or "easd --help" did not succeed; falling back to npx eas-cli@/
+      )
+    );
   });
 
   it('resolves staging tag and EXPO_STAGING env in staging environment', async () => {
@@ -38,6 +89,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
       args: ['-y', `eas-cli@${EasCliNpmTags.STAGING}`],
       extraEnv: { EXPO_STAGING: '1' },
     });
+    expect(spawn).not.toHaveBeenCalled();
   });
 
   it('resolves production tag by default', async () => {
@@ -48,6 +100,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
       args: ['-y', `eas-cli@${EasCliNpmTags.PRODUCTION}`],
       extraEnv: {},
     });
+    expect(spawn).not.toHaveBeenCalled();
   });
 
   it('omits -y when npm is older than v7', async () => {
@@ -63,6 +116,10 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
 });
 
 describe(runEasCliCommand, () => {
+  beforeEach(() => {
+    jest.mocked(spawn).mockReset();
+  });
+
   it('merges caller env with resolved extra env', async () => {
     process.env.ENVIRONMENT = 'staging';
 

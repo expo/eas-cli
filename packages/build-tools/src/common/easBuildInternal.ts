@@ -30,7 +30,7 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
   newJob: TJob;
   newMetadata: Metadata;
 }> {
-  const { cmd, args, extraEnv } = await resolveEasCommandPrefixAndEnvAsync();
+  const { cmd, args, extraEnv } = await resolveEasCommandPrefixAndEnvAsync({ logger });
   const { buildProfile, githubTriggerOptions } = job;
   assert(buildProfile, 'build profile is missing in a build from git-based integration.');
 
@@ -80,7 +80,9 @@ export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
   ctx: BuildContext<TJob>,
   { cwd }: { cwd: string }
 ): Promise<Env> {
-  const { cmd, args, extraEnv } = await resolveEasCommandPrefixAndEnvAsync();
+  const { cmd, args, extraEnv } = await resolveEasCommandPrefixAndEnvAsync({
+    logger: ctx.logger,
+  });
   const { buildProfile } = ctx.job;
   assert(buildProfile, 'build profile is missing in a build from git-based integration.');
   let spawnResult;

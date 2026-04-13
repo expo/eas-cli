@@ -1,15 +1,34 @@
 import spawn, { SpawnOptions, SpawnResult } from '@expo/turtle-spawn';
 import { EasCliNpmTags, Env } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 
 import { isAtLeastNpm7Async } from './packageManager';
 
-export async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
+async function probeEasdAsync(): Promise<boolean> {
+  try {
+    const result = await spawn('easd', ['--help'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function resolveEasCommandPrefixAndEnvAsync(options?: { logger?: bunyan }): Promise<{
   cmd: string;
   args: string[];
   extraEnv: Env;
 }> {
+  const { logger } = options ?? {};
   const npxArgsPrefix = (await isAtLeastNpm7Async()) ? ['-y'] : [];
   if (process.env.ENVIRONMENT === 'development') {
+    if (await probeEasdAsync()) {
+      logger?.warn(
+        `easd found, using it instead of npx eas-cli@${EasCliNpmTags.STAGING} for development.`
+      );
+      return { cmd: 'easd', args: [], extraEnv: {} };
+    }
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.STAGING}`],
@@ -37,9 +56,17 @@ export async function runEasCliCommand({
   args: string[];
   options: SpawnOptions;
 }): Promise<SpawnResult> {
-  const { cmd, args: commandPrefixArgs, extraEnv } = await resolveEasCommandPrefixAndEnvAsync();
+  const { logger, ...spawnOptions } = options;
+  const {
+    cmd,
+    args: commandPrefixArgs,
+    extraEnv,
+  } = await resolveEasCommandPrefixAndEnvAsync({
+    logger,
+  });
   return await spawn(cmd, [...commandPrefixArgs, ...args], {
-    ...options,
-    env: { ...options.env, ...extraEnv },
+    ...spawnOptions,
+    logger,
+    env: { ...spawnOptions.env, ...extraEnv },
   });
 }
