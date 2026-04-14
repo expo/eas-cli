@@ -98,9 +98,11 @@ export function createEasDeployBuildFunction(): BuildFunction {
           logger: stepsCtx.logger,
         });
         if (parsedDeploymentOutput) {
-          for (const [key, value] of Object.entries(parsedDeploymentOutput)) {
-            outputs[key].set(value);
-          }
+          outputs.deploy_url.set(parsedDeploymentOutput.deploy_url);
+          outputs.deploy_deployment_url.set(parsedDeploymentOutput.deploy_deployment_url);
+          outputs.deploy_identifier.set(parsedDeploymentOutput.deploy_identifier);
+          outputs.deploy_dashboard_url.set(parsedDeploymentOutput.deploy_dashboard_url);
+          outputs.deploy_alias_url.set(parsedDeploymentOutput.deploy_alias_url);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'unknown error';
@@ -146,14 +148,13 @@ function getDeployCommand({
 }
 
 function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; logger: bunyan }): {
-  deploy_url: string;
-  deploy_deployment_url: string;
-  deploy_identifier: string;
-  deploy_dashboard_url: string;
-  deploy_alias_url: string;
+  deploy_url?: string;
+  deploy_deployment_url?: string;
+  deploy_identifier?: string;
+  deploy_dashboard_url?: string;
+  deploy_alias_url?: string;
 } | null {
   try {
-    // TODO: improve typing here; Look into WorkerDeploymentData
     const deployObject = JSON.parse(deployJson);
     return {
       deploy_url:
@@ -164,12 +165,9 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
       deploy_alias_url: deployObject.aliases?.[0]?.url,
     };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
     logger.warn(
-      'Failed to parse deploy JSON: ' +
-        `${message}\n` +
-        'DEPLOY_URL, DEPLOY_DEPLOYMENT_URL, DEPLOY_IDENTIFIER, DEPLOY_DASHBOARD_URL, DEPLOY_ALIAS_URL will be unavailable on this build.',
-      { error, deployJson }
+      { err: error },
+      'Failed to parse deploy JSON. DEPLOY_URL, DEPLOY_DEPLOYMENT_URL, DEPLOY_IDENTIFIER, DEPLOY_DASHBOARD_URL, DEPLOY_ALIAS_URL will be unavailable on this build.'
     );
     return null;
   }

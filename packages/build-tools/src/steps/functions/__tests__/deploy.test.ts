@@ -222,9 +222,41 @@ describe(createEasDeployBuildFunction, () => {
 
     expect(buildStep.outputById.deploy_json.value).toBe('not-json');
     expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to parse deploy JSON'),
-      expect.any(Object)
+      expect.objectContaining({ err: expect.anything() }),
+      expect.stringContaining('Failed to parse deploy JSON')
     );
     expect(buildStep.outputById.deploy_url.value).toBeUndefined();
+  });
+
+  it('sets outputs from partial deploy JSON and leaves missing fields undefined', async () => {
+    const partialDeployStdout = JSON.stringify({
+      url: 'https://example.dev-only',
+      dashboardUrl: 'https://expo.dev/dashboard-only',
+    });
+    jest.mocked(runEasCliCommand).mockResolvedValue({
+      stdout: Buffer.from(partialDeployStdout),
+      stderr: Buffer.from(''),
+      pid: 1,
+      output: [],
+      status: 0,
+      signal: null,
+      error: null,
+    } as any);
+
+    const logger = createMockLogger();
+    const globalCtx = createGlobalContextMock({
+      logger,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+    });
+
+    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
+    await buildStep.executeAsync();
+
+    expect(buildStep.outputById.deploy_json.value).toBe(partialDeployStdout);
+    expect(buildStep.outputById.deploy_url.value).toBe('https://example.dev-only');
+    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.dev-only');
+    expect(buildStep.outputById.deploy_dashboard_url.value).toBe('https://expo.dev/dashboard-only');
+    expect(buildStep.outputById.deploy_identifier.value).toBeUndefined();
+    expect(buildStep.outputById.deploy_alias_url.value).toBeUndefined();
   });
 });
