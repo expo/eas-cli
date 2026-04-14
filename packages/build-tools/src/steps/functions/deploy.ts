@@ -152,11 +152,12 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
     // TODO: improve typing here; Look into WorkerDeploymentData
     const deployObject = JSON.parse(deployJson);
     return {
-      deploy_url: deployObject.production.url || deployObject.aliases[0].url || deployObject.url,
+      deploy_url:
+        deployObject.production?.url || deployObject.aliases?.[0]?.url || deployObject.url,
       deploy_deployment_url: deployObject.url,
       deploy_identifier: deployObject.identifier,
       deploy_dashboard_url: deployObject.dashboardUrl,
-      deploy_alias_url: deployObject.aliases[0].url,
+      deploy_alias_url: deployObject.aliases?.[0]?.url,
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -164,7 +165,7 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
       'Failed to parse deploy JSON: ' +
         `${message}\n` +
         'DEPLOY_URL, DEPLOY_DEPLOYMENT_URL, DEPLOY_IDENTIFIER, DEPLOY_DASHBOARD_URL, DEPLOY_ALIAS_URL will be unavailable on this build.',
-      { error }
+      { error, deployJson }
     );
     return null;
   }
