@@ -41,10 +41,7 @@ export function buildJsonOutput(
   };
 }
 
-export function buildInvalidJsonOutput(
-  action: string,
-  projectId: string
-): AscAppLinkJsonOutput {
+export function buildInvalidJsonOutput(action: string, projectId: string): AscAppLinkJsonOutput {
   return {
     action,
     project: projectId,
