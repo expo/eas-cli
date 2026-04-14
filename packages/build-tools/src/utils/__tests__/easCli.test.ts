@@ -68,6 +68,19 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     });
   });
 
+  it('resolves staging tag in development when easd probe throws', async () => {
+    process.env.ENVIRONMENT = 'development';
+    jest.mocked(spawn).mockRejectedValueOnce(new Error('easd not installed') as any);
+
+    const result = await resolveEasCommandPrefixAndEnvAsync();
+
+    expect(result).toEqual({
+      cmd: 'npx',
+      args: ['-y', `eas-cli@${EasCliNpmTags.STAGING}`],
+      extraEnv: {},
+    });
+  });
+
   it('resolves staging tag and EXPO_STAGING env in staging environment', async () => {
     process.env.ENVIRONMENT = 'staging';
     const result = await resolveEasCommandPrefixAndEnvAsync();
