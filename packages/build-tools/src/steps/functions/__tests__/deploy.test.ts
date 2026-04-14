@@ -120,7 +120,7 @@ describe(createEasDeployBuildFunction, () => {
     );
   });
 
-  it('throws with deploy phase in error message when deploy command fails', async () => {
+  it('throws an actionable error message when deploy command fails', async () => {
     jest.mocked(runEasCliCommand).mockRejectedValue(new Error('deploy failed'));
 
     const logger = createMockLogger();
@@ -130,7 +130,19 @@ describe(createEasDeployBuildFunction, () => {
     });
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
 
-    await expect(buildStep.executeAsync()).rejects.toThrow('Deploy command failed: deploy failed');
+    let errorMessage = '';
+    try {
+      await buildStep.executeAsync();
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(errorMessage).toContain('Deploy command failed.');
+    expect(errorMessage).toContain('This can happen when deploy inputs are invalid');
+    expect(errorMessage).toContain(
+      'Check the deploy step logs, verify your deploy configuration and exported files, then retry.'
+    );
+    expect(errorMessage).toContain('Original error: deploy failed');
   });
 
   it('passes custom export_dir to eas deploy', async () => {
