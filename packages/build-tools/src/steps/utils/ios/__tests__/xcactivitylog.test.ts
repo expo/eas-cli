@@ -1,9 +1,22 @@
+import downloadFile from '@expo/downloader';
+import spawn from '@expo/turtle-spawn';
+import fs from 'fs-extra';
+import path from 'path';
+
+import { createMockLogger } from '../../../../__tests__/utils/logger';
 import {
   buildTargetMetrics,
   isCompileStep,
   collectTopLevelCompileSteps,
   formatReport,
+  parseAndReportXcactivitylog,
 } from '../xcactivitylog';
+
+jest.mock('@expo/downloader');
+jest.mock('@expo/turtle-spawn', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 // Minimal fixture: two modules with compile steps
 const FIXTURE_TWO_MODULES = {
@@ -132,6 +145,239 @@ const FIXTURE_NESTED = {
     },
   ],
 };
+
+const mockedDownloadFile = jest.mocked(downloadFile);
+const mockedSpawn = jest.mocked(spawn);
+
+function mockFilesystem({
+  tempDir = '/tmp/xclogparser-123',
+  jsonOutput = JSON.stringify(FIXTURE_TWO_MODULES),
+}: {
+  tempDir?: string;
+  jsonOutput?: string;
+} = {}) {
+  jest.spyOn(fs, 'mkdtemp').mockImplementation(async () => tempDir);
+  jest.spyOn(fs, 'chmod').mockImplementation(async () => undefined);
+  jest.spyOn(fs, 'readFile').mockImplementation(async () => jsonOutput);
+  jest.spyOn(fs, 'rm').mockImplementation(async () => undefined);
+
+  return {
+    reportPath: path.join(tempDir, 'xcactivitylog.json'),
+    tempDir,
+  };
+}
+
+describe('parseAndReportXcactivitylog', () => {
+  beforeEach(() => {
+    mockedDownloadFile.mockReset();
+    mockedSpawn.mockReset();
+    delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
+  });
+
+  it('downloads xclogparser from GCS and logs only the final report on success', async () => {
+    const logger = createMockLogger();
+    const { tempDir, reportPath } = mockFilesystem();
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+    });
+
+    expect(mockedDownloadFile).toHaveBeenCalledWith(
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.46.zip'),
+      { retry: 3, timeout: 20_000 }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      1,
+      'unzip',
+      ['-q', path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.46.zip'), '-d', tempDir],
+      { stdio: 'pipe' }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      2,
+      path.join(tempDir, 'xclogparser'),
+      [
+        'parse',
+        '--derived_data',
+        '/tmp/derived-data',
+        '--workspace',
+        '/tmp/workspace',
+        '--reporter',
+        'json',
+        '--output',
+        reportPath,
+      ],
+      { stdio: 'pipe' }
+    );
+    expect(fs.readFile).toHaveBeenCalledWith(reportPath, 'utf8');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Xcode Build — Compile Metrics by Module')
+    );
+    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('tries the proxy URL first and falls back to the direct GCS URL', async () => {
+    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://cache.example.com';
+
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    mockedDownloadFile
+      .mockRejectedValueOnce(new Error('proxy failed'))
+      .mockResolvedValueOnce(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+    });
+
+    expect(mockedDownloadFile).toHaveBeenNthCalledWith(
+      1,
+      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      { retry: 3, timeout: 20_000 }
+    );
+    expect(mockedDownloadFile).toHaveBeenNthCalledWith(
+      2,
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      { retry: 3, timeout: 20_000 }
+    );
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to prepare xclogparser via the proxy path; falling back to the direct URL'
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the direct GCS URL when the proxy download succeeds but unpacking fails', async () => {
+    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://cache.example.com';
+
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn
+      .mockRejectedValueOnce(new Error('invalid zip'))
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any);
+
+    await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+    });
+
+    expect(mockedDownloadFile).toHaveBeenNthCalledWith(
+      1,
+      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      { retry: 3, timeout: 20_000 }
+    );
+    expect(mockedDownloadFile).toHaveBeenNthCalledWith(
+      2,
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      { retry: 3, timeout: 20_000 }
+    );
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to prepare xclogparser via the proxy path; falling back to the direct URL'
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Xcode Build — Compile Metrics by Module')
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('skips reporting and logs debug when the JSON output is invalid', async () => {
+    const logger = createMockLogger();
+    mockFilesystem({ jsonOutput: '{not valid json' });
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await expect(
+      parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to analyze build performance; continuing without a report'
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('skips reporting and logs debug when the JSON output does not match the expected schema', async () => {
+    const logger = createMockLogger();
+    mockFilesystem({
+      jsonOutput: JSON.stringify({
+        schema: { name: 'BadProject' },
+        subSteps: [{ title: 123, subSteps: [] }],
+      }),
+    });
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await expect(
+      parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to analyze build performance; continuing without a report'
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('swallows cleanup failures without emitting additional logs', async () => {
+    const logger = createMockLogger();
+    mockFilesystem();
+    jest.spyOn(fs, 'rm').mockImplementation(async () => {
+      throw new Error('cleanup failed');
+    });
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await expect(
+      parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
 
 describe('isCompileStep', () => {
   it('identifies cCompilation', () => {

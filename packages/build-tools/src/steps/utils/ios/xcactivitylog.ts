@@ -1,21 +1,20 @@
+import downloadFile from '@expo/downloader';
+import { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { pipeline as streamPipeline } from 'stream/promises';
+import { z } from 'zod';
 
 const DEFAULT_XCLOGPARSER_VERSION = 'v0.2.46';
-const XCLOGPARSER_DOWNLOAD_URL =
-  'https://github.com/MobileNativeFoundation/XCLogParser/releases/download';
-
-interface Logger {
-  info: (msg: string) => void;
-  warn: (obj: object, msg: string) => void;
-}
+const XCLOGPARSER_DOWNLOAD_URL = 'https://storage.googleapis.com/turtle-v2/xclogparser';
+const XCLOGPARSER_DOWNLOAD_TIMEOUT_MS = 20_000;
+const XCLOGPARSER_OUTPUT_FILENAME = 'xcactivitylog.json';
 
 /**
  * Download xclogparser, parse xcactivitylog from derived data, and log a
- * compile metrics report. Never throws — all errors are logged as warnings.
+ * compile metrics report. Never throws — all errors are logged at debug level.
  *
  * Can be called from both the step-based flow (BuildFunction) and the
  * traditional builder flow (runBuildPhase).
@@ -29,24 +28,27 @@ export async function parseAndReportXcactivitylog({
   derivedDataPath: string;
   workspacePath: string;
   xclogparserVersion?: string;
-  logger: Logger;
+  logger: bunyan;
 }): Promise<void> {
   let tempDir: string | undefined;
   try {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
     const xclogparserPath = await downloadXclogparser(tempDir, xclogparserVersion, logger);
-
-    logger.info('Parsing xcactivitylog...');
-    const jsonOutput = await runXclogparser(xclogparserPath, derivedDataPath, workspacePath);
-
-    const data = JSON.parse(jsonOutput);
+    const jsonOutputPath = await runXclogparser({
+      binaryPath: xclogparserPath,
+      derivedDataPath,
+      workspacePath,
+      outputDir: tempDir,
+    });
+    const jsonOutput = await fs.readFile(jsonOutputPath, 'utf8');
+    const data = XcactivitylogDataSchema.parse(JSON.parse(jsonOutput));
     const report = formatReport(data);
     logger.info(report);
   } catch (err: unknown) {
-    logger.warn({ err }, 'Failed to parse xcactivitylog. This does not affect the build.');
+    logger.debug({ err }, 'Failed to analyze build performance; continuing without a report');
   } finally {
     if (tempDir) {
-      await fs.rm(tempDir, { force: true, recursive: true }).catch(() => {});
+      await asyncResult(fs.rm(tempDir, { force: true, recursive: true }));
     }
   }
 }
@@ -54,19 +56,55 @@ export async function parseAndReportXcactivitylog({
 async function downloadXclogparser(
   tempDir: string,
   version: string,
-  logger: { info: (msg: string) => void }
+  logger: bunyan
 ): Promise<string> {
-  const zipName = `XCLogParser-macOS-x86-64-arm64-${version}.zip`;
-  const url = `${XCLOGPARSER_DOWNLOAD_URL}/${version}/${zipName}`;
+  const zipName = getXclogparserZipName(version);
   const zipPath = path.join(tempDir, zipName);
+  const directUrl = `${XCLOGPARSER_DOWNLOAD_URL}/${zipName}`;
+  const proxiedUrl = getProxiedDownloadUrl({
+    directUrl,
+    proxyBaseUrl: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+  });
 
-  logger.info(`Downloading XCLogParser ${version}...`);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download XCLogParser: HTTP ${response.status}`);
+  if (proxiedUrl) {
+    const proxiedDownloadResult = await asyncResult(
+      downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: proxiedUrl })
+    );
+    if (!proxiedDownloadResult.ok) {
+      logger.debug(
+        { err: proxiedDownloadResult.reason },
+        'Failed to prepare xclogparser via the proxy path; falling back to the direct URL'
+      );
+      await cleanupXclogparserArtifacts({ tempDir, zipPath });
+    } else {
+      return proxiedDownloadResult.value;
+    }
   }
-  await streamPipeline(response.body as any, fs.createWriteStream(zipPath));
 
+  return await downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: directUrl });
+}
+
+async function downloadAndUnpackXclogparser({
+  tempDir,
+  zipPath,
+  sourceUrl,
+}: {
+  tempDir: string;
+  zipPath: string;
+  sourceUrl: string;
+}): Promise<string> {
+  await downloadFile(sourceUrl, zipPath, { retry: 3, timeout: XCLOGPARSER_DOWNLOAD_TIMEOUT_MS });
+
+  return await unpackXclogparser({ tempDir, zipPath });
+}
+
+async function unpackXclogparser({
+  tempDir,
+  zipPath,
+}: {
+  tempDir: string;
+  zipPath: string;
+}): Promise<string> {
   await spawn('unzip', ['-q', zipPath, '-d', tempDir], { stdio: 'pipe' });
 
   const binaryPath = path.join(tempDir, 'xclogparser');
@@ -74,12 +112,31 @@ async function downloadXclogparser(
   return binaryPath;
 }
 
-async function runXclogparser(
-  binaryPath: string,
-  derivedDataPath: string,
-  workspacePath: string
-): Promise<string> {
-  const result = await spawn(
+async function cleanupXclogparserArtifacts({
+  tempDir,
+  zipPath,
+}: {
+  tempDir: string;
+  zipPath: string;
+}): Promise<void> {
+  await asyncResult(fs.rm(zipPath, { force: true }));
+  await asyncResult(fs.rm(path.join(tempDir, 'xclogparser'), { force: true }));
+}
+
+async function runXclogparser({
+  binaryPath,
+  derivedDataPath,
+  workspacePath,
+  outputDir,
+}: {
+  binaryPath: string;
+  derivedDataPath: string;
+  workspacePath: string;
+  outputDir: string;
+}): Promise<string> {
+  const outputPath = path.join(outputDir, XCLOGPARSER_OUTPUT_FILENAME);
+
+  await spawn(
     binaryPath,
     [
       'parse',
@@ -89,10 +146,13 @@ async function runXclogparser(
       workspacePath,
       '--reporter',
       'json',
+      '--output',
+      outputPath,
     ],
     { stdio: 'pipe' }
   );
-  return result.stdout;
+
+  return outputPath;
 }
 
 interface XcactivitylogStep {
@@ -110,6 +170,29 @@ interface XcactivitylogData {
   subSteps?: XcactivitylogStep[];
 }
 
+const XcactivitylogStepSchema: z.ZodType<XcactivitylogStep> = z.lazy(() =>
+  z
+    .object({
+      title: z.string().optional(),
+      detailStepType: z.string().optional(),
+      signature: z.string().optional(),
+      duration: z.number().optional(),
+      startTimestamp: z.number().optional(),
+      endTimestamp: z.number().optional(),
+      subSteps: z.array(XcactivitylogStepSchema).optional(),
+    })
+    .passthrough()
+);
+
+const XcactivitylogDataSchema: z.ZodType<XcactivitylogData> = z
+  .object({
+    schema: z
+      .union([z.string(), z.object({ name: z.string().optional() }).passthrough()])
+      .optional(),
+    subSteps: z.array(XcactivitylogStepSchema).optional(),
+  })
+  .passthrough();
+
 interface TargetMetric {
   moduleName: string;
   taskSeconds: number;
@@ -125,6 +208,28 @@ interface Interval {
 const COMPILE_DETAIL_TYPES = new Set(['cCompilation', 'compileAssetsCatalog', 'compileStoryboard']);
 
 const COMPILE_SIGNATURE_PREFIXES = ['SwiftCompile ', 'SwiftGeneratePch '];
+
+function getXclogparserZipName(version: string): string {
+  return `XCLogParser-macOS-x86-64-arm64-${version}.zip`;
+}
+
+function getProxiedDownloadUrl({
+  directUrl,
+  proxyBaseUrl,
+}: {
+  directUrl: string;
+  proxyBaseUrl: string | undefined;
+}): string | null {
+  if (!proxyBaseUrl) {
+    return null;
+  }
+
+  const parsedUrl = new URL(directUrl);
+  return directUrl.replace(
+    `${parsedUrl.protocol}//${parsedUrl.host}`,
+    `${proxyBaseUrl}/${parsedUrl.host}`
+  );
+}
 
 export function isCompileStep(step: Partial<XcactivitylogStep>): boolean {
   const detailStepType = step.detailStepType ?? '';

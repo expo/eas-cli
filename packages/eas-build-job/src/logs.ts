@@ -109,7 +109,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.INSTALL_PODS]: 'Install pods',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'Configure Xcode project',
   [BuildPhase.RUN_FASTLANE]: 'Run fastlane',
-  [BuildPhase.PARSE_XCACTIVITYLOG]: 'Parse xcactivitylog',
+  [BuildPhase.PARSE_XCACTIVITYLOG]: 'Analyze build performance',
 
   // HOOKS
   [BuildPhase.PRE_INSTALL_HOOK]: 'Pre-install hook',

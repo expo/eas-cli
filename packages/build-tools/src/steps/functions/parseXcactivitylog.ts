@@ -12,7 +12,7 @@ export function parseXcactivitylogFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
     id: 'parse_xcactivitylog',
-    name: 'Parse xcactivitylog',
+    name: 'Analyze build performance',
     __metricsId: 'eas/parse_xcactivitylog',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     inputProviders: [
