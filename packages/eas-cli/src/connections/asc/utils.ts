@@ -1,14 +1,16 @@
+import { CombinedError } from '@urql/core';
 import chalk from 'chalk';
 
 import { AscAppLinkQuery } from '../../graphql/queries/AscAppLinkQuery';
 
 type AscAppLinkMetadata = Awaited<ReturnType<typeof AscAppLinkQuery.getAppMetadataAsync>>;
 
+export type AscAppLinkStatus = 'not-connected' | 'connected' | 'invalid';
+
 export interface AscAppLinkJsonOutput {
-  ok: boolean;
   action: string;
   project: string;
-  connected: boolean;
+  status: AscAppLinkStatus;
   appStoreConnectApp: {
     id: string;
     ascAppIdentifier: string;
@@ -20,15 +22,13 @@ export interface AscAppLinkJsonOutput {
 
 export function buildJsonOutput(
   action: string,
-  metadata: AscAppLinkMetadata,
-  ok: boolean = true
+  metadata: AscAppLinkMetadata
 ): AscAppLinkJsonOutput {
   const link = metadata.appStoreConnectApp;
   return {
-    ok,
     action,
     project: metadata.fullName,
-    connected: link !== null,
+    status: link ? 'connected' : 'not-connected',
     appStoreConnectApp: link
       ? {
           id: link.id,
@@ -39,6 +39,25 @@ export function buildJsonOutput(
         }
       : null,
   };
+}
+
+export function buildInvalidJsonOutput(
+  action: string,
+  projectId: string
+): AscAppLinkJsonOutput {
+  return {
+    action,
+    project: projectId,
+    status: 'invalid',
+    appStoreConnectApp: null,
+  };
+}
+
+export function isAscAuthenticationError(error: unknown): error is CombinedError {
+  return (
+    error instanceof CombinedError &&
+    error.graphQLErrors.some(e => e.message.includes('App Store Connect rejected this API key'))
+  );
 }
 
 export function formatAscAppLinkStatus(metadata: AscAppLinkMetadata): string {

@@ -1,9 +1,15 @@
 import EasCommand from '../../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../../commandUtils/flags';
-import { buildJsonOutput, formatAscAppLinkStatus } from '../../../connections/asc/utils';
+import {
+  buildInvalidJsonOutput,
+  buildJsonOutput,
+  formatAscAppLinkStatus,
+  isAscAuthenticationError,
+} from '../../../connections/asc/utils';
 import { AscAppLinkQuery } from '../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
@@ -36,18 +42,41 @@ export default class ConnectionsAscStatus extends EasCommand {
       nonInteractive,
     });
 
+    const metadata = await this.fetchStatusAsync(graphqlClient, projectId);
+    if (!metadata) {
+      if (json) {
+        printJsonOnlyOutput(buildInvalidJsonOutput('status', projectId));
+      } else {
+        Log.addNewLineIfNone();
+        Log.warn(
+          'The App Store Connect API key linked to this project has been revoked or is no longer valid.'
+        );
+      }
+      return;
+    }
+
+    if (json) {
+      printJsonOnlyOutput(buildJsonOutput('status', metadata));
+    } else {
+      Log.addNewLineIfNone();
+      Log.log(formatAscAppLinkStatus(metadata));
+    }
+  }
+
+  private async fetchStatusAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<Awaited<ReturnType<typeof AscAppLinkQuery.getAppMetadataAsync>> | null> {
     const spinner = ora('Fetching App Store Connect app link status').start();
     try {
       const metadata = await AscAppLinkQuery.getAppMetadataAsync(graphqlClient, projectId);
       spinner.succeed('Fetched App Store Connect app link status');
-
-      if (json) {
-        printJsonOnlyOutput(buildJsonOutput('status', metadata));
-      } else {
-        Log.addNewLineIfNone();
-        Log.log(formatAscAppLinkStatus(metadata));
-      }
+      return metadata;
     } catch (err) {
+      if (isAscAuthenticationError(err)) {
+        spinner.fail('App Store Connect connection is invalid');
+        return null;
+      }
       spinner.fail('Failed to fetch App Store Connect app link status');
       throw err;
     }

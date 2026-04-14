@@ -1,4 +1,12 @@
-import { buildJsonOutput, formatAscAppLinkStatus } from '../utils';
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql/error';
+
+import {
+  buildInvalidJsonOutput,
+  buildJsonOutput,
+  formatAscAppLinkStatus,
+  isAscAuthenticationError,
+} from '../utils';
 
 const mockMetadataConnected = {
   id: 'app-id',
@@ -26,10 +34,9 @@ const mockMetadataDisconnected = {
 describe('buildJsonOutput', () => {
   it('returns connected output', () => {
     const output = buildJsonOutput('status', mockMetadataConnected);
-    expect(output.ok).toBe(true);
     expect(output.action).toBe('status');
     expect(output.project).toBe('@testuser/testapp');
-    expect(output.connected).toBe(true);
+    expect(output.status).toBe('connected');
     expect(output.appStoreConnectApp).not.toBeNull();
     expect(output.appStoreConnectApp!.ascAppIdentifier).toBe('1234567890');
     expect(output.appStoreConnectApp!.name).toBe('Test App');
@@ -38,9 +45,41 @@ describe('buildJsonOutput', () => {
 
   it('returns disconnected output', () => {
     const output = buildJsonOutput('status', mockMetadataDisconnected);
-    expect(output.ok).toBe(true);
-    expect(output.connected).toBe(false);
+    expect(output.status).toBe('not-connected');
     expect(output.appStoreConnectApp).toBeNull();
+  });
+});
+
+describe('buildInvalidJsonOutput', () => {
+  it('returns invalid output', () => {
+    const output = buildInvalidJsonOutput('status', 'project-id');
+    expect(output.status).toBe('invalid');
+    expect(output.project).toBe('project-id');
+    expect(output.appStoreConnectApp).toBeNull();
+  });
+});
+
+describe('isAscAuthenticationError', () => {
+  it('returns true for ASC authentication errors', () => {
+    const error = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'App Store Connect rejected this API key with status 401. Choose a valid API key and try again.'
+        ),
+      ],
+    });
+    expect(isAscAuthenticationError(error)).toBe(true);
+  });
+
+  it('returns false for other CombinedErrors', () => {
+    const error = new CombinedError({
+      graphQLErrors: [new GraphQLError('Some other error')],
+    });
+    expect(isAscAuthenticationError(error)).toBe(false);
+  });
+
+  it('returns false for non-CombinedError errors', () => {
+    expect(isAscAuthenticationError(new Error('random error'))).toBe(false);
   });
 });
 

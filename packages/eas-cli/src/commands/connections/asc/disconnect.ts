@@ -2,11 +2,17 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../../commandUtils/flags';
-import { buildJsonOutput, formatAscAppLinkStatus } from '../../../connections/asc/utils';
+import {
+  buildInvalidJsonOutput,
+  buildJsonOutput,
+  formatAscAppLinkStatus,
+  isAscAuthenticationError,
+} from '../../../connections/asc/utils';
 import { AscAppLinkMutation } from '../../../graphql/mutations/AscAppLinkMutation';
 import { AscAppLinkQuery } from '../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../log';
@@ -45,9 +51,18 @@ export default class ConnectionsAscDisconnect extends EasCommand {
     });
 
     // Step 1: Check current status
-    const statusSpinner = ora('Checking current App Store Connect app link status').start();
-    const metadata = await AscAppLinkQuery.getAppMetadataAsync(graphqlClient, projectId);
-    statusSpinner.succeed('Checked current status');
+    const metadata = await this.fetchCurrentStatusAsync(graphqlClient, projectId);
+    if (!metadata) {
+      if (json) {
+        printJsonOnlyOutput(buildInvalidJsonOutput('disconnect', projectId));
+      } else {
+        Log.addNewLineIfNone();
+        Log.warn(
+          'The App Store Connect API key linked to this project has been revoked or is no longer valid.\nThe connection cannot be resolved from the CLI. Please update the API key on the Expo dashboard.'
+        );
+      }
+      return;
+    }
 
     if (!metadata.appStoreConnectApp) {
       if (json) {
@@ -104,6 +119,25 @@ export default class ConnectionsAscDisconnect extends EasCommand {
     } else {
       Log.addNewLineIfNone();
       Log.log(formatAscAppLinkStatus(updatedMetadata));
+    }
+  }
+
+  private async fetchCurrentStatusAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<Awaited<ReturnType<typeof AscAppLinkQuery.getAppMetadataAsync>> | null> {
+    const spinner = ora('Checking current App Store Connect app link status').start();
+    try {
+      const metadata = await AscAppLinkQuery.getAppMetadataAsync(graphqlClient, projectId);
+      spinner.succeed('Checked current status');
+      return metadata;
+    } catch (err) {
+      if (isAscAuthenticationError(err)) {
+        spinner.fail('App Store Connect connection is invalid');
+        return null;
+      }
+      spinner.fail('Failed to check current status');
+      throw err;
     }
   }
 }

@@ -1,3 +1,6 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql/error';
+
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AscAppLinkQuery } from '../../../../graphql/queries/AscAppLinkQuery';
@@ -86,6 +89,52 @@ describe(ConnectionsAscStatus, () => {
     await command.runAsync();
     expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
       expect.stringContaining('"action": "status"')
+    );
+  });
+
+  it('handles invalid ASC API key gracefully', async () => {
+    const ascError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'App Store Connect rejected this API key with status 401. Choose a valid API key and try again.'
+        ),
+      ],
+    });
+    jest.mocked(AscAppLinkQuery.getAppMetadataAsync).mockRejectedValueOnce(ascError);
+
+    const command = new ConnectionsAscStatus([], mockConfig);
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      projectId: testProjectId,
+      loggedIn: { graphqlClient },
+    });
+
+    await command.runAsync();
+    expect(jest.mocked(Log.warn)).toHaveBeenCalledWith(
+      expect.stringContaining('revoked or is no longer valid')
+    );
+  });
+
+  it('handles invalid ASC API key with json output', async () => {
+    const ascError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'App Store Connect rejected this API key with status 401. Choose a valid API key and try again.'
+        ),
+      ],
+    });
+    jest.mocked(AscAppLinkQuery.getAppMetadataAsync).mockRejectedValueOnce(ascError);
+
+    const command = new ConnectionsAscStatus(['--json'], mockConfig);
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      projectId: testProjectId,
+      loggedIn: { graphqlClient },
+    });
+
+    await command.runAsync();
+    expect(jest.mocked(Log.log)).toHaveBeenCalledWith(
+      expect.stringContaining('"status": "invalid"')
     );
   });
 
