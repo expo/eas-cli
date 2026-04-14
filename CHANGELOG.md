@@ -8,13 +8,19 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/deploy` function for EAS Hosting web deployments. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/export` function for Expo web exports. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [18.7.0](https://github.com/expo/eas-cli/releases/tag/v18.7.0) - 2026-04-14
+
+### 🎉 New features
+
+- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--skip-bundler` to `eas build:dev` to install and run a development build without starting the local Expo/Metro server. ([#3604](https://github.com/expo/eas-cli/pull/3604) by [@mmichels-brex](https://github.com/mmichels-brex))
 
 ## [18.6.0](https://github.com/expo/eas-cli/releases/tag/v18.6.0) - 2026-04-10
 

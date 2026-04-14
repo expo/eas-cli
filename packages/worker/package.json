@@ -1,6 +1,6 @@
 {
   "name": "@expo/worker",
-  "version": "18.6.0",
+  "version": "18.7.0",
   "private": true,
   "scripts": {
     "start": "yarn watch",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@babel/core": "7.24.7",
-    "@expo/build-tools": "18.6.0",
+    "@expo/build-tools": "18.7.0",
     "@expo/config-plugins": "55.0.7",
     "@expo/config-types": "55.0.5",
     "@expo/downloader": "18.5.0",
