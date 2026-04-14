@@ -48,8 +48,7 @@ export default class BuildDev extends EasCommand {
       default: false,
     }),
     'skip-bundler': Flags.boolean({
-      description:
-        'Install and run the development build without starting the Expo/Metro bundler server.',
+      description: 'Install and run the development build without starting the bundler server.',
       default: false,
     }),
   };

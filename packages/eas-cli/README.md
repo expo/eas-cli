@@ -495,7 +495,7 @@ FLAGS
                                  emulator/simulator internal distribution dev client builds. The "development-simulator"
                                  build profile will be selected by default.
   -p, --platform=<option>        <options: ios|android>
-      --skip-bundler             Install and run the development build without starting the Expo/Metro bundler
+      --skip-bundler             Install and run the development build without starting the bundler
                                  server.
       --skip-build-if-not-found  Skip build if no successful build with matching fingerprint is found.
 
