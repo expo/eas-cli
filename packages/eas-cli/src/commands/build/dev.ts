@@ -47,6 +47,11 @@ export default class BuildDev extends EasCommand {
       description: 'Skip build if no successful build with matching fingerprint is found.',
       default: false,
     }),
+    'skip-bundler': Flags.boolean({
+      description:
+        'Install and run the development build without starting the Expo/Metro bundler server.',
+      default: false,
+    }),
   };
 
   static override contextDefinition = {
@@ -129,7 +134,9 @@ export default class BuildDev extends EasCommand {
 
       if (build.artifacts?.applicationArchiveUrl) {
         await downloadAndRunAsync(build);
-        await this.startDevServerAsync({ projectDir, platform });
+        if (!flags['skip-bundler']) {
+          await this.startDevServerAsync({ projectDir, platform });
+        }
         return;
       } else {
         Log.warn('Artifacts for this build expired.');
@@ -182,7 +189,9 @@ export default class BuildDev extends EasCommand {
       downloadSimBuildAutoConfirm: true,
       envOverride: env,
     });
-    await this.startDevServerAsync({ projectDir, platform });
+    if (!flags['skip-bundler']) {
+      await this.startDevServerAsync({ projectDir, platform });
+    }
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {

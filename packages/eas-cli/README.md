@@ -488,13 +488,15 @@ run dev client simulator/emulator build with matching fingerprint or create a ne
 
 ```
 USAGE
-  $ eas build:dev [-p ios|android] [-e PROFILE_NAME] [--skip-build-if-not-found]
+  $ eas build:dev [-p ios|android] [-e PROFILE_NAME] [--skip-build-if-not-found] [--skip-bundler]
 
 FLAGS
   -e, --profile=PROFILE_NAME     Name of the build profile from eas.json. It must be a profile allowing to create
                                  emulator/simulator internal distribution dev client builds. The "development-simulator"
                                  build profile will be selected by default.
   -p, --platform=<option>        <options: ios|android>
+      --skip-bundler             Install and run the development build without starting the Expo/Metro bundler
+                                 server.
       --skip-build-if-not-found  Skip build if no successful build with matching fingerprint is found.
 
 DESCRIPTION
