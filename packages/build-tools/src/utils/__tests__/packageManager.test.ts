@@ -4,7 +4,9 @@ import { vol } from 'memfs';
 import path from 'path';
 import semver from 'semver';
 
+import { createMockLogger } from '../../__tests__/utils/logger';
 import {
+  PackageManager,
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
   resolvePackageManager,
@@ -68,6 +70,70 @@ describe(resolvePackageManager, () => {
     await fs.writeFile(path.join(nestedDir, 'package.json'), 'content');
 
     expect(resolvePackageManager(nestedDir)).toBe('yarn');
+  });
+
+  it('returns yarn when no lockfile and no env var is provided', () => {
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe(PackageManager.YARN);
+  });
+
+  it('returns yarn when no lockfile and env var is an empty string', () => {
+    const logger = createMockLogger();
+    expect(
+      resolvePackageManager(rootDir, {
+        env: { EAS_FALLBACK_PACKAGE_MANAGER: '' },
+        logger,
+      })
+    ).toBe(PackageManager.YARN);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns bun from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bun' } })).toBe(
+      PackageManager.BUN
+    );
+  });
+
+  it('returns pnpm from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'pnpm' } })).toBe(
+      PackageManager.PNPM
+    );
+  });
+
+  it('ignores EAS_FALLBACK_PACKAGE_MANAGER when a lockfile exists', async () => {
+    await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
+    const logger = createMockLogger();
+    expect(
+      resolvePackageManager(rootDir, {
+        env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' }, // invalid, but should not even be read
+        logger,
+      })
+    ).toBe(PackageManager.NPM);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('logs a warning and falls back to yarn on unsupported EAS_FALLBACK_PACKAGE_MANAGER value', () => {
+    const logger = createMockLogger();
+    expect(
+      resolvePackageManager(rootDir, {
+        env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' },
+        logger,
+      })
+    ).toBe(PackageManager.YARN);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('bunn'));
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('EAS_FALLBACK_PACKAGE_MANAGER')
+    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('yarn'));
+  });
+
+  it('falls back to yarn on unsupported EAS_FALLBACK_PACKAGE_MANAGER value when no logger is provided', () => {
+    expect(() =>
+      resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } })
+    ).not.toThrow();
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } })).toBe(
+      PackageManager.YARN
+    );
   });
 });
 

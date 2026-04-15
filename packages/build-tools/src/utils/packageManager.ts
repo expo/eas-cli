@@ -1,5 +1,6 @@
 import { type bunyan } from '@expo/logger';
 import * as PackageManagerUtils from '@expo/package-manager';
+import { type BuildStepEnv } from '@expo/steps';
 import spawnAsync from '@expo/turtle-spawn';
 import semver from 'semver';
 import { z } from 'zod';
@@ -11,7 +12,16 @@ export enum PackageManager {
   BUN = 'bun',
 }
 
-export function resolvePackageManager(directory: string): PackageManager {
+export function resolvePackageManager(
+  directory: string,
+  {
+    env,
+    logger,
+  }: {
+    env?: BuildStepEnv;
+    logger?: bunyan;
+  } = {}
+): PackageManager {
   try {
     const manager = PackageManagerUtils.resolvePackageManager(directory);
     if (manager === 'npm') {
@@ -20,12 +30,23 @@ export function resolvePackageManager(directory: string): PackageManager {
       return PackageManager.PNPM;
     } else if (manager === 'bun') {
       return PackageManager.BUN;
-    } else {
+    } else if (manager === 'yarn') {
       return PackageManager.YARN;
     }
-  } catch {
-    return PackageManager.YARN;
+  } catch {}
+
+  const fallback = env?.EAS_FALLBACK_PACKAGE_MANAGER;
+  if (fallback) {
+    const parsed = z.enum(PackageManager).safeParse(fallback);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    const allowed = Object.values(PackageManager).join(', ');
+    logger?.warn(
+      `Ignoring invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}). Falling back to ${PackageManager.YARN}.`
+    );
   }
+  return PackageManager.YARN;
 }
 
 /**
