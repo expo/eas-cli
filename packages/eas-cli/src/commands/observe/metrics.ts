@@ -122,7 +122,14 @@ export default class ObserveMetrics extends EasCommand {
     if (flags.json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
-        buildObserveMetricsJson(metricsMap, metricNames, stats, totalEventCounts)
+        buildObserveMetricsJson(
+          metricsMap,
+          metricNames,
+          stats,
+          totalEventCounts,
+          buildNumbersMap,
+          updateIdsMap
+        )
       );
     } else {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
@@ -131,7 +138,6 @@ export default class ObserveMetrics extends EasCommand {
         buildObserveMetricsTable(metricsMap, metricNames, stats, {
           daysBack,
           buildNumbersMap,
-          updateIdsMap,
           totalEventCounts,
         })
       );

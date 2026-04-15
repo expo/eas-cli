@@ -105,6 +105,8 @@ export type MetricValuesJson = Partial<Record<StatisticKey, number | null>>;
 export interface ObserveMetricsVersionResult {
   appVersion: string;
   platform: AppPlatform;
+  buildNumbers: string[];
+  updateIds: string[];
   metrics: Record<string, MetricValuesJson>;
 }
 
@@ -117,7 +119,9 @@ export function buildObserveMetricsJson(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
   stats: StatisticKey[],
-  totalEventCounts?: Map<string, number>
+  totalEventCounts?: Map<string, number>,
+  buildNumbersMap?: BuildNumbersMap,
+  updateIdsMap?: UpdateIdsMap
 ): ObserveMetricsJsonOutput {
   const versions: ObserveMetricsVersionResult[] = [];
 
@@ -134,7 +138,13 @@ export function buildObserveMetricsJson(
       metrics[metricName] = statValues;
     }
 
-    versions.push({ appVersion, platform, metrics });
+    versions.push({
+      appVersion,
+      platform,
+      buildNumbers: buildNumbersMap?.get(key) ?? [],
+      updateIds: updateIdsMap?.get(key) ?? [],
+      metrics,
+    });
   }
 
   // Group total event counts by metric → platform
@@ -188,7 +198,6 @@ export function buildObserveMetricsTable(
   options?: {
     daysBack?: number;
     buildNumbersMap?: BuildNumbersMap;
-    updateIdsMap?: UpdateIdsMap;
     totalEventCounts?: Map<string, number>;
   }
 ): string {
@@ -232,12 +241,7 @@ export function buildObserveMetricsTable(
       }
     }
   }
-  // Check if any version has updates
-  const hasUpdates = options?.updateIdsMap
-    ? Array.from(options.updateIdsMap.values()).some(ids => ids.length > 0)
-    : false;
-
-  const headers = ['App Version', ...(hasUpdates ? ['Updates'] : []), ...metricHeaders];
+  const headers = ['App Version', ...metricHeaders];
 
   const sections: string[] = [chalk.bold(summaryLine)];
 
@@ -245,15 +249,13 @@ export function buildObserveMetricsTable(
     sections.push('');
     sections.push(chalk.bold(appPlatformDisplayNames[platform]));
 
-    const rows: string[][] = platformResults.map(result => {
+    const rows: string[][] = [];
+    for (const result of platformResults) {
       const key = makeMetricsKey(result.appVersion, result.platform);
       const buildNumbers = options?.buildNumbersMap?.get(key);
       const versionLabel = buildNumbers?.length
         ? `${result.appVersion} (${buildNumbers.join(', ')})`
         : result.appVersion;
-
-      const updateIds = options?.updateIdsMap?.get(key);
-      const updatesLabel = updateIds?.length ? updateIds.join(', ') : '';
 
       const metricCells: string[] = [];
       for (const m of metricNames) {
@@ -272,8 +274,9 @@ export function buildObserveMetricsTable(
           }
         }
       }
-      return [versionLabel, ...(hasUpdates ? [updatesLabel] : []), ...metricCells];
-    });
+
+      rows.push([versionLabel, ...metricCells]);
+    }
 
     let footerRow: string[] | undefined;
     if (options?.totalEventCounts) {
@@ -283,7 +286,7 @@ export function buildObserveMetricsTable(
         countCells.push(count != null ? count.toLocaleString() : '-');
       }
       if (countCells.some(c => c !== '-')) {
-        footerRow = ['Total events', ...(hasUpdates ? [''] : []), ...countCells];
+        footerRow = ['Total events', ...countCells];
       }
     }
 
