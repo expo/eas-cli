@@ -340,6 +340,9 @@ export default class BuildService {
         if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
+        if (!rawErrorMessage) {
+          rawErrorMessage = maybeRawError?.message ?? err.message;
+        }
 
         await turtleFetch(
           new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
@@ -350,6 +353,10 @@ export default class BuildService {
               message: rawErrorMessage,
               buildPhase: err.buildPhase ?? null,
               errorCode: err.errorCode,
+              platform: job.platform,
+              workflow: job.type,
+              sdkVersion: metadata?.sdkVersion ?? null,
+              reactNativeVersion: metadata?.reactNativeVersion ?? null,
             },
             headers: {
               Authorization: `Bearer ${robotAccessToken}`,
