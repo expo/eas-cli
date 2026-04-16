@@ -251,10 +251,15 @@ function createStepsForIosBuildWithCredentials({
     installPods,
     configureEASUpdate,
     configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx, {
+      id: 'configure_ios_credentials',
       workingDirectory,
     }),
     configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
+      id: 'configure_ios_version',
       workingDirectory,
+      callInputs: {
+        target_names: '${ steps.configure_ios_credentials.target_names }',
+      },
     }),
     ...(shouldUseEagerBundle(globalCtx.staticContext.metadata)
       ? [

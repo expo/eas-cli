@@ -17,9 +17,14 @@ export function configureIosVersionFunction(): BuildFunction {
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'credentials',
-        required: true,
+        required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
         defaultValue: '${ eas.job.secrets.buildCredentials }',
+      }),
+      BuildStepInput.createProvider({
+        id: 'target_names',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       BuildStepInput.createProvider({
         id: 'build_configuration',
@@ -38,19 +43,6 @@ export function configureIosVersionFunction(): BuildFunction {
       }),
     ],
     fn: async (stepCtx, { inputs }) => {
-      const rawCredentialsInput = inputs.credentials.value as Record<string, any>;
-      const { value, error } = IosBuildCredentialsSchema.validate(rawCredentialsInput, {
-        stripUnknown: true,
-        convert: true,
-        abortEarly: false,
-      });
-      if (error) {
-        throw error;
-      }
-
-      const credentialsManager = new IosCredentialsManager(value);
-      const credentials = await credentialsManager.prepare(stepCtx.logger);
-
       assert(stepCtx.global.staticContext.job, 'Job is not defined');
       const job = stepCtx.global.staticContext.job as Ios.Job;
 
@@ -60,7 +52,7 @@ export function configureIosVersionFunction(): BuildFunction {
         (inputs.app_version.value as string | undefined) ?? job.version?.appVersion;
       if (appVersion && !semver.valid(appVersion)) {
         throw new Error(
-          `App verrsion provided by the "app_version" input is not a valid semver version: ${appVersion}`
+          `App version provided by the "app_version" input is not a valid semver version: ${appVersion}`
         );
       }
 
@@ -69,6 +61,36 @@ export function configureIosVersionFunction(): BuildFunction {
           'No build number or app version provided. Skipping the step to configure iOS version.'
         );
         return;
+      }
+
+      const targetNamesInput = inputs.target_names.value as unknown;
+      let targetNames: string[];
+      if (targetNamesInput !== undefined) {
+        if (
+          !Array.isArray(targetNamesInput) ||
+          targetNamesInput.some(targetName => typeof targetName !== 'string')
+        ) {
+          throw new Error('"target_names" input must be an array of strings.');
+        }
+        targetNames = targetNamesInput;
+      } else {
+        const rawCredentialsInput = inputs.credentials.value as Record<string, any> | undefined;
+        if (!rawCredentialsInput) {
+          throw new Error('Either "target_names" or "credentials" input must be provided.');
+        }
+
+        const { value, error } = IosBuildCredentialsSchema.validate(rawCredentialsInput, {
+          stripUnknown: true,
+          convert: true,
+          abortEarly: false,
+        });
+        if (error) {
+          throw error;
+        }
+
+        const credentialsManager = new IosCredentialsManager(value);
+        const credentials = await credentialsManager.prepare(stepCtx.logger);
+        targetNames = Object.keys(credentials.targetProvisioningProfiles);
       }
 
       stepCtx.logger.info('Setting iOS version...');
@@ -87,7 +109,7 @@ export function configureIosVersionFunction(): BuildFunction {
           appVersion,
         },
         {
-          targetNames: Object.keys(credentials.targetProvisioningProfiles),
+          targetNames,
           buildConfiguration: resolveBuildConfiguration(
             job,
             inputs.build_configuration.value as string | undefined
