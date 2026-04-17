@@ -8,6 +8,7 @@ import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import { resolveInsightsTimeRange } from '../../insights/timeRange';
 import Log from '../../log';
 import {
+  UpdateInsightsSummary,
   buildUpdateInsightsJson,
   buildUpdateInsightsTable,
   toUpdateInsightsSummary,
@@ -71,20 +72,19 @@ export default class UpdateView extends EasCommand {
 
     const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId });
 
-    const insightsSummary = insightsFlag
-      ? await (async () => {
-          const { daysBack, startTime, endTime } = resolveInsightsTimeRange({ days, start, end });
-          const updatesWithInsights = await UpdateInsightsQuery.viewUpdateGroupInsightsAsync(
-            graphqlClient,
-            { groupId, startTime, endTime }
-          );
-          return toUpdateInsightsSummary(groupId, updatesWithInsights, {
-            startTime,
-            endTime,
-            daysBack,
-          });
-        })()
-      : null;
+    let insightsSummary: UpdateInsightsSummary | null = null;
+    if (insightsFlag) {
+      const { daysBack, startTime, endTime } = resolveInsightsTimeRange({ days, start, end });
+      const updatesWithInsights = await UpdateInsightsQuery.viewUpdateGroupInsightsAsync(
+        graphqlClient,
+        { groupId, startTime, endTime }
+      );
+      insightsSummary = toUpdateInsightsSummary(groupId, updatesWithInsights, {
+        startTime,
+        endTime,
+        daysBack,
+      });
+    }
 
     if (jsonFlag) {
       if (insightsSummary) {
