@@ -5,6 +5,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
 import { UpdateInsightsQuery } from '../../graphql/queries/UpdateInsightsQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
+import { resolveInsightsTimeRange } from '../../insights/timeRange';
 import Log from '../../log';
 import {
   buildUpdateInsightsJson,
@@ -17,7 +18,6 @@ import {
   getUpdateJsonInfosForUpdates,
 } from '../../update/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-import { resolveInsightsTimeRange } from './insights';
 
 export default class UpdateView extends EasCommand {
   static override description = 'update group details';

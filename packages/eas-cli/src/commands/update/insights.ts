@@ -6,16 +6,14 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { UpdateInsightsQuery } from '../../graphql/queries/UpdateInsightsQuery';
+import { INSIGHTS_DEFAULT_DAYS_BACK, resolveInsightsTimeRange } from '../../insights/timeRange';
 import Log from '../../log';
-import { resolveTimeRange } from '../../observe/startAndEndTime';
 import {
   buildUpdateInsightsJson,
   buildUpdateInsightsTable,
   toUpdateInsightsSummary,
 } from '../../update/insights/formatInsights';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
-
-const DEFAULT_DAYS = 7;
 
 export default class UpdateInsights extends EasCommand {
   static override description =
@@ -34,7 +32,7 @@ export default class UpdateInsights extends EasCommand {
       options: ['ios', 'android'] as const,
     })(),
     days: Flags.integer({
-      description: `Show insights from the last N days (default ${DEFAULT_DAYS}, mutually exclusive with --start/--end).`,
+      description: `Show insights from the last N days (default ${INSIGHTS_DEFAULT_DAYS_BACK}, mutually exclusive with --start/--end).`,
       min: 1,
       exclusive: ['start', 'end'],
     }),
@@ -96,13 +94,4 @@ export default class UpdateInsights extends EasCommand {
       Log.log(buildUpdateInsightsTable(summary));
     }
   }
-}
-
-export function resolveInsightsTimeRange(flags: { days?: number; start?: string; end?: string }): {
-  daysBack?: number;
-  startTime: string;
-  endTime: string;
-} {
-  const days = flags.days ?? (flags.start ? undefined : DEFAULT_DAYS);
-  return resolveTimeRange({ ...flags, days });
 }
