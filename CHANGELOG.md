@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Fixes for `observe` commands, including an issue for apps with many update IDs. ([#3609](https://github.com/expo/eas-cli/pull/3609) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add existing capability identifiers. ([#3615](https://github.com/expo/eas-cli/pull/3615) by [@jakex7](https://github.com/jakex7))
 
 ### 🧹 Chores
 
