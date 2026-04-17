@@ -10,6 +10,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `metadata:push` not deleting video previews from App Store Connect when removed from config. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Warn and skip unknown preview types in `metadata:push` with a helpful suggestion when the `APP_` screenshot prefix is mistakenly used. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Delete all existing previews in a preview set before uploading to avoid Apple's "Too many app previews" error. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
 - [eas-cli] Fixes for `observe` commands, including an issue for apps with many update IDs. ([#3609](https://github.com/expo/eas-cli/pull/3609) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
