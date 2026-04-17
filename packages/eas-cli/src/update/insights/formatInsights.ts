@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import dateFormat from 'dateformat';
 
-import { UpdateInGroupWithInsights } from '../../graphql/queries/UpdateInsightsQuery';
+import { UpdateWithInsightsObject } from '../../graphql/queries/UpdateInsightsQuery';
 import formatFields from '../../utils/formatFields';
 
 export interface UpdateInsightsTimespan {
@@ -38,7 +38,7 @@ export interface UpdateInsightsSummary {
 
 export function toUpdateInsightsSummary(
   groupId: string,
-  updates: UpdateInGroupWithInsights[],
+  updates: UpdateWithInsightsObject[],
   timespan: UpdateInsightsTimespan
 ): UpdateInsightsSummary {
   const platforms = updates
@@ -54,7 +54,7 @@ export function toUpdateInsightsSummary(
   };
 }
 
-function toPlatformSummary(update: UpdateInGroupWithInsights): UpdateInsightsPlatformSummary {
+function toPlatformSummary(update: UpdateWithInsightsObject): UpdateInsightsPlatformSummary {
   const { insights } = update;
   const { totalInstalls, totalFailedInstalls } = insights.cumulativeMetrics.metricsAtLastTimestamp;
   const denom = totalInstalls + totalFailedInstalls;

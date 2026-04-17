@@ -1,4 +1,4 @@
-import { UpdateInGroupWithInsights } from '../../../graphql/queries/UpdateInsightsQuery';
+import { UpdateWithInsightsObject } from '../../../graphql/queries/UpdateInsightsQuery';
 import {
   buildUpdateInsightsJson,
   buildUpdateInsightsTable,
@@ -20,7 +20,7 @@ function makeUpdate(
     installsDifference?: number[];
     failedInstallsDifference?: number[];
   } = {}
-): UpdateInGroupWithInsights {
+): UpdateWithInsightsObject {
   const labels = overrides.labels ?? ['2026-04-09', '2026-04-10'];
   const installsDifference = overrides.installsDifference ?? [10, 20];
   const failedInstallsDifference = overrides.failedInstallsDifference ?? [1, 2];

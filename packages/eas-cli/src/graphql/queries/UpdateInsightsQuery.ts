@@ -4,13 +4,13 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withUpgradeRequiredErrorHandlingAsync } from '../client';
 import { ViewUpdateGroupInsightsQuery, ViewUpdateGroupInsightsQueryVariables } from '../generated';
 
-export type UpdateInGroupWithInsights = ViewUpdateGroupInsightsQuery['updatesByGroup'][number];
+export type UpdateWithInsightsObject = ViewUpdateGroupInsightsQuery['updatesByGroup'][number];
 
 export const UpdateInsightsQuery = {
   async viewUpdateGroupInsightsAsync(
     graphqlClient: ExpoGraphqlClient,
     { groupId, startTime, endTime }: { groupId: string; startTime: string; endTime: string }
-  ): Promise<UpdateInGroupWithInsights[]> {
+  ): Promise<UpdateWithInsightsObject[]> {
     const data = await withUpgradeRequiredErrorHandlingAsync(
       graphqlClient
         .query<ViewUpdateGroupInsightsQuery, ViewUpdateGroupInsightsQueryVariables>(
