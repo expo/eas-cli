@@ -62,6 +62,10 @@ export default class UpdateView extends EasCommand {
       flags: { json: jsonFlag, insights: insightsFlag, days, start, end },
     } = await this.parse(UpdateView);
 
+    if (!insightsFlag && (days !== undefined || start !== undefined || end !== undefined)) {
+      throw new Error('--days, --start, and --end can only be used with --insights.');
+    }
+
     const {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(UpdateView, { nonInteractive: true });

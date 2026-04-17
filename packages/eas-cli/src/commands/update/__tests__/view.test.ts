@@ -111,6 +111,16 @@ describe(UpdateView, () => {
     expect(mockViewUpdateGroupInsightsAsync).not.toHaveBeenCalled();
   });
 
+  it('rejects --days without --insights', async () => {
+    const command = createCommand(['group-1', '--days', '7']);
+    await expect(command.runAsync()).rejects.toThrow(/--insights/);
+  });
+
+  it('rejects --start without --insights', async () => {
+    const command = createCommand(['group-1', '--start', '2026-04-01']);
+    await expect(command.runAsync()).rejects.toThrow(/--insights/);
+  });
+
   it('fetches insights when --insights is set', async () => {
     const command = createCommand(['group-1', '--insights']);
     await command.runAsync();
