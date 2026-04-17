@@ -72,12 +72,6 @@ export function createEasExportBuildFunction(): BuildFunction {
       const apiOnly = inputs.api_only.value as boolean | undefined;
       const platform = inputs.platform.value as string;
 
-      if (!EXPO_EXPORT_PLATFORMS.has(platform)) {
-        throw new UserError(
-          'EXPO_EXPORT_INVALID_PLATFORM',
-          `Invalid export platform "${platform}". Expected one of: android, ios, web, all.`
-        );
-      }
 
       const packageManager = resolvePackageManager(stepsCtx.workingDirectory);
       const exportCommand = getExportCommand({
