@@ -1,7 +1,8 @@
+import { BuildWorkflow } from '@expo/steps';
+
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createTestIosJob } from '../../../__tests__/utils/job';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import { BuildWorkflow } from '@expo/steps';
 import { updateVersionsAsync } from '../../utils/ios/configure';
 import IosCredentialsManager, { type Credentials } from '../../utils/ios/credentials/manager';
 import { DistributionType } from '../../utils/ios/credentials/provisioningProfile';
