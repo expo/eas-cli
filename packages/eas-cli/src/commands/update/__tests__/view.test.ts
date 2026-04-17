@@ -2,6 +2,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { UpdateInsightsQuery } from '../../../graphql/queries/UpdateInsightsQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
+import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import UpdateView from '../view';
 
@@ -20,6 +21,7 @@ const mockViewUpdateGroupInsightsAsync = jest.mocked(
 );
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+const mockLogLog = jest.mocked(Log.log);
 
 const updateGroup = [
   {
@@ -136,6 +138,13 @@ describe(UpdateView, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     const arg = mockPrintJsonOnlyOutput.mock.calls[0][0];
     expect(Array.isArray(arg)).toBe(true);
+  });
+
+  it('renders an insights section in the table output when --insights is set without --json', async () => {
+    const command = createCommand(['group-1', '--insights']);
+    await command.runAsync();
+    const logged = mockLogLog.mock.calls.map(call => String(call[0] ?? '')).join('\n');
+    expect(logged).toMatch(/Update group insights/);
   });
 
   it('wraps output as { updates, insights } under --json --insights', async () => {
