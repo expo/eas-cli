@@ -168,7 +168,7 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
   } catch (error: unknown) {
     logger.warn(
       { err: error },
-      'Failed to parse deploy JSON. DEPLOY_URL, DEPLOY_DEPLOYMENT_URL, DEPLOY_IDENTIFIER, DEPLOY_DASHBOARD_URL, DEPLOY_ALIAS_URL will be unavailable on this build.'
+      'Failed to parse "eas deploy" JSON output. Some outputs expected from this step will be undefined.'
     );
     return null;
   }
