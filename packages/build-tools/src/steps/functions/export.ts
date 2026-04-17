@@ -9,9 +9,6 @@ import {
 import { resolvePackageManager } from '../../utils/packageManager';
 import { runExpoCliCommand } from '../../utils/project';
 
-/** Matches `npx expo export -p` / `--platform` (see `npx expo export --help`). */
-const EXPO_EXPORT_PLATFORMS = new Set(['android', 'ios', 'web', 'all']);
-
 export function createEasExportBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -31,19 +28,21 @@ export function createEasExportBuildFunction(): BuildFunction {
         required: false,
       }),
       BuildStepInput.createProvider({
-        id: 'no_minify',
+        id: 'minify',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+        defaultValue: true,
+      }),
+      BuildStepInput.createProvider({
+        id: 'dump_assetmap',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
       }),
       BuildStepInput.createProvider({
-        id: 'assetmap',
+        id: 'ssg',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
-      }),
-      BuildStepInput.createProvider({
-        id: 'no_ssg',
-        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
-        required: false,
+        defaultValue: true,
       }),
       BuildStepInput.createProvider({
         id: 'api_only',
@@ -66,20 +65,19 @@ export function createEasExportBuildFunction(): BuildFunction {
     fn: async (stepsCtx, { inputs, outputs, env }) => {
       const outputDir = inputs.output_dir.value as string;
       const dev = inputs.dev.value as boolean | undefined;
-      const noMinify = inputs.no_minify.value as boolean | undefined;
-      const assetmap = inputs.assetmap.value as boolean | undefined;
-      const noSsg = inputs.no_ssg.value as boolean | undefined;
+      const minify = inputs.minify.value as boolean | undefined;
+      const dump_assetmap = inputs.dump_assetmap.value as boolean | undefined;
+      const ssg = inputs.ssg.value as boolean | undefined;
       const apiOnly = inputs.api_only.value as boolean | undefined;
       const platform = inputs.platform.value as string;
-
 
       const packageManager = resolvePackageManager(stepsCtx.workingDirectory);
       const exportCommand = getExportCommand({
         outputDir,
         dev,
-        noMinify,
-        assetmap,
-        noSsg,
+        minify,
+        dump_assetmap,
+        ssg,
         apiOnly,
         platform,
       });
@@ -110,17 +108,17 @@ export function createEasExportBuildFunction(): BuildFunction {
 function getExportCommand({
   outputDir,
   dev,
-  noMinify,
-  assetmap,
-  noSsg,
+  minify,
+  dump_assetmap,
+  ssg,
   apiOnly,
   platform,
 }: {
   outputDir: string;
   dev?: boolean;
-  noMinify?: boolean;
-  assetmap?: boolean;
-  noSsg?: boolean;
+  minify?: boolean;
+  dump_assetmap?: boolean;
+  ssg?: boolean;
   apiOnly?: boolean;
   platform: string;
 }): string[] {
@@ -128,13 +126,13 @@ function getExportCommand({
   if (dev) {
     exportCommand.push('--dev');
   }
-  if (noMinify) {
+  if (!minify) {
     exportCommand.push('--no-minify');
   }
-  if (assetmap) {
+  if (dump_assetmap) {
     exportCommand.push('--dump-assetmap');
   }
-  if (noSsg) {
+  if (!ssg) {
     exportCommand.push('--no-ssg');
   }
   if (apiOnly) {

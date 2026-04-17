@@ -75,7 +75,6 @@ export function createEasDeployBuildFunction(): BuildFunction {
         exportDir,
         alias,
         prod,
-        environment: stepsCtx.global.staticContext.metadata?.environment,
         sourceMaps,
       });
       stepsCtx.logger.info(`Running deploy command: eas ${deployCommand.join(' ')}`);
@@ -97,13 +96,11 @@ export function createEasDeployBuildFunction(): BuildFunction {
           deployJson,
           logger: stepsCtx.logger,
         });
-        if (parsedDeploymentOutput) {
-          outputs.deploy_url.set(parsedDeploymentOutput.deploy_url);
-          outputs.deploy_deployment_url.set(parsedDeploymentOutput.deploy_deployment_url);
-          outputs.deploy_identifier.set(parsedDeploymentOutput.deploy_identifier);
-          outputs.deploy_dashboard_url.set(parsedDeploymentOutput.deploy_dashboard_url);
-          outputs.deploy_alias_url.set(parsedDeploymentOutput.deploy_alias_url);
-        }
+        outputs.deploy_url.set(parsedDeploymentOutput.deploy_url);
+        outputs.deploy_deployment_url.set(parsedDeploymentOutput.deploy_deployment_url);
+        outputs.deploy_identifier.set(parsedDeploymentOutput.deploy_identifier);
+        outputs.deploy_dashboard_url.set(parsedDeploymentOutput.deploy_dashboard_url);
+        outputs.deploy_alias_url.set(parsedDeploymentOutput.deploy_alias_url);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'unknown error';
         throw new UserError(
@@ -123,19 +120,14 @@ function getDeployCommand({
   exportDir,
   alias,
   prod,
-  environment,
   sourceMaps,
 }: {
   exportDir: string;
   alias?: string;
   prod?: boolean;
-  environment?: string;
   sourceMaps?: boolean;
 }): string[] {
   const deployCommand = ['deploy', '--non-interactive', '--json', '--export-dir', exportDir];
-  if (environment) {
-    deployCommand.push('--environment', environment);
-  }
   if (alias) {
     deployCommand.push('--alias', alias);
   }
@@ -154,7 +146,7 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
   deploy_identifier?: string;
   deploy_dashboard_url?: string;
   deploy_alias_url?: string;
-} | null {
+} {
   try {
     const deployObject = JSON.parse(deployJson);
     return {
@@ -170,6 +162,6 @@ function parseDeploymentOutput({ deployJson, logger }: { deployJson: string; log
       { err: error },
       'Failed to parse "eas deploy" JSON output. Some outputs expected from this step will be undefined.'
     );
-    return null;
+    return {};
   }
 }

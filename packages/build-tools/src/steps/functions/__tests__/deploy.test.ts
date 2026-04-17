@@ -37,11 +37,6 @@ describe(createEasDeployBuildFunction, () => {
     const globalCtx = createGlobalContextMock({
       logger,
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      staticContextContent: {
-        metadata: {
-          environment: 'production',
-        },
-      },
     });
 
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
@@ -55,7 +50,7 @@ describe(createEasDeployBuildFunction, () => {
     await buildStep.executeAsync();
 
     expect(buildStep.ctx.logger.info).toHaveBeenCalledWith(
-      'Running deploy command: eas deploy --non-interactive --json --export-dir dist --environment production --alias preview-link --prod'
+      'Running deploy command: eas deploy --non-interactive --json --export-dir dist --alias preview-link --prod'
     );
     expect(runEasCliCommand).toHaveBeenCalledWith({
       args: [
@@ -64,8 +59,6 @@ describe(createEasDeployBuildFunction, () => {
         '--json',
         '--export-dir',
         'dist',
-        '--environment',
-        'production',
         '--alias',
         'preview-link',
         '--prod',
@@ -84,7 +77,7 @@ describe(createEasDeployBuildFunction, () => {
     expect(buildStep.outputById.deploy_alias_url.value).toBe('https://example.alias');
   });
 
-  it('uses metadata environment when available', async () => {
+  it('forwards workflow step env to the eas deploy process', async () => {
     jest.mocked(runEasCliCommand).mockResolvedValue({
       stdout: Buffer.from(mockDeployStdout),
       stderr: Buffer.from(''),
@@ -99,23 +92,27 @@ describe(createEasDeployBuildFunction, () => {
     const globalCtx = createGlobalContextMock({
       logger,
       runtimePlatform: BuildRuntimePlatform.LINUX,
-      staticContextContent: {
-        metadata: {
-          environment: 'preview',
-        },
-      },
     });
 
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: {
-        source_maps: true,
-      },
+      callInputs: { source_maps: true },
+      env: { HOME: '/tmp/home', EXAMPLE_WORKFLOW_ENV: 'from-workflow' },
     });
     await buildStep.executeAsync();
 
     expect(runEasCliCommand).toHaveBeenCalledWith(
       expect.objectContaining({
-        args: expect.arrayContaining(['--environment', 'preview', '--source-maps']),
+        args: expect.arrayContaining(['--source-maps']),
+      })
+    );
+    expect(runEasCliCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          env: expect.objectContaining({
+            HOME: '/tmp/home',
+            EXAMPLE_WORKFLOW_ENV: 'from-workflow',
+          }),
+        }),
       })
     );
   });
@@ -223,7 +220,7 @@ describe(createEasDeployBuildFunction, () => {
     expect(buildStep.outputById.deploy_json.value).toBe('not-json');
     expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.anything() }),
-      expect.stringContaining('Failed to parse deploy JSON')
+      expect.stringContaining('Failed to parse')
     );
     expect(buildStep.outputById.deploy_url.value).toBeUndefined();
   });

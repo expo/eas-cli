@@ -61,9 +61,9 @@ describe(createEasExportBuildFunction, () => {
       callInputs: {
         output_dir: 'web-out',
         dev: true,
-        no_minify: true,
-        assetmap: true,
-        no_ssg: true,
+        minify: false,
+        dump_assetmap: true,
+        ssg: false,
         api_only: true,
         platform: 'web',
       },
@@ -118,20 +118,5 @@ describe(createEasExportBuildFunction, () => {
     const buildStep = createEasExportBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
 
     await expect(buildStep.executeAsync()).rejects.toThrow('Export command failed: export failed');
-  });
-
-  it('throws when platform is invalid', async () => {
-    const logger = createMockLogger();
-    const globalCtx = createGlobalContextMock({
-      logger,
-      runtimePlatform: BuildRuntimePlatform.LINUX,
-    });
-
-    const buildStep = createEasExportBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-      callInputs: { platform: 'watchos' },
-    });
-
-    await expect(buildStep.executeAsync()).rejects.toThrow('Invalid export platform');
-    expect(runExpoCliCommand).not.toHaveBeenCalled();
   });
 });
