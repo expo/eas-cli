@@ -63,7 +63,7 @@ export function configureIosVersionFunction(): BuildFunction {
         return;
       }
 
-      const targetNamesInput = inputs.target_names.value as unknown;
+      const targetNamesInput = inputs.target_names.value;
       let targetNames: string[];
       if (targetNamesInput !== undefined) {
         if (
@@ -74,12 +74,7 @@ export function configureIosVersionFunction(): BuildFunction {
         }
         targetNames = targetNamesInput;
       } else {
-        const rawCredentialsInput = inputs.credentials.value as Record<string, any> | undefined;
-        if (!rawCredentialsInput) {
-          throw new Error('Either "target_names" or "credentials" input must be provided.');
-        }
-
-        const { value, error } = IosBuildCredentialsSchema.validate(rawCredentialsInput, {
+        const { value, error } = IosBuildCredentialsSchema.validate(inputs.credentials.value, {
           stripUnknown: true,
           convert: true,
           abortEarly: false,

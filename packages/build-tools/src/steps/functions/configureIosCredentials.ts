@@ -38,8 +38,7 @@ export function configureIosCredentialsFunction(): BuildFunction {
       }),
     ],
     fn: async (stepCtx, { inputs, outputs }) => {
-      const rawCredentialsInput = inputs.credentials.value as Record<string, any>;
-      const { value, error } = IosBuildCredentialsSchema.validate(rawCredentialsInput, {
+      const { value, error } = IosBuildCredentialsSchema.validate(inputs.credentials.value, {
         stripUnknown: true,
         convert: true,
         abortEarly: false,

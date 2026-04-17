@@ -255,7 +255,6 @@ function createStepsForIosBuildWithCredentials({
       workingDirectory,
     }),
     configureIosVersionFunction().createBuildStepFromFunctionCall(globalCtx, {
-      id: 'configure_ios_version',
       workingDirectory,
       callInputs: {
         target_names: '${ steps.configure_ios_credentials.target_names }',
