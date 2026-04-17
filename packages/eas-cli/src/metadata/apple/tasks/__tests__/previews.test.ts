@@ -443,5 +443,54 @@ describe(PreviewsTask, () => {
         })
       );
     });
+
+    it('deletes remote previews when preview type is removed from config', async () => {
+      const config = new AppleConfigReader({
+        info: {
+          'en-US': {
+            title: 'My App',
+            // No previews configured — the IPHONE_67 preview should be deleted
+          },
+        },
+      });
+
+      const locale = new AppStoreVersionLocalization(requestContext, 'LOC_1', {
+        locale: 'en-US',
+      } as any);
+
+      const existingPreview = new AppPreview(requestContext, 'PV_1', {
+        fileName: 'demo.mp4',
+        fileSize: 10240,
+        previewFrameTimeCode: null,
+        assetDeliveryState: { state: 'COMPLETE', errors: [], warnings: [] },
+      } as any);
+
+      const deleteScope = nock('https://api.appstoreconnect.apple.com')
+        .delete(`/v1/${AppPreview.type}/PV_1`)
+        .reply(204);
+
+      const previewTypeMap = new Map<PreviewType, AppPreviewSet>();
+      previewTypeMap.set(
+        PreviewType.IPHONE_67,
+        new AppPreviewSet(requestContext, 'PSET_1', {
+          previewType: PreviewType.IPHONE_67,
+          appPreviews: [existingPreview],
+        } as any)
+      );
+
+      const previewSets = new Map();
+      previewSets.set('en-US', previewTypeMap);
+
+      await new PreviewsTask().uploadAsync({
+        config,
+        context: {
+          previewSets,
+          versionLocales: [locale],
+          projectDir: '/test/project',
+        } as any,
+      });
+
+      expect(deleteScope.isDone()).toBeTruthy();
+    });
   });
 });

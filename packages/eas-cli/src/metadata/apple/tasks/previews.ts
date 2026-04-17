@@ -136,9 +136,7 @@ export class PreviewsTask extends AppleTask {
 
     for (const localeCode of locales) {
       const previews = config.getPreviews(localeCode);
-      if (!previews || Object.keys(previews).length === 0) {
-        continue;
-      }
+      const existingSets = context.previewSets.get(localeCode);
 
       const localization = context.versionLocales.find(l => l.attributes.locale === localeCode);
       if (!localization) {
@@ -146,18 +144,39 @@ export class PreviewsTask extends AppleTask {
         continue;
       }
 
-      for (const [previewType, previewConfig] of Object.entries(previews)) {
-        if (!previewConfig) {
-          continue;
-        }
+      // Upload/sync configured previews
+      if (previews) {
+        for (const [previewType, previewConfig] of Object.entries(previews)) {
+          if (!previewConfig) {
+            continue;
+          }
 
-        await syncPreviewSetAsync(
-          context.projectDir,
-          localization,
-          previewType as PreviewType,
-          normalizePreviewConfig(previewConfig),
-          context.previewSets.get(localeCode)
-        );
+          await syncPreviewSetAsync(
+            context.projectDir,
+            localization,
+            previewType as PreviewType,
+            normalizePreviewConfig(previewConfig),
+            existingSets
+          );
+        }
+      }
+
+      // Delete remote previews that are no longer in config
+      if (existingSets) {
+        for (const [previewType, previewSet] of existingSets) {
+          if (previews?.[previewType]) {
+            continue;
+          }
+
+          const existingPreviews = previewSet.attributes.appPreviews || [];
+          for (const preview of existingPreviews) {
+            await logAsync(() => preview.deleteAsync(), {
+              pending: `Deleting video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})...`,
+              success: `Deleted video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})`,
+              failure: `Failed deleting video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})`,
+            });
+          }
+        }
       }
     }
   }
