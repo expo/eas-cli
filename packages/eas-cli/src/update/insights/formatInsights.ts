@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import dateFormat from 'dateformat';
 
 import { UpdateWithInsightsObject } from '../../graphql/queries/UpdateInsightsQuery';
+import { formatTimespan, toDateOnly } from '../../insights/formatTimespan';
 import formatFields from '../../utils/formatFields';
 import renderTextTable from '../../utils/renderTextTable';
 
@@ -119,6 +119,8 @@ export function buildUpdateInsightsTable(summary: UpdateInsightsSummary): string
     ])
   );
 
+  const dailyHeader = summary.daysBack ? ` (last ${summary.daysBack} days)` : '';
+
   for (const platform of summary.platforms) {
     sections.push('');
     sections.push(chalk.bold(`${chalk.cyan(platform.platform)}:`));
@@ -135,24 +137,13 @@ export function buildUpdateInsightsTable(summary: UpdateInsightsSummary): string
     );
     if (platform.daily.length > 0) {
       sections.push('');
-      sections.push(chalk.bold(`  Daily breakdown${formatDailyHeader(summary)}:`));
+      sections.push(chalk.bold(`  Daily breakdown${dailyHeader}:`));
       sections.push('');
       sections.push(indent(renderDailyTable(platform.daily), 2));
     }
   }
 
   return sections.join('\n');
-}
-
-function formatTimespan(summary: UpdateInsightsSummary): string {
-  if (summary.daysBack) {
-    return `last ${summary.daysBack} day${summary.daysBack === 1 ? '' : 's'}`;
-  }
-  return `${toDateOnly(summary.startTime)} to ${toDateOnly(summary.endTime)}`;
-}
-
-function formatDailyHeader(summary: UpdateInsightsSummary): string {
-  return summary.daysBack ? ` (last ${summary.daysBack} days)` : '';
 }
 
 export function formatPercent(value: number): string {
@@ -167,10 +158,6 @@ export function formatBytes(bytes: number): string {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-}
-
-function toDateOnly(isoTimestamp: string): string {
-  return dateFormat(new Date(isoTimestamp), 'UTC:yyyy-mm-dd');
 }
 
 function renderDailyTable(rows: UpdateInsightsDailyEntry[]): string {
