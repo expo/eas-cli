@@ -1,9 +1,11 @@
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createTestIosJob } from '../../../__tests__/utils/job';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { BuildWorkflow } from '@expo/steps';
 import { updateVersionsAsync } from '../../utils/ios/configure';
 import IosCredentialsManager, { type Credentials } from '../../utils/ios/credentials/manager';
 import { DistributionType } from '../../utils/ios/credentials/provisioningProfile';
+import { configureIosCredentialsFunction } from '../configureIosCredentials';
 import { configureIosVersionFunction } from '../configureIosVersion';
 
 jest.mock('../../utils/ios/configure');
@@ -176,6 +178,53 @@ describe(configureIosVersionFunction, () => {
       },
       {
         targetNames: ['input-target'],
+        buildConfiguration: 'Release',
+      }
+    );
+  });
+
+  it('parses target_names exported by configure_ios_credentials through workflow interpolation', async () => {
+    const prepareSpy = jest
+      .spyOn(IosCredentialsManager.prototype, 'prepare')
+      .mockResolvedValue(createCredentials({ targetNames: ['app', 'widget'] }));
+    const globalCtx = createGlobalContextMock({
+      logger: createMockLogger(),
+      staticContextContent: {
+        job: createTestIosJob({ buildCredentials: createRawCredentials() }),
+      },
+    });
+    const configureIosCredentialsStep =
+      configureIosCredentialsFunction().createBuildStepFromFunctionCall(globalCtx, {
+        id: 'configure_ios_credentials',
+      });
+    const configureIosVersionStep = configureIosVersionFunction().createBuildStepFromFunctionCall(
+      globalCtx,
+      {
+        callInputs: {
+          target_names: '${ steps.configure_ios_credentials.target_names }',
+          app_version: '1.2.3',
+        },
+      }
+    );
+
+    await new BuildWorkflow(globalCtx, {
+      buildSteps: [configureIosCredentialsStep, configureIosVersionStep],
+      buildFunctions: {},
+    }).executeAsync();
+
+    expect(prepareSpy).toHaveBeenCalledTimes(1);
+    expect(configureIosCredentialsStep.outputById.target_names.value).toBe(
+      JSON.stringify(['app', 'widget'])
+    );
+    expect(updateVersionsAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      configureIosVersionStep.ctx.workingDirectory,
+      {
+        buildNumber: undefined,
+        appVersion: '1.2.3',
+      },
+      {
+        targetNames: ['app', 'widget'],
         buildConfiguration: 'Release',
       }
     );
