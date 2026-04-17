@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas update:insights <groupId>` command to display launch, crash, unique-user, and payload-size metrics for an update group. ([@kadikraman](https://github.com/kadikraman))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Fixes for `observe` commands, including an issue for apps with many update IDs. ([#3609](https://github.com/expo/eas-cli/pull/3609) by [@douglowder](https://github.com/douglowder))

@@ -646,6 +646,8 @@ export type AccountMutation = {
   cancelAllSubscriptionsImmediately: Account;
   /** Cancel scheduled subscription change */
   cancelScheduledSubscriptionChange: Account;
+  /** Buys or revokes account's additional agent credits, charging the account the appropriate amount if needed. */
+  changeAdditionalAgentCreditsCount: Account;
   /** Buys or revokes account's additional concurrencies, charging the account the appropriate amount if needed. */
   changeAdditionalConcurrenciesCount: Account;
   /** Upgrades or downgrades the active subscription to the newPlanIdentifier, which must be one of the EAS plans (i.e., Production or Enterprise). */
@@ -683,6 +685,12 @@ export type AccountMutationCancelAllSubscriptionsImmediatelyArgs = {
 
 export type AccountMutationCancelScheduledSubscriptionChangeArgs = {
   accountID: Scalars['ID']['input'];
+};
+
+
+export type AccountMutationChangeAdditionalAgentCreditsCountArgs = {
+  accountID: Scalars['ID']['input'];
+  newAdditionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -4184,6 +4192,14 @@ export type CreateEchoMessagePartInput = {
   type: EchoMessagePartType;
 };
 
+export type CreateEchoProjectIconInput = {
+  accentColor?: InputMaybe<Scalars['String']['input']>;
+  model?: InputMaybe<Scalars['String']['input']>;
+  prompt?: InputMaybe<Scalars['String']['input']>;
+  source: EchoProjectIconSource;
+  url: Scalars['String']['input'];
+};
+
 export type CreateEchoProjectInput = {
   accountId: Scalars['ID']['input'];
   currentPreviewEchoVersionId?: InputMaybe<Scalars['ID']['input']>;
@@ -5074,6 +5090,7 @@ export type EchoProject = {
   description?: Maybe<Scalars['String']['output']>;
   displayName?: Maybe<Scalars['String']['output']>;
   echoChats: EchoChatConnection;
+  echoProjectIcon?: Maybe<EchoProjectIconGalleryItem>;
   echoVersions: EchoVersionConnection;
   /** Environment variables for this Echo project */
   environmentVariables: Array<EnvironmentVariable>;
@@ -5084,6 +5101,7 @@ export type EchoProject = {
   environmentVariablesIncludingSensitive: Array<EnvironmentVariableWithSecret>;
   githubInfo?: Maybe<EchoProjectGithubInfo>;
   icon?: Maybe<EchoProjectIcon>;
+  iconGallery: Array<EchoProjectIconGalleryItem>;
   id: Scalars['ID']['output'];
   images: Array<EchoProjectImage>;
   initFromEchoProject?: Maybe<EchoProject>;
@@ -5156,10 +5174,26 @@ export type EchoProjectIcon = {
   url: Scalars['String']['output'];
 };
 
+export type EchoProjectIconGalleryItem = {
+  __typename?: 'EchoProjectIconGalleryItem';
+  accentColor?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  model?: Maybe<Scalars['String']['output']>;
+  prompt?: Maybe<Scalars['String']['output']>;
+  source: EchoProjectIconSource;
+  url: Scalars['String']['output'];
+};
+
 export type EchoProjectIconInput = {
   accentColor?: InputMaybe<Scalars['String']['input']>;
   url: Scalars['String']['input'];
 };
+
+export enum EchoProjectIconSource {
+  AiGenerated = 'AI_GENERATED',
+  UserUploaded = 'USER_UPLOADED'
+}
 
 export type EchoProjectImage = {
   __typename?: 'EchoProjectImage';
@@ -5172,8 +5206,17 @@ export type EchoProjectMutation = {
   __typename?: 'EchoProjectMutation';
   /** Create a new Echo project */
   createEchoProject: EchoProject;
+  /**
+   * Add one or more icons to the project's icon gallery.
+   * Used for both AI-generated batches and user uploads.
+   */
+  createEchoProjectIcons: Array<EchoProjectIconGalleryItem>;
   /** Delete an Echo project by ID */
   deleteEchoProject: EchoProject;
+  /** Delete an icon from the gallery. If it is the active icon, clears the project's icon. */
+  deleteEchoProjectIcon: EchoProjectIconGalleryItem;
+  /** Select an icon from the gallery as the project's active icon. */
+  selectEchoProjectIcon: EchoProject;
   /** Update an Echo project */
   updateEchoProject: EchoProject;
 };
@@ -5184,8 +5227,26 @@ export type EchoProjectMutationCreateEchoProjectArgs = {
 };
 
 
+export type EchoProjectMutationCreateEchoProjectIconsArgs = {
+  echoProjectId: Scalars['ID']['input'];
+  icons: Array<CreateEchoProjectIconInput>;
+};
+
+
 export type EchoProjectMutationDeleteEchoProjectArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type EchoProjectMutationDeleteEchoProjectIconArgs = {
+  echoProjectIconId: Scalars['ID']['input'];
+  echoProjectId: Scalars['ID']['input'];
+};
+
+
+export type EchoProjectMutationSelectEchoProjectIconArgs = {
+  echoProjectIconId: Scalars['ID']['input'];
+  echoProjectId: Scalars['ID']['input'];
 };
 
 
@@ -5284,6 +5345,7 @@ export type EchoRepositoryResult = {
   name: Scalars['String']['output'];
   nodeIdentifier: Scalars['String']['output'];
   owner: Scalars['String']['output'];
+  status: Scalars['String']['output'];
   url: Scalars['String']['output'];
 };
 
@@ -6354,6 +6416,8 @@ export type InvoicePeriod = {
 
 export type InvoiceQuery = {
   __typename?: 'InvoiceQuery';
+  /** Previews the invoice for the specified number of additional agent credit units. */
+  previewInvoiceForAdditionalAgentCreditsCountUpdate?: Maybe<Invoice>;
   /**
    * Previews the invoice for the specified number of additional concurrencies.
    * This is the total number of concurrencies the customer wishes to purchase
@@ -6364,6 +6428,12 @@ export type InvoiceQuery = {
   previewInvoiceForAdditionalConcurrenciesCountUpdate?: Maybe<Invoice>;
   /** Preview an upgrade subscription invoice, with proration */
   previewInvoiceForSubscriptionUpdate: Invoice;
+};
+
+
+export type InvoiceQueryPreviewInvoiceForAdditionalAgentCreditsCountUpdateArgs = {
+  accountID: Scalars['ID']['input'];
+  additionalAgentCreditsCount: Scalars['Int']['input'];
 };
 
 
@@ -7099,11 +7169,13 @@ export type OAuthIdentity = {
   __typename?: 'OAuthIdentity';
   email: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  login?: Maybe<Scalars['String']['output']>;
   provider: OAuthProvider;
 };
 
 export enum OAuthProvider {
   Apple = 'apple',
+  Github = 'github',
   Google = 'google'
 }
 
@@ -7953,6 +8025,7 @@ export type SsoUser = Actor & UserActor & {
   /** Associated accounts */
   primaryAccount: Account;
   primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
   snacks: Array<Snack>;
@@ -9202,6 +9275,7 @@ export type User = Actor & UserActor & {
   /** Associated accounts */
   primaryAccount: Account;
   primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Get all certified second factor authentication methods */
   secondFactorDevices: Array<UserSecondFactorDevice>;
@@ -9305,6 +9379,7 @@ export type UserActor = {
   /** Associated accounts */
   primaryAccount: Account;
   primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
@@ -12159,6 +12234,14 @@ export type GetAllSubmissionsForAppQueryVariables = Exact<{
 
 
 export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
+
+export type ViewUpdateGroupInsightsQueryVariables = Exact<{
+  groupId: Scalars['ID']['input'];
+  timespan: InsightsTimespan;
+}>;
+
+
+export type ViewUpdateGroupInsightsQuery = { __typename?: 'RootQuery', updatesByGroup: Array<{ __typename?: 'Update', id: string, platform: string, insights: { __typename?: 'UpdateInsights', id: string, totalUniqueUsers: number, cumulativeAverageMetrics: { __typename?: 'CumulativeAverageMetrics', launchAssetCount: number, averageUpdatePayloadBytes: number }, cumulativeMetrics: { __typename?: 'CumulativeMetrics', metricsAtLastTimestamp: { __typename?: 'CumulativeMetricsTotals', totalInstalls: number, totalFailedInstalls: number }, data: { __typename?: 'UpdatesMetricsData', labels: Array<string>, installsDataset: { __typename?: 'CumulativeUpdatesDataset', id: string, label: string, cumulative: Array<number>, difference: Array<number> }, failedInstallsDataset: { __typename?: 'CumulativeUpdatesDataset', id: string, label: string, cumulative: Array<number>, difference: Array<number> } } } } }> };
 
 export type ViewUpdatesByGroupQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
