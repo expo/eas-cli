@@ -66,7 +66,7 @@ export function createEasExportBuildFunction(): BuildFunction {
       const outputDir = inputs.output_dir.value as string;
       const dev = inputs.dev.value as boolean | undefined;
       const minify = inputs.minify.value as boolean | undefined;
-      const dump_assetmap = inputs.dump_assetmap.value as boolean | undefined;
+      const dumpAssetmap = inputs.dump_assetmap.value as boolean | undefined;
       const ssg = inputs.ssg.value as boolean | undefined;
       const apiOnly = inputs.api_only.value as boolean | undefined;
       const platform = inputs.platform.value as string;
@@ -76,7 +76,7 @@ export function createEasExportBuildFunction(): BuildFunction {
         outputDir,
         dev,
         minify,
-        dump_assetmap,
+        dumpAssetmap,
         ssg,
         apiOnly,
         platform,
@@ -109,7 +109,7 @@ function getExportCommand({
   outputDir,
   dev,
   minify,
-  dump_assetmap,
+  dumpAssetmap,
   ssg,
   apiOnly,
   platform,
@@ -117,7 +117,7 @@ function getExportCommand({
   outputDir: string;
   dev?: boolean;
   minify?: boolean;
-  dump_assetmap?: boolean;
+  dumpAssetmap?: boolean;
   ssg?: boolean;
   apiOnly?: boolean;
   platform: string;
@@ -129,7 +129,7 @@ function getExportCommand({
   if (!minify) {
     exportCommand.push('--no-minify');
   }
-  if (dump_assetmap) {
+  if (dumpAssetmap) {
     exportCommand.push('--dump-assetmap');
   }
   if (!ssg) {

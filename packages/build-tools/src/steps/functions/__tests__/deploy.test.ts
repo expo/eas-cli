@@ -256,4 +256,35 @@ describe(createEasDeployBuildFunction, () => {
     expect(buildStep.outputById.deploy_identifier.value).toBeUndefined();
     expect(buildStep.outputById.deploy_alias_url.value).toBeUndefined();
   });
+
+  it('sets deploy_url from aliases[0].url when production is absent but aliases exist', async () => {
+    const stdout = JSON.stringify({
+      url: 'https://example.deployment',
+      aliases: [{ url: 'https://example.alias-first' }],
+      identifier: 'partial-alias',
+    });
+    jest.mocked(runEasCliCommand).mockResolvedValue({
+      stdout: Buffer.from(stdout),
+      stderr: Buffer.from(''),
+      pid: 1,
+      output: [],
+      status: 0,
+      signal: null,
+      error: null,
+    } as any);
+
+    const logger = createMockLogger();
+    const globalCtx = createGlobalContextMock({
+      logger,
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+    });
+
+    const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
+    await buildStep.executeAsync();
+
+    expect(buildStep.outputById.deploy_url.value).toBe('https://example.alias-first');
+    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.deployment');
+    expect(buildStep.outputById.deploy_alias_url.value).toBe('https://example.alias-first');
+    expect(buildStep.outputById.deploy_identifier.value).toBe('partial-alias');
+  });
 });
