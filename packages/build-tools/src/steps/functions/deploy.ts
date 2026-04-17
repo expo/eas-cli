@@ -111,7 +111,8 @@ export function createEasDeployBuildFunction(): BuildFunction {
           'Deploy command failed.\n\n' +
             `This can happen when deploy inputs are invalid, the export directory "${exportDir}" is missing, or EAS CLI authentication/network checks fail.\n` +
             'Check the deploy step logs, verify your deploy configuration and exported files, then retry.\n' +
-            `Original error: ${errorMessage}`
+            `Original error: ${errorMessage}`,
+          { cause: error }
         );
       }
     },
