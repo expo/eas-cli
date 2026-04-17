@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { EasCommandError } from '../commandUtils/errors';
 import { AppPlatform } from '../graphql/generated';
 import { appPlatformDisplayNames } from '../platform';
+import renderTextTable from '../utils/renderTextTable';
 import { getMetricDisplayName } from './metricNames';
 
 export type StatisticKey =
@@ -175,22 +176,6 @@ function buildTimeRangeDescription(daysBack?: number): string {
   return '';
 }
 
-function renderTable(headers: string[], rows: string[][], footerRow?: string[]): string {
-  const allRows = footerRow ? [...rows, footerRow] : rows;
-  const colWidths = headers.map((h, i) =>
-    Math.max(h.length, ...allRows.map(r => (r[i] ?? '').length))
-  );
-  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
-  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
-  const lines = [chalk.bold(headerLine), separatorLine, ...dataLines];
-  if (footerRow) {
-    lines.push(separatorLine);
-    lines.push(footerRow.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
-  }
-  return lines.join('\n');
-}
-
 export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
@@ -290,7 +275,7 @@ export function buildObserveMetricsTable(
       }
     }
 
-    sections.push(renderTable(headers, rows, footerRow));
+    sections.push(renderTextTable(headers, rows, footerRow));
   }
 
   return sections.join('\n');

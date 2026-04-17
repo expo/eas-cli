@@ -3,6 +3,7 @@ import dateFormat from 'dateformat';
 
 import { UpdateWithInsightsObject } from '../../graphql/queries/UpdateInsightsQuery';
 import formatFields from '../../utils/formatFields';
+import renderTextTable from '../../utils/renderTextTable';
 
 export interface UpdateInsightsTimespan {
   startTime: string;
@@ -173,17 +174,14 @@ function toDateOnly(isoTimestamp: string): string {
 }
 
 function renderDailyTable(rows: UpdateInsightsDailyEntry[]): string {
-  const headers = ['Date', 'Launches', 'Crashes'];
-  const dataRows = rows.map(r => [
-    toDateOnly(r.date),
-    r.installs.toLocaleString(),
-    r.failedInstalls.toLocaleString(),
-  ]);
-  const widths = headers.map((h, i) => Math.max(h.length, ...dataRows.map(r => r[i].length)));
-  const headerLine = headers.map((h, i) => h.padEnd(widths[i])).join('  ');
-  const sep = widths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = dataRows.map(row => row.map((c, i) => c.padEnd(widths[i])).join('  '));
-  return [chalk.bold(headerLine), sep, ...dataLines].join('\n');
+  return renderTextTable(
+    ['Date', 'Launches', 'Crashes'],
+    rows.map(r => [
+      toDateOnly(r.date),
+      r.installs.toLocaleString(),
+      r.failedInstalls.toLocaleString(),
+    ])
+  );
 }
 
 function indent(text: string, spaces: number): string {
