@@ -194,51 +194,55 @@ async function installBun({
     ctx.logger.info(`Installing bun@${versionToInstall}`);
 
     const bunInstallScriptPath = path.join(os.tmpdir(), `install-bun-${uuidv4()}.sh`);
-    await runWithProxyFallbackAsync({
-      primaryOperation: proxyUrl
-        ? () =>
-            spawn(
-              'curl',
-              [
-                '-fsSL',
-                rewriteUrlThroughProxy('https://bun.sh/install', proxyUrl),
-                '-o',
-                bunInstallScriptPath,
-              ],
-              {
-                logger: ctx.logger,
-                env: ctx.env,
-              }
-            )
-        : null,
-      fallbackOperation: () =>
-        spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
-          logger: ctx.logger,
-          env: ctx.env,
-        }),
-      logger: ctx.logger,
-      warningMessage: 'Failed to download Bun install script through proxy, retrying directly.',
-    });
+    const proxiedBunInstallScriptUrl = proxyUrl
+      ? rewriteUrlThroughProxy('https://bun.sh/install', proxyUrl)
+      : null;
 
-    await runWithProxyFallbackAsync({
-      primaryOperation: proxyUrl
-        ? () =>
-            spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
-              logger: ctx.logger,
-              env: {
-                ...ctx.env,
-                GITHUB: rewriteUrlThroughProxy('https://github.com', proxyUrl),
-              },
-            })
-        : null,
-      fallbackOperation: () =>
-        spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+    if (proxiedBunInstallScriptUrl) {
+      try {
+        await spawn('curl', ['-fsSL', proxiedBunInstallScriptUrl, '-o', bunInstallScriptPath], {
           logger: ctx.logger,
           env: ctx.env,
-        }),
-      logger: ctx.logger,
-      warningMessage: 'Failed to install Bun through proxy, retrying directly.',
-    });
+        });
+      } catch (err: any) {
+        ctx.logger.warn(
+          { err },
+          'Failed to download Bun install script through proxy, retrying directly.'
+        );
+        await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+          logger: ctx.logger,
+          env: ctx.env,
+        });
+      }
+    } else {
+      await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    }
+
+    if (proxyUrl) {
+      try {
+        await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+          logger: ctx.logger,
+          env: {
+            ...ctx.env,
+            GITHUB: rewriteUrlThroughProxy('https://github.com', proxyUrl),
+          },
+        });
+      } catch (err: any) {
+        ctx.logger.warn({ err }, 'Failed to install Bun through proxy, retrying directly.');
+        await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+          logger: ctx.logger,
+          env: ctx.env,
+        });
+      }
+    } else {
+      await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    }
 
     await spawn('rm', [bunInstallScriptPath], {
       logger: ctx.logger,
@@ -269,30 +273,6 @@ async function installBun({
 function rewriteUrlThroughProxy(url: string, proxy: string): string {
   const parsedUrl = new URL(url);
   return url.replace(`${parsedUrl.protocol}//${parsedUrl.host}`, `${proxy}/${parsedUrl.host}`);
-}
-
-async function runWithProxyFallbackAsync({
-  primaryOperation,
-  fallbackOperation,
-  logger,
-  warningMessage,
-}: {
-  primaryOperation: (() => Promise<unknown>) | null;
-  fallbackOperation: () => Promise<unknown>;
-  logger: PreDownloadBuildContext['logger'];
-  warningMessage: string;
-}): Promise<void> {
-  if (!primaryOperation) {
-    await fallbackOperation();
-    return;
-  }
-
-  try {
-    await primaryOperation();
-  } catch (err: any) {
-    logger.warn({ err }, warningMessage);
-    await fallbackOperation();
-  }
 }
 
 async function installPnpm({
