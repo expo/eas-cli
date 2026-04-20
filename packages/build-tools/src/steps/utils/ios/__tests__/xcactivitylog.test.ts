@@ -239,7 +239,7 @@ describe('parseAndReportXcactivitylog', () => {
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
-      cocoapodsCacheUrl: 'https://cache.example.com',
+      proxyBaseUrl: 'https://cache.example.com',
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
@@ -275,7 +275,7 @@ describe('parseAndReportXcactivitylog', () => {
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
-      cocoapodsCacheUrl: 'https://cache.example.com',
+      proxyBaseUrl: 'https://cache.example.com',
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(

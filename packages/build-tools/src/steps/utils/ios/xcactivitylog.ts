@@ -24,13 +24,13 @@ export async function parseAndReportXcactivitylog({
   workspacePath,
   xclogparserVersion = DEFAULT_XCLOGPARSER_VERSION,
   logger,
-  cocoapodsCacheUrl,
+  proxyBaseUrl,
 }: {
   derivedDataPath: string;
   workspacePath: string;
   xclogparserVersion?: string;
   logger: bunyan;
-  cocoapodsCacheUrl?: string;
+  proxyBaseUrl?: string;
 }): Promise<void> {
   let tempDir: string | undefined;
   try {
@@ -39,7 +39,7 @@ export async function parseAndReportXcactivitylog({
       tempDir,
       xclogparserVersion,
       logger,
-      cocoapodsCacheUrl
+      proxyBaseUrl
     );
     const jsonOutputPath = await runXclogparser({
       binaryPath: xclogparserPath,
@@ -64,15 +64,12 @@ async function downloadXclogparser(
   tempDir: string,
   version: string,
   logger: bunyan,
-  cocoapodsCacheUrl: string | undefined
+  proxyBaseUrl?: string
 ): Promise<string> {
   const zipName = getXclogparserZipName(version);
   const zipPath = path.join(tempDir, zipName);
   const directUrl = `${XCLOGPARSER_DOWNLOAD_URL}/${zipName}`;
-  const proxiedUrl = getProxiedDownloadUrl({
-    directUrl,
-    proxyBaseUrl: cocoapodsCacheUrl,
-  });
+  const proxiedUrl = getProxiedDownloadUrl({ directUrl, proxyBaseUrl });
 
   if (proxiedUrl) {
     const proxiedDownloadResult = await asyncResult(
@@ -210,7 +207,7 @@ function getProxiedDownloadUrl({
   proxyBaseUrl,
 }: {
   directUrl: string;
-  proxyBaseUrl: string | undefined;
+  proxyBaseUrl?: string;
 }): string | null {
   if (!proxyBaseUrl) {
     return null;

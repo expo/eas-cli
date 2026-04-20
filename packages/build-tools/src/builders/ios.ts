@@ -183,7 +183,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
         derivedDataPath,
         workspacePath,
         logger: ctx.logger,
-        cocoapodsCacheUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+        proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
       });
     });
   }

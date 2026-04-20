@@ -10,7 +10,7 @@ describe(parseXcactivitylogFunction, () => {
     jest.resetAllMocks();
   });
 
-  it('passes cocoapodsCacheUrl from env into parseAndReportXcactivitylog', async () => {
+  it('passes proxyBaseUrl from env into parseAndReportXcactivitylog', async () => {
     const globalContext = createGlobalContextMock({ logger: createMockLogger() });
     globalContext.updateEnv({ EAS_BUILD_COCOAPODS_CACHE_URL: 'https://cache.example.com' });
 
@@ -20,7 +20,7 @@ describe(parseXcactivitylogFunction, () => {
 
     expect(parseAndReportXcactivitylog).toHaveBeenCalledWith(
       expect.objectContaining({
-        cocoapodsCacheUrl: 'https://cache.example.com',
+        proxyBaseUrl: 'https://cache.example.com',
       })
     );
   });

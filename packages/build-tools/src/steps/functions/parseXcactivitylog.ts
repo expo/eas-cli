@@ -44,7 +44,7 @@ export function parseXcactivitylogFunction(): BuildFunction {
         workspacePath: path.resolve(stepCtx.workingDirectory, workspacePath),
         xclogparserVersion: version,
         logger: stepCtx.logger,
-        cocoapodsCacheUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
+        proxyBaseUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
       });
     },
   });
