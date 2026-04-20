@@ -1,8 +1,7 @@
+import { Ios } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import path from 'path';
-
-import { Ios } from '@expo/eas-build-job';
 
 import { createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -21,6 +20,8 @@ jest.mock('../tvos', () => ({
 }));
 
 const WORKING_DIR = '/workingdir';
+// BuildContext.getReactNativeProjectDirectory() nests the RN project under `${workingdir}/build`.
+const IOS_DIR = path.join(WORKING_DIR, 'build', 'ios');
 
 function makeIosBuildContext({ simulator }: { simulator: boolean }): BuildContext<Ios.Job> {
   const job: Ios.Job = { ...createTestIosJob(), simulator };
@@ -33,9 +34,6 @@ function makeIosBuildContext({ simulator }: { simulator: boolean }): BuildContex
   });
 }
 
-// Minimal Credentials fixture for the archive branch — structure borrowed from
-// packages/build-tools/src/ios/__tests__/gymfile.test.ts:22-51 so the Gymfile
-// template interpolates without runtime errors.
 const ARCHIVE_CREDENTIALS: Credentials = {
   keychainPath: '/Users/expo/Library/Keychains/login.keychain',
   distributionType: DistributionType.APP_STORE,
@@ -56,8 +54,6 @@ const ARCHIVE_CREDENTIALS: Credentials = {
   },
 };
 
-// Helper: given a Gymfile string, extract the argument of `derived_data_path("...")`
-// and resolve it relative to the cwd Fastlane will run from (workspacePath).
 function readDerivedDataPathFromGymfile(gymfileContent: string, workspacePath: string): string {
   const match = gymfileContent.match(/derived_data_path\("([^"]+)"\)/);
   if (!match) {
@@ -68,13 +64,6 @@ function readDerivedDataPathFromGymfile(gymfileContent: string, workspacePath: s
   return path.resolve(workspacePath, match[1]);
 }
 
-// BuildContext.getReactNativeProjectDirectory() resolves to `${workingdir}/build/${projectRootDirectory}`
-// (see packages/build-tools/src/context.ts:310,319). createTestIosJob sets
-// projectRootDirectory: '.', so the project dir is `${WORKING_DIR}/build`, and the ios dir
-// lives under `${WORKING_DIR}/build/ios`.
-const PROJECT_DIR = path.join(WORKING_DIR, 'build');
-const IOS_DIR = path.join(PROJECT_DIR, 'ios');
-
 describe(runFastlaneGym, () => {
   beforeEach(() => {
     vol.reset();
@@ -82,46 +71,40 @@ describe(runFastlaneGym, () => {
     (spawn as jest.Mock).mockClear();
   });
 
-  it('returns paths that match the generated archive Gymfile template', async () => {
-    const ctx = makeIosBuildContext({ simulator: false });
-
-    const result = await runFastlaneGym(ctx, {
-      scheme: 'App',
-      buildConfiguration: 'Release',
+  describe.each([
+    {
+      name: 'archive',
+      simulator: false,
       credentials: ARCHIVE_CREDENTIALS,
-      entitlements: null,
-    });
-
-    expect(result).toEqual({
-      derivedDataPath: path.join(IOS_DIR, 'build'),
-      workspacePath: IOS_DIR,
-    });
-
-    const gymfileContent = vol.readFileSync(path.join(IOS_DIR, 'Gymfile'), 'utf8') as string;
-    expect(readDerivedDataPathFromGymfile(gymfileContent, result.workspacePath)).toBe(
-      result.derivedDataPath
-    );
-  });
-
-  it('returns paths that match the generated simulator Gymfile template', async () => {
-    const ctx = makeIosBuildContext({ simulator: true });
-
-    const result = await runFastlaneGym(ctx, {
-      scheme: 'App',
-      buildConfiguration: 'Debug',
+      buildConfiguration: 'Release',
+    },
+    {
+      name: 'simulator',
+      simulator: true,
       credentials: null,
-      entitlements: null,
-    });
+      buildConfiguration: 'Debug',
+    },
+  ])('$name build', ({ simulator, credentials, buildConfiguration }) => {
+    it('returns paths that match the generated Gymfile template', async () => {
+      const ctx = makeIosBuildContext({ simulator });
 
-    expect(result).toEqual({
-      derivedDataPath: path.join(IOS_DIR, 'build'),
-      workspacePath: IOS_DIR,
-    });
+      const result = await runFastlaneGym(ctx, {
+        scheme: 'App',
+        buildConfiguration,
+        credentials,
+        entitlements: null,
+      });
 
-    const gymfileContent = vol.readFileSync(path.join(IOS_DIR, 'Gymfile'), 'utf8') as string;
-    expect(readDerivedDataPathFromGymfile(gymfileContent, result.workspacePath)).toBe(
-      result.derivedDataPath
-    );
+      expect(result).toEqual({
+        derivedDataPath: path.join(IOS_DIR, 'build'),
+        workspacePath: IOS_DIR,
+      });
+
+      const gymfileContent = vol.readFileSync(path.join(IOS_DIR, 'Gymfile'), 'utf8') as string;
+      expect(readDerivedDataPathFromGymfile(gymfileContent, result.workspacePath)).toBe(
+        result.derivedDataPath
+      );
+    });
   });
 
   it('still returns EAS-convention paths when a pre-existing ios/Gymfile is present', async () => {
@@ -137,7 +120,9 @@ describe(runFastlaneGym, () => {
       entitlements: null,
     });
 
-    expect(result.derivedDataPath).toBe(path.join(IOS_DIR, 'build'));
-    expect(result.workspacePath).toBe(IOS_DIR);
+    expect(result).toEqual({
+      derivedDataPath: path.join(IOS_DIR, 'build'),
+      workspacePath: IOS_DIR,
+    });
   });
 });

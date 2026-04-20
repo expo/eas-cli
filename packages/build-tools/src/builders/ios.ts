@@ -173,15 +173,11 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
   }
 
-  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
-    const { derivedDataPath, workspacePath } = nullthrows(
-      fastlaneResult,
-      'fastlaneResult must be defined after RUN_FASTLANE phase'
-    );
+  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1' && fastlaneResult) {
     await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
       await parseAndReportXcactivitylog({
-        derivedDataPath,
-        workspacePath,
+        derivedDataPath: fastlaneResult.derivedDataPath,
+        workspacePath: fastlaneResult.workspacePath,
         logger: ctx.logger,
         proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
       });

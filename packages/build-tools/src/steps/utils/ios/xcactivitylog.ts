@@ -47,10 +47,10 @@ export async function parseAndReportXcactivitylog({
       workspacePath,
       outputDir: tempDir,
     });
-    const jsonOutput = await fs.readFile(jsonOutputPath, 'utf8');
-    const data = XcactivitylogDataSchemaZ.parse(JSON.parse(jsonOutput));
-    const report = formatReport(data);
-    logger.info(report);
+    const data = XcactivitylogDataSchemaZ.parse(
+      JSON.parse(await fs.readFile(jsonOutputPath, 'utf8'))
+    );
+    logger.info(formatReport(data));
   } catch (err: unknown) {
     logger.debug({ err }, 'Failed to analyze build performance; continuing without a report');
   } finally {
@@ -173,9 +173,7 @@ const XcactivitylogStepSchemaZ = z.object({
 });
 
 const XcactivitylogDataSchemaZ = z.object({
-  schema: z
-    .union([z.string(), z.object({ name: z.string().optional() })])
-    .optional(),
+  schema: z.union([z.string(), z.object({ name: z.string().optional() })]).optional(),
   subSteps: z.array(XcactivitylogStepSchemaZ).optional(),
 });
 
