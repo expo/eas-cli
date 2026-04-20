@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Support custom params in `observe:events` results. ([#3620](https://github.com/expo/eas-cli/pull/3620) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Add `eas/deploy` function for EAS Hosting web deployments. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/export` function for Expo web exports. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas update:insights <groupId>` command to display launch, crash, unique-user, and payload-size metrics for an update group. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
