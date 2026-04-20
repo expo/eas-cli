@@ -1,6 +1,5 @@
 import spawn, { SpawnOptions, SpawnResult } from '@expo/turtle-spawn';
 import { EasCliNpmTags, Env } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
 
 import { isAtLeastNpm7Async } from './packageManager';
 
