@@ -163,14 +163,7 @@ async function runXclogparser({
   return outputPath;
 }
 
-// Uses `z.looseObject(...)` instead of `z.object(...).passthrough()` because Zod
-// v4's `.passthrough()` eagerly spreads the object's `shape` descriptor, which
-// invokes the `subSteps` getter before the `const` binding is initialized and
-// throws `ReferenceError: Cannot access 'XcactivitylogStepSchemaZ' before
-// initialization`. `z.looseObject` sets the same `catchall: unknown()` at
-// construction time without going through the eager clone, preserving the
-// passthrough semantics (unknown fields allowed through) for the recursive case.
-const XcactivitylogStepSchemaZ = z.looseObject({
+const XcactivitylogStepSchemaZ = z.object({
   title: z.string().optional(),
   detailStepType: z.string().optional(),
   signature: z.string().optional(),
@@ -182,14 +175,12 @@ const XcactivitylogStepSchemaZ = z.looseObject({
   },
 });
 
-const XcactivitylogDataSchemaZ = z
-  .object({
-    schema: z
-      .union([z.string(), z.object({ name: z.string().optional() }).passthrough()])
-      .optional(),
-    subSteps: z.array(XcactivitylogStepSchemaZ).optional(),
-  })
-  .passthrough();
+const XcactivitylogDataSchemaZ = z.object({
+  schema: z
+    .union([z.string(), z.object({ name: z.string().optional() })])
+    .optional(),
+  subSteps: z.array(XcactivitylogStepSchemaZ).optional(),
+});
 
 type XcactivitylogStep = z.infer<typeof XcactivitylogStepSchemaZ>;
 type XcactivitylogData = z.infer<typeof XcactivitylogDataSchemaZ>;
