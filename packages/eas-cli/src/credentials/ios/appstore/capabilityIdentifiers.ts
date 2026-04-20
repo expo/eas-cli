@@ -103,13 +103,11 @@ export async function syncCapabilityIdentifiersForEntitlementsAsync(
 
       // Identifier already exists.
       if (remoteIdModel) {
-        // Identifier already linked to this bundle.
-        if (alreadyLinkedOpaqueIds.has(remoteIdModel.id)) {
-          continue;
+        if (!alreadyLinkedOpaqueIds.has(remoteIdModel.id)) {
+          // Link the existing identifier to this bundle.
+          linkedIds.push(remoteIdModel.attributes.identifier);
+          capabilityIdOpaqueIds.push(remoteIdModel.id);
         }
-        // Link the existing identifier to this bundle.
-        linkedIds.push(remoteIdModel.attributes.identifier);
-        capabilityIdOpaqueIds.push(remoteIdModel.id);
         continue;
       }
 
