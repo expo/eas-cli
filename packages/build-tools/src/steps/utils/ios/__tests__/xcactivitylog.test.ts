@@ -171,12 +171,10 @@ describe('parseAndReportXcactivitylog', () => {
   beforeEach(() => {
     mockedDownloadFile.mockReset();
     mockedSpawn.mockReset();
-    delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
-    delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
   });
 
   it('downloads xclogparser from GCS and logs only the final report on success', async () => {
@@ -229,8 +227,6 @@ describe('parseAndReportXcactivitylog', () => {
   });
 
   it('tries the proxy URL first and falls back to the direct GCS URL', async () => {
-    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://cache.example.com';
-
     const logger = createMockLogger();
     mockFilesystem();
 
@@ -243,6 +239,7 @@ describe('parseAndReportXcactivitylog', () => {
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
+      cocoapodsCacheUrl: 'https://cache.example.com',
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
@@ -265,8 +262,6 @@ describe('parseAndReportXcactivitylog', () => {
   });
 
   it('falls back to the direct GCS URL when the proxy download succeeds but unpacking fails', async () => {
-    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://cache.example.com';
-
     const logger = createMockLogger();
     mockFilesystem();
 
@@ -280,6 +275,7 @@ describe('parseAndReportXcactivitylog', () => {
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
+      cocoapodsCacheUrl: 'https://cache.example.com',
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(

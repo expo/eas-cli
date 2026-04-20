@@ -24,16 +24,23 @@ export async function parseAndReportXcactivitylog({
   workspacePath,
   xclogparserVersion = DEFAULT_XCLOGPARSER_VERSION,
   logger,
+  cocoapodsCacheUrl,
 }: {
   derivedDataPath: string;
   workspacePath: string;
   xclogparserVersion?: string;
   logger: bunyan;
+  cocoapodsCacheUrl?: string;
 }): Promise<void> {
   let tempDir: string | undefined;
   try {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
-    const xclogparserPath = await downloadXclogparser(tempDir, xclogparserVersion, logger);
+    const xclogparserPath = await downloadXclogparser(
+      tempDir,
+      xclogparserVersion,
+      logger,
+      cocoapodsCacheUrl
+    );
     const jsonOutputPath = await runXclogparser({
       binaryPath: xclogparserPath,
       derivedDataPath,
@@ -41,7 +48,7 @@ export async function parseAndReportXcactivitylog({
       outputDir: tempDir,
     });
     const jsonOutput = await fs.readFile(jsonOutputPath, 'utf8');
-    const data = XcactivitylogDataSchema.parse(JSON.parse(jsonOutput));
+    const data = XcactivitylogDataSchemaZ.parse(JSON.parse(jsonOutput));
     const report = formatReport(data);
     logger.info(report);
   } catch (err: unknown) {
@@ -56,14 +63,15 @@ export async function parseAndReportXcactivitylog({
 async function downloadXclogparser(
   tempDir: string,
   version: string,
-  logger: bunyan
+  logger: bunyan,
+  cocoapodsCacheUrl: string | undefined
 ): Promise<string> {
   const zipName = getXclogparserZipName(version);
   const zipPath = path.join(tempDir, zipName);
   const directUrl = `${XCLOGPARSER_DOWNLOAD_URL}/${zipName}`;
   const proxiedUrl = getProxiedDownloadUrl({
     directUrl,
-    proxyBaseUrl: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+    proxyBaseUrl: cocoapodsCacheUrl,
   });
 
   if (proxiedUrl) {
@@ -155,43 +163,36 @@ async function runXclogparser({
   return outputPath;
 }
 
-interface XcactivitylogStep {
-  title?: string;
-  detailStepType?: string;
-  signature?: string;
-  duration?: number;
-  startTimestamp?: number;
-  endTimestamp?: number;
-  subSteps?: XcactivitylogStep[];
-}
+// Uses `z.looseObject(...)` instead of `z.object(...).passthrough()` because Zod
+// v4's `.passthrough()` eagerly spreads the object's `shape` descriptor, which
+// invokes the `subSteps` getter before the `const` binding is initialized and
+// throws `ReferenceError: Cannot access 'XcactivitylogStepSchemaZ' before
+// initialization`. `z.looseObject` sets the same `catchall: unknown()` at
+// construction time without going through the eager clone, preserving the
+// passthrough semantics (unknown fields allowed through) for the recursive case.
+const XcactivitylogStepSchemaZ = z.looseObject({
+  title: z.string().optional(),
+  detailStepType: z.string().optional(),
+  signature: z.string().optional(),
+  duration: z.number().optional(),
+  startTimestamp: z.number().optional(),
+  endTimestamp: z.number().optional(),
+  get subSteps() {
+    return z.array(XcactivitylogStepSchemaZ).optional();
+  },
+});
 
-interface XcactivitylogData {
-  schema?: { name?: string } | string;
-  subSteps?: XcactivitylogStep[];
-}
-
-const XcactivitylogStepSchema: z.ZodType<XcactivitylogStep> = z.lazy(() =>
-  z
-    .object({
-      title: z.string().optional(),
-      detailStepType: z.string().optional(),
-      signature: z.string().optional(),
-      duration: z.number().optional(),
-      startTimestamp: z.number().optional(),
-      endTimestamp: z.number().optional(),
-      subSteps: z.array(XcactivitylogStepSchema).optional(),
-    })
-    .passthrough()
-);
-
-const XcactivitylogDataSchema: z.ZodType<XcactivitylogData> = z
+const XcactivitylogDataSchemaZ = z
   .object({
     schema: z
       .union([z.string(), z.object({ name: z.string().optional() }).passthrough()])
       .optional(),
-    subSteps: z.array(XcactivitylogStepSchema).optional(),
+    subSteps: z.array(XcactivitylogStepSchemaZ).optional(),
   })
   .passthrough();
+
+type XcactivitylogStep = z.infer<typeof XcactivitylogStepSchemaZ>;
+type XcactivitylogData = z.infer<typeof XcactivitylogDataSchemaZ>;
 
 interface TargetMetric {
   moduleName: string;

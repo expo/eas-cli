@@ -3,7 +3,6 @@ import { BuildMode, BuildPhase, Ios, ManagedArtifactType, Workflow } from '@expo
 import plist from '@expo/plist';
 import fs from 'fs-extra';
 import nullthrows from 'nullthrows';
-import path from 'path';
 
 import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
@@ -53,6 +52,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
   const workingDirectory = ctx.getReactNativeProjectDirectory();
+  let fastlaneResult: { derivedDataPath: string; workspacePath: string } | undefined;
   try {
     const credentials = await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       return await credentialsManager.prepare();
@@ -148,10 +148,10 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       });
     }
 
-    await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
+    fastlaneResult = await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
       const scheme = resolveScheme(ctx);
       const entitlements = await readEntitlementsAsync(ctx, { scheme, buildConfiguration });
-      await runFastlaneGym(ctx, {
+      return await runFastlaneGym(ctx, {
         credentials,
         scheme,
         buildConfiguration,
@@ -174,11 +174,16 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   }
 
   if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
+    const { derivedDataPath, workspacePath } = nullthrows(
+      fastlaneResult,
+      'fastlaneResult must be defined after RUN_FASTLANE phase'
+    );
     await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
       await parseAndReportXcactivitylog({
-        derivedDataPath: path.join(ctx.getReactNativeProjectDirectory(), 'ios/build'),
-        workspacePath: path.join(ctx.getReactNativeProjectDirectory(), 'ios'),
+        derivedDataPath,
+        workspacePath,
         logger: ctx.logger,
+        cocoapodsCacheUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
       });
     });
   }

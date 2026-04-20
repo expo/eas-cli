@@ -17,13 +17,13 @@ export function parseXcactivitylogFunction(): BuildFunction {
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     inputProviders: [
       BuildStepInput.createProvider({
-        id: 'derived_data',
+        id: 'derived_data_path',
         required: false,
         defaultValue: 'ios/build',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'workspace',
+        id: 'workspace_path',
         required: false,
         defaultValue: 'ios',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
@@ -31,20 +31,20 @@ export function parseXcactivitylogFunction(): BuildFunction {
       BuildStepInput.createProvider({
         id: 'xclogparser_version',
         required: false,
-        defaultValue: 'v0.2.46',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async (stepCtx, { inputs }) => {
-      const derivedData = inputs.derived_data.value as string;
-      const workspace = inputs.workspace.value as string;
-      const version = inputs.xclogparser_version.value as string;
+    fn: async (stepCtx, { inputs, env }) => {
+      const derivedDataPath = inputs.derived_data_path.value as string;
+      const workspacePath = inputs.workspace_path.value as string;
+      const version = inputs.xclogparser_version.value as string | undefined;
 
       await parseAndReportXcactivitylog({
-        derivedDataPath: path.resolve(stepCtx.workingDirectory, derivedData),
-        workspacePath: path.resolve(stepCtx.workingDirectory, workspace),
+        derivedDataPath: path.resolve(stepCtx.workingDirectory, derivedDataPath),
+        workspacePath: path.resolve(stepCtx.workingDirectory, workspacePath),
         xclogparserVersion: version,
         logger: stepCtx.logger,
+        cocoapodsCacheUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
       });
     },
   });

@@ -29,7 +29,13 @@ export async function runFastlaneGym<TJob extends Ios.Job>(
     entitlements: object | null;
     extraEnv?: Env;
   }
-): Promise<void> {
+): Promise<{
+  derivedDataPath: string;
+  workspacePath: string;
+}> {
+  const workspacePath = path.join(ctx.getReactNativeProjectDirectory(), 'ios');
+  const derivedDataPath = path.join(workspacePath, 'build');
+
   await ensureGymfileExists(ctx, {
     scheme,
     buildConfiguration,
@@ -44,13 +50,15 @@ export async function runFastlaneGym<TJob extends Ios.Job>(
   void buildLogger.watchLogFiles(ctx.buildLogsDirectory);
   try {
     await runFastlane(['gym'], {
-      cwd: path.join(ctx.getReactNativeProjectDirectory(), 'ios'),
+      cwd: workspacePath,
       logger: ctx.logger,
       env: { ...ctx.env, ...extraEnv },
     });
   } finally {
     await buildLogger.flush();
   }
+
+  return { derivedDataPath, workspacePath };
 }
 
 export async function runFastlaneResign<TJob extends Ios.Job>(
