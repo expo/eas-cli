@@ -147,7 +147,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     }
 
     await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
-      const scheme = resolveScheme(ctx);
+      const scheme = await resolveScheme(ctx);
       const entitlements = await readEntitlementsAsync(ctx, { scheme, buildConfiguration });
       await runFastlaneGym(ctx, {
         credentials,
