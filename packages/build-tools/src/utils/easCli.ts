@@ -15,18 +15,14 @@ async function probeEasdAsync(): Promise<boolean> {
   }
 }
 
-export async function resolveEasCommandPrefixAndEnvAsync(options?: { logger?: bunyan }): Promise<{
+export async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
   cmd: string;
   args: string[];
   extraEnv: Env;
 }> {
-  const { logger } = options ?? {};
   const npxArgsPrefix = (await isAtLeastNpm7Async()) ? ['-y'] : [];
   if (process.env.ENVIRONMENT === 'development') {
     if (await probeEasdAsync()) {
-      logger?.warn(
-        `easd found, using it instead of npx eas-cli@${EasCliNpmTags.STAGING} for development.`
-      );
       return { cmd: 'easd', args: [], extraEnv: {} };
     }
     return {
@@ -57,13 +53,7 @@ export async function runEasCliCommand({
   options: SpawnOptions;
 }): Promise<SpawnResult> {
   const { logger, ...spawnOptions } = options;
-  const {
-    cmd,
-    args: commandPrefixArgs,
-    extraEnv,
-  } = await resolveEasCommandPrefixAndEnvAsync({
-    logger,
-  });
+  const { cmd, args: commandPrefixArgs, extraEnv } = await resolveEasCommandPrefixAndEnvAsync();
   return await spawn(cmd, [...commandPrefixArgs, ...args], {
     ...spawnOptions,
     logger,

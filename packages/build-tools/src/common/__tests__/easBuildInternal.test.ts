@@ -13,7 +13,7 @@ jest.mock('../../utils/easCli', () => ({
   resolveEasCommandPrefixAndEnvAsync: jest.fn(),
 }));
 
-describe('easBuildInternal logger plumbing', () => {
+describe('easBuildInternal', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.mocked(resolveEasCommandPrefixAndEnvAsync).mockResolvedValue({
@@ -23,7 +23,7 @@ describe('easBuildInternal logger plumbing', () => {
     });
   });
 
-  it('passes logger to resolveEasCommandPrefixAndEnvAsync in runEasBuildInternalAsync', async () => {
+  it('calls resolveEasCommandPrefixAndEnvAsync in runEasBuildInternalAsync', async () => {
     const logger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -45,11 +45,11 @@ describe('easBuildInternal logger plumbing', () => {
       })
     ).rejects.toThrow('build profile is missing in a build from git-based integration.');
 
-    expect(resolveEasCommandPrefixAndEnvAsync).toHaveBeenCalledWith({ logger });
+    expect(resolveEasCommandPrefixAndEnvAsync).toHaveBeenCalledWith();
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  it('passes ctx.logger to resolveEasCommandPrefixAndEnvAsync in resolveEnvFromBuildProfileAsync', async () => {
+  it('calls resolveEasCommandPrefixAndEnvAsync in resolveEnvFromBuildProfileAsync', async () => {
     const logger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -66,7 +66,7 @@ describe('easBuildInternal logger plumbing', () => {
       'build profile is missing in a build from git-based integration.'
     );
 
-    expect(resolveEasCommandPrefixAndEnvAsync).toHaveBeenCalledWith({ logger: ctx.logger });
+    expect(resolveEasCommandPrefixAndEnvAsync).toHaveBeenCalledWith();
     expect(spawn).not.toHaveBeenCalled();
   });
 });
