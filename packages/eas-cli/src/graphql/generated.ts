@@ -783,8 +783,11 @@ export type AccountNotificationPreferenceInput = {
 export type AccountOnboardingStats = {
   __typename?: 'AccountOnboardingStats';
   firstBuildCompletedAt?: Maybe<Scalars['DateTime']['output']>;
+  firstProjectCreatedAt?: Maybe<Scalars['DateTime']['output']>;
   firstSubmissionCompletedAt?: Maybe<Scalars['DateTime']['output']>;
+  firstUpdateCreatedAt?: Maybe<Scalars['DateTime']['output']>;
   hasConfiguredUpdate: Scalars['Boolean']['output'];
+  hasConfiguredWorkflow: Scalars['Boolean']['output'];
   hasTeamMembers: Scalars['Boolean']['output'];
 };
 
@@ -4082,6 +4085,7 @@ export type ConvexTeamConnectionMutation = {
   __typename?: 'ConvexTeamConnectionMutation';
   createConvexTeamConnection: ConvexTeamConnection;
   deleteConvexTeamConnection: ConvexTeamConnection;
+  sendConvexTeamInviteToVerifiedEmail: Scalars['Boolean']['output'];
 };
 
 
@@ -4092,6 +4096,11 @@ export type ConvexTeamConnectionMutationCreateConvexTeamConnectionArgs = {
 
 export type ConvexTeamConnectionMutationDeleteConvexTeamConnectionArgs = {
   convexTeamConnectionId: Scalars['ID']['input'];
+};
+
+
+export type ConvexTeamConnectionMutationSendConvexTeamInviteToVerifiedEmailArgs = {
+  input: SendConvexTeamInviteToVerifiedEmailInput;
 };
 
 export enum CrashSampleFor {
@@ -8113,6 +8122,10 @@ export enum SecondFactorMethod {
 export type SecondFactorRegenerateBackupCodesResult = {
   __typename?: 'SecondFactorRegenerateBackupCodesResult';
   plaintextBackupCodes: Array<Scalars['String']['output']>;
+};
+
+export type SendConvexTeamInviteToVerifiedEmailInput = {
+  convexTeamConnectionId: Scalars['ID']['input'];
 };
 
 export type SentryInstallation = {
@@ -12191,7 +12204,7 @@ export type AppObserveEventsQueryVariables = Exact<{
 }>;
 
 
-export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string } }> } } } } };
+export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null } }> } } } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -12383,7 +12396,7 @@ export type FingerprintFragment = { __typename?: 'Fingerprint', id: string, hash
 
 export type AppObserveTimeSeriesFragment = { __typename?: 'AppObserveTimeSeries', eventCount: number, appVersionMarkers: Array<{ __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> }>, statistics: { __typename?: 'AppObserveTimeSeriesStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } };
 
-export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string };
+export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null };
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
 

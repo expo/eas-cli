@@ -158,6 +158,7 @@ describe(buildObserveEventsJson, () => {
           sessionId: 'session-1',
           easClientId: 'client-1',
           timestamp: '2025-01-15T10:30:00.000Z',
+          customParams: null,
         },
       ],
       pageInfo: {

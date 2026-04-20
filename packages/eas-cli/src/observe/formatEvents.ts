@@ -28,6 +28,7 @@ export interface ObserveEventJson {
   sessionId: string | null;
   easClientId: string;
   timestamp: string;
+  customParams: { [key: string]: any } | null;
 }
 
 function formatDate(isoString: string): string {
@@ -37,6 +38,19 @@ function formatDate(isoString: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | null {
+  return event.customParams ?? null;
+}
+
+function formatCustomParams(params: { [key: string]: any } | null): string {
+  if (!params) {
+    return '';
+  }
+  return Object.entries(params)
+    .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    .join(', ');
 }
 
 export interface BuildEventsTableOptions {
@@ -57,6 +71,8 @@ export function buildObserveEventsTable(
   }
 
   const hasUpdates = events.some(e => e.appUpdateId);
+  const resolvedCustomParams = events.map(event => resolveCustomParams(event));
+  const hasCustomParams = resolvedCustomParams.some(p => p !== null);
 
   const headers = [
     'Value',
@@ -66,9 +82,10 @@ export function buildObserveEventsTable(
     'Device',
     'Country',
     'Timestamp',
+    ...(hasCustomParams ? ['Custom Params'] : []),
   ];
 
-  const rows: string[][] = events.map(event => [
+  const rows: string[][] = events.map((event, index) => [
     `${event.metricValue.toFixed(2)}s`,
     `${event.appVersion} (${event.appBuildNumber})`,
     ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
@@ -76,6 +93,7 @@ export function buildObserveEventsTable(
     event.deviceModel,
     event.countryCode ?? '-',
     formatTimestamp(event.timestamp),
+    ...(hasCustomParams ? [formatCustomParams(resolvedCustomParams[index])] : []),
   ]);
 
   const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
@@ -131,6 +149,7 @@ export function buildObserveEventsJson(
       sessionId: event.sessionId ?? null,
       easClientId: event.easClientId,
       timestamp: event.timestamp,
+      customParams: resolveCustomParams(event),
     })),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,
