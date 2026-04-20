@@ -31,7 +31,6 @@ export function createEasExportBuildFunction(): BuildFunction {
         id: 'minify',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
-        defaultValue: true,
       }),
       BuildStepInput.createProvider({
         id: 'dump_assetmap',
@@ -42,7 +41,6 @@ export function createEasExportBuildFunction(): BuildFunction {
         id: 'ssg',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
-        defaultValue: true,
       }),
       BuildStepInput.createProvider({
         id: 'api_only',
@@ -126,13 +124,13 @@ function getExportCommand({
   if (dev) {
     exportCommand.push('--dev');
   }
-  if (!minify) {
+  if (minify === false) {
     exportCommand.push('--no-minify');
   }
   if (dumpAssetmap) {
     exportCommand.push('--dump-assetmap');
   }
-  if (!ssg) {
+  if (ssg === false) {
     exportCommand.push('--no-ssg');
   }
   if (apiOnly) {
