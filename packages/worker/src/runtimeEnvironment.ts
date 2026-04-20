@@ -189,19 +189,55 @@ async function installBun({
   currentVersion: string;
 }): Promise<void> {
   const versionToInstall = userSpecifiedVersion ?? currentVersion;
+  const proxyUrl = config.cocoapodsCacheUrl;
   try {
     ctx.logger.info(`Installing bun@${versionToInstall}`);
 
     const bunInstallScriptPath = path.join(os.tmpdir(), `install-bun-${uuidv4()}.sh`);
-
-    await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+    await runWithProxyFallbackAsync({
+      primaryOperation: proxyUrl
+        ? () =>
+            spawn(
+              'curl',
+              [
+                '-fsSL',
+                rewriteUrlThroughProxy('https://bun.sh/install', proxyUrl),
+                '-o',
+                bunInstallScriptPath,
+              ],
+              {
+                logger: ctx.logger,
+                env: ctx.env,
+              }
+            )
+        : null,
+      fallbackOperation: () =>
+        spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+          logger: ctx.logger,
+          env: ctx.env,
+        }),
       logger: ctx.logger,
-      env: ctx.env,
+      warningMessage: 'Failed to download Bun install script through proxy, retrying directly.',
     });
 
-    await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+    await runWithProxyFallbackAsync({
+      primaryOperation: proxyUrl
+        ? () =>
+            spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+              logger: ctx.logger,
+              env: {
+                ...ctx.env,
+                GITHUB: rewriteUrlThroughProxy('https://github.com', proxyUrl),
+              },
+            })
+        : null,
+      fallbackOperation: () =>
+        spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+          logger: ctx.logger,
+          env: ctx.env,
+        }),
       logger: ctx.logger,
-      env: ctx.env,
+      warningMessage: 'Failed to install Bun through proxy, retrying directly.',
     });
 
     await spawn('rm', [bunInstallScriptPath], {
@@ -227,6 +263,35 @@ async function installBun({
         `Failed to install bun@${versionToInstall}. Continuing because Bun is not the primary package manager for this project.`
       );
     }
+  }
+}
+
+function rewriteUrlThroughProxy(url: string, proxy: string): string {
+  const parsedUrl = new URL(url);
+  return url.replace(`${parsedUrl.protocol}//${parsedUrl.host}`, `${proxy}/${parsedUrl.host}`);
+}
+
+async function runWithProxyFallbackAsync({
+  primaryOperation,
+  fallbackOperation,
+  logger,
+  warningMessage,
+}: {
+  primaryOperation: (() => Promise<unknown>) | null;
+  fallbackOperation: () => Promise<unknown>;
+  logger: PreDownloadBuildContext['logger'];
+  warningMessage: string;
+}): Promise<void> {
+  if (!primaryOperation) {
+    await fallbackOperation();
+    return;
+  }
+
+  try {
+    await primaryOperation();
+  } catch (err: any) {
+    logger.warn({ err }, warningMessage);
+    await fallbackOperation();
   }
 }
 
