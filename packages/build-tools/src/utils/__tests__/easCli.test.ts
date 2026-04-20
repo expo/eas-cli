@@ -103,8 +103,14 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
 });
 
 describe(runEasCliCommand, () => {
+  const originalEnvironment = process.env.ENVIRONMENT;
+
   beforeEach(() => {
     jest.mocked(spawn).mockReset();
+  });
+
+  afterEach(() => {
+    process.env.ENVIRONMENT = originalEnvironment;
   });
 
   it('merges caller env with resolved extra env', async () => {
