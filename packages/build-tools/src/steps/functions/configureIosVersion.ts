@@ -1,7 +1,8 @@
-import { Ios } from '@expo/eas-build-job';
+import { Ios, UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import assert from 'assert';
 import semver from 'semver';
+import { z } from 'zod';
 
 import { updateVersionsAsync } from '../utils/ios/configure';
 import { IosBuildCredentialsSchema } from '../utils/ios/credentials/credentials';
@@ -51,7 +52,8 @@ export function configureIosVersionFunction(): BuildFunction {
       const appVersion =
         (inputs.app_version.value as string | undefined) ?? job.version?.appVersion;
       if (appVersion && !semver.valid(appVersion)) {
-        throw new Error(
+        throw new UserError(
+          'EAS_CONFIGURE_IOS_VERSION_INVALID_APP_VERSION',
           `App version provided by the "app_version" input is not a valid semver version: ${appVersion}`
         );
       }
@@ -66,13 +68,15 @@ export function configureIosVersionFunction(): BuildFunction {
       const targetNamesInput = inputs.target_names.value;
       let targetNames: string[];
       if (targetNamesInput !== undefined) {
-        if (
-          !Array.isArray(targetNamesInput) ||
-          targetNamesInput.some(targetName => typeof targetName !== 'string')
-        ) {
-          throw new Error('"target_names" input must be an array of strings.');
+        const parsed = z.array(z.string()).safeParse(targetNamesInput);
+        if (!parsed.success) {
+          throw new UserError(
+            'EAS_CONFIGURE_IOS_VERSION_INVALID_TARGET_NAMES',
+            '"target_names" input must be an array of strings.',
+            { cause: parsed.error }
+          );
         }
-        targetNames = targetNamesInput;
+        targetNames = parsed.data;
       } else {
         const { value, error } = IosBuildCredentialsSchema.validate(inputs.credentials.value, {
           stripUnknown: true,

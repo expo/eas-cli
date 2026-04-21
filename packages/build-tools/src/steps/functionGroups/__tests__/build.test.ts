@@ -125,7 +125,9 @@ describe(createEasBuildBuildFunctionGroup, () => {
       );
 
       expect(configureIosVersionStep).toBeDefined();
-      expect(targetNamesInput?.rawValue).toBe('${ steps.configure_ios_credentials.target_names }');
+      expect(targetNamesInput?.rawValue).toBe(
+        '${{ steps.configure_ios_credentials.outputs.target_names }}'
+      );
     });
 
     it('composes working directory with installPods step-level ./ios dir (iOS)', () => {

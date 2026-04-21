@@ -1,3 +1,4 @@
+import { UserError } from '@expo/eas-build-job';
 import { BuildWorkflow } from '@expo/steps';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
@@ -202,7 +203,7 @@ describe(configureIosVersionFunction, () => {
       globalCtx,
       {
         callInputs: {
-          target_names: '${ steps.configure_ios_credentials.target_names }',
+          target_names: '${{ steps.configure_ios_credentials.outputs.target_names }}',
           app_version: '1.2.3',
         },
       }
@@ -265,9 +266,9 @@ describe(configureIosVersionFunction, () => {
       },
     });
 
-    await expect(buildStep.executeAsync()).rejects.toThrow(
-      '"target_names" input must be an array of strings.'
-    );
+    const promise = buildStep.executeAsync();
+    await expect(promise).rejects.toBeInstanceOf(UserError);
+    await expect(promise).rejects.toThrow('"target_names" input must be an array of strings.');
   });
 
   it('uses the corrected App version error text', async () => {
