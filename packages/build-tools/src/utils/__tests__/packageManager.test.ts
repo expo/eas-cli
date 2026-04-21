@@ -1,10 +1,10 @@
+import { errors } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
 import semver from 'semver';
 
-import { createMockLogger } from '../../__tests__/utils/logger';
 import {
   PackageManager,
   findPackagerRootDir,
@@ -25,23 +25,23 @@ describe(resolvePackageManager, () => {
   });
 
   it('returns yarn when no lockfiles exist', async () => {
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns npm when only package-json.lock exist', async () => {
     await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('npm');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('npm');
   });
 
   it('returns yarn when only yarn.lock exists', async () => {
     await fs.writeFile(path.join(rootDir, 'yarn.lock'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns yarn when both lockfiles exists', async () => {
     await fs.writeFile(path.join(rootDir, 'yarn.lock'), 'content');
     await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
-    expect(resolvePackageManager(rootDir)).toBe('yarn');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe('yarn');
   });
 
   it('returns npm within a monorepo', async () => {
@@ -57,7 +57,7 @@ describe(resolvePackageManager, () => {
       name: '@monorepo/expo-app',
     });
 
-    expect(resolvePackageManager(nestedDir)).toBe('npm');
+    expect(resolvePackageManager(nestedDir, { env: {} })).toBe('npm');
   });
 
   it('returns yarn with an invalid monorepo', async () => {
@@ -69,22 +69,15 @@ describe(resolvePackageManager, () => {
     await fs.mkdirp(nestedDir);
     await fs.writeFile(path.join(nestedDir, 'package.json'), 'content');
 
-    expect(resolvePackageManager(nestedDir)).toBe('yarn');
-  });
-
-  it('returns yarn when no lockfile and no env var is provided', () => {
-    expect(resolvePackageManager(rootDir, { env: {} })).toBe(PackageManager.YARN);
+    expect(resolvePackageManager(nestedDir, { env: {} })).toBe('yarn');
   });
 
   it('returns yarn when no lockfile and env var is an empty string', () => {
-    const logger = createMockLogger();
     expect(
       resolvePackageManager(rootDir, {
         env: { EAS_FALLBACK_PACKAGE_MANAGER: '' },
-        logger,
       })
     ).toBe(PackageManager.YARN);
-    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('returns bun from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
@@ -101,39 +94,26 @@ describe(resolvePackageManager, () => {
 
   it('ignores EAS_FALLBACK_PACKAGE_MANAGER when a lockfile exists', async () => {
     await fs.writeFile(path.join(rootDir, 'package-lock.json'), 'content');
-    const logger = createMockLogger();
     expect(
       resolvePackageManager(rootDir, {
         env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' }, // invalid, but should not even be read
-        logger,
       })
     ).toBe(PackageManager.NPM);
-    expect(logger.warn).not.toHaveBeenCalled();
   });
 
-  it('logs a warning and falls back to yarn on unsupported EAS_FALLBACK_PACKAGE_MANAGER value', () => {
-    const logger = createMockLogger();
-    expect(
-      resolvePackageManager(rootDir, {
-        env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' },
-        logger,
-      })
-    ).toBe(PackageManager.YARN);
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('bunn'));
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('EAS_FALLBACK_PACKAGE_MANAGER')
-    );
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('yarn'));
-  });
-
-  it('falls back to yarn on unsupported EAS_FALLBACK_PACKAGE_MANAGER value when no logger is provided', () => {
+  it('throws a UserError on unsupported EAS_FALLBACK_PACKAGE_MANAGER value', () => {
     expect(() =>
       resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } })
-    ).not.toThrow();
-    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } })).toBe(
-      PackageManager.YARN
-    );
+    ).toThrow(errors.UserError);
+    try {
+      resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'bunn' } });
+    } catch (e) {
+      expect(e).toBeInstanceOf(errors.UserError);
+      const error = e as errors.UserError;
+      expect(error.errorCode).toBe('EAS_INVALID_FALLBACK_PACKAGE_MANAGER');
+      expect(error.message).toContain('bunn');
+      expect(error.message).toContain('yarn, npm, pnpm, bun');
+    }
   });
 });
 

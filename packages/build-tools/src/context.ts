@@ -175,7 +175,6 @@ export class BuildContext<TJob extends Job = Job> {
   public get packageManager(): PackageManager {
     return resolvePackageManager(this.getReactNativeProjectDirectory(), {
       env: this.env,
-      logger: this.logger,
     });
   }
   public get appConfig(): Promise<ExpoConfig> {

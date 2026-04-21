@@ -1,3 +1,4 @@
+import { errors } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import * as PackageManagerUtils from '@expo/package-manager';
 import { type BuildStepEnv } from '@expo/steps';
@@ -14,13 +15,7 @@ export enum PackageManager {
 
 export function resolvePackageManager(
   directory: string,
-  {
-    env,
-    logger,
-  }: {
-    env?: BuildStepEnv;
-    logger?: bunyan;
-  } = {}
+  { env }: { env: BuildStepEnv }
 ): PackageManager {
   try {
     const manager = PackageManagerUtils.resolvePackageManager(directory);
@@ -35,15 +30,16 @@ export function resolvePackageManager(
     }
   } catch {}
 
-  const fallback = env?.EAS_FALLBACK_PACKAGE_MANAGER;
+  const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
   if (fallback) {
     const parsed = z.enum(PackageManager).safeParse(fallback);
     if (parsed.success) {
       return parsed.data;
     }
     const allowed = Object.values(PackageManager).join(', ');
-    logger?.warn(
-      `Ignoring invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}). Falling back to ${PackageManager.YARN}.`
+    throw new errors.UserError(
+      'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
+      `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
     );
   }
   return PackageManager.YARN;
