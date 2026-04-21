@@ -200,7 +200,7 @@ export async function restoreGradleCacheAsync({
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
 }): Promise<void> {
-  if (env.EXPERIMENTAL_EAS_GRADLE_CACHE !== '1') {
+  if (env.EAS_GRADLE_CACHE !== '1') {
     return;
   }
 

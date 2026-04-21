@@ -5,4 +5,4 @@ import { getAdapter } from 'axios';
 // see: https://github.com/nock/nock#axios
 
 export { default } from 'nock';
-getRequestClient().defaults.adapter = getAdapter('http');
+getRequestClient().defaults.adapter = getAdapter('http') as any;
