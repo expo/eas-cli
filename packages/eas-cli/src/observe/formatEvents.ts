@@ -44,10 +44,6 @@ function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | n
   return event.customParams ?? null;
 }
 
-function formatCustomParamEntry(key: string, value: any): string {
-  return `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
-}
-
 export interface BuildEventsTableOptions {
   metricName: string;
   daysBack?: number;
@@ -66,8 +62,6 @@ export function buildObserveEventsTable(
   }
 
   const hasUpdates = events.some(e => e.appUpdateId);
-  const resolvedCustomParams = events.map(event => resolveCustomParams(event));
-  const hasCustomParams = resolvedCustomParams.some(p => p !== null);
 
   const headers = [
     'Value',
@@ -77,43 +71,17 @@ export function buildObserveEventsTable(
     'Device',
     'Country',
     'Timestamp',
-    ...(hasCustomParams ? ['Custom Params'] : []),
   ];
 
-  const rows: string[][] = [];
-  events.forEach((event, index) => {
-    const eventCells = [
-      `${event.metricValue.toFixed(2)}s`,
-      `${event.appVersion} (${event.appBuildNumber})`,
-      ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
-      `${event.deviceOs} ${event.deviceOsVersion}`,
-      event.deviceModel,
-      event.countryCode ?? '-',
-      formatTimestamp(event.timestamp),
-    ];
-
-    if (!hasCustomParams) {
-      rows.push(eventCells);
-      return;
-    }
-
-    const paramEntries = Object.entries(resolvedCustomParams[index] ?? {});
-    if (paramEntries.length === 0) {
-      rows.push([...eventCells, '']);
-      return;
-    }
-
-    // First row: event data + first param
-    rows.push([...eventCells, formatCustomParamEntry(paramEntries[0][0], paramEntries[0][1])]);
-    // Continuation rows: blank event cells + next param
-    const blankEventCells = eventCells.map(() => '');
-    for (let i = 1; i < paramEntries.length; i++) {
-      rows.push([
-        ...blankEventCells,
-        formatCustomParamEntry(paramEntries[i][0], paramEntries[i][1]),
-      ]);
-    }
-  });
+  const rows: string[][] = events.map(event => [
+    `${event.metricValue.toFixed(2)}s`,
+    `${event.appVersion} (${event.appBuildNumber})`,
+    ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
+    `${event.deviceOs} ${event.deviceOsVersion}`,
+    event.deviceModel,
+    event.countryCode ?? '-',
+    formatTimestamp(event.timestamp),
+  ]);
 
   const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
 
