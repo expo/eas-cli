@@ -8,8 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import {
-  AndroidEmulatorUtils,
   AndroidDeviceSerialId,
+  AndroidEmulatorUtils,
   AndroidVirtualDeviceName,
 } from '../../../utils/AndroidEmulatorUtils';
 import { retryAsync } from '../../../utils/retry';
