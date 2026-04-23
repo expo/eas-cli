@@ -49,7 +49,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env }) => {
       if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
         await assertAndroidEmulatorHostSupportAsync({ env });
       } else {
@@ -100,6 +100,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
       let emulatorPromise = null;
       let serialId = null;
+      const logcatOutputDir = AndroidEmulatorUtils.getLogcatStagingDirectoryPath({
+        buildLogsDirectory: global.buildLogsDirectory,
+      });
       await retryAsync(
         async attemptCount => {
           const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
@@ -124,6 +127,12 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
               env,
             });
             attemptSerialId = startResult.serialId;
+            await AndroidEmulatorUtils.startLogcatStreamingAsync({
+              serialId: attemptSerialId,
+              outputDir: logcatOutputDir,
+              env,
+              logger,
+            });
             await AndroidEmulatorUtils.waitForReadyAsync({
               env,
               serialId: attemptSerialId,
@@ -213,6 +222,12 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                   env,
                 });
                 cloneSerialId = startResult.serialId;
+                await AndroidEmulatorUtils.startLogcatStreamingAsync({
+                  serialId: cloneSerialId,
+                  outputDir: logcatOutputDir,
+                  env,
+                  logger,
+                });
 
                 logger.info('Waiting for emulator to become ready');
                 await AndroidEmulatorUtils.waitForReadyAsync({
