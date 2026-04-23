@@ -3,6 +3,7 @@ import { BuildFunction } from '@expo/steps';
 import { calculateEASUpdateRuntimeVersionFunction } from './functions/calculateEASUpdateRuntimeVersion';
 import { createCapturePosthogEventFunction } from './functions/capturePosthogEvent';
 import { createCheckoutBuildFunction } from './functions/checkout';
+import { createCollectEmulatorLogsBuildFunction } from './functions/collectEmulatorLogs';
 import { configureAndroidVersionFunction } from './functions/configureAndroidVersion';
 import { configureEASUpdateIfInstalledFunction } from './functions/configureEASUpdateIfInstalled';
 import { configureIosCredentialsFunction } from './functions/configureIosCredentials';
@@ -64,6 +65,7 @@ import { CustomBuildContext } from '../customBuildContext';
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
   const functions = [
     createCheckoutBuildFunction(),
+    createCollectEmulatorLogsBuildFunction(),
     createDownloadArtifactFunction(),
     createUploadArtifactBuildFunction(ctx),
     createSetUpNpmrcBuildFunction(),

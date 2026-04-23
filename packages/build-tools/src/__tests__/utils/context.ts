@@ -45,6 +45,7 @@ interface BuildContextParams {
   runtimePlatform?: BuildRuntimePlatform;
   projectSourceDirectory?: string;
   projectTargetDirectory?: string;
+  buildLogsDirectory?: string;
   relativeWorkingDirectory?: string;
   staticContextContent?: Record<string, any>;
 }
@@ -56,6 +57,7 @@ export function createStepContextMock({
   runtimePlatform,
   projectSourceDirectory,
   projectTargetDirectory,
+  buildLogsDirectory,
   relativeWorkingDirectory,
   staticContextContent,
 }: BuildContextParams = {}): BuildStepContext {
@@ -66,6 +68,7 @@ export function createStepContextMock({
     runtimePlatform,
     projectSourceDirectory,
     projectTargetDirectory,
+    buildLogsDirectory,
     relativeWorkingDirectory,
     staticContextContent,
   });
@@ -94,6 +97,7 @@ export function createGlobalContextMock({
   runtimePlatform,
   projectSourceDirectory,
   projectTargetDirectory,
+  buildLogsDirectory,
   relativeWorkingDirectory,
   staticContextContent,
 }: BuildContextParams = {}): BuildStepGlobalContext {
@@ -108,7 +112,7 @@ export function createGlobalContextMock({
       relativeWorkingDirectory
         ? path.resolve(resolvedProjectTargetDirectory, relativeWorkingDirectory)
         : resolvedProjectTargetDirectory,
-      '/non/existent/dir',
+      buildLogsDirectory ?? '/non/existent/dir',
       staticContextContent ?? {}
     ),
     skipCleanup ?? false
