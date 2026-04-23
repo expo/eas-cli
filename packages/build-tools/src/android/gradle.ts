@@ -32,7 +32,7 @@ export async function runGradleCommand(
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
 
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`], {
+  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`], {
     cwd: androidDir,
     logger,
     lineTransformer: (line?: string) => {
@@ -101,6 +101,78 @@ function resolveVersionOverridesEnvs(ctx: BuildContext<Job>): Env {
     extraEnvs.EAS_BUILD_ANDROID_VERSION_NAME = ctx.job.version.versionName;
   }
   return extraEnvs;
+}
+
+export interface GradleProfileTask {
+  path: string;
+  durationMs: number;
+  result: string;
+}
+
+export async function parseGradleProfile(androidDir: string): Promise<GradleProfileTask[] | null> {
+  const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
+  if (!(await fs.pathExists(profileDir))) {
+    return null;
+  }
+
+  const files = await fs.readdir(profileDir);
+  const profileFile = files.filter((f) => f.endsWith('.html')).sort().pop();
+  if (!profileFile) {
+    return null;
+  }
+
+  const html = await fs.readFile(path.join(profileDir, profileFile), 'utf8');
+
+  const tab4Match = html.match(/id="tab4"[\s\S]*?<\/table>/);
+  if (!tab4Match) {
+    return null;
+  }
+
+  const taskSection = tab4Match[0];
+  const tasks: GradleProfileTask[] = [];
+  const rowRegex = /<tr>\s*<td class="indentPath">(.*?)<\/td>\s*<td class="numeric">(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<\/tr>/g;
+
+  let match;
+  while ((match = rowRegex.exec(taskSection)) !== null) {
+    tasks.push({
+      path: match[1],
+      durationMs: parseDurationToMs(match[2]),
+      result: match[3] || 'executed',
+    });
+  }
+
+  return tasks;
+}
+
+function parseDurationToMs(duration: string): number {
+  let totalMs = 0;
+
+  const daysMatch = duration.match(/(\d+)d/);
+  if (daysMatch) {
+    totalMs += parseInt(daysMatch[1], 10) * 86400000;
+  }
+
+  const hoursMatch = duration.match(/(\d+)h/);
+  if (hoursMatch) {
+    totalMs += parseInt(hoursMatch[1], 10) * 3600000;
+  }
+
+  const minsMatch = duration.match(/(\d+)m(?!\s*s)/);
+  if (minsMatch) {
+    totalMs += parseInt(minsMatch[1], 10) * 60000;
+  }
+
+  const secsMatch = duration.match(/([\d.]+)s$/);
+  if (secsMatch) {
+    totalMs += Math.round(parseFloat(secsMatch[1]) * 1000);
+  }
+
+  const msMatch = duration.match(/([\d.]+)ms$/);
+  if (msMatch) {
+    totalMs += Math.round(parseFloat(msMatch[1]));
+  }
+
+  return totalMs;
 }
 
 export function resolveGradleCommand(job: Android.Job): string {

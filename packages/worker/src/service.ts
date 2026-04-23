@@ -4,6 +4,7 @@ import {
   Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
+  parseGradleProfile,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
@@ -346,6 +347,45 @@ export default class BuildService {
       });
 
       await this.finishError(err, maybeArtifacts);
+    } finally {
+      if (job.platform === Platform.ANDROID) {
+        await this.maybeUploadGradleProfile(job);
+      }
+    }
+  }
+
+  private async maybeUploadGradleProfile(job: Job): Promise<void> {
+    try {
+      const robotAccessToken = job.secrets?.robotAccessToken;
+      if (!robotAccessToken || !this.buildContext) {
+        return;
+      }
+
+      const androidDir = path.join(
+        this.buildContext.getReactNativeProjectDirectory(),
+        'android'
+      );
+      const tasks = await parseGradleProfile(androidDir);
+      if (!tasks || tasks.length === 0) {
+        return;
+      }
+
+      await turtleFetch(
+        new URL('turtle-builds/gradle-profile', config.wwwApiV2BaseUrl).toString(),
+        'POST',
+        {
+          json: {
+            buildId: this.buildId,
+            tasks,
+          },
+          headers: {
+            Authorization: `Bearer ${robotAccessToken}`,
+          },
+          shouldThrowOnNotOk: false,
+        }
+      );
+    } catch (err: any) {
+      logger.debug({ err }, 'Failed to upload Gradle profile');
     }
   }
 

@@ -20,6 +20,9 @@ export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
 
+export { parseGradleProfile } from './android/gradle';
+export type { GradleProfileTask } from './android/gradle';
+
 export * from './generic';
 
 export { Datadog } from './datadog';
