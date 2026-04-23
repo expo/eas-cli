@@ -6,6 +6,8 @@ import {
   CreateDeviceRunSessionInput,
   CreateDeviceRunSessionMutation,
   CreateDeviceRunSessionMutationVariables,
+  StopDeviceRunSessionMutation,
+  StopDeviceRunSessionMutationVariables,
 } from '../generated';
 
 export const DeviceRunSessionMutation = {
@@ -43,5 +45,29 @@ export const DeviceRunSessionMutation = {
         .toPromise()
     );
     return data.deviceRunSession.createDeviceRunSession;
+  },
+  async stopDeviceRunSessionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string
+  ): Promise<StopDeviceRunSessionMutation['deviceRunSession']['stopDeviceRunSession']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<StopDeviceRunSessionMutation, StopDeviceRunSessionMutationVariables>(
+          gql`
+            mutation StopDeviceRunSessionMutation($deviceRunSessionId: ID!) {
+              deviceRunSession {
+                stopDeviceRunSession(deviceRunSessionId: $deviceRunSessionId) {
+                  id
+                  status
+                }
+              }
+            }
+          `,
+          { deviceRunSessionId },
+          { noRetry: true }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSession.stopDeviceRunSession;
   },
 };

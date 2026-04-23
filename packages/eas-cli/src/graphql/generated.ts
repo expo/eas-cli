@@ -1399,6 +1399,7 @@ export type App = Project & {
    */
   buildsReleaseChannels: Array<Scalars['String']['output']>;
   channelsPaginated: AppChannelsConnection;
+  convexProject?: Maybe<ConvexProject>;
   deployment?: Maybe<Deployment>;
   /** Deployments associated with this app */
   deployments: DeploymentsConnection;
@@ -2086,6 +2087,9 @@ export type AppNotificationPreferenceInput = {
 export type AppObserve = {
   __typename?: 'AppObserve';
   appVersions: Array<AppObserveAppVersion>;
+  customEventCounts: AppObserveCustomEventCounts;
+  customEventList: AppObserveCustomEventListConnection;
+  customEventNames: AppObserveCustomEventNames;
   environments: Array<Scalars['String']['output']>;
   events: AppObserveEventsConnection;
   timeSeries: AppObserveTimeSeries;
@@ -2095,6 +2099,28 @@ export type AppObserve = {
 
 export type AppObserveAppVersionsArgs = {
   input: AppObserveReleasesInput;
+};
+
+
+export type AppObserveCustomEventCountsArgs = {
+  input: AppObserveCustomEventCountsInput;
+};
+
+
+export type AppObserveCustomEventListArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AppObserveCustomEventListFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type AppObserveCustomEventNamesArgs = {
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppObservePlatform>;
+  startTime: Scalars['DateTime']['input'];
 };
 
 
@@ -2163,6 +2189,96 @@ export type AppObserveAppVersionMetric = {
   statistics: AppObserveVersionMarkerStatistics;
 };
 
+export type AppObserveCustomEvent = {
+  __typename?: 'AppObserveCustomEvent';
+  appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
+  appUpdateId?: Maybe<Scalars['String']['output']>;
+  appVersion: Scalars['String']['output'];
+  countryCode?: Maybe<Scalars['String']['output']>;
+  deviceModel: Scalars['String']['output'];
+  deviceOs: Scalars['String']['output'];
+  deviceOsVersion: Scalars['String']['output'];
+  easClientId: Scalars['String']['output'];
+  environment?: Maybe<Scalars['String']['output']>;
+  eventName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  properties: Array<AppObserveEventProperty>;
+  sessionId?: Maybe<Scalars['String']['output']>;
+  severityNumber?: Maybe<Scalars['Int']['output']>;
+  severityText?: Maybe<Scalars['String']['output']>;
+  timestamp: Scalars['DateTime']['output'];
+};
+
+export type AppObserveCustomEventCountBucket = {
+  __typename?: 'AppObserveCustomEventCountBucket';
+  bucket: Scalars['DateTime']['output'];
+  count: Scalars['Int']['output'];
+};
+
+export type AppObserveCustomEventCounts = {
+  __typename?: 'AppObserveCustomEventCounts';
+  buckets: Array<AppObserveCustomEventCountBucket>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type AppObserveCustomEventCountsInput = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  eventName: Scalars['String']['input'];
+  platform: AppObservePlatform;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveCustomEventEdge = {
+  __typename?: 'AppObserveCustomEventEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveCustomEvent;
+};
+
+export type AppObserveCustomEventListConnection = {
+  __typename?: 'AppObserveCustomEventListConnection';
+  edges: Array<AppObserveCustomEventEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveCustomEventListFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  easClientId?: InputMaybe<Scalars['String']['input']>;
+  endTime?: InputMaybe<Scalars['DateTime']['input']>;
+  environment?: InputMaybe<Scalars['String']['input']>;
+  eventName?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppObservePlatform>;
+  propertyFilters?: InputMaybe<Array<AppObserveCustomEventPropertyFilter>>;
+  sessionId?: InputMaybe<Scalars['String']['input']>;
+  startTime?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+export type AppObserveCustomEventName = {
+  __typename?: 'AppObserveCustomEventName';
+  count: Scalars['Int']['output'];
+  eventName: Scalars['String']['output'];
+};
+
+export type AppObserveCustomEventNames = {
+  __typename?: 'AppObserveCustomEventNames';
+  isTruncated: Scalars['Boolean']['output'];
+  names: Array<AppObserveCustomEventName>;
+};
+
+export type AppObserveCustomEventPropertyFilter = {
+  key: Scalars['String']['input'];
+  value: Scalars['String']['input'];
+};
+
 export type AppObserveEvent = {
   __typename?: 'AppObserveEvent';
   appBuildNumber: Scalars['String']['output'];
@@ -2200,6 +2316,13 @@ export type AppObserveEventEdge = {
   __typename?: 'AppObserveEventEdge';
   cursor: Scalars['String']['output'];
   node: AppObserveEvent;
+};
+
+export type AppObserveEventProperty = {
+  __typename?: 'AppObserveEventProperty';
+  key: Scalars['String']['output'];
+  type: AppObservePropertyType;
+  value: Scalars['String']['output'];
 };
 
 export type AppObserveEventsConnection = {
@@ -2240,6 +2363,13 @@ export enum AppObserveEventsOrderByField {
 export enum AppObservePlatform {
   Android = 'ANDROID',
   Ios = 'IOS'
+}
+
+export enum AppObservePropertyType {
+  Boolean = 'BOOLEAN',
+  Json = 'JSON',
+  Number = 'NUMBER',
+  String = 'STRING'
 }
 
 export type AppObserveReleasesInput = {
@@ -4089,6 +4219,18 @@ export type ConvexIntegrationQuery = {
   clientIdentifier: Scalars['String']['output'];
 };
 
+export type ConvexProject = {
+  __typename?: 'ConvexProject';
+  app: App;
+  convexProjectIdentifier: Scalars['String']['output'];
+  convexProjectName: Scalars['String']['output'];
+  convexProjectSlug: Scalars['String']['output'];
+  convexTeamConnection: ConvexTeamConnection;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type ConvexTeamConnection = {
   __typename?: 'ConvexTeamConnection';
   account: Account;
@@ -5610,6 +5752,7 @@ export enum EntityTypeName {
   BillingContractEntity = 'BillingContractEntity',
   BranchEntity = 'BranchEntity',
   ChannelEntity = 'ChannelEntity',
+  ConvexProjectEntity = 'ConvexProjectEntity',
   ConvexTeamConnectionEntity = 'ConvexTeamConnectionEntity',
   CustomerEntity = 'CustomerEntity',
   EchoProjectEntity = 'EchoProjectEntity',
@@ -11753,6 +11896,13 @@ export type CreateDeviceRunSessionMutationVariables = Exact<{
 
 
 export type CreateDeviceRunSessionMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', createDeviceRunSession: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string } | null } } };
+
+export type StopDeviceRunSessionMutationVariables = Exact<{
+  deviceRunSessionId: Scalars['ID']['input'];
+}>;
+
+
+export type StopDeviceRunSessionMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', stopDeviceRunSession: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
