@@ -2850,6 +2850,23 @@ export type AppleDeviceRegistrationRequestMutationCreateAppleDeviceRegistrationR
   appleTeamId: Scalars['ID']['input'];
 };
 
+/** Publicly visible data for an AppleDeviceRegistrationRequest. */
+export type AppleDeviceRegistrationRequestPublicData = {
+  __typename?: 'AppleDeviceRegistrationRequestPublicData';
+  id: Scalars['ID']['output'];
+};
+
+export type AppleDeviceRegistrationRequestPublicDataQuery = {
+  __typename?: 'AppleDeviceRegistrationRequestPublicDataQuery';
+  /** Get AppleDeviceRegistrationRequest public data by ID */
+  byId?: Maybe<AppleDeviceRegistrationRequestPublicData>;
+};
+
+
+export type AppleDeviceRegistrationRequestPublicDataQueryByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
 export type AppleDeviceRegistrationRequestQuery = {
   __typename?: 'AppleDeviceRegistrationRequestQuery';
   byId: AppleDeviceRegistrationRequest;
@@ -4173,6 +4190,17 @@ export type CreateConvexTeamConnectionInput = {
   deploymentRegion: Scalars['String']['input'];
 };
 
+export type CreateDeviceRunSessionInput = {
+  appId: Scalars['ID']['input'];
+  /**
+   * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
+   * If omitted, consumers treat the session as pinned to "latest".
+   */
+  packageVersion?: InputMaybe<Scalars['String']['input']>;
+  platform: AppPlatform;
+  type: DeviceRunSessionType;
+};
+
 export type CreateEchoChatInput = {
   agentMetadata?: InputMaybe<Scalars['JSONObject']['input']>;
   agentType?: InputMaybe<EchoAgentType>;
@@ -4769,6 +4797,65 @@ export type DeploymentsMutationDeleteWorkerDeploymentByIdentifierArgs = {
   appId: Scalars['ID']['input'];
   deploymentIdentifier: Scalars['ID']['input'];
 };
+
+export type DeviceRunSession = {
+  __typename?: 'DeviceRunSession';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  finishedAt?: Maybe<Scalars['DateTime']['output']>;
+  id: Scalars['ID']['output'];
+  initiatingActor?: Maybe<Actor>;
+  /**
+   * The version of the package backing the device run session. Null means the session is
+   * pinned to "latest" at the consumer side.
+   */
+  packageVersion?: Maybe<Scalars['String']['output']>;
+  platform: AppPlatform;
+  startedAt?: Maybe<Scalars['DateTime']['output']>;
+  status: DeviceRunSessionStatus;
+  turtleJobRun?: Maybe<JobRun>;
+  type: DeviceRunSessionType;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type DeviceRunSessionMutation = {
+  __typename?: 'DeviceRunSessionMutation';
+  /** Create a device run session */
+  createDeviceRunSession: DeviceRunSession;
+  /** Stop a device run session */
+  stopDeviceRunSession: DeviceRunSession;
+};
+
+
+export type DeviceRunSessionMutationCreateDeviceRunSessionArgs = {
+  deviceRunSessionInput: CreateDeviceRunSessionInput;
+};
+
+
+export type DeviceRunSessionMutationStopDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+export type DeviceRunSessionQuery = {
+  __typename?: 'DeviceRunSessionQuery';
+  byId: DeviceRunSession;
+};
+
+
+export type DeviceRunSessionQueryByIdArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+};
+
+export enum DeviceRunSessionStatus {
+  Errored = 'ERRORED',
+  InProgress = 'IN_PROGRESS',
+  New = 'NEW',
+  Stopped = 'STOPPED'
+}
+
+export enum DeviceRunSessionType {
+  AgentDevice = 'AGENT_DEVICE'
+}
 
 export type DiscordUser = {
   __typename?: 'DiscordUser';
@@ -5523,6 +5610,7 @@ export enum EntityTypeName {
   BillingContractEntity = 'BillingContractEntity',
   BranchEntity = 'BranchEntity',
   ChannelEntity = 'ChannelEntity',
+  ConvexTeamConnectionEntity = 'ConvexTeamConnectionEntity',
   CustomerEntity = 'CustomerEntity',
   EchoProjectEntity = 'EchoProjectEntity',
   EchoVersionEntity = 'EchoVersionEntity',
@@ -7610,6 +7698,8 @@ export type RootMutation = {
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
+  /** Mutations that create and stop device run sessions */
+  deviceRunSession: DeviceRunSessionMutation;
   /** Mutations for Discord users */
   discordUser: DiscordUserMutation;
   /** Mutations for Echo chats */
@@ -7745,6 +7835,8 @@ export type RootQuery = {
   appStoreConnectApiKey: AppStoreConnectApiKeyQuery;
   /** Top-level query object for querying Apple Device registration requests. */
   appleDeviceRegistrationRequest: AppleDeviceRegistrationRequestQuery;
+  /** Top-level query object for querying AppleDeviceRegistrationRequest publicly. */
+  appleDeviceRegistrationRequestPublicData: AppleDeviceRegistrationRequestPublicDataQuery;
   /** Top-level query object for querying Apple distribution certificates. */
   appleDistributionCertificate?: Maybe<AppleDistributionCertificateQuery>;
   /** Top-level query object for querying Apple provisioning profiles. */
@@ -7768,6 +7860,7 @@ export type RootQuery = {
   convexIntegration: ConvexIntegrationQuery;
   /** Top-level query object for querying Deployments. */
   deployments: DeploymentQuery;
+  deviceRunSessions: DeviceRunSessionQuery;
   /** Top-level query object for querying Echo chats. */
   echoChat: EchoChatQuery;
   /** Top-level query object for querying Echo messages. */
@@ -11654,6 +11747,13 @@ export type RetryIosBuildMutationVariables = Exact<{
 
 export type RetryIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', retryIosBuild: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } } };
 
+export type CreateDeviceRunSessionMutationVariables = Exact<{
+  deviceRunSessionInput: CreateDeviceRunSessionInput;
+}>;
+
+
+export type CreateDeviceRunSessionMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', createDeviceRunSession: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string } | null } } };
+
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
   accountId: Scalars['String']['input'];
@@ -12105,6 +12205,13 @@ export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
 
 
 export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', cursor: string, node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
+export type DeviceRunSessionByIdQueryVariables = Exact<{
+  deviceRunSessionId: Scalars['ID']['input'];
+}>;
+
+
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus, logFileUrls: Array<string> } | null } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
