@@ -1,5 +1,5 @@
 import spawn from '@expo/turtle-spawn';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,17 +22,27 @@ const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 
 describe('AndroidEmulatorUtils', () => {
+  let temporaryDirectories: string[] = [];
+
   beforeEach(() => {
+    temporaryDirectories = [];
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedRetryAsync.mockImplementation(async fn => await fn(0));
   });
 
-  describe(AndroidEmulatorUtils.startLogcatStreamingAsync, () => {
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.map(async temporaryDirectory => {
+        await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  describe('AndroidEmulatorUtils.startLogcatStreamingAsync', () => {
     function createSpawnPromise() {
       const child = Object.assign(new EventEmitter(), {
         pid: 1234,
         stdout: new PassThrough(),
-        stderr: new PassThrough(),
         unref: jest.fn(),
       });
       const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
@@ -42,41 +52,56 @@ describe('AndroidEmulatorUtils', () => {
 
     it('streams logcat to a staged file', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
       const logger = createMockLogger();
       const { child, spawnPromise } = createSpawnPromise();
       mockedSpawn.mockReturnValueOnce(spawnPromise);
-
-      const result = await AndroidEmulatorUtils.startLogcatStreamingAsync({
-        serialId: 'emulator-5554' as any,
-        outputDir,
-        env: process.env,
-        logger,
-      });
-
-      expect(result).not.toBeNull();
-      expect(mockedSpawn).toHaveBeenCalledWith(
-        'adb',
-        ['-s', 'emulator-5554', 'logcat', '-v', 'threadtime'],
-        {
+      const originalCreateWriteStream = fs.createWriteStream.bind(fs);
+      let writeStream: fs.WriteStream | undefined;
+      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockImplementation(((
+        ...args
+      ) => {
+        writeStream = originalCreateWriteStream(...args);
+        return writeStream;
+      }) as typeof fs.createWriteStream);
+      try {
+        const result = await AndroidEmulatorUtils.startLogcatStreamingAsync({
+          serialId: 'emulator-5554' as any,
+          outputDir,
           env: process.env,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        }
-      );
-      expect(child.unref).toHaveBeenCalled();
+          logger,
+        });
 
-      child.stdout.write('log line\n');
-      child.emit('close', 0);
-      await new Promise(resolve => setTimeout(resolve, 10));
+        expect(result).not.toBeNull();
+        expect(mockedSpawn).toHaveBeenCalledWith(
+          'adb',
+          ['-s', 'emulator-5554', 'logcat', '-v', 'threadtime'],
+          {
+            env: process.env,
+            stdio: ['ignore', 'pipe', 'ignore'],
+          }
+        );
+        expect(child.unref).toHaveBeenCalled();
 
-      expect(result!.outputPath.startsWith(outputDir)).toBe(true);
-      await expect(fs.promises.readFile(result!.outputPath, 'utf-8')).resolves.toContain(
-        'log line'
-      );
-      expect(path.basename(result!.outputPath)).toBe('1234-emulator-5554.log');
+        child.stdout.write('log line\n');
+        child.stdout.end();
+        child.emit('close', 0);
+        expect(writeStream).toBeDefined();
+        await once(writeStream!, 'finish');
+
+        expect(result!.outputPath.startsWith(outputDir)).toBe(true);
+        await expect(fs.promises.readFile(result!.outputPath, 'utf-8')).resolves.toContain(
+          'log line'
+        );
+        expect(path.basename(result!.outputPath)).toBe('1234-emulator-5554.log');
+      } finally {
+        createWriteStreamSpy.mockRestore();
+      }
     });
 
     it('returns null and warns when logcat cannot start', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
       const logger = createMockLogger();
       mockedSpawn.mockImplementationOnce(() => {
         throw new Error('spawn failed');
