@@ -6,6 +6,7 @@ import FastGlob from 'fast-glob';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
@@ -530,32 +531,11 @@ export namespace AndroidEmulatorUtils {
       const safeSerialId = serialId.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const outputPath = path.join(outputDir, `${child.pid}-${safeSerialId}.log`);
       const writeStream = fs.createWriteStream(outputPath);
-      const cleanupStreams = () => {
-        childStdout.unpipe(writeStream);
-        if (!childStdout.destroyed) {
-          childStdout.destroy();
-        }
-        if (!writeStream.destroyed) {
-          writeStream.destroy();
-        }
-      };
-
-      childStdout.pipe(writeStream);
-      childStdout.on('error', err => {
-        logger.warn({ err }, `Failed to read Android emulator logcat for ${serialId}.`);
-        cleanupStreams();
-      });
-      writeStream.on('error', err => {
-        logger.warn({ err }, `Failed to write Android emulator logcat for ${serialId}.`);
-        cleanupStreams();
+      void pipeline(childStdout, writeStream).catch(err => {
+        logger.warn({ err }, `Android emulator logcat stream for ${serialId} failed.`);
       });
       child.on('error', err => {
         logger.warn({ err }, `Android emulator logcat process for ${serialId} failed.`);
-      });
-      child.on('close', () => {
-        if (!writeStream.destroyed && !writeStream.writableEnded) {
-          writeStream.end();
-        }
       });
       child.unref();
 
