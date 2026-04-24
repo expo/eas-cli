@@ -517,7 +517,7 @@ export namespace AndroidEmulatorUtils {
 
       const logcatPromise = spawn('adb', ['-s', serialId, 'logcat', '-v', 'threadtime'], {
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'ignore'],
       });
       const { child } = logcatPromise;
 
@@ -534,6 +534,9 @@ export namespace AndroidEmulatorUtils {
       });
       writeStream.on('error', err => {
         logger.warn({ err }, `Failed to write Android emulator logcat for ${serialId}.`);
+      });
+      child.on('error', err => {
+        logger.warn({ err }, `Android emulator logcat process for ${serialId} failed.`);
       });
       child.on('close', () => {
         writeStream.end();
