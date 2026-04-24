@@ -12,12 +12,17 @@ export interface RunArchiveFlags {
   url?: string;
 }
 
+export interface RunOptions {
+  simulatorId?: string;
+}
+
 export async function runAsync(
   simulatorBuildPath: string,
-  selectedPlatform: AppPlatform
+  selectedPlatform: AppPlatform,
+  options: RunOptions = {}
 ): Promise<void> {
   if (selectedPlatform === AppPlatform.Ios) {
-    await runAppOnIosSimulatorAsync(simulatorBuildPath);
+    await runAppOnIosSimulatorAsync(simulatorBuildPath, options.simulatorId);
   } else {
     await runAppOnAndroidEmulatorAsync(simulatorBuildPath);
   }

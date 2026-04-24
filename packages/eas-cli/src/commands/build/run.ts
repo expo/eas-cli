@@ -17,6 +17,7 @@ import { appPlatformDisplayNames } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, getEasBuildRunCachedAppPath, runAsync } from '../../run/run';
+import type { RunOptions } from '../../run/run';
 import { isRunnableOnSimulatorOrEmulator } from '../../run/utils';
 import {
   downloadAndMaybeExtractAppAsync,
@@ -32,11 +33,13 @@ interface RawRunFlags {
   limit?: number;
   offset?: number;
   profile?: string;
+  'simulator-id'?: string;
 }
 
 interface RunCommandFlags {
   selectedPlatform: AppPlatform;
   runArchiveFlags: RunArchiveFlags;
+  runOptions: RunOptions;
   limit?: number;
   offset?: number;
   profile?: string;
@@ -61,6 +64,9 @@ export default class Run extends EasCommand {
     id: Flags.string({
       description: 'ID of the simulator/emulator build to run',
       exclusive: ['latest, path, url'],
+    }),
+    'simulator-id': Flags.string({
+      description: 'ID of the iOS simulator to install the build on.',
     }),
     platform: Flags.option({
       char: 'p',
@@ -99,16 +105,28 @@ export default class Run extends EasCommand {
       queryOptions
     );
 
-    await runAsync(simulatorBuildPath, flags.selectedPlatform);
+    await runAsync(simulatorBuildPath, flags.selectedPlatform, flags.runOptions);
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
-    const { platform, limit, offset, profile, ...runArchiveFlags } = flags;
+    const {
+      platform,
+      limit,
+      offset,
+      profile,
+      'simulator-id': simulatorId,
+      ...runArchiveFlags
+    } = flags;
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
     if (platform === 'ios' && process.platform !== 'darwin') {
       Errors.error('You can only use an iOS simulator to run apps on macOS devices', {
+        exit: 1,
+      });
+    }
+    if (simulatorId && selectedPlatform === AppPlatform.Android) {
+      Errors.error('The --simulator-id flag is only supported for iOS simulator builds.', {
         exit: 1,
       });
     }
@@ -134,6 +152,7 @@ export default class Run extends EasCommand {
     return {
       selectedPlatform,
       runArchiveFlags,
+      runOptions: { simulatorId },
       limit,
       offset,
       profile,

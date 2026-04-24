@@ -43,6 +43,9 @@ export default class BuildDev extends EasCommand {
       description: `Name of the build profile from eas.json. It must be a profile allowing to create emulator/simulator internal distribution dev client builds. The "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile will be selected by default.`,
       helpValue: 'PROFILE_NAME',
     }),
+    'simulator-id': Flags.string({
+      description: 'ID of the iOS simulator to install the dev client on.',
+    }),
     'skip-build-if-not-found': Flags.boolean({
       description: 'Skip build if no successful build with matching fingerprint is found.',
       default: false,
@@ -76,6 +79,11 @@ export default class BuildDev extends EasCommand {
     const platform = await this.selectPlatformAsync(flags.platform);
     if (process.platform !== 'darwin' && platform === Platform.IOS) {
       Errors.error('Running iOS builds in simulator is only supported on macOS.', { exit: 1 });
+    }
+    if (flags['simulator-id'] && platform === Platform.ANDROID) {
+      Errors.error('The --simulator-id flag is only supported for iOS simulator builds.', {
+        exit: 1,
+      });
     }
 
     await vcsClient.ensureRepoExistsAsync();
@@ -128,7 +136,7 @@ export default class BuildDev extends EasCommand {
       );
 
       if (build.artifacts?.applicationArchiveUrl) {
-        await downloadAndRunAsync(build);
+        await downloadAndRunAsync(build, { simulatorId: flags['simulator-id'] });
         await this.startDevServerAsync({ projectDir, platform });
         return;
       } else {
@@ -180,6 +188,7 @@ export default class BuildDev extends EasCommand {
       actor,
       getDynamicPrivateProjectConfigAsync,
       downloadSimBuildAutoConfirm: true,
+      runOptions: { simulatorId: flags['simulator-id'] },
       envOverride: env,
     });
     await this.startDevServerAsync({ projectDir, platform });

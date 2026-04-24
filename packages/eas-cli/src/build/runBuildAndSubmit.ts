@@ -65,6 +65,7 @@ import {
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { getEasBuildRunCachedAppPath, runAsync } from '../run/run';
+import type { RunOptions } from '../run/run';
 import { isRunnableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
@@ -113,6 +114,7 @@ export async function runBuildAndSubmitAsync({
   actor,
   getDynamicPrivateProjectConfigAsync,
   downloadSimBuildAutoConfirm,
+  runOptions,
   envOverride,
 }: {
   graphqlClient: ExpoGraphqlClient;
@@ -123,6 +125,7 @@ export async function runBuildAndSubmitAsync({
   actor: Actor;
   getDynamicPrivateProjectConfigAsync: DynamicConfigContextFn;
   downloadSimBuildAutoConfirm?: boolean;
+  runOptions?: RunOptions;
   envOverride?: Env;
 }): Promise<{
   buildIds: string[];
@@ -331,7 +334,12 @@ export async function runBuildAndSubmitAsync({
       [BuildStatus.Errored, BuildStatus.Canceled, BuildStatus.PendingCancel].includes(build?.status)
   );
 
-  await maybeDownloadAndRunSimulatorBuildsAsync(builds, flags, downloadSimBuildAutoConfirm);
+  await maybeDownloadAndRunSimulatorBuildsAsync(
+    builds,
+    flags,
+    downloadSimBuildAutoConfirm,
+    runOptions
+  );
 
   if (haveAllBuildsFailedOrCanceled || !flags.autoSubmit) {
     if (flags.json) {
@@ -579,14 +587,17 @@ function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | nul
   }
 }
 
-export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
+export async function downloadAndRunAsync(
+  build: BuildFragment,
+  runOptions?: RunOptions
+): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
   const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
 
   if (await pathExists(cachedAppPath)) {
     Log.newLine();
     Log.log(`Using cached app...`);
-    await runAsync(cachedAppPath, build.platform);
+    await runAsync(cachedAppPath, build.platform, runOptions);
     return;
   }
 
@@ -595,13 +606,14 @@ export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
     build.platform,
     cachedAppPath
   );
-  await runAsync(buildPath, build.platform);
+  await runAsync(buildPath, build.platform, runOptions);
 }
 
 async function maybeDownloadAndRunSimulatorBuildsAsync(
   builds: MaybeBuildFragment[],
   flags: BuildFlags,
-  autoConfirm?: boolean
+  autoConfirm?: boolean,
+  runOptions?: RunOptions
 ): Promise<void> {
   const simBuilds = builds.filter(truthy).filter(isRunnableOnSimulatorOrEmulator);
 
@@ -617,9 +629,9 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
             } build on ${
               simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'
             }?`,
-          }));
+        }));
         if (confirm) {
-          await downloadAndRunAsync(simBuild);
+          await downloadAndRunAsync(simBuild, runOptions);
         }
       }
     }

@@ -18,7 +18,11 @@ interface IosSimulator {
   lastBootedAt?: Date;
 }
 
-export async function selectSimulatorAsync(): Promise<IosSimulator> {
+export async function selectSimulatorAsync(simulatorId?: string): Promise<IosSimulator> {
+  if (simulatorId) {
+    return await getIosSimulatorByIdAsync(simulatorId);
+  }
+
   const bootedSimulator = await getFirstBootedIosSimulatorAsync();
 
   if (bootedSimulator) {
@@ -37,6 +41,19 @@ export async function selectSimulatorAsync(): Promise<IosSimulator> {
       value: simulator,
     })),
   });
+
+  return selectedSimulator;
+}
+
+async function getIosSimulatorByIdAsync(simulatorId: string): Promise<IosSimulator> {
+  const simulators = await getAvaliableIosSimulatorsListAsync();
+  const selectedSimulator = simulators.find(
+    simulator => simulator.udid.toLowerCase() === simulatorId.toLowerCase()
+  );
+
+  if (!selectedSimulator) {
+    throw new Error(`iOS simulator with id "${simulatorId}" was not found.`);
+  }
 
   return selectedSimulator;
 }
