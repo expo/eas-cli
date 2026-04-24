@@ -357,6 +357,12 @@ export default class BuildService {
               workflow: job.type,
               sdkVersion: metadata?.sdkVersion ?? null,
               reactNativeVersion: metadata?.reactNativeVersion ?? null,
+              appId: job.appId ?? null,
+              buildProfile: metadata?.buildProfile ?? null,
+              appName: metadata?.appName ?? null,
+              appIdentifier: metadata?.appIdentifier ?? null,
+              distribution: metadata?.distribution ?? null,
+              cliVersion: metadata?.cliVersion ?? null,
             },
             headers: {
               Authorization: `Bearer ${robotAccessToken}`,
