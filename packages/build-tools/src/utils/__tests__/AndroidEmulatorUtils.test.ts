@@ -123,6 +123,37 @@ describe('AndroidEmulatorUtils', () => {
         'Failed to start Android emulator logcat stream for emulator-5554.'
       );
     });
+
+    it('returns null when logcat child pid is missing', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const logger = createMockLogger();
+      const child = Object.assign(new EventEmitter(), {
+        pid: undefined,
+        stdout: new PassThrough(),
+        unref: jest.fn(),
+      });
+      const spawnError = new Error('spawn failed');
+      const spawnPromise = Promise.reject(spawnError) as any;
+      spawnPromise.child = child;
+      mockedSpawn.mockReturnValueOnce(spawnPromise);
+
+      await expect(
+        AndroidEmulatorUtils.startLogcatStreamingAsync({
+          serialId: 'emulator-5554' as any,
+          outputDir,
+          env: process.env,
+          logger,
+        })
+      ).resolves.toBeNull();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          err: expect.objectContaining({ message: 'spawn failed' }),
+        }),
+        'Failed to start Android emulator logcat stream for emulator-5554.'
+      );
+    });
   });
 
   describe(AndroidEmulatorUtils.waitForReadyAsync, () => {

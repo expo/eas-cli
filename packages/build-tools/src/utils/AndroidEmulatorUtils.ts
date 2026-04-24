@@ -521,6 +521,10 @@ export namespace AndroidEmulatorUtils {
       if (!child.stdout) {
         throw new Error('"adb logcat" did not start correctly.');
       }
+      if (!child.pid) {
+        await logcatPromise;
+        throw new Error('"adb logcat" did not start correctly.');
+      }
 
       const safeSerialId = serialId.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const outputPath = path.join(outputDir, `${child.pid}-${safeSerialId}.log`);
