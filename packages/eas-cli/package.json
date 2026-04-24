@@ -78,6 +78,7 @@
     "chalk": "4.1.2",
     "cli-progress": "3.12.0",
     "dateformat": "4.6.3",
+    "debug": "^4.4.3",
     "diff": "7.0.0",
     "dotenv": "16.3.1",
     "env-paths": "2.2.0",
