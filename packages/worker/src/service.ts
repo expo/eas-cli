@@ -332,7 +332,7 @@ export default class BuildService {
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+      if (robotAccessToken) {
         let rawErrorMessage: string = '';
         if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
