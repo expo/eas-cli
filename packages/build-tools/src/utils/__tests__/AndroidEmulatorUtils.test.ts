@@ -1,9 +1,10 @@
 import spawn from '@expo/turtle-spawn';
-import { EventEmitter, once } from 'node:events';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
+import { finished } from 'node:stream/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { AndroidEmulatorUtils } from '../AndroidEmulatorUtils';
@@ -84,10 +85,9 @@ describe('AndroidEmulatorUtils', () => {
         expect(child.unref).toHaveBeenCalled();
 
         expect(writeStream).toBeDefined();
-        const finishPromise = once(writeStream!, 'finish');
+        const finishPromise = finished(writeStream!);
         child.stdout.write('log line\n');
         child.stdout.end();
-        child.emit('close', 0);
         await finishPromise;
 
         expect(result!.outputPath.startsWith(outputDir)).toBe(true);
