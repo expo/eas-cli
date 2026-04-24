@@ -83,11 +83,12 @@ describe('AndroidEmulatorUtils', () => {
         );
         expect(child.unref).toHaveBeenCalled();
 
+        expect(writeStream).toBeDefined();
+        const finishPromise = once(writeStream!, 'finish');
         child.stdout.write('log line\n');
         child.stdout.end();
         child.emit('close', 0);
-        expect(writeStream).toBeDefined();
-        await once(writeStream!, 'finish');
+        await finishPromise;
 
         expect(result!.outputPath.startsWith(outputDir)).toBe(true);
         await expect(fs.promises.readFile(result!.outputPath, 'utf-8')).resolves.toContain(
