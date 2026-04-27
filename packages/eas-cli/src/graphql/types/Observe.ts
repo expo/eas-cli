@@ -18,6 +18,32 @@ export const AppObserveTimeSeriesFragmentNode = gql`
   }
 `;
 
+export const AppObserveCustomEventFragmentNode = gql`
+  fragment AppObserveCustomEventFragment on AppObserveCustomEvent {
+    id
+    eventName
+    timestamp
+    sessionId
+    severityNumber
+    severityText
+    properties {
+      key
+      value
+      type
+    }
+    appVersion
+    appBuildNumber
+    appUpdateId
+    appEasBuildId
+    deviceOs
+    deviceOsVersion
+    deviceModel
+    environment
+    easClientId
+    countryCode
+  }
+`;
+
 export const AppObserveEventFragmentNode = gql`
   fragment AppObserveEventFragment on AppObserveEvent {
     id

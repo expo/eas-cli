@@ -4,6 +4,8 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   AppObserveAppVersion,
+  AppObserveCustomEvent,
+  AppObserveCustomEventListFilter,
   AppObserveEvent,
   AppObserveEventsFilter,
   AppObserveEventsOrderBy,
@@ -16,6 +18,7 @@ import {
 import { print } from 'graphql';
 import {
   AppObserveAppVersionFragmentNode,
+  AppObserveCustomEventFragmentNode,
   AppObserveTimeSeriesFragmentNode,
   AppObserveEventFragmentNode,
 } from '../types/Observe';
@@ -81,6 +84,30 @@ type AppObserveEventsQueryVariables = {
   first?: number;
   after?: string;
   orderBy?: AppObserveEventsOrderBy;
+};
+
+type AppObserveCustomEventListQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        customEventList: {
+          pageInfo: PageInfo;
+          edges: Array<{
+            cursor: string;
+            node: AppObserveCustomEvent;
+          }>;
+        };
+      };
+    };
+  };
+};
+
+type AppObserveCustomEventListQueryVariables = {
+  appId: string;
+  filter?: AppObserveCustomEventListFilter;
+  first?: number;
+  after?: string;
 };
 
 export const ObserveQuery = {
@@ -231,6 +258,55 @@ export const ObserveQuery = {
     );
 
     const { edges, pageInfo } = data.app.byId.observe.events;
+    return {
+      events: edges.map(edge => edge.node),
+      pageInfo,
+    };
+  },
+
+  async customEventListAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveCustomEventListQueryVariables
+  ): Promise<{ events: AppObserveCustomEvent[]; pageInfo: PageInfo }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveCustomEventListQuery, AppObserveCustomEventListQueryVariables>(
+          gql`
+            query AppObserveCustomEventList(
+              $appId: String!
+              $filter: AppObserveCustomEventListFilter
+              $first: Int
+              $after: String
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    customEventList(filter: $filter, first: $first, after: $after) {
+                      pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        endCursor
+                      }
+                      edges {
+                        cursor
+                        node {
+                          ...AppObserveCustomEventFragment
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveCustomEventFragmentNode)}
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    const { edges, pageInfo } = data.app.byId.observe.customEventList;
     return {
       events: edges.map(edge => edge.node),
       pageInfo,

@@ -1,0 +1,162 @@
+import chalk from 'chalk';
+
+import { AppObserveCustomEvent, PageInfo } from '../graphql/generated';
+
+function formatTimestamp(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+  });
+}
+
+function formatDate(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export interface ObserveCustomEventPropertyJson {
+  key: string;
+  value: string;
+  type: string;
+}
+
+export interface ObserveCustomEventJson {
+  id: string;
+  eventName: string;
+  timestamp: string;
+  sessionId: string | null;
+  severityNumber: number | null;
+  severityText: string | null;
+  properties: ObserveCustomEventPropertyJson[];
+  appVersion: string;
+  appBuildNumber: string;
+  appUpdateId: string | null;
+  appEasBuildId: string | null;
+  deviceModel: string;
+  deviceOs: string;
+  deviceOsVersion: string;
+  countryCode: string | null;
+  environment: string | null;
+  easClientId: string;
+}
+
+export interface BuildCustomEventsTableOptions {
+  eventName?: string;
+  daysBack?: number;
+  startTime?: string;
+  endTime?: string;
+  totalEventCount?: number;
+}
+
+export function buildObserveCustomEventsTable(
+  events: AppObserveCustomEvent[],
+  pageInfo: PageInfo,
+  options?: BuildCustomEventsTableOptions
+): string {
+  if (events.length === 0) {
+    return chalk.yellow('No custom events found.');
+  }
+
+  const showEventName = !options?.eventName;
+  const hasSeverity = events.some(e => e.severityText);
+
+  const headers = [
+    'Timestamp',
+    ...(showEventName ? ['Event'] : []),
+    ...(hasSeverity ? ['Severity'] : []),
+    'App Version',
+    'Platform',
+    'Device',
+    'Country',
+  ];
+
+  const rows: string[][] = events.map(event => [
+    formatTimestamp(event.timestamp),
+    ...(showEventName ? [event.eventName] : []),
+    ...(hasSeverity ? [event.severityText ?? '-'] : []),
+    `${event.appVersion} (${event.appBuildNumber})`,
+    `${event.deviceOs} ${event.deviceOsVersion}`,
+    event.deviceModel,
+    event.countryCode ?? '-',
+  ]);
+
+  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
+  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
+  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
+  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
+
+  const lines: string[] = [];
+
+  if (options) {
+    let timeDesc: string;
+    if (options.daysBack) {
+      timeDesc = `for the last ${options.daysBack} days`;
+    } else if (options.startTime && options.endTime) {
+      timeDesc = `from ${formatDate(options.startTime)} to ${formatDate(options.endTime)}`;
+    } else {
+      timeDesc = '';
+    }
+    const totalDesc =
+      options.totalEventCount != null
+        ? ` — ${options.totalEventCount.toLocaleString()} total events`
+        : '';
+    const subject = options.eventName ? `${options.eventName} events` : 'Custom events';
+    lines.push(chalk.bold(`${subject} ${timeDesc}${totalDesc}`.trim()), '');
+  }
+
+  lines.push(chalk.bold(headerLine), separatorLine, ...dataLines);
+
+  if (pageInfo.hasNextPage && pageInfo.endCursor) {
+    lines.push('', `Next page: --after ${pageInfo.endCursor}`);
+  }
+
+  return lines.join('\n');
+}
+
+export function buildObserveCustomEventsJson(
+  events: AppObserveCustomEvent[],
+  pageInfo: PageInfo
+): {
+  events: ObserveCustomEventJson[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+} {
+  return {
+    events: events.map(event => ({
+      id: event.id,
+      eventName: event.eventName,
+      timestamp: event.timestamp,
+      sessionId: event.sessionId ?? null,
+      severityNumber: event.severityNumber ?? null,
+      severityText: event.severityText ?? null,
+      properties: event.properties.map(p => ({
+        key: p.key,
+        value: p.value,
+        type: p.type,
+      })),
+      appVersion: event.appVersion,
+      appBuildNumber: event.appBuildNumber,
+      appUpdateId: event.appUpdateId ?? null,
+      appEasBuildId: event.appEasBuildId ?? null,
+      deviceModel: event.deviceModel,
+      deviceOs: event.deviceOs,
+      deviceOsVersion: event.deviceOsVersion,
+      countryCode: event.countryCode ?? null,
+      environment: event.environment ?? null,
+      easClientId: event.easClientId,
+    })),
+    pageInfo: {
+      hasNextPage: pageInfo.hasNextPage,
+      endCursor: pageInfo.endCursor ?? null,
+    },
+  };
+}
