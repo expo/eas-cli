@@ -4,6 +4,7 @@ import { EasCommandError } from '../commandUtils/errors';
 import { AppPlatform } from '../graphql/generated';
 import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
+import { buildTimeRangeDescription } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
 
 export type StatisticKey =
@@ -169,13 +170,6 @@ function buildStatsDescription(displayStats: StatisticKey[]): string {
   return displayStats.map(s => STAT_DISPLAY_NAMES[s]).join(', ');
 }
 
-function buildTimeRangeDescription(daysBack?: number): string {
-  if (daysBack) {
-    return `for the last ${daysBack} days`;
-  }
-  return '';
-}
-
 export function buildObserveMetricsTable(
   metricsMap: ObserveMetricsMap,
   metricNames: string[],
@@ -197,7 +191,7 @@ export function buildObserveMetricsTable(
 
   // Build summary header
   const statsDesc = displayStats.length > 0 ? buildStatsDescription(displayStats) : 'Event count';
-  const timeDesc = buildTimeRangeDescription(options?.daysBack);
+  const timeDesc = buildTimeRangeDescription({ daysBack: options?.daysBack });
   const countSuffix = hasEventCount && displayStats.length > 0 ? ' (event count)' : '';
   const summaryLine = `${statsDesc} values${countSuffix}${timeDesc ? ` ${timeDesc}` : ''}`;
 

@@ -63,10 +63,10 @@ describe(buildObserveEventsTable, () => {
 
     // Escape codes are included, because the header is bolded.
     expect(output).toMatchInlineSnapshot(`
-"[1mValue  App Version  Platform    Device     Country  Timestamp             [22m
------  -----------  ----------  ---------  -------  ----------------------
-1.23s  1.2.0 (42)   iOS 17.0    iPhone 15  US       Jan 15, 2025, 10:30 AM
-0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15 AM"
+"[1mValue  App Version  Platform    Device     Country  Timestamp                    [22m
+-----  -----------  ----------  ---------  -------  -----------------------------
+1.23s  1.2.0 (42)   iOS 17.0    iPhone 15  US       Jan 15, 2025, 10:30:00.000 AM
+0.85s  1.1.0 (38)   Android 14  Pixel 8    PL       Jan 14, 2025, 08:15:00.000 AM"
 `);
   });
 

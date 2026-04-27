@@ -8,15 +8,7 @@ import {
 import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
 import { AppVersionsResult } from './fetchVersions';
-
-function formatDate(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+import { formatDate } from './formatUtils';
 
 export interface AppVersionJson {
   platform: string;

@@ -1,18 +1,9 @@
 import chalk from 'chalk';
 
 import { AppObserveEvent, PageInfo } from '../graphql/generated';
+import renderTextTable from '../utils/renderTextTable';
+import { buildTimeRangeDescription, formatTimestamp } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
-
-function formatTimestamp(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export interface ObserveEventJson {
   id: string;
@@ -29,15 +20,6 @@ export interface ObserveEventJson {
   easClientId: string;
   timestamp: string;
   customParams: { [key: string]: any } | null;
-}
-
-function formatDate(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | null {
@@ -83,24 +65,11 @@ export function buildObserveEventsTable(
     formatTimestamp(event.timestamp),
   ]);
 
-  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
-
-  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
-  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
-
   const lines: string[] = [];
 
   if (options) {
     const metricDisplay = getMetricDisplayName(options.metricName);
-    let timeDesc: string;
-    if (options.daysBack) {
-      timeDesc = `for the last ${options.daysBack} days`;
-    } else if (options.startTime && options.endTime) {
-      timeDesc = `from ${formatDate(options.startTime)} to ${formatDate(options.endTime)}`;
-    } else {
-      timeDesc = '';
-    }
+    const timeDesc = buildTimeRangeDescription(options);
     const totalDesc =
       options.totalEventCount != null
         ? ` — ${options.totalEventCount.toLocaleString()} total events`
@@ -108,7 +77,7 @@ export function buildObserveEventsTable(
     lines.push(chalk.bold(`${metricDisplay} events ${timeDesc}${totalDesc}`.trim()), '');
   }
 
-  lines.push(chalk.bold(headerLine), separatorLine, ...dataLines);
+  lines.push(renderTextTable(headers, rows));
 
   if (pageInfo.hasNextPage && pageInfo.endCursor) {
     lines.push('', `Next page: --after ${pageInfo.endCursor}`);
