@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `eas integrations:convex` commands to manage Convex integrations for EAS projects. ([#3575](https://github.com/expo/eas-cli/pull/3575) by [@fiberjw](https://github.com/fiberjw))
+- [eas-cli] New command `observe:logs` for custom events. ([#3638](https://github.com/expo/eas-cli/pull/3638) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
