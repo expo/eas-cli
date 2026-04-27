@@ -2,6 +2,7 @@ import { Flags } from '@oclif/core';
 
 import { getBareJobRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
   AppPlatform,
@@ -76,6 +77,7 @@ export default class SimulatorStart extends EasCommand {
 
     const createSpinner = ora('🚀 Creating device run session').start();
     let deviceRunSessionId: string;
+    let jobRunUrl: string;
     try {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
@@ -85,7 +87,7 @@ export default class SimulatorStart extends EasCommand {
       });
       deviceRunSessionId = session.id;
       const jobRunId = nullthrows(session.turtleJobRun?.id, 'Expected device run session to start');
-      const jobRunUrl = getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, jobRunId);
+      jobRunUrl = getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, jobRunId);
       createSpinner.succeed(
         `Device run session created (id: ${deviceRunSessionId}) ${link(jobRunUrl)}`
       );
@@ -109,7 +111,7 @@ export default class SimulatorStart extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Device run session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} daemon was ready.`
+            `Device run session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} daemon was ready. ${link(jobRunUrl)}`
           );
         }
 
@@ -120,7 +122,7 @@ export default class SimulatorStart extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for device run session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} daemon was ready.`
+            `Turtle job run for device run session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} daemon was ready. ${link(jobRunUrl)}`
           );
         }
 
@@ -135,13 +137,15 @@ export default class SimulatorStart extends EasCommand {
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} daemon logs`);
+      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw err;
     }
 
     if (!result.ready) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} daemon to start`);
+      await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw new Error(
-        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} daemon to start.`
+        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} daemon to start. ${link(jobRunUrl)}`
       );
     }
 
@@ -152,6 +156,25 @@ export default class SimulatorStart extends EasCommand {
     Log.newLine();
     Log.log(
       `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+    );
+  }
+}
+
+async function ensureDeviceRunSessionStoppedSafelyAsync(
+  graphqlClient: ExpoGraphqlClient,
+  deviceRunSessionId: string
+): Promise<void> {
+  try {
+    await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
+      graphqlClient,
+      deviceRunSessionId
+    );
+  } catch (err) {
+    // Cleanup is best-effort; surface the failure but don't mask the original error.
+    Log.warn(
+      `Failed to stop device run session ${deviceRunSessionId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`
     );
   }
 }

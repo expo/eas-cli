@@ -2094,6 +2094,7 @@ export type AppObserve = {
   events: AppObserveEventsConnection;
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
+  updates: AppObserveUpdatesConnection;
 };
 
 
@@ -2143,6 +2144,11 @@ export type AppObserveEventsArgs = {
 
 export type AppObserveTimeSeriesArgs = {
   input: AppObserveTimeSeriesInput;
+};
+
+
+export type AppObserveUpdatesArgs = {
+  input: AppObserveUpdatesInput;
 };
 
 export type AppObserveAppBuildNumber = {
@@ -2427,6 +2433,57 @@ export type AppObserveTimeSeriesStatistics = {
   p90?: Maybe<Scalars['Float']['output']>;
   p99?: Maybe<Scalars['Float']['output']>;
 };
+
+export type AppObserveUpdate = {
+  __typename?: 'AppObserveUpdate';
+  appUpdateId: Scalars['String']['output'];
+  appVersion: Scalars['String']['output'];
+  downloadCount: Scalars['Int']['output'];
+  firstSeenAt: Scalars['DateTime']['output'];
+  medianDownloadTime: Scalars['Float']['output'];
+  p90DownloadTime: Scalars['Float']['output'];
+};
+
+export type AppObserveUpdateEdge = {
+  __typename?: 'AppObserveUpdateEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveUpdate;
+};
+
+export type AppObserveUpdatesConnection = {
+  __typename?: 'AppObserveUpdatesConnection';
+  edges: Array<AppObserveUpdateEdge>;
+  pageInfo: PageInfo;
+  totalCount: Scalars['Int']['output'];
+  totalDownloads: Scalars['Int']['output'];
+};
+
+export type AppObserveUpdatesInput = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveUpdatesOrderBy>;
+  platform: AppObservePlatform;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveUpdatesOrderBy = {
+  direction: AppObserveUpdatesOrderByDirection;
+  field: AppObserveUpdatesOrderByField;
+};
+
+export enum AppObserveUpdatesOrderByDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
+export enum AppObserveUpdatesOrderByField {
+  DownloadCount = 'DOWNLOAD_COUNT',
+  FirstSeenAt = 'FIRST_SEEN_AT',
+  MedianDownloadTime = 'MEDIAN_DOWNLOAD_TIME',
+  P90DownloadTime = 'P90_DOWNLOAD_TIME'
+}
 
 export type AppObserveVersionMarkerStatistics = {
   __typename?: 'AppObserveVersionMarkerStatistics';
@@ -4251,10 +4308,12 @@ export type ConvexProjectMutationSetupConvexProjectArgs = {
 export type ConvexTeamConnection = {
   __typename?: 'ConvexTeamConnection';
   account: Account;
+  convexProjects: Array<ConvexProject>;
   convexTeamIdentifier: Scalars['String']['output'];
   convexTeamName: Scalars['String']['output'];
   convexTeamSlug: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
+  hasBeenClaimed: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   invitedAt?: Maybe<Scalars['DateTime']['output']>;
   invitedEmail?: Maybe<Scalars['String']['output']>;
@@ -4985,8 +5044,12 @@ export type DeviceRunSessionMutation = {
   __typename?: 'DeviceRunSessionMutation';
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
-  /** Stop a device run session */
-  stopDeviceRunSession: DeviceRunSession;
+  /**
+   * Ensure a device run session is stopped. Idempotent: if the session has already
+   * finished, the existing session is returned unchanged (an ERRORED session stays
+   * ERRORED).
+   */
+  ensureDeviceRunSessionStopped: DeviceRunSession;
 };
 
 
@@ -4995,7 +5058,7 @@ export type DeviceRunSessionMutationCreateDeviceRunSessionArgs = {
 };
 
 
-export type DeviceRunSessionMutationStopDeviceRunSessionArgs = {
+export type DeviceRunSessionMutationEnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
@@ -11003,6 +11066,7 @@ export enum WorkflowJobStatus {
 
 export enum WorkflowJobType {
   AppleDeviceRegistrationRequest = 'APPLE_DEVICE_REGISTRATION_REQUEST',
+  BranchDelete = 'BRANCH_DELETE',
   Build = 'BUILD',
   Custom = 'CUSTOM',
   Deploy = 'DEPLOY',
@@ -11984,12 +12048,12 @@ export type CreateDeviceRunSessionMutationVariables = Exact<{
 
 export type CreateDeviceRunSessionMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', createDeviceRunSession: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string } | null } } };
 
-export type StopDeviceRunSessionMutationVariables = Exact<{
+export type EnsureDeviceRunSessionStoppedMutationVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];
 }>;
 
 
-export type StopDeviceRunSessionMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', stopDeviceRunSession: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
+export type EnsureDeviceRunSessionStoppedMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', ensureDeviceRunSessionStopped: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;

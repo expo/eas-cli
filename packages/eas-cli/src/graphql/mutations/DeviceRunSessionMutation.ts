@@ -6,8 +6,8 @@ import {
   CreateDeviceRunSessionInput,
   CreateDeviceRunSessionMutation,
   CreateDeviceRunSessionMutationVariables,
-  StopDeviceRunSessionMutation,
-  StopDeviceRunSessionMutationVariables,
+  EnsureDeviceRunSessionStoppedMutation,
+  EnsureDeviceRunSessionStoppedMutationVariables,
 } from '../generated';
 
 export const DeviceRunSessionMutation = {
@@ -46,17 +46,22 @@ export const DeviceRunSessionMutation = {
     );
     return data.deviceRunSession.createDeviceRunSession;
   },
-  async stopDeviceRunSessionAsync(
+  async ensureDeviceRunSessionStoppedAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string
-  ): Promise<StopDeviceRunSessionMutation['deviceRunSession']['stopDeviceRunSession']> {
+  ): Promise<
+    EnsureDeviceRunSessionStoppedMutation['deviceRunSession']['ensureDeviceRunSessionStopped']
+  > {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .mutation<StopDeviceRunSessionMutation, StopDeviceRunSessionMutationVariables>(
+        .mutation<
+          EnsureDeviceRunSessionStoppedMutation,
+          EnsureDeviceRunSessionStoppedMutationVariables
+        >(
           gql`
-            mutation StopDeviceRunSessionMutation($deviceRunSessionId: ID!) {
+            mutation EnsureDeviceRunSessionStoppedMutation($deviceRunSessionId: ID!) {
               deviceRunSession {
-                stopDeviceRunSession(deviceRunSessionId: $deviceRunSessionId) {
+                ensureDeviceRunSessionStopped(deviceRunSessionId: $deviceRunSessionId) {
                   id
                   status
                 }
@@ -68,6 +73,6 @@ export const DeviceRunSessionMutation = {
         )
         .toPromise()
     );
-    return data.deviceRunSession.stopDeviceRunSession;
+    return data.deviceRunSession.ensureDeviceRunSessionStopped;
   },
 };

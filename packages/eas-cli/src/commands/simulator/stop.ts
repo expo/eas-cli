@@ -33,7 +33,7 @@ export default class SimulatorStop extends EasCommand {
 
     const stopSpinner = ora(`🛑 Stopping device run session ${flags.id}`).start();
     try {
-      const session = await DeviceRunSessionMutation.stopDeviceRunSessionAsync(
+      const session = await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
         graphqlClient,
         flags.id
       );
