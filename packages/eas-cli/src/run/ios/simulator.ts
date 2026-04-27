@@ -18,8 +18,10 @@ interface IosSimulator {
   lastBootedAt?: Date;
 }
 
-export async function selectSimulatorAsync(): Promise<IosSimulator> {
-  const bootedSimulator = await getFirstBootedIosSimulatorAsync();
+export async function selectSimulatorAsync({
+  forcePrompt = false,
+}: { forcePrompt?: boolean } = {}): Promise<IosSimulator> {
+  const bootedSimulator = forcePrompt ? undefined : await getFirstBootedIosSimulatorAsync();
 
   if (bootedSimulator) {
     return bootedSimulator;
@@ -37,7 +39,22 @@ export async function selectSimulatorAsync(): Promise<IosSimulator> {
       value: simulator,
     })),
   });
+  if (!selectedSimulator) {
+    throw new Error('No simulator selected.');
+  }
 
+  return selectedSimulator;
+}
+
+export async function getIosSimulatorByIdOrNameAsync(simulator: string): Promise<IosSimulator> {
+  const simulators = await getAvaliableIosSimulatorsListAsync();
+  const selectedSimulator = simulators.find(
+    availableSimulator =>
+      availableSimulator.udid === simulator || availableSimulator.name === simulator
+  );
+  if (!selectedSimulator) {
+    throw new Error(`Could not find an available iOS simulator with name or UDID "${simulator}".`);
+  }
   return selectedSimulator;
 }
 

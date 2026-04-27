@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--simulator` to `eas build:dev` and `eas build:run` to select which iOS simulator to install and run builds on. ([#3637](https://github.com/expo/eas-cli/pull/3637) by [@mmichels-brex](https://github.com/mmichels-brex))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

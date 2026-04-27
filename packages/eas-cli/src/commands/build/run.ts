@@ -4,6 +4,7 @@ import { pathExists } from 'fs-extra';
 
 import { getLatestBuildAsync, listAndSelectBuildOnAppAsync } from '../../build/queries';
 import EasCommand from '../../commandUtils/EasCommand';
+import { preprocessBuildCommandArgs } from '../../commandUtils/buildFlags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   EasPaginatedQueryFlags,
@@ -17,6 +18,7 @@ import { appPlatformDisplayNames } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { promptAsync } from '../../prompts';
 import { RunArchiveFlags, getEasBuildRunCachedAppPath, runAsync } from '../../run/run';
+import { SimulatorRunTarget } from '../../run/ios/run';
 import { isRunnableOnSimulatorOrEmulator } from '../../run/utils';
 import {
   downloadAndMaybeExtractAppAsync,
@@ -32,6 +34,7 @@ interface RawRunFlags {
   limit?: number;
   offset?: number;
   profile?: string;
+  simulator?: string;
 }
 
 interface RunCommandFlags {
@@ -40,6 +43,7 @@ interface RunCommandFlags {
   limit?: number;
   offset?: number;
   profile?: string;
+  simulator?: SimulatorRunTarget;
 }
 
 export default class Run extends EasCommand {
@@ -72,6 +76,11 @@ export default class Run extends EasCommand {
         'Name of the build profile used to create the build to run. When specified, only builds created with the specified build profile will be queried.',
       helpValue: 'PROFILE_NAME',
     }),
+    simulator: Flags.string({
+      description:
+        'iOS simulator name or UDID to install and run the build on. If no value is provided, you will be prompted to select a simulator.',
+      multiple: false,
+    }),
     ...EasPaginatedQueryFlags,
   };
 
@@ -82,7 +91,7 @@ export default class Run extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags: rawFlags } = await this.parse(Run);
+    const { flags: rawFlags } = await this.parse(Run, preprocessBuildCommandArgs(this.argv));
     const flags = await this.sanitizeFlagsAsync(rawFlags);
     const queryOptions = getPaginatedQueryOptions(flags);
     const {
@@ -99,11 +108,11 @@ export default class Run extends EasCommand {
       queryOptions
     );
 
-    await runAsync(simulatorBuildPath, flags.selectedPlatform);
+    await runAsync(simulatorBuildPath, flags.selectedPlatform, flags.simulator);
   }
 
   private async sanitizeFlagsAsync(flags: RawRunFlags): Promise<RunCommandFlags> {
-    const { platform, limit, offset, profile, ...runArchiveFlags } = flags;
+    const { platform, limit, offset, profile, simulator, ...runArchiveFlags } = flags;
 
     const selectedPlatform = await resolvePlatformAsync(platform);
 
@@ -111,6 +120,9 @@ export default class Run extends EasCommand {
       Errors.error('You can only use an iOS simulator to run apps on macOS devices', {
         exit: 1,
       });
+    }
+    if (simulator && selectedPlatform !== AppPlatform.Ios) {
+      Errors.error('The --simulator flag can only be used with --platform ios.', { exit: 1 });
     }
 
     if (
@@ -137,6 +149,7 @@ export default class Run extends EasCommand {
       limit,
       offset,
       profile,
+      simulator: simulator === '' ? true : simulator,
     };
   }
 }

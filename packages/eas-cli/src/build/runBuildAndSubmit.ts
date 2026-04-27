@@ -65,6 +65,7 @@ import {
 } from '../project/remoteVersionSource';
 import { confirmAsync } from '../prompts';
 import { getEasBuildRunCachedAppPath, runAsync } from '../run/run';
+import { SimulatorRunTarget } from '../run/ios/run';
 import { isRunnableOnSimulatorOrEmulator } from '../run/utils';
 import { createSubmissionContextAsync } from '../submit/context';
 import {
@@ -102,6 +103,7 @@ export interface BuildFlags {
   freezeCredentials: boolean;
   isVerboseLoggingEnabled?: boolean;
   whatToTest?: string;
+  simulator?: SimulatorRunTarget;
 }
 
 export async function runBuildAndSubmitAsync({
@@ -579,14 +581,17 @@ function exitWithNonZeroCodeIfSomeBuildsFailed(maybeBuilds: (BuildFragment | nul
   }
 }
 
-export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
+export async function downloadAndRunAsync(
+  build: BuildFragment,
+  simulator?: SimulatorRunTarget
+): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
   const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
 
   if (await pathExists(cachedAppPath)) {
     Log.newLine();
     Log.log(`Using cached app...`);
-    await runAsync(cachedAppPath, build.platform);
+    await runAsync(cachedAppPath, build.platform, simulator);
     return;
   }
 
@@ -595,7 +600,7 @@ export async function downloadAndRunAsync(build: BuildFragment): Promise<void> {
     build.platform,
     cachedAppPath
   );
-  await runAsync(buildPath, build.platform);
+  await runAsync(buildPath, build.platform, simulator);
 }
 
 async function maybeDownloadAndRunSimulatorBuildsAsync(
@@ -617,9 +622,9 @@ async function maybeDownloadAndRunSimulatorBuildsAsync(
             } build on ${
               simBuild.platform === AppPlatform.Android ? 'an emulator' : 'a simulator'
             }?`,
-          }));
+        }));
         if (confirm) {
-          await downloadAndRunAsync(simBuild);
+          await downloadAndRunAsync(simBuild, flags.simulator);
         }
       }
     }

@@ -4,10 +4,20 @@ import path from 'path';
 import * as simulator from './simulator';
 import { validateSystemRequirementsAsync } from './systemRequirements';
 
-export async function runAppOnIosSimulatorAsync(appPath: string): Promise<void> {
+export type SimulatorRunTarget = true | string | undefined;
+
+export async function runAppOnIosSimulatorAsync(
+  appPath: string,
+  simulatorRunTarget?: SimulatorRunTarget
+): Promise<void> {
   await validateSystemRequirementsAsync();
 
-  const selectedSimulator = await simulator.selectSimulatorAsync();
+  const selectedSimulator =
+    simulatorRunTarget === true
+      ? await simulator.selectSimulatorAsync({ forcePrompt: true })
+      : simulatorRunTarget
+        ? await simulator.getIosSimulatorByIdOrNameAsync(simulatorRunTarget)
+        : await simulator.selectSimulatorAsync();
   await simulator.ensureSimulatorBootedAsync(selectedSimulator);
 
   await simulator.ensureSimulatorAppOpenedAsync(selectedSimulator.udid);
