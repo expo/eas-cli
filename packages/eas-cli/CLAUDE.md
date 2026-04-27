@@ -50,7 +50,7 @@ yarn generate-graphql-code    # Generate TypeScript types from GraphQL schema
 yarn verify-graphql-code      # Verify GraphQL code is up to date (CI check)
 ```
 
-The GraphQL schema is fetched from `https://staging-api.expo.dev/graphql` and generates:
+The GraphQL schema is fetched from the API URL resolved by `src/api.ts` and generates:
 
 - `src/graphql/generated.ts` - 499KB+ of TypeScript types
 - Types for all queries, mutations, and fragments
