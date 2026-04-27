@@ -149,6 +149,10 @@ export default class SimulatorStart extends EasCommand {
     Log.log(`🔑 Run the following in your shell to attach to ${flags.type}:`);
     Log.newLine();
     Log.log(result.message);
+    Log.newLine();
+    Log.log(
+      `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+    );
   }
 }
 
