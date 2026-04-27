@@ -1,12 +1,12 @@
 import { AppPlatform } from '../../graphql/generated';
 import {
+  type MetricValues,
   ObserveMetricsMap,
   StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
   makeMetricsKey,
   resolveStatKey,
-  type MetricValues,
 } from '../formatMetrics';
 
 const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];

@@ -1,4 +1,4 @@
-import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
+import { AppObserveAppVersion, AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { makeMetricsKey } from '../formatMetrics';
 import { fetchObserveMetricsAsync } from '../fetchMetrics';
@@ -21,7 +21,7 @@ function makeAppVersion(
       p99: number;
     };
   }>
-) {
+): AppObserveAppVersion {
   return {
     __typename: 'AppObserveAppVersion' as const,
     appVersion,

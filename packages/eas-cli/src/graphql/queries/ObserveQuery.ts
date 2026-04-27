@@ -19,8 +19,8 @@ import { print } from 'graphql';
 import {
   AppObserveAppVersionFragmentNode,
   AppObserveCustomEventFragmentNode,
-  AppObserveTimeSeriesFragmentNode,
   AppObserveEventFragmentNode,
+  AppObserveTimeSeriesFragmentNode,
 } from '../types/Observe';
 
 export type AppObserveTimeSeriesResult = {
@@ -291,6 +291,7 @@ export const ObserveQuery = {
                       edges {
                         cursor
                         node {
+                          id
                           ...AppObserveCustomEventFragment
                         }
                       }
