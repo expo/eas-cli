@@ -27,6 +27,7 @@ import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
 import { createResolveBuildConfigBuildFunction } from './functions/resolveBuildConfig';
+import { createResolveSubmitConfigBuildFunction } from './functions/resolveSubmitConfig';
 import {
   createCacheStatsBuildFunction,
   createRestoreBuildCacheFunction,
@@ -88,6 +89,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     calculateEASUpdateRuntimeVersionFunction(),
 
     createSubmissionEntityFunction(),
+    createResolveSubmitConfigBuildFunction(ctx),
     createUploadToAscBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
