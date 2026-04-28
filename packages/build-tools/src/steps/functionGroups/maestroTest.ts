@@ -7,6 +7,7 @@ import {
 } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { createCollectEmulatorLogsBuildFunction } from '../functions/collectEmulatorLogs';
 import { createInstallMaestroBuildFunction } from '../functions/installMaestro';
 import { createStartAndroidEmulatorBuildFunction } from '../functions/startAndroidEmulator';
 import { createStartIosSimulatorBuildFunction } from '../functions/startIosSimulator';
@@ -138,6 +139,12 @@ export function createEasMaestroTestFunctionGroup(
           })
         );
       }
+
+      steps.push(
+        createCollectEmulatorLogsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+          ifCondition: '${ always() }',
+        })
+      );
 
       steps.push(
         createUploadArtifactBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
