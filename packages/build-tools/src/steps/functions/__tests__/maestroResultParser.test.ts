@@ -1,6 +1,8 @@
+import fs from 'fs/promises';
 import { vol } from 'memfs';
 
 import {
+  copyLatestAttemptXml,
   parseFlowMetadata,
   parseJUnitTestCases,
   parseMaestroResults,
@@ -801,5 +803,24 @@ describe(parseJUnitTestCases, () => {
 
     const results = await parseJUnitTestCases('/junit');
     expect(results[0].properties).toEqual({});
+  });
+});
+
+describe('copyLatestAttemptXml', () => {
+  it('picks the highest attempt number', async () => {
+    vol.fromJSON({
+      '/tmp/r/android-maestro-junit-attempt-0.xml': '<a/>',
+      '/tmp/r/android-maestro-junit-attempt-1.xml': '<b/>',
+      '/tmp/r/android-maestro-junit-attempt-2.xml': '<c/>',
+    });
+    await copyLatestAttemptXml({ sourceDir: '/tmp/r', outputPath: '/tmp/out.xml' });
+    expect(await fs.readFile('/tmp/out.xml', 'utf-8')).toBe('<c/>');
+  });
+
+  it('throws when source has no xml files', async () => {
+    vol.fromJSON({ '/tmp/r/.keep': '' });
+    await expect(
+      copyLatestAttemptXml({ sourceDir: '/tmp/r', outputPath: '/tmp/out.xml' })
+    ).rejects.toThrow();
   });
 });

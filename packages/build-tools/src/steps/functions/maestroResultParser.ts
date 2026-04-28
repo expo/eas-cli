@@ -17,6 +17,9 @@ export interface MaestroFlowResult {
 // Maestro's TestDebugReporter creates timestamped directories, e.g. "2024-06-15_143022"
 const TIMESTAMP_DIR_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{6}$/;
 
+// Per-attempt JUnit XML files use `*-attempt-N.xml` names; this extracts N.
+const ATTEMPT_PATTERN = /attempt-(\d+)/;
+
 export function extractFlowKey(filename: string, prefix: string): string | null {
   const match = filename.match(new RegExp(`^${prefix}-(.+)\\.json$`));
   return match?.[1] ?? null;
@@ -239,9 +242,6 @@ export async function parseMaestroResults(
   // 3. Merge: JUnit results + ai-*.json metadata
   const results: MaestroFlowResult[] = [];
 
-  // Parse attempt index from filename pattern: *-attempt-N.*
-  const ATTEMPT_PATTERN = /attempt-(\d+)/;
-
   // Group results by flow name
   const resultsByName = new Map<string, JUnitResultWithSource[]>();
   for (const entry of junitResultsWithSource) {
@@ -321,4 +321,43 @@ async function relativizePathAsync(flowFilePath: string, projectRoot: string): P
     return flowFilePath;
   }
   return relative;
+}
+
+/**
+ * Copies the highest-attempt-index *.xml file from sourceDir to outputPath.
+ * After the maestro retry loop completes, this produces a single canonical
+ * JUnit report at final_report_path matching the bash step's "cp latest
+ * attempt" semantics.
+ *
+ * Throws if sourceDir contains no *.xml files or if the copy fails.
+ */
+export async function copyLatestAttemptXml(args: {
+  sourceDir: string;
+  outputPath: string;
+}): Promise<void> {
+  const entries = await fs.readdir(args.sourceDir);
+  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
+  if (xmlFiles.length === 0) {
+    throw new Error(`No *.xml files found in ${args.sourceDir}`);
+  }
+
+  // Pick the file with the highest attempt index. Files without the marker are
+  // treated as attempt 0. Ties are broken by sorted filename — later wins.
+  let winner = xmlFiles[0];
+  let winnerAttempt = (() => {
+    const m = winner.match(ATTEMPT_PATTERN);
+    return m ? parseInt(m[1], 10) : 0;
+  })();
+  for (let i = 1; i < xmlFiles.length; i++) {
+    const candidate = xmlFiles[i];
+    const match = candidate.match(ATTEMPT_PATTERN);
+    const attempt = match ? parseInt(match[1], 10) : 0;
+    if (attempt >= winnerAttempt) {
+      winner = candidate;
+      winnerAttempt = attempt;
+    }
+  }
+
+  const content = await fs.readFile(path.join(args.sourceDir, winner), 'utf-8');
+  await fs.writeFile(args.outputPath, content);
 }
