@@ -1,4 +1,4 @@
-import { Platform, SubmissionConfig } from '@expo/eas-build-job';
+import { Platform, SubmissionConfig, SystemError, UserError } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
@@ -24,19 +24,9 @@ const ANDROID_APP_CREDENTIALS_QUERY = graphql(`
           id
           googleServiceAccountKeyForSubmissions {
             id
+            keyJson
           }
         }
-      }
-    }
-  }
-`);
-
-const GOOGLE_SERVICE_ACCOUNT_KEY_QUERY = graphql(`
-  query ResolveSubmitConfigGoogleServiceAccountKey($id: ID!) {
-    googleServiceAccountKey {
-      byId(id: $id) {
-        id
-        keyJson
       }
     }
   }
@@ -51,7 +41,7 @@ export async function resolveAndroidSubmitConfigAsync({
   profile,
   workingDirectory,
 }: {
-  artifactPath?: string;
+  artifactPath: string;
   build: BuildInfo;
   ctx: CustomBuildContext;
   env: BuildStepEnv;
@@ -62,7 +52,7 @@ export async function resolveAndroidSubmitConfigAsync({
   const applicationId =
     build.appIdentifier ??
     profile.applicationId ??
-    (artifactPath ? await readAndroidApplicationIdAsync(artifactPath, env, logger) : undefined);
+    (await readAndroidApplicationIdAsync(artifactPath, env, logger));
 
   const googleServiceAccountKeyJson = profile.serviceAccountKeyPath
     ? await fs.readFile(path.resolve(workingDirectory, profile.serviceAccountKeyPath), 'utf8')
@@ -107,7 +97,10 @@ async function getGoogleServiceAccountKeyJsonAsync({
   ctx: CustomBuildContext;
 }): Promise<string> {
   if (!applicationId) {
-    throw new Error('Could not resolve Android applicationId from build metadata or artifact.');
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_ANDROID_APPLICATION_ID_NOT_FOUND',
+      'Could not resolve Android applicationId from build metadata or artifact.'
+    );
   }
 
   const credentialsResult = await ctx.graphqlClient
@@ -120,26 +113,20 @@ async function getGoogleServiceAccountKeyJsonAsync({
     throw credentialsResult.error;
   }
 
-  const keyId =
+  const key =
     credentialsResult.data?.app.byFullName.androidAppCredentials[0]
-      ?.googleServiceAccountKeyForSubmissions?.id;
-  if (!keyId) {
-    throw new Error(
+      ?.googleServiceAccountKeyForSubmissions;
+  if (!key) {
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_ANDROID_SERVICE_ACCOUNT_KEY_NOT_CONFIGURED',
       `Google Service Account Key for submissions is not configured for ${applicationId}.`
     );
   }
 
-  const keyResult = await ctx.graphqlClient
-    .query(GOOGLE_SERVICE_ACCOUNT_KEY_QUERY, { id: keyId })
-    .toPromise();
-  if (keyResult.error) {
-    throw keyResult.error;
+  if (!key.keyJson) {
+    throw new SystemError(`Google Service Account Key ${key.id} could not be resolved.`);
   }
-  const keyJson = keyResult.data?.googleServiceAccountKey.byId.keyJson;
-  if (!keyJson) {
-    throw new Error(`Google Service Account Key ${keyId} could not be resolved.`);
-  }
-  return keyJson;
+  return key.keyJson;
 }
 
 async function readAndroidApplicationIdAsync(

@@ -1,4 +1,4 @@
-import { Platform, SubmissionConfig } from '@expo/eas-build-job';
+import { Platform, SubmissionConfig, SystemError, UserError } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { BuildStepEnv } from '@expo/steps';
 import fs from 'fs-extra';
@@ -67,7 +67,7 @@ export async function resolveIosSubmitConfigAsync({
   profile,
   workingDirectory,
 }: {
-  artifactPath?: string;
+  artifactPath: string;
   build: BuildInfo;
   ctx: CustomBuildContext;
   env: BuildStepEnv;
@@ -77,10 +77,13 @@ export async function resolveIosSubmitConfigAsync({
   const bundleIdentifier =
     build.appIdentifier ??
     profile.bundleIdentifier ??
-    (artifactPath ? (await readIpaInfoAsync(artifactPath)).bundleIdentifier : undefined);
+    (await readIpaInfoAsync(artifactPath)).bundleIdentifier;
 
   if (!profile.ascAppId) {
-    throw new Error('Set ascAppId in the submit profile in eas.json.');
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_ASC_APP_ID_NOT_CONFIGURED',
+      'Set ascAppId in the submit profile in eas.json.'
+    );
   }
 
   const appSpecificPassword = env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
@@ -132,13 +135,17 @@ async function getAscApiJsonKeyAsync({
   }
 
   if (profile.ascApiKeyPath || profile.ascApiKeyIssuerId || profile.ascApiKeyId) {
-    throw new Error(
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_ASC_API_KEY_INCOMPLETE',
       'ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json.'
     );
   }
 
   if (!bundleIdentifier) {
-    throw new Error('Could not resolve iOS bundleIdentifier from build metadata or artifact.');
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_BUNDLE_IDENTIFIER_NOT_FOUND',
+      'Could not resolve iOS bundleIdentifier from build metadata or artifact.'
+    );
   }
 
   const appleAppIdentifierResult = await ctx.graphqlClient
@@ -154,7 +161,10 @@ async function getAscApiJsonKeyAsync({
   const appleAppIdentifierId =
     appleAppIdentifierResult.data?.account.byName.appleAppIdentifiers[0]?.id;
   if (!appleAppIdentifierId) {
-    throw new Error(`Apple App Identifier is not configured for ${bundleIdentifier}.`);
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_APP_IDENTIFIER_NOT_CONFIGURED',
+      `Apple App Identifier is not configured for ${bundleIdentifier}.`
+    );
   }
 
   const credentialsResult = await ctx.graphqlClient
@@ -171,7 +181,8 @@ async function getAscApiJsonKeyAsync({
     credentialsResult.data?.app.byFullName.iosAppCredentials[0]?.appStoreConnectApiKeyForSubmissions
       ?.id;
   if (!ascApiKeyId) {
-    throw new Error(
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_ASC_API_KEY_NOT_CONFIGURED',
       `App Store Connect API Key for submissions is not configured for ${bundleIdentifier}.`
     );
   }
@@ -185,7 +196,7 @@ async function getAscApiJsonKeyAsync({
 
   const apiKey = apiKeyResult.data?.appStoreConnectApiKey.byId;
   if (!apiKey) {
-    throw new Error(`App Store Connect API Key ${ascApiKeyId} could not be resolved.`);
+    throw new SystemError(`App Store Connect API Key ${ascApiKeyId} could not be resolved.`);
   }
   return JSON.stringify({
     issuer_id: apiKey.issuerIdentifier,
@@ -196,7 +207,8 @@ async function getAscApiJsonKeyAsync({
 
 function validateAppSpecificPassword(password: string): string {
   if (!/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(password)) {
-    throw new Error(
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_APP_SPECIFIC_PASSWORD_INVALID',
       'EXPO_APPLE_APP_SPECIFIC_PASSWORD must be in the format xxxx-xxxx-xxxx-xxxx, where x is a lowercase letter.'
     );
   }
@@ -205,7 +217,8 @@ function validateAppSpecificPassword(password: string): string {
 
 function requireAppleIdUsername(appleIdUsername?: string): string {
   if (!appleIdUsername) {
-    throw new Error(
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_IOS_APPLE_ID_NOT_CONFIGURED',
       'Set appleId in the submit profile or EXPO_APPLE_ID when using EXPO_APPLE_APP_SPECIFIC_PASSWORD.'
     );
   }

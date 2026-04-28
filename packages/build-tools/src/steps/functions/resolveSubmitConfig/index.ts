@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Platform, SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
@@ -11,13 +11,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { resolveAndroidSubmitConfigAsync } from './android';
-import {
-  ResolvedSubmitConfig,
-  appPlatformToPlatform,
-  getBuildInfoAsync,
-  getSubmitProfileAsync,
-  resolveArtifactPathAsync,
-} from './common';
+import { ResolvedSubmitConfig, getBuildInfoAsync, getSubmitProfileAsync } from './common';
 import { resolveIosSubmitConfigAsync } from './ios';
 import { CustomBuildContext } from '../../../customBuildContext';
 
@@ -35,18 +29,18 @@ export function createResolveSubmitConfigBuildFunction(ctx: CustomBuildContext):
       }),
       BuildStepInput.createProvider({
         id: 'profile',
-        required: false,
+        required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
         id: 'artifact_path',
-        required: false,
+        required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
-        id: 'config',
+        id: 'config_json',
         required: true,
       }),
       BuildStepOutput.createProvider({
@@ -60,10 +54,11 @@ export function createResolveSubmitConfigBuildFunction(ctx: CustomBuildContext):
     ],
     fn: async (stepsCtx, { env, inputs, outputs }) => {
       const buildId = z.string().uuid().parse(inputs.build_id.value);
-      const profileName = inputs.profile.value ? z.string().parse(inputs.profile.value) : undefined;
-      const artifactPath = inputs.artifact_path.value
-        ? path.resolve(stepsCtx.workingDirectory, z.string().parse(inputs.artifact_path.value))
-        : undefined;
+      const profileName = z.string().parse(inputs.profile.value);
+      const artifactPath = path.resolve(
+        stepsCtx.workingDirectory,
+        z.string().parse(inputs.artifact_path.value)
+      );
 
       const { config, platform, appIdentifier } = await resolveSubmitConfigAsync({
         artifactPath,
@@ -75,7 +70,7 @@ export function createResolveSubmitConfigBuildFunction(ctx: CustomBuildContext):
         workingDirectory: stepsCtx.workingDirectory,
       });
 
-      outputs.config.set(JSON.stringify(config));
+      outputs.config_json.set(JSON.stringify(config));
       outputs.platform.set(platform);
       if (appIdentifier) {
         outputs.app_identifier.set(appIdentifier);
@@ -93,56 +88,50 @@ export async function resolveSubmitConfigAsync({
   profileName,
   workingDirectory,
 }: {
-  artifactPath?: string;
+  artifactPath: string;
   buildId: string;
   ctx: CustomBuildContext;
   env: BuildStepEnv;
   logger: bunyan;
-  profileName?: string;
+  profileName: string;
   workingDirectory: string;
 }): Promise<ResolvedSubmitConfig> {
   logger.info('Resolving submit config...');
   const build = await getBuildInfoAsync(ctx, buildId);
-  const platform = appPlatformToPlatform(build.appPlatform);
-  const submitProfileName = profileName ?? build.buildProfile ?? undefined;
-  const resolvedArtifactPath = await resolveArtifactPathAsync({
-    artifactPath,
-    build,
-    ctx,
-    logger,
-    platform,
-  });
 
-  if (platform === Platform.ANDROID) {
-    const profile = await getSubmitProfileAsync({
-      env,
-      platform,
-      profileName: submitProfileName,
-      workingDirectory,
-    });
-    return await resolveAndroidSubmitConfigAsync({
-      artifactPath: resolvedArtifactPath,
-      build,
-      ctx,
-      env,
-      logger,
-      profile,
-      workingDirectory,
-    });
+  switch (build.platform) {
+    case Platform.ANDROID: {
+      const profile = await getSubmitProfileAsync({
+        platform: build.platform,
+        profileName,
+        workingDirectory,
+      });
+      return await resolveAndroidSubmitConfigAsync({
+        artifactPath,
+        build,
+        ctx,
+        env,
+        logger,
+        profile,
+        workingDirectory,
+      });
+    }
+    case Platform.IOS: {
+      const profile = await getSubmitProfileAsync({
+        platform: build.platform,
+        profileName,
+        workingDirectory,
+      });
+      return await resolveIosSubmitConfigAsync({
+        artifactPath,
+        build,
+        ctx,
+        env,
+        profile,
+        workingDirectory,
+      });
+    }
+    default:
+      throw new SystemError(`Unsupported platform: ${build.platform}`);
   }
-
-  const profile = await getSubmitProfileAsync({
-    env,
-    platform,
-    profileName: submitProfileName,
-    workingDirectory,
-  });
-  return await resolveIosSubmitConfigAsync({
-    artifactPath: resolvedArtifactPath,
-    build,
-    ctx,
-    env,
-    profile,
-    workingDirectory,
-  });
 }
