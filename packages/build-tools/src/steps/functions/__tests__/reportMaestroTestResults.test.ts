@@ -72,7 +72,7 @@ describe(createReportMaestroTestResultsFunction, () => {
   it('parses JUnit results and calls GraphQL mutation', async () => {
     vol.fromJSON({
       '/junit/report.xml': JUNIT_PASS,
-      '/tests/2026-01-28_055409/ai-home.json': FLOW_AI,
+      '/root/project/.maestro/home.yml': '',
     });
 
     mockMutationFn.mockResolvedValue({
@@ -83,7 +83,11 @@ describe(createReportMaestroTestResultsFunction, () => {
       },
     });
 
-    await createStep().executeAsync();
+    await createStep({
+      callInputs: {
+        flow_paths: ['.maestro/home.yml'],
+      },
+    }).executeAsync();
 
     expect(mockGraphqlClient.mutation).toHaveBeenCalledTimes(1);
     const [, variables] = (mockGraphqlClient.mutation as jest.Mock).mock.calls[0];

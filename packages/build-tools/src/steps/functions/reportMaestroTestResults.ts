@@ -1,6 +1,7 @@
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { graphql } from 'gql.tada';
 
+import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import { MaestroFlowResult, parseMaestroResults } from './maestroResultParser';
 import { CustomBuildContext } from '../../customBuildContext';
 
@@ -38,6 +39,11 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         defaultValue: '${{ env.HOME }}/.maestro/tests',
       }),
+      BuildStepInput.createProvider({
+        id: 'flow_paths',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
     ],
     fn: async (stepsCtx, { inputs }) => {
       const { logger } = stepsCtx;
@@ -51,14 +57,29 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         logger.info('No JUnit directory provided, skipping test results report');
         return;
       }
-      const testsDirectory = inputs.tests_directory.value as string;
+
+      const flowPathsRaw = inputs.flow_paths.value as unknown;
+      let nameToPath: Map<string, string> | null = null;
+      if (
+        Array.isArray(flowPathsRaw) &&
+        flowPathsRaw.length > 0 &&
+        flowPathsRaw.every(p => typeof p === 'string' && p.length > 0)
+      ) {
+        nameToPath = await buildFlowNameToPathMap({
+          inputFlowPaths: flowPathsRaw,
+          projectRoot: stepsCtx.workingDirectory,
+          logger,
+        });
+      } else if (flowPathsRaw !== undefined) {
+        logger.warn(
+          'Ignoring malformed flow_paths input (expected a non-empty array of non-empty strings).'
+        );
+      }
+      // flow_paths absent (undefined) — silent fallback for backward compat
+      // with universe deployments that don't yet pass this input.
 
       try {
-        const flowResults = await parseMaestroResults(
-          junitDirectory,
-          testsDirectory,
-          stepsCtx.workingDirectory
-        );
+        const flowResults = await parseMaestroResults(junitDirectory, nameToPath);
         if (flowResults.length === 0) {
           logger.info('No maestro test results found, skipping report');
           return;

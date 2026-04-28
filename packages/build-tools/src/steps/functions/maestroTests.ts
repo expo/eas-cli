@@ -11,6 +11,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
 
+import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   copyLatestAttemptXml,
   mergeJUnitReports,
@@ -192,6 +193,14 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         throw new SystemError('Failed to create JUnit report directory', { cause: err });
       }
 
+      // null → duplicate flow names; smart retry disabled, fall through to
+      // dumb retry (re-run everything) on failure.
+      const nameToPath = await buildFlowNameToPathMap({
+        inputFlowPaths: flowPaths,
+        projectRoot: stepCtx.workingDirectory,
+        logger,
+      });
+
       // Retry loop. spawn-async error shapes:
       //   ENOENT/EACCES → infra (binary missing/not executable) → SystemError.
       //   numeric err.status → maestro exited non-zero → retry.
@@ -203,6 +212,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       let flowsToRun: string[] = flowPaths;
       let lastAttemptExitCode: number | null = null;
 
+      const totalAttempts = retries + 1;
       for (let attempt = 0; attempt <= retries; attempt++) {
         const outputPath =
           outputFormat === 'junit'
@@ -211,19 +221,25 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
               ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
               : null;
 
+        const maestroArgs = buildMaestroArgs({
+          flow_path: flowsToRun,
+          outputPath,
+          output_format: outputFormat,
+          shards,
+          include_tags: includeTags,
+          exclude_tags: excludeTags,
+        });
+        logger.info(
+          `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
+        );
+
         try {
-          await spawn(
-            'maestro',
-            buildMaestroArgs({
-              flow_path: flowsToRun,
-              outputPath,
-              output_format: outputFormat,
-              shards,
-              include_tags: includeTags,
-              exclude_tags: excludeTags,
-            }),
-            { cwd: stepCtx.workingDirectory, env: spawnEnv, logger, signal }
-          );
+          await spawn('maestro', maestroArgs, {
+            cwd: stepCtx.workingDirectory,
+            env: spawnEnv,
+            logger,
+            signal,
+          });
           lastAttemptExitCode = 0;
         } catch (err: any) {
           if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
@@ -240,19 +256,25 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           break;
         }
 
-        if (outputFormat === 'junit' && outputPath) {
+        if (outputFormat === 'junit' && outputPath && nameToPath) {
           const failed = await parseFailedFlowsFromJUnit({
             junitFile: outputPath,
-            testsDirectory,
-            inputFlowPaths: flowsToRun,
-            projectRoot: stepCtx.workingDirectory,
+            nameToPath,
           });
           if (failed !== null && failed.length > 0) {
             flowsToRun = failed;
+            logger.info(
+              `Test failed; retrying ${failed.length} failed flow(s): ${failed.join(', ')}`
+            );
+          } else {
+            flowsToRun = flowPaths;
+            logger.info('Test failed; could not determine failed subset, retrying all flows');
           }
+        } else {
+          flowsToRun = flowPaths;
+          logger.info('Test failed, retrying all flows');
         }
 
-        logger.info('Test failed, retrying...');
         await sleepAsync(2000);
       }
 
@@ -291,7 +313,6 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       // or throw (infra). A non-null non-zero status means the user's tests
       // failed every attempt.
       if (lastAttemptExitCode !== 0) {
-        const totalAttempts = retries + 1;
         throw new UserError(
           'ERR_MAESTRO_TESTS_FAILED',
           `Maestro tests failed after ${totalAttempts} attempt${totalAttempts === 1 ? '' : 's'}.`

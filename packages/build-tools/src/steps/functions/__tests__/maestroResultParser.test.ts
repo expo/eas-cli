@@ -6,63 +6,13 @@ import {
   copyLatestAttemptXml,
   mergeJUnitReports,
   parseFailedFlowsFromJUnit,
-  parseFlowMetadata,
   parseJUnitTestCases,
   parseMaestroResults,
 } from '../maestroResultParser';
 
-describe(parseFlowMetadata, () => {
-  it('parses valid ai-*.json', async () => {
-    vol.fromJSON({
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/Users/expo/workingdir/build/.maestro/home.yml',
-      }),
-    });
-
-    const result = await parseFlowMetadata('/tests/2026-01-28_055409/ai-home.json');
-    expect(result).toEqual({
-      flow_name: 'home',
-      flow_file_path: '/Users/expo/workingdir/build/.maestro/home.yml',
-    });
-  });
-
-  it('returns null when flow_name is missing', async () => {
-    vol.fromJSON({
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_file_path: '/Users/expo/workingdir/build/.maestro/home.yml',
-      }),
-    });
-
-    const result = await parseFlowMetadata('/tests/2026-01-28_055409/ai-home.json');
-    expect(result).toBeNull();
-  });
-
-  it('returns null when flow_file_path is missing', async () => {
-    vol.fromJSON({
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-      }),
-    });
-
-    const result = await parseFlowMetadata('/tests/2026-01-28_055409/ai-home.json');
-    expect(result).toBeNull();
-  });
-
-  it('returns null for invalid JSON', async () => {
-    vol.fromJSON({
-      '/tests/2026-01-28_055409/ai-home.json': 'not json',
-    });
-
-    const result = await parseFlowMetadata('/tests/2026-01-28_055409/ai-home.json');
-    expect(result).toBeNull();
-  });
-});
-
 describe(parseMaestroResults, () => {
-  it('parses JUnit results and enriches with ai-*.json metadata', async () => {
+  it('parses JUnit results and enriches with name→path map', async () => {
     vol.fromJSON({
-      // JUnit XML (primary data)
       '/junit/report.xml': [
         '<?xml version="1.0"?>',
         '<testsuites>',
@@ -74,18 +24,15 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      // Debug output (for flow_file_path)
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+    const results = await parseMaestroResults(
+      '/junit',
+      new Map([
+        ['home', '.maestro/home.yml'],
+        ['login', '.maestro/login.yml'],
+      ])
+    );
     expect(results).toHaveLength(2);
     expect(results).toEqual(
       expect.arrayContaining([
@@ -113,7 +60,7 @@ describe(parseMaestroResults, () => {
     );
   });
 
-  it('calculates retryCount from timestamp directory occurrences', async () => {
+  it('uses flow name as fallback path when nameToPath is null', async () => {
     vol.fromJSON({
       '/junit/report.xml': [
         '<?xml version="1.0"?>',
@@ -123,49 +70,33 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      // Two timestamp dirs = 1 retry
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
-    expect(results[0].retryCount).toBe(1);
-  });
-
-  it('uses flow name as fallback path when ai-*.json not found', async () => {
-    vol.fromJSON({
-      '/junit/report.xml': [
-        '<?xml version="1.0"?>',
-        '<testsuites>',
-        '  <testsuite name="Test Suite" tests="1" failures="0">',
-        '    <testcase id="home" name="home" classname="home" time="10.0" status="SUCCESS"/>',
-        '  </testsuite>',
-        '</testsuites>',
-      ].join('\n'),
-      // No ai-*.json files
-    });
-
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+    const results = await parseMaestroResults('/junit', null);
     expect(results[0].path).toBe('home');
     expect(results[0].retryCount).toBe(0);
   });
 
-  it('returns empty array when no JUnit files found', async () => {
+  it('uses flow name as fallback path when name not in map', async () => {
     vol.fromJSON({
-      '/junit/.gitkeep': '',
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="1" failures="0">',
+        '    <testcase id="home" name="home" classname="home" time="10.0" status="SUCCESS"/>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
     });
 
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+    const results = await parseMaestroResults('/junit', new Map());
+    expect(results[0].path).toBe('home');
+  });
+
+  it('returns empty array when no JUnit files found', async () => {
+    vol.fromJSON({ '/junit/.gitkeep': '' });
+
+    const results = await parseMaestroResults('/junit', new Map([['home', '.maestro/home.yml']]));
     expect(results).toEqual([]);
   });
 
@@ -184,42 +115,11 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+    const results = await parseMaestroResults('/junit', new Map([['home', '.maestro/home.yml']]));
     expect(results[0].tags).toEqual(['e2e', 'smoke']);
     expect(results[0].properties).toEqual({ env: 'staging' });
-  });
-
-  it('handles reuse_devices=true (junit_report_directory == tests_directory)', async () => {
-    vol.fromJSON({
-      // Same directory for both JUnit and debug output
-      '/maestro-tests/android-maestro-junit.xml': [
-        '<?xml version="1.0"?>',
-        '<testsuites>',
-        '  <testsuite name="Test Suite" tests="1" failures="0">',
-        '    <testcase id="home" name="home" classname="home" time="10.0" status="SUCCESS"/>',
-        '  </testsuite>',
-        '</testsuites>',
-      ].join('\n'),
-      '/maestro-tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-    });
-
-    const results = await parseMaestroResults('/maestro-tests', '/maestro-tests', '/root/project');
-    expect(results).toEqual([
-      expect.objectContaining({
-        name: 'home',
-        path: '.maestro/home.yml',
-        status: 'passed',
-      }),
-    ]);
   });
 
   it('returns per-attempt results when multiple JUnit files exist for the same flow', async () => {
@@ -244,20 +144,11 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      // ai-*.json metadata (2 timestamp dirs = 2 attempts)
-      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
+    const results = await parseMaestroResults('/junit', new Map([['login', '.maestro/login.yml']]));
 
-    // Should return 2 results — one per attempt
+    // Should return 2 results — one per attempt; retryCount from filename
     expect(results).toHaveLength(2);
     expect(results).toEqual([
       expect.objectContaining({
@@ -303,25 +194,15 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit-reports', '/tests', '/root/project');
+    const results = await parseMaestroResults(
+      '/junit-reports',
+      new Map([
+        ['home', '.maestro/home.yml'],
+        ['login', '.maestro/login.yml'],
+      ])
+    );
 
     // 4 results: 2 flows × 2 attempts
     expect(results).toHaveLength(4);
@@ -335,7 +216,6 @@ describe(parseMaestroResults, () => {
 
   it('returns per-attempt results with sharding (multiple testsuites per attempt file)', async () => {
     vol.fromJSON({
-      // Attempt 0: shard 1 has home (FAILED), shard 2 has login (PASSED)
       '/junit-reports/android-maestro-junit-attempt-0.xml': [
         '<?xml version="1.0"?>',
         '<testsuites>',
@@ -349,7 +229,6 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      // Attempt 1: all passed across shards
       '/junit-reports/android-maestro-junit-attempt-1.xml': [
         '<?xml version="1.0"?>',
         '<testsuites>',
@@ -361,25 +240,15 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055420/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
     });
 
-    const results = await parseMaestroResults('/junit-reports', '/tests', '/root/project');
+    const results = await parseMaestroResults(
+      '/junit-reports',
+      new Map([
+        ['home', '.maestro/home.yml'],
+        ['login', '.maestro/login.yml'],
+      ])
+    );
 
     expect(results).toHaveLength(4);
     expect(results).toEqual([
@@ -390,52 +259,8 @@ describe(parseMaestroResults, () => {
     ]);
   });
 
-  it('backward compat: reuse_devices=true with retries but old single JUnit file', async () => {
+  it('handles reuse_devices=false (separate junit_report_directory, per-flow files)', async () => {
     vol.fromJSON({
-      // Single overwritten JUnit (only has final attempt's results)
-      '/maestro-tests/android-maestro-junit.xml': [
-        '<?xml version="1.0"?>',
-        '<testsuites>',
-        '  <testsuite name="Test Suite" tests="2" failures="0">',
-        '    <testcase id="home" name="home" classname="home" time="4.0" status="SUCCESS"/>',
-        '    <testcase id="login" name="login" classname="login" time="2.0" status="SUCCESS"/>',
-        '  </testsuite>',
-        '</testsuites>',
-      ].join('\n'),
-      // 2 timestamp dirs — both flows appear in both (entire suite retried)
-      '/maestro-tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/maestro-tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
-      '/maestro-tests/2026-01-28_055420/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/maestro-tests/2026-01-28_055420/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
-    });
-
-    const results = await parseMaestroResults('/maestro-tests', '/maestro-tests', '/root/project');
-
-    // Both flows have 2 occurrences → retryCount = 1 for both
-    expect(results).toHaveLength(2);
-    expect(results).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'home', status: 'passed', retryCount: 1 }),
-        expect.objectContaining({ name: 'login', status: 'passed', retryCount: 1 }),
-      ])
-    );
-  });
-
-  it('handles reuse_devices=false (separate junit_report_directory)', async () => {
-    vol.fromJSON({
-      // JUnit in temp dir (per-flow files)
       '/tmp/maestro-reports-abc123/junit-report-flow-1.xml': [
         '<?xml version="1.0"?>',
         '<testsuites>',
@@ -454,21 +279,14 @@ describe(parseMaestroResults, () => {
         '  </testsuite>',
         '</testsuites>',
       ].join('\n'),
-      // Debug output in default location
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/2026-01-28_055409/ai-login.json': JSON.stringify({
-        flow_name: 'login',
-        flow_file_path: '/root/project/.maestro/login.yml',
-      }),
     });
 
     const results = await parseMaestroResults(
       '/tmp/maestro-reports-abc123',
-      '/tests',
-      '/root/project'
+      new Map([
+        ['home', '.maestro/home.yml'],
+        ['login', '.maestro/login.yml'],
+      ])
     );
     expect(results).toHaveLength(2);
     expect(results).toEqual(
@@ -477,51 +295,6 @@ describe(parseMaestroResults, () => {
         expect.objectContaining({ name: 'login', path: '.maestro/login.yml', status: 'failed' }),
       ])
     );
-  });
-
-  it('uses raw path when flow_file_path is outside project_root', async () => {
-    vol.fromJSON({
-      '/junit/report.xml': [
-        '<?xml version="1.0"?>',
-        '<testsuites>',
-        '  <testsuite name="Test Suite" tests="1" failures="0">',
-        '    <testcase id="home" name="home" classname="home" time="10.0" status="SUCCESS"/>',
-        '  </testsuite>',
-        '</testsuites>',
-      ].join('\n'),
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/somewhere/else/.maestro/home.yml',
-      }),
-    });
-
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
-    expect(results[0].path).toBe('/somewhere/else/.maestro/home.yml');
-  });
-
-  it('filters out non-timestamp directories when scanning debug output', async () => {
-    vol.fromJSON({
-      '/junit/report.xml': [
-        '<?xml version="1.0"?>',
-        '<testsuites>',
-        '  <testsuite name="Test Suite" tests="1" failures="0">',
-        '    <testcase id="home" name="home" classname="home" time="10.0" status="SUCCESS"/>',
-        '  </testsuite>',
-        '</testsuites>',
-      ].join('\n'),
-      '/tests/2026-01-28_055409/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-      '/tests/not-a-timestamp/ai-home.json': JSON.stringify({
-        flow_name: 'home',
-        flow_file_path: '/root/project/.maestro/home.yml',
-      }),
-    });
-
-    const results = await parseMaestroResults('/junit', '/tests', '/root/project');
-    // Only 1 occurrence (not-a-timestamp dir should be ignored)
-    expect(results[0].retryCount).toBe(0);
   });
 });
 
@@ -811,11 +584,7 @@ describe(parseJUnitTestCases, () => {
 
 describe('parseFailedFlowsFromJUnit', () => {
   it('returns the subset of input flow paths whose testcases failed', async () => {
-    // memfs setup: 3 input flows, 1 junit file with 1 failure, 1 timestamp dir with 3 ai-*.json
     vol.fromJSON({
-      '/project/flows/login.yaml': '',
-      '/project/flows/search.yaml': '',
-      '/project/flows/checkout.yaml': '',
       '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
 <testsuites>
   <testsuite>
@@ -824,82 +593,49 @@ describe('parseFailedFlowsFromJUnit', () => {
     <testcase name="Checkout" time="1.0"><failure>something</failure></testcase>
   </testsuite>
 </testsuites>`,
-      '/tmp/tests/2026-04-23_120000/ai-Login.json': JSON.stringify({
-        flow_name: 'Login',
-        flow_file_path: '/project/flows/login.yaml',
-      }),
-      '/tmp/tests/2026-04-23_120000/ai-Search.json': JSON.stringify({
-        flow_name: 'Search',
-        flow_file_path: '/project/flows/search.yaml',
-      }),
-      '/tmp/tests/2026-04-23_120000/ai-Checkout.json': JSON.stringify({
-        flow_name: 'Checkout',
-        flow_file_path: '/project/flows/checkout.yaml',
-      }),
     });
 
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/login.yaml', 'flows/search.yaml', 'flows/checkout.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([
+        ['Login', 'flows/login.yaml'],
+        ['Search', 'flows/search.yaml'],
+        ['Checkout', 'flows/checkout.yaml'],
+      ]),
     });
 
     expect(result).toEqual(['flows/checkout.yaml']);
   });
 
-  it('accepts flow files discovered under a directory input (documented usage)', async () => {
-    // Users may set `flow_path: ./maestro/flows` (a directory). Maestro then
-    // discovers the YAMLs inside; smart retry must still subset to the failing
-    // child file, not fall back to dumb retry.
+  it('returns null when a failing testcase has no entry in nameToPath', async () => {
     vol.fromJSON({
-      '/project/flows/login.yaml': '',
-      '/project/flows/checkout.yaml': '',
       '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
 <testsuites><testsuite>
   <testcase name="Login" status="SUCCESS" time="1.0" />
-  <testcase name="Checkout" time="1.0"><failure>x</failure></testcase>
+  <testcase name="Unknown" time="1.0"><failure>x</failure></testcase>
 </testsuite></testsuites>`,
-      '/tmp/tests/2026-04-23_120000/ai-Login.json': JSON.stringify({
-        flow_name: 'Login',
-        flow_file_path: '/project/flows/login.yaml',
-      }),
-      '/tmp/tests/2026-04-23_120000/ai-Checkout.json': JSON.stringify({
-        flow_name: 'Checkout',
-        flow_file_path: '/project/flows/checkout.yaml',
-      }),
     });
 
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows'],
-      projectRoot: '/project',
+      nameToPath: new Map([['Login', 'flows/login.yaml']]),
     });
 
-    expect(result).toEqual(['flows/checkout.yaml']);
+    expect(result).toBeNull();
   });
 
   it('returns null when two failing testcases share the same name (collision)', async () => {
     vol.fromJSON({
-      '/project/flows/a.yaml': '',
-      '/project/flows/b.yaml': '',
       '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
 <testsuites><testsuite>
   <testcase name="Duplicate" time="1.0"><failure>x</failure></testcase>
   <testcase name="Duplicate" time="1.0"><failure>y</failure></testcase>
 </testsuite></testsuites>`,
-      '/tmp/tests/2026-04-23_120000/ai-Duplicate.json': JSON.stringify({
-        flow_name: 'Duplicate',
-        flow_file_path: '/project/flows/a.yaml',
-      }),
     });
 
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([['Duplicate', 'flows/a.yaml']]),
     });
 
     expect(result).toBeNull();
@@ -907,38 +643,25 @@ describe('parseFailedFlowsFromJUnit', () => {
 
   it('returns null when a failing testcase shares a name with any other testcase (pass or fail)', async () => {
     vol.fromJSON({
-      '/project/flows/a.yaml': '',
-      '/project/flows/b.yaml': '',
       '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
 <testsuites><testsuite>
   <testcase name="Shared" status="SUCCESS" time="1.0" />
   <testcase name="Shared" time="2.0"><failure>x</failure></testcase>
 </testsuite></testsuites>`,
-      '/tmp/tests/2026-04-23_120000/ai-Shared.json': JSON.stringify({
-        flow_name: 'Shared',
-        flow_file_path: '/project/flows/a.yaml',
-      }),
     });
 
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([['Shared', 'flows/a.yaml']]),
     });
 
     expect(result).toBeNull();
   });
 
   it('returns null when junit file does not exist', async () => {
-    vol.fromJSON({
-      '/project/flows/a.yaml': '',
-    });
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/missing.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([['A', 'flows/a.yaml']]),
     });
     expect(result).toBeNull();
   });
@@ -949,9 +672,7 @@ describe('parseFailedFlowsFromJUnit', () => {
     });
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/bad.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([['A', 'flows/a.yaml']]),
     });
     expect(result).toBeNull();
   });
@@ -959,50 +680,33 @@ describe('parseFailedFlowsFromJUnit', () => {
   it('returns null when junit XML is truncated mid-tag (partial parse risk)', async () => {
     // fast-xml-parser can produce a partial parse from truncated XML — without
     // strict validation, smart retry would only retry the visible failures and
-    // silently skip flows that were cut off, masking real failures when the
-    // subset retry passes. Validation must reject the file → dumb retry.
+    // silently skip flows that were cut off.
     vol.fromJSON({
-      '/project/flows/a.yaml': '',
-      '/project/flows/b.yaml': '',
       '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
 <testsuites><testsuite>
   <testcase name="A" time="1.0"><failure>x</failure></testcase>
   <testcase name="B"`, // intentionally truncated mid-tag
-      '/tmp/tests/2026-04-23_120000/ai-A.json': JSON.stringify({
-        flow_name: 'A',
-        flow_file_path: '/project/flows/a.yaml',
-      }),
-      '/tmp/tests/2026-04-23_120000/ai-B.json': JSON.stringify({
-        flow_name: 'B',
-        flow_file_path: '/project/flows/b.yaml',
-      }),
     });
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([
+        ['A', 'flows/a.yaml'],
+        ['B', 'flows/b.yaml'],
+      ]),
     });
     expect(result).toBeNull();
   });
 
   it('returns null when junit XML has unclosed tags (partial parse risk)', async () => {
     vol.fromJSON({
-      '/project/flows/a.yaml': '',
       '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
 <testsuites><testsuite>
   <testcase name="A" time="1.0"><failure>x</failure></testcase>
 </testsuite>`, // missing </testsuites>
-      '/tmp/tests/2026-04-23_120000/ai-A.json': JSON.stringify({
-        flow_name: 'A',
-        flow_file_path: '/project/flows/a.yaml',
-      }),
     });
     const result = await parseFailedFlowsFromJUnit({
       junitFile: '/tmp/junit-reports/attempt-0.xml',
-      testsDirectory: '/tmp/tests',
-      inputFlowPaths: ['flows/a.yaml'],
-      projectRoot: '/project',
+      nameToPath: new Map([['A', 'flows/a.yaml']]),
     });
     expect(result).toBeNull();
   });

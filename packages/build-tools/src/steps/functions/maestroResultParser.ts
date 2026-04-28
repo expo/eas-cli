@@ -1,7 +1,6 @@
 import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import path from 'path';
-import { z } from 'zod';
 
 export interface MaestroFlowResult {
   name: string;
@@ -14,16 +13,8 @@ export interface MaestroFlowResult {
   properties: Record<string, string>;
 }
 
-// Maestro's TestDebugReporter creates timestamped directories, e.g. "2024-06-15_143022"
-const TIMESTAMP_DIR_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{6}$/;
-
 // Per-attempt JUnit XML files use `*-attempt-N.xml` names; this extracts N.
 const ATTEMPT_PATTERN = /attempt-(\d+)/;
-
-export function extractFlowKey(filename: string, prefix: string): string | null {
-  const match = filename.match(new RegExp(`^${prefix}-(.+)\\.json$`));
-  return match?.[1] ?? null;
-}
 
 export interface JUnitTestCaseResult {
   name: string;
@@ -140,42 +131,10 @@ export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnit
   return perFile.flat();
 }
 
-const FlowMetadataFileSchema = z.object({
-  flow_name: z.string(),
-  flow_file_path: z.string(),
-});
-
-type FlowMetadata = z.output<typeof FlowMetadataFileSchema>;
-
-/**
- * Parses an `ai-*.json` file produced by Maestro's TestDebugReporter.
- *
- * The file contains:
- * - `flow_name`: derived from the YAML `config.name` field if present, otherwise
- *   the flow filename without extension.
- *   See: https://github.com/mobile-dev-inc/Maestro/blob/c0e95fd/maestro-cli/src/main/java/maestro/cli/runner/TestRunner.kt#L70
- * - `flow_file_path`: absolute path to the original flow YAML file.
- * - `outputs`: screenshot defect data (unused here).
- *
- * Filename format: `ai-(flowName).json` where `/` in flowName is replaced with `_`.
- * See: https://github.com/mobile-dev-inc/Maestro/blob/c0e95fd/maestro-cli/src/main/java/maestro/cli/report/TestDebugReporter.kt#L67
- */
-export async function parseFlowMetadata(filePath: string): Promise<FlowMetadata | null> {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    const data = JSON.parse(content);
-    return FlowMetadataFileSchema.parse(data);
-  } catch {
-    return null;
-  }
-}
-
 export async function parseMaestroResults(
   junitDirectory: string,
-  testsDirectory: string,
-  projectRoot: string
+  nameToPath: Map<string, string> | null
 ): Promise<MaestroFlowResult[]> {
-  // 1. Parse JUnit XML files, tracking which file each result came from
   let junitEntries: string[];
   try {
     junitEntries = await fs.readdir(junitDirectory);
@@ -204,51 +163,8 @@ export async function parseMaestroResults(
     return [];
   }
 
-  // 2. Parse ai-*.json from debug output for flow_file_path + retryCount
-  const flowPathMap = new Map<string, string>(); // flowName → flowFilePath
-  const flowOccurrences = new Map<string, number>(); // flowName → count
-
-  let entries: string[];
-  try {
-    entries = await fs.readdir(testsDirectory);
-  } catch {
-    entries = [];
-  }
-
-  const timestampDirs = entries.filter(name => TIMESTAMP_DIR_PATTERN.test(name)).sort();
-
-  for (const dir of timestampDirs) {
-    const dirPath = path.join(testsDirectory, dir);
-    let files: string[];
-    try {
-      files = await fs.readdir(dirPath);
-    } catch {
-      continue;
-    }
-
-    for (const file of files) {
-      const flowKey = extractFlowKey(file, 'ai');
-      if (!flowKey) {
-        continue;
-      }
-
-      const metadata = await parseFlowMetadata(path.join(dirPath, file));
-      if (!metadata) {
-        continue;
-      }
-
-      // Track latest path (last timestamp dir wins)
-      flowPathMap.set(metadata.flow_name, metadata.flow_file_path);
-
-      // Count occurrences for retryCount
-      flowOccurrences.set(metadata.flow_name, (flowOccurrences.get(metadata.flow_name) ?? 0) + 1);
-    }
-  }
-
-  // 3. Merge: JUnit results + ai-*.json metadata
   const results: MaestroFlowResult[] = [];
 
-  // Group results by flow name
   const resultsByName = new Map<string, JUnitResultWithSource[]>();
   for (const entry of junitResultsWithSource) {
     const group = resultsByName.get(entry.result.name) ?? [];
@@ -257,50 +173,28 @@ export async function parseMaestroResults(
   }
 
   for (const [flowName, flowEntries] of resultsByName) {
-    const flowFilePath = flowPathMap.get(flowName);
-    const relativePath = flowFilePath
-      ? await relativizePathAsync(flowFilePath, projectRoot)
-      : flowName;
+    const flowPath = nameToPath?.get(flowName) ?? flowName;
+    // retryCount is derived from each entry's source filename (`attempt-N`);
+    // a single entry from `report.xml` (no marker) collapses to attempt 0.
+    const sorted = flowEntries
+      .map(entry => {
+        const match = entry.sourceFile.match(ATTEMPT_PATTERN);
+        const attemptIndex = match ? parseInt(match[1], 10) : 0;
+        return { ...entry, attemptIndex };
+      })
+      .sort((a, b) => a.attemptIndex - b.attemptIndex);
 
-    if (flowEntries.length === 1) {
-      // Single result for this flow — use ai-*.json occurrence count for retryCount
-      // (backward compat with old-style single JUnit file that gets overwritten)
-      const { result } = flowEntries[0];
-      const occurrences = flowOccurrences.get(flowName) ?? 0;
-      const retryCount = Math.max(0, occurrences - 1);
-
+    for (const { result, attemptIndex } of sorted) {
       results.push({
         name: flowName,
-        path: relativePath,
+        path: flowPath,
         status: result.status,
         errorMessage: result.errorMessage,
         duration: result.duration,
-        retryCount,
+        retryCount: attemptIndex,
         tags: result.tags,
         properties: result.properties,
       });
-    } else {
-      // Multiple results — per-attempt JUnit files. Sort by attempt index from filename.
-      const sorted = flowEntries
-        .map(entry => {
-          const match = entry.sourceFile.match(ATTEMPT_PATTERN);
-          const attemptIndex = match ? parseInt(match[1], 10) : 0;
-          return { ...entry, attemptIndex };
-        })
-        .sort((a, b) => a.attemptIndex - b.attemptIndex);
-
-      for (const { result, attemptIndex } of sorted) {
-        results.push({
-          name: flowName,
-          path: relativePath,
-          status: result.status,
-          errorMessage: result.errorMessage,
-          duration: result.duration,
-          retryCount: attemptIndex,
-          tags: result.tags,
-          properties: result.properties,
-        });
-      }
     }
   }
 
@@ -312,15 +206,13 @@ export async function parseMaestroResults(
  * attempt's JUnit file, or `null` when the result cannot be trusted (caller
  * then falls back to dumb retry — re-run everything).
  *
- * Mapping: <testcase> only carries `name`, so we recover `flow_file_path`
- * from `ai-${flow_name}.json` under testsDirectory and match it back to
- * inputFlowPaths.
+ * Caller passes a precomputed `nameToPath` map built from the user's
+ * `inputFlowPaths`. We translate failed testcase names to flow paths via
+ * that map; unknown names → null.
  */
 export async function parseFailedFlowsFromJUnit(args: {
   junitFile: string;
-  testsDirectory: string;
-  inputFlowPaths: string[];
-  projectRoot: string;
+  nameToPath: Map<string, string>;
 }): Promise<string[] | null> {
   // fast-xml-parser is lenient — truncated XML can produce a partial parse
   // with some testcases dropped. Trusting that subset for smart retry would
@@ -347,8 +239,9 @@ export async function parseFailedFlowsFromJUnit(args: {
   }
 
   // Two testcases with the same name (pass+fail or fail+fail) make it
-  // impossible to map back to a single input flow_path, since the
-  // ai-*.json keyed map collapses duplicates. Signal "unknown" → dumb retry.
+  // impossible to map back to a single input flow_path. Signal "unknown".
+  // Complementary to the map-build duplicate check (which catches the case
+  // where tag filter hides duplication from JUnit).
   const allNameCounts = new Map<string, number>();
   for (const tc of testcases) {
     allNameCounts.set(tc.name, (allNameCounts.get(tc.name) ?? 0) + 1);
@@ -359,60 +252,15 @@ export async function parseFailedFlowsFromJUnit(args: {
     }
   }
 
-  // Build flow_name → flow_file_path map from ai-*.json across timestamped
-  // subdirectories (same traversal as parseMaestroResults).
-  const nameToPath = new Map<string, string>();
-  let entries: string[];
-  try {
-    entries = await fs.readdir(args.testsDirectory);
-  } catch {
-    entries = [];
-  }
-  const timestampDirs = entries.filter(name => TIMESTAMP_DIR_PATTERN.test(name)).sort();
-  for (const dir of timestampDirs) {
-    const dirPath = path.join(args.testsDirectory, dir);
-    let files: string[];
-    try {
-      files = await fs.readdir(dirPath);
-    } catch {
-      continue;
-    }
-    for (const file of files) {
-      const flowKey = extractFlowKey(file, 'ai');
-      if (!flowKey) {
-        continue;
-      }
-      const metadata = await parseFlowMetadata(path.join(dirPath, file));
-      if (!metadata) {
-        continue;
-      }
-      // Latest timestamp dir wins if the same flow appears in multiple attempts.
-      nameToPath.set(metadata.flow_name, metadata.flow_file_path);
-    }
-  }
-
   const matched: string[] = [];
   for (const tc of failing) {
-    const abs = nameToPath.get(tc.name);
-    if (!abs) {
-      return null; // unknown mapping; safer to fall back
-    }
-    const relative = await relativizePathAsync(abs, args.projectRoot);
-    // Accept exact matches and flow files discovered under an input directory
-    // (documented usage: `flow_path: ./maestro/flows` discovers nested .yml).
-    // Anything outside every input is treated as out-of-scope → dumb retry.
-    if (!args.inputFlowPaths.some(input => isPathWithinOrEqual(relative, input))) {
+    const p = args.nameToPath.get(tc.name);
+    if (p === undefined) {
       return null;
     }
-    matched.push(relative);
+    matched.push(p);
   }
-
   return matched;
-}
-
-function isPathWithinOrEqual(child: string, parent: string): boolean {
-  const rel = path.relative(parent, child);
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
 /**
@@ -580,26 +428,4 @@ export async function copyLatestAttemptXml(args: {
   }
 
   await fs.copyFile(path.join(args.sourceDir, winner), args.outputPath);
-}
-
-async function relativizePathAsync(flowFilePath: string, projectRoot: string): Promise<string> {
-  if (!path.isAbsolute(flowFilePath)) {
-    return flowFilePath;
-  }
-
-  // Resolve symlinks (e.g., /tmp -> /private/tmp on macOS) for consistent comparison
-  let resolvedRoot = projectRoot;
-  let resolvedFlow = flowFilePath;
-  try {
-    resolvedRoot = await fs.realpath(projectRoot);
-  } catch {}
-  try {
-    resolvedFlow = await fs.realpath(flowFilePath);
-  } catch {}
-
-  const relative = path.relative(resolvedRoot, resolvedFlow);
-  if (relative.startsWith('..')) {
-    return flowFilePath;
-  }
-  return relative;
 }
