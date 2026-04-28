@@ -1,8 +1,11 @@
+import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import { vol } from 'memfs';
 
 import {
   copyLatestAttemptXml,
+  mergeJUnitReports,
+  parseFailedFlowsFromJUnit,
   parseFlowMetadata,
   parseJUnitTestCases,
   parseMaestroResults,
@@ -803,6 +806,364 @@ describe(parseJUnitTestCases, () => {
 
     const results = await parseJUnitTestCases('/junit');
     expect(results[0].properties).toEqual({});
+  });
+});
+
+describe('parseFailedFlowsFromJUnit', () => {
+  it('returns the subset of input flow paths whose testcases failed', async () => {
+    // memfs setup: 3 input flows, 1 junit file with 1 failure, 1 timestamp dir with 3 ai-*.json
+    vol.fromJSON({
+      '/project/flows/login.yaml': '',
+      '/project/flows/search.yaml': '',
+      '/project/flows/checkout.yaml': '',
+      '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites>
+  <testsuite>
+    <testcase name="Login" status="SUCCESS" time="1.0" />
+    <testcase name="Search" status="SUCCESS" time="1.0" />
+    <testcase name="Checkout" time="1.0"><failure>something</failure></testcase>
+  </testsuite>
+</testsuites>`,
+      '/tmp/tests/2026-04-23_120000/ai-Login.json': JSON.stringify({
+        flow_name: 'Login',
+        flow_file_path: '/project/flows/login.yaml',
+      }),
+      '/tmp/tests/2026-04-23_120000/ai-Search.json': JSON.stringify({
+        flow_name: 'Search',
+        flow_file_path: '/project/flows/search.yaml',
+      }),
+      '/tmp/tests/2026-04-23_120000/ai-Checkout.json': JSON.stringify({
+        flow_name: 'Checkout',
+        flow_file_path: '/project/flows/checkout.yaml',
+      }),
+    });
+
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/login.yaml', 'flows/search.yaml', 'flows/checkout.yaml'],
+      projectRoot: '/project',
+    });
+
+    expect(result).toEqual(['flows/checkout.yaml']);
+  });
+
+  it('accepts flow files discovered under a directory input (documented usage)', async () => {
+    // Users may set `flow_path: ./maestro/flows` (a directory). Maestro then
+    // discovers the YAMLs inside; smart retry must still subset to the failing
+    // child file, not fall back to dumb retry.
+    vol.fromJSON({
+      '/project/flows/login.yaml': '',
+      '/project/flows/checkout.yaml': '',
+      '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="Login" status="SUCCESS" time="1.0" />
+  <testcase name="Checkout" time="1.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+      '/tmp/tests/2026-04-23_120000/ai-Login.json': JSON.stringify({
+        flow_name: 'Login',
+        flow_file_path: '/project/flows/login.yaml',
+      }),
+      '/tmp/tests/2026-04-23_120000/ai-Checkout.json': JSON.stringify({
+        flow_name: 'Checkout',
+        flow_file_path: '/project/flows/checkout.yaml',
+      }),
+    });
+
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows'],
+      projectRoot: '/project',
+    });
+
+    expect(result).toEqual(['flows/checkout.yaml']);
+  });
+
+  it('returns null when two failing testcases share the same name (collision)', async () => {
+    vol.fromJSON({
+      '/project/flows/a.yaml': '',
+      '/project/flows/b.yaml': '',
+      '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="Duplicate" time="1.0"><failure>x</failure></testcase>
+  <testcase name="Duplicate" time="1.0"><failure>y</failure></testcase>
+</testsuite></testsuites>`,
+      '/tmp/tests/2026-04-23_120000/ai-Duplicate.json': JSON.stringify({
+        flow_name: 'Duplicate',
+        flow_file_path: '/project/flows/a.yaml',
+      }),
+    });
+
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
+      projectRoot: '/project',
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when a failing testcase shares a name with any other testcase (pass or fail)', async () => {
+    vol.fromJSON({
+      '/project/flows/a.yaml': '',
+      '/project/flows/b.yaml': '',
+      '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="Shared" status="SUCCESS" time="1.0" />
+  <testcase name="Shared" time="2.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+      '/tmp/tests/2026-04-23_120000/ai-Shared.json': JSON.stringify({
+        flow_name: 'Shared',
+        flow_file_path: '/project/flows/a.yaml',
+      }),
+    });
+
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/android-maestro-junit-attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
+      projectRoot: '/project',
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when junit file does not exist', async () => {
+    vol.fromJSON({
+      '/project/flows/a.yaml': '',
+    });
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/missing.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml'],
+      projectRoot: '/project',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when junit file is malformed', async () => {
+    vol.fromJSON({
+      '/tmp/junit-reports/bad.xml': 'this is not xml',
+    });
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/bad.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml'],
+      projectRoot: '/project',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when junit XML is truncated mid-tag (partial parse risk)', async () => {
+    // fast-xml-parser can produce a partial parse from truncated XML — without
+    // strict validation, smart retry would only retry the visible failures and
+    // silently skip flows that were cut off, masking real failures when the
+    // subset retry passes. Validation must reject the file → dumb retry.
+    vol.fromJSON({
+      '/project/flows/a.yaml': '',
+      '/project/flows/b.yaml': '',
+      '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" time="1.0"><failure>x</failure></testcase>
+  <testcase name="B"`, // intentionally truncated mid-tag
+      '/tmp/tests/2026-04-23_120000/ai-A.json': JSON.stringify({
+        flow_name: 'A',
+        flow_file_path: '/project/flows/a.yaml',
+      }),
+      '/tmp/tests/2026-04-23_120000/ai-B.json': JSON.stringify({
+        flow_name: 'B',
+        flow_file_path: '/project/flows/b.yaml',
+      }),
+    });
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml', 'flows/b.yaml'],
+      projectRoot: '/project',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when junit XML has unclosed tags (partial parse risk)', async () => {
+    vol.fromJSON({
+      '/project/flows/a.yaml': '',
+      '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" time="1.0"><failure>x</failure></testcase>
+</testsuite>`, // missing </testsuites>
+      '/tmp/tests/2026-04-23_120000/ai-A.json': JSON.stringify({
+        flow_name: 'A',
+        flow_file_path: '/project/flows/a.yaml',
+      }),
+    });
+    const result = await parseFailedFlowsFromJUnit({
+      junitFile: '/tmp/junit-reports/attempt-0.xml',
+      testsDirectory: '/tmp/tests',
+      inputFlowPaths: ['flows/a.yaml'],
+      projectRoot: '/project',
+    });
+    expect(result).toBeNull();
+  });
+});
+
+describe('mergeJUnitReports', () => {
+  it('identity-copies a single attempt (preserves suite-level metadata)', async () => {
+    // Single-attempt runs should land in final_report_path with the same
+    // suite-level attributes (tests/failures/time) and non-testcase children
+    // (e.g. <system-out>) that the legacy bash `cp` upload preserved. The
+    // rebuild path used for multi-attempt merges drops these, so the single
+    // case must short-circuit to a byte-equivalent copy.
+    const input = `<?xml version="1.0"?>
+<testsuites>
+  <testsuite name="Maestro Flows" tests="2" failures="0" time="3.0" device="Pixel 7">
+    <testcase name="A" status="SUCCESS" time="1.0" />
+    <testcase name="B" status="SUCCESS" time="2.0" />
+    <system-out>boot complete</system-out>
+  </testsuite>
+</testsuites>`;
+    vol.fromJSON({
+      '/tmp/junit-reports/android-maestro-junit-attempt-0.xml': input,
+    });
+
+    await mergeJUnitReports({
+      sourceDir: '/tmp/junit-reports',
+      outputPath: '/tmp/final.xml',
+    });
+
+    const out = await fs.readFile('/tmp/final.xml', 'utf-8');
+    expect(out).toBe(input);
+  });
+
+  it('keeps the latest attempt per flow name across multiple files', async () => {
+    vol.fromJSON({
+      '/tmp/r/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" status="SUCCESS" time="1.0" />
+  <testcase name="B" time="2.0"><failure>bad</failure></testcase>
+</testsuite></testsuites>`,
+      '/tmp/r/android-maestro-junit-attempt-1.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="B" status="SUCCESS" time="3.0" />
+</testsuite></testsuites>`,
+    });
+
+    await mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' });
+
+    const out = await fs.readFile('/tmp/final.xml', 'utf-8');
+    const parsed = new XMLParser({ ignoreAttributes: false }).parse(out);
+    const testcases = parsed.testsuites.testsuite.testcase;
+    const a = testcases.find((t: any) => t['@_name'] === 'A');
+    const b = testcases.find((t: any) => t['@_name'] === 'B');
+    expect(a['@_status']).toBe('SUCCESS'); // from attempt 0
+    expect(b['@_status']).toBe('SUCCESS'); // from attempt 1 (latest)
+    expect(b.failure).toBeUndefined();
+  });
+
+  it('throws when source directory contains no *.xml files', async () => {
+    // No per-attempt JUnit files were ever written (maestro crashed before
+    // producing output). Phase 3 in runMaestroTests treats this as a SystemError
+    // — without a throw here, mergeJUnitReports would silently write an empty
+    // <testsuite> and the caller would upload a misleading empty report.
+    vol.fromJSON({
+      '/tmp/r/.gitkeep': '',
+    });
+
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow(/no \*\.xml files/);
+  });
+
+  it('throws when no parseable testcases are found across inputs', async () => {
+    // Malformed XML with no parseable <testsuite> / <testcase>. Without a
+    // throw here, mergeJUnitReports would silently emit an empty merged
+    // document and Phase 3's copyLatestAttemptXml fallback (which only
+    // triggers on throw) would never run.
+    vol.fromJSON({
+      '/tmp/r/android-maestro-junit-attempt-0.xml': 'not xml at all',
+    });
+
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow(/no parseable testcases/);
+  });
+
+  it('throws when every input has <testsuites> but no <testcase> elements', async () => {
+    vol.fromJSON({
+      '/tmp/r/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite></testsuite></testsuites>`,
+    });
+
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow(/no parseable testcases/);
+  });
+
+  it('throws when any input XML is malformed (even if others parse)', async () => {
+    vol.fromJSON({
+      '/tmp/r/attempt-0.xml': `<?xml version="1.0"?><testsuites><testsuite><testcase name="A" status="SUCCESS" time="1.0"/></testsuite></testsuites>`,
+      '/tmp/r/attempt-1.xml': 'garbage not xml',
+    });
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow();
+  });
+
+  it('throws when an input XML is truncated mid-tag (would otherwise partial-parse)', async () => {
+    // fast-xml-parser is lenient and can return partial results from truncated
+    // XML. Without strict validation, mergeJUnitReports would emit a merged
+    // report missing the cut-off flows and Phase 3's copy-latest fallback
+    // would never run. Validation must reject the file.
+    vol.fromJSON({
+      '/tmp/r/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" status="SUCCESS" time="1.0"/>
+  <testcase name="B"`, // truncated mid-tag
+    });
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow();
+  });
+
+  it('throws when an input XML has unclosed tags (would otherwise partial-parse)', async () => {
+    vol.fromJSON({
+      '/tmp/r/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" status="SUCCESS" time="1.0"/>
+</testsuite>`, // missing </testsuites>
+    });
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow();
+  });
+
+  it('throws when any input XML parses but has no testcases (even if others have testcases)', async () => {
+    vol.fromJSON({
+      '/tmp/r/attempt-0.xml': `<?xml version="1.0"?><testsuites><testsuite><testcase name="A" status="SUCCESS" time="1.0"/></testsuite></testsuites>`,
+      '/tmp/r/attempt-1.xml': `<?xml version="1.0"?><testsuites></testsuites>`,
+    });
+    await expect(
+      mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
+    ).rejects.toThrow();
+  });
+
+  it('preserves duplicate names within the same attempt', async () => {
+    vol.fromJSON({
+      '/tmp/r/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="Dup" status="SUCCESS" time="1.0" />
+  <testcase name="Dup" status="SUCCESS" time="2.0" />
+</testsuite></testsuites>`,
+    });
+
+    await mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' });
+
+    const out = await fs.readFile('/tmp/final.xml', 'utf-8');
+    const parsed = new XMLParser({ ignoreAttributes: false, isArray: n => n === 'testcase' }).parse(
+      out
+    );
+    expect(parsed.testsuites.testsuite.testcase).toHaveLength(2);
   });
 });
 

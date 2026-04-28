@@ -1,4 +1,4 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
@@ -41,11 +41,9 @@ const xmlParser = new XMLParser({
   isArray: name => ['testsuite', 'testcase', 'property'].includes(name),
 });
 
-// Internal helper — not exported. Parses a single JUnit XML file.
-async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> {
+function parseJUnitContent(content: string): JUnitTestCaseResult[] {
   const results: JUnitTestCaseResult[] = [];
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
     const parsed = xmlParser.parse(content);
 
     const testsuites = parsed?.testsuites?.testsuite;
@@ -109,9 +107,18 @@ async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> 
       }
     }
   } catch {
-    // Skip malformed XML files
+    // Malformed XML — return whatever we collected before the parser bailed.
   }
   return results;
+}
+
+async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return parseJUnitContent(content);
+  } catch {
+    return [];
+  }
 }
 
 export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnitTestCaseResult[]> {
@@ -127,11 +134,10 @@ export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnit
     return [];
   }
 
-  const results: JUnitTestCaseResult[] = [];
-  for (const xmlFile of xmlFiles) {
-    results.push(...(await parseJUnitFile(path.join(junitDirectory, xmlFile))));
-  }
-  return results;
+  const perFile = await Promise.all(
+    xmlFiles.map(f => parseJUnitFile(path.join(junitDirectory, f)))
+  );
+  return perFile.flat();
 }
 
 const FlowMetadataFileSchema = z.object({
@@ -301,6 +307,292 @@ export async function parseMaestroResults(
   return results;
 }
 
+/**
+ * Returns the subset of `inputFlowPaths` whose testcases failed in the given
+ * attempt's JUnit file, or `null` when the result cannot be trusted (caller
+ * then falls back to dumb retry — re-run everything).
+ *
+ * Mapping: <testcase> only carries `name`, so we recover `flow_file_path`
+ * from `ai-${flow_name}.json` under testsDirectory and match it back to
+ * inputFlowPaths.
+ */
+export async function parseFailedFlowsFromJUnit(args: {
+  junitFile: string;
+  testsDirectory: string;
+  inputFlowPaths: string[];
+  projectRoot: string;
+}): Promise<string[] | null> {
+  // fast-xml-parser is lenient — truncated XML can produce a partial parse
+  // with some testcases dropped. Trusting that subset for smart retry would
+  // skip retries for cut-off flows; reject any malformed XML and fall back
+  // to dumb retry.
+  let content: string;
+  try {
+    content = await fs.readFile(args.junitFile, 'utf-8');
+  } catch {
+    return null;
+  }
+  if (XMLValidator.validate(content) !== true) {
+    return null;
+  }
+
+  const testcases = parseJUnitContent(content);
+  if (testcases.length === 0) {
+    return null;
+  }
+
+  const failing = testcases.filter(tc => tc.status === 'failed');
+  if (failing.length === 0) {
+    return [];
+  }
+
+  // Two testcases with the same name (pass+fail or fail+fail) make it
+  // impossible to map back to a single input flow_path, since the
+  // ai-*.json keyed map collapses duplicates. Signal "unknown" → dumb retry.
+  const allNameCounts = new Map<string, number>();
+  for (const tc of testcases) {
+    allNameCounts.set(tc.name, (allNameCounts.get(tc.name) ?? 0) + 1);
+  }
+  for (const count of allNameCounts.values()) {
+    if (count > 1) {
+      return null;
+    }
+  }
+
+  // Build flow_name → flow_file_path map from ai-*.json across timestamped
+  // subdirectories (same traversal as parseMaestroResults).
+  const nameToPath = new Map<string, string>();
+  let entries: string[];
+  try {
+    entries = await fs.readdir(args.testsDirectory);
+  } catch {
+    entries = [];
+  }
+  const timestampDirs = entries.filter(name => TIMESTAMP_DIR_PATTERN.test(name)).sort();
+  for (const dir of timestampDirs) {
+    const dirPath = path.join(args.testsDirectory, dir);
+    let files: string[];
+    try {
+      files = await fs.readdir(dirPath);
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      const flowKey = extractFlowKey(file, 'ai');
+      if (!flowKey) {
+        continue;
+      }
+      const metadata = await parseFlowMetadata(path.join(dirPath, file));
+      if (!metadata) {
+        continue;
+      }
+      // Latest timestamp dir wins if the same flow appears in multiple attempts.
+      nameToPath.set(metadata.flow_name, metadata.flow_file_path);
+    }
+  }
+
+  const matched: string[] = [];
+  for (const tc of failing) {
+    const abs = nameToPath.get(tc.name);
+    if (!abs) {
+      return null; // unknown mapping; safer to fall back
+    }
+    const relative = await relativizePathAsync(abs, args.projectRoot);
+    // Accept exact matches and flow files discovered under an input directory
+    // (documented usage: `flow_path: ./maestro/flows` discovers nested .yml).
+    // Anything outside every input is treated as out-of-scope → dumb retry.
+    if (!args.inputFlowPaths.some(input => isPathWithinOrEqual(relative, input))) {
+      return null;
+    }
+    matched.push(relative);
+  }
+
+  return matched;
+}
+
+function isPathWithinOrEqual(child: string, parent: string): boolean {
+  const rel = path.relative(parent, child);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * Reads every *.xml in sourceDir (per-attempt JUnit files), picks the latest
+ * attempt's <testcase> per unique flow name (latest determined from the
+ * filename's `attempt-(\d+)` marker; files without the marker = attempt 0),
+ * and writes a merged document to outputPath.
+ *
+ * Throws on empty/malformed/no-testcase input so the caller can fall back to
+ * copyLatestAttemptXml — silently dropping bad attempts could keep stale
+ * failure rows around and produce a misleading merged report.
+ */
+export async function mergeJUnitReports(args: {
+  sourceDir: string;
+  outputPath: string;
+}): Promise<void> {
+  const entries = await fs.readdir(args.sourceDir);
+  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
+
+  if (xmlFiles.length === 0) {
+    throw new Error(`mergeJUnitReports: no *.xml files found in ${args.sourceDir}`);
+  }
+
+  interface FileGroup {
+    attemptIndex: number;
+    filename: string;
+    content: string;
+    testcasesByName: Map<string, unknown[]>;
+  }
+  const contents = await Promise.all(
+    xmlFiles.map(async f => ({
+      filename: f,
+      content: await fs.readFile(path.join(args.sourceDir, f), 'utf-8'),
+    }))
+  );
+  const fileGroups: FileGroup[] = [];
+  const skippedFiles: string[] = [];
+  for (const { filename, content } of contents) {
+    if (XMLValidator.validate(content) !== true) {
+      skippedFiles.push(filename);
+      continue;
+    }
+    let parsed: any;
+    try {
+      parsed = xmlParser.parse(content);
+    } catch {
+      skippedFiles.push(filename);
+      continue;
+    }
+    const testsuites = parsed?.testsuites?.testsuite;
+    if (!Array.isArray(testsuites)) {
+      skippedFiles.push(filename);
+      continue;
+    }
+    const match = filename.match(ATTEMPT_PATTERN);
+    const attemptIndex = match ? parseInt(match[1], 10) : 0;
+    const testcasesByName = new Map<string, unknown[]>();
+    for (const suite of testsuites) {
+      const cases = suite?.testcase;
+      if (!Array.isArray(cases)) {
+        continue;
+      }
+      for (const tc of cases) {
+        const name = tc?.['@_name'];
+        if (typeof name !== 'string') {
+          continue;
+        }
+        const group = testcasesByName.get(name) ?? [];
+        group.push(tc);
+        testcasesByName.set(name, group);
+      }
+    }
+    if (testcasesByName.size === 0) {
+      skippedFiles.push(filename);
+      continue;
+    }
+    fileGroups.push({ attemptIndex, filename, content, testcasesByName });
+  }
+
+  if (skippedFiles.length > 0) {
+    throw new Error(
+      `mergeJUnitReports: no parseable testcases found in ${skippedFiles.join(', ')}`
+    );
+  }
+
+  // Single attempt: copy the original XML so suite-level metadata (testsuite
+  // attributes, <system-out>, etc.) survives. The rebuild path below would
+  // collapse those to a single attribute-less <testsuite>.
+  if (fileGroups.length === 1) {
+    await fs.writeFile(args.outputPath, fileGroups[0].content);
+    return;
+  }
+
+  // For each unique name, pick the file with the highest attempt index that
+  // contains it (ties broken by sorted filename — later wins). Preserve every
+  // <testcase> element from the winning file for that name, so same-attempt
+  // duplicates survive.
+  const nameToWinningFile = new Map<string, FileGroup>();
+  for (const group of fileGroups) {
+    for (const name of group.testcasesByName.keys()) {
+      const current = nameToWinningFile.get(name);
+      if (!current || group.attemptIndex >= current.attemptIndex) {
+        nameToWinningFile.set(name, group);
+      }
+    }
+  }
+
+  // Emit in first-seen order (iteration over `fileGroups` yields stable order
+  // matching the sorted filename list).
+  const testcases: unknown[] = [];
+  const emitted = new Set<string>();
+  for (const group of fileGroups) {
+    for (const [name, cases] of group.testcasesByName) {
+      if (emitted.has(name)) {
+        continue;
+      }
+      const winner = nameToWinningFile.get(name);
+      if (winner === group) {
+        for (const tc of cases) {
+          testcases.push(tc);
+        }
+        emitted.add(name);
+      }
+    }
+  }
+
+  const builder = new XMLBuilder({
+    ignoreAttributes: false,
+    attributeNamePrefix: '@_',
+    format: true,
+    suppressEmptyNode: true,
+  });
+  const xml = builder.build({
+    testsuites: {
+      testsuite: {
+        testcase: testcases,
+      },
+    },
+  });
+  await fs.writeFile(args.outputPath, xml);
+}
+
+/**
+ * Copies the highest-attempt-index *.xml file from sourceDir to outputPath.
+ * Used as a fallback when mergeJUnitReports fails due to data issues but the
+ * step still needs to produce final_report_path.
+ *
+ * Throws if sourceDir contains no *.xml files or if the copy fails.
+ */
+export async function copyLatestAttemptXml(args: {
+  sourceDir: string;
+  outputPath: string;
+}): Promise<void> {
+  const entries = await fs.readdir(args.sourceDir);
+  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
+  if (xmlFiles.length === 0) {
+    throw new Error(`No *.xml files found in ${args.sourceDir}`);
+  }
+
+  // Pick the file with the highest attempt index. Files without the marker are
+  // treated as attempt 0. Ties are broken by sorted filename — later wins
+  // (same rule as mergeJUnitReports).
+  let winner = xmlFiles[0];
+  let winnerAttempt = (() => {
+    const m = winner.match(ATTEMPT_PATTERN);
+    return m ? parseInt(m[1], 10) : 0;
+  })();
+  for (let i = 1; i < xmlFiles.length; i++) {
+    const candidate = xmlFiles[i];
+    const match = candidate.match(ATTEMPT_PATTERN);
+    const attempt = match ? parseInt(match[1], 10) : 0;
+    if (attempt >= winnerAttempt) {
+      winner = candidate;
+      winnerAttempt = attempt;
+    }
+  }
+
+  await fs.copyFile(path.join(args.sourceDir, winner), args.outputPath);
+}
+
 async function relativizePathAsync(flowFilePath: string, projectRoot: string): Promise<string> {
   if (!path.isAbsolute(flowFilePath)) {
     return flowFilePath;
@@ -321,42 +613,4 @@ async function relativizePathAsync(flowFilePath: string, projectRoot: string): P
     return flowFilePath;
   }
   return relative;
-}
-
-/**
- * Copies the highest-attempt-index *.xml file from sourceDir to outputPath.
- * After the maestro retry loop completes, this produces a single canonical
- * JUnit report at final_report_path matching the bash step's "cp latest
- * attempt" semantics.
- *
- * Throws if sourceDir contains no *.xml files or if the copy fails.
- */
-export async function copyLatestAttemptXml(args: {
-  sourceDir: string;
-  outputPath: string;
-}): Promise<void> {
-  const entries = await fs.readdir(args.sourceDir);
-  const xmlFiles = entries.filter(f => f.endsWith('.xml')).sort();
-  if (xmlFiles.length === 0) {
-    throw new Error(`No *.xml files found in ${args.sourceDir}`);
-  }
-
-  // Pick the file with the highest attempt index. Files without the marker are
-  // treated as attempt 0. Ties are broken by sorted filename — later wins.
-  let winner = xmlFiles[0];
-  let winnerAttempt = (() => {
-    const m = winner.match(ATTEMPT_PATTERN);
-    return m ? parseInt(m[1], 10) : 0;
-  })();
-  for (let i = 1; i < xmlFiles.length; i++) {
-    const candidate = xmlFiles[i];
-    const match = candidate.match(ATTEMPT_PATTERN);
-    const attempt = match ? parseInt(match[1], 10) : 0;
-    if (attempt >= winnerAttempt) {
-      winner = candidate;
-      winnerAttempt = attempt;
-    }
-  }
-
-  await fs.copyFile(path.join(args.sourceDir, winner), args.outputPath);
 }

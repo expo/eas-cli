@@ -49,10 +49,10 @@ function createStep(
 describe('createMaestroTestsBuildFunction', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
-    // Default-stub copyLatestAttemptXml so tests that don't care about it
-    // don't hit the real disk. Individual tests override this.
+    // Default-stub the merge helper so tests that don't care about it don't
+    // hit the real disk. Individual tests override this.
     jest.restoreAllMocks();
-    jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
+    jest.spyOn(parser, 'mergeJUnitReports').mockResolvedValue();
   });
 
   it('exports a factory that returns a BuildFunction instance', () => {
@@ -141,10 +141,9 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).toHaveBeenCalledTimes(1);
   });
 
-  it('retries all flows on failure', async () => {
-    const spawnMock = mockedSpawn
-      .mockRejectedValueOnce(rejectExit1())
-      .mockResolvedValueOnce(SPAWN_SUCCESS);
+  it('retries only the failed flows on the next attempt (junit mode)', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/b.yaml']);
 
     const step = createStep({
       flow_path: ['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'],
@@ -154,6 +153,32 @@ describe('createMaestroTestsBuildFunction', () => {
     });
     await step.executeAsync();
 
+    // Attempt 0 saw all 3
+    expect(mockedSpawn.mock.calls[0][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'])
+    );
+    // Attempt 1 saw only the failed one
+    const a1Args = mockedSpawn.mock.calls[1][1]!;
+    expect(a1Args).toContain('flows/b.yaml');
+    expect(a1Args).not.toContain('flows/a.yaml');
+    expect(a1Args).not.toContain('flows/c.yaml');
+  });
+
+  it('retries all flows when parseFailedFlowsFromJUnit returns null', async () => {
+    const spawnMock = mockedSpawn
+      .mockRejectedValueOnce(rejectExit1())
+      .mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(null);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    // Both attempts saw all 3 flows
     expect(spawnMock.mock.calls[0][1]).toEqual(
       expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'])
     );
@@ -162,8 +187,48 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
-  it('writes final report via copyLatestAttemptXml on success', async () => {
+  it('always retries all flows when output_format is not junit', async () => {
+    const spawnMock = mockedSpawn
+      .mockRejectedValueOnce(rejectExit1())
+      .mockResolvedValueOnce(SPAWN_SUCCESS);
+    const parseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'html',
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(spawnMock.mock.calls[1][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+  });
+
+  it('writes merged junit on success', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const mergeSpy = jest.spyOn(parser, 'mergeJUnitReports').mockResolvedValue();
+
+    const step = createStep({
+      flow_path: ['a.yaml'],
+      output_format: 'junit',
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(mergeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceDir: expect.stringContaining('junit-reports'),
+        outputPath: expect.stringContaining('android-maestro-junit.xml'),
+      })
+    );
+  });
+
+  it('falls back to copyLatestAttemptXml when mergeJUnitReports throws a data error', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'mergeJUnitReports').mockRejectedValue(new Error('bad xml'));
     const copySpy = jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
 
     const step = createStep({
@@ -173,19 +238,15 @@ describe('createMaestroTestsBuildFunction', () => {
     });
     await step.executeAsync();
 
-    expect(copySpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sourceDir: expect.stringContaining('junit-reports'),
-        outputPath: expect.stringContaining('android-maestro-junit.xml'),
-      })
-    );
+    expect(copySpy).toHaveBeenCalled();
   });
 
-  it('swallows copyLatestAttemptXml failure when maestro succeeded', async () => {
+  it('swallows merge and copy-latest failures when maestro succeeded', async () => {
     // Throwing on copy failure would mask the real reason for early-failing
     // maestro runs (bad YAML writes no *.xml) and would also wrap a user-side
     // failure as SystemError, which cancels the build's billing.
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'mergeJUnitReports').mockRejectedValue(new Error('bad xml'));
     jest
       .spyOn(parser, 'copyLatestAttemptXml')
       .mockRejectedValue(Object.assign(new Error('no space'), { code: 'ENOSPC' }));
@@ -230,6 +291,8 @@ describe('createMaestroTestsBuildFunction', () => {
         pid: 1,
       })
     );
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/a.yaml']);
+    jest.spyOn(parser, 'mergeJUnitReports').mockResolvedValue();
 
     const step = createStep({
       flow_path: ['flows/a.yaml'],
@@ -298,9 +361,9 @@ describe('createMaestroTestsBuildFunction', () => {
 
   it('accepts output_format casing variations (e.g. JUNIT) case-insensitively', async () => {
     // output_format.toLowerCase() must propagate end-to-end: final_report_path
-    // populated, per-attempt XMLs written into junit-reports/, copy invoked.
+    // populated, per-attempt XMLs written into junit-reports/, merge invoked.
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
-    const copySpy = jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
+    const mergeSpy = jest.spyOn(parser, 'mergeJUnitReports').mockResolvedValue();
 
     const step = createStep({
       flow_path: ['flows/a.yaml'],
@@ -309,13 +372,16 @@ describe('createMaestroTestsBuildFunction', () => {
     });
     await step.executeAsync();
 
+    // Phase 1: final_report_path populated
     expect(step.getOutputValueByName('final_report_path')).toMatch(
       /\.maestro\/tests\/android-maestro-junit\.xml$/
     );
+    // Retry loop: --output written into junit-reports/ (not legacy path)
     const args = mockedSpawn.mock.calls[0][1] as string[];
     const outputArg = args.find(a => a.startsWith('--output='));
     expect(outputArg).toMatch(/junit-reports\/android-maestro-junit-attempt-0\.xml$/);
-    expect(copySpy).toHaveBeenCalledWith(
+    // Phase 3: merge invoked
+    expect(mergeSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         sourceDir: expect.stringContaining('junit-reports'),
         outputPath: expect.stringContaining('android-maestro-junit.xml'),

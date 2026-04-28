@@ -11,7 +11,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
 
-import { copyLatestAttemptXml } from './maestroResultParser';
+import {
+  copyLatestAttemptXml,
+  mergeJUnitReports,
+  parseFailedFlowsFromJUnit,
+} from './maestroResultParser';
 import { sleepAsync } from '../../utils/retry';
 
 const FlowPathSchema = z.array(z.string().min(1)).min(1);
@@ -28,6 +32,19 @@ function parseInput<S extends z.ZodTypeAny>(
     throw new UserError('ERR_MAESTRO_INVALID_INPUT', message, { cause: result.error });
   }
   return result.data;
+}
+
+// ENOENT is excluded — "input XML missing" is a data issue, not a storage
+// fault, so the post-loop merge should fall through to copy-latest instead
+// of throwing.
+function isFilesystemError(err: any): boolean {
+  if (!err || typeof err !== 'object') {
+    return false;
+  }
+  const code = err.code;
+  return (
+    code === 'ENOSPC' || code === 'EACCES' || code === 'EROFS' || code === 'EIO' || code === 'EPERM'
+  );
 }
 
 // `outputPath: null` means "let maestro pick" (no --output flag). Junit and
@@ -180,6 +197,10 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       //   numeric err.status → maestro exited non-zero → retry.
       //   else (signal-only, OOM kill, unknown) → infra → SystemError, never
       //     downgraded to "tests failed".
+      // Smart retry (junit mode): after a failed attempt, subset to the failing
+      // flows. parseFailedFlowsFromJUnit returns null when the JUnit cannot be
+      // trusted; we then fall through to dumb retry (re-run everything).
+      let flowsToRun: string[] = flowPaths;
       let lastAttemptExitCode: number | null = null;
 
       for (let attempt = 0; attempt <= retries; attempt++) {
@@ -194,7 +215,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           await spawn(
             'maestro',
             buildMaestroArgs({
-              flow_path: flowPaths,
+              flow_path: flowsToRun,
               outputPath,
               output_format: outputFormat,
               shards,
@@ -219,26 +240,50 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           break;
         }
 
+        if (outputFormat === 'junit' && outputPath) {
+          const failed = await parseFailedFlowsFromJUnit({
+            junitFile: outputPath,
+            testsDirectory,
+            inputFlowPaths: flowsToRun,
+            projectRoot: stepCtx.workingDirectory,
+          });
+          if (failed !== null && failed.length > 0) {
+            flowsToRun = failed;
+          }
+        }
+
         logger.info('Test failed, retrying...');
         await sleepAsync(2000);
       }
 
-      // Copy the latest attempt's JUnit to the final report path so downstream
-      // upload/report steps have a single canonical file.
+      // Smart merge first; on data errors (bad XML, missing input) fall back
+      // to copy-latest so the caller still gets a single JUnit file.
+      // Filesystem errors short-circuit straight to SystemError.
       if (finalReportPath !== undefined) {
         try {
-          await copyLatestAttemptXml({
+          await mergeJUnitReports({
             sourceDir: junitReportDirectory,
             outputPath: finalReportPath,
           });
-        } catch (copyErr: any) {
-          // Swallow: a copy failure usually means maestro itself failed early
-          // (bad YAML wrote no *.xml). Throwing SystemError here would mask
-          // the real reason and cancel billing for a user-side failure — let
-          // the lastAttemptExitCode check below surface ERR_MAESTRO_TESTS_FAILED.
-          logger.warn(
-            `Failed to produce final_report_path at ${finalReportPath}: ${copyErr?.message ?? copyErr}`
-          );
+        } catch (mergeErr: any) {
+          if (isFilesystemError(mergeErr)) {
+            throw new SystemError('Failed to write final_report_path', { cause: mergeErr });
+          }
+          logger.warn({ err: mergeErr }, 'Smart merge failed; falling back to copy-latest.');
+          try {
+            await copyLatestAttemptXml({
+              sourceDir: junitReportDirectory,
+              outputPath: finalReportPath,
+            });
+          } catch (copyErr: any) {
+            // Swallow: a copy failure here usually means maestro itself failed
+            // early (bad YAML wrote no *.xml). Throwing SystemError would mask
+            // the real reason and cancel billing for a user-side failure — let
+            // the lastAttemptExitCode check below surface ERR_MAESTRO_TESTS_FAILED.
+            logger.warn(
+              `Failed to produce final_report_path at ${finalReportPath}: ${copyErr?.message ?? copyErr}`
+            );
+          }
         }
       }
 
