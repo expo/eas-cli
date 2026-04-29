@@ -1,5 +1,5 @@
 import { Platform } from '@expo/eas-build-job';
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
@@ -76,7 +76,7 @@ export default class Download extends EasCommand {
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
 
     if (!buildId && !fingerprint) {
-      throw new Errors.CLIError('Either --build-id or --fingerprint is required.');
+      throw new Error('Either --build-id or --fingerprint is required.');
     }
 
     const {
@@ -192,7 +192,7 @@ export default class Download extends EasCommand {
     try {
       return await BuildQuery.byIdAsync(graphqlClient, buildId);
     } catch (error: any) {
-      throw new Errors.CLIError(`Could not find build with ID ${buildId}: ${error.message}`);
+      throw new Error(`Could not find build with ID ${buildId}: ${error.message}`);
     }
   }
 
@@ -223,7 +223,7 @@ export default class Download extends EasCommand {
       limit: 1,
     });
     if (builds.length === 0) {
-      throw new Errors.CLIError(
+      throw new Error(
         `No builds available for ${platform} with fingerprint hash ${fingerprintHash}`
       );
     }
