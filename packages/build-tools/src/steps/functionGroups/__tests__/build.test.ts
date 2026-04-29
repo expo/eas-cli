@@ -107,6 +107,29 @@ describe(createEasBuildBuildFunctionGroup, () => {
       }
     });
 
+    it('wires configure_ios_credentials target_names into configure_ios_version', () => {
+      const buildToolsContext = createMockBuildToolsContext({
+        platform: Platform.IOS,
+        buildCredentials: { test: {} },
+      });
+      const functionGroup = createEasBuildBuildFunctionGroup(buildToolsContext);
+      const globalCtx = createGlobalContextMock({ logger: createMockLogger() });
+
+      const steps = functionGroup.createBuildStepsFromFunctionGroupCall(globalCtx, {
+        callInputs: { working_directory: './my-app' },
+      });
+
+      const configureIosVersionStep = steps.find(s => s.displayName === 'Configure iOS version');
+      const targetNamesInput = configureIosVersionStep?.inputs?.find(
+        input => input.id === 'target_names'
+      );
+
+      expect(configureIosVersionStep).toBeDefined();
+      expect(targetNamesInput?.rawValue).toBe(
+        '${{ steps.configure_ios_credentials.outputs.target_names }}'
+      );
+    });
+
     it('composes working directory with installPods step-level ./ios dir (iOS)', () => {
       const buildToolsContext = createMockBuildToolsContext({
         platform: Platform.IOS,

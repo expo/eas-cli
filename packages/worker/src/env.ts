@@ -12,6 +12,9 @@ import {
 } from './external/turtle';
 import { getAccessedEnvs } from './utils/env';
 
+const PRECOMPILED_MODULES_BASE_URL =
+  'https://storage.googleapis.com/eas-build-precompiled-modules/';
+
 // keep in sync with local-build-plugin env vars
 // see packages/local-build-plugin/src/build.ts
 export function getBuildEnv({
@@ -55,6 +58,7 @@ export function getBuildEnv({
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
     if (job.builderEnvironment?.env?.EAS_USE_PRECOMPILED_MODULES === '1') {
       setEnv(env, 'EXPO_USE_PRECOMPILED_MODULES', '1');
+      setEnv(env, 'EXPO_PRECOMPILED_MODULES_BASE_URL', getPrecompiledModulesBaseUrl());
     }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
@@ -164,6 +168,18 @@ function setEnv(env: Env, key: string, value: string | null | undefined): void {
   if (value) {
     env[key] = value;
   }
+}
+
+function getPrecompiledModulesBaseUrl(): string {
+  if (!config.cocoapodsCacheUrl) {
+    return PRECOMPILED_MODULES_BASE_URL;
+  }
+
+  const parsedUrl = new URL(PRECOMPILED_MODULES_BASE_URL);
+  return PRECOMPILED_MODULES_BASE_URL.replace(
+    `${parsedUrl.protocol}//${parsedUrl.host}`,
+    `${config.cocoapodsCacheUrl.replace(/\/$/, '')}/${parsedUrl.host}`
+  );
 }
 
 const ResourceClassToMaxHeapSize: Record<ResourceClass, string | null> = {

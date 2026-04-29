@@ -1,4 +1,5 @@
 import {
+  ALL_PREVIEW_TYPES,
   AppPreview,
   AppPreviewSet,
   AppStoreVersionLocalization,
@@ -136,9 +137,7 @@ export class PreviewsTask extends AppleTask {
 
     for (const localeCode of locales) {
       const previews = config.getPreviews(localeCode);
-      if (!previews || Object.keys(previews).length === 0) {
-        continue;
-      }
+      const existingSets = context.previewSets.get(localeCode);
 
       const localization = context.versionLocales.find(l => l.attributes.locale === localeCode);
       if (!localization) {
@@ -146,18 +145,51 @@ export class PreviewsTask extends AppleTask {
         continue;
       }
 
-      for (const [previewType, previewConfig] of Object.entries(previews)) {
-        if (!previewConfig) {
-          continue;
-        }
+      // Upload/sync configured previews
+      if (previews) {
+        for (const [previewType, previewConfig] of Object.entries(previews)) {
+          if (!previewConfig) {
+            continue;
+          }
 
-        await syncPreviewSetAsync(
-          context.projectDir,
-          localization,
-          previewType as PreviewType,
-          normalizePreviewConfig(previewConfig),
-          context.previewSets.get(localeCode)
-        );
+          if (!ALL_PREVIEW_TYPES.includes(previewType as PreviewType)) {
+            const strippedType = previewType.replace(/^APP_/, '');
+            const suggestion = ALL_PREVIEW_TYPES.includes(strippedType as PreviewType)
+              ? chalk` Did you mean {bold ${strippedType}}? Preview types don't use the "APP_" prefix (that's only for screenshots).`
+              : '';
+            Log.warn(
+              chalk`{yellow Unknown preview type {bold ${previewType}} for ${localeCode}, skipping.${suggestion}}`
+            );
+            Log.warn(chalk`{yellow Valid preview types: ${ALL_PREVIEW_TYPES.join(', ')}}`);
+            continue;
+          }
+
+          await syncPreviewSetAsync(
+            context.projectDir,
+            localization,
+            previewType as PreviewType,
+            normalizePreviewConfig(previewConfig),
+            existingSets
+          );
+        }
+      }
+
+      // Delete remote previews for types no longer in config
+      if (existingSets) {
+        for (const [previewType, previewSet] of existingSets) {
+          if (previews?.[previewType]) {
+            continue;
+          }
+
+          const existingPreviews = previewSet.attributes.appPreviews || [];
+          for (const preview of existingPreviews) {
+            await logAsync(() => preview.deleteAsync(), {
+              pending: `Deleting video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})...`,
+              success: `Deleted video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})`,
+              failure: `Failed deleting video preview ${chalk.bold(preview.attributes.fileName)} (${localeCode})`,
+            });
+          }
+        }
       }
     }
   }
@@ -231,15 +263,15 @@ async function syncPreviewSetAsync(
     return;
   }
 
-  // Delete existing previews that don't match
+  // Delete all existing previews before uploading the new one.
+  // Apple limits each set to 3 previews, and we manage one preview per set,
+  // so we need to clean up stale entries to avoid "Too many app previews" errors.
   for (const preview of existingPreviews) {
-    if (preview.attributes.fileName !== fileName) {
-      await logAsync(() => preview.deleteAsync(), {
-        pending: `Deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})...`,
-        success: `Deleted old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
-        failure: `Failed deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
-      });
-    }
+    await logAsync(() => preview.deleteAsync(), {
+      pending: `Deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})...`,
+      success: `Deleted old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
+      failure: `Failed deleting old preview ${chalk.bold(preview.attributes.fileName)} (${locale})`,
+    });
   }
 
   // Upload new preview

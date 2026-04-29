@@ -126,6 +126,8 @@ describe(buildObserveMetricsJson, () => {
     expect(result.versions[0]).toEqual({
       appVersion: '1.0.0',
       platform: AppPlatform.Ios,
+      buildNumbers: [],
+      updateIds: [],
       metrics: {
         'expo.app_startup.tti': {
           min: 0.1,

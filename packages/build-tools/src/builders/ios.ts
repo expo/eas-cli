@@ -16,6 +16,7 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
+import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
@@ -51,6 +52,7 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
   const workingDirectory = ctx.getReactNativeProjectDirectory();
+  let fastlaneResult: { derivedDataPath: string; workspacePath: string } | undefined;
   try {
     const credentials = await ctx.runBuildPhase(BuildPhase.PREPARE_CREDENTIALS, async () => {
       return await credentialsManager.prepare();
@@ -146,10 +148,10 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       });
     }
 
-    await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
+    fastlaneResult = await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
       const scheme = resolveScheme(ctx);
       const entitlements = await readEntitlementsAsync(ctx, { scheme, buildConfiguration });
-      await runFastlaneGym(ctx, {
+      return await runFastlaneGym(ctx, {
         credentials,
         scheme,
         buildConfiguration,
@@ -168,6 +170,18 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
   } finally {
     await ctx.runBuildPhase(BuildPhase.CLEAN_UP_CREDENTIALS, async () => {
       await credentialsManager.cleanUp();
+    });
+  }
+
+  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
+    const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
+    await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+      await parseAndReportXcactivitylog({
+        derivedDataPath,
+        workspacePath,
+        logger: ctx.logger,
+        proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+      });
     });
   }
 

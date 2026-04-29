@@ -256,6 +256,12 @@ const AppStoreConnectContextZ = z.looseObject({
     .looseObject({
       id: z.string(),
       state: z.enum(['awaiting_upload', 'processing', 'failed', 'complete']),
+      cf_bundle_version: z.string().optional(),
+      build: z
+        .looseObject({
+          id: z.string(),
+        })
+        .optional(),
     })
     .optional(),
   external_beta: z

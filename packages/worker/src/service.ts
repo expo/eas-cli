@@ -332,7 +332,7 @@ export default class BuildService {
       });
 
       const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken && err.errorCode === errors.ErrorCode.UNKNOWN_ERROR) {
+      if (robotAccessToken) {
         let rawErrorMessage: string = '';
         if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
@@ -340,23 +340,42 @@ export default class BuildService {
         if (maybeRawError?.stdout) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
         }
+        if (!rawErrorMessage) {
+          rawErrorMessage = maybeRawError?.message ?? err.message;
+        }
 
-        await turtleFetch(
-          new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
-          'POST',
-          {
-            json: {
-              buildId: this.buildId,
-              message: rawErrorMessage,
-              buildPhase: err.buildPhase ?? null,
-              errorCode: err.errorCode,
-            },
-            headers: {
-              Authorization: `Bearer ${robotAccessToken}`,
-            },
-            shouldThrowOnNotOk: false,
-          }
-        );
+        try {
+          await turtleFetch(
+            new URL('turtle-builds/error-logs', config.wwwApiV2BaseUrl).toString(),
+            'POST',
+            {
+              json: {
+                buildId: this.buildId,
+                message: rawErrorMessage,
+                buildPhase: err.buildPhase ?? null,
+                errorCode: err.errorCode,
+                tags: {
+                  platform: job.platform,
+                  workflow: job.type,
+                  sdk_version: metadata?.sdkVersion ?? null,
+                  react_native_version: metadata?.reactNativeVersion ?? null,
+                  app_id: job.appId ?? null,
+                  build_profile: metadata?.buildProfile ?? null,
+                  app_name: metadata?.appName ?? null,
+                  app_identifier: metadata?.appIdentifier ?? null,
+                  distribution: metadata?.distribution ?? null,
+                  cli_version: metadata?.cliVersion ?? null,
+                },
+              },
+              headers: {
+                Authorization: `Bearer ${robotAccessToken}`,
+              },
+              shouldThrowOnNotOk: false,
+            }
+          );
+        } catch (fetchError: any) {
+          logger.warn({ err: fetchError }, 'Failed to send build error log');
+        }
       }
 
       await this.finishError(err, maybeArtifacts);

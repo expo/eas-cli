@@ -28,6 +28,7 @@ export interface ObserveEventJson {
   sessionId: string | null;
   easClientId: string;
   timestamp: string;
+  customParams: { [key: string]: any } | null;
 }
 
 function formatDate(isoString: string): string {
@@ -37,6 +38,10 @@ function formatDate(isoString: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | null {
+  return event.customParams ?? null;
 }
 
 export interface BuildEventsTableOptions {
@@ -131,6 +136,7 @@ export function buildObserveEventsJson(
       sessionId: event.sessionId ?? null,
       easClientId: event.easClientId,
       timestamp: event.timestamp,
+      customParams: resolveCustomParams(event),
     })),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,

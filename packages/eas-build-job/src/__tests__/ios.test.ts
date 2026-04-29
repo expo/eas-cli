@@ -403,6 +403,7 @@ describe('Ios.JobSchema', () => {
     );
     expect(value).not.toMatchObject(managedJob);
   });
+
   test('validates channel', () => {
     const managedJob = {
       secrets: {

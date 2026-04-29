@@ -9,6 +9,8 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createEasDeployBuildFunction } from './functions/deploy';
+import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
@@ -30,11 +32,13 @@ import {
   createRestoreBuildCacheFunction,
 } from './functions/restoreBuildCache';
 import { createRestoreCacheFunction } from './functions/restoreCache';
+import { parseXcactivitylogFunction } from './functions/parseXcactivitylog';
 import { runFastlaneFunction } from './functions/runFastlane';
 import { runGradleFunction } from './functions/runGradle';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
+import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
@@ -55,6 +59,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(),
+    createEasExportBuildFunction(),
+    createEasDeployBuildFunction(),
     createRepackBuildFunction(),
     createRestoreCacheFunction(),
     createRestoreBuildCacheFunction(),
@@ -71,6 +77,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     configureIosVersionFunction(),
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
+    parseXcactivitylogFunction(),
+    createStartAgentDeviceRemoteSessionBuildFunction(),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),

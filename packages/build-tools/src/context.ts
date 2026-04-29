@@ -173,7 +173,9 @@ export class BuildContext<TJob extends Job = Job> {
     return path.join(this.workingdir, 'env');
   }
   public get packageManager(): PackageManager {
-    return resolvePackageManager(this.getReactNativeProjectDirectory());
+    return resolvePackageManager(this.getReactNativeProjectDirectory(), {
+      env: this.env,
+    });
   }
   public get appConfig(): Promise<ExpoConfig> {
     if (!this._appConfig) {

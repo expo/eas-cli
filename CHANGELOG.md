@@ -8,11 +8,37 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+## [18.8.1](https://github.com/expo/eas-cli/releases/tag/v18.8.1) - 2026-04-23
+
+## [18.8.0](https://github.com/expo/eas-cli/releases/tag/v18.8.0) - 2026-04-22
+
+### 🎉 New features
+
+- [eas-cli] Support custom params in `observe:events` results. ([#3620](https://github.com/expo/eas-cli/pull/3620) by [@douglowder](https://github.com/douglowder))
+- [build-tools] Add `eas/deploy` function for EAS Hosting web deployments. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/export` function for Expo web exports. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas update:insights <groupId>` command to display launch, crash, unique-user, and payload-size metrics for an update group. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+- [eas-cli] Add `--insights` flag to `eas update:view <groupId>` to append the same metrics below the existing output. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+- [eas-cli] Add `eas channel:insights --channel <name> --runtime-version <version>` command to display adoption and crash metrics for a channel + runtime version. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fix `metadata:push` not deleting video previews from App Store Connect when removed from config. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Warn and skip unknown preview types in `metadata:push` with a helpful suggestion when the `APP_` screenshot prefix is mistakenly used. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Delete all existing previews in a preview set before uploading to avoid Apple's "Too many app previews" error. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Fixes for `observe` commands, including an issue for apps with many update IDs. ([#3609](https://github.com/expo/eas-cli/pull/3609) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add existing capability identifiers. ([#3615](https://github.com/expo/eas-cli/pull/3615) by [@jakex7](https://github.com/jakex7))
+
+## [18.7.0](https://github.com/expo/eas-cli/releases/tag/v18.7.0) - 2026-04-14
+
+### 🎉 New features
+
+- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--skip-bundler` to `eas build:dev` to install and run a development build without starting the local Expo/Metro server. ([#3604](https://github.com/expo/eas-cli/pull/3604) by [@mmichels-brex](https://github.com/mmichels-brex))
 
 ## [18.6.0](https://github.com/expo/eas-cli/releases/tag/v18.6.0) - 2026-04-10
 

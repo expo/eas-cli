@@ -42,16 +42,29 @@ export default class ObserveVersions extends EasCommand {
     ...this.ContextOptions.LoggedIn,
   };
 
+  private static loggedInOnlyContextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+  };
+
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveVersions);
-    const {
-      projectId: contextProjectId,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ObserveVersions, {
-      nonInteractive: flags['non-interactive'],
-    });
 
-    const projectId = flags['project-id'] ?? contextProjectId;
+    let projectId: string;
+    let graphqlClient;
+    if (flags['project-id']) {
+      projectId = flags['project-id'];
+      const ctx = await this.getContextAsync(
+        { contextDefinition: ObserveVersions.loggedInOnlyContextDefinition },
+        { nonInteractive: flags['non-interactive'] }
+      );
+      graphqlClient = ctx.loggedIn.graphqlClient;
+    } else {
+      const ctx = await this.getContextAsync(ObserveVersions, {
+        nonInteractive: flags['non-interactive'],
+      });
+      projectId = ctx.projectId;
+      graphqlClient = ctx.loggedIn.graphqlClient;
+    }
 
     if (flags.json) {
       enableJsonOutput();

@@ -1,6 +1,6 @@
 {
   "name": "create-eas-build-function",
-  "version": "18.6.0",
+  "version": "18.8.0",
   "description": "Create functions for use in EAS Build custom builds.",
   "keywords": [
     "expo",
@@ -35,7 +35,7 @@
     "clean": "rimraf ./build/ \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/steps": "18.6.0"
+    "@expo/steps": "18.8.0"
   },
   "devDependencies": {
     "@expo/package-manager": "1.9.10",

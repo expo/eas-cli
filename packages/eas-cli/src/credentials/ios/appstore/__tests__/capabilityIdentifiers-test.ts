@@ -12,6 +12,29 @@ const mockItems = {
   },
 };
 
+const buildBundleInfo = (linked: {
+  appGroups: Array<{ id: string }>;
+  merchantIds: Array<{ id: string }>;
+  cloudContainers: Array<{ id: string }>;
+}): any => ({
+  attributes: {
+    bundleIdCapabilities: [
+      {
+        isType: (t: string) => t === 'APPLE_PAY',
+        attributes: { merchantIds: linked.merchantIds },
+      },
+      {
+        isType: (t: string) => t === 'APP_GROUPS',
+        attributes: { appGroups: linked.appGroups },
+      },
+      {
+        isType: (t: string) => t === 'ICLOUD',
+        attributes: { cloudContainers: linked.cloudContainers },
+      },
+    ],
+  },
+});
+
 function mockCapabilities(Apple: any): void {
   const mockGetAsync = (existingItems: any[]): jest.Mock =>
     jest.fn(() => Promise.resolve(existingItems));
@@ -35,6 +58,16 @@ function mockCapabilities(Apple: any): void {
   Apple.CloudContainer.getAsync = mockGetAsync([mockItems.cloudContainer.expo]);
 
   Apple.CloudContainer.createAsync = mockCreateAsync('XXX-icloud-2');
+
+  Apple.BundleId.infoAsync = jest.fn(() =>
+    Promise.resolve(
+      buildBundleInfo({
+        merchantIds: [mockItems.merchant.expo],
+        appGroups: [mockItems.appGroup.expo],
+        cloudContainers: [mockItems.cloudContainer.expo],
+      })
+    )
+  );
 }
 
 function mockCapabilitiesAlreadyCreated(Apple: any): void {
@@ -52,6 +85,23 @@ function mockCapabilitiesAlreadyCreated(Apple: any): void {
     mockItems.cloudContainer.expo,
     { id: 'XXX-icloud-2', attributes: { identifier: 'iCloud.bacon' } },
   ]);
+
+  Apple.BundleId.infoAsync.mockResolvedValue(
+    buildBundleInfo({
+      merchantIds: [
+        mockItems.merchant.expo,
+        { id: 'XXX-merch-2', attributes: { identifier: 'merchant.bacon' } },
+      ],
+      appGroups: [
+        mockItems.appGroup.expo,
+        { id: 'XXX-group-2', attributes: { identifier: 'group.bacon' } },
+      ],
+      cloudContainers: [
+        mockItems.cloudContainer.expo,
+        { id: 'XXX-icloud-2', attributes: { identifier: 'iCloud.bacon' } },
+      ],
+    })
+  );
 }
 
 describe(syncCapabilityIdentifiersForEntitlementsAsync, () => {

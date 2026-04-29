@@ -199,6 +199,8 @@ describe(ObserveMetrics, () => {
       expect.any(Map),
       expect.any(Array),
       ['min', 'average'],
+      expect.any(Map),
+      expect.any(Map),
       expect.any(Map)
     );
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();

@@ -6,6 +6,7 @@ import {
   AppObserveAppUpdate,
 } from '../graphql/generated';
 import { appPlatformDisplayNames } from '../platform';
+import renderTextTable from '../utils/renderTextTable';
 import { AppVersionsResult } from './fetchVersions';
 
 function formatDate(isoString: string): string {
@@ -97,14 +98,6 @@ export function buildObserveVersionsJson(results: AppVersionsResult[]): AppVersi
   return output;
 }
 
-function renderTable(headers: string[], rows: string[][]): string {
-  const colWidths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)));
-  const headerLine = headers.map((h, i) => h.padEnd(colWidths[i])).join('  ');
-  const separatorLine = colWidths.map(w => '-'.repeat(w)).join('  ');
-  const dataLines = rows.map(row => row.map((cell, i) => cell.padEnd(colWidths[i])).join('  '));
-  return [chalk.bold(headerLine), separatorLine, ...dataLines].join('\n');
-}
-
 export function buildObserveVersionsTable(results: AppVersionsResult[]): string {
   const hasAnyVersions = results.some(r => r.appVersions.length > 0);
 
@@ -135,7 +128,7 @@ export function buildObserveVersionsTable(results: AppVersionsResult[]): string 
       String(version.updates.length),
     ]);
 
-    sections.push(renderTable(headers, rows));
+    sections.push(renderTextTable(headers, rows));
   }
 
   return sections.join('\n');

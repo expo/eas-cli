@@ -33,6 +33,7 @@ export const AppObserveEventFragmentNode = gql`
     countryCode
     sessionId
     easClientId
+    customParams
   }
 `;
 
