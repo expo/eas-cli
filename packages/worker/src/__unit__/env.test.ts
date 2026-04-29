@@ -5,11 +5,9 @@ import { getBuildEnv } from '../env';
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
-  const originalCocoapodsCacheUrl = config.cocoapodsCacheUrl;
 
   afterEach(() => {
     config.sentry.dsn = originalSentryDsn;
-    config.cocoapodsCacheUrl = originalCocoapodsCacheUrl;
   });
 
   it('passes the CLI sentry DSN to worker child processes', () => {
@@ -36,7 +34,7 @@ describe(getBuildEnv.name, () => {
     expect(env.EAS_CLI_SENTRY_DSN).toBe(config.sentry.dsn);
   });
 
-  it('passes through EXPO_USE_PRECOMPILED_MODULES for flagged iOS jobs', () => {
+  it('does not add precompiled modules env vars to flagged iOS jobs', () => {
     const env = getBuildEnv({
       job: {
         platform: Platform.IOS,
@@ -56,37 +54,9 @@ describe(getBuildEnv.name, () => {
       buildId: 'build-id',
     });
 
-    expect(env.EXPO_USE_PRECOMPILED_MODULES).toBe('1');
-    expect(env.EXPO_PRECOMPILED_MODULES_BASE_URL).toBe(
-      'https://storage.googleapis.com/eas-build-precompiled-modules/'
-    );
+    expect(env.EAS_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(env.EXPO_PRECOMPILED_MODULES_BASE_URL).toBeUndefined();
     expect(env.EXPO_PRECOMPILED_MODULES_PATH).toBeUndefined();
-  });
-
-  it('passes precompiled modules through the CocoaPods cache URL when available', () => {
-    config.cocoapodsCacheUrl = 'https://cache.example.com';
-
-    const env = getBuildEnv({
-      job: {
-        platform: Platform.IOS,
-        type: Workflow.GENERIC,
-        builderEnvironment: {
-          env: {
-            EAS_USE_PRECOMPILED_MODULES: '1',
-          },
-        },
-      } as any,
-      projectId: 'project-id',
-      metadata: {
-        buildProfile: 'production',
-        gitCommitHash: 'abc123',
-        username: 'expo-user',
-      } as any,
-      buildId: 'build-id',
-    });
-
-    expect(env.EXPO_PRECOMPILED_MODULES_BASE_URL).toBe(
-      'https://cache.example.com/storage.googleapis.com/eas-build-precompiled-modules/'
-    );
   });
 });
