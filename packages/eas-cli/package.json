@@ -195,14 +195,14 @@
       "channel": {
         "description": "manage update channels"
       },
-      "connections": {
-        "description": "manage service connections"
-      },
       "device": {
         "description": "manage Apple devices for Internal Distribution"
       },
       "env": {
         "description": "manage project and account environment variables"
+      },
+      "integrations": {
+        "description": "manage service connections"
       },
       "metadata": {
         "description": "manage store configuration"

@@ -12,7 +12,7 @@ import {
   buildJsonOutput,
   formatAscAppLinkStatus,
   isAscAuthenticationError,
-} from '../../../connections/asc/utils';
+} from '../../../integrations/asc/utils';
 import { AscAppLinkMutation } from '../../../graphql/mutations/AscAppLinkMutation';
 import { AscAppLinkQuery } from '../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../log';
@@ -20,7 +20,7 @@ import { ora } from '../../../ora';
 import { toggleConfirmAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
-export default class ConnectionsAscDisconnect extends EasCommand {
+export default class IntegrationsAscDisconnect extends EasCommand {
   static override description = 'disconnect the current project from its App Store Connect app';
 
   static override flags = {
@@ -37,7 +37,7 @@ export default class ConnectionsAscDisconnect extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ConnectionsAscDisconnect);
+    const { flags } = await this.parse(IntegrationsAscDisconnect);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
@@ -46,7 +46,7 @@ export default class ConnectionsAscDisconnect extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ConnectionsAscDisconnect, {
+    } = await this.getContextAsync(IntegrationsAscDisconnect, {
       nonInteractive: nonInteractive || flags.yes,
     });
 

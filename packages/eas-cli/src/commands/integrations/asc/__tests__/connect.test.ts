@@ -1,16 +1,16 @@
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../../../../commandUtils/errors';
-import { selectOrCreateAscApiKeyIdAsync } from '../../../../connections/asc/ascApiKey';
+import { selectOrCreateAscApiKeyIdAsync } from '../../../../integrations/asc/ascApiKey';
 import { AppStoreConnectApiKeyQuery } from '../../../../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery';
 import { AscAppLinkMutation } from '../../../../graphql/mutations/AscAppLinkMutation';
 import { AscAppLinkQuery } from '../../../../graphql/queries/AscAppLinkQuery';
-import ConnectionsAscConnect from '../connect';
+import IntegrationsAscConnect from '../connect';
 
 jest.mock('../../../../graphql/queries/AscAppLinkQuery');
 jest.mock('../../../../graphql/mutations/AscAppLinkMutation');
 jest.mock('../../../../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery');
-jest.mock('../../../../connections/asc/ascApiKey');
+jest.mock('../../../../integrations/asc/ascApiKey');
 jest.mock('../../../../log');
 jest.mock('../../../../ora');
 
@@ -47,7 +47,7 @@ const mockRemoteApps = [
   },
 ];
 
-describe(ConnectionsAscConnect, () => {
+describe(IntegrationsAscConnect, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const actor = { id: 'actor-id' } as any;
   const analytics = {} as any;
@@ -61,7 +61,7 @@ describe(ConnectionsAscConnect, () => {
   it('fails when already connected', async () => {
     jest.mocked(AscAppLinkQuery.getAppMetadataAsync).mockResolvedValueOnce(mockMetadataConnected);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'key-id', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -93,7 +93,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -131,7 +131,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -154,7 +154,7 @@ describe(ConnectionsAscConnect, () => {
   });
 
   it('requires --api-key-id in non-interactive mode', async () => {
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -171,7 +171,7 @@ describe(ConnectionsAscConnect, () => {
   });
 
   it('requires --asc-app-id in non-interactive mode', async () => {
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--non-interactive'],
       mockConfig
     );
@@ -199,7 +199,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', 'nonexistent', '--non-interactive'],
       mockConfig
     );
@@ -226,7 +226,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'eas-key-uuid', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -259,7 +259,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -289,7 +289,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -321,7 +321,7 @@ describe(ConnectionsAscConnect, () => {
       },
     ] as any);
 
-    const command = new ConnectionsAscConnect(
+    const command = new IntegrationsAscConnect(
       ['--api-key-id', 'FAKEKEY000', '--asc-app-id', '9876543210', '--non-interactive'],
       mockConfig
     );
@@ -349,7 +349,7 @@ describe(ConnectionsAscConnect, () => {
       .mocked(AscAppLinkMutation.createAppStoreConnectAppAsync)
       .mockResolvedValueOnce({ id: 'new-link-id', ascAppIdentifier: '9876543210' });
 
-    const command = new ConnectionsAscConnect(['--asc-app-id', '9876543210'], mockConfig);
+    const command = new IntegrationsAscConnect(['--asc-app-id', '9876543210'], mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       projectId: testProjectId,

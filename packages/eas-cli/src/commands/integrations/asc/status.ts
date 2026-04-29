@@ -9,13 +9,13 @@ import {
   buildJsonOutput,
   formatAscAppLinkStatus,
   isAscAuthenticationError,
-} from '../../../connections/asc/utils';
+} from '../../../integrations/asc/utils';
 import { AscAppLinkQuery } from '../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
-export default class ConnectionsAscStatus extends EasCommand {
+export default class IntegrationsAscStatus extends EasCommand {
   static override description =
     'show the App Store Connect app link status for the current project';
 
@@ -29,7 +29,7 @@ export default class ConnectionsAscStatus extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ConnectionsAscStatus);
+    const { flags } = await this.parse(IntegrationsAscStatus);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
@@ -38,7 +38,7 @@ export default class ConnectionsAscStatus extends EasCommand {
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ConnectionsAscStatus, {
+    } = await this.getContextAsync(IntegrationsAscStatus, {
       nonInteractive,
     });
 

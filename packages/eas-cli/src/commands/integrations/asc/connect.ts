@@ -8,8 +8,8 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../../commandUtils/flags';
 import { CredentialsContext } from '../../../credentials/context';
-import { buildJsonOutput, formatAscAppLinkStatus } from '../../../connections/asc/utils';
-import { selectOrCreateAscApiKeyIdAsync } from '../../../connections/asc/ascApiKey';
+import { buildJsonOutput, formatAscAppLinkStatus } from '../../../integrations/asc/utils';
+import { selectOrCreateAscApiKeyIdAsync } from '../../../integrations/asc/ascApiKey';
 import { AppStoreConnectApiKeyQuery } from '../../../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery';
 import { AscAppLinkMutation } from '../../../graphql/mutations/AscAppLinkMutation';
 import { AscAppLinkQuery } from '../../../graphql/queries/AscAppLinkQuery';
@@ -20,7 +20,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
 type DiscoveredAscApps = Awaited<ReturnType<typeof AscAppLinkQuery.discoverAccessibleAppsAsync>>;
 
-export default class ConnectionsAscConnect extends EasCommand {
+export default class IntegrationsAscConnect extends EasCommand {
   static override description = 'connect a project to an App Store Connect app';
 
   static override flags = {
@@ -45,7 +45,7 @@ export default class ConnectionsAscConnect extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ConnectionsAscConnect);
+    const { flags } = await this.parse(IntegrationsAscConnect);
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
@@ -66,7 +66,7 @@ export default class ConnectionsAscConnect extends EasCommand {
       loggedIn: { actor, graphqlClient },
       analytics,
       vcsClient,
-    } = await this.getContextAsync(ConnectionsAscConnect, {
+    } = await this.getContextAsync(IntegrationsAscConnect, {
       nonInteractive,
     });
 
@@ -77,7 +77,7 @@ export default class ConnectionsAscConnect extends EasCommand {
 
     if (metadata.appStoreConnectApp) {
       throw new EasCommandError(
-        `Project ${chalk.bold(metadata.fullName)} is already connected to App Store Connect app ${chalk.bold(metadata.appStoreConnectApp.ascAppIdentifier)}. Disconnect first with ${chalk.bold('eas connections asc disconnect')}.`
+        `Project ${chalk.bold(metadata.fullName)} is already connected to App Store Connect app ${chalk.bold(metadata.appStoreConnectApp.ascAppIdentifier)}. Disconnect first with ${chalk.bold('eas integrations:asc:disconnect')}.`
       );
     }
 
@@ -154,7 +154,7 @@ export default class ConnectionsAscConnect extends EasCommand {
       const match = remoteApps.find(app => app.ascAppIdentifier === flags['asc-app-id']);
       if (!match) {
         throw new EasCommandError(
-          `App with identifier "${flags['asc-app-id']}" was not found among accessible apps. Run ${chalk.bold('eas connections asc connect')} interactively to discover available apps.`
+          `App with identifier "${flags['asc-app-id']}" was not found among accessible apps. Run ${chalk.bold('eas integrations:asc:connect')} interactively to discover available apps.`
         );
       }
       selectedApp = match;
