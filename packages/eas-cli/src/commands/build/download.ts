@@ -1,7 +1,8 @@
 import { Platform } from '@expo/eas-build-job';
 import { Errors, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import { pathExists } from 'fs-extra';
+import fs from 'fs-extra';
+import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -15,8 +16,13 @@ import { toAppPlatform } from '../../graphql/types/AppPlatform';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 import { getEasBuildRunCachedAppPath } from '../../run/run';
-import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
+import {
+  downloadAndMaybeExtractAppAsync,
+  downloadFileWithProgressTrackerAsync,
+} from '../../utils/download';
+import { formatBytes } from '../../utils/files';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import { getEasBuildRunCacheDirectoryPath } from '../../utils/paths';
 
 export default class Download extends EasCommand {
   static override description =
@@ -26,7 +32,7 @@ export default class Download extends EasCommand {
   static override flags = {
     'build-id': Flags.string({
       description:
-        'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself.',
+        'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself. All available build artifacts (application archive, build artifacts archive, Xcode logs) are downloaded.',
       exclusive: ['fingerprint', 'platform', 'dev-client'],
     }),
     fingerprint: Flags.string({
@@ -95,13 +101,73 @@ export default class Download extends EasCommand {
       });
     }
 
-    const buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
+    let buildArtifactPath: string | null = null;
+    if (build.artifacts?.applicationArchiveUrl) {
+      buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
+    } else if (!buildId) {
+      throw new Error('Build does not have an application archive url');
+    }
+
+    let extraArtifactPaths: Record<string, string> = {};
+    if (buildId) {
+      extraArtifactPaths = await this.downloadExtraArtifactsAsync(build);
+    }
+
     if (jsonFlag) {
-      const jsonResults = { path: buildArtifactPath };
+      const jsonResults = {
+        ...(buildArtifactPath != null && { path: buildArtifactPath }),
+        ...extraArtifactPaths,
+      };
       printJsonOnlyOutput(jsonResults);
     } else {
-      Log.log(`Build downloaded to ${chalk.bold(buildArtifactPath)}`);
+      if (buildArtifactPath != null) {
+        Log.log(`Build downloaded to ${chalk.bold(buildArtifactPath)}`);
+      }
+      for (const [name, filePath] of Object.entries(extraArtifactPaths)) {
+        Log.log(`${name} downloaded to ${chalk.bold(filePath)}`);
+      }
     }
+  }
+
+  private async downloadExtraArtifactsAsync(build: BuildFragment): Promise<Record<string, string>> {
+    const artifacts = build.artifacts;
+    if (!artifacts) {
+      return {};
+    }
+
+    const extraArtifacts: Array<{ name: string; url: string }> = [];
+    if (artifacts.buildArtifactsUrl) {
+      extraArtifacts.push({ name: 'buildArtifacts', url: artifacts.buildArtifactsUrl });
+    }
+    if (artifacts.xcodeBuildLogsUrl) {
+      extraArtifacts.push({ name: 'xcodeBuildLogs', url: artifacts.xcodeBuildLogsUrl });
+    }
+    if (artifacts.buildUrl && artifacts.buildUrl !== artifacts.applicationArchiveUrl) {
+      extraArtifacts.push({ name: 'build', url: artifacts.buildUrl });
+    }
+
+    if (extraArtifacts.length === 0) {
+      return {};
+    }
+
+    const outputDir = path.join(getEasBuildRunCacheDirectoryPath(), `${build.id}-artifacts`);
+    await fs.ensureDir(outputDir);
+
+    const downloaded: Record<string, string> = {};
+    for (const { name, url } of extraArtifacts) {
+      const fileName = getFileNameFromUrl(url, name);
+      const outputPath = path.join(outputDir, fileName);
+      await downloadFileWithProgressTrackerAsync(
+        url,
+        outputPath,
+        (ratio, total) =>
+          `Downloading ${name} (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
+        `Successfully downloaded ${name}`
+      );
+      downloaded[name] = outputPath;
+    }
+
+    return downloaded;
   }
 
   private async getBuildByIdAsync({
@@ -160,7 +226,7 @@ export default class Download extends EasCommand {
       build.id,
       platform
     );
-    if (await pathExists(cachedBuildArtifactPath)) {
+    if (await fs.pathExists(cachedBuildArtifactPath)) {
       Log.newLine();
       Log.log(`Using cached build...`);
       return cachedBuildArtifactPath;
@@ -203,4 +269,17 @@ async function resolvePlatformAsync({
     ],
   });
   return selectedPlatform;
+}
+
+function getFileNameFromUrl(url: string, fallbackName: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const basename = path.basename(pathname);
+    if (basename) {
+      return basename;
+    }
+  } catch {
+    // fall through to default
+  }
+  return fallbackName;
 }

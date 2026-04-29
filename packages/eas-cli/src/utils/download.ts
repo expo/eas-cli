@@ -70,7 +70,7 @@ function wrapFetchWithProgress(): (
   };
 }
 
-async function downloadFileWithProgressTrackerAsync(
+export async function downloadFileWithProgressTrackerAsync(
   url: string,
   outputPath: string,
   progressTrackerMessage: string | ((ratio: number, total: number) => string),
