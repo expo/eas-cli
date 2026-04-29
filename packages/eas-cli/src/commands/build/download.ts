@@ -32,7 +32,7 @@ export default class Download extends EasCommand {
   static override flags = {
     'build-id': Flags.string({
       description:
-        'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself. All available build artifacts (application archive, build artifacts archive, Xcode logs) are downloaded.',
+        'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself.',
       exclusive: ['fingerprint', 'platform', 'dev-client'],
     }),
     fingerprint: Flags.string({
@@ -49,6 +49,11 @@ export default class Download extends EasCommand {
       allowNo: true,
       exclusive: ['build-id'],
     }),
+    'all-artifacts': Flags.boolean({
+      description:
+        'Download all available build artifacts (build artifacts archive, Xcode logs, etc.) in addition to the application archive. Without this flag, only the application archive is downloaded and the command errors if it is missing.',
+      default: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -64,6 +69,7 @@ export default class Download extends EasCommand {
         platform,
         fingerprint,
         'dev-client': developmentClient,
+        'all-artifacts': allArtifacts,
         ...rawFlags
       },
     } = await this.parse(Download);
@@ -104,12 +110,12 @@ export default class Download extends EasCommand {
     let buildArtifactPath: string | null = null;
     if (build.artifacts?.applicationArchiveUrl) {
       buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
-    } else if (!buildId) {
+    } else if (!allArtifacts) {
       throw new Error('Build does not have an application archive url');
     }
 
     let extraArtifactPaths: Record<string, string> = {};
-    if (buildId) {
+    if (allArtifacts) {
       extraArtifactPaths = await this.downloadExtraArtifactsAsync(build);
     }
 
