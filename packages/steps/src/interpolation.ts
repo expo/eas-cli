@@ -2,6 +2,14 @@ import { JobInterpolationContext } from '@expo/eas-build-job';
 
 import { jsepEval } from './utils/jsepEval';
 
+function isSingleWholeStringInterpolation(value: string): boolean {
+  return (
+    value.startsWith('${{') &&
+    value.endsWith('}}') &&
+    value.indexOf('}}', 3) === value.length - 2
+  );
+}
+
 export function interpolateJobContext({
   target,
   context,
@@ -12,7 +20,7 @@ export function interpolateJobContext({
   if (typeof target === 'string') {
     // If the value is e.g. `build: ${{ inputs.build }}`, we will interpolate the value
     // without changing `inputs.build` type, i.e. if it is an object it'll be like `build: {...inputs.build}`.
-    if (target.startsWith('${{') && target.endsWith('}}')) {
+    if (isSingleWholeStringInterpolation(target)) {
       return jsepEval(target.slice(3, -2), context);
     }
 

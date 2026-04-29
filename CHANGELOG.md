@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [steps] Fix workflow job context interpolation when a string contains multiple `${{ }}` expressions on the same line (for example a changelog built from two context values). ([#3644](https://github.com/expo/eas-cli/pull/3644) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [18.8.1](https://github.com/expo/eas-cli/releases/tag/v18.8.1) - 2026-04-23
