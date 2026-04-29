@@ -10,9 +10,19 @@ export function interpolateJobContext({
   context: JobInterpolationContext;
 }): unknown {
   if (typeof target === 'string') {
-    // If the value is e.g. `build: ${{ inputs.build }}`, we will interpolate the value
-    // without changing `inputs.build` type, i.e. if it is an object it'll be like `build: {...inputs.build}`.
-    if (target.startsWith('${{') && target.endsWith('}}')) {
+    // If the value is exactly one `${{ ... }}` expression, we interpolate it without
+    // changing the result's type, i.e. if `inputs.build` is an object then
+    // `build: ${{ inputs.build }}` becomes `build: {...inputs.build}`.
+    //
+    // `startsWith('${{') && endsWith('}}')` alone is not enough: a value like
+    // `${{ a }}: ${{ b }}` also starts with `${{` and ends with `}}`, but those
+    // delimiters are not a matched pair. We must also confirm there's no second
+    // `${{` after the opening one.
+    if (
+      target.startsWith('${{') &&
+      target.endsWith('}}') &&
+      target.indexOf('${{', 3) === -1
+    ) {
       return jsepEval(target.slice(3, -2), context);
     }
 
