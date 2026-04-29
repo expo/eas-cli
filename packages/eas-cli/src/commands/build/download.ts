@@ -111,6 +111,12 @@ export default class Download extends EasCommand {
     if (build.artifacts?.applicationArchiveUrl) {
       buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
     } else if (!allArtifacts) {
+      const availableArtifacts = listAvailableExtraArtifactNames(build);
+      if (availableArtifacts.length > 0) {
+        throw new Error(
+          `Build does not have an application archive url. Other artifacts are available (${availableArtifacts.join(', ')}); re-run with --all-artifacts to download them.`
+        );
+      }
       throw new Error('Build does not have an application archive url');
     }
 
@@ -275,6 +281,23 @@ async function resolvePlatformAsync({
     ],
   });
   return selectedPlatform;
+}
+
+function listAvailableExtraArtifactNames(build: BuildFragment): string[] {
+  const names: string[] = [];
+  if (build.artifacts?.buildArtifactsUrl) {
+    names.push('buildArtifacts');
+  }
+  if (build.artifacts?.xcodeBuildLogsUrl) {
+    names.push('xcodeBuildLogs');
+  }
+  if (
+    build.artifacts?.buildUrl &&
+    build.artifacts.buildUrl !== build.artifacts.applicationArchiveUrl
+  ) {
+    names.push('build');
+  }
+  return names;
 }
 
 function getFileNameFromUrl(url: string, fallbackName: string): string {
