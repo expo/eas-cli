@@ -4,7 +4,9 @@ import { jsepEval } from './utils/jsepEval';
 
 function isSingleWholeStringInterpolation(value: string): boolean {
   return (
-    value.startsWith('${{') && value.endsWith('}}') && value.indexOf('}}', 3) === value.length - 2
+    value.startsWith('${{') &&
+    value.endsWith('}}') &&
+    value.indexOf('${{', 3) === -1
   );
 }
 

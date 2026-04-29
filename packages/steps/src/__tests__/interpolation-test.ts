@@ -35,4 +35,17 @@ describe(interpolateJobContext, () => {
       })
     ).toEqual({ profile: 'production', id: '123' });
   });
+
+  it("handles a single interpolation when the expression contains '}}' in a string literal", () => {
+    const context = {
+      build: { profile: 'production}}' },
+    } as unknown as JobInterpolationContext;
+
+    expect(
+      interpolateJobContext({
+        target: "${{ build.profile == 'production}}' }}",
+        context,
+      })
+    ).toBe(true);
+  });
 });
