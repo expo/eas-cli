@@ -13,10 +13,10 @@ export const AppPlatformToPlatform: Record<AppPlatform, Platform> = {
 
 export type BuildInfo = {
   appIdentifier?: string | null;
+  appId: string;
   buildId: string;
+  projectOwnerAccountId: string;
   platform: Platform;
-  projectFullName: string;
-  projectOwnerAccountName: string;
 };
 
 export type ResolvedSubmitConfig = {
@@ -34,10 +34,8 @@ const BUILD_BY_ID_QUERY = graphql(`
         appIdentifier
         app {
           id
-          slug
           ownerAccount {
             id
-            name
           }
         }
       }
@@ -62,10 +60,10 @@ export async function getBuildInfoAsync(
   }
   return {
     appIdentifier: build.appIdentifier,
+    appId: build.app.id,
     buildId: build.id,
+    projectOwnerAccountId: build.app.ownerAccount.id,
     platform: AppPlatformToPlatform[build.platform],
-    projectFullName: `@${build.app.ownerAccount.name}/${build.app.slug}`,
-    projectOwnerAccountName: build.app.ownerAccount.name,
   };
 }
 

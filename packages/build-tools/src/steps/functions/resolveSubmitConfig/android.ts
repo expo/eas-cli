@@ -1,5 +1,5 @@
 import { Platform, SubmissionConfig, SystemError, UserError } from '@expo/eas-build-job';
-import { SubmitProfile } from '@expo/eas-json';
+import { AndroidReleaseStatus, SubmitProfile } from '@expo/eas-json';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn from '@expo/turtle-spawn';
@@ -14,11 +14,11 @@ import { CustomBuildContext } from '../../../customBuildContext';
 
 const ANDROID_APP_CREDENTIALS_QUERY = graphql(`
   query ResolveSubmitConfigAndroidAppCredentials(
-    $projectFullName: String!
+    $appId: String!
     $applicationIdentifier: String
   ) {
     app {
-      byFullName(fullName: $projectFullName) {
+      byId(appId: $appId) {
         id
         androidAppCredentials(filter: { applicationIdentifier: $applicationIdentifier }) {
           id
@@ -31,6 +31,16 @@ const ANDROID_APP_CREDENTIALS_QUERY = graphql(`
     }
   }
 `);
+
+const AndroidReleaseStatusToSubmissionReleaseStatus: Record<
+  AndroidReleaseStatus,
+  SubmissionConfig.Android.ReleaseStatus
+> = {
+  [AndroidReleaseStatus.completed]: SubmissionConfig.Android.ReleaseStatus.COMPLETED,
+  [AndroidReleaseStatus.draft]: SubmissionConfig.Android.ReleaseStatus.DRAFT,
+  [AndroidReleaseStatus.halted]: SubmissionConfig.Android.ReleaseStatus.HALTED,
+  [AndroidReleaseStatus.inProgress]: SubmissionConfig.Android.ReleaseStatus.IN_PROGRESS,
+};
 
 export async function resolveAndroidSubmitConfigAsync({
   artifactPath,
@@ -53,16 +63,22 @@ export async function resolveAndroidSubmitConfigAsync({
     build.appIdentifier ??
     profile.applicationId ??
     (await readAndroidApplicationIdAsync(artifactPath, env, logger));
+  if (!applicationId) {
+    throw new UserError(
+      'EAS_RESOLVE_SUBMIT_CONFIG_ANDROID_APPLICATION_ID_NOT_FOUND',
+      'Could not resolve Android applicationId from build metadata or artifact. Set applicationId in the Android submit profile, or pass an APK/AAB artifact with a readable package name.'
+    );
+  }
 
   const googleServiceAccountKeyJson = profile.serviceAccountKeyPath
     ? await fs.readFile(path.resolve(workingDirectory, profile.serviceAccountKeyPath), 'utf8')
     : await getGoogleServiceAccountKeyJsonAsync({
         applicationId,
-        build,
+        appId: build.appId,
         ctx,
       });
 
-  const releaseStatus = profile.releaseStatus as unknown as SubmissionConfig.Android.ReleaseStatus;
+  const releaseStatus = AndroidReleaseStatusToSubmissionReleaseStatus[profile.releaseStatus];
   const baseConfigInput = {
     changesNotSentForReview: profile.changesNotSentForReview,
     googleServiceAccountKeyJson,
@@ -89,24 +105,17 @@ export async function resolveAndroidSubmitConfigAsync({
 
 async function getGoogleServiceAccountKeyJsonAsync({
   applicationId,
-  build,
+  appId,
   ctx,
 }: {
-  applicationId?: string;
-  build: BuildInfo;
+  applicationId: string;
+  appId: string;
   ctx: CustomBuildContext;
 }): Promise<string> {
-  if (!applicationId) {
-    throw new UserError(
-      'EAS_RESOLVE_SUBMIT_CONFIG_ANDROID_APPLICATION_ID_NOT_FOUND',
-      'Could not resolve Android applicationId from build metadata or artifact.'
-    );
-  }
-
   const credentialsResult = await ctx.graphqlClient
     .query(ANDROID_APP_CREDENTIALS_QUERY, {
+      appId,
       applicationIdentifier: applicationId,
-      projectFullName: build.projectFullName,
     })
     .toPromise();
   if (credentialsResult.error) {
@@ -114,12 +123,12 @@ async function getGoogleServiceAccountKeyJsonAsync({
   }
 
   const key =
-    credentialsResult.data?.app.byFullName.androidAppCredentials[0]
+    credentialsResult.data?.app.byId.androidAppCredentials[0]
       ?.googleServiceAccountKeyForSubmissions;
   if (!key) {
     throw new UserError(
       'EAS_RESOLVE_SUBMIT_CONFIG_ANDROID_SERVICE_ACCOUNT_KEY_NOT_CONFIGURED',
-      `Google Service Account Key for submissions is not configured for ${applicationId}.`
+      `Google Service Account Key for submissions is not configured for ${applicationId}. Configure a Google Service Account Key for submissions in EAS credentials, or set serviceAccountKeyPath in the Android submit profile.`
     );
   }
 
@@ -151,14 +160,8 @@ async function readAndroidApplicationIdFromApkAsync(
   if (aapt2Result.ok) {
     return aapt2Result.value.stdout.trim();
   }
-  logger.warn('Failed to read APK package name with aapt2, trying aapt.');
-
-  const aaptResult = await asyncResult(spawn('aapt', ['dump', 'badging', apkPath], { env }));
-  if (!aaptResult.ok) {
-    logger.warn('Failed to read APK package name with aapt.');
-    return undefined;
-  }
-  return aaptResult.value.stdout.match(/package: name='([^']+)'/)?.[1];
+  logger.warn('Failed to read APK package name with aapt2.');
+  return undefined;
 }
 
 async function readAndroidApplicationIdFromAabAsync(
@@ -175,8 +178,5 @@ async function readAndroidApplicationIdFromAabAsync(
     logger.warn('Failed to read AAB package name with bundletool.');
     return undefined;
   }
-  return result.value.stdout
-    .trim()
-    .replace(/^package="/, '')
-    .replace(/"$/, '');
+  return result.value.stdout.trim();
 }

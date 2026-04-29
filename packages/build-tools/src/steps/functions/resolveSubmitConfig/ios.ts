@@ -1,4 +1,4 @@
-import { Platform, SubmissionConfig, SystemError, UserError } from '@expo/eas-build-job';
+import { Platform, SubmissionConfig, UserError } from '@expo/eas-build-job';
 import { SubmitProfile } from '@expo/eas-json';
 import { BuildStepEnv } from '@expo/steps';
 import fs from 'fs-extra';
@@ -7,16 +7,16 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { readIpaInfoAsync } from '../readIpaInfo';
-import { BuildInfo, ResolvedSubmitConfig } from './common';
+import { ResolvedSubmitConfig } from './common';
 import { CustomBuildContext } from '../../../customBuildContext';
 
 const APPLE_APP_IDENTIFIER_QUERY = graphql(`
   query ResolveSubmitConfigAppleAppIdentifier(
-    $accountName: String!
+    $accountId: String!
     $bundleIdentifier: String!
   ) {
     account {
-      byName(accountName: $accountName) {
+      byId(accountId: $accountId) {
         id
         appleAppIdentifiers(bundleIdentifier: $bundleIdentifier) {
           id
@@ -29,16 +29,19 @@ const APPLE_APP_IDENTIFIER_QUERY = graphql(`
 
 const IOS_APP_CREDENTIALS_QUERY = graphql(`
   query ResolveSubmitConfigIosAppCredentials(
-    $projectFullName: String!
+    $appId: String!
     $appleAppIdentifierId: String!
   ) {
     app {
-      byFullName(fullName: $projectFullName) {
+      byId(appId: $appId) {
         id
         iosAppCredentials(filter: { appleAppIdentifierId: $appleAppIdentifierId }) {
           id
           appStoreConnectApiKeyForSubmissions {
             id
+            issuerIdentifier
+            keyIdentifier
+            keyP8
           }
         }
       }
@@ -46,36 +49,27 @@ const IOS_APP_CREDENTIALS_QUERY = graphql(`
   }
 `);
 
-const APP_STORE_CONNECT_API_KEY_QUERY = graphql(`
-  query ResolveSubmitConfigAppStoreConnectApiKey($id: ID!) {
-    appStoreConnectApiKey {
-      byId(id: $id) {
-        id
-        issuerIdentifier
-        keyIdentifier
-        keyP8
-      }
-    }
-  }
-`);
-
 export async function resolveIosSubmitConfigAsync({
+  appId,
   artifactPath,
-  build,
+  buildAppIdentifier,
   ctx,
   env,
   profile,
+  projectOwnerAccountId,
   workingDirectory,
 }: {
+  appId: string;
   artifactPath: string;
-  build: BuildInfo;
+  buildAppIdentifier?: string | null;
   ctx: CustomBuildContext;
   env: BuildStepEnv;
   profile: SubmitProfile<Platform.IOS>;
+  projectOwnerAccountId: string;
   workingDirectory: string;
 }): Promise<ResolvedSubmitConfig> {
   const bundleIdentifier =
-    build.appIdentifier ??
+    buildAppIdentifier ??
     profile.bundleIdentifier ??
     (await readIpaInfoAsync(artifactPath)).bundleIdentifier;
 
@@ -97,7 +91,8 @@ export async function resolveIosSubmitConfigAsync({
         }
       : {
           ascApiJsonKey: await getAscApiJsonKeyAsync({
-            build,
+            accountId: projectOwnerAccountId,
+            appId,
             bundleIdentifier,
             ctx,
             profile,
@@ -114,18 +109,21 @@ export async function resolveIosSubmitConfigAsync({
 }
 
 async function getAscApiJsonKeyAsync({
-  build,
+  accountId,
+  appId,
   bundleIdentifier,
   ctx,
   profile,
   workingDirectory,
 }: {
-  build: BuildInfo;
+  accountId: string;
+  appId: string;
   bundleIdentifier?: string;
   ctx: CustomBuildContext;
   profile: SubmitProfile<Platform.IOS>;
   workingDirectory: string;
 }): Promise<string> {
+  // Prefer explicit local ASC API key fields from eas.json when all are present.
   if (profile.ascApiKeyPath && profile.ascApiKeyIssuerId && profile.ascApiKeyId) {
     return JSON.stringify({
       issuer_id: profile.ascApiKeyIssuerId,
@@ -144,13 +142,14 @@ async function getAscApiJsonKeyAsync({
   if (!bundleIdentifier) {
     throw new UserError(
       'EAS_RESOLVE_SUBMIT_CONFIG_IOS_BUNDLE_IDENTIFIER_NOT_FOUND',
-      'Could not resolve iOS bundleIdentifier from build metadata or artifact.'
+      'Could not resolve iOS bundleIdentifier from build metadata or artifact. Set bundleIdentifier in the iOS submit profile, or pass an IPA artifact with a readable bundle identifier.'
     );
   }
 
+  // Server credentials are keyed by the Apple App Identifier, so first map the bundle id to it.
   const appleAppIdentifierResult = await ctx.graphqlClient
     .query(APPLE_APP_IDENTIFIER_QUERY, {
-      accountName: build.projectOwnerAccountName,
+      accountId,
       bundleIdentifier,
     })
     .toPromise();
@@ -159,49 +158,38 @@ async function getAscApiJsonKeyAsync({
   }
 
   const appleAppIdentifierId =
-    appleAppIdentifierResult.data?.account.byName.appleAppIdentifiers[0]?.id;
+    appleAppIdentifierResult.data?.account.byId.appleAppIdentifiers[0]?.id;
   if (!appleAppIdentifierId) {
     throw new UserError(
       'EAS_RESOLVE_SUBMIT_CONFIG_IOS_APP_IDENTIFIER_NOT_CONFIGURED',
-      `Apple App Identifier is not configured for ${bundleIdentifier}.`
+      `Apple App Identifier is not configured for ${bundleIdentifier}. Configure the bundle identifier in EAS credentials for this account.`
     );
   }
 
+  // The app credentials record points at the ASC API key selected for submissions.
   const credentialsResult = await ctx.graphqlClient
     .query(IOS_APP_CREDENTIALS_QUERY, {
+      appId,
       appleAppIdentifierId,
-      projectFullName: build.projectFullName,
     })
     .toPromise();
   if (credentialsResult.error) {
     throw credentialsResult.error;
   }
 
-  const ascApiKeyId =
-    credentialsResult.data?.app.byFullName.iosAppCredentials[0]?.appStoreConnectApiKeyForSubmissions
-      ?.id;
-  if (!ascApiKeyId) {
+  const ascApiKey =
+    credentialsResult.data?.app.byId.iosAppCredentials[0]?.appStoreConnectApiKeyForSubmissions;
+  if (!ascApiKey) {
     throw new UserError(
       'EAS_RESOLVE_SUBMIT_CONFIG_IOS_ASC_API_KEY_NOT_CONFIGURED',
-      `App Store Connect API Key for submissions is not configured for ${bundleIdentifier}.`
+      `App Store Connect API Key for submissions is not configured for ${bundleIdentifier}. Configure an App Store Connect API Key for submissions in EAS credentials, or set ascApiKeyPath, ascApiKeyIssuerId, and ascApiKeyId in the iOS submit profile.`
     );
   }
 
-  const apiKeyResult = await ctx.graphqlClient
-    .query(APP_STORE_CONNECT_API_KEY_QUERY, { id: ascApiKeyId })
-    .toPromise();
-  if (apiKeyResult.error) {
-    throw apiKeyResult.error;
-  }
-
-  const apiKey = apiKeyResult.data?.appStoreConnectApiKey.byId;
-  if (!apiKey) {
-    throw new SystemError(`App Store Connect API Key ${ascApiKeyId} could not be resolved.`);
-  }
   return JSON.stringify({
-    issuer_id: apiKey.issuerIdentifier,
-    key: apiKey.keyP8,
-    key_id: apiKey.keyIdentifier,
+    issuer_id: ascApiKey.issuerIdentifier,
+    key: ascApiKey.keyP8,
+    key_id: ascApiKey.keyIdentifier,
   });
 }
 

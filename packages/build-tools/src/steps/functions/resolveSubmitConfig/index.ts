@@ -124,10 +124,12 @@ export async function resolveSubmitConfigAsync({
       });
       return await resolveIosSubmitConfigAsync({
         artifactPath,
-        build,
+        appId: build.appId,
+        buildAppIdentifier: build.appIdentifier,
         ctx,
         env,
         profile,
+        projectOwnerAccountId: build.projectOwnerAccountId,
         workingDirectory,
       });
     }
