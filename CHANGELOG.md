@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- Fix EAS Workflows interpolation throwing `Unexpected "}" at character N` when a single value contains multiple `${{ ... }}` expressions (for example, `changelog: ${{ a }}: ${{ b }}`). ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@brentvatne](https://github.com/brentvatne))
+- Fix EAS Workflows interpolation throwing `Unexpected "}" at character N` when a single value contains multiple `${{ ... }}` expressions (for example, `changelog: ${{ a }}: ${{ b }}`). ([#3643](https://github.com/expo/eas-cli/pull/3643) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🧹 Chores
 
