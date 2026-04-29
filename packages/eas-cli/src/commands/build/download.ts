@@ -19,20 +19,29 @@ import { downloadAndMaybeExtractAppAsync } from '../../utils/download';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class Download extends EasCommand {
-  static override description = 'download simulator/emulator builds for a given fingerprint hash';
+  static override description =
+    'download a simulator/emulator build by build ID or fingerprint hash';
+
 
   static override flags = {
+    'build-id': Flags.string({
+      description:
+        'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself.',
+      exclusive: ['fingerprint', 'platform', 'dev-client'],
+    }),
     fingerprint: Flags.string({
       description: 'Fingerprint hash of the build to download',
-      required: true,
+      exclusive: ['build-id'],
     }),
     platform: Flags.option({
       char: 'p',
       options: [Platform.IOS, Platform.ANDROID] as const,
+      exclusive: ['build-id'],
     })(),
     'dev-client': Flags.boolean({
       description: 'Filter only dev-client builds.',
       allowNo: true,
+      exclusive: ['build-id'],
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -45,6 +54,7 @@ export default class Download extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       flags: {
+        'build-id': buildId,
         platform,
         fingerprint,
         'dev-client': developmentClient,
@@ -52,6 +62,10 @@ export default class Download extends EasCommand {
       },
     } = await this.parse(Download);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(rawFlags);
+
+    if (!buildId && !fingerprint) {
+      throw new Errors.CLIError('Either --build-id or --fingerprint is required.');
+    }
 
     const {
       loggedIn: { graphqlClient },
@@ -64,14 +78,23 @@ export default class Download extends EasCommand {
       enableJsonOutput();
     }
 
-    const selectedPlatform = await resolvePlatformAsync({ nonInteractive, platform });
-    const build = await this.getBuildAsync({
-      graphqlClient,
-      projectId,
-      platform: selectedPlatform,
-      fingerprintHash: fingerprint,
-      developmentClient,
-    });
+    let build: BuildFragment;
+    let selectedPlatform: AppPlatform;
+    if (buildId) {
+      build = await this.getBuildByIdAsync({ graphqlClient, buildId });
+      selectedPlatform = build.platform;
+      Log.succeed(`🎯 Found build ${chalk.bold(buildId)} on EAS servers.`);
+    } else {
+      selectedPlatform = await resolvePlatformAsync({ nonInteractive, platform });
+      build = await this.getBuildByFingerprintAsync({
+        graphqlClient,
+        projectId,
+        platform: selectedPlatform,
+        fingerprintHash: fingerprint!,
+        developmentClient,
+      });
+    }
+
     const buildArtifactPath = await this.getPathToBuildArtifactAsync(build, selectedPlatform);
     if (jsonFlag) {
       const jsonResults = { path: buildArtifactPath };
@@ -81,7 +104,21 @@ export default class Download extends EasCommand {
     }
   }
 
-  private async getBuildAsync({
+  private async getBuildByIdAsync({
+    graphqlClient,
+    buildId,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    buildId: string;
+  }): Promise<BuildFragment> {
+    try {
+      return await BuildQuery.byIdAsync(graphqlClient, buildId);
+    } catch (error: any) {
+      throw new Errors.CLIError(`Could not find build with ID ${buildId}: ${error.message}`);
+    }
+  }
+
+  private async getBuildByFingerprintAsync({
     graphqlClient,
     projectId,
     platform,
