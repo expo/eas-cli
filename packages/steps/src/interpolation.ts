@@ -3,7 +3,7 @@ import { JobInterpolationContext } from '@expo/eas-build-job';
 import { jsepEval } from './utils/jsepEval';
 
 function isSingleWholeStringInterpolation(value: string): boolean {
-  return value.startsWith('${{') && value.endsWith('}}') && value.indexOf('${{', 3) === -1;
+  return value.startsWith('${{') && value.endsWith('}}') && !value.includes('${{', 3);
 }
 
 export function interpolateJobContext({
