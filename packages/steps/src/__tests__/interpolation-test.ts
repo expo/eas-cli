@@ -17,8 +17,7 @@ describe(interpolateJobContext, () => {
 
     expect(
       interpolateJobContext({
-        target:
-          '${{ github.event.pull_request.html_url }}: ${{ github.event.pull_request.title }}',
+        target: '${{ github.event.pull_request.html_url }}: ${{ github.event.pull_request.title }}',
         context,
       })
     ).toBe('https://github.com/acme/app/pull/42: Fix crash');
