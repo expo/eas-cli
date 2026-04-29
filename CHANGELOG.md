@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas integrations:convex` commands to manage Convex integrations for EAS projects. ([#3575](https://github.com/expo/eas-cli/pull/3575) by [@fiberjw](https://github.com/fiberjw))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Remove hardcoded `builderEnvironment.image` override in `eas build:resign`. ([#3661](https://github.com/expo/eas-cli/pull/3661) by [@hSATAC](https://github.com/hSATAC))

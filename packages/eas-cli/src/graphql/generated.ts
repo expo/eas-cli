@@ -3616,6 +3616,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   releaseChannel?: Maybe<Scalars['String']['output']>;
   requiredPackageManager?: Maybe<Scalars['String']['output']>;
   resolvedEnvironment?: Maybe<Scalars['EnvironmentVariableEnvironment']['output']>;
+  resolvedImage?: Maybe<Scalars['String']['output']>;
   /**
    * The builder resource class requested by the developer
    * @deprecated Use resourceClassDisplayName instead
@@ -3629,7 +3630,7 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   /** @deprecated Use 'runtime' field instead. */
   runtimeVersion?: Maybe<Scalars['String']['output']>;
   sdkVersion?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Check logs instead. */
+  /** @deprecated Use 'resolvedImage' for the concrete image the build runs on. */
   selectedImage?: Maybe<Scalars['String']['output']>;
   status: BuildStatus;
   submissions: Array<Submission>;
@@ -4231,12 +4232,32 @@ export type ConvexProject = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type ConvexProjectMutation = {
+  __typename?: 'ConvexProjectMutation';
+  deleteConvexProject: Scalars['ID']['output'];
+  setupConvexProject: SetupConvexProjectResult;
+};
+
+
+export type ConvexProjectMutationDeleteConvexProjectArgs = {
+  convexProjectId: Scalars['ID']['input'];
+};
+
+
+export type ConvexProjectMutationSetupConvexProjectArgs = {
+  input: SetupConvexProjectInput;
+};
+
 export type ConvexTeamConnection = {
   __typename?: 'ConvexTeamConnection';
   account: Account;
   convexTeamIdentifier: Scalars['String']['output'];
+  convexTeamName: Scalars['String']['output'];
+  convexTeamSlug: Scalars['String']['output'];
   createdAt: Scalars['DateTime']['output'];
   id: Scalars['ID']['output'];
+  invitedAt?: Maybe<Scalars['DateTime']['output']>;
+  invitedEmail?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
 };
 
@@ -7836,6 +7857,7 @@ export type RootMutation = {
   build: BuildMutation;
   /** Mutations that create, update, and delete Build Annotations */
   buildAnnotation: BuildAnnotationMutation;
+  convexProject: ConvexProjectMutation;
   convexTeamConnection: ConvexTeamConnectionMutation;
   customDomain: CustomDomainMutation;
   deployments: DeploymentsMutation;
@@ -8434,6 +8456,21 @@ export type SentryProjectMutationDeleteSentryProjectArgs = {
   sentryProjectId: Scalars['ID']['input'];
 };
 
+export type SetupConvexProjectInput = {
+  appId: Scalars['ID']['input'];
+  convexTeamConnectionId: Scalars['ID']['input'];
+  deploymentRegion?: InputMaybe<Scalars['String']['input']>;
+  projectName: Scalars['String']['input'];
+};
+
+export type SetupConvexProjectResult = {
+  __typename?: 'SetupConvexProjectResult';
+  convexDeploymentName: Scalars['String']['output'];
+  convexDeploymentUrl: Scalars['String']['output'];
+  convexProject: ConvexProject;
+  deployKey: Scalars['String']['output'];
+};
+
 export type SizeBreakdownCategory = {
   __typename?: 'SizeBreakdownCategory';
   assetCount: Scalars['Int']['output'];
@@ -8750,6 +8787,7 @@ export type SubscriptionDetails = {
   endedAt?: Maybe<Scalars['DateTime']['output']>;
   futureSubscription?: Maybe<FutureSubscription>;
   id: Scalars['ID']['output'];
+  includedAgentCreditsInCents: Scalars['Int']['output'];
   isDowngrading?: Maybe<Scalars['Boolean']['output']>;
   meteredBillingStatus: MeteredBillingStatus;
   name?: Maybe<Scalars['String']['output']>;
@@ -11904,6 +11942,41 @@ export type RetryIosBuildMutationVariables = Exact<{
 
 export type RetryIosBuildMutation = { __typename?: 'RootMutation', build: { __typename?: 'BuildMutation', retryIosBuild: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } } };
 
+export type CreateConvexTeamConnectionMutationVariables = Exact<{
+  convexTeamConnectionData: CreateConvexTeamConnectionInput;
+}>;
+
+
+export type CreateConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', createConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
+
+export type DeleteConvexTeamConnectionMutationVariables = Exact<{
+  convexTeamConnectionId: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', deleteConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
+
+export type SetupConvexProjectMutationVariables = Exact<{
+  input: SetupConvexProjectInput;
+}>;
+
+
+export type SetupConvexProjectMutation = { __typename?: 'RootMutation', convexProject: { __typename?: 'ConvexProjectMutation', setupConvexProject: { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } } } };
+
+export type DeleteConvexProjectMutationVariables = Exact<{
+  convexProjectId: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteConvexProjectMutation = { __typename?: 'RootMutation', convexProject: { __typename?: 'ConvexProjectMutation', deleteConvexProject: string } };
+
+export type SendConvexTeamInviteToVerifiedEmailMutationVariables = Exact<{
+  input: SendConvexTeamInviteToVerifiedEmailInput;
+}>;
+
+
+export type SendConvexTeamInviteToVerifiedEmailMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', sendConvexTeamInviteToVerifiedEmail: boolean } };
+
 export type CreateDeviceRunSessionMutationVariables = Exact<{
   deviceRunSessionInput: CreateDeviceRunSessionInput;
 }>;
@@ -12385,6 +12458,20 @@ export type ViewUpdateChannelsPaginatedOnAppQueryVariables = Exact<{
 
 export type ViewUpdateChannelsPaginatedOnAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, channelsPaginated: { __typename?: 'AppChannelsConnection', edges: Array<{ __typename?: 'AppChannelEdge', cursor: string, node: { __typename?: 'UpdateChannel', id: string, name: string, branchMapping: string } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
+export type ConvexTeamConnectionsByAccountIdQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type ConvexTeamConnectionsByAccountIdQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, convexTeamConnections: Array<{ __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null }> } } };
+
+export type ConvexProjectByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type ConvexProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, convexProject?: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } | null } } };
+
 export type DeviceRunSessionByIdQueryVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];
 }>;
@@ -12671,6 +12758,12 @@ export type BuildFragment = { __typename?: 'Build', id: string, status: BuildSta
 export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }>, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null };
 
 export type BuildWithFingerprintFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } } | null, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null };
+
+export type ConvexTeamConnectionFragment = { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null };
+
+export type ConvexProjectFragment = { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } };
+
+export type SetupConvexProjectResultFragment = { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 

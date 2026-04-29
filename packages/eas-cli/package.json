@@ -202,7 +202,7 @@
         "description": "manage project and account environment variables"
       },
       "integrations": {
-        "description": "manage service connections"
+        "description": "manage third-party service integrations"
       },
       "metadata": {
         "description": "manage store configuration"
