@@ -1,8 +1,5 @@
 import { SystemError, UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
-import fs from 'fs/promises';
-import { vol } from 'memfs';
-import path from 'path';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -52,9 +49,8 @@ function createStep(
 describe('createRunMaestroTestsBuildFunction', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
-    // Phase 3 (copy-latest) runs after the retry loop for junit mode.
-    // Default-stub it so tests that don't care about Phase 3 don't hit the
-    // real disk. Individual tests override this via mockRejectedValue.
+    // Default-stub copyLatestAttemptXml so tests that don't care about it
+    // don't hit the real disk. Individual tests override this.
     jest.restoreAllMocks();
     jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
   });
@@ -63,13 +59,13 @@ describe('createRunMaestroTestsBuildFunction', () => {
     expect(createRunMaestroTestsBuildFunction()).toBeDefined();
   });
 
-  it('Phase 1 sets all outputs before running any flows', async () => {
+  it('sets all outputs before running any flows', async () => {
     // Make spawn reject so the step still throws; we're locking in that outputs
     // are set BEFORE the spawn call (downstream `upload_artifact` fails if
     // `final_report_path` is empty).
     mockedSpawn.mockRejectedValue(new Error('stop'));
 
-    const step = createStep({ flow_paths: ['flows/a.yaml'], platform: 'android' });
+    const step = createStep({ flow_path: ['flows/a.yaml'], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow();
 
     expect(step.getOutputValueByName('junit_report_directory')).toMatch(
@@ -84,7 +80,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
   it('succeeds when maestro exits 0 on first attempt', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     const step = createStep({
-      flow_paths: ['flows/a.yaml', 'flows/b.yaml'],
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
       output_format: 'junit',
       platform: 'android',
     });
@@ -101,13 +97,13 @@ describe('createRunMaestroTestsBuildFunction', () => {
 
   it('throws SystemError when spawn fails with ENOENT (binary missing)', async () => {
     mockedSpawn.mockRejectedValue(Object.assign(new Error('not found'), { code: 'ENOENT' }));
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android' });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow(SystemError);
   });
 
   it('throws SystemError for unknown-shape spawn rejections', async () => {
     mockedSpawn.mockRejectedValue(new Error('mystery'));
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android' });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow(SystemError);
   });
 
@@ -122,7 +118,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
         pid: 1,
       })
     );
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android' });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow(SystemError);
   });
 
@@ -138,19 +134,20 @@ describe('createRunMaestroTestsBuildFunction', () => {
       });
     mockedSpawn.mockRejectedValueOnce(rejectWithExit(1)).mockResolvedValueOnce(SPAWN_SUCCESS);
     // Default `retries` is 0, so even though the first attempt rejects with
-    // `status: 1`, no retry occurs and Phase 4 throws UserError. Spawn ran once.
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android' });
+    // `status: 1`, no retry occurs and the post-loop check throws UserError.
+    // Spawn ran once.
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
     expect(mockedSpawn).toHaveBeenCalledTimes(1);
   });
 
-  it('retries all flows on failure (matching legacy bash behavior)', async () => {
+  it('retries all flows on failure', async () => {
     const spawnMock = mockedSpawn
       .mockRejectedValueOnce(rejectExit1())
       .mockResolvedValueOnce(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'],
+      flow_path: ['flows/a.yaml', 'flows/b.yaml', 'flows/c.yaml'],
       retries: 1,
       output_format: 'junit',
       platform: 'android',
@@ -170,7 +167,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     const copySpy = jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
 
     const step = createStep({
-      flow_paths: ['a.yaml'],
+      flow_path: ['a.yaml'],
       output_format: 'junit',
       platform: 'android',
     });
@@ -184,18 +181,42 @@ describe('createRunMaestroTestsBuildFunction', () => {
     );
   });
 
-  it('throws SystemError when copyLatestAttemptXml fails', async () => {
+  it('swallows copyLatestAttemptXml failure when maestro succeeded', async () => {
+    // Throwing on copy failure would mask the real reason for early-failing
+    // maestro runs (bad YAML writes no *.xml) and would also wrap a user-side
+    // failure as SystemError, which cancels the build's billing.
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     jest
       .spyOn(parser, 'copyLatestAttemptXml')
       .mockRejectedValue(Object.assign(new Error('no space'), { code: 'ENOSPC' }));
 
     const step = createStep({
-      flow_paths: ['a.yaml'],
+      flow_path: ['a.yaml'],
       output_format: 'junit',
       platform: 'android',
     });
-    await expect(step.executeAsync()).rejects.toThrow(SystemError);
+    await expect(step.executeAsync()).resolves.toBeUndefined();
+  });
+
+  it('surfaces ERR_MAESTRO_TESTS_FAILED (not copy error) when maestro fails and copy fails', async () => {
+    mockedSpawn.mockRejectedValue(
+      Object.assign(new Error('exit 1'), {
+        status: 1,
+        signal: null,
+        stdout: '',
+        stderr: '',
+        output: ['', ''],
+        pid: 1,
+      })
+    );
+    jest.spyOn(parser, 'copyLatestAttemptXml').mockRejectedValue(new Error('No *.xml files found'));
+
+    const step = createStep({
+      flow_path: ['a.yaml'],
+      output_format: 'junit',
+      platform: 'android',
+    });
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
   it('throws UserError when retries are exhausted with a non-zero exit', async () => {
@@ -211,7 +232,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     );
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       retries: 2,
       output_format: 'junit',
       platform: 'android',
@@ -219,16 +240,16 @@ describe('createRunMaestroTestsBuildFunction', () => {
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
-  it('throws UserError early on empty flow_paths', async () => {
-    const step = createStep({ flow_paths: [], platform: 'android' });
+  it('throws UserError early on empty flow_path', async () => {
+    const step = createStep({ flow_path: [], platform: 'android' });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
-  it('uses legacy $HOME/.maestro/tests output path for non-junit formats (e.g. html)', async () => {
+  it('uses $HOME/.maestro/tests output path for non-junit formats (e.g. html)', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'html',
       platform: 'android',
     });
@@ -236,7 +257,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
 
     const args = mockedSpawn.mock.calls[0][1] as string[];
     // Non-JUnit uses a fixed path inside $HOME/.maestro/tests so the
-    // whole-directory upload picks it up. Matches legacy bash behavior.
+    // whole-directory upload picks it up.
     const outputArg = args.find(a => a.startsWith('--output='));
     expect(outputArg).toMatch(/\.maestro\/tests\/android-maestro-html\.html$/);
     expect(outputArg).not.toMatch(/junit-reports/);
@@ -246,7 +267,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'HTML',
       platform: 'ios',
     });
@@ -261,7 +282,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: '',
       platform: 'android',
     });
@@ -275,73 +296,14 @@ describe('createRunMaestroTestsBuildFunction', () => {
     expect(args).not.toContain('--output=');
   });
 
-  it('cleans stale per-attempt JUnit files from junit-reports/ before running', async () => {
-    // Pre-populate a stale attempt file from a previous run. On reused
-    // runners (local builds, non-isolated workers) these files would
-    // otherwise poison copyLatestAttemptXml (picks highest-N).
-    // Paths derive from env.HOME (which createStep sets to '/home/expo')
-    // rather than os.homedir(), matching the step's Phase-1 path derivation.
-    const testsDir = path.join('/home/expo', '.maestro', 'tests');
-    const junitDir = path.join(testsDir, 'junit-reports');
-    const staleAttemptPath = path.join(junitDir, 'android-maestro-junit-attempt-5.xml');
-    const staleFinalPath = path.join(testsDir, 'android-maestro-junit.xml');
-    vol.fromJSON({
-      [staleAttemptPath]:
-        '<testsuites><testsuite><testcase name="STALE" status="SUCCESS"/></testsuite></testsuites>',
-      [staleFinalPath]: '<stale-final/>',
-    });
-
-    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
-
-    const step = createStep({
-      flow_paths: ['flows/a.yaml'],
-      output_format: 'junit',
-      platform: 'android',
-    });
-    await step.executeAsync();
-
-    await expect(fs.access(staleAttemptPath)).rejects.toThrow();
-    await expect(fs.access(staleFinalPath)).rejects.toThrow();
-  });
-
-  it('removes attempt files from other platforms during cleanup', async () => {
-    // junit-reports/ is per-run scratch space. A prior iOS run's stale
-    // `ios-maestro-junit-attempt-*.xml` would otherwise poison
-    // copyLatestAttemptXml (picks highest-N). Cleanup must wipe ALL stale
-    // *.xml files, not just those for the current platform.
-    // Paths derive from env.HOME (which createStep sets to '/home/expo')
-    // rather than os.homedir(), matching the step's Phase-1 path derivation.
-    const junitDir = path.join('/home/expo', '.maestro', 'tests', 'junit-reports');
-    const androidStale = path.join(junitDir, 'android-maestro-junit-attempt-3.xml');
-    const iosStale = path.join(junitDir, 'ios-maestro-junit-attempt-3.xml');
-    vol.fromJSON({
-      [androidStale]: '<testsuites><testsuite></testsuite></testsuites>',
-      [iosStale]: '<testsuites><testsuite></testsuite></testsuites>',
-    });
-
-    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
-
-    const step = createStep({
-      flow_paths: ['flows/a.yaml'],
-      output_format: 'junit',
-      platform: 'android',
-    });
-    await step.executeAsync();
-
-    // Both android and ios stale files are removed
-    await expect(fs.access(androidStale)).rejects.toThrow();
-    await expect(fs.access(iosStale)).rejects.toThrow();
-  });
-
   it('accepts output_format casing variations (e.g. JUNIT) case-insensitively', async () => {
-    // Old bash path normalized output_format via .toLowerCase(); this step
-    // must match that behavior end-to-end: final_report_path populated,
-    // per-attempt XMLs written into junit-reports/, Phase 3 copy invoked.
+    // output_format.toLowerCase() must propagate end-to-end: final_report_path
+    // populated, per-attempt XMLs written into junit-reports/, copy invoked.
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     const copySpy = jest.spyOn(parser, 'copyLatestAttemptXml').mockResolvedValue();
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'JUNIT',
       platform: 'android',
     });
@@ -365,7 +327,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'junit',
       platform: 'android',
       shards: 3,
@@ -384,7 +346,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'junit',
       platform: 'android',
     });
@@ -404,11 +366,11 @@ describe('createRunMaestroTestsBuildFunction', () => {
   it('exports MAESTRO_TESTS_DIR to maestro so flows can reference ${MAESTRO_TESTS_DIR}', async () => {
     // Public docs (EAS workflows pre-packaged-jobs) instruct users to write
     // screenshots/recordings into ${MAESTRO_TESTS_DIR}. The step must export
-    // it in the spawn env, matching the legacy bash step's behavior.
+    // it in the spawn env.
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
 
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       output_format: 'junit',
       platform: 'android',
     });
@@ -428,7 +390,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
 
     const step = createStep(
       {
-        flow_paths: ['flows/a.yaml'],
+        flow_path: ['flows/a.yaml'],
         output_format: 'junit',
         platform: 'android',
       },
@@ -453,7 +415,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
   it('throws SystemError when env.HOME is unset', async () => {
     const step = createStep(
       {
-        flow_paths: ['flows/a.yaml'],
+        flow_path: ['flows/a.yaml'],
         output_format: 'junit',
         platform: 'android',
       },
@@ -462,9 +424,9 @@ describe('createRunMaestroTestsBuildFunction', () => {
     await expect(step.executeAsync()).rejects.toThrow(SystemError);
   });
 
-  it('throws UserError on non-string entries in flow_paths', async () => {
+  it('throws UserError on non-string entries in flow_path', async () => {
     const step = createStep({
-      flow_paths: ['flows/a.yaml', 2 as unknown as string],
+      flow_path: ['flows/a.yaml', 2 as unknown as string],
       platform: 'android',
     });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
@@ -472,7 +434,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
 
   it('throws UserError when retries is negative', async () => {
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       retries: -1,
       platform: 'android',
     });
@@ -481,7 +443,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
 
   it('throws UserError when retries is a non-integer number', async () => {
     const step = createStep({
-      flow_paths: ['flows/a.yaml'],
+      flow_path: ['flows/a.yaml'],
       retries: 1.5,
       platform: 'android',
     });
@@ -489,23 +451,23 @@ describe('createRunMaestroTestsBuildFunction', () => {
   });
 
   it('throws UserError when shards is zero', async () => {
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android', shards: 0 });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android', shards: 0 });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
   it('throws UserError when shards is negative', async () => {
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android', shards: -1 });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android', shards: -1 });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
   it('throws UserError when shards is a non-integer', async () => {
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android', shards: 1.5 });
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android', shards: 1.5 });
     await expect(step.executeAsync()).rejects.toThrow(UserError);
   });
 
   it('accepts shards: undefined (optional input)', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
-    const step = createStep({ flow_paths: ['a.yaml'], platform: 'android' }); // no shards
+    const step = createStep({ flow_path: ['a.yaml'], platform: 'android' }); // no shards
     await step.executeAsync(); // should succeed, not throw
   });
 });

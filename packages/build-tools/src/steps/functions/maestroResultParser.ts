@@ -358,6 +358,5 @@ export async function copyLatestAttemptXml(args: {
     }
   }
 
-  const content = await fs.readFile(path.join(args.sourceDir, winner), 'utf-8');
-  await fs.writeFile(args.outputPath, content);
+  await fs.copyFile(path.join(args.sourceDir, winner), args.outputPath);
 }

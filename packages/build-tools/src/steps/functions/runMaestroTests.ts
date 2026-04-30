@@ -9,15 +9,32 @@ import {
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
 import { copyLatestAttemptXml } from './maestroResultParser';
 import { sleepAsync } from '../../utils/retry';
+
+const FlowPathSchema = z.array(z.string().min(1)).min(1);
+const RetriesSchema = z.number().int().min(0).default(0);
+const ShardsSchema = z.number().int().min(1).optional();
+
+function parseInput<S extends z.ZodTypeAny>(
+  schema: S,
+  value: unknown,
+  message: string
+): z.output<S> {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new UserError('ERR_MAESTRO_INVALID_INPUT', message, { cause: result.error });
+  }
+  return result.data;
+}
 
 // `outputPath: null` means "let maestro pick" (no --output flag). Junit and
 // other declared formats pass an explicit path so downstream upload steps
 // know where to find the result.
 function buildMaestroArgs(args: {
-  flow_paths: string[];
+  flow_path: string[];
   outputPath: string | null;
   output_format: string | undefined;
   shards: number | undefined;
@@ -40,7 +57,7 @@ function buildMaestroArgs(args: {
   if (args.exclude_tags) {
     out.push(`--exclude-tags=${args.exclude_tags}`);
   }
-  out.push(...args.flow_paths);
+  out.push(...args.flow_path);
   return out;
 }
 
@@ -52,7 +69,7 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
     __metricsId: 'eas/run_maestro_tests',
     inputProviders: [
       BuildStepInput.createProvider({
-        id: 'flow_paths',
+        id: 'flow_path',
         required: true,
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
@@ -98,9 +115,6 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
       const { logger, global } = stepCtx;
       const platformInput = inputs.platform.value as string | undefined;
       const outputFormat = (inputs.output_format.value as string | undefined)?.toLowerCase();
-      const flowPaths = inputs.flow_paths.value as unknown;
-      const retries = (inputs.retries.value as number | undefined) ?? 0;
-      const shards = inputs.shards.value as number | undefined;
       const includeTags = inputs.include_tags.value as string | undefined;
       const excludeTags = inputs.exclude_tags.value as string | undefined;
 
@@ -125,7 +139,7 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
 
       // Public docs (EAS workflows pre-packaged-jobs) document
       // `${MAESTRO_TESTS_DIR}` for users to save screenshots/recordings into
-      // the uploaded dir; the legacy bash step exported it.
+      // the uploaded dir.
       const spawnEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
 
       // Outputs are published BEFORE any throw below so downstream
@@ -135,64 +149,26 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
       outputs.junit_report_directory.set(junitReportDirectory);
       outputs.final_report_path.set(finalReportPath);
 
-      if (!Array.isArray(flowPaths) || flowPaths.length === 0) {
-        throw new UserError(
-          'ERR_MAESTRO_NO_FLOW_PATHS',
-          'No flow_paths provided to maestro test step.'
-        );
-      }
-      if (!flowPaths.every(p => typeof p === 'string' && p.length > 0)) {
-        throw new UserError(
-          'ERR_MAESTRO_INVALID_FLOW_PATHS',
-          'All flow_paths entries must be non-empty strings.'
-        );
-      }
-      if (!Number.isInteger(retries) || retries < 0) {
-        throw new UserError(
-          'ERR_MAESTRO_INVALID_RETRIES',
-          'retries must be a non-negative integer.'
-        );
-      }
-      if (shards !== undefined && (!Number.isInteger(shards) || shards < 1)) {
-        throw new UserError('ERR_MAESTRO_INVALID_SHARDS', 'shards must be a positive integer.');
-      }
+      const flowPaths = parseInput(
+        FlowPathSchema,
+        inputs.flow_path.value,
+        'flow_path must be a non-empty array of non-empty strings.'
+      );
+      const retries = parseInput(
+        RetriesSchema,
+        inputs.retries.value,
+        'retries must be a non-negative integer.'
+      );
+      const shards = parseInput(
+        ShardsSchema,
+        inputs.shards.value,
+        'shards must be a positive integer.'
+      );
 
       try {
         await fs.mkdir(junitReportDirectory, { recursive: true });
       } catch (err) {
         throw new SystemError('Failed to create JUnit report directory', { cause: err });
-      }
-
-      // Wipe stale *.xml from prior runs (cross-platform, since this dir is
-      // per-run scratch shared with copyLatestAttemptXml — a leftover
-      // `ios-maestro-junit-attempt-3.xml` would otherwise leak into a later
-      // Android run). Also drop the previous merged final report so a
-      // copy-latest failure doesn't surface last run's output.
-      try {
-        let existingEntries: string[] = [];
-        try {
-          existingEntries = await fs.readdir(junitReportDirectory);
-        } catch (readErr: any) {
-          if (readErr?.code !== 'ENOENT') {
-            throw readErr;
-          }
-        }
-        await Promise.all(
-          existingEntries
-            .filter(e => e.endsWith('.xml'))
-            .map(e => fs.unlink(path.join(junitReportDirectory, e)))
-        );
-        if (finalReportPath) {
-          try {
-            await fs.unlink(finalReportPath);
-          } catch (unlinkErr: any) {
-            if (unlinkErr?.code !== 'ENOENT') {
-              throw unlinkErr;
-            }
-          }
-        }
-      } catch (err) {
-        throw new SystemError('Failed to clean stale JUnit report files', { cause: err });
       }
 
       // Retry loop. spawn-async error shapes:
@@ -210,12 +186,11 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
               ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
               : null;
 
-        let attemptSucceeded = false;
         try {
           await spawn(
             'maestro',
             buildMaestroArgs({
-              flow_paths: flowPaths,
+              flow_path: flowPaths,
               outputPath,
               output_format: outputFormat,
               shards,
@@ -225,7 +200,6 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
             { cwd: stepCtx.workingDirectory, env: spawnEnv, logger, signal }
           );
           lastAttemptExitCode = 0;
-          attemptSucceeded = true;
         } catch (err: any) {
           if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
             throw new SystemError('Failed to invoke maestro', { cause: err });
@@ -237,7 +211,7 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
           }
         }
 
-        if (attemptSucceeded || attempt === retries) {
+        if (lastAttemptExitCode === 0 || attempt === retries) {
           break;
         }
 
@@ -254,7 +228,13 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
             outputPath: finalReportPath,
           });
         } catch (copyErr: any) {
-          throw new SystemError('Failed to produce final_report_path', { cause: copyErr });
+          // Swallow: a copy failure usually means maestro itself failed early
+          // (bad YAML wrote no *.xml). Throwing SystemError here would mask
+          // the real reason and cancel billing for a user-side failure — let
+          // the lastAttemptExitCode check below surface ERR_MAESTRO_TESTS_FAILED.
+          logger.warn(
+            `Failed to produce final_report_path at ${finalReportPath}: ${copyErr?.message ?? copyErr}`
+          );
         }
       }
 
