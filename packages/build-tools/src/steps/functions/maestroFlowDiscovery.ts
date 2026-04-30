@@ -41,7 +41,7 @@ async function discoverFlows({
       const abs = path.resolve(projectRoot, input);
       const stat = await tryStat(abs);
       if (!stat) {
-        logger.warn(`flow_paths entry "${input}" not found, skipping`);
+        logger.warn(`flow_path entry "${input}" not found, skipping`);
         return [];
       }
       if (stat.isFile() && YAML_EXT.test(abs)) {

@@ -85,7 +85,7 @@ describe(createReportMaestroTestResultsFunction, () => {
 
     await createStep({
       callInputs: {
-        flow_paths: ['.maestro/home.yml'],
+        flow_path: ['.maestro/home.yml'],
       },
     }).executeAsync();
 

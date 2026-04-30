@@ -1,9 +1,12 @@
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { graphql } from 'gql.tada';
+import { z } from 'zod';
 
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import { MaestroFlowResult, parseMaestroResults } from './maestroResultParser';
 import { CustomBuildContext } from '../../customBuildContext';
+
+const FlowPathSchema = z.array(z.string().min(1)).min(1);
 
 const CREATE_MUTATION = graphql(`
   mutation CreateWorkflowDeviceTestCaseResults($input: CreateWorkflowDeviceTestCaseResultsInput!) {
@@ -40,7 +43,7 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         defaultValue: '${{ env.HOME }}/.maestro/tests',
       }),
       BuildStepInput.createProvider({
-        id: 'flow_paths',
+        id: 'flow_path',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
@@ -58,24 +61,23 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
         return;
       }
 
-      const flowPathsRaw = inputs.flow_paths.value as unknown;
+      const flowPathRaw = inputs.flow_path.value;
       let nameToPath: Map<string, string> | null = null;
-      if (
-        Array.isArray(flowPathsRaw) &&
-        flowPathsRaw.length > 0 &&
-        flowPathsRaw.every(p => typeof p === 'string' && p.length > 0)
-      ) {
-        nameToPath = await buildFlowNameToPathMap({
-          inputFlowPaths: flowPathsRaw,
-          projectRoot: stepsCtx.workingDirectory,
-          logger,
-        });
-      } else if (flowPathsRaw !== undefined) {
-        logger.warn(
-          'Ignoring malformed flow_paths input (expected a non-empty array of non-empty strings).'
-        );
+      if (flowPathRaw !== undefined) {
+        const parsed = FlowPathSchema.safeParse(flowPathRaw);
+        if (parsed.success) {
+          nameToPath = await buildFlowNameToPathMap({
+            inputFlowPaths: parsed.data,
+            projectRoot: stepsCtx.workingDirectory,
+            logger,
+          });
+        } else {
+          logger.warn(
+            'Ignoring malformed flow_path input (expected a non-empty array of non-empty strings).'
+          );
+        }
       }
-      // flow_paths absent (undefined) — silent fallback for backward compat
+      // flow_path absent (undefined) — silent fallback for backward compat
       // with universe deployments that don't yet pass this input.
 
       try {
