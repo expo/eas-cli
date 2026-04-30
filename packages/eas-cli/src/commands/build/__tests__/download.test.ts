@@ -70,6 +70,16 @@ describe(Download, () => {
     expect(mockViewBuildsOnAppAsync).not.toHaveBeenCalled();
   });
 
+  it('fetches build by ID when --id alias is provided', async () => {
+    mockByIdAsync.mockResolvedValue(makeBuild());
+
+    const command = createCommand(['--id', 'build-123']);
+    await command.runAsync();
+
+    expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'build-123');
+    expect(mockViewBuildsOnAppAsync).not.toHaveBeenCalled();
+  });
+
   it('fetches builds by fingerprint when --fingerprint is provided', async () => {
     mockViewBuildsOnAppAsync.mockResolvedValue([makeBuild()]);
 

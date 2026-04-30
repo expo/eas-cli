@@ -31,6 +31,7 @@ export default class Download extends EasCommand {
 
   static override flags = {
     'build-id': Flags.string({
+      aliases: ['id'],
       description:
         'ID of the build to download. Mutually exclusive with --fingerprint, --platform, and --dev-client; the platform is derived from the build itself.',
       exclusive: ['fingerprint', 'platform', 'dev-client'],
