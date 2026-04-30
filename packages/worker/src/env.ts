@@ -10,6 +10,7 @@ import {
   ResourceClassToPlatform,
   androidImagesWithJavaVersionLowerThen11,
 } from './external/turtle';
+import sentry from './sentry';
 import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
@@ -77,6 +78,8 @@ export function getBuildEnv({
   }
 
   if (config.env !== Environment.TEST) {
+    reportInvalidResourceClass();
+
     const maxHeapSize = config.resourceClass
       ? (ResourceClassToMaxHeapSize[config.resourceClass] ?? '4g')
       : '4g';
@@ -160,6 +163,24 @@ function getFilteredEnv(): Env {
 function setEnv(env: Env, key: string, value: string | null | undefined): void {
   if (value) {
     env[key] = value;
+  }
+}
+
+function reportInvalidResourceClass(): void {
+  if (!config.resourceClass) {
+    sentry.handleError(
+      'Worker did not receive a resourceClass via WORKER_RUNTIME_CONFIG_BASE64; falling back to default build environment values. This indicates a server-side configuration bug.',
+      undefined,
+      { level: 'warning' }
+    );
+    return;
+  }
+  if (!(config.resourceClass in ResourceClassToPlatform)) {
+    sentry.handleError(
+      `Worker received unknown resourceClass "${config.resourceClass}"; falling back to default build environment values. This indicates a worker/server version mismatch.`,
+      undefined,
+      { level: 'warning', extras: { resourceClass: config.resourceClass } }
+    );
   }
 }
 
