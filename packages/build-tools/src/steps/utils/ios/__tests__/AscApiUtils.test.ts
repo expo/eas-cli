@@ -60,8 +60,8 @@ describe('AscApiUtils', () => {
         expect.objectContaining({
           errorCode: 'EAS_UPLOAD_TO_ASC_APP_NOT_FOUND',
           docsUrl: 'https://expo.fyi/asc-app-id',
-          message: expect.stringContaining(
-            'App Store Connect app for application identifier 1234567890 was not found'
+          message: expect.stringMatching(
+            /App Store Connect app for application identifier 1234567890 was not found[\s\S]*- Visible App \(com\.visible\.app\) \(ID: 1111111111\)/
           ),
         })
       );
@@ -93,6 +93,31 @@ describe('AscApiUtils', () => {
       await expect(
         AscApiUtils.getAppInfoAsync({ client, appleAppIdentifier: '1234567890' })
       ).rejects.toBe(notFoundError);
+    });
+  });
+
+  describe('formatAppsList', () => {
+    it('formats visible apps', () => {
+      expect(
+        AscApiUtils.formatAppsList([
+          {
+            type: 'apps',
+            id: '1111111111',
+            attributes: { name: 'Visible App', bundleId: 'com.visible.app' },
+          },
+          {
+            type: 'apps',
+            id: '2222222222',
+            attributes: { name: 'Second App', bundleId: 'com.second.app' },
+          },
+        ])
+      ).toBe(
+        '- Visible App (com.visible.app) (ID: 1111111111)\n- Second App (com.second.app) (ID: 2222222222)'
+      );
+    });
+
+    it('returns a placeholder when no visible apps are found', () => {
+      expect(AscApiUtils.formatAppsList([])).toBe('  (none)');
     });
   });
 

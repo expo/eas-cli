@@ -64,14 +64,21 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
           return;
         }
 
-        // Maestro allows overriding flow names via config, so different flow files can share
-        // the same name. JUnit XML only contains names (not file paths), making it impossible
-        // to map duplicates back to their original flow files. Skip and let the user fix it.
-        const names = flowResults.map(r => r.name);
-        const duplicates = names.filter((n, i) => names.indexOf(n) !== i);
-        if (duplicates.length > 0) {
+        // Detect truly conflicting results: same (name, retryCount) pair means different flow files
+        // share the same name (Maestro config override), which we can't disambiguate.
+        // Same name with different retryCount is expected (per-attempt results from retries).
+        const seen = new Set<string>();
+        const conflicting = new Set<string>();
+        for (const r of flowResults) {
+          const key = `${r.name}:${r.retryCount}`;
+          if (seen.has(key)) {
+            conflicting.add(r.name);
+          }
+          seen.add(key);
+        }
+        if (conflicting.size > 0) {
           logger.error(
-            `Duplicate test case names found in JUnit output: ${[...new Set(duplicates)].join(
+            `Duplicate test case names found in JUnit output: ${[...conflicting].join(
               ', '
             )}. Skipping report. Ensure each Maestro flow has a unique name.`
           );

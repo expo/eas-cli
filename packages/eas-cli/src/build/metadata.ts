@@ -10,12 +10,12 @@ import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
 import {
-  getUsernameForBuildMetadataAndBuildJob,
   isExpoUpdatesInstalled,
 } from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
+import { getActorUsername } from '../user/User';
 
 export async function collectMetadataAsync<T extends Platform>(
   ctx: BuildContext<T>,
@@ -49,7 +49,7 @@ export async function collectMetadataAsync<T extends Platform>(
       ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
         ? false
         : await ctx.vcsClient.hasUncommittedChangesAsync(),
-    username: getUsernameForBuildMetadataAndBuildJob(ctx.user),
+    username: getActorUsername(ctx.user) ?? undefined,
     message: ctx.message,
     ...(ctx.platform === Platform.IOS && {
       iosEnterpriseProvisioning: resolveIosEnterpriseProvisioning(

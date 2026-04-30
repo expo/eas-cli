@@ -43,6 +43,9 @@ export const UserQuery = {
                   id
                   ...AccountFragment
                 }
+                ... on PartnerActor {
+                  username
+                }
                 featureGates
                 isExpoAdmin
               }

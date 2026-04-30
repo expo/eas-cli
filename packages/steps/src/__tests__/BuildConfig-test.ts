@@ -258,7 +258,7 @@ describe(validateConfig, () => {
 
           expect(() => {
             validateConfig(BuildConfigSchema, buildConfig);
-          }).toThrowError(/"build.steps\[0\].run.env.ENV1" must be a string/);
+          }).toThrowError(/"build.steps\[0\].run.env.ENV1" must be one of \[number, string\]/);
         });
         test('invalid env type', () => {
           const buildConfig = {
@@ -278,7 +278,48 @@ describe(validateConfig, () => {
 
           expect(() => {
             validateConfig(BuildConfigSchema, buildConfig);
-          }).toThrowError(/"build.steps\[0\].run.env.ENV1" must be a string/);
+          }).toThrowError(/"build.steps\[0\].run.env.ENV1" must be one of \[number, string\]/);
+        });
+        test('env number coerced to string', () => {
+          const buildConfig = {
+            build: {
+              steps: [
+                {
+                  run: {
+                    command: 'echo 123',
+                    env: {
+                      HOMEBREW_NO_AUTO_UPDATE: 1,
+                    },
+                  },
+                },
+              ],
+            },
+          };
+
+          const config = validateConfig(BuildConfigSchema, buildConfig);
+          assert(isBuildStepCommandRun(config.build.steps[0]));
+          expect(config.build.steps[0].run.env).toEqual({ HOMEBREW_NO_AUTO_UPDATE: '1' });
+        });
+        test('numeric-like string env value is not coerced', () => {
+          const buildConfig = {
+            build: {
+              steps: [
+                {
+                  run: {
+                    command: 'echo 123',
+                    env: {
+                      PORT: '001',
+                      SCALE: '1e3',
+                    },
+                  },
+                },
+              ],
+            },
+          };
+
+          const config = validateConfig(BuildConfigSchema, buildConfig);
+          assert(isBuildStepCommandRun(config.build.steps[0]));
+          expect(config.build.steps[0].run.env).toEqual({ PORT: '001', SCALE: '1e3' });
         });
         test('valid timeout_minutes', () => {
           const buildConfig = {
@@ -471,6 +512,36 @@ describe(validateConfig, () => {
             validateConfig(BuildConfigSchema, buildConfig);
           }).not.toThrowError();
         });
+        test('call with env number coerced to string', () => {
+          const buildConfig = {
+            build: {
+              steps: [
+                {
+                  say_hi: {
+                    env: {
+                      HOMEBREW_NO_AUTO_UPDATE: 1,
+                      PORT: 3000,
+                      VERBOSE: 'true',
+                    },
+                  },
+                },
+              ],
+            },
+            functions: {
+              say_hi: {
+                command: 'echo "Hi!"',
+              },
+            },
+          };
+
+          const config = validateConfig(BuildConfigSchema, buildConfig);
+          const step = config.build.steps[0] as BuildStepFunctionCall;
+          expect(step['say_hi'].env).toEqual({
+            HOMEBREW_NO_AUTO_UPDATE: '1',
+            PORT: '3000',
+            VERBOSE: 'true',
+          });
+        });
         test('call with if statement', () => {
           const buildConfig = {
             build: {
@@ -518,7 +589,7 @@ describe(validateConfig, () => {
 
           expect(() => {
             validateConfig(BuildConfigSchema, buildConfig);
-          }).toThrowError(/"build.steps\[0\].say_hi.env.ENV1" must be a string/);
+          }).toThrowError(/"build.steps\[0\].say_hi.env.ENV1" must be one of \[number, string\]/);
         });
         test('invalid env structure', () => {
           const buildConfig = {
@@ -544,7 +615,7 @@ describe(validateConfig, () => {
 
           expect(() => {
             validateConfig(BuildConfigSchema, buildConfig);
-          }).toThrowError(/"build.steps\[0\].say_hi.env.ENV1" must be a string/);
+          }).toThrowError(/"build.steps\[0\].say_hi.env.ENV1" must be one of \[number, string\]/);
         });
         test('call with inputs boolean', () => {
           const buildConfig = {

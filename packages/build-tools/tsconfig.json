@@ -11,6 +11,7 @@
     "composite": true,
     "rootDir": "./src",
     "outDir": "./dist",
+    "types": ["jest", "node"],
     "plugins": [
       {
         "name": "gql.tada/ts-plugin",

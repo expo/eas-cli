@@ -45,7 +45,12 @@ export default {
       }),
     },
     http: {
-      baseUrl: process.env.ENVIRONMENT === 'development' ? 'http://localhost:4999/logs/' : null,
+      baseUrl:
+        process.env.ENVIRONMENT === 'development'
+          ? 'http://localhost:4999/logs/'
+          : process.env.ENVIRONMENT === 'staging'
+            ? 'https://staging-logs.expo.dev/logs/'
+            : null,
     },
   },
   buildCache: {

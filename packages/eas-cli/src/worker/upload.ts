@@ -203,6 +203,7 @@ export async function* batchUploadAsync(
     (() => {
       onProgressUpdate(getProgressValue());
     });
+  let firstError: unknown = null;
   try {
     let index = 0;
     while (index < payloads.length || queue.size > 0) {
@@ -215,28 +216,37 @@ export async function* batchUploadAsync(
             progressTracker[currentIndex] = progress;
             sendProgressUpdate();
           });
-        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).finally(
-          () => {
+        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).then(
+          result => {
             queue.delete(uploadPromise);
             progressTracker[currentIndex] = 1;
+            return result;
+          },
+          error => {
+            queue.delete(uploadPromise);
+            firstError ??= error;
+            controller.abort();
+            throw error;
           }
         );
         queue.add(uploadPromise);
         yield { payload, progress: getProgressValue() };
+      }
+      if (firstError) {
+        break;
       }
       yield {
         ...(await Promise.race(queue)),
         progress: getProgressValue(),
       };
     }
-
-    if (queue.size > 0) {
-      controller.abort();
-    }
   } catch (error: any) {
     if (error.name !== 'AbortError') {
-      throw error;
+      firstError ??= error;
     }
+  }
+  if (firstError) {
+    throw firstError;
   }
 }
 

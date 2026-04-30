@@ -8,13 +8,98 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- Add lockfile preflight checks to `eas build`. Validates lockfile existence, VCS tracking, conflicting lockfiles, dependency version sync, and peer dependency conflicts before uploading to the builder. Parsing and validation logic is published as `@expo/lockfile-utils`. ([#3434](https://github.com/expo/eas-cli/pull/3434) by [@AbbanMustafa](https://github.com/AbbanMustafa))
-- Auto-detect non-interactive mode in CI and non-TTY environments. ([#3486](https://github.com/expo/eas-cli/pull/3486) by [@EvanBacon](https://github.com/EvanBacon))
-- Add `skip-build-if-not-found` flag to `eas build:dev`. ([#3495](https://github.com/expo/eas-cli/pull/3495) by [@mmichels-brex](https://github.com/mmichels-brex))
+### 🐛 Bug fixes
+
+- [eas-cli] Remove hardcoded `builderEnvironment.image` override in `eas build:resign`. ([#3661](https://github.com/expo/eas-cli/pull/3661) by [@hSATAC](https://github.com/hSATAC))
+
+### 🧹 Chores
+
+## [18.9.1](https://github.com/expo/eas-cli/releases/tag/v18.9.1) - 2026-04-30
+
+## [18.9.0](https://github.com/expo/eas-cli/releases/tag/v18.9.0) - 2026-04-30
+
+### 🎉 New features
+
+- [eas-cli] Add `eas integrations:asc` commands to manage App Store Connect integrations for EAS projects. ([#3558](https://github.com/expo/eas-cli/pull/3558) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Allow `eas build:download` to accept a build ID. ([#3655](https://github.com/expo/eas-cli/pull/3655) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add `--id` alias for `--build-id` flag in `eas build:download`. ([#3656](https://github.com/expo/eas-cli/pull/3656) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 
+- [steps] Fix workflow job context interpolation when a string contains multiple `${{ }}` expressions on the same line (for example a changelog built from two context values). ([#3644](https://github.com/expo/eas-cli/pull/3644) by [@gwdp](https://github.com/gwdp))
+
+## [18.8.1](https://github.com/expo/eas-cli/releases/tag/v18.8.1) - 2026-04-23
+
+## [18.8.0](https://github.com/expo/eas-cli/releases/tag/v18.8.0) - 2026-04-22
+
+### 🎉 New features
+
+- [eas-cli] Support custom params in `observe:events` results. ([#3620](https://github.com/expo/eas-cli/pull/3620) by [@douglowder](https://github.com/douglowder))
+- [build-tools] Add `eas/deploy` function for EAS Hosting web deployments. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/export` function for Expo web exports. ([#3598](https://github.com/expo/eas-cli/pull/3598) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas update:insights <groupId>` command to display launch, crash, unique-user, and payload-size metrics for an update group. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+- [eas-cli] Add `--insights` flag to `eas update:view <groupId>` to append the same metrics below the existing output. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+- [eas-cli] Add `eas channel:insights --channel <name> --runtime-version <version>` command to display adoption and crash metrics for a channel + runtime version. ([#3614](https://github.com/expo/eas-cli/pull/3614) by [@kadikraman](https://github.com/kadikraman))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fix `metadata:push` not deleting video previews from App Store Connect when removed from config. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Warn and skip unknown preview types in `metadata:push` with a helpful suggestion when the `APP_` screenshot prefix is mistakenly used. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Delete all existing previews in a preview set before uploading to avoid Apple's "Too many app previews" error. ([#3603](https://github.com/expo/eas-cli/pull/3603) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Fixes for `observe` commands, including an issue for apps with many update IDs. ([#3609](https://github.com/expo/eas-cli/pull/3609) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add existing capability identifiers. ([#3615](https://github.com/expo/eas-cli/pull/3615) by [@jakex7](https://github.com/jakex7))
+
+## [18.7.0](https://github.com/expo/eas-cli/releases/tag/v18.7.0) - 2026-04-14
+
+### 🎉 New features
+
+- [build-tools] Add `eas/read_package_json` and `eas/read_app_config` functions ([#3585](https://github.com/expo/eas-cli/pull/3585) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--skip-bundler` to `eas build:dev` to install and run a development build without starting the local Expo/Metro server. ([#3604](https://github.com/expo/eas-cli/pull/3604) by [@mmichels-brex](https://github.com/mmichels-brex))
+
+## [18.6.0](https://github.com/expo/eas-cli/releases/tag/v18.6.0) - 2026-04-10
+
+### 🎉 New features
+
+- [eas-cli] Add missing Apple metadata attributes for age ratings and content descriptions. ([#3584](https://github.com/expo/eas-cli/pull/3584) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add App Clip metadata support to `metadata:push` and `metadata:pull` (default experience action, per-locale subtitle and header image, App Store review invocation URLs). ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+- [build-tools] Add `working_directory` input to `eas/build` function group for custom builds. ([#3582](https://github.com/expo/eas-cli/pull/3582) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- [steps] Coerce numeric env values to strings in workflow step configuration. ([#3583](https://github.com/expo/eas-cli/pull/3583) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools][eas-cli] Detect iOS Development provisioning profiles and set correct code signing identity instead of treating them as Ad Hoc. ([#3496](https://github.com/expo/eas-cli/pull/3496) by [@qwertey6](https://github.com/qwertey6))
+- [build-tools] Prevent detecting Yarn Modern as Classic based on lockfile ([#3572](https://github.com/expo/eas-cli/pull/3572) by [@kitten](https://github.com/kitten))
+- [build-tools] Early stop `eas/start_android_emulator` when Android emulator host setup is invalid. ([#3580](https://github.com/expo/eas-cli/pull/3580) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Bump `@expo/apple-utils` to `2.1.18` to fix `metadata:push` failing on `ageRatingDeclarations` due to the removed `gamblingAndContests` attribute. ([#3588](https://github.com/expo/eas-cli/pull/3588) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Bump `@expo/apple-utils` to `2.1.19` to fix image and video uploads via `metadata:push` getting stuck in `AWAITING_UPLOAD` state. The asset client was inheriting Bearer token injection from the App Store Connect API client, which caused S3 presigned URL uploads to be silently mishandled by Apple's CDN. Fixes screenshots, previews, and App Clip header image uploads. ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] `metadata:pull` now preserves screenshot, video preview, and App Clip header image entries with placeholder paths when the asset is in an unrendered state, so users can recover broken records by replacing the file or removing the entry instead of having entries silently dropped from `store.config.json`. ([#3590](https://github.com/expo/eas-cli/pull/3590) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Surface hosting deployment's asset upload errors sooner ([#3600](https://github.com/expo/eas-cli/pull/3600) by [@kitten](https://github.com/kitten))
+
+## [18.5.0](https://github.com/expo/eas-cli/releases/tag/v18.5.0) - 2026-04-02
+
+### 🎉 New features
+
+- [eas-cli] Add screenshots and previews support to `metadata:push` and `metadata:pull`. ([#3301](https://github.com/expo/eas-cli/pull/3301) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add `--non-interactive` flag to `metadata:push` and `metadata:pull` commands with ASC API Key auth support. ([#3548](https://github.com/expo/eas-cli/pull/3548) by [@EvanBacon](https://github.com/EvanBacon))
+- [eas-cli] Add `observe:metrics`, `observe:events`, and `observe:versions` commands. ([#3401](https://github.com/expo/eas-cli/pull/3401) by [@ubax](https://github.com/ubax)), [@douglowder](https://github.com/douglowder)
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fix workflow:logs for builds using built-in EAS build steps. ([#3523](https://github.com/expo/eas-cli/pull/3523) by [@douglowder](https://github.com/douglowder))
+- [build-tools][worker] Read Expo app config with `expo config` CLI invocation before falling back to `@expo/config` ([#3536](https://github.com/expo/eas-cli/pull/3536) by [@kitten](https://github.com/kitten))
+- Fix `hasIgnoredIosProjectAsync()` always returning `false` for ignored iOS projects. ([#3562](https://github.com/expo/eas-cli/pull/3562) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🧹 Chores
+
+- Bump apple-utils. ([#3545](https://github.com/expo/eas-cli/pull/3545) by [@quinlanj](https://github.com/quinlanj))
+- [eas-cli][build-tools][worker] Bump `@expo/config` and `@expo/config-plugins`. ([#3527](https://github.com/expo/eas-cli/pull/3527) by [@quinlanj](https://github.com/quinlanj))
+
+## [18.4.0](https://github.com/expo/eas-cli/releases/tag/v18.4.0) - 2026-03-16
+
+### 🎉 New features
+
+- Auto-detect non-interactive mode in CI and non-TTY environments. ([#3486](https://github.com/expo/eas-cli/pull/3486) by [@EvanBacon](https://github.com/EvanBacon))
+- Add `skip-build-if-not-found` flag to `eas build:dev`. ([#3495](https://github.com/expo/eas-cli/pull/3495) by [@mmichels-brex](https://github.com/mmichels-brex))
 
 ## [18.3.0](https://github.com/expo/eas-cli/releases/tag/v18.3.0) - 2026-03-10
 

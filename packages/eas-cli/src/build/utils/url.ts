@@ -64,6 +64,24 @@ export function getWorkflowRunUrl(
   ).toString();
 }
 
+/**
+ * @deprecated Links to the raw job-run page; prefer a higher-level URL (e.g. the workflow run
+ * or the feature-specific dashboard) that gives users more context. Use this only for internal
+ * tooling where no richer URL exists.
+ */
+export function getBareJobRunUrl(
+  accountName: string,
+  projectName: string,
+  jobRunId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/job-runs/${encodeURIComponent(jobRunId)}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
 export function getProjectGitHubSettingsUrl(accountName: string, projectName: string): string {
   return new URL(
     `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(

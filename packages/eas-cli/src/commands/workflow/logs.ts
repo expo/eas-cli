@@ -12,14 +12,14 @@ import Log from '../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 function printLogsForAllSteps(logs: WorkflowLogs): void {
-  [...logs.keys()].forEach(step => {
-    const logLines = logs.get(step);
-    if (logLines) {
-      Log.log(`Step: ${step}`);
-      logLines.forEach(line => {
-        Log.log(`  ${line.time} ${line.msg}`);
-      });
+  [...logs.values()].forEach(({ label, logLines }) => {
+    if (logLines.length === 0) {
+      return;
     }
+    Log.log(`Step: ${label}`);
+    logLines.forEach(line => {
+      Log.log(`  ${line.time} ${line.msg}`);
+    });
     Log.addNewLineIfNone();
   });
 }
@@ -89,21 +89,25 @@ export default class WorkflowLogView extends EasCommand {
     if (allSteps) {
       if (logs) {
         if (flags.json) {
-          printJsonOnlyOutput(Object.fromEntries(logs));
+          printJsonOnlyOutput(
+            Object.fromEntries(
+              Array.from(logs.entries()).map(([key, value]) => [key, value.logLines])
+            )
+          );
         } else {
           printLogsForAllSteps(logs);
         }
       }
     } else {
       const selectedStep = finalSelectionState?.step as unknown as string;
-      const logLines = logs?.get(selectedStep);
-      if (logLines) {
+      const logGroup = logs?.get(selectedStep);
+      if (logGroup) {
         if (flags.json) {
           const output: { [key: string]: WorkflowLogLine[] | null } = {};
-          output[selectedStep] = logLines ?? null;
+          output[selectedStep] = logGroup.logLines;
           printJsonOnlyOutput(output);
         } else {
-          logLines.forEach(line => {
+          logGroup.logLines.forEach(line => {
             Log.log(`  ${line.time} ${line.msg}`);
           });
         }

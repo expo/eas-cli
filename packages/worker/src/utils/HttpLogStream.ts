@@ -21,7 +21,7 @@ export default class HttpLogStream extends Writable {
   private readonly buffer: BufferedLogEntry[] = [];
   private readonly url: string;
   private readonly headers: Record<string, string>;
-  private readonly logger?: bunyan;
+  private readonly logger: bunyan;
   private readonly maxBatchBytes: number;
   private readonly bufferRetentionMs: number | null;
   private inFlightRequest: Promise<void> | null = null;
@@ -98,7 +98,7 @@ export default class HttpLogStream extends Writable {
         if (!isCleanup) {
           // Keep logs in memory if upload fails so a later flush can retry.
           this.buffer.unshift(...batch);
-          this.logger?.error({ err }, 'Failed to send logs batch over HTTP');
+          this.logger.error({ err }, 'Failed to send logs batch over HTTP');
         }
       })
       .finally(() => {

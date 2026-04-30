@@ -1,6 +1,7 @@
 import {
   getMockEmptyWorkflowRunsFragment,
   getMockWorkflowCustomJobFragment,
+  getMockWorkflowRunWithBuildJobsFragment,
   getMockWorkflowRunWithJobsFragment,
   getMockWorkflowRunsFragment,
   mockCommandContext,
@@ -124,7 +125,8 @@ describe(WorkflowLogView, () => {
       .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
       .mockResolvedValue(getMockWorkflowRunsFragment({ withJobs: 1 }));
     let promptCalls = 0;
-    jest.mocked(promptAsync).mockImplementation(async () => {
+    let stepPrompt: any;
+    jest.mocked(promptAsync).mockImplementation(async prompt => {
       if (promptCalls === 0) {
         promptCalls++;
         return { selectedRun: 'build1' };
@@ -132,13 +134,14 @@ describe(WorkflowLogView, () => {
         promptCalls++;
         return { selectedJob: 0 };
       } else {
-        return { selectedStep: 'step1' };
+        stepPrompt = prompt;
+        return { selectedStep: 'step-id-1' };
       }
     });
     jest
       .mocked(fetchRawLogsForCustomJobAsync)
       .mockResolvedValue(
-        '{"result":"test","marker":"test","buildStepDisplayName":"step1","buildStepInternalId":"step1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
+        '{"result":"success","marker":"end-step","buildStepDisplayName":"Install dependencies","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
       );
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
@@ -148,6 +151,14 @@ describe(WorkflowLogView, () => {
       20
     );
     expect(promptAsync).toHaveBeenCalledTimes(3);
+    expect(stepPrompt.choices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'Install dependencies - success',
+          value: 'step-id-1',
+        }),
+      ])
+    );
     expect(Log.error).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith('  2022-01-01T00:00:00.000Z test');
   });
@@ -159,6 +170,9 @@ describe(WorkflowLogView, () => {
     jest
       .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
       .mockResolvedValue(getMockWorkflowRunsFragment({ withBuildJobs: 1 }));
+    jest
+      .mocked(WorkflowRunQuery.withJobsByIdAsync)
+      .mockResolvedValue(getMockWorkflowRunWithBuildJobsFragment());
     jest.mocked(BuildQuery.byIdAsync).mockResolvedValue({
       id: 'build1',
       status: BuildStatus.Finished,
@@ -181,7 +195,8 @@ describe(WorkflowLogView, () => {
       logFiles: ['https://example.com/log1'],
     });
     let promptCalls = 0;
-    jest.mocked(promptAsync).mockImplementation(async () => {
+    let stepPrompt: any;
+    jest.mocked(promptAsync).mockImplementation(async prompt => {
       if (promptCalls === 0) {
         promptCalls++;
         return { selectedRun: 'build1' };
@@ -189,13 +204,14 @@ describe(WorkflowLogView, () => {
         promptCalls++;
         return { selectedJob: 0 };
       } else {
-        return { selectedStep: 'step1' };
+        stepPrompt = prompt;
+        return { selectedStep: 'step-id-1' };
       }
     });
     jest
       .mocked(fetchRawLogsForBuildJobAsync)
       .mockResolvedValue(
-        '{"result":"test","marker":"test","buildStepDisplayName":"step1","buildStepInternalId":"step1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
+        '{"result":"success","marker":"end-step","buildStepDisplayName":"step1","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
       );
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
@@ -205,8 +221,64 @@ describe(WorkflowLogView, () => {
       20
     );
     expect(promptAsync).toHaveBeenCalledTimes(3);
+    expect(stepPrompt.choices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'step1 - success',
+          value: 'step-id-1',
+        }),
+      ])
+    );
     expect(Log.error).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith('  2022-01-01T00:00:00.000Z test');
+  });
+  test('view logs keeps duplicate display names separated by step id', async () => {
+    const ctx = mockCommandContext(WorkflowLogView, {
+      projectId: mockProjectId,
+    });
+    const cmd = mockTestCommand(WorkflowLogView, [], ctx);
+    jest
+      .mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync)
+      .mockResolvedValue(getMockWorkflowRunsFragment({ withJobs: 1 }));
+    let promptCalls = 0;
+    let stepPrompt: any;
+    jest.mocked(promptAsync).mockImplementation(async prompt => {
+      if (promptCalls === 0) {
+        promptCalls++;
+        return { selectedRun: 'build1' };
+      } else if (promptCalls === 1) {
+        promptCalls++;
+        return { selectedJob: 0 };
+      } else {
+        stepPrompt = prompt;
+        return { selectedStep: 'step-id-2' };
+      }
+    });
+    jest
+      .mocked(fetchRawLogsForCustomJobAsync)
+      .mockResolvedValue(
+        [
+          '{"result":"success","marker":"end-step","buildStepDisplayName":"Install","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"first"}',
+          '{"result":"fail","marker":"end-step","buildStepDisplayName":"Install","buildStepId":"step-id-2","time":"2022-01-01T00:00:01.000Z","msg":"second"}',
+        ].join('\n')
+      );
+
+    await cmd.run();
+
+    expect(promptAsync).toHaveBeenCalledTimes(3);
+    expect(stepPrompt.choices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'Install - success',
+          value: 'step-id-1',
+        }),
+        expect.objectContaining({
+          title: 'Install - fail',
+          value: 'step-id-2',
+        }),
+      ])
+    );
+    expect(Log.log).toHaveBeenCalledWith('  2022-01-01T00:00:01.000Z second');
   });
   test('view logs for a workflow job, passing in a job ID, all steps', async () => {
     const ctx = mockCommandContext(WorkflowLogView, {

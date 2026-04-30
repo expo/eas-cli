@@ -455,6 +455,9 @@ const queueProgressBar = new cliProgress.SingleBar(
   cliProgress.Presets.rect
 );
 
+let statusNewSetAt: number | null = null;
+const NEW_STATUS_GRACE_PERIOD_MS = 15_000;
+
 async function handleSingleBuildProgressAsync(
   {
     build,
@@ -486,11 +489,19 @@ async function handleSingleBuildProgressAsync(
     case BuildStatus.Finished:
       spinner.succeed('Build finished');
       return { refetch: false };
-    case BuildStatus.New:
-      spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
-        formatAccountBillingUrl(accountName)
-      )}.`;
+    case BuildStatus.New: {
+      const now = Date.now();
+      statusNewSetAt ??= now;
+      const newStatusDurationMs = now - statusNewSetAt;
+      if (newStatusDurationMs < NEW_STATUS_GRACE_PERIOD_MS) {
+        spinner.text = 'Waiting for build to get enqueued…';
+      } else {
+        spinner.text = `Build concurrency limit reached for your account. Build will enter queue once a concurrency becomes available. Add additional concurrencies at ${link(
+          formatAccountBillingUrl(accountName)
+        )}.`;
+      }
       break;
+    }
     case BuildStatus.InQueue: {
       spinner.text = 'Build queued...';
       const progressBarPayload =
@@ -553,7 +564,7 @@ const priorityToQueueDisplayName: Record<BuildPriority, string> = {
 };
 
 const statusToDisplayName: Record<BuildStatus, string> = {
-  [BuildStatus.New]: 'waiting to enter the queue (concurrency limit reached)',
+  [BuildStatus.New]: 'waiting to enter the queue',
   [BuildStatus.InQueue]: 'in queue',
   [BuildStatus.InProgress]: 'in progress',
   [BuildStatus.PendingCancel]: 'canceled',
@@ -571,6 +582,7 @@ async function handleMultipleBuildsProgressAsync(
   const buildCount = maybeBuilds.length;
   const builds = maybeBuilds.filter<BuildFragment>(isBuildFragment);
 
+  const someNew = builds.some(build => build.status === BuildStatus.New);
   const allFinished =
     builds.filter(build => build.status === BuildStatus.Finished).length === buildCount;
   const allSettled =
@@ -583,6 +595,10 @@ async function handleMultipleBuildsProgressAsync(
       ].includes(build.status)
     ).length === buildCount;
 
+  if (someNew && statusNewSetAt === null) {
+    statusNewSetAt = Date.now();
+  }
+
   if (allSettled) {
     if (allFinished) {
       spinner.succeed(formatSettledBuildsText(builds));
@@ -591,7 +607,11 @@ async function handleMultipleBuildsProgressAsync(
     }
     return { refetch: false };
   } else {
-    spinner.text = formatPendingBuildsText(originalSpinnerText, builds);
+    const showConcurrencyWarning =
+      someNew &&
+      statusNewSetAt !== null &&
+      Date.now() - statusNewSetAt >= NEW_STATUS_GRACE_PERIOD_MS;
+    spinner.text = formatPendingBuildsText(originalSpinnerText, builds, showConcurrencyWarning);
     return { refetch: true };
   }
 }
@@ -610,12 +630,20 @@ function formatSettledBuildsText(builds: BuildFragment[]): string {
     .join('\n  ');
 }
 
-function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragment[]): string {
+function formatPendingBuildsText(
+  originalSpinnerText: string,
+  builds: BuildFragment[],
+  showConcurrencyWarning: boolean
+): string {
   return [
     originalSpinnerText,
     ...platforms.map(platform => {
       const build = builds.find(build => build.platform === platform);
       const status = build ? statusToDisplayName[build.status] : 'unknown';
+      const concurrencyWarning =
+        showConcurrencyWarning && build?.status === BuildStatus.New
+          ? ' (concurrency limit reached)'
+          : '';
       let extraInfo = '';
       if (
         build?.status === BuildStatus.InQueue &&
@@ -635,7 +663,7 @@ function formatPendingBuildsText(originalSpinnerText: string, builds: BuildFragm
       }
       return `${appPlatformEmojis[platform]} ${
         appPlatformDisplayNames[platform]
-      } build - status: ${chalk.bold(status)}${extraInfo}`;
+      } build - status: ${chalk.bold(status)}${concurrencyWarning}${extraInfo}`;
     }),
   ].join('\n  ');
 }

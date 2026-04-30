@@ -1,5 +1,10 @@
 import { Ios } from '@expo/eas-build-job';
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import {
+  BuildFunction,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  BuildStepOutput,
+} from '@expo/steps';
 import assert from 'assert';
 
 import { configureCredentialsAsync } from '../utils/ios/configure';
@@ -26,9 +31,14 @@ export function configureIosCredentialsFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async (stepCtx, { inputs }) => {
-      const rawCredentialsInput = inputs.credentials.value as Record<string, any>;
-      const { value, error } = IosBuildCredentialsSchema.validate(rawCredentialsInput, {
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'target_names',
+        required: true,
+      }),
+    ],
+    fn: async (stepCtx, { inputs, outputs }) => {
+      const { value, error } = IosBuildCredentialsSchema.validate(inputs.credentials.value, {
         stripUnknown: true,
         convert: true,
         abortEarly: false,
@@ -50,6 +60,7 @@ export function configureIosCredentialsFunction(): BuildFunction {
           inputs.build_configuration.value as string | undefined
         ),
       });
+      outputs.target_names.set(JSON.stringify(Object.keys(credentials.targetProvisioningProfiles)));
 
       stepCtx.logger.info('Successfully configured iOS credentials');
     },

@@ -1,7 +1,0 @@
-appId: com.example.app
-name: "tagged-flow-auth"
-tags:
-  - auth
-  - login
----
-- assertTrue: true

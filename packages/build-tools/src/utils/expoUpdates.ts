@@ -120,7 +120,7 @@ This would cause any updates published on the local machine to not be compatible
     );
   }
 
-  if (isEASUpdateConfigured(ctx)) {
+  if (await isEASUpdateConfigured(ctx)) {
     if (ctx.job.updates?.channel !== undefined) {
       await configureEASExpoUpdatesAsync(ctx);
     } else {
@@ -134,7 +134,7 @@ This would cause any updates published on the local machine to not be compatible
       } else if (isDevelopmentClient) {
         // NO-OP: Development clients don't need to have a channel set
       } else {
-        const easUpdateUrl = ctx.appConfig.updates?.url ?? null;
+        const easUpdateUrl = (await ctx.appConfig).updates?.url ?? null;
         const jobProfile = ctx.job.buildProfile ?? null;
         ctx.logger.warn(
           `This build has an invalid EAS Update configuration: update.url is set to "${easUpdateUrl}" in app config, but a channel is not specified${
@@ -220,8 +220,8 @@ export async function getRuntimeVersionAsync(ctx: BuildContext<Job>): Promise<st
   }
 }
 
-export function isEASUpdateConfigured(ctx: BuildContext<Job>): boolean {
-  const rawUrl = ctx.appConfig.updates?.url;
+export async function isEASUpdateConfigured(ctx: BuildContext<Job>): Promise<boolean> {
+  const rawUrl = (await ctx.appConfig).updates?.url;
   if (!rawUrl) {
     return false;
   }

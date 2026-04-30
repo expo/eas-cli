@@ -41,6 +41,7 @@ export enum BuildPhase {
   INSTALL_PODS = 'INSTALL_PODS',
   CONFIGURE_XCODE_PROJECT = 'CONFIGURE_XCODE_PROJECT',
   RUN_FASTLANE = 'RUN_FASTLANE',
+  PARSE_XCACTIVITYLOG = 'PARSE_XCACTIVITYLOG',
 
   // HOOKS
   PRE_INSTALL_HOOK = 'PRE_INSTALL_HOOK',
@@ -108,6 +109,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.INSTALL_PODS]: 'Install pods',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'Configure Xcode project',
   [BuildPhase.RUN_FASTLANE]: 'Run fastlane',
+  [BuildPhase.PARSE_XCACTIVITYLOG]: 'Analyze build performance',
 
   // HOOKS
   [BuildPhase.PRE_INSTALL_HOOK]: 'Pre-install hook',
@@ -172,6 +174,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   [BuildPhase.INSTALL_PODS]: 'install-pods',
   [BuildPhase.CONFIGURE_XCODE_PROJECT]: 'configure-xcode-project',
   [BuildPhase.RUN_FASTLANE]: 'run-fastlane',
+  [BuildPhase.PARSE_XCACTIVITYLOG]: 'parse-xcactivitylog',
 
   // HOOKS
   [BuildPhase.PRE_INSTALL_HOOK]: 'pre-install-hook',

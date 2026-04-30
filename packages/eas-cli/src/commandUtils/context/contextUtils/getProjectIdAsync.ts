@@ -189,6 +189,8 @@ export async function validateOrSetProjectIdAsync({
         return user.username;
       case 'SSOUser':
         return user.username;
+      case 'PartnerActor':
+        return user.username;
       case 'Robot':
         throw new Error(
           'Must configure EAS project by running "eas init" before using a robot user to manage the project.'

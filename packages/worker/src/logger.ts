@@ -152,7 +152,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
       headers: {
         Authorization: `Bearer ${secrets.robotAccessToken}`,
       },
-      logger: buildLogger,
+      logger: defaultLogger,
       bufferRetentionMs: config.loggers.gcs.signedUploadUrlForLogs
         ? Math.max(30_000, config.loggers.gcs.uploadIntervalMs * 2)
         : null,

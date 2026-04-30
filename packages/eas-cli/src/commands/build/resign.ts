@@ -215,7 +215,6 @@ export default class BuildResign extends EasCommand {
         },
       },
       secrets: prepareCredentialsToResign(credentialsResult.credentials),
-      builderEnvironment: { image: 'default' },
     };
     const newBuild = await BuildMutation.retryIosBuildAsync(graphqlClient, {
       buildId: build.id,

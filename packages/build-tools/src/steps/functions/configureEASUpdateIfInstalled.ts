@@ -42,18 +42,20 @@ export function configureEASUpdateIfInstalledFunction(): BuildFunction {
       assert(job.platform, 'Configuring EAS Update in generic jobs is not supported.');
       const metadata = stepCtx.global.staticContext.metadata as Metadata | undefined;
 
-      const appConfig = readAppConfig({
-        projectDir: stepCtx.workingDirectory,
-        env: Object.keys(env).reduce(
-          (acc, key) => {
-            acc[key] = env[key] ?? '';
-            return acc;
-          },
-          {} as Record<string, string>
-        ),
-        logger: stepCtx.logger,
-        sdkVersion: metadata?.sdkVersion,
-      }).exp;
+      const appConfig = (
+        await readAppConfig({
+          projectDir: stepCtx.workingDirectory,
+          env: Object.keys(env).reduce(
+            (acc, key) => {
+              acc[key] = env[key] ?? '';
+              return acc;
+            },
+            {} as Record<string, string>
+          ),
+          logger: stepCtx.logger,
+          sdkVersion: metadata?.sdkVersion,
+        })
+      ).exp;
 
       const channelInput = inputs.channel.value as string | undefined;
       const runtimeVersionInput = inputs.runtime_version.value as string | undefined;

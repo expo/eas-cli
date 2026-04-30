@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { BuildContext } from '@expo/build-tools';
 import { Android, Ios, Job } from '@expo/eas-build-job';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import { pathExists } from 'fs-extra';
-
 import { prepareRuntimeEnvironment } from '../runtimeEnvironment';
 
 jest.mock('fs-extra');
@@ -16,8 +14,12 @@ const spawnResult: SpawnResult = {
   stdout: '',
   stderr: '',
 };
-const ctx: BuildContext<Job> = {
-  env: process.env,
+const ctx = {
+  workingdir: '/tmp/workingdir',
+  env: {
+    ...process.env,
+    EAS_BUILD_ID: 'build-id',
+  },
   logger: {
     info: jest.fn(),
     error: jest.fn(),

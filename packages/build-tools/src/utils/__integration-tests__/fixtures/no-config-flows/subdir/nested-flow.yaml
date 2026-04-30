@@ -1,5 +1,0 @@
-appId: com.example.app
-name: "nested-flow"
-tags: ["nested"]
----
-- assertTrue: true
