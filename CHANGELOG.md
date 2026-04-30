@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Remove hardcoded `builderEnvironment.image` override in `eas build:resign`. ([#3661](https://github.com/expo/eas-cli/pull/3661) by [@hSATAC](https://github.com/hSATAC))
+
 ### 🧹 Chores
 
 ## [18.9.1](https://github.com/expo/eas-cli/releases/tag/v18.9.1) - 2026-04-30
