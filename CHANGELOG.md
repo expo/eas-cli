@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Remove hardcoded `builderEnvironment.image` override in `eas build:resign`. ([#3661](https://github.com/expo/eas-cli/pull/3661) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Fix `eas update --json` intermittently failing with JSON parse errors during "Computing project fingerprints" by passing `silent: true` to `@expo/fingerprint` to suppress subprocess stdout pollution. ([#3659](https://github.com/expo/eas-cli/pull/3659) by [@Mookiies](https://github.com/Mookiies))
 
 ### 🧹 Chores
 
