@@ -1075,18 +1075,17 @@ describe('mergeJUnitReports', () => {
     ).rejects.toThrow(/no \*\.xml files/);
   });
 
-  it('throws when no parseable testcases are found across inputs', async () => {
-    // Malformed XML with no parseable <testsuite> / <testcase>. Without a
-    // throw here, mergeJUnitReports would silently emit an empty merged
-    // document and Phase 3's copyLatestAttemptXml fallback (which only
-    // triggers on throw) would never run.
+  it('throws on invalid XML so caller can fall back to copyLatestAttemptXml', async () => {
+    // Without a throw, mergeJUnitReports would silently emit an empty merged
+    // document and the copy-latest fallback (which only triggers on throw)
+    // would never run.
     vol.fromJSON({
       '/tmp/r/android-maestro-junit-attempt-0.xml': 'not xml at all',
     });
 
     await expect(
       mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' })
-    ).rejects.toThrow(/no parseable testcases/);
+    ).rejects.toThrow(/invalid XML/);
   });
 
   it('throws when every input has <testsuites> but no <testcase> elements', async () => {

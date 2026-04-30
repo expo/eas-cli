@@ -449,23 +449,19 @@ export async function mergeJUnitReports(args: {
     }))
   );
   const fileGroups: FileGroup[] = [];
-  const skippedFiles: string[] = [];
   for (const { filename, content } of contents) {
     if (XMLValidator.validate(content) !== true) {
-      skippedFiles.push(filename);
-      continue;
+      throw new Error(`mergeJUnitReports: invalid XML in ${filename}`);
     }
     let parsed: any;
     try {
       parsed = xmlParser.parse(content);
-    } catch {
-      skippedFiles.push(filename);
-      continue;
+    } catch (err) {
+      throw new Error(`mergeJUnitReports: failed to parse ${filename}`, { cause: err });
     }
     const testsuites = parsed?.testsuites?.testsuite;
     if (!Array.isArray(testsuites)) {
-      skippedFiles.push(filename);
-      continue;
+      throw new Error(`mergeJUnitReports: no <testsuite> array in ${filename}`);
     }
     const match = filename.match(ATTEMPT_PATTERN);
     const attemptIndex = match ? parseInt(match[1], 10) : 0;
@@ -486,16 +482,9 @@ export async function mergeJUnitReports(args: {
       }
     }
     if (testcasesByName.size === 0) {
-      skippedFiles.push(filename);
-      continue;
+      throw new Error(`mergeJUnitReports: no parseable testcases in ${filename}`);
     }
     fileGroups.push({ attemptIndex, filename, content, testcasesByName });
-  }
-
-  if (skippedFiles.length > 0) {
-    throw new Error(
-      `mergeJUnitReports: no parseable testcases found in ${skippedFiles.join(', ')}`
-    );
   }
 
   // Single attempt: copy the original XML so suite-level metadata (testsuite
