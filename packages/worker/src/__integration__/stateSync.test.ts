@@ -65,6 +65,11 @@ jest.mock('@expo/build-tools', () => {
     })),
   };
 });
+jest.mock('@expo/turtle-spawn', () =>
+  jest.fn(async () => {
+    throw new Error('Cannot find module expo/package.json');
+  })
+);
 jest.mock('../service', () => {
   return function () {
     const BuildService = new (jest.requireActual('../service').default)();
@@ -80,6 +85,9 @@ jest.mock('../config', () => {
     wwwApiV2BaseUrl: 'http://api.expo.test/v2/',
   };
 });
+jest.mock('../utils/turtleFetch', () => ({
+  turtleFetch: jest.fn(async () => ({ ok: true })),
+}));
 jest.mock('../upload', () => {
   return {
     ...jest.requireActual('../upload'),
