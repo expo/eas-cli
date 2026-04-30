@@ -10,7 +10,6 @@ import {
   BuildMode,
   BuildPhase,
   BuildPhaseStats,
-  Env,
   Ios,
   Job,
   Metadata,
@@ -337,15 +336,11 @@ export default class BuildService {
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken) {
-        const expoPackageVersionResult = await asyncResult(
-          getExpoPackageVersionAsync(
-            this.buildContext?.getReactNativeProjectDirectory(),
-            this.buildContext?.env
-          )
-        );
-        const expoPackageVersion = expoPackageVersionResult.ok
-          ? expoPackageVersionResult.value
+        const expoPackageVersionResult = this.buildContext
+          ? await asyncResult(getExpoPackageVersionAsync(this.buildContext))
           : null;
+        const expoPackageVersion =
+          expoPackageVersionResult?.ok === true ? expoPackageVersionResult.value : null;
         let rawErrorMessage: string = '';
         if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
@@ -416,21 +411,12 @@ function getLastNLines(numberOfLines: number, stream: string): string {
   }
 }
 
-export async function getExpoPackageVersionAsync(
-  reactNativeProjectDirectory: string | undefined,
-  env?: Env
-): Promise<string> {
-  if (!reactNativeProjectDirectory) {
-    throw new errors.UserError(
-      'EAS_BUILD_EXPO_PACKAGE_VERSION_PROJECT_DIR_MISSING',
-      'Cannot resolve the installed expo package version because the React Native project directory is unavailable.'
-    );
-  }
-
+export async function getExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
+  const reactNativeProjectDirectory = ctx.getReactNativeProjectDirectory();
   const expoPackageJsonPathResult = await asyncResult(
     spawn('node', ['--print', "require.resolve('expo/package.json')"], {
       cwd: reactNativeProjectDirectory,
-      env,
+      env: ctx.env,
       stdio: 'pipe',
     })
   );

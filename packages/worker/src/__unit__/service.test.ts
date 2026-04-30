@@ -74,6 +74,10 @@ jest.mock('../config', () => {
 describe(getExpoPackageVersionAsync, () => {
   const projectRoot = '/test-project';
   const expoPackageJsonPath = path.join(projectRoot, 'node_modules/expo/package.json');
+  const buildContext = {
+    env: { PATH: '/usr/bin' },
+    getReactNativeProjectDirectory: () => projectRoot,
+  } as any;
 
   beforeEach(() => {
     vol.reset();
@@ -86,16 +90,24 @@ describe(getExpoPackageVersionAsync, () => {
       [expoPackageJsonPath]: JSON.stringify({ version: '55.0.17' }),
     });
 
-    await expect(getExpoPackageVersionAsync(projectRoot)).resolves.toBe('55.0.17');
+    await expect(getExpoPackageVersionAsync(buildContext)).resolves.toBe('55.0.17');
+    expect(spawn).toHaveBeenCalledWith(
+      'node',
+      ['--print', "require.resolve('expo/package.json')"],
+      expect.objectContaining({
+        cwd: projectRoot,
+        env: buildContext.env,
+      })
+    );
   });
 
   it('throws a user error when expo package version resolution fails', async () => {
     jest.mocked(spawn).mockRejectedValue(new Error('Cannot find module expo/package.json'));
 
-    await expect(getExpoPackageVersionAsync(projectRoot)).rejects.toMatchObject({
+    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
       errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
     });
-    await expect(getExpoPackageVersionAsync(projectRoot)).rejects.toBeInstanceOf(errors.UserError);
+    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(errors.UserError);
   });
 
   it('throws a user error when the installed expo package version is not valid semver', async () => {
@@ -104,10 +116,10 @@ describe(getExpoPackageVersionAsync, () => {
       [expoPackageJsonPath]: JSON.stringify({ version: 'invalid-version' }),
     });
 
-    await expect(getExpoPackageVersionAsync(projectRoot)).rejects.toMatchObject({
+    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
       errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
     });
-    await expect(getExpoPackageVersionAsync(projectRoot)).rejects.toBeInstanceOf(errors.UserError);
+    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(errors.UserError);
   });
 });
 
@@ -143,6 +155,7 @@ describe(BuildService, () => {
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as any);
     jest.mocked(build).mockRejectedValue(new Error('raw build failure'));
     jest.mocked(createBuildContext).mockReturnValue({
+      env: { PATH: '/usr/bin' },
       getReactNativeProjectDirectory: () => projectRoot,
       job,
       logger: {},
@@ -197,6 +210,37 @@ describe(BuildService, () => {
       projectId: 'project-id',
     });
 
+    expect(turtleFetch).toHaveBeenCalledWith(
+      'http://api.expo.test/v2/turtle-builds/error-logs',
+      'POST',
+      expect.objectContaining({
+        json: expect.objectContaining({
+          tags: expect.objectContaining({
+            expo_package_version: null,
+            sdk_version: '55.0.0',
+          }),
+        }),
+      })
+    );
+  });
+
+  it('does not try to resolve expo_package_version when build context setup fails', async () => {
+    jest.mocked(createBuildContext).mockImplementation(() => {
+      throw new Error('context setup failure');
+    });
+    const service = new BuildService();
+    jest.spyOn(service, 'finishError').mockResolvedValue(undefined);
+
+    await (service as any).startBuildInternal({
+      initiatingUserId: 'user-id',
+      job,
+      metadata: {
+        sdkVersion: '55.0.0',
+      },
+      projectId: 'project-id',
+    });
+
+    expect(spawn).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/error-logs',
       'POST',
