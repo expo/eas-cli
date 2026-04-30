@@ -119,9 +119,13 @@ async function unpackTarGzAsync({
   source: string;
   destination: string;
 }): Promise<void> {
-  await spawn('tar', ['-C', destination, '--strip-components', '1', '-zxf', source], {
-    logger,
-  });
+  await spawn(
+    'tar',
+    ['-C', destination, '--strip-components', '1', '--no-same-permissions', '-zxf', source],
+    {
+      logger,
+    }
+  );
 }
 
 function uploadProjectMetadataAsFireAndForget(
