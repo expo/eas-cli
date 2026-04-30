@@ -35,7 +35,7 @@ import { createRestoreCacheFunction } from './functions/restoreCache';
 import { parseXcactivitylogFunction } from './functions/parseXcactivitylog';
 import { runFastlaneFunction } from './functions/runFastlane';
 import { runGradleFunction } from './functions/runGradle';
-import { createRunMaestroTestsBuildFunction } from './functions/runMaestroTests';
+import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
@@ -94,7 +94,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadToAscBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
-    createRunMaestroTestsBuildFunction(),
+    createMaestroTestsBuildFunction(),
   ];
 
   if (ctx.hasBuildJob()) {

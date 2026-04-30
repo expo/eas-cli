@@ -61,12 +61,12 @@ function buildMaestroArgs(args: {
   return out;
 }
 
-export function createRunMaestroTestsBuildFunction(): BuildFunction {
+export function createMaestroTestsBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
-    id: 'run_maestro_tests',
+    id: 'maestro_tests',
     name: 'Run Maestro Tests',
-    __metricsId: 'eas/run_maestro_tests',
+    __metricsId: 'eas/maestro_tests',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'flow_path',
@@ -108,7 +108,7 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
     ],
     outputProviders: [
       BuildStepOutput.createProvider({ id: 'junit_report_directory', required: true }),
-      BuildStepOutput.createProvider({ id: 'final_report_path', required: true }),
+      BuildStepOutput.createProvider({ id: 'final_report_path', required: false }),
       BuildStepOutput.createProvider({ id: 'tests_directory', required: true }),
     ],
     fn: async (stepCtx, { inputs, outputs, env, signal }) => {
@@ -135,7 +135,9 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
       const testsDirectory = path.join(home, '.maestro', 'tests');
       const junitReportDirectory = path.join(testsDirectory, 'junit-reports');
       const finalReportPath =
-        outputFormat === 'junit' ? path.join(testsDirectory, `${platform}-maestro-junit.xml`) : '';
+        outputFormat === 'junit'
+          ? path.join(testsDirectory, `${platform}-maestro-junit.xml`)
+          : undefined;
 
       // Public docs (EAS workflows pre-packaged-jobs) document
       // `${MAESTRO_TESTS_DIR}` for users to save screenshots/recordings into
@@ -147,7 +149,9 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
       // step fails early.
       outputs.tests_directory.set(testsDirectory);
       outputs.junit_report_directory.set(junitReportDirectory);
-      outputs.final_report_path.set(finalReportPath);
+      if (finalReportPath !== undefined) {
+        outputs.final_report_path.set(finalReportPath);
+      }
 
       const flowPaths = parseInput(
         FlowPathSchema,
@@ -221,7 +225,7 @@ export function createRunMaestroTestsBuildFunction(): BuildFunction {
 
       // Copy the latest attempt's JUnit to the final report path so downstream
       // upload/report steps have a single canonical file.
-      if (outputFormat === 'junit') {
+      if (finalReportPath !== undefined) {
         try {
           await copyLatestAttemptXml({
             sourceDir: junitReportDirectory,

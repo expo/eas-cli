@@ -4,7 +4,7 @@ import spawn from '@expo/turtle-spawn';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import * as parser from '../maestroResultParser';
-import { createRunMaestroTestsBuildFunction } from '../runMaestroTests';
+import { createMaestroTestsBuildFunction } from '../maestroTests';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -37,16 +37,16 @@ function createStep(
   callInputs?: Record<string, unknown>,
   options: { env?: Record<string, string | undefined> } = {}
 ): ReturnType<
-  ReturnType<typeof createRunMaestroTestsBuildFunction>['createBuildStepFromFunctionCall']
+  ReturnType<typeof createMaestroTestsBuildFunction>['createBuildStepFromFunctionCall']
 > {
   const logger = createMockLogger();
-  const fn = createRunMaestroTestsBuildFunction();
+  const fn = createMaestroTestsBuildFunction();
   const globalCtx = createGlobalContextMock({ logger });
   globalCtx.updateEnv(options.env ?? { HOME: '/home/expo' });
   return fn.createBuildStepFromFunctionCall(globalCtx, { callInputs });
 }
 
-describe('createRunMaestroTestsBuildFunction', () => {
+describe('createMaestroTestsBuildFunction', () => {
   beforeEach(() => {
     mockedSpawn.mockReset();
     // Default-stub copyLatestAttemptXml so tests that don't care about it
@@ -56,7 +56,7 @@ describe('createRunMaestroTestsBuildFunction', () => {
   });
 
   it('exports a factory that returns a BuildFunction instance', () => {
-    expect(createRunMaestroTestsBuildFunction()).toBeDefined();
+    expect(createMaestroTestsBuildFunction()).toBeDefined();
   });
 
   it('sets all outputs before running any flows', async () => {
