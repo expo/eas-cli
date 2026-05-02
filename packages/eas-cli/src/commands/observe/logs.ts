@@ -20,7 +20,8 @@ const DEFAULT_EVENTS_LIMIT = 10;
 
 export default class ObserveLogs extends EasCommand {
   static override hidden = true;
-  static override description = 'display individual custom events (logs) emitted by the app';
+  static override description =
+    'display individual custom events (logs) emitted by the app, filtered by the event name in the argument. With no arguments, a list of the available event names and associated event counts is returned.';
 
   static override args = {
     eventName: Args.string({
