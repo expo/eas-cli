@@ -64,6 +64,11 @@ export default class ObserveLogs extends EasCommand {
     'session-id': Flags.string({
       description: 'Filter by session ID',
     }),
+    'all-events': Flags.boolean({
+      description:
+        'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
+      default: false,
+    }),
     'project-id': Flags.string({
       description: 'EAS project ID (defaults to the project ID of the current directory)',
     }),
@@ -113,7 +118,7 @@ export default class ObserveLogs extends EasCommand {
         : AppObservePlatform.Ios
       : undefined;
 
-    if (!args.eventName) {
+    if (!args.eventName && !flags['all-events']) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
         appId: projectId,
         startTime,

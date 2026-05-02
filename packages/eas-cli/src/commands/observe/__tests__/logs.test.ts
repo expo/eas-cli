@@ -73,6 +73,16 @@ describe(ObserveLogs, () => {
     expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
   });
 
+  it('routes to fetchObserveCustomEventsAsync when --all-events is set with no positional arg', async () => {
+    const command = createCommand(['--all-events']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBeUndefined();
+  });
+
   it('passes the resolved time range and platform to customEventNamesAsync', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
