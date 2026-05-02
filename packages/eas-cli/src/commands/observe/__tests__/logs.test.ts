@@ -1,8 +1,12 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObservePlatform } from '../../../graphql/generated';
+import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../../observe/fetchCustomEvents';
-import { buildObserveCustomEventsJson } from '../../../observe/formatCustomEvents';
+import {
+  buildObserveCustomEventNamesJson,
+  buildObserveCustomEventsJson,
+} from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveLogs from '../logs';
 
@@ -10,12 +14,21 @@ jest.mock('../../../observe/fetchCustomEvents');
 jest.mock('../../../observe/formatCustomEvents', () => ({
   buildObserveCustomEventsTable: jest.fn().mockReturnValue('table'),
   buildObserveCustomEventsJson: jest.fn().mockReturnValue({}),
+  buildObserveCustomEventNamesTable: jest.fn().mockReturnValue('names-table'),
+  buildObserveCustomEventNamesJson: jest.fn().mockReturnValue({ names: [], isTruncated: false }),
+}));
+jest.mock('../../../graphql/queries/ObserveQuery', () => ({
+  ObserveQuery: {
+    customEventNamesAsync: jest.fn(),
+  },
 }));
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
 const mockBuildObserveCustomEventsJson = jest.mocked(buildObserveCustomEventsJson);
+const mockBuildObserveCustomEventNamesJson = jest.mocked(buildObserveCustomEventNamesJson);
+const mockCustomEventNamesAsync = jest.mocked(ObserveQuery.customEventNamesAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
@@ -30,6 +43,7 @@ describe(ObserveLogs, () => {
       events: [],
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
+    mockCustomEventNamesAsync.mockResolvedValue({ names: [], isTruncated: false });
   });
 
   function createCommand(argv: string[]): ObserveLogs {
@@ -48,21 +62,39 @@ describe(ObserveLogs, () => {
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.eventName).toBe('my_event');
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
   });
 
-  it('does not pass eventName when no positional arg is provided', async () => {
+  it('routes to customEventNamesAsync when no positional arg is provided', async () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
-    expect(options.eventName).toBeUndefined();
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledTimes(1);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
   });
 
-  it('uses --days to compute start/end time range', async () => {
+  it('passes the resolved time range and platform to customEventNamesAsync', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['--days', '7']);
+    const command = createCommand(['--days', '7', '--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: projectId,
+      startTime: '2025-06-08T12:00:00.000Z',
+      endTime: '2025-06-15T12:00:00.000Z',
+      platform: AppObservePlatform.Ios,
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('uses --days to compute start/end time range when an event name is provided', async () => {
+    const now = new Date('2025-06-15T12:00:00.000Z');
+    jest.useFakeTimers({ now });
+
+    const command = createCommand(['my_event', '--days', '7']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -72,22 +104,9 @@ describe(ObserveLogs, () => {
     jest.useRealTimers();
   });
 
-  it('uses DEFAULT_DAYS_BACK (60 days) when neither --days nor --start/--end are provided', async () => {
-    const now = new Date('2025-06-15T12:00:00.000Z');
-    jest.useFakeTimers({ now });
-
-    const command = createCommand([]);
-    await command.runAsync();
-
-    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
-    expect(options.startTime).toBe('2025-04-16T12:00:00.000Z');
-    expect(options.endTime).toBe('2025-06-15T12:00:00.000Z');
-
-    jest.useRealTimers();
-  });
-
   it('uses explicit --start and --end when provided', async () => {
     const command = createCommand([
+      'my_event',
       '--start',
       '2025-01-01T00:00:00.000Z',
       '--end',
@@ -101,12 +120,18 @@ describe(ObserveLogs, () => {
   });
 
   it('rejects --days combined with --start', async () => {
-    const command = createCommand(['--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
+    const command = createCommand([
+      'my_event',
+      '--days',
+      '7',
+      '--start',
+      '2025-01-01T00:00:00.000Z',
+    ]);
     await expect(command.runAsync()).rejects.toThrow();
   });
 
   it('passes --limit to fetchObserveCustomEventsAsync', async () => {
-    const command = createCommand(['--limit', '42']);
+    const command = createCommand(['my_event', '--limit', '42']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -114,7 +139,7 @@ describe(ObserveLogs, () => {
   });
 
   it('passes --after cursor', async () => {
-    const command = createCommand(['--after', 'cursor-xyz']);
+    const command = createCommand(['my_event', '--after', 'cursor-xyz']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -122,7 +147,7 @@ describe(ObserveLogs, () => {
   });
 
   it('passes --platform ios as AppObservePlatform.Ios', async () => {
-    const command = createCommand(['--platform', 'ios']);
+    const command = createCommand(['my_event', '--platform', 'ios']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -130,7 +155,7 @@ describe(ObserveLogs, () => {
   });
 
   it('passes --app-version', async () => {
-    const command = createCommand(['--app-version', '2.1.0']);
+    const command = createCommand(['my_event', '--app-version', '2.1.0']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -138,7 +163,7 @@ describe(ObserveLogs, () => {
   });
 
   it('passes --update-id', async () => {
-    const command = createCommand(['--update-id', 'update-xyz']);
+    const command = createCommand(['my_event', '--update-id', 'update-xyz']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -146,7 +171,7 @@ describe(ObserveLogs, () => {
   });
 
   it('passes --session-id', async () => {
-    const command = createCommand(['--session-id', 'session-xyz']);
+    const command = createCommand(['my_event', '--session-id', 'session-xyz']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -154,7 +179,7 @@ describe(ObserveLogs, () => {
   });
 
   it('does not pass platform, appVersion, updateId, or sessionId when flags are not provided', async () => {
-    const command = createCommand([]);
+    const command = createCommand(['my_event']);
     await command.runAsync();
 
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
@@ -164,7 +189,7 @@ describe(ObserveLogs, () => {
     expect(options.sessionId).toBeUndefined();
   });
 
-  it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
+  it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided with an event name', async () => {
     const mockEvents = [
       {
         id: 'evt-1',
@@ -186,7 +211,7 @@ describe(ObserveLogs, () => {
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
 
-    const command = createCommand(['--json', '--non-interactive']);
+    const command = createCommand(['my_event', '--json', '--non-interactive']);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
@@ -194,6 +219,24 @@ describe(ObserveLogs, () => {
       mockEvents,
       expect.objectContaining({ hasNextPage: false })
     );
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it('emits JSON of event names + counts when --json is provided without an event name', async () => {
+    const mockNames = [
+      { eventName: 'foo', count: 10 },
+      { eventName: 'bar', count: 5 },
+    ];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
+
+    const command = createCommand(['--json', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventNamesJson).toHaveBeenCalledWith(mockNames, false);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 });

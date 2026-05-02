@@ -6,6 +6,7 @@ import {
   AppObserveAppVersion,
   AppObserveCustomEvent,
   AppObserveCustomEventListFilter,
+  AppObserveCustomEventName,
   AppObserveEvent,
   AppObserveEventsFilter,
   AppObserveEventsOrderBy,
@@ -108,6 +109,28 @@ type AppObserveCustomEventListQueryVariables = {
   filter?: AppObserveCustomEventListFilter;
   first?: number;
   after?: string;
+};
+
+type AppObserveCustomEventNamesQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        customEventNames: {
+          isTruncated: boolean;
+          names: AppObserveCustomEventName[];
+        };
+      };
+    };
+  };
+};
+
+type AppObserveCustomEventNamesQueryVariables = {
+  appId: string;
+  startTime: string;
+  endTime: string;
+  platform?: AppObservePlatform;
+  environment?: string;
 };
 
 export const ObserveQuery = {
@@ -312,5 +335,67 @@ export const ObserveQuery = {
       events: edges.map(edge => edge.node),
       pageInfo,
     };
+  },
+
+  async customEventNamesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      startTime,
+      endTime,
+      platform,
+      environment,
+    }: {
+      appId: string;
+      startTime: string;
+      endTime: string;
+      platform?: AppObservePlatform;
+      environment?: string;
+    }
+  ): Promise<{ names: AppObserveCustomEventName[]; isTruncated: boolean }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveCustomEventNamesQuery, AppObserveCustomEventNamesQueryVariables>(
+          gql`
+            query AppObserveCustomEventNames(
+              $appId: String!
+              $startTime: DateTime!
+              $endTime: DateTime!
+              $platform: AppObservePlatform
+              $environment: String
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    customEventNames(
+                      startTime: $startTime
+                      endTime: $endTime
+                      platform: $platform
+                      environment: $environment
+                    ) {
+                      isTruncated
+                      names {
+                        eventName
+                        count
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          {
+            appId,
+            startTime,
+            endTime,
+            ...(platform && { platform }),
+            ...(environment && { environment }),
+          }
+        )
+        .toPromise()
+    );
+
+    return data.app.byId.observe.customEventNames;
   },
 };

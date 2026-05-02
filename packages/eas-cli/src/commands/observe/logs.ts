@@ -5,8 +5,11 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import { AppObservePlatform } from '../../graphql/generated';
 import Log from '../../log';
+import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
+  buildObserveCustomEventNamesJson,
+  buildObserveCustomEventNamesTable,
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
@@ -109,6 +112,30 @@ export default class ObserveLogs extends EasCommand {
         ? AppObservePlatform.Android
         : AppObservePlatform.Ios
       : undefined;
+
+    if (!args.eventName) {
+      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
+        appId: projectId,
+        startTime,
+        endTime,
+        platform,
+      });
+
+      if (flags.json) {
+        printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
+      } else {
+        Log.addNewLineIfNone();
+        Log.log(
+          buildObserveCustomEventNamesTable(names, {
+            daysBack,
+            startTime,
+            endTime,
+            isTruncated,
+          })
+        );
+      }
+      return;
+    }
 
     const { events, pageInfo } = await fetchObserveCustomEventsAsync(graphqlClient, projectId, {
       eventName: args.eventName,

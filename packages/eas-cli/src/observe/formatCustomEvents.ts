@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-import { AppObserveCustomEvent, PageInfo } from '../graphql/generated';
+import { AppObserveCustomEvent, AppObserveCustomEventName, PageInfo } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
 import { buildTimeRangeDescription, formatTimestamp } from './formatUtils';
 
@@ -126,5 +126,50 @@ export function buildObserveCustomEventsJson(
       hasNextPage: pageInfo.hasNextPage,
       endCursor: pageInfo.endCursor ?? null,
     },
+  };
+}
+
+export interface BuildCustomEventNamesTableOptions {
+  daysBack?: number;
+  startTime?: string;
+  endTime?: string;
+  isTruncated?: boolean;
+}
+
+export function buildObserveCustomEventNamesTable(
+  names: AppObserveCustomEventName[],
+  options?: BuildCustomEventNamesTableOptions
+): string {
+  if (names.length === 0) {
+    return chalk.yellow('No custom event names found.');
+  }
+
+  const headers = ['Event Name', 'Count'];
+  const rows: string[][] = names.map(n => [n.eventName, n.count.toLocaleString()]);
+
+  const lines: string[] = [];
+
+  if (options) {
+    const timeDesc = buildTimeRangeDescription(options);
+    const subject = 'Custom event names';
+    lines.push(chalk.bold(`${subject} ${timeDesc}`.trim()), '');
+  }
+
+  lines.push(renderTextTable(headers, rows));
+
+  if (options?.isTruncated) {
+    lines.push('', chalk.yellow('Result is truncated; not all event names are shown.'));
+  }
+
+  return lines.join('\n');
+}
+
+export function buildObserveCustomEventNamesJson(
+  names: AppObserveCustomEventName[],
+  isTruncated: boolean
+): { names: Array<{ eventName: string; count: number }>; isTruncated: boolean } {
+  return {
+    names: names.map(n => ({ eventName: n.eventName, count: n.count })),
+    isTruncated,
   };
 }

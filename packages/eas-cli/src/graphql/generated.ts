@@ -12653,6 +12653,17 @@ export type AppObserveCustomEventListQueryVariables = Exact<{
 
 export type AppObserveCustomEventListQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', customEventList: { __typename?: 'AppObserveCustomEventListConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveCustomEventEdge', cursor: string, node: { __typename?: 'AppObserveCustomEvent', id: string, eventName: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> } }> } } } } };
 
+export type AppObserveCustomEventNamesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  startTime: Scalars['DateTime']['input'];
+  endTime: Scalars['DateTime']['input'];
+  platform?: InputMaybe<AppObservePlatform>;
+  environment?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type AppObserveCustomEventNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', customEventNames: { __typename?: 'AppObserveCustomEventNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveCustomEventName', eventName: string, count: number }> } } } } };
+
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
 }>;
