@@ -76,7 +76,9 @@ describe(resolveBuildPhaseErrorAsync, () => {
     expect(err.message).toBe(
       'Unknown error. See logs of the Install dependencies build phase for more information.'
     );
-    expect(err.trackingCode).toBeUndefined();
+    // The specific bundler handler doesn't match (wrong phase), but the
+    // INSTALL_DEPENDENCIES_GENERIC_FAILURE catch-all now picks it up
+    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
   });
 
   it('detects npm cache error if cache is enabled', async () => {
@@ -122,7 +124,9 @@ describe(resolveBuildPhaseErrorAsync, () => {
     expect(err.message).toBe(
       'Unknown error. See logs of the Install dependencies build phase for more information.'
     );
-    expect(err.trackingCode).toBeUndefined();
+    // The npm cache handler doesn't match (cache disabled), but the
+    // INSTALL_DEPENDENCIES_GENERIC_FAILURE catch-all now picks it up
+    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
   });
 
   it('detects xcode line error', async () => {
@@ -308,5 +312,277 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
     expect(err.message).toBe(
       `Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.`
     );
+  });
+
+  // --- Tests for new build error handlers (tracking codes) ---
+
+  it('detects NPM_ERESOLVE tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [
+        'npm ERR! code ERESOLVE',
+        'npm ERR! ERESOLVE could not resolve',
+        'npm ERR! While resolving: react-native@0.71.0',
+      ],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('NPM_ERESOLVE');
+  });
+
+  it('detects NPM_ERROR tracking code for generic npm errors', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['npm ERR! 404 Not Found - GET https://registry.npmjs.org/nonexistent-package'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('NPM_ERROR');
+  });
+
+  it('detects METRO_UNABLE_TO_RESOLVE tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [
+        'error: Unable to resolve module ./src/missing from /home/expo/workingdir/build/index.js: ',
+        'None of these files exist:',
+      ],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('METRO_UNABLE_TO_RESOLVE');
+  });
+
+  it('detects METRO_UNABLE_TO_RESOLVE without phase restriction', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['error: Unable to resolve module @react-native/assets from /home/expo/workingdir/build/App.js'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.EAGER_BUNDLE,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('METRO_UNABLE_TO_RESOLVE');
+  });
+
+  it('detects PNPM_ERROR tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [
+        ' ERR_PNPM_PEER_DEP_ISSUES Unmet peer dependencies',
+        'hint: If you want peer dependencies to be automatically installed, add "auto-install-peers=true" to an .npmrc file.',
+      ],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('PNPM_ERROR');
+  });
+
+  it('does not detect PNPM_ERROR outside INSTALL_DEPENDENCIES phase', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [' ERR_PNPM_PEER_DEP_ISSUES Unmet peer dependencies'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBeUndefined();
+  });
+
+  it('detects PREBUILD_DANGEROUS_MOD_ENOENT tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [
+        "Error: [android.dangerous]: withAndroidDangerousBaseMod: ENOENT: no such file or directory, open './assets/splash.png'",
+      ],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('PREBUILD_DANGEROUS_MOD_ENOENT');
+  });
+
+  it('detects PREBUILD_DANGEROUS_MOD_ENOENT for iOS', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      [
+        "Error: [ios.dangerous]: withIosDangerousBaseMod: ENOENT: no such file or directory, open './assets/fonts/CustomFont.ttf'",
+      ],
+      {
+        job: { platform: Platform.IOS } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('PREBUILD_DANGEROUS_MOD_ENOENT');
+  });
+
+  it('detects SYNTAX_ERROR tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['SyntaxError: Unexpected token } in JSON at position 1234'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('SYNTAX_ERROR');
+  });
+
+  it('detects COCOAPODS_GENERIC_ERROR tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['[!] Unable to find a specification for `SomeUnknownPod`'],
+      {
+        job: { platform: Platform.IOS } as Job,
+        phase: BuildPhase.INSTALL_PODS,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('COCOAPODS_GENERIC_ERROR');
+  });
+
+  it('does not detect COCOAPODS_GENERIC_ERROR for Android', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['[!] Some error'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_PODS,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBeUndefined();
+  });
+
+  it('detects INSTALL_DEPENDENCIES_GENERIC_FAILURE as catch-all', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['some random error that does not match any specific pattern'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
+  });
+
+  it('detects MONOREPO_PACKAGE_JSON_NOT_FOUND tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['Error: package.json does not exist at /home/expo/workingdir/build/packages/app'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.INSTALL_DEPENDENCIES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    // MONOREPO_PACKAGE_JSON_NOT_FOUND should match before INSTALL_DEPENDENCIES_GENERIC_FAILURE
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('MONOREPO_PACKAGE_JSON_NOT_FOUND');
+  });
+
+  it('detects EXPO_CONFIG_ERROR tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['ConfigError: Property "expo.ios.bundleIdentifier" in app.json is invalid.'],
+      {
+        job: { platform: Platform.IOS } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('EXPO_CONFIG_ERROR');
+  });
+
+  it('detects RUNTIME_VERSION_MISMATCH tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['Error: runtimeVersion in Expo.plist policies must be set to a valid value.'],
+      {
+        job: { platform: Platform.IOS } as Job,
+        phase: BuildPhase.CONFIGURE_EXPO_UPDATES,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('RUNTIME_VERSION_MISMATCH');
+  });
+
+  it('does not detect RUNTIME_VERSION_MISMATCH outside CONFIGURE_EXPO_UPDATES phase', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['Error: runtimeVersion in Expo.plist policies must be set to a valid value.'],
+      {
+        job: { platform: Platform.IOS } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBeUndefined();
+  });
+
+  it('detects CONFIG_PLUGIN_RESOLVE_ERROR tracking code', async () => {
+    const err = await resolveBuildPhaseErrorAsync(
+      new Error(),
+      ['Error: Failed to resolve plugin for module "expo-camera" relative to "/home/expo/workingdir/build"'],
+      {
+        job: { platform: Platform.ANDROID } as Job,
+        phase: BuildPhase.PREBUILD,
+        env: {},
+      },
+      '/fake/path'
+    );
+    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
+    expect(err.trackingCode).toBe('CONFIG_PLUGIN_RESOLVE_ERROR');
   });
 });

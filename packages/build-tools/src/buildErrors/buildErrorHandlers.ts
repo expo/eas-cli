@@ -361,4 +361,105 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
         'fastlane: Bundle React Native code and images failed.'
       ),
   },
+  // --- Specific patterns for reducing unknown_error bucket ---
+  {
+    phase: BuildPhase.INSTALL_DEPENDENCIES,
+    // npm ERR! ERESOLVE could not resolve
+    regexp: /npm ERR!.*ERESOLVE|ERESOLVE could not resolve/,
+    createError: () => new TrackedBuildError('NPM_ERESOLVE', 'npm: ERESOLVE could not resolve.'),
+  },
+  {
+    phase: BuildPhase.INSTALL_DEPENDENCIES,
+    // ERR_PNPM_PEER_DEP_ISSUES or other pnpm errors
+    regexp: /ERR_PNPM_/,
+    createError: () => new TrackedBuildError('PNPM_ERROR', 'pnpm: error during install.'),
+  },
+  {
+    // Can occur in PREBUILD, EAGER_BUNDLE, or other phases
+    // Unable to resolve module `./src/missing` from `index.js`
+    regexp: /Unable to resolve module/,
+    createError: () =>
+      new TrackedBuildError('METRO_UNABLE_TO_RESOLVE', 'metro: Unable to resolve module.'),
+  },
+  {
+    phase: BuildPhase.PREBUILD,
+    // Error: [android.dangerous]: withAndroidDangerousBaseMod: ENOENT: no such file or directory, open './assets/splash.png'
+    // Must come AFTER EXPO_CLI_MISSING_ICON which matches the icon-specific subset
+    regexp: /with(?:Android|Ios)DangerousBaseMod:.*ENOENT/,
+    createError: () =>
+      new TrackedBuildError(
+        'PREBUILD_DANGEROUS_MOD_ENOENT',
+        'prebuild: ENOENT in dangerous base mod.'
+      ),
+  },
+  {
+    // SyntaxError: Unexpected token ...
+    regexp: /SyntaxError:/,
+    createError: () => new TrackedBuildError('SYNTAX_ERROR', 'SyntaxError encountered.'),
+  },
+  {
+    // package.json does not exist (common in monorepos with wrong working directory)
+    regexp: /package\.json does not exist/,
+    createError: () =>
+      new TrackedBuildError(
+        'MONOREPO_PACKAGE_JSON_NOT_FOUND',
+        'package.json does not exist.'
+      ),
+  },
+  {
+    // ConfigError: Property ... in app.json is invalid
+    regexp: /ConfigError:/,
+    createError: () =>
+      new TrackedBuildError('EXPO_CONFIG_ERROR', 'expo: ConfigError encountered.'),
+  },
+  {
+    phase: BuildPhase.CONFIGURE_EXPO_UPDATES,
+    // runtimeVersion policies must be set ...
+    // runtime version is not equal ...
+    regexp: /runtimeVersion.*policies.*must.*set|runtime version.*not.*equal/i,
+    createError: () =>
+      new TrackedBuildError(
+        'RUNTIME_VERSION_MISMATCH',
+        'expo-updates: runtime version mismatch.'
+      ),
+  },
+  {
+    phase: BuildPhase.PREBUILD,
+    // Failed to resolve plugin for module "expo-camera" ...
+    regexp: /Failed to resolve plugin/,
+    createError: () =>
+      new TrackedBuildError(
+        'CONFIG_PLUGIN_RESOLVE_ERROR',
+        'prebuild: Failed to resolve config plugin.'
+      ),
+  },
+  // --- Broader catch-all patterns (must come after specific patterns) ---
+  {
+    phase: BuildPhase.INSTALL_DEPENDENCIES,
+    // Catch-all for npm errors not matched by specific handlers above
+    // npm ERR! 404 Not Found - GET https://registry.npmjs.org/...
+    regexp: /npm ERR!/,
+    createError: () => new TrackedBuildError('NPM_ERROR', 'npm: generic error.'),
+  },
+  {
+    platform: Platform.IOS,
+    phase: BuildPhase.INSTALL_PODS,
+    // [!] CocoaPods error indicator - catch-all for pod errors not matched above
+    regexp: /\[!\]/,
+    createError: () =>
+      new TrackedBuildError(
+        'COCOAPODS_GENERIC_ERROR',
+        'cocoapods: generic error.'
+      ),
+  },
+  {
+    phase: BuildPhase.INSTALL_DEPENDENCIES,
+    // Catch-all for any install_dependencies failure - must be LAST handler with this phase
+    regexp: /.*/,
+    createError: () =>
+      new TrackedBuildError(
+        'INSTALL_DEPENDENCIES_GENERIC_FAILURE',
+        'install_dependencies: generic failure.'
+      ),
+  },
 ];
