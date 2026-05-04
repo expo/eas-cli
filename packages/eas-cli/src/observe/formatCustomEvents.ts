@@ -139,6 +139,58 @@ export function buildObserveCustomEventsJson(
   };
 }
 
+export interface BuildEmptyCustomEventsWithSuggestionsOptions {
+  daysBack?: number;
+  startTime?: string;
+  endTime?: string;
+  isTruncated?: boolean;
+}
+
+export function buildObserveCustomEventsEmptyWithSuggestionsTable(
+  eventName: string,
+  names: AppObserveCustomEventName[],
+  options?: BuildEmptyCustomEventsWithSuggestionsOptions
+): string {
+  const lines: string[] = [];
+  const timeDesc = options ? buildTimeRangeDescription(options) : '';
+  lines.push(chalk.yellow(`No events found matching "${eventName}" ${timeDesc}.`.trim()));
+
+  if (names.length === 0) {
+    lines.push('', chalk.yellow('No custom event names found in this time range.'));
+    return lines.join('\n');
+  }
+
+  lines.push('', 'Available event names in this time range:', '');
+
+  const headers = ['Event Name', 'Count'];
+  const rows: string[][] = names.map(n => [n.eventName, n.count.toLocaleString()]);
+  lines.push(renderTextTable(headers, rows));
+
+  if (options?.isTruncated) {
+    lines.push('', chalk.yellow('Result is truncated; not all event names are shown.'));
+  }
+
+  return lines.join('\n');
+}
+
+export function buildObserveCustomEventsEmptyWithSuggestionsJson(
+  eventName: string,
+  names: AppObserveCustomEventName[],
+  isTruncated: boolean
+): {
+  filteredEventName: string;
+  events: [];
+  availableEventNames: Array<{ eventName: string; count: number }>;
+  availableEventNamesIsTruncated: boolean;
+} {
+  return {
+    filteredEventName: eventName,
+    events: [],
+    availableEventNames: names.map(n => ({ eventName: n.eventName, count: n.count })),
+    availableEventNamesIsTruncated: isTruncated,
+  };
+}
+
 export interface BuildCustomEventNamesTableOptions {
   daysBack?: number;
   startTime?: string;

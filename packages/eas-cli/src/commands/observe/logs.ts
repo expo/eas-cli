@@ -9,6 +9,8 @@ import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
   buildObserveCustomEventNamesJson,
   buildObserveCustomEventNamesTable,
+  buildObserveCustomEventsEmptyWithSuggestionsJson,
+  buildObserveCustomEventsEmptyWithSuggestionsTable,
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
@@ -148,6 +150,32 @@ export default class ObserveLogs extends EasCommand {
       updateId: flags['update-id'],
       sessionId: flags['session-id'],
     });
+
+    if (args.eventName && events.length === 0) {
+      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
+        appId: projectId,
+        startTime,
+        endTime,
+        platform,
+      });
+
+      if (flags.json) {
+        printJsonOnlyOutput(
+          buildObserveCustomEventsEmptyWithSuggestionsJson(args.eventName, names, isTruncated)
+        );
+      } else {
+        Log.addNewLineIfNone();
+        Log.log(
+          buildObserveCustomEventsEmptyWithSuggestionsTable(args.eventName, names, {
+            daysBack,
+            startTime,
+            endTime,
+            isTruncated,
+          })
+        );
+      }
+      return;
+    }
 
     if (flags.json) {
       printJsonOnlyOutput(buildObserveCustomEventsJson(events, pageInfo));

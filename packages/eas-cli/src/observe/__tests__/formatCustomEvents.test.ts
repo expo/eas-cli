@@ -1,6 +1,8 @@
 import { AppObserveCustomEvent, PageInfo } from '../../graphql/generated';
 import {
   buildObserveCustomEventNamesTable,
+  buildObserveCustomEventsEmptyWithSuggestionsJson,
+  buildObserveCustomEventsEmptyWithSuggestionsTable,
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../formatCustomEvents';
@@ -312,5 +314,76 @@ describe(buildObserveCustomEventNamesTable, () => {
       { isTruncated: true }
     );
     expect(output).toContain('Result is truncated');
+  });
+});
+
+describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
+  it('shows the filtered event name and the available event names', () => {
+    const output = buildObserveCustomEventsEmptyWithSuggestionsTable('login', [
+      { __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 },
+      { __typename: 'AppObserveCustomEventName', eventName: 'bar', count: 5 },
+    ]);
+
+    expect(output).toContain('No events found matching "login"');
+    expect(output).toContain('Available event names in this time range:');
+    expect(output).toContain('foo');
+    expect(output).toContain('10');
+    expect(output).toContain('bar');
+    expect(output).toContain('5');
+  });
+
+  it('falls back to "no event names found" message when names list is also empty', () => {
+    const output = buildObserveCustomEventsEmptyWithSuggestionsTable('login', []);
+
+    expect(output).toContain('No events found matching "login"');
+    expect(output).toContain('No custom event names found in this time range.');
+  });
+
+  it('appends a truncation notice when isTruncated is set', () => {
+    const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
+      'login',
+      [{ __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 }],
+      { isTruncated: true }
+    );
+
+    expect(output).toContain('Result is truncated');
+  });
+
+  it('includes the time range description in the message when provided', () => {
+    const output = buildObserveCustomEventsEmptyWithSuggestionsTable(
+      'login',
+      [{ __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 }],
+      { daysBack: 7 }
+    );
+
+    expect(output).toContain('No events found matching "login" for the last 7 days.');
+  });
+});
+
+describe(buildObserveCustomEventsEmptyWithSuggestionsJson, () => {
+  it('returns the filtered event name, empty events array, and available names', () => {
+    const result = buildObserveCustomEventsEmptyWithSuggestionsJson(
+      'login',
+      [
+        { __typename: 'AppObserveCustomEventName', eventName: 'foo', count: 10 },
+        { __typename: 'AppObserveCustomEventName', eventName: 'bar', count: 5 },
+      ],
+      false
+    );
+
+    expect(result).toEqual({
+      filteredEventName: 'login',
+      events: [],
+      availableEventNames: [
+        { eventName: 'foo', count: 10 },
+        { eventName: 'bar', count: 5 },
+      ],
+      availableEventNamesIsTruncated: false,
+    });
+  });
+
+  it('preserves the isTruncated flag', () => {
+    const result = buildObserveCustomEventsEmptyWithSuggestionsJson('login', [], true);
+    expect(result.availableEventNamesIsTruncated).toBe(true);
   });
 });

@@ -5,6 +5,8 @@ import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../../observe/fetchCustomEvents';
 import {
   buildObserveCustomEventNamesJson,
+  buildObserveCustomEventsEmptyWithSuggestionsJson,
+  buildObserveCustomEventsEmptyWithSuggestionsTable,
   buildObserveCustomEventsJson,
 } from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
@@ -16,6 +18,15 @@ jest.mock('../../../observe/formatCustomEvents', () => ({
   buildObserveCustomEventsJson: jest.fn().mockReturnValue({}),
   buildObserveCustomEventNamesTable: jest.fn().mockReturnValue('names-table'),
   buildObserveCustomEventNamesJson: jest.fn().mockReturnValue({ names: [], isTruncated: false }),
+  buildObserveCustomEventsEmptyWithSuggestionsTable: jest
+    .fn()
+    .mockReturnValue('empty-with-suggestions-table'),
+  buildObserveCustomEventsEmptyWithSuggestionsJson: jest.fn().mockReturnValue({
+    filteredEventName: 'my_event',
+    events: [],
+    availableEventNames: [],
+    availableEventNamesIsTruncated: false,
+  }),
 }));
 jest.mock('../../../graphql/queries/ObserveQuery', () => ({
   ObserveQuery: {
@@ -28,6 +39,12 @@ jest.mock('../../../utils/json');
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
 const mockBuildObserveCustomEventsJson = jest.mocked(buildObserveCustomEventsJson);
 const mockBuildObserveCustomEventNamesJson = jest.mocked(buildObserveCustomEventNamesJson);
+const mockBuildObserveCustomEventsEmptyWithSuggestionsTable = jest.mocked(
+  buildObserveCustomEventsEmptyWithSuggestionsTable
+);
+const mockBuildObserveCustomEventsEmptyWithSuggestionsJson = jest.mocked(
+  buildObserveCustomEventsEmptyWithSuggestionsJson
+);
 const mockCustomEventNamesAsync = jest.mocked(ObserveQuery.customEventNamesAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -57,6 +74,10 @@ describe(ObserveLogs, () => {
   }
 
   it('passes eventName arg to fetchObserveCustomEventsAsync', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [{ id: 'evt-1' } as any],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
     const command = createCommand(['my_event']);
     await command.runAsync();
 
@@ -239,6 +260,105 @@ describe(ObserveLogs, () => {
       expect.objectContaining({ hasNextPage: false })
     );
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it('falls back to fetching event names and renders the empty-with-suggestions table when filtered fetch returns 0 events', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+    const mockNames = [
+      { eventName: 'foo', count: 10 },
+      { eventName: 'bar', count: 5 },
+    ];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
+
+    const command = createCommand(['my_event']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledTimes(1);
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).toHaveBeenCalledWith(
+      'my_event',
+      mockNames,
+      expect.objectContaining({ isTruncated: false })
+    );
+  });
+
+  it('does not call customEventNamesAsync when filtered fetch returns at least one event', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [
+        {
+          id: 'evt-1',
+          eventName: 'my_event',
+          timestamp: '2025-01-15T10:30:00.000Z',
+          appVersion: '1.0.0',
+          appBuildNumber: '42',
+          deviceModel: 'iPhone 15',
+          deviceOs: 'iOS',
+          deviceOsVersion: '17.0',
+          easClientId: 'client-1',
+          properties: [],
+        } as any,
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const command = createCommand(['my_event']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+  });
+
+  it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+    const mockNames = [{ eventName: 'foo', count: 10 }];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
+
+    const command = createCommand(['my_event', '--json', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).toHaveBeenCalledWith(
+      'my_event',
+      mockNames,
+      false
+    );
+    expect(mockBuildObserveCustomEventsJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
+  });
+
+  it('does not run the empty-with-suggestions fallback when no event name is provided (event names mode)', async () => {
+    mockCustomEventNamesAsync.mockResolvedValue({ names: [], isTruncated: false });
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).not.toHaveBeenCalled();
+  });
+
+  it('does not run the empty-with-suggestions fallback for --all-events with 0 results', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const command = createCommand(['--all-events']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
   });
 
   it('emits JSON of event names + counts when --json is provided without an event name', async () => {
