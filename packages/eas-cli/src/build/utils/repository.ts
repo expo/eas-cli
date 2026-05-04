@@ -143,9 +143,16 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
 
   try {
     await vcsClient.makeShallowCopyAsync(shallowClonePath);
-    await tar.create({ cwd: shallowClonePath, file: tarPath, prefix: 'project', gzip: true }, [
-      '.',
-    ]);
+    await tar.create(
+      {
+        cwd: shallowClonePath,
+        file: tarPath,
+        prefix: 'project',
+        gzip: true,
+        portable: true,
+      },
+      ['.']
+    );
   } catch (err) {
     clearTimeout(timer);
     if (spinner.isSpinning) {
