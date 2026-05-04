@@ -2,7 +2,6 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
@@ -12,6 +11,7 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { allowedPlatformFlagValues, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -43,7 +43,7 @@ export default class ObserveMetrics extends EasCommand {
   static override flags = {
     platform: Flags.option({
       description: 'Filter by platform',
-      options: Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+      options: allowedPlatformFlagValues,
     })(),
     metric: Flags.option({
       description: 'Metric name to display (can be specified multiple times).',
@@ -106,9 +106,7 @@ export default class ObserveMetrics extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms: AppPlatform[] = flags.platform
-      ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]
-      : [AppPlatform.Android, AppPlatform.Ios];
+    const platforms = appPlatformsFromFlag(flags.platform);
 
     const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
       await fetchObserveMetricsAsync(

@@ -2,10 +2,10 @@ import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
-import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
+import { allowedPlatformFlagValues, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -17,7 +17,7 @@ export default class ObserveVersions extends EasCommand {
   static override flags = {
     platform: Flags.option({
       description: 'Filter by platform',
-      options: Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+      options: allowedPlatformFlagValues,
     })(),
     start: Flags.string({
       description: 'Start of time range (ISO date)',
@@ -66,9 +66,7 @@ export default class ObserveVersions extends EasCommand {
 
     const { startTime, endTime } = resolveTimeRange(flags);
 
-    const platforms: AppPlatform[] = flags.platform
-      ? [flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios]
-      : [AppPlatform.Android, AppPlatform.Ios];
+    const platforms = appPlatformsFromFlag(flags.platform);
 
     const results = await fetchObserveVersionsAsync(
       graphqlClient,

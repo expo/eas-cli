@@ -3,7 +3,6 @@ import { Args, Flags } from '@oclif/core';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
-import { AppObservePlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
@@ -13,6 +12,7 @@ import {
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
+import { allowedPlatformFlagValues, appObservePlatformFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -34,7 +34,7 @@ export default class ObserveLogs extends EasCommand {
   static override flags = {
     platform: Flags.option({
       description: 'Filter by platform',
-      options: Object.values(AppObservePlatform).map(s => s.toLowerCase()),
+      options: allowedPlatformFlagValues,
     })(),
     after: Flags.string({
       description:
@@ -105,11 +105,7 @@ export default class ObserveLogs extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platform = flags.platform
-      ? flags.platform === 'android'
-        ? AppObservePlatform.Android
-        : AppObservePlatform.Ios
-      : undefined;
+    const platform = appObservePlatformFromFlag(flags.platform);
 
     if (!args.eventName && !flags['all-events']) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
