@@ -24,6 +24,8 @@ const CONVEX_REGIONS = [
 
 const DEFAULT_REGION = 'aws-us-east-1';
 
+type TeamInviteResult = 'sent' | 'skipped' | 'failed';
+
 export default class IntegrationsConvexConnect extends EasCommand {
   static override description = 'connect Convex to your Expo project';
 
@@ -131,7 +133,9 @@ export default class IntegrationsConvexConnect extends EasCommand {
     }
 
     // 6. Send team invite (non-fatal)
-    await this.sendTeamInviteAsync(graphqlClient, connection, actor, { nonInteractive });
+    const teamInviteResult = await this.sendTeamInviteAsync(graphqlClient, connection, actor, {
+      nonInteractive,
+    });
 
     // 7. Write deploy key and URL to .env.local
     await this.writeEnvLocalAsync(
@@ -148,7 +152,7 @@ export default class IntegrationsConvexConnect extends EasCommand {
     Log.log('Next steps:');
     Log.log(`  1. Start the Convex dev server: ${chalk.cyan('npx convex dev')}`);
     Log.newLine();
-    if (this.getActorEmail(actor)) {
+    if (teamInviteResult === 'sent') {
       Log.log(
         `Check your email for an invitation to join your Convex team. Accept it for full dashboard access.`
       );
@@ -233,7 +237,12 @@ export default class IntegrationsConvexConnect extends EasCommand {
     connection: ConvexTeamConnectionData,
     actor: Actor,
     { nonInteractive }: { nonInteractive: boolean }
-  ): Promise<void> {
+  ): Promise<TeamInviteResult> {
+    if (connection.hasBeenClaimed) {
+      Log.warn('Convex team has already been claimed. Skipping Convex team invitation.');
+      return 'skipped';
+    }
+
     const email = this.getActorEmail(actor);
     if (!email) {
       Log.warn(
@@ -241,12 +250,12 @@ export default class IntegrationsConvexConnect extends EasCommand {
           'eas integrations:convex:team:invite'
         )} after signing in with a user account.`
       );
-      return;
+      return 'skipped';
     }
 
     if (!(await confirmRecentConvexInviteAsync(connection, { nonInteractive }))) {
       Log.warn('Skipped sending Convex team invitation.');
-      return;
+      return 'skipped';
     }
 
     try {
@@ -254,6 +263,7 @@ export default class IntegrationsConvexConnect extends EasCommand {
         convexTeamConnectionId: connection.id,
       });
       Log.withTick(`Sent Convex team invitation to ${chalk.bold(email)}`);
+      return 'sent';
     } catch (error) {
       Log.warn(
         `Failed to send Convex team invitation to ${email}. Run ${chalk.cyan(
@@ -261,6 +271,7 @@ export default class IntegrationsConvexConnect extends EasCommand {
         )} to retry.`
       );
       Log.warn(error instanceof Error ? error.message : String(error));
+      return 'failed';
     }
   }
 

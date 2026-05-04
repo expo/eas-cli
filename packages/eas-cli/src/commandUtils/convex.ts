@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import dateFormat from 'dateformat';
 
 import { ConvexProjectData, ConvexTeamConnectionData } from '../graphql/types/ConvexTeamConnection';
 import Log, { link } from '../log';
@@ -6,6 +7,10 @@ import { confirmAsync } from '../prompts';
 
 const CONVEX_DASHBOARD_HOST = 'https://dashboard.convex.dev';
 const RECENT_INVITE_THRESHOLD_MS = 60 * 60 * 1000;
+
+export function formatConvexInviteTimestamp(timestamp: string): string {
+  return dateFormat(timestamp, 'mmm dd HH:MM:ss');
+}
 
 export function getConvexTeamDashboardUrl(connection: ConvexTeamConnectionData): string {
   return `${CONVEX_DASHBOARD_HOST}/t/${encodeURIComponent(connection.convexTeamSlug)}`;
@@ -25,13 +30,14 @@ export function formatConvexTeamConnection(connection: ConvexTeamConnectionData)
   const lines = [
     `${chalk.bold('Team')}: ${formatConvexTeam(connection)}`,
     `${chalk.bold('Dashboard')}: ${link(getConvexTeamDashboardUrl(connection), { dim: false })}`,
+    `${chalk.bold('Claimed')}: ${connection.hasBeenClaimed ? 'Yes' : 'No'}`,
   ];
 
   if (connection.invitedEmail) {
     lines.push(`${chalk.bold('Invited email')}: ${connection.invitedEmail}`);
   }
   if (connection.invitedAt) {
-    lines.push(`${chalk.bold('Invited at')}: ${connection.invitedAt}`);
+    lines.push(`${chalk.bold('Invited at')}: ${formatConvexInviteTimestamp(connection.invitedAt)}`);
   }
 
   return lines.join('\n');
@@ -69,7 +75,7 @@ export async function confirmRecentConvexInviteAsync(
     return true;
   }
 
-  const previousInvite = `A Convex team invite was already sent${connection.invitedEmail ? ` to ${connection.invitedEmail}` : ''} at ${connection.invitedAt}.`;
+  const previousInvite = `A Convex team invite was already sent${connection.invitedEmail ? ` to ${connection.invitedEmail}` : ''} at ${formatConvexInviteTimestamp(connection.invitedAt)}.`;
   if (nonInteractive) {
     Log.warn(
       `${previousInvite} Sending another invite because this command is running in non-interactive mode.`

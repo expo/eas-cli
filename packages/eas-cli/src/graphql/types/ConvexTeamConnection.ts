@@ -8,6 +8,7 @@ export type ConvexTeamConnectionData = Pick<
   | 'convexTeamIdentifier'
   | 'convexTeamName'
   | 'convexTeamSlug'
+  | 'hasBeenClaimed'
   | 'createdAt'
   | 'updatedAt'
   | 'invitedAt'
@@ -39,6 +40,7 @@ export const ConvexTeamConnectionFragmentNode = gql`
     convexTeamIdentifier
     convexTeamName
     convexTeamSlug
+    hasBeenClaimed
     createdAt
     updatedAt
     invitedAt

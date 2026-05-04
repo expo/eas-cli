@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix Convex team invite output after skipped or unnecessary invitations. ([#3672](https://github.com/expo/eas-cli/pull/3672) by [@fiberjw](https://github.com/fiberjw))
+
 ### 🧹 Chores
 
 ## [18.10.0](https://github.com/expo/eas-cli/releases/tag/v18.10.0) - 2026-05-04

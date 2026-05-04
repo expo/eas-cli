@@ -1,3 +1,5 @@
+import dateFormat from 'dateformat';
+
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
@@ -47,6 +49,7 @@ describe(IntegrationsConvexTeamInvite, () => {
     convexTeamIdentifier: 'team-123',
     convexTeamName: 'Test Team',
     convexTeamSlug: 'test-team',
+    hasBeenClaimed: false,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     invitedAt: '2024-01-02T00:00:00.000Z',
@@ -98,8 +101,12 @@ describe(IntegrationsConvexTeamInvite, () => {
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('team-123'));
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('connection-1'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Previous invite'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Claimed'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('No'));
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('previous@example.com'));
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('2024-01-02T00:00:00.000Z'));
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining(dateFormat(mockConnection.invitedAt, 'mmm dd HH:MM:ss'))
+    );
   });
 
   it('prompts before resending a recent invite', async () => {
@@ -131,6 +138,24 @@ describe(IntegrationsConvexTeamInvite, () => {
 
     expect(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).not.toHaveBeenCalled();
     expect(Log.warn).toHaveBeenCalledWith('Skipped sending Convex team invitation.');
+  });
+
+  it('skips sending an invite when the Convex team has already been claimed', async () => {
+    jest.mocked(ConvexQuery.getConvexTeamConnectionsByAccountIdAsync).mockResolvedValue([
+      {
+        ...mockConnection,
+        hasBeenClaimed: true,
+        invitedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      },
+    ]);
+
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).not.toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Convex team has already been claimed. Skipping Convex team invitation.'
+    );
   });
 
   it('resends recent invites in non-interactive mode with a warning', async () => {

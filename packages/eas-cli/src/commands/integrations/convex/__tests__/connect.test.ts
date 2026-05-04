@@ -75,6 +75,7 @@ describe(IntegrationsConvexConnect, () => {
     convexTeamIdentifier: 'team-123',
     convexTeamName: 'Test Team',
     convexTeamSlug: 'test-team',
+    hasBeenClaimed: false,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     invitedAt: null,
@@ -152,6 +153,9 @@ describe(IntegrationsConvexConnect, () => {
     expect(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).toHaveBeenCalledWith(
       graphqlClient,
       { convexTeamConnectionId: 'connection-1' }
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('Check your email for an invitation')
     );
     expect(spawnAsync).toHaveBeenCalledWith('npx', ['expo', 'install', 'convex'], {
       cwd: testProjectDir,
@@ -237,6 +241,32 @@ describe(IntegrationsConvexConnect, () => {
     });
     expect(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).not.toHaveBeenCalled();
     expect(Log.warn).toHaveBeenCalledWith('Skipped sending Convex team invitation.');
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Check your email for an invitation')
+    );
+  });
+
+  it('skips sending an invite when the Convex team has already been claimed', async () => {
+    jest.mocked(ConvexQuery.getConvexTeamConnectionsByAccountIdAsync).mockResolvedValue([
+      {
+        ...mockConnection,
+        hasBeenClaimed: true,
+        invitedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      },
+    ]);
+
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).not.toHaveBeenCalledWith({
+      message: expect.stringContaining('Are you sure you want to send another invite?'),
+    });
+    expect(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).not.toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Convex team has already been claimed. Skipping Convex team invitation.'
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Check your email for an invitation')
+    );
   });
 
   it('writes the deploy key and Convex URL to .env.local', async () => {

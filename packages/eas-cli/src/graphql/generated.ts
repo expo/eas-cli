@@ -12011,21 +12011,21 @@ export type CreateConvexTeamConnectionMutationVariables = Exact<{
 }>;
 
 
-export type CreateConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', createConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
+export type CreateConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', createConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
 
 export type DeleteConvexTeamConnectionMutationVariables = Exact<{
   convexTeamConnectionId: Scalars['ID']['input'];
 }>;
 
 
-export type DeleteConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', deleteConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
+export type DeleteConvexTeamConnectionMutation = { __typename?: 'RootMutation', convexTeamConnection: { __typename?: 'ConvexTeamConnectionMutation', deleteConvexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
 
 export type SetupConvexProjectMutationVariables = Exact<{
   input: SetupConvexProjectInput;
 }>;
 
 
-export type SetupConvexProjectMutation = { __typename?: 'RootMutation', convexProject: { __typename?: 'ConvexProjectMutation', setupConvexProject: { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } } } };
+export type SetupConvexProjectMutation = { __typename?: 'RootMutation', convexProject: { __typename?: 'ConvexProjectMutation', setupConvexProject: { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } } } };
 
 export type DeleteConvexProjectMutationVariables = Exact<{
   convexProjectId: Scalars['ID']['input'];
@@ -12527,14 +12527,14 @@ export type ConvexTeamConnectionsByAccountIdQueryVariables = Exact<{
 }>;
 
 
-export type ConvexTeamConnectionsByAccountIdQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, convexTeamConnections: Array<{ __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null }> } } };
+export type ConvexTeamConnectionsByAccountIdQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, convexTeamConnections: Array<{ __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null }> } } };
 
 export type ConvexProjectByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
 }>;
 
 
-export type ConvexProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, convexProject?: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } | null } } };
+export type ConvexProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, convexProject?: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } | null } } };
 
 export type DeviceRunSessionByIdQueryVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];
@@ -12823,11 +12823,11 @@ export type BuildWithSubmissionsFragment = { __typename?: 'Build', id: string, s
 
 export type BuildWithFingerprintFragment = { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, builds: { __typename?: 'AppBuildsConnection', edges: Array<{ __typename?: 'AppBuildEdge', node: { __typename?: 'Build', platform: AppPlatform, id: string } }> }, updates: { __typename?: 'AppUpdatesConnection', edges: Array<{ __typename?: 'AppUpdateEdge', node: { __typename?: 'Update', id: string, platform: string } }> } } | null, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null };
 
-export type ConvexTeamConnectionFragment = { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null };
+export type ConvexTeamConnectionFragment = { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null };
 
-export type ConvexProjectFragment = { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } };
+export type ConvexProjectFragment = { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } };
 
-export type SetupConvexProjectResultFragment = { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
+export type SetupConvexProjectResultFragment = { __typename?: 'SetupConvexProjectResult', convexDeploymentName: string, convexDeploymentUrl: string, deployKey: string, convexProject: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } };
 
 export type EnvironmentSecretFragment = { __typename?: 'EnvironmentSecret', id: string, name: string, type: EnvironmentSecretType, createdAt: any };
 

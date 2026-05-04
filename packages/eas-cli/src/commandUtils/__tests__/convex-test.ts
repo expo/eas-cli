@@ -1,3 +1,5 @@
+import dateFormat from 'dateformat';
+
 import {
   confirmRecentConvexInviteAsync,
   formatConvexProject,
@@ -22,6 +24,7 @@ describe('Convex command utilities', () => {
     convexTeamIdentifier: 'team-123',
     convexTeamName: 'Test Team',
     convexTeamSlug: 'test team',
+    hasBeenClaimed: true,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     invitedAt: '2024-01-02T00:00:00.000Z',
@@ -58,8 +61,12 @@ describe('Convex command utilities', () => {
     expect(formatConvexTeamConnection(mockConnection)).toContain('Test Team / test team');
     expect(formatConvexTeamConnection(mockConnection)).not.toContain('team-123');
     expect(formatConvexTeamConnection(mockConnection)).not.toContain('connection-1');
+    expect(formatConvexTeamConnection(mockConnection)).toContain('Claimed');
+    expect(formatConvexTeamConnection(mockConnection)).toContain('Yes');
     expect(formatConvexTeamConnection(mockConnection)).toContain('user@example.com');
-    expect(formatConvexTeamConnection(mockConnection)).toContain('2024-01-02T00:00:00.000Z');
+    expect(formatConvexTeamConnection(mockConnection)).toContain(
+      dateFormat(mockConnection.invitedAt, 'mmm dd HH:MM:ss')
+    );
     expect(formatConvexProject(mockProject)).toContain('project-123');
     expect(formatConvexProject(mockProject)).not.toContain('convex-project-1');
     expect(formatConvexProject(mockProject)).toContain('Test Team / test team');
@@ -93,12 +100,13 @@ describe('Convex command utilities', () => {
 
   it('prompts before resending a recent invite in interactive mode', async () => {
     jest.mocked(confirmAsync).mockResolvedValue(false);
+    const recentInviteTimestamp = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
     await expect(
       confirmRecentConvexInviteAsync(
         {
           ...mockConnection,
-          invitedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          invitedAt: recentInviteTimestamp,
         },
         { nonInteractive: false }
       )
@@ -106,6 +114,9 @@ describe('Convex command utilities', () => {
 
     expect(confirmAsync).toHaveBeenCalledWith({
       message: expect.stringContaining('Are you sure you want to send another invite?'),
+    });
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining(dateFormat(recentInviteTimestamp, 'mmm dd HH:MM:ss')),
     });
   });
 

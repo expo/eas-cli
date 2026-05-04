@@ -40,6 +40,7 @@ describe(IntegrationsConvexTeamDelete, () => {
     convexTeamIdentifier: 'team-123',
     convexTeamName: 'Test Team',
     convexTeamSlug: 'test-team',
+    hasBeenClaimed: false,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     invitedAt: '2024-01-02T00:00:00.000Z',

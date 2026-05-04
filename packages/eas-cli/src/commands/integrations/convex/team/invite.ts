@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import EasCommand from '../../../../commandUtils/EasCommand';
 import {
   confirmRecentConvexInviteAsync,
+  formatConvexInviteTimestamp,
   formatConvexTeam,
   getConvexTeamDashboardUrl,
   logNoConvexTeams,
@@ -77,6 +78,11 @@ export default class IntegrationsConvexTeamInvite extends EasCommand {
     this.logPreviousInvite(connection);
     Log.newLine();
 
+    if (connection.hasBeenClaimed) {
+      Log.warn('Convex team has already been claimed. Skipping Convex team invitation.');
+      return;
+    }
+
     if (!(await confirmRecentConvexInviteAsync(connection, { nonInteractive }))) {
       Log.warn('Skipped sending Convex team invitation.');
       return;
@@ -106,6 +112,7 @@ export default class IntegrationsConvexTeamInvite extends EasCommand {
     Log.log(
       `${chalk.bold('Dashboard')}: ${link(getConvexTeamDashboardUrl(connection), { dim: false })}`
     );
+    Log.log(`${chalk.bold('Claimed')}: ${connection.hasBeenClaimed ? 'Yes' : 'No'}`);
   }
 
   private logPreviousInvite(connection: ConvexTeamConnectionData): void {
@@ -119,7 +126,7 @@ export default class IntegrationsConvexTeamInvite extends EasCommand {
       Log.log(`${chalk.bold('Email')}: ${connection.invitedEmail}`);
     }
     if (connection.invitedAt) {
-      Log.log(`${chalk.bold('Sent at')}: ${connection.invitedAt}`);
+      Log.log(`${chalk.bold('Sent at')}: ${formatConvexInviteTimestamp(connection.invitedAt)}`);
     }
   }
 

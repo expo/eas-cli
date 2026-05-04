@@ -29,6 +29,7 @@ describe(IntegrationsConvexTeam, () => {
     convexTeamIdentifier: 'team-123',
     convexTeamName: 'Test Team',
     convexTeamSlug: 'test-team',
+    hasBeenClaimed: true,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     invitedAt: null,
@@ -65,6 +66,8 @@ describe(IntegrationsConvexTeam, () => {
       expect.stringContaining('Convex teams linked to @testuser')
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Test Team / test-team'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Claimed'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Yes'));
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('team-123'));
   });
 
