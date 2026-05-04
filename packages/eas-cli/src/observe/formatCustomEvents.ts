@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { AppObserveCustomEvent, AppObserveCustomEventName, PageInfo } from '../graphql/generated';
 import renderTextTable from '../utils/renderTextTable';
-import { buildTimeRangeDescription, formatTimestamp } from './formatUtils';
+import { buildTimeRangeDescription, formatLogTimestamp } from './formatUtils';
 
 function formatSeverity(event: AppObserveCustomEvent): string {
   if (event.severityText) {
@@ -71,7 +71,7 @@ export function buildObserveCustomEventsTable(
   ];
 
   const rows: string[][] = events.map(event => [
-    formatTimestamp(event.timestamp),
+    formatLogTimestamp(event.timestamp),
     ...(showEventName ? [event.eventName] : []),
     ...(hasSeverity ? [formatSeverity(event)] : []),
     `${event.appVersion} (${event.appBuildNumber})`,
