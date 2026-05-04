@@ -1,10 +1,10 @@
 /**
  * Format an ISO timestamp for display in event tables, including
- * seconds and milliseconds.
+ * seconds and milliseconds. Uses the runtime's default locale.
  */
 export function formatTimestamp(isoString: string): string {
   const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -16,11 +16,12 @@ export function formatTimestamp(isoString: string): string {
 }
 
 /**
- * Format an ISO timestamp for display as a date only (no time).
+ * Format an ISO timestamp for display as a date only (no time). Uses the
+ * runtime's default locale.
  */
 export function formatDate(isoString: string): string {
   const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
