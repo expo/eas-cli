@@ -89,6 +89,12 @@ export default class ObserveLogs extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveLogs);
 
+    if (args.eventName && flags['all-events']) {
+      throw new Error(
+        '--all-events cannot be combined with an event name argument. Pass an event name to filter by it, or pass --all-events to list all events across all event names.'
+      );
+    }
+
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveLogs,

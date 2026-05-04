@@ -83,6 +83,15 @@ describe(ObserveLogs, () => {
     expect(options.eventName).toBeUndefined();
   });
 
+  it('throws when both an event name argument and --all-events are provided', async () => {
+    const command = createCommand(['my_event', '--all-events']);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--all-events cannot be combined with an event name argument'
+    );
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+  });
+
   it('passes the resolved time range and platform to customEventNamesAsync', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
