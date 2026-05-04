@@ -4,6 +4,16 @@ import { AppObserveCustomEvent, AppObserveCustomEventName, PageInfo } from '../g
 import renderTextTable from '../utils/renderTextTable';
 import { buildTimeRangeDescription, formatTimestamp } from './formatUtils';
 
+function formatSeverity(event: AppObserveCustomEvent): string {
+  if (event.severityText) {
+    return event.severityText;
+  }
+  if (event.severityNumber != null) {
+    return String(event.severityNumber);
+  }
+  return '-';
+}
+
 export interface ObserveCustomEventPropertyJson {
   key: string;
   value: string;
@@ -48,7 +58,7 @@ export function buildObserveCustomEventsTable(
   }
 
   const showEventName = !options?.eventName;
-  const hasSeverity = events.some(e => e.severityText);
+  const hasSeverity = events.some(e => e.severityText != null || e.severityNumber != null);
 
   const headers = [
     'Timestamp',
@@ -63,7 +73,7 @@ export function buildObserveCustomEventsTable(
   const rows: string[][] = events.map(event => [
     formatTimestamp(event.timestamp),
     ...(showEventName ? [event.eventName] : []),
-    ...(hasSeverity ? [event.severityText ?? '-'] : []),
+    ...(hasSeverity ? [formatSeverity(event)] : []),
     `${event.appVersion} (${event.appBuildNumber})`,
     `${event.deviceOs} ${event.deviceOsVersion}`,
     event.deviceModel,
