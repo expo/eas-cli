@@ -12,6 +12,7 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -85,22 +86,13 @@ export default class ObserveMetrics extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetrics);
 
-    let projectId: string;
-    let graphqlClient;
-    if (flags['project-id']) {
-      projectId = flags['project-id'];
-      const ctx = await this.getContextAsync(
-        { contextDefinition: ObserveMetrics.loggedInOnlyContextDefinition },
-        { nonInteractive: flags['non-interactive'] }
-      );
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    } else {
-      const ctx = await this.getContextAsync(ObserveMetrics, {
-        nonInteractive: flags['non-interactive'],
-      });
-      projectId = ctx.projectId;
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    }
+    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
+      command: this,
+      commandClass: ObserveMetrics,
+      loggedInOnlyContextDefinition: ObserveMetrics.loggedInOnlyContextDefinition,
+      projectIdOverride: flags['project-id'],
+      nonInteractive: flags['non-interactive'],
+    });
 
     if (flags.json) {
       enableJsonOutput();

@@ -6,6 +6,7 @@ import { AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import { buildObserveVersionsJson, buildObserveVersionsTable } from '../../observe/formatVersions';
+import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -49,22 +50,13 @@ export default class ObserveVersions extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveVersions);
 
-    let projectId: string;
-    let graphqlClient;
-    if (flags['project-id']) {
-      projectId = flags['project-id'];
-      const ctx = await this.getContextAsync(
-        { contextDefinition: ObserveVersions.loggedInOnlyContextDefinition },
-        { nonInteractive: flags['non-interactive'] }
-      );
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    } else {
-      const ctx = await this.getContextAsync(ObserveVersions, {
-        nonInteractive: flags['non-interactive'],
-      });
-      projectId = ctx.projectId;
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    }
+    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
+      command: this,
+      commandClass: ObserveVersions,
+      loggedInOnlyContextDefinition: ObserveVersions.loggedInOnlyContextDefinition,
+      projectIdOverride: flags['project-id'],
+      nonInteractive: flags['non-interactive'],
+    });
 
     if (flags.json) {
       enableJsonOutput();

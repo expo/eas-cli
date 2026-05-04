@@ -13,6 +13,7 @@ import {
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
+import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -88,22 +89,13 @@ export default class ObserveLogs extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveLogs);
 
-    let projectId: string;
-    let graphqlClient;
-    if (flags['project-id']) {
-      projectId = flags['project-id'];
-      const ctx = await this.getContextAsync(
-        { contextDefinition: ObserveLogs.loggedInOnlyContextDefinition },
-        { nonInteractive: flags['non-interactive'] }
-      );
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    } else {
-      const ctx = await this.getContextAsync(ObserveLogs, {
-        nonInteractive: flags['non-interactive'],
-      });
-      projectId = ctx.projectId;
-      graphqlClient = ctx.loggedIn.graphqlClient;
-    }
+    const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
+      command: this,
+      commandClass: ObserveLogs,
+      loggedInOnlyContextDefinition: ObserveLogs.loggedInOnlyContextDefinition,
+      projectIdOverride: flags['project-id'],
+      nonInteractive: flags['non-interactive'],
+    });
 
     if (flags.json) {
       enableJsonOutput();
