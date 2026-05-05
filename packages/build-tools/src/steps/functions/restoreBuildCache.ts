@@ -293,8 +293,6 @@ export async function restoreGradleCacheAsync({
             tags: {
               event: 'gradle_cache_restored',
               cache_hit_type: hitType,
-              cache_key: cacheKey,
-              matched_key: matchedKey,
             },
           },
           headers: {
