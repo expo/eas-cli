@@ -426,30 +426,4 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
         'prebuild: Failed to resolve config plugin.'
       ),
   },
-  // --- Broader catch-all patterns (must come after specific patterns) ---
-  {
-    phase: BuildPhase.INSTALL_DEPENDENCIES,
-    // Catch-all for npm errors not matched by specific handlers above
-    // npm ERR! 404 Not Found - GET https://registry.npmjs.org/...
-    regexp: /npm ERR!/,
-    createError: () => new TrackedBuildError('NPM_ERROR', 'npm: generic error.'),
-  },
-  {
-    platform: Platform.IOS,
-    phase: BuildPhase.INSTALL_PODS,
-    // [!] CocoaPods error indicator - catch-all for pod errors not matched above
-    regexp: /\[!\]/,
-    createError: () =>
-      new TrackedBuildError('COCOAPODS_GENERIC_ERROR', 'cocoapods: generic error.'),
-  },
-  {
-    phase: BuildPhase.INSTALL_DEPENDENCIES,
-    // Catch-all for any install_dependencies failure - must be LAST handler with this phase
-    regexp: /.*/,
-    createError: () =>
-      new TrackedBuildError(
-        'INSTALL_DEPENDENCIES_GENERIC_FAILURE',
-        'install_dependencies: generic failure.'
-      ),
-  },
 ];

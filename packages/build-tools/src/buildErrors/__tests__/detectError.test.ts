@@ -76,9 +76,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
     expect(err.message).toBe(
       'Unknown error. See logs of the Install dependencies build phase for more information.'
     );
-    // The specific bundler handler doesn't match (wrong phase), but the
-    // INSTALL_DEPENDENCIES_GENERIC_FAILURE catch-all now picks it up
-    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects npm cache error if cache is enabled', async () => {
@@ -124,9 +122,7 @@ describe(resolveBuildPhaseErrorAsync, () => {
     expect(err.message).toBe(
       'Unknown error. See logs of the Install dependencies build phase for more information.'
     );
-    // The npm cache handler doesn't match (cache disabled), but the
-    // INSTALL_DEPENDENCIES_GENERIC_FAILURE catch-all now picks it up
-    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
+    expect(err.trackingCode).toBeUndefined();
   });
 
   it('detects xcode line error', async () => {
@@ -335,21 +331,6 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
     expect(err.trackingCode).toBe('NPM_ERESOLVE');
   });
 
-  it('detects NPM_ERROR tracking code for generic npm errors', async () => {
-    const err = await resolveBuildPhaseErrorAsync(
-      new Error(),
-      ['npm ERR! 404 Not Found - GET https://registry.npmjs.org/nonexistent-package'],
-      {
-        job: { platform: Platform.ANDROID } as Job,
-        phase: BuildPhase.INSTALL_DEPENDENCIES,
-        env: {},
-      },
-      '/fake/path'
-    );
-    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.trackingCode).toBe('NPM_ERROR');
-  });
-
   it('detects METRO_UNABLE_TO_RESOLVE tracking code', async () => {
     const err = await resolveBuildPhaseErrorAsync(
       new Error(),
@@ -467,51 +448,6 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
     expect(err.trackingCode).toBe('SYNTAX_ERROR');
   });
 
-  it('detects COCOAPODS_GENERIC_ERROR tracking code', async () => {
-    const err = await resolveBuildPhaseErrorAsync(
-      new Error(),
-      ['[!] Unable to find a specification for `SomeUnknownPod`'],
-      {
-        job: { platform: Platform.IOS } as Job,
-        phase: BuildPhase.INSTALL_PODS,
-        env: {},
-      },
-      '/fake/path'
-    );
-    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.trackingCode).toBe('COCOAPODS_GENERIC_ERROR');
-  });
-
-  it('does not detect COCOAPODS_GENERIC_ERROR for Android', async () => {
-    const err = await resolveBuildPhaseErrorAsync(
-      new Error(),
-      ['[!] Some error'],
-      {
-        job: { platform: Platform.ANDROID } as Job,
-        phase: BuildPhase.INSTALL_PODS,
-        env: {},
-      },
-      '/fake/path'
-    );
-    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.trackingCode).toBeUndefined();
-  });
-
-  it('detects INSTALL_DEPENDENCIES_GENERIC_FAILURE as catch-all', async () => {
-    const err = await resolveBuildPhaseErrorAsync(
-      new Error(),
-      ['some random error that does not match any specific pattern'],
-      {
-        job: { platform: Platform.ANDROID } as Job,
-        phase: BuildPhase.INSTALL_DEPENDENCIES,
-        env: {},
-      },
-      '/fake/path'
-    );
-    expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
-    expect(err.trackingCode).toBe('INSTALL_DEPENDENCIES_GENERIC_FAILURE');
-  });
-
   it('detects MONOREPO_PACKAGE_JSON_NOT_FOUND tracking code', async () => {
     const err = await resolveBuildPhaseErrorAsync(
       new Error(),
@@ -523,7 +459,6 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
       },
       '/fake/path'
     );
-    // MONOREPO_PACKAGE_JSON_NOT_FOUND should match before INSTALL_DEPENDENCIES_GENERIC_FAILURE
     expect(err.errorCode).toBe(errors.ErrorCode.UNKNOWN_ERROR);
     expect(err.trackingCode).toBe('MONOREPO_PACKAGE_JSON_NOT_FOUND');
   });
