@@ -154,21 +154,119 @@ export default class SimulatorStart extends EasCommand {
     Log.newLine();
     Log.log(result.message);
     Log.newLine();
-    Log.log(
-      `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+
+    if (flags['non-interactive']) {
+      Log.log(
+        `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+      );
+      return;
+    }
+
+    await waitForSessionEndOrInterruptAsync({
+      graphqlClient,
+      deviceRunSessionId,
+      jobRunUrl,
+    });
+  }
+}
+
+async function waitForSessionEndOrInterruptAsync({
+  graphqlClient,
+  deviceRunSessionId,
+  jobRunUrl,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  deviceRunSessionId: string;
+  jobRunUrl: string;
+}): Promise<void> {
+  const spinner = ora(
+    `Device run session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
+  ).start();
+
+  const abortController = new AbortController();
+  const { signal } = abortController;
+  const abortPromise = new Promise<void>(resolve => {
+    signal.addEventListener(
+      'abort',
+      () => {
+        resolve();
+      },
+      { once: true }
     );
+  });
+  const sigintHandler = (): void => {
+    if (signal.aborted) {
+      // Force exit on a second Ctrl+C in case cleanup is hanging. The session may still be
+      // running on EAS, so tell the user how to make sure it gets terminated.
+      spinner.fail(
+        `Aborted before the device run session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+      );
+      process.exit(130);
+    }
+    abortController.abort();
+  };
+  process.on('SIGINT', sigintHandler);
+
+  try {
+    while (!signal.aborted) {
+      let session;
+      try {
+        session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
+      } catch (err) {
+        Log.debug(
+          `Failed to poll device run session: ${err instanceof Error ? err.message : String(err)}`
+        );
+        await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+        continue;
+      }
+
+      const jobRunStatus = session.turtleJobRun?.status;
+      if (
+        session.status === DeviceRunSessionStatus.Errored ||
+        jobRunStatus === JobRunStatus.Errored
+      ) {
+        spinner.fail(`Device run session errored. ${link(jobRunUrl)}`);
+        throw new Error(`Device run session ${deviceRunSessionId} errored.`);
+      }
+      if (
+        session.status === DeviceRunSessionStatus.Stopped ||
+        jobRunStatus === JobRunStatus.Canceled ||
+        jobRunStatus === JobRunStatus.Finished
+      ) {
+        spinner.succeed(`Device run session ended. ${link(jobRunUrl)}`);
+        return;
+      }
+
+      await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+    }
+
+    spinner.text = 'Stopping device run session...';
+    const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
+      graphqlClient,
+      deviceRunSessionId
+    );
+    if (stopped) {
+      spinner.succeed('Device run session stopped');
+    } else {
+      spinner.fail(
+        `Could not confirm the device run session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+      );
+    }
+  } finally {
+    process.removeListener('SIGINT', sigintHandler);
   }
 }
 
 async function ensureDeviceRunSessionStoppedSafelyAsync(
   graphqlClient: ExpoGraphqlClient,
   deviceRunSessionId: string
-): Promise<void> {
+): Promise<boolean> {
   try {
     await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
       graphqlClient,
       deviceRunSessionId
     );
+    return true;
   } catch (err) {
     // Cleanup is best-effort; surface the failure but don't mask the original error.
     Log.warn(
@@ -176,6 +274,7 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
         err instanceof Error ? err.message : String(err)
       }`
     );
+    return false;
   }
 }
 
