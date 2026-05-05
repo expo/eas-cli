@@ -183,7 +183,7 @@ describe(BuildService, () => {
     });
 
     expect(turtleFetch).toHaveBeenCalledWith(
-      'http://api.expo.test/v2/turtle-builds/error-logs',
+      'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
       expect.objectContaining({
         json: expect.objectContaining({
@@ -211,7 +211,7 @@ describe(BuildService, () => {
     });
 
     expect(turtleFetch).toHaveBeenCalledWith(
-      'http://api.expo.test/v2/turtle-builds/error-logs',
+      'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
       expect.objectContaining({
         json: expect.objectContaining({
@@ -242,7 +242,7 @@ describe(BuildService, () => {
 
     expect(spawn).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
-      'http://api.expo.test/v2/turtle-builds/error-logs',
+      'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
       expect.objectContaining({
         json: expect.objectContaining({
