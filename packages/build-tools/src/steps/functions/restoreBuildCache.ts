@@ -283,24 +283,20 @@ export async function restoreGradleCacheAsync({
     );
 
     try {
-      await turtleFetch(
-        new URL('turtle-builds/logs', expoApiServerURL).toString(),
-        'POST',
-        {
-          json: {
-            buildId: jobId,
-            message: `Gradle cache restored (${hitType})`,
-            tags: {
-              event: 'gradle_cache_restored',
-              cache_hit_type: hitType,
-            },
+      await turtleFetch(new URL('turtle-builds/logs', expoApiServerURL).toString(), 'POST', {
+        json: {
+          buildId: jobId,
+          message: `Gradle cache restored (${hitType})`,
+          tags: {
+            event: 'gradle_cache_restored',
+            cache_hit_type: hitType,
           },
-          headers: {
-            Authorization: `Bearer ${robotAccessToken}`,
-          },
-          shouldThrowOnNotOk: false,
-        }
-      );
+        },
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+        },
+        shouldThrowOnNotOk: false,
+      });
     } catch (logErr: unknown) {
       logger.warn('Failed to send Gradle cache restore log: ', logErr);
     }
