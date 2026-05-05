@@ -6,7 +6,7 @@ import semver from 'semver';
 
 import { BuildContext } from '../context';
 
-const MIN_PRECOMPILED_MODULES_EXPO_VERSION = '55.0.18';
+const MIN_PRECOMPILED_MODULES_EXPO_VERSION = '55.0.21';
 // const PRECOMPILED_MODULES_BASE_URL = 'https://storage.googleapis.com/eas-build-precompiled-modules/';
 
 export async function installPods<TJob extends Ios.Job>(
