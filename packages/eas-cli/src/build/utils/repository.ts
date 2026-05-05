@@ -150,18 +150,14 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
         prefix: 'project',
         gzip: true,
         portable: true,
-        ...(process.platform === 'win32' && {
-          onWriteEntry(entry) {
-            // On Windows, read-only directories can have files created inside them.
-            // However, Node.js maps this to the `0o555` mode, which when moved to POSIX,
-            // prevents creating files inside them. This causes trouble on tar extraction.
-            // Hence, we're forcing the owner write bit on directories in Windows
-            // to avoid this issue.
-            if (entry.type === 'Directory' && entry.stat) {
-              entry.stat.mode |= 0o200;
-            }
-          },
-        }),
+        onWriteEntry(entry) {
+          // Read-only directories may have files inside them. This causes trouble on tar extraction.
+          // Hence, we're forcing the owner write bit on directories in Windows
+          // to avoid this issue.
+          if (entry.type === 'Directory' && entry.stat) {
+            entry.stat.mode |= 0o200;
+          }
+        },
       },
       ['.']
     );
