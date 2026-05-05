@@ -401,16 +401,12 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     // package.json does not exist (common in monorepos with wrong working directory)
     regexp: /package\.json does not exist/,
     createError: () =>
-      new TrackedBuildError(
-        'MONOREPO_PACKAGE_JSON_NOT_FOUND',
-        'package.json does not exist.'
-      ),
+      new TrackedBuildError('MONOREPO_PACKAGE_JSON_NOT_FOUND', 'package.json does not exist.'),
   },
   {
     // ConfigError: Property ... in app.json is invalid
     regexp: /ConfigError:/,
-    createError: () =>
-      new TrackedBuildError('EXPO_CONFIG_ERROR', 'expo: ConfigError encountered.'),
+    createError: () => new TrackedBuildError('EXPO_CONFIG_ERROR', 'expo: ConfigError encountered.'),
   },
   {
     phase: BuildPhase.CONFIGURE_EXPO_UPDATES,
@@ -418,10 +414,7 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     // runtime version is not equal ...
     regexp: /runtimeVersion.*policies.*must.*set|runtime version.*not.*equal/i,
     createError: () =>
-      new TrackedBuildError(
-        'RUNTIME_VERSION_MISMATCH',
-        'expo-updates: runtime version mismatch.'
-      ),
+      new TrackedBuildError('RUNTIME_VERSION_MISMATCH', 'expo-updates: runtime version mismatch.'),
   },
   {
     phase: BuildPhase.PREBUILD,
@@ -447,10 +440,7 @@ export const buildErrorHandlers: ErrorHandler<TrackedBuildError>[] = [
     // [!] CocoaPods error indicator - catch-all for pod errors not matched above
     regexp: /\[!\]/,
     createError: () =>
-      new TrackedBuildError(
-        'COCOAPODS_GENERIC_ERROR',
-        'cocoapods: generic error.'
-      ),
+      new TrackedBuildError('COCOAPODS_GENERIC_ERROR', 'cocoapods: generic error.'),
   },
   {
     phase: BuildPhase.INSTALL_DEPENDENCIES,

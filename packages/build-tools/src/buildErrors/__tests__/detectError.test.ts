@@ -371,7 +371,9 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
   it('detects METRO_UNABLE_TO_RESOLVE without phase restriction', async () => {
     const err = await resolveBuildPhaseErrorAsync(
       new Error(),
-      ['error: Unable to resolve module @react-native/assets from /home/expo/workingdir/build/App.js'],
+      [
+        'error: Unable to resolve module @react-native/assets from /home/expo/workingdir/build/App.js',
+      ],
       {
         job: { platform: Platform.ANDROID } as Job,
         phase: BuildPhase.EAGER_BUNDLE,
@@ -574,7 +576,9 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
   it('detects CONFIG_PLUGIN_RESOLVE_ERROR tracking code', async () => {
     const err = await resolveBuildPhaseErrorAsync(
       new Error(),
-      ['Error: Failed to resolve plugin for module "expo-camera" relative to "/home/expo/workingdir/build"'],
+      [
+        'Error: Failed to resolve plugin for module "expo-camera" relative to "/home/expo/workingdir/build"',
+      ],
       {
         job: { platform: Platform.ANDROID } as Job,
         phase: BuildPhase.PREBUILD,
