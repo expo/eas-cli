@@ -284,14 +284,12 @@ export async function restoreGradleCacheAsync({
 
     try {
       await turtleFetch(
-        new URL('turtle-builds/error-logs', expoApiServerURL).toString(),
+        new URL('turtle-builds/logs', expoApiServerURL).toString(),
         'POST',
         {
           json: {
             buildId: jobId,
             message: `Gradle cache restored (${hitType})`,
-            buildPhase: null,
-            errorCode: null,
             tags: {
               event: 'gradle_cache_restored',
               cache_hit_type: hitType,
