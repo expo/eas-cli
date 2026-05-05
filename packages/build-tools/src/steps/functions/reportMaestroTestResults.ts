@@ -77,8 +77,6 @@ export function createReportMaestroTestResultsFunction(ctx: CustomBuildContext):
           );
         }
       }
-      // flow_path absent (undefined) — silent fallback for backward compat
-      // with universe deployments that don't yet pass this input.
 
       try {
         const flowResults = await parseMaestroResults(junitDirectory, nameToPath);

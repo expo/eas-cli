@@ -1,4 +1,5 @@
 import type { bunyan } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'yaml';
@@ -35,15 +36,17 @@ async function discoverFlows({
   projectRoot,
   logger,
 }: BuildFlowNameToPathMapArgs): Promise<FlowEntry[]> {
-  const realRoot = (await tryRealpath(projectRoot)) ?? projectRoot;
+  const realRootResult = await asyncResult(fs.realpath(projectRoot));
+  const realRoot = realRootResult.ok ? realRootResult.value : projectRoot;
   const fileLists = await Promise.all(
     inputFlowPaths.map(async input => {
       const abs = path.resolve(projectRoot, input);
-      const stat = await tryStat(abs);
-      if (!stat) {
+      const statResult = await asyncResult(fs.stat(abs));
+      if (!statResult.ok) {
         logger.warn(`flow_path entry "${input}" not found, skipping`);
         return [];
       }
+      const stat = statResult.value;
       if (stat.isFile() && YAML_EXT.test(abs)) {
         return [abs];
       }
@@ -59,10 +62,11 @@ async function discoverFlows({
 }
 
 async function makeEntry(absFile: string, realRoot: string): Promise<FlowEntry> {
-  const [name, realFile] = await Promise.all([
+  const [name, realFileResult] = await Promise.all([
     readFlowName(absFile),
-    tryRealpath(absFile).then(rp => rp ?? absFile),
+    asyncResult(fs.realpath(absFile)),
   ]);
+  const realFile = realFileResult.ok ? realFileResult.value : absFile;
   const rel = path.relative(realRoot, realFile);
   const value = rel.startsWith('..') || path.isAbsolute(rel) ? absFile : rel;
   return { name, path: value, realpath: realFile };
@@ -109,7 +113,8 @@ export async function walkDir(
 ): Promise<void> {
   // Cycle protection: dedup on realpath (fall back to the original path when
   // realpath fails so we still make progress on missing or restricted dirs).
-  const real = (await tryRealpath(dir)) ?? dir;
+  const realResult = await asyncResult(fs.realpath(dir));
+  const real = realResult.ok ? realResult.value : dir;
   if (visited.has(real)) {
     return;
   }
@@ -127,10 +132,11 @@ export async function walkDir(
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isSymbolicLink()) {
-      const tgt = await tryStat(full);
-      if (!tgt) {
+      const tgtResult = await asyncResult(fs.stat(full));
+      if (!tgtResult.ok) {
         continue;
       }
+      const tgt = tgtResult.value;
       if (tgt.isDirectory()) {
         await walkDir(full, visited, out, logger);
       } else if (tgt.isFile() && isYamlFile(entry.name) && !isWorkspaceConfig(entry.name)) {
@@ -181,20 +187,4 @@ function isYamlFile(name: string): boolean {
 
 function isWorkspaceConfig(name: string): boolean {
   return name.toLowerCase() === WORKSPACE_CONFIG_BASENAME;
-}
-
-async function tryRealpath(p: string): Promise<string | null> {
-  try {
-    return await fs.realpath(p);
-  } catch {
-    return null;
-  }
-}
-
-async function tryStat(p: string): Promise<{ isFile(): boolean; isDirectory(): boolean } | null> {
-  try {
-    return await fs.stat(p);
-  } catch {
-    return null;
-  }
 }
