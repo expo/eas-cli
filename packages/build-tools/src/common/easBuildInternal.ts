@@ -1,11 +1,4 @@
-import {
-  BuildJob,
-  EasCliNpmTags,
-  Env,
-  Metadata,
-  sanitizeBuildJob,
-  sanitizeMetadata,
-} from '@expo/eas-build-job';
+import { BuildJob, Env, Metadata, sanitizeBuildJob, sanitizeMetadata } from '@expo/eas-build-job';
 import { PipeMode, bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -14,7 +7,7 @@ import Joi from 'joi';
 import nullthrows from 'nullthrows';
 
 import { BuildContext } from '../context';
-import { isAtLeastNpm7Async } from '../utils/packageManager';
+import { resolveEasCommandPrefixAndEnvAsync } from '../utils/easCli';
 
 const EasBuildInternalResultSchema = Joi.object<{ job: object; metadata: object }>({
   job: Joi.object().unknown(),
@@ -119,33 +112,6 @@ export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
   const parsed = JSON.parse(stdout);
   const env = validateEnvs(parsed.buildProfile);
   return env;
-}
-
-async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
-  cmd: string;
-  args: string[];
-  extraEnv: Env;
-}> {
-  const npxArgsPrefix = (await isAtLeastNpm7Async()) ? ['-y'] : [];
-  if (process.env.ENVIRONMENT === 'development') {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.STAGING}`],
-      extraEnv: {},
-    };
-  } else if (process.env.ENVIRONMENT === 'staging') {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.STAGING}`],
-      extraEnv: { EXPO_STAGING: '1' },
-    };
-  } else {
-    return {
-      cmd: 'npx',
-      args: [...npxArgsPrefix, `eas-cli@${EasCliNpmTags.PRODUCTION}`],
-      extraEnv: {},
-    };
-  }
 }
 
 function validateEasBuildInternalResult<TJob extends BuildJob>({

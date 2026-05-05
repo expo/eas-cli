@@ -9,6 +9,8 @@ import { configureIosVersionFunction } from './functions/configureIosVersion';
 import { createSubmissionEntityFunction } from './functions/createSubmissionEntity';
 import { createDownloadArtifactFunction } from './functions/downloadArtifact';
 import { createDownloadBuildFunction } from './functions/downloadBuild';
+import { createEasDeployBuildFunction } from './functions/deploy';
+import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
@@ -17,9 +19,10 @@ import { injectAndroidCredentialsFunction } from './functions/injectAndroidCrede
 import { createInstallMaestroBuildFunction } from './functions/installMaestro';
 import { createInstallNodeModulesBuildFunction } from './functions/installNodeModules';
 import { createInstallPodsBuildFunction } from './functions/installPods';
-import { createInternalEasMaestroTestFunction } from './functions/internalMaestroTest';
 import { createPrebuildBuildFunction } from './functions/prebuild';
+import { createReadAppConfigBuildFunction } from './functions/readAppConfig';
 import { createReadIpaInfoBuildFunction } from './functions/readIpaInfo';
+import { createReadPackageJsonBuildFunction } from './functions/readPackageJson';
 import { createRepackBuildFunction } from './functions/repack';
 import { createReportMaestroTestResultsFunction } from './functions/reportMaestroTestResults';
 import { resolveAppleTeamIdFromCredentialsFunction } from './functions/resolveAppleTeamIdFromCredentials';
@@ -29,11 +32,14 @@ import {
   createRestoreBuildCacheFunction,
 } from './functions/restoreBuildCache';
 import { createRestoreCacheFunction } from './functions/restoreCache';
+import { parseXcactivitylogFunction } from './functions/parseXcactivitylog';
 import { runFastlaneFunction } from './functions/runFastlane';
 import { runGradleFunction } from './functions/runGradle';
+import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
+import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
@@ -48,10 +54,14 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createDownloadArtifactFunction(),
     createUploadArtifactBuildFunction(ctx),
     createSetUpNpmrcBuildFunction(),
+    createReadPackageJsonBuildFunction(),
+    createReadAppConfigBuildFunction(),
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
     createDownloadBuildFunction(),
+    createEasExportBuildFunction(),
+    createEasDeployBuildFunction(),
     createRepackBuildFunction(),
     createRestoreCacheFunction(),
     createRestoreBuildCacheFunction(),
@@ -68,6 +78,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     configureIosVersionFunction(),
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
+    parseXcactivitylogFunction(),
+    createStartAgentDeviceRemoteSessionBuildFunction(),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
@@ -81,9 +93,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createSubmissionEntityFunction(),
     createUploadToAscBuildFunction(),
 
-    createInternalEasMaestroTestFunction(ctx),
-
     createReportMaestroTestResultsFunction(ctx),
+    createMaestroTestsBuildFunction(),
   ];
 
   if (ctx.hasBuildJob()) {

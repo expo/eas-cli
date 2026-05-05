@@ -1,6 +1,6 @@
 {
   "name": "eas-cli",
-  "version": "18.3.0",
+  "version": "18.10.0",
   "description": "EAS command line tool",
   "keywords": [
     "cli",
@@ -28,7 +28,7 @@
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
     "prepack": "yarn rebuild && node ./scripts/prepack.js",
-    "rebuild": "rimraf build *.tsbuildinfo && yarn build",
+    "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
     "build": "yarn typecheck-for-build && yarn copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
     "watch": "yarn typecheck-for-build --watch --preserveWatchOutput",
@@ -37,21 +37,21 @@
     "typecheck-for-build": "tsc --project tsconfig.build.json",
     "test": "jest",
     "version": "yarn run -T oclif readme && node scripts/patch-readme && git add README.md",
-    "generate-graphql-code": "graphql-codegen --config graphql-codegen.yml",
+    "generate-graphql-code": "graphql-codegen --config graphql-codegen.ts",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
-    "clean": "rimraf dist build tmp node_modules yarn-error.log *.tsbuildinfo",
+    "clean": "rimraf dist build tmp node_modules yarn-error.log \"*.tsbuildinfo\"",
     "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "dependencies": {
-    "@expo/apple-utils": "2.1.13",
+    "@expo/apple-utils": "2.1.19",
     "@expo/code-signing-certificates": "0.0.5",
-    "@expo/config": "10.0.6",
-    "@expo/config-plugins": "9.0.12",
-    "@expo/eas-build-job": "18.2.0",
-    "@expo/eas-json": "18.2.0",
+    "@expo/config": "55.0.10",
+    "@expo/config-plugins": "55.0.7",
+    "@expo/eas-build-job": "18.8.0",
+    "@expo/eas-json": "18.8.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
-    "@expo/logger": "18.0.1",
+    "@expo/logger": "18.5.0",
     "@expo/multipart-body-parser": "2.0.0",
     "@expo/osascript": "2.1.4",
     "@expo/package-manager": "1.9.10",
@@ -63,11 +63,12 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "18.2.0",
+    "@expo/steps": "18.9.0",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^4.8.3",
     "@oclif/plugin-autocomplete": "^3.2.40",
     "@segment/ajv-human-errors": "^2.1.2",
+    "@sentry/node": "7.77.0",
     "@urql/core": "4.0.11",
     "@urql/exchange-retry": "1.2.0",
     "ajv": "8.11.0",
@@ -200,8 +201,14 @@
       "env": {
         "description": "manage project and account environment variables"
       },
+      "integrations": {
+        "description": "manage third-party service integrations"
+      },
       "metadata": {
         "description": "manage store configuration"
+      },
+      "observe": {
+        "description": "monitor app performance metrics"
       },
       "project": {
         "description": "manage project"

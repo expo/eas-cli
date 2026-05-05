@@ -219,6 +219,38 @@ describe(SessionManager, () => {
       await sessionManager.logoutAsync();
       expect(sessionManager['getSessionSecret']()).toBe(null);
     });
+
+    it('calls the server logout endpoint when session secret exists', async () => {
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      const apiV2PostSpy = jest.spyOn(ApiV2Client.prototype, 'postAsync');
+
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
+      await sessionManager.logoutAsync();
+
+      expect(apiV2PostSpy).toHaveBeenCalledWith('auth/logout', { body: {} });
+    });
+
+    it('clears the local session even if the server logout call fails', async () => {
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
+      jest
+        .spyOn(ApiV2Client.prototype, 'postAsync')
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      const sessionManager = new SessionManager(analytics);
+      await sessionManager['loginAsync']({ username: 'USERNAME', password: 'PASSWORD' });
+      await sessionManager.logoutAsync();
+
+      expect(sessionManager['getSessionSecret']()).toBe(null);
+    });
   });
 
   describe('showLoginPromptAsync', () => {

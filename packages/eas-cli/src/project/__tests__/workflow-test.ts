@@ -2,7 +2,11 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
 import { resolveVcsClient } from '../../vcs';
-import { resolveWorkflowAsync, resolveWorkflowPerPlatformAsync } from '../workflow';
+import {
+  hasIgnoredIosProjectAsync,
+  resolveWorkflowAsync,
+  resolveWorkflowPerPlatformAsync,
+} from '../workflow';
 
 jest.mock('fs');
 
@@ -84,5 +88,23 @@ describe(resolveWorkflowPerPlatformAsync, () => {
       android: Workflow.GENERIC,
       ios: Workflow.GENERIC,
     });
+  });
+});
+
+describe(hasIgnoredIosProjectAsync, () => {
+  beforeEach(() => {
+    vol.reset();
+  });
+
+  test('returns true when ios project is ignored', async () => {
+    vol.fromJSON(
+      {
+        './ios/helloworld.xcodeproj/project.pbxproj': 'fake',
+        './.easignore': 'ios/\n',
+      },
+      projectDir
+    );
+
+    await expect(hasIgnoredIosProjectAsync(projectDir, vcsClient)).resolves.toBe(true);
   });
 });

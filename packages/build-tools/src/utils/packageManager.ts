@@ -1,4 +1,7 @@
+import { errors } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import * as PackageManagerUtils from '@expo/package-manager';
+import { type BuildStepEnv } from '@expo/steps';
 import spawnAsync from '@expo/turtle-spawn';
 import semver from 'semver';
 import { z } from 'zod';
@@ -10,7 +13,10 @@ export enum PackageManager {
   BUN = 'bun',
 }
 
-export function resolvePackageManager(directory: string): PackageManager {
+export function resolvePackageManager(
+  directory: string,
+  { env }: { env: BuildStepEnv }
+): PackageManager {
   try {
     const manager = PackageManagerUtils.resolvePackageManager(directory);
     if (manager === 'npm') {
@@ -19,12 +25,52 @@ export function resolvePackageManager(directory: string): PackageManager {
       return PackageManager.PNPM;
     } else if (manager === 'bun') {
       return PackageManager.BUN;
-    } else {
+    } else if (manager === 'yarn') {
       return PackageManager.YARN;
     }
-  } catch {
-    return PackageManager.YARN;
+  } catch {}
+
+  const fallback = env.EAS_FALLBACK_PACKAGE_MANAGER;
+  if (fallback) {
+    const parsed = z.enum(PackageManager).safeParse(fallback);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    const allowed = Object.values(PackageManager).join(', ');
+    throw new errors.UserError(
+      'EAS_INVALID_FALLBACK_PACKAGE_MANAGER',
+      `Invalid EAS_FALLBACK_PACKAGE_MANAGER value "${fallback}" (expected one of: ${allowed}).`
+    );
   }
+  return PackageManager.YARN;
+}
+
+/**
+ * Get the version of a package from the dist-tags.
+ * Returns null if the version cannot be resolved.
+ */
+export async function resolvePackageVersionAsync({
+  logger,
+  packageName,
+  distTag,
+}: {
+  logger: bunyan;
+  packageName: string;
+  distTag: string;
+}): Promise<string | null> {
+  try {
+    const { stdout } = await spawnAsync('npm', ['view', packageName, 'dist-tags', '--json'], {
+      stdio: 'pipe',
+    });
+    const distTags = JSON.parse(stdout);
+    if (distTag in distTags) {
+      return distTags[distTag];
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.warn(`Unable to resolve version for ${packageName}@${distTag}: ${message}`);
+  }
+  return null;
 }
 
 export function findPackagerRootDir(currentDir: string): string {

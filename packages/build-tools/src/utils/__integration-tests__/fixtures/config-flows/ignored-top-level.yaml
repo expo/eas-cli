@@ -1,5 +1,0 @@
-appId: com.example.app
-name: "ignored-top-level"
-tags: ["ignored"]
----
-- assertTrue: true

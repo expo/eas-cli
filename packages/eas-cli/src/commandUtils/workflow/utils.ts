@@ -84,16 +84,17 @@ export function choiceFromWorkflowJob(job: WorkflowJobResult, index: number): Ch
 export function choicesFromWorkflowLogs(
   logs: WorkflowLogs
 ): (Choice & { name: string; status: string; logLines: WorkflowLogLine[] | undefined })[] {
-  return Array.from(logs.keys())
-    .map(step => {
-      const logLines = logs.get(step);
+  return Array.from(logs.values())
+    .map(({ key, label, logLines }) => {
       const stepStatus =
-        logLines?.filter((line: WorkflowLogLine) => line.marker === 'end-step')[0]?.result ?? '';
+        logLines?.filter(
+          (line: WorkflowLogLine) => line.marker === 'end-step' || line.marker === 'END_PHASE'
+        )[0]?.result ?? '';
       return {
-        title: `${step} - ${stepStatus}`,
-        name: step,
+        title: `${label} - ${stepStatus}`,
+        name: label,
         status: stepStatus,
-        value: step,
+        value: key,
         logLines,
       };
     })
@@ -139,20 +140,27 @@ export async function fetchAndProcessLogsFromJobAsync(
   }
   Log.debug(`rawLogs = ${JSON.stringify(rawLogs, null, 2)}`);
   const logs: WorkflowLogs = new Map();
-  const logKeys = new Set<string>();
   rawLogs.split('\n').forEach((line, index) => {
     Log.debug(`line ${index} = ${JSON.stringify(line, null, 2)}`);
     try {
       const parsedLine = JSON.parse(line);
-      const { buildStepDisplayName, buildStepInternalId, time, msg, result, marker, err } =
+      const { buildStepDisplayName, buildStepId, phase, time, msg, result, marker, err } =
         parsedLine;
-      const stepId = buildStepDisplayName ?? buildStepInternalId;
-      if (stepId) {
-        if (!logKeys.has(stepId)) {
-          logKeys.add(stepId);
-          logs.set(stepId, []);
+      const stepKey = buildStepId ?? buildStepDisplayName ?? phase;
+      const stepLabel = buildStepDisplayName ?? buildStepId ?? phase;
+      if (stepKey && stepLabel) {
+        if (!logs.has(stepKey)) {
+          logs.set(stepKey, {
+            key: stepKey,
+            label: stepLabel,
+            logLines: [],
+          });
         }
-        logs.get(stepId)?.push({ time, msg, result, marker, err });
+        const logGroup = logs.get(stepKey)!;
+        if (buildStepDisplayName) {
+          logGroup.label = buildStepDisplayName;
+        }
+        logGroup.logLines.push({ time, msg, result, marker, err });
       }
     } catch {}
   });
@@ -238,7 +246,7 @@ export async function infoForFailedWorkflowRunAsync(
     statusValues.push({ label: '', value: '' });
     statusValues.push({ label: '  Failed job', value: job.name });
     if (steps.length > 0) {
-      const failedStep = steps.find(step => step.status === 'fail');
+      const failedStep = steps.find(step => step.status === 'fail' || step.status === 'failed');
       if (failedStep) {
         const logs = failedStep.logLines?.map(line => line.msg).slice(-logLinesToKeep) ?? [];
         statusValues.push({ label: '  Failed step', value: failedStep.name });

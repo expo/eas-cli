@@ -1,4 +1,9 @@
 import { Flags } from '@oclif/core';
+import { boolish } from 'getenv';
+
+export function isNonInteractiveByDefault(): boolean {
+  return boolish('CI', false) || !process.stdin.isTTY;
+}
 
 export const EasNonInteractiveAndJsonFlags = {
   json: Flags.boolean({
@@ -7,6 +12,8 @@ export const EasNonInteractiveAndJsonFlags = {
   }),
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
+    default: () => Promise.resolve(isNonInteractiveByDefault()),
+    noCacheDefault: true,
   }),
 };
 
@@ -64,6 +71,11 @@ export const EASEnvironmentVariableScopeFlag = {
 export const EASNonInteractiveFlag = {
   'non-interactive': Flags.boolean({
     description: 'Run the command in non-interactive mode.',
+    // eslint-disable-next-line async-protect/async-suffix
+    default: async () => {
+      return isNonInteractiveByDefault();
+    },
+    noCacheDefault: true,
   }),
 };
 

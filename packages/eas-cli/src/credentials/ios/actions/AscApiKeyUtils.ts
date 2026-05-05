@@ -2,11 +2,12 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import { UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
 import Log, { learnMore } from '../../../log';
-import { confirmAsync, promptAsync } from '../../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
 import {
@@ -24,6 +25,7 @@ import { isAscApiKeyValidAndTrackedAsync } from '../validators/validateAscApiKey
 
 export enum AppStoreApiKeyPurpose {
   SUBMISSION_SERVICE = 'EAS Submit',
+  ASC_APP_CONNECTION = 'EAS Connect',
 }
 
 export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
@@ -99,10 +101,25 @@ async function generateAscApiKeyAsync(
   purpose: AppStoreApiKeyPurpose
 ): Promise<MinimalAscApiKey> {
   await ctx.appStore.ensureAuthenticatedAsync();
+  const role = await selectRoleForGeneratedAscApiKeyAsync();
   const ascApiKey = await ctx.appStore.createAscApiKeyAsync(ctx.analytics, {
     nickname: getAscApiKeyName(purpose),
+    roles: [role],
   });
   return await getMinimalAscApiKeyAsync(ascApiKey);
+}
+
+async function selectRoleForGeneratedAscApiKeyAsync(): Promise<UserRole> {
+  return await selectAsync<UserRole>('Select role for the generated API key:', [
+    {
+      title: 'ADMIN (default)',
+      value: UserRole.ADMIN,
+    },
+    {
+      title: 'APP_MANAGER (least privilege for app management)',
+      value: UserRole.APP_MANAGER,
+    },
+  ]);
 }
 
 export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {

@@ -55,7 +55,7 @@ export async function hasIgnoredIosProjectAsync(
   try {
     const pbxProjectPath = IOSConfig.Paths.getPBXProjectPath(projectDir);
     return await vcsClient.isFileIgnoredAsync(path.relative(vcsRootPath, pbxProjectPath));
-  } finally {
+  } catch {
     return false;
   }
 }

@@ -1,7 +1,0 @@
-appId: com.example.app
-name: "tagged-flow-smoke"
-tags:
-  - smoke
-  - critical
----
-- assertTrue: true

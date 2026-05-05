@@ -149,6 +149,7 @@ export async function makeProjectTarballAsync(vcsClient: Client): Promise<LocalF
         file: tarPath,
         prefix: 'project',
         gzip: true,
+        portable: true,
         ...(process.platform === 'win32' && {
           onWriteEntry(entry) {
             // On Windows, read-only directories can have files created inside them.

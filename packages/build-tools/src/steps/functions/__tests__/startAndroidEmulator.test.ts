@@ -26,6 +26,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     cloneAsync: jest.fn(),
     startAsync: jest.fn(),
     waitForReadyAsync: jest.fn(),
+    disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
   },
 }));
@@ -33,15 +34,15 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
-
-function createStep(callInputs?: Record<string, unknown>) {
+function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
   const globalCtx = createGlobalContextMock({ logger });
-  globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home' });
-  return fn.createBuildStepFromFunctionCall(globalCtx, {
+  globalCtx.updateEnv({ HOME: '/home/expo', ANDROID_HOME: '/android/home', ...envOverrides });
+  const step = fn.createBuildStepFromFunctionCall(globalCtx, {
     callInputs,
   });
+  return Object.assign(step, { logger });
 }
 
 function createStartResult(serialId: string) {
@@ -57,7 +58,9 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
+    mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-default'));
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
+    mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
 
     mockedRetryAsync.mockImplementation(async (fn, { retryOptions }) => {
@@ -95,6 +98,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         serialId: 'emulator-2222',
         timeoutMs: 120_000,
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-2222',
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -147,6 +156,24 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         timeoutMs: 60_000,
       })
     );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-base',
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        serialId: 'emulator-clone-1-attempt-2',
+      })
+    );
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        serialId: 'emulator-clone-2-attempt-1',
+      })
+    );
 
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -173,5 +200,75 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips animation scale adjustments when opt out env var is disabled', async () => {
+    const step = createStep(undefined, {
+      ANDROID_EMULATOR_ADJUST_ANIMATION_SCALE: 'false',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync).not.toHaveBeenCalled();
+  });
+
+  it('fails early on Linux when emulator host support check fails', async () => {
+    mockedSpawn.mockRejectedValueOnce(new Error('accel check failed') as any);
+
+    const step = createStep();
+    await expect(step.executeAsync()).rejects.toThrow(/nested virtualization/i);
+
+    expect(mockedSpawn).toHaveBeenCalledWith('/android/home/emulator/emulator', ['-accel-check'], {
+      env: expect.any(Object),
+    });
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(false);
+  });
+
+  it('continues startup on Linux when emulator host support check succeeds', async () => {
+    await createStep().executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith('/android/home/emulator/emulator', ['-accel-check'], {
+      env: expect.any(Object),
+    });
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
+  });
+
+  it('skips emulator host support check when opt out env var is enabled', async () => {
+    const step = createStep(undefined, {
+      EAS_NO_EMULATOR_HOST_SUPPORT_CHECK: '1',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls.some(([command]) => command.includes('/emulator/emulator'))).toBe(
+      false
+    );
+    expect(mockedSpawn.mock.calls.some(([command]) => command === 'sdkmanager')).toBe(true);
+  });
+
+  it('falls back to empty SDK path when Android SDK path env vars are missing', async () => {
+    await createStep(undefined, {
+      ANDROID_HOME: undefined,
+      ANDROID_SDK_ROOT: undefined,
+    }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith('/emulator/emulator', ['-accel-check'], {
+      env: expect.any(Object),
+    });
+  });
+
+  it('uses ANDROID_SDK_ROOT when ANDROID_HOME is missing', async () => {
+    await createStep(undefined, {
+      ANDROID_HOME: undefined,
+      ANDROID_SDK_ROOT: '/android/sdk/root',
+    }).executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      '/android/sdk/root/emulator/emulator',
+      ['-accel-check'],
+      {
+        env: expect.any(Object),
+      }
+    );
   });
 });

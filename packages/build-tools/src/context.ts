@@ -96,7 +96,7 @@ export class BuildContext<TJob extends Job = Job> {
   private buildPhase?: BuildPhase;
   private buildPhaseSkipped = false;
   private buildPhaseHasWarnings = false;
-  private _appConfig?: ExpoConfig;
+  private _appConfig?: Promise<ExpoConfig>;
   private readonly reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
   public readonly graphqlClient: Client;
 
@@ -173,16 +173,18 @@ export class BuildContext<TJob extends Job = Job> {
     return path.join(this.workingdir, 'env');
   }
   public get packageManager(): PackageManager {
-    return resolvePackageManager(this.getReactNativeProjectDirectory());
+    return resolvePackageManager(this.getReactNativeProjectDirectory(), {
+      env: this.env,
+    });
   }
-  public get appConfig(): ExpoConfig {
+  public get appConfig(): Promise<ExpoConfig> {
     if (!this._appConfig) {
       this._appConfig = readAppConfig({
         projectDir: this.getReactNativeProjectDirectory(),
         env: this.env,
         logger: this.logger,
         sdkVersion: this.metadata?.sdkVersion,
-      }).exp;
+      }).then(config => config.exp);
     }
     return this._appConfig;
   }
@@ -287,7 +289,7 @@ export class BuildContext<TJob extends Job = Job> {
   private async handleBuildPhaseErrorAsync(
     err: any,
     buildPhase: BuildPhase
-  ): Promise<errors.BuildError> {
+  ): Promise<errors.ExpoError> {
     const buildError = await resolveBuildPhaseErrorAsync(
       err,
       this.logBuffer.getPhaseLogs(buildPhase),

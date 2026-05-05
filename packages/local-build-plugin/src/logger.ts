@@ -86,7 +86,6 @@ class PrettyStream extends Writable {
       'pid',
       'hostname',
       'name',
-      'buildStepInternalId',
       'buildStepId',
       'buildStepDisplayName',
     ]);

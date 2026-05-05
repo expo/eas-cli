@@ -34,18 +34,20 @@ export function calculateEASUpdateRuntimeVersionFunction(): BuildFunction {
       }),
     ],
     fn: async (stepCtx, { env, inputs, outputs }) => {
-      const appConfig = readAppConfig({
-        projectDir: stepCtx.workingDirectory,
-        env: Object.keys(env).reduce(
-          (acc, key) => {
-            acc[key] = env[key] ?? '';
-            return acc;
-          },
-          {} as Record<string, string>
-        ),
-        logger: stepCtx.logger,
-        sdkVersion: stepCtx.global.staticContext.metadata?.sdkVersion,
-      }).exp;
+      const appConfig = (
+        await readAppConfig({
+          projectDir: stepCtx.workingDirectory,
+          env: Object.keys(env).reduce(
+            (acc, key) => {
+              acc[key] = env[key] ?? '';
+              return acc;
+            },
+            {} as Record<string, string>
+          ),
+          logger: stepCtx.logger,
+          sdkVersion: stepCtx.global.staticContext.metadata?.sdkVersion,
+        })
+      ).exp;
 
       const platform =
         (inputs.platform.value as Platform) ?? stepCtx.global.staticContext.job.platform;

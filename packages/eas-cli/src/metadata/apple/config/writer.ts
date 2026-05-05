@@ -13,7 +13,14 @@ import {
 } from '@expo/apple-utils';
 
 import { AttributesOf } from '../../utils/asc';
-import { AppleMetadata } from '../types';
+import {
+  AppleAppClipDefaultExperience,
+  AppleAppClipLocalizedInfo,
+  AppleAppClipReviewDetail,
+  AppleMetadata,
+  ApplePreviews,
+  AppleScreenshots,
+} from '../types';
 
 /**
  * Serializes the Apple ASC entities into the metadata configuration schema.
@@ -55,6 +62,15 @@ export class AppleConfigWriter {
       violenceRealistic: attributes.violenceRealistic ?? Rating.NONE,
       violenceRealisticProlongedGraphicOrSadistic:
         attributes.violenceRealisticProlongedGraphicOrSadistic ?? Rating.NONE,
+      advertising: attributes.advertising ?? false,
+      ageAssurance: attributes.ageAssurance ?? false,
+      ageRatingOverrideV2: attributes.ageRatingOverrideV2 ?? null,
+      developerAgeRatingInfoUrl: attributes.developerAgeRatingInfoUrl ?? null,
+      gunsOrOtherWeapons: attributes.gunsOrOtherWeapons ?? Rating.NONE,
+      healthOrWellnessTopics: attributes.healthOrWellnessTopics ?? false,
+      messagingAndChat: attributes.messagingAndChat ?? false,
+      parentalControls: attributes.parentalControls ?? false,
+      userGeneratedContent: attributes.userGeneratedContent ?? false,
     };
   }
 
@@ -185,6 +201,59 @@ export class AppleConfigWriter {
       notes: optional(attributes.notes),
       // TODO: add attachment
     };
+  }
+
+  /** Set screenshots for a specific locale */
+  public setScreenshots(locale: string, screenshots: AppleScreenshots): void {
+    this.schema.info = this.schema.info ?? {};
+    this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
+    this.schema.info[locale].screenshots =
+      Object.keys(screenshots).length > 0 ? screenshots : undefined;
+  }
+
+  /** Set video previews for a specific locale */
+  public setPreviews(locale: string, previews: ApplePreviews): void {
+    this.schema.info = this.schema.info ?? {};
+    this.schema.info[locale] = this.schema.info[locale] ?? { title: '' };
+    this.schema.info[locale].previews = Object.keys(previews).length > 0 ? previews : undefined;
+  }
+
+  /** Set the App Clip default experience attributes (action, releaseWithAppStoreVersion). */
+  public setAppClipDefaultExperience(
+    attributes: Pick<AppleAppClipDefaultExperience, 'action' | 'releaseWithAppStoreVersion'>
+  ): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = {
+      ...this.schema.appClip.defaultExperience,
+      action: attributes.action,
+      releaseWithAppStoreVersion: attributes.releaseWithAppStoreVersion,
+    };
+  }
+
+  /** Set the App Clip App Store review detail (invocation URLs). */
+  public setAppClipReviewDetail(reviewDetail: AppleAppClipReviewDetail | null): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = this.schema.appClip.defaultExperience ?? {};
+    if (reviewDetail && reviewDetail.invocationUrls.length > 0) {
+      this.schema.appClip.defaultExperience.reviewDetail = reviewDetail;
+    } else {
+      delete this.schema.appClip.defaultExperience.reviewDetail;
+    }
+  }
+
+  /** Set per-locale App Clip info (subtitle + header image). */
+  public setAppClipLocalizedInfo(locale: string, info: AppleAppClipLocalizedInfo): void {
+    this.schema.appClip = this.schema.appClip ?? {};
+    this.schema.appClip.defaultExperience = this.schema.appClip.defaultExperience ?? {};
+    this.schema.appClip.defaultExperience.info = this.schema.appClip.defaultExperience.info ?? {};
+    if (info.subtitle || info.headerImage) {
+      this.schema.appClip.defaultExperience.info[locale] = {
+        subtitle: optional(info.subtitle ?? null),
+        headerImage: optional(info.headerImage ?? null),
+      };
+    } else {
+      delete this.schema.appClip.defaultExperience.info[locale];
+    }
   }
 }
 

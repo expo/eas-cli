@@ -3,6 +3,11 @@
     "name": "EAS Worker",
     "slug": "eas-worker",
     "platforms": ["ios"],
+    "ios": {
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "extra": {
       "eas": {
         "projectId": "90798684-1384-4ce4-a73b-9f3fa3e3e368"

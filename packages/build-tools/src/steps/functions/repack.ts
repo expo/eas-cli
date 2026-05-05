@@ -23,6 +23,7 @@ import resolveFrom from 'resolve-from';
 
 import { COMMON_FASTLANE_ENV } from '../../common/fastlane';
 import IosCredentialsManager from '../utils/ios/credentials/manager';
+import { resolvePackageVersionAsync } from '../../utils/packageManager';
 
 export function createRepackBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -48,6 +49,11 @@ export function createRepackBuildFunction(): BuildFunction {
       }),
       BuildStepInput.createProvider({
         id: 'embed_bundle_assets',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
+        id: 'js_bundle_only',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
       }),
@@ -82,7 +88,10 @@ export function createRepackBuildFunction(): BuildFunction {
         );
       }
 
-      const repackSpawnAsync = createSpawnAsyncStepAdapter({ verbose, logger: stepsCtx.logger });
+      const repackSpawnAsync = createSpawnAsyncStepAdapter({
+        verbose,
+        logger: stepsCtx.logger,
+      });
 
       const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-`));
       const workingDirectory = path.join(tmpDir, 'working-directory');
@@ -98,13 +107,20 @@ export function createRepackBuildFunction(): BuildFunction {
             sourcemapOutput: undefined,
           }
         : undefined;
+      const jsBundleOnly = (inputs.js_bundle_only.value as boolean | undefined) ?? false;
 
+      const resolvedRepackVersion =
+        (await resolvePackageVersionAsync({
+          logger: stepsCtx.logger,
+          packageName: inputs.repack_package.value as string,
+          distTag: inputs.repack_version.value as string,
+        })) ?? (inputs.repack_version.value as string);
       stepsCtx.logger.info(
-        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value}`
+        `Using repack from: ${inputs.repack_package.value}@${inputs.repack_version.value} (${resolvedRepackVersion})`
       );
       const repackApp = await installAndImportRepackAsync({
         packageName: inputs.repack_package.value as string,
-        version: inputs.repack_version.value as string,
+        version: resolvedRepackVersion,
       });
       const { repackAppIosAsync, repackAppAndroidAsync } = repackApp;
 
@@ -118,6 +134,7 @@ export function createRepackBuildFunction(): BuildFunction {
             outputPath,
             workingDirectory,
             exportEmbedOptions,
+            jsBundleOnly,
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
@@ -146,6 +163,7 @@ export function createRepackBuildFunction(): BuildFunction {
                 outputPath,
                 workingDirectory,
                 exportEmbedOptions,
+                jsBundleOnly,
                 androidSigningOptions,
                 logger: stepsCtx.logger,
                 spawnAsync: repackSpawnAsync,

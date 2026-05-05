@@ -103,6 +103,7 @@ async function createFingerprintWithoutLoggingAsync(
   if (options.debug) {
     fingerprintOptions.debug = true;
   }
+  fingerprintOptions.silent = true;
 
   return await withTemporaryEnvAsync(options.env ?? {}, () =>
     Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions)

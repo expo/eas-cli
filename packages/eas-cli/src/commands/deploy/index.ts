@@ -362,8 +362,22 @@ export default class WorkerDeploy extends EasCommand {
       throw error;
     }
 
-    await uploadAssetsAsync(assetFiles, deployResult);
-    await finalizeDeployAsync(deployResult);
+    let uploadError: unknown;
+    try {
+      await uploadAssetsAsync(assetFiles, deployResult);
+    } catch (error) {
+      uploadError = error;
+    }
+    try {
+      await finalizeDeployAsync(deployResult);
+    } catch (finalizeError) {
+      if (!uploadError) {
+        throw finalizeError;
+      }
+    }
+    if (uploadError) {
+      throw uploadError;
+    }
 
     let deploymentAlias: null | Awaited<ReturnType<typeof assignWorkerDeploymentAliasAsync>> = null;
     if (flags.aliasName) {

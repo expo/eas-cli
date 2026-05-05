@@ -73,6 +73,12 @@ export default class Onboarding extends EasCommand {
       );
     }
 
+    if (actor.__typename === 'PartnerActor') {
+      throw new Error(
+        'This command is not available for partner actors. Make sure you are using a user token and try again.'
+      );
+    }
+
     if (!actor.preferences.onboarding) {
       throw new Error(
         'This command can only be run as part of the onboarding process started on the Expo website. Visit https://expo.new to start a new project.'

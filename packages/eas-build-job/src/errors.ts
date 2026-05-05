@@ -54,7 +54,10 @@ export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata>
     this.buildPhase = details.buildPhase;
   }
 
-  public format(): ExternalBuildError {
+  /**
+   * Serialized error payload used by the orchestrator-worker API.
+   */
+  public toExternalExpoError(): ExternalBuildError {
     return {
       errorCode: this.errorCode,
       message: this.message,
@@ -64,29 +67,49 @@ export abstract class ExpoError<TMetadata extends ErrorMetadata = ErrorMetadata>
   }
 }
 
-export class BuildError<
-  TMetadata extends ErrorMetadata = ErrorMetadata,
-> extends ExpoError<TMetadata> {
-  constructor(message: string, details: ExpoErrorDetails<TMetadata>) {
-    super(message, details);
-  }
-}
-
 export class UserError<
   TMetadata extends ErrorMetadata = ErrorMetadata,
 > extends ExpoError<TMetadata> {
   constructor(
     public errorCode: string,
-    public message: string,
+    message: string,
     options?: {
+      trackingCode?: string;
       docsUrl?: string;
+      buildPhase?: BuildPhase;
       metadata?: TMetadata;
       cause?: unknown;
     }
   ) {
     super(message, {
       errorCode,
+      trackingCode: options?.trackingCode,
       docsUrl: options?.docsUrl,
+      buildPhase: options?.buildPhase,
+      metadata: options?.metadata,
+      cause: options?.cause,
+    });
+  }
+}
+
+export class SystemError<
+  TMetadata extends ErrorMetadata = ErrorMetadata,
+> extends ExpoError<TMetadata> {
+  constructor(
+    message: string,
+    options?: {
+      trackingCode?: string;
+      docsUrl?: string;
+      buildPhase?: BuildPhase;
+      metadata?: TMetadata;
+      cause?: unknown;
+    }
+  ) {
+    super(message, {
+      errorCode: ErrorCode.SERVER_ERROR,
+      trackingCode: options?.trackingCode,
+      docsUrl: options?.docsUrl,
+      buildPhase: options?.buildPhase,
       metadata: options?.metadata,
       cause: options?.cause,
     });
@@ -99,28 +122,25 @@ export class UnknownError extends UserError {
       ErrorCode.UNKNOWN_ERROR,
       buildPhase
         ? `Unknown error. See logs of the ${buildPhaseDisplayName[buildPhase]} build phase for more information.`
-        : 'Unknown error. See logs for more information.'
+        : 'Unknown error. See logs for more information.',
+      { buildPhase }
     );
   }
 }
 
-export class UnknownBuildError extends BuildError {
+export class UnknownBuildError extends UserError {
   constructor() {
     const errorCode = ErrorCode.UNKNOWN_ERROR;
     const message = 'Unknown error. See logs for more information.';
-    super(message, {
-      errorCode,
-    });
+    super(errorCode, message);
   }
 }
 
-export class UnknownCustomBuildError extends BuildError {
+export class UnknownCustomBuildError extends UserError {
   constructor() {
     const errorCode = ErrorCode.UNKNOWN_CUSTOM_BUILD_ERROR;
     const message = 'Unknown custom build error. See logs for more information.';
-    super(message, {
-      errorCode,
-    });
+    super(errorCode, message);
   }
 }
 

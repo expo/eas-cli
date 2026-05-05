@@ -23,6 +23,7 @@ export interface ProvisioningProfileData {
 export enum DistributionType {
   AD_HOC = 'ad-hoc',
   APP_STORE = 'app-store',
+  DEVELOPMENT = 'development',
   ENTERPRISE = 'enterprise',
 }
 
@@ -42,6 +43,7 @@ export default class ProvisioningProfile {
 
   private readonly profilePath: string;
   private profileData?: ProvisioningProfileData;
+  private developerCertificates: Buffer[] = [];
 
   constructor(
     private readonly profile: Buffer,
@@ -73,11 +75,12 @@ export default class ProvisioningProfile {
   }
 
   public verifyCertificate(fingerprint: string): void {
-    const devCertFingerprint = this.genDerCertFingerprint();
-    if (devCertFingerprint !== fingerprint) {
+    const devCertFingerprints = this.getAllDerCertFingerprints();
+    if (!devCertFingerprints.includes(fingerprint)) {
       throw new errors.CredentialsDistCertMismatchError(
-        `Provisioning profile and distribution certificate don't match.
-Profile's certificate fingerprint = ${devCertFingerprint}, distribution certificate fingerprint = ${fingerprint}`
+        `Provisioning profile and distribution certificate don't match.\n` +
+          `Profile's certificate fingerprints = [${devCertFingerprints.join(', ')}], ` +
+          `distribution certificate fingerprint = ${fingerprint}`
       );
     }
   }
@@ -110,6 +113,10 @@ Profile's certificate fingerprint = ${devCertFingerprint}, distribution certific
     ] as string;
     const bundleIdentifier = applicationIdentifier.replace(/^.+?\./, '');
 
+    this.developerCertificates = (plistData.DeveloperCertificates as string[]).map((cert: string) =>
+      Buffer.from(cert, 'base64')
+    );
+
     this.profileData = {
       path: this.profilePath,
       target: this.target,
@@ -117,7 +124,7 @@ Profile's certificate fingerprint = ${devCertFingerprint}, distribution certific
       teamId: (plistData.TeamIdentifier as string[])[0],
       uuid: plistData.UUID as string,
       name: plistData.Name as string,
-      developerCertificate: Buffer.from((plistData.DeveloperCertificates as string[])[0], 'base64'),
+      developerCertificate: this.developerCertificates[0],
       certificateCommonName: this.certificateCommonName,
       distributionType: this.resolveDistributionType(plistData),
     };
@@ -127,17 +134,19 @@ Profile's certificate fingerprint = ${devCertFingerprint}, distribution certific
     if (plistData.ProvisionsAllDevices) {
       return DistributionType.ENTERPRISE;
     } else if (plistData.ProvisionedDevices) {
+      const entitlements = plistData.Entitlements as plist.PlistObject | undefined;
+      if (entitlements?.['get-task-allow']) {
+        return DistributionType.DEVELOPMENT;
+      }
       return DistributionType.AD_HOC;
     } else {
       return DistributionType.APP_STORE;
     }
   }
 
-  private genDerCertFingerprint(): string {
-    return crypto
-      .createHash('sha1')
-      .update(new Uint8Array(this.data.developerCertificate))
-      .digest('hex')
-      .toUpperCase();
+  private getAllDerCertFingerprints(): string[] {
+    return this.developerCertificates.map(cert =>
+      crypto.createHash('sha1').update(new Uint8Array(cert)).digest('hex').toUpperCase()
+    );
   }
 }

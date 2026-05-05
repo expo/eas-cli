@@ -43,6 +43,14 @@ export default class BuildDev extends EasCommand {
       description: `Name of the build profile from eas.json. It must be a profile allowing to create emulator/simulator internal distribution dev client builds. The "${DEFAULT_EAS_BUILD_RUN_PROFILE_NAME}" build profile will be selected by default.`,
       helpValue: 'PROFILE_NAME',
     }),
+    'skip-build-if-not-found': Flags.boolean({
+      description: 'Skip build if no successful build with matching fingerprint is found.',
+      default: false,
+    }),
+    'skip-bundler': Flags.boolean({
+      description: 'Install and run the development build without starting the bundler server.',
+      default: false,
+    }),
   };
 
   static override contextDefinition = {
@@ -125,11 +133,18 @@ export default class BuildDev extends EasCommand {
 
       if (build.artifacts?.applicationArchiveUrl) {
         await downloadAndRunAsync(build);
-        await this.startDevServerAsync({ projectDir, platform });
+        if (!flags['skip-bundler']) {
+          await this.startDevServerAsync({ projectDir, platform });
+        }
         return;
       } else {
-        Log.warn('Artifacts for this build expired. New build will be started.');
+        Log.warn('Artifacts for this build expired.');
       }
+    }
+
+    if (flags['skip-build-if-not-found']) {
+      Log.log('No successful build with matching fingerprint found. Skipping build.');
+      return;
     }
 
     Log.log('🚀 No successful build with matching fingerprint found. Starting a new build...');
@@ -173,7 +188,9 @@ export default class BuildDev extends EasCommand {
       downloadSimBuildAutoConfirm: true,
       envOverride: env,
     });
-    await this.startDevServerAsync({ projectDir, platform });
+    if (!flags['skip-bundler']) {
+      await this.startDevServerAsync({ projectDir, platform });
+    }
   }
 
   private async selectPlatformAsync(platform?: Platform): Promise<Platform> {

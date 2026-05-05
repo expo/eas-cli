@@ -7,6 +7,7 @@ import semver from 'semver';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
+  PartnerActor,
   Robot,
   SsoUser,
   Update,
@@ -29,6 +30,7 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
     | Pick<Robot, '__typename' | 'firstName'>
     | Pick<User, '__typename' | 'username'>
     | Pick<SsoUser, '__typename' | 'username'>
+    | Pick<PartnerActor, '__typename' | 'username'>
     | null;
 };
 
@@ -194,6 +196,7 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   let actorName: string;
   switch (actor?.__typename) {
     case 'User':
+    case 'PartnerActor':
     case 'SSOUser': {
       actorName = actor.username;
       break;

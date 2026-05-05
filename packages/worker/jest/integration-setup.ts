@@ -14,3 +14,4 @@ if (!process.env.LISTENING_TO_UNHANDLED_REJECTION) {
 
 // Always mock:
 jest.mock('../src/CacheManager');
+jest.mock('../src/utils/turtleFetch');

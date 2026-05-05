@@ -1,4 +1,4 @@
-import { AgeRatingDeclaration, AppStoreVersion, Rating } from '@expo/apple-utils';
+import { AgeRatingDeclaration, AppInfo, Rating } from '@expo/apple-utils';
 import nock from 'nock';
 
 import { requestContext } from './fixtures/requestContext';
@@ -12,19 +12,29 @@ jest.mock('../../config/writer');
 
 describe(AgeRatingTask, () => {
   describe('prepareAsync', () => {
-    it('loads age rating from app version', async () => {
+    it('loads age rating from app info', async () => {
       const scope = nock('https://api.appstoreconnect.apple.com')
-        .get(`/v1/${AppStoreVersion.type}/stub-id/ageRatingDeclaration`)
+        .get(`/v1/${AppInfo.type}/stub-id/ageRatingDeclaration`)
         .reply(200, require('./fixtures/appStoreVersions/get-ageRatingDeclaration-200.json'));
 
       const context: any = {
-        version: new AppStoreVersion(requestContext, 'stub-id', {} as any),
+        info: new AppInfo(requestContext, 'stub-id', {} as any),
       };
 
       await new AgeRatingTask().prepareAsync({ context });
 
       expect(context.ageRating).toBeInstanceOf(AgeRatingDeclaration);
       expect(scope.isDone()).toBeTruthy();
+    });
+
+    it('skips when info is not available', async () => {
+      const context: any = {
+        info: undefined,
+      };
+
+      await new AgeRatingTask().prepareAsync({ context });
+
+      expect(context.ageRating).toBeUndefined();
     });
   });
 
@@ -54,13 +64,13 @@ describe(AgeRatingTask, () => {
   });
 
   describe('uploadAsync', () => {
-    it('aborts when age rating is not loaded', async () => {
-      const promise = new AgeRatingTask().uploadAsync({
-        config: new AppleConfigReader({}),
-        context: { ageRating: undefined } as any,
-      });
-
-      await expect(promise).rejects.toThrow('rating not initialized');
+    it('skips when age rating is not loaded', async () => {
+      await expect(
+        new AgeRatingTask().uploadAsync({
+          config: new AppleConfigReader({}),
+          context: { ageRating: undefined } as any,
+        })
+      ).resolves.not.toThrow();
     });
 
     it('skips updating age rating when not configured', async () => {

@@ -266,11 +266,30 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         }
 
         if (state.state === 'FAILED') {
+          if (isSdkVersionIssueError(errors)) {
+            throw new UserError(
+              'EAS_UPLOAD_TO_ASC_SDK_VERSION_ISSUE',
+              'Build upload was rejected by App Store Connect because the IPA was built with an iOS SDK that is too old for current App Store Connect requirements. ' +
+                'In an Expo project, this usually means the build used an outdated EAS iOS image or the project still depends on an Expo SDK / native setup that does not support the required Xcode toolchain. ' +
+                'Upgrade to a supported Expo SDK if needed and/or select a newer iOS image in `eas.json`, rebuild, and submit again.',
+              {
+                docsUrl: 'https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/',
+              }
+            );
+          }
           if (isInvalidBundleIdentifierError(errors)) {
             const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
             const ipaBundleIdentifier = ipaInfoResult.ok
               ? ipaInfoResult.value.bundleIdentifier
               : null;
+
+            let visibleAppsSummary: string | null = null;
+            try {
+              const apps = await AscApiUtils.getAppsAsync({ client, limit: 5 });
+              visibleAppsSummary = AscApiUtils.formatAppsList(apps);
+            } catch {
+              // Ok to fail, this is just trying to be helpful.
+            }
 
             throw new UserError(
               'EAS_UPLOAD_TO_ASC_INVALID_BUNDLE_ID',
@@ -279,7 +298,12 @@ export function createUploadToAscBuildFunction(): BuildFunction {
                 `App Store Connect app bundle identifier: ${ascAppBundleIdentifier}\n\n` +
                 'Bundle identifier cannot be changed for an existing App Store Connect app. ' +
                 'If you selected the wrong app, change the Apple app identifier in the submit profile. ' +
-                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).'
+                'If you selected the right app, you may want to select a different build to upload (or rebuild with a different profile).' +
+                '\n\nOther App Store Connect apps visible to this API key:\n' +
+                (visibleAppsSummary ?? '  (unable to retrieve)'),
+              {
+                docsUrl: 'https://expo.fyi/asc-app-id',
+              }
             );
           }
           if (isMissingPurposeStringError(errors)) {
@@ -329,6 +353,10 @@ export function isClosedVersionTrainError(messages: { code: string }[]): boolean
     messages.length > 0 &&
     messages.every(message => ['90062', '90186', '90478'].includes(message.code))
   );
+}
+
+export function isSdkVersionIssueError(messages: { code: string }[]): boolean {
+  return messages.length > 0 && messages.every(message => message.code === '90725');
 }
 
 export function isInvalidBundleIdentifierError(messages: { code: string }[]): boolean {

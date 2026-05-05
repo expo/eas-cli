@@ -27,7 +27,7 @@ export async function installNodeModules(
   env: BuildStepEnv
 ): Promise<void> {
   const { logger } = stepCtx;
-  const packageManager = resolvePackageManager(stepCtx.workingDirectory);
+  const packageManager = resolvePackageManager(stepCtx.workingDirectory, { env });
   const packagerRunDir = findPackagerRootDir(stepCtx.workingDirectory);
 
   if (packagerRunDir !== stepCtx.workingDirectory) {
