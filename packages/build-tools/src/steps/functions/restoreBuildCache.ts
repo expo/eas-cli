@@ -283,7 +283,7 @@ export async function restoreGradleCacheAsync({
     );
 
     try {
-      await turtleFetch(new URL('turtle-builds/logs', expoApiServerURL).toString(), 'POST', {
+      await turtleFetch(new URL('v2/turtle-builds/logs', expoApiServerURL).toString(), 'POST', {
         json: {
           buildId: jobId,
           message: `Gradle cache restored (${hitType})`,
