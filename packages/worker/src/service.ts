@@ -361,9 +361,9 @@ export default class BuildService {
                 buildId: this.buildId,
                 message: rawErrorMessage,
                 level: 'error',
-                buildPhase: err.buildPhase ?? null,
-                errorCode: err.errorCode,
                 tags: {
+                  build_phase: err.buildPhase ?? null,
+                  error_code: err.errorCode,
                   platform: job.platform,
                   workflow: job.type,
                   sdk_version: metadata?.sdkVersion ?? null,

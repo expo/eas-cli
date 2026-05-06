@@ -297,9 +297,7 @@ export async function restoreGradleCacheAsync({
         },
         shouldThrowOnNotOk: false,
       });
-    } catch (logErr: unknown) {
-      logger.warn('Failed to send Gradle cache restore log: ', logErr);
-    }
+    } catch {}
   } catch (err: unknown) {
     if (err instanceof TurtleFetchError && err.response?.status === 404) {
       logger.info('No Gradle cache found for this key');
