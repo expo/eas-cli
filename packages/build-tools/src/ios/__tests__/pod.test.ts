@@ -66,8 +66,8 @@ describe(installPods, () => {
     });
   });
 
-  it('adds precompiled modules env var for Expo versions that support them', async () => {
-    const ctx = makeIosBuildContext({ expoVersion: '55.0.18' });
+  it('adds precompiled modules env var for Expo versions well above the minimum', async () => {
+    const ctx = makeIosBuildContext({ expoVersion: '999.0.0' });
 
     await installPods(ctx, {});
 
@@ -96,7 +96,7 @@ describe(installPods, () => {
       (spawn as jest.Mock).mock.calls[1][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
     ).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
-      'Detected expo=55.0.18; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nPrecompiled modules pod install environment is configured.'
+      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nPrecompiled modules pod install environment is configured.'
     );
   });
 
@@ -107,7 +107,9 @@ describe(installPods, () => {
 
     expect((spawn as jest.Mock).mock.calls[1][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
-      'Detected expo=55.0.17; not enabling precompiled modules use because precompiled modules require expo>=55.0.18.'
+      expect.stringMatching(
+        /^Detected expo=55\.0\.17; not enabling precompiled modules use because precompiled modules require expo>=/
+      )
     );
   });
 
@@ -136,7 +138,7 @@ describe(installPods, () => {
 
   it('does not add precompiled modules env vars without the builder flag', async () => {
     const ctx = makeIosBuildContext({
-      expoVersion: '55.0.18',
+      expoVersion: '999.0.0',
       usePrecompiledModules: false,
     });
 
