@@ -5,11 +5,20 @@ import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import EasCommand from '../../../commandUtils/EasCommand';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { confirmRecentConvexInviteAsync, formatConvexTeam } from '../../../commandUtils/convex';
 import { EASNonInteractiveFlag } from '../../../commandUtils/flags';
+import {
+  EnvironmentSecretType,
+  EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
+} from '../../../graphql/generated';
 import { ConvexMutation } from '../../../graphql/mutations/ConvexMutation';
+import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { ConvexQuery } from '../../../graphql/queries/ConvexQuery';
+import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import { ConvexTeamConnectionData } from '../../../graphql/types/ConvexTeamConnection';
 import Log from '../../../log';
 import { ora } from '../../../ora';
@@ -23,6 +32,12 @@ const CONVEX_REGIONS = [
 ];
 
 const DEFAULT_REGION = 'aws-us-east-1';
+const EAS_CONVEX_ENV_VAR_NAME = 'EXPO_PUBLIC_CONVEX_URL';
+const EAS_CONVEX_ENVIRONMENTS = [
+  DefaultEnvironment.Production,
+  DefaultEnvironment.Preview,
+  DefaultEnvironment.Development,
+];
 
 type TeamInviteResult = 'sent' | 'skipped' | 'failed';
 
@@ -132,12 +147,20 @@ export default class IntegrationsConvexConnect extends EasCommand {
       throw error;
     }
 
-    // 6. Send team invite (non-fatal)
+    // 6. Save the Convex URL as an EAS environment variable for builds
+    await this.upsertConvexUrlEasEnvVarAsync(
+      graphqlClient,
+      projectId,
+      setupResult.convexDeploymentUrl,
+      nonInteractive
+    );
+
+    // 7. Send team invite (non-fatal)
     const teamInviteResult = await this.sendTeamInviteAsync(graphqlClient, connection, actor, {
       nonInteractive,
     });
 
-    // 7. Write deploy key and URL to .env.local
+    // 8. Write deploy key and URL to .env.local
     await this.writeEnvLocalAsync(
       projectDir,
       setupResult.deployKey,
@@ -145,7 +168,7 @@ export default class IntegrationsConvexConnect extends EasCommand {
       nonInteractive
     );
 
-    // 8. Success message
+    // 9. Success message
     Log.addNewLineIfNone();
     Log.log(chalk.green('Convex is ready!'));
     Log.newLine();
@@ -161,6 +184,63 @@ export default class IntegrationsConvexConnect extends EasCommand {
         `Check your email for an invitation to join your Convex team. Accept it for full dashboard access.`
       );
     }
+  }
+
+  private async upsertConvexUrlEasEnvVarAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string,
+    convexUrl: string,
+    nonInteractive: boolean
+  ): Promise<void> {
+    const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+      appId: projectId,
+      filterNames: [EAS_CONVEX_ENV_VAR_NAME],
+    });
+    const existingProjectVariable = existingVariables.find(
+      variable => variable.scope === EnvironmentVariableScope.Project
+    );
+
+    if (existingProjectVariable) {
+      if (!nonInteractive) {
+        const overwrite = await confirmAsync({
+          message: `EAS already has an ${EAS_CONVEX_ENV_VAR_NAME} environment variable for this project. Overwrite it?`,
+        });
+        if (!overwrite) {
+          Log.warn(
+            `Skipped updating EAS environment variable ${chalk.bold(EAS_CONVEX_ENV_VAR_NAME)}.`
+          );
+          return;
+        }
+      }
+
+      await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+        id: existingProjectVariable.id,
+        name: EAS_CONVEX_ENV_VAR_NAME,
+        value: convexUrl,
+        environments: EAS_CONVEX_ENVIRONMENTS,
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      });
+      Log.withTick(
+        `Updated EAS environment variable ${chalk.bold(EAS_CONVEX_ENV_VAR_NAME)} for builds`
+      );
+      return;
+    }
+
+    await EnvironmentVariableMutation.createForAppAsync(
+      graphqlClient,
+      {
+        name: EAS_CONVEX_ENV_VAR_NAME,
+        value: convexUrl,
+        environments: EAS_CONVEX_ENVIRONMENTS,
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+      projectId
+    );
+    Log.withTick(
+      `Created EAS environment variable ${chalk.bold(EAS_CONVEX_ENV_VAR_NAME)} for builds`
+    );
   }
 
   private async resolveRegionAsync(
