@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Automatically save the Convex deployment URL as an EAS environment variable when connecting a Convex project. ([#3685](https://github.com/expo/eas-cli/pull/3685) by [@fiberjw](https://github.com/fiberjw))
+- [eas-cli] Update `eas go` to remove local project setup and add support for multiple Expo Go SDK versions. ([#3657](https://github.com/expo/eas-cli/pull/3657) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 

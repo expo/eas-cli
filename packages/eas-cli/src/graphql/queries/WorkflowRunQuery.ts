@@ -5,6 +5,8 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  ExpoGoProjectConfiguration,
+  ExpoGoRepackInput,
   WorkflowRunByIdQuery,
   WorkflowRunByIdQueryVariables,
   WorkflowRunByIdWithJobsQuery,
@@ -17,6 +19,38 @@ import { WorkflowJobFragmentNode } from '../types/WorkflowJob';
 import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
 
 export const WorkflowRunQuery = {
+  async expoGoRepackConfigurationAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: ExpoGoRepackInput
+  ): Promise<ExpoGoProjectConfiguration> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          { expoGoBuild: { repackConfiguration: ExpoGoProjectConfiguration } },
+          { input: ExpoGoRepackInput }
+        >(
+          /* eslint-disable graphql/template-strings */
+          gql`
+            query ExpoGoRepackConfiguration($input: ExpoGoRepackInput!) {
+              expoGoBuild {
+                repackConfiguration(input: $input) {
+                  sdkVersion
+                  files {
+                    fileName
+                    fileContents
+                  }
+                }
+              }
+            }
+          `,
+          /* eslint-enable graphql/template-strings */
+          { input },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.expoGoBuild.repackConfiguration;
+  },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     workflowRunId: string,

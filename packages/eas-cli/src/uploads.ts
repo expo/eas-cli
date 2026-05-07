@@ -30,6 +30,34 @@ export async function uploadFileAtPathToGCSAsync(
   return signedUrl.bucketKey;
 }
 
+export async function uploadAccountScopedBufferToGCSAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    type,
+    accountId,
+    buffer,
+  }: {
+    type: AccountUploadSessionType;
+    accountId: string;
+    buffer: Buffer;
+  }
+): Promise<string> {
+  const signedUrl = await UploadSessionMutation.createAccountScopedUploadSessionAsync(
+    graphqlClient,
+    { type, accountID: accountId }
+  );
+
+  const response = await fetch(signedUrl.url, {
+    method: 'PUT',
+    body: buffer,
+    headers: { ...signedUrl.headers },
+  });
+  if (!response.ok) {
+    throw new Error(`Upload to GCS failed with status ${response.status} ${response.statusText}`);
+  }
+  return signedUrl.bucketKey;
+}
+
 export async function uploadAccountScopedFileAtPathToGCSAsync(
   graphqlClient: ExpoGraphqlClient,
   {
