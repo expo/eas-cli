@@ -31,10 +31,11 @@ export async function runGradleCommand(
   logger.info(`Running 'gradlew ${gradleCommand}' in ${androidDir}`);
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
+  const profileFlag = ctx.env['EXPERIMENTAL_GRADLE_PROFILE'] === '1' ? '--profile' : '';
 
   const spawnPromise = spawn(
     'bash',
-    ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`],
+    ['-c', `./gradlew ${gradleCommand} ${profileFlag} ${verboseFlag}`],
     {
       cwd: androidDir,
       logger,
@@ -234,7 +235,7 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
 
   // Compute totals from individual tasks only (avoid double-counting)
   const totalMs = individualTasks.reduce((sum, t) => sum + t.durationMs, 0);
-  const maxMs = rows[0]?.task.durationMs ?? 1;
+  const maxMs = totalMs || 1;
 
   const nameWidth = Math.max(4, ...rows.map(r => r.displayName.length)) + 2;
   const barMaxWidth = 20;
@@ -259,11 +260,12 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
     '─┘';
 
   const taskCount = individualTasks.length;
+  const cachedCount = individualTasks.filter(t => t.result !== 'executed').length;
   const lines: string[] = [];
 
-  lines.push('');
   lines.push('Gradle Build — Task Execution Profile');
-  lines.push(`${taskCount} tasks, total task time: ${formatSeconds(totalMs)}`);
+  const cachedSuffix = cachedCount > 0 ? ` (${cachedCount} cached/up-to-date)` : '';
+  lines.push(`${taskCount} tasks${cachedSuffix}, total task time: ${formatSeconds(totalMs)}`);
   lines.push('% Time = share of total task execution time');
   lines.push('');
   lines.push(header);

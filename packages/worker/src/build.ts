@@ -91,13 +91,15 @@ export async function build({
 
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
 
-    if (job.platform === Platform.ANDROID) {
+    if (job.platform === Platform.ANDROID && ctx.env.EXPERIMENTAL_GRADLE_PROFILE === '1') {
       await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
         const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
         const profileTasks = await parseGradleProfile(androidDir, logger);
         if (profileTasks && profileTasks.length > 0) {
           const report = formatGradleProfileReport(profileTasks);
-          logger.info(report);
+          for (const line of report.split('\n')) {
+            logger.info(line);
+          }
         }
       });
     }
