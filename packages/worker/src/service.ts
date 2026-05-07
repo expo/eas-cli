@@ -4,7 +4,6 @@ import {
   Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
-  parseGradleProfile,
   runHookIfPresent,
 } from '@expo/build-tools';
 import {
@@ -314,11 +313,14 @@ export default class BuildService {
       });
       this.buildContext = ctx;
 
-      const artifacts = await build({
+      const { artifacts, gradleProfileTasks } = await build({
         ctx,
         buildId: this.buildId,
         analytics,
       });
+      if (gradleProfileTasks && gradleProfileTasks.length > 0) {
+        await this.uploadGradleProfile(job, gradleProfileTasks);
+      }
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
@@ -347,28 +349,17 @@ export default class BuildService {
       });
 
       await this.finishError(err, maybeArtifacts);
-    } finally {
-      if (job.platform === Platform.ANDROID) {
-        await this.maybeUploadGradleProfile(job);
-      }
     }
   }
 
-  private async maybeUploadGradleProfile(job: Job): Promise<void> {
+  private async uploadGradleProfile(job: Job, tasks: GradleProfileTask[]): Promise<void> {
     try {
       const robotAccessToken = job.secrets?.robotAccessToken;
-      if (!robotAccessToken || !this.buildContext) {
+      if (!robotAccessToken) {
         return;
       }
 
-      const androidDir = path.join(
-        this.buildContext.getReactNativeProjectDirectory(),
-        'android'
-      );
-      const tasks = await parseGradleProfile(androidDir);
-      if (!tasks || tasks.length === 0) {
-        return;
-      }
+      logger.info('Uploading Gradle profile with %d tasks', tasks.length);
 
       await turtleFetch(
         new URL('turtle-builds/gradle-profile', config.wwwApiV2BaseUrl).toString(),

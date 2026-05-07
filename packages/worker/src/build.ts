@@ -20,6 +20,10 @@ import { Analytics, Event, logProjectDependenciesAsync } from './external/analyt
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
 import { cleanUpWorkingdir } from './workingdir';
 
+export interface BuildResult {
+  artifacts: Artifacts;
+}
+
 export async function build({
   ctx,
   buildId,
@@ -28,7 +32,7 @@ export async function build({
   ctx: BuildContext;
   buildId: string;
   analytics: Analytics;
-}): Promise<Artifacts> {
+}): Promise<BuildResult> {
   const { job, logger } = ctx;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
@@ -83,7 +87,7 @@ export async function build({
 
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
 
-    return artifacts;
+    return { artifacts };
   } catch (err: any) {
     if ('mode' in job && ![BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)) {
       logBuildError(logger, analytics, err);

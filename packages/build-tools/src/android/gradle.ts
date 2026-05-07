@@ -32,18 +32,27 @@ export async function runGradleCommand(
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
 
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`], {
-    cwd: androidDir,
-    logger,
-    lineTransformer: (line?: string) => {
-      if (!line || /^\.+$/.exec(line)) {
-        return null;
-      } else {
-        return line;
-      }
-    },
-    env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.UTF-8' },
-  });
+  const spawnPromise = spawn(
+    'bash',
+    ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`],
+    {
+      cwd: androidDir,
+      logger,
+      lineTransformer: (line?: string) => {
+        if (!line || /^\.+$/.exec(line)) {
+          return null;
+        } else {
+          return line;
+        }
+      },
+      env: {
+        ...ctx.env,
+        ...extraEnv,
+        ...resolveVersionOverridesEnvs(ctx),
+        LC_ALL: 'C.UTF-8',
+      },
+    }
+  );
   if (ctx.env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
   }
@@ -109,70 +118,78 @@ export interface GradleProfileTask {
   result: string;
 }
 
-export async function parseGradleProfile(androidDir: string): Promise<GradleProfileTask[] | null> {
-  const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
-  if (!(await fs.pathExists(profileDir))) {
-    return null;
+function formatSeconds(ms: number): string {
+  const s = ms / 1000;
+  if (s < 0.1) {
+    return `${ms}ms`;
   }
-
-  const files = await fs.readdir(profileDir);
-  const profileFile = files.filter((f) => f.endsWith('.html')).sort().pop();
-  if (!profileFile) {
-    return null;
-  }
-
-  const html = await fs.readFile(path.join(profileDir, profileFile), 'utf8');
-
-  const tab4Match = html.match(/id="tab4"[\s\S]*?<\/table>/);
-  if (!tab4Match) {
-    return null;
-  }
-
-  const taskSection = tab4Match[0];
-  const tasks: GradleProfileTask[] = [];
-  const rowRegex = /<tr>\s*<td class="indentPath">(.*?)<\/td>\s*<td class="numeric">(.*?)<\/td>\s*<td>(.*?)<\/td>\s*<\/tr>/g;
-
-  let match;
-  while ((match = rowRegex.exec(taskSection)) !== null) {
-    tasks.push({
-      path: match[1],
-      durationMs: parseDurationToMs(match[2]),
-      result: match[3] || 'executed',
-    });
-  }
-
-  return tasks;
+  return `${s.toFixed(1)}s`;
 }
 
-function parseDurationToMs(duration: string): number {
-  let totalMs = 0;
+export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
+  const sorted = [...tasks].sort((a, b) => b.durationMs - a.durationMs);
+  const totalMs = sorted.reduce((sum, t) => sum + t.durationMs, 0);
+  const maxMs = sorted[0]?.durationMs ?? 1;
 
-  const daysMatch = duration.match(/(\d+)d/);
-  if (daysMatch) {
-    totalMs += parseInt(daysMatch[1], 10) * 86400000;
+  const nameWidth = Math.max(4, ...sorted.map(t => t.path.length)) + 2;
+  const barMaxWidth = 20;
+
+  const header =
+    '┌─' + '─'.repeat(nameWidth) +
+    '─┬────────────┬──────────┬────────────┬─' +
+    '─'.repeat(barMaxWidth) + '─┐';
+  const divider =
+    '├─' + '─'.repeat(nameWidth) +
+    '─┼────────────┼──────────┼────────────┼─' +
+    '─'.repeat(barMaxWidth) + '─┤';
+  const footer =
+    '└─' + '─'.repeat(nameWidth) +
+    '─┴────────────┴──────────┴────────────┴─' +
+    '─'.repeat(barMaxWidth) + '─┘';
+
+  const lines: string[] = [];
+
+  lines.push('');
+  lines.push('Gradle Build — Task Execution Profile');
+  lines.push(`${sorted.length} tasks, total task time: ${formatSeconds(totalMs)}`);
+  lines.push('% Time = share of total task execution time');
+  lines.push('');
+  lines.push(header);
+  lines.push(
+    '│ ' + 'Task'.padEnd(nameWidth) +
+    ' │ ' + 'Duration'.padStart(10) +
+    ' │ ' + '% Time'.padStart(8) +
+    ' │ ' + 'Result'.padEnd(10) +
+    ' │ ' + ' '.repeat(barMaxWidth) + ' │'
+  );
+  lines.push(divider);
+
+  for (const task of sorted) {
+    const pct = totalMs === 0 ? 0 : (task.durationMs / totalMs) * 100;
+    const barLength = Math.round((task.durationMs / maxMs) * barMaxWidth);
+    const bar = '█'.repeat(barLength) + '░'.repeat(barMaxWidth - barLength);
+
+    lines.push(
+      '│ ' + task.path.padEnd(nameWidth) +
+      ' │ ' + formatSeconds(task.durationMs).padStart(10) +
+      ' │ ' + `${pct.toFixed(1)}%`.padStart(8) +
+      ' │ ' + task.result.padEnd(10) +
+      ' │ ' + bar + ' │'
+    );
   }
 
-  const hoursMatch = duration.match(/(\d+)h/);
-  if (hoursMatch) {
-    totalMs += parseInt(hoursMatch[1], 10) * 3600000;
-  }
+  lines.push(divider);
+  lines.push(
+    '│ ' + 'TOTAL'.padEnd(nameWidth) +
+    ' │ ' + formatSeconds(totalMs).padStart(10) +
+    ' │ ' + '100.0%'.padStart(8) +
+    ' │ ' + ' '.repeat(10) +
+    ' │ ' + ' '.repeat(barMaxWidth) + ' │'
+  );
+  lines.push(footer);
+  lines.push('');
 
-  const minsMatch = duration.match(/(\d+)m(?!\s*s)/);
-  if (minsMatch) {
-    totalMs += parseInt(minsMatch[1], 10) * 60000;
-  }
-
-  const secsMatch = duration.match(/([\d.]+)s$/);
-  if (secsMatch) {
-    totalMs += Math.round(parseFloat(secsMatch[1]) * 1000);
-  }
-
-  const msMatch = duration.match(/([\d.]+)ms$/);
-  if (msMatch) {
-    totalMs += Math.round(parseFloat(msMatch[1]));
-  }
-
-  return totalMs;
+  return lines.join('\n');
 }
 
 export function resolveGradleCommand(job: Android.Job): string {
