@@ -151,6 +151,10 @@ export default class IntegrationsConvexConnect extends EasCommand {
     Log.newLine();
     Log.log('Next steps:');
     Log.log(`  1. Start the Convex dev server: ${chalk.cyan('npx convex dev')}`);
+    Log.log(
+      `  2. Learn how to connect to your new Convex database by following our quickstart guide: ${chalk.cyan('https://docs.expo.dev/guides/using-convex')}`
+    );
+    Log.log(`  3. Read more about Convex: ${chalk.cyan('https://docs.convex.dev/')}`);
     Log.newLine();
     if (teamInviteResult === 'sent') {
       Log.log(
