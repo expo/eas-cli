@@ -26,7 +26,7 @@ export async function runGradleCommand({
 
   const spawnPromise = spawn(
     'bash',
-    ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`],
+    ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`],
     {
       cwd: androidDir,
       logger,

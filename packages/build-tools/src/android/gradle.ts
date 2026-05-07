@@ -34,7 +34,7 @@ export async function runGradleCommand(
 
   const spawnPromise = spawn(
     'bash',
-    ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`],
+    ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`],
     {
       cwd: androidDir,
       logger,
@@ -118,6 +118,61 @@ export interface GradleProfileTask {
   result: string;
 }
 
+export async function parseGradleProfile(androidDir: string, logger?: bunyan): Promise<GradleProfileTask[] | null> {
+  const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
+  if (!(await fs.pathExists(profileDir))) {
+    logger?.info('Gradle profile directory not found at %s', profileDir);
+    return null;
+  }
+
+  const files = await fs.readdir(profileDir);
+  const htmlFile = files
+    .filter((f) => f.startsWith('profile-') && f.endsWith('.html'))
+    .sort()
+    .pop();
+
+  if (!htmlFile) {
+    logger?.info('No Gradle profile HTML found in %s', profileDir);
+    return null;
+  }
+
+  logger?.info('Parsing Gradle profile from %s', path.join(profileDir, htmlFile));
+  const html = await fs.readFile(path.join(profileDir, htmlFile), 'utf8');
+
+  // Find the "Task Execution" section - it's the last <table> in the "Task Execution" tab
+  const taskExecMatch = html.match(/<h2[^>]*>\s*Task Execution\s*<\/h2>([\s\S]*?)(?:<\/div>)/i);
+  if (!taskExecMatch) {
+    logger?.info('Could not find Task Execution section in Gradle profile');
+    return null;
+  }
+
+  const section = taskExecMatch[1];
+  const tasks: GradleProfileTask[] = [];
+
+  // Parse table rows: <td>task path</td><td>duration</td><td>result</td>
+  const rowRegex = /<tr>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<\/tr>/gi;
+  let match;
+  while ((match = rowRegex.exec(section)) !== null) {
+    const taskPath = match[1].trim();
+    const durationStr = match[2].trim();
+    const result = match[3].trim() || 'executed';
+
+    const durationMs = parseDurationToMs(durationStr);
+    tasks.push({ path: taskPath, durationMs, result: result.toLowerCase() });
+  }
+
+  return tasks.length > 0 ? tasks : null;
+}
+
+function parseDurationToMs(duration: string): number {
+  // Gradle profile durations can be like "1.234s", "0.045s", "12.5s"
+  const secondsMatch = duration.match(/^([\d.]+)s$/);
+  if (secondsMatch) {
+    return Math.round(parseFloat(secondsMatch[1]) * 1000);
+  }
+  return 0;
+}
+
 function formatSeconds(ms: number): string {
   const s = ms / 1000;
   if (s < 0.1) {
@@ -127,11 +182,55 @@ function formatSeconds(ms: number): string {
 }
 
 export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
-  const sorted = [...tasks].sort((a, b) => b.durationMs - a.durationMs);
-  const totalMs = sorted.reduce((sum, t) => sum + t.durationMs, 0);
-  const maxMs = sorted[0]?.durationMs ?? 1;
+  // Separate module totals from individual tasks
+  const moduleTotals = tasks.filter((t) => t.result === '(total)');
+  const individualTasks = tasks.filter((t) => t.result !== '(total)');
 
-  const nameWidth = Math.max(4, ...sorted.map(t => t.path.length)) + 2;
+  // Group individual tasks by their module prefix
+  const moduleChildren = new Map<string, GradleProfileTask[]>();
+  const orphanTasks: GradleProfileTask[] = [];
+
+  for (const task of individualTasks) {
+    const parent = moduleTotals.find((m) => task.path.startsWith(m.path + ':'));
+    if (parent) {
+      const children = moduleChildren.get(parent.path) ?? [];
+      children.push(task);
+      moduleChildren.set(parent.path, children);
+    } else {
+      orphanTasks.push(task);
+    }
+  }
+
+  // Sort module totals by duration, sort children within each module
+  const sortedModules = [...moduleTotals].sort((a, b) => b.durationMs - a.durationMs);
+  for (const children of moduleChildren.values()) {
+    children.sort((a, b) => b.durationMs - a.durationMs);
+  }
+  orphanTasks.sort((a, b) => b.durationMs - a.durationMs);
+
+  // Build display rows: [displayName, task]
+  const rows: { displayName: string; task: GradleProfileTask }[] = [];
+
+  for (const mod of sortedModules) {
+    rows.push({ displayName: mod.path, task: mod });
+    const children = moduleChildren.get(mod.path) ?? [];
+    for (let i = 0; i < children.length; i++) {
+      const isLast = i === children.length - 1;
+      const prefix = isLast ? '  └─ ' : '  ├─ ';
+      const shortName = children[i].path.slice(mod.path.length + 1);
+      rows.push({ displayName: prefix + shortName, task: children[i] });
+    }
+  }
+
+  for (const task of orphanTasks) {
+    rows.push({ displayName: task.path, task });
+  }
+
+  // Compute totals from individual tasks only (avoid double-counting)
+  const totalMs = individualTasks.reduce((sum, t) => sum + t.durationMs, 0);
+  const maxMs = rows[0]?.task.durationMs ?? 1;
+
+  const nameWidth = Math.max(4, ...rows.map((r) => r.displayName.length)) + 2;
   const barMaxWidth = 20;
 
   const header =
@@ -147,11 +246,12 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
     '─┴────────────┴──────────┴────────────┴─' +
     '─'.repeat(barMaxWidth) + '─┘';
 
+  const taskCount = individualTasks.length;
   const lines: string[] = [];
 
   lines.push('');
   lines.push('Gradle Build — Task Execution Profile');
-  lines.push(`${sorted.length} tasks, total task time: ${formatSeconds(totalMs)}`);
+  lines.push(`${taskCount} tasks, total task time: ${formatSeconds(totalMs)}`);
   lines.push('% Time = share of total task execution time');
   lines.push('');
   lines.push(header);
@@ -164,16 +264,17 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   );
   lines.push(divider);
 
-  for (const task of sorted) {
-    const pct = totalMs === 0 ? 0 : (task.durationMs / totalMs) * 100;
-    const barLength = Math.round((task.durationMs / maxMs) * barMaxWidth);
+  for (const row of rows) {
+    const pct = totalMs === 0 ? 0 : (row.task.durationMs / totalMs) * 100;
+    const barLength = Math.round((row.task.durationMs / maxMs) * barMaxWidth);
     const bar = '█'.repeat(barLength) + '░'.repeat(barMaxWidth - barLength);
+    const result = row.task.result === '(total)' ? 'total' : row.task.result;
 
     lines.push(
-      '│ ' + task.path.padEnd(nameWidth) +
-      ' │ ' + formatSeconds(task.durationMs).padStart(10) +
+      '│ ' + row.displayName.padEnd(nameWidth) +
+      ' │ ' + formatSeconds(row.task.durationMs).padStart(10) +
       ' │ ' + `${pct.toFixed(1)}%`.padStart(8) +
-      ' │ ' + task.result.padEnd(10) +
+      ' │ ' + result.padEnd(10) +
       ' │ ' + bar + ' │'
     );
   }

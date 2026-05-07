@@ -1,4 +1,4 @@
-import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
+import { Artifacts, BuildContext, Builders, parseGradleProfile, formatGradleProfileReport, runGenericJobAsync } from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -13,6 +13,7 @@ import {
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import omit from 'lodash/omit';
+import path from 'path';
 
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
@@ -86,6 +87,17 @@ export async function build({
     }
 
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
+
+    if (job.platform === Platform.ANDROID) {
+      await ctx.runBuildPhase(BuildPhase.PARSE_GRADLE_BUILD_TRACE, async () => {
+        const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
+        const profileTasks = await parseGradleProfile(androidDir, logger);
+        if (profileTasks && profileTasks.length > 0) {
+          const report = formatGradleProfileReport(profileTasks);
+          logger.info(report);
+        }
+      });
+    }
 
     return { artifacts };
   } catch (err: any) {

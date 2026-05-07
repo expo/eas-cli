@@ -313,14 +313,11 @@ export default class BuildService {
       });
       this.buildContext = ctx;
 
-      const { artifacts, gradleProfileTasks } = await build({
+      const { artifacts } = await build({
         ctx,
         buildId: this.buildId,
         analytics,
       });
-      if (gradleProfileTasks && gradleProfileTasks.length > 0) {
-        await this.uploadGradleProfile(job, gradleProfileTasks);
-      }
       await this.finishSuccess(artifacts);
     } catch (error: any) {
       const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
@@ -349,34 +346,6 @@ export default class BuildService {
       });
 
       await this.finishError(err, maybeArtifacts);
-    }
-  }
-
-  private async uploadGradleProfile(job: Job, tasks: GradleProfileTask[]): Promise<void> {
-    try {
-      const robotAccessToken = job.secrets?.robotAccessToken;
-      if (!robotAccessToken) {
-        return;
-      }
-
-      logger.info('Uploading Gradle profile with %d tasks', tasks.length);
-
-      await turtleFetch(
-        new URL('turtle-builds/gradle-profile', config.wwwApiV2BaseUrl).toString(),
-        'POST',
-        {
-          json: {
-            buildId: this.buildId,
-            tasks,
-          },
-          headers: {
-            Authorization: `Bearer ${robotAccessToken}`,
-          },
-          shouldThrowOnNotOk: false,
-        }
-      );
-    } catch (err: any) {
-      logger.debug({ err }, 'Failed to upload Gradle profile');
     }
   }
 
