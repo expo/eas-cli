@@ -21,10 +21,6 @@ import { Analytics, Event, logProjectDependenciesAsync } from './external/analyt
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
 import { cleanUpWorkingdir } from './workingdir';
 
-export interface BuildResult {
-  artifacts: Artifacts;
-}
-
 export async function build({
   ctx,
   buildId,
@@ -33,7 +29,7 @@ export async function build({
   ctx: BuildContext;
   buildId: string;
   analytics: Analytics;
-}): Promise<BuildResult> {
+}): Promise<Artifacts> {
   const { job, logger } = ctx;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
@@ -89,7 +85,7 @@ export async function build({
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
 
     if (job.platform === Platform.ANDROID) {
-      await ctx.runBuildPhase(BuildPhase.PARSE_GRADLE_BUILD_TRACE, async () => {
+      await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
         const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
         const profileTasks = await parseGradleProfile(androidDir, logger);
         if (profileTasks && profileTasks.length > 0) {
@@ -99,7 +95,7 @@ export async function build({
       });
     }
 
-    return { artifacts };
+    return artifacts;
   } catch (err: any) {
     if ('mode' in job && ![BuildMode.CUSTOM, BuildMode.REPACK].includes(job.mode)) {
       logBuildError(logger, analytics, err);

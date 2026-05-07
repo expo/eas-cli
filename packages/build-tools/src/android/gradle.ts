@@ -136,7 +136,6 @@ export async function parseGradleProfile(androidDir: string, logger?: bunyan): P
     return null;
   }
 
-  logger?.info('Parsing Gradle profile from %s', path.join(profileDir, htmlFile));
   const html = await fs.readFile(path.join(profileDir, htmlFile), 'utf8');
 
   // Find the "Task Execution" section - it's the last <table> in the "Task Execution" tab
@@ -182,9 +181,12 @@ function formatSeconds(ms: number): string {
 }
 
 export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
+  // Filter out tasks under 1 second
+  const significantTasks = tasks.filter((t) => t.durationMs >= 1000);
+
   // Separate module totals from individual tasks
-  const moduleTotals = tasks.filter((t) => t.result === '(total)');
-  const individualTasks = tasks.filter((t) => t.result !== '(total)');
+  const moduleTotals = significantTasks.filter((t) => t.result === '(total)');
+  const individualTasks = significantTasks.filter((t) => t.result !== '(total)');
 
   // Group individual tasks by their module prefix
   const moduleChildren = new Map<string, GradleProfileTask[]>();

@@ -313,7 +313,7 @@ export default class BuildService {
       });
       this.buildContext = ctx;
 
-      const { artifacts } = await build({
+      const artifacts = await build({
         ctx,
         buildId: this.buildId,
         analytics,
