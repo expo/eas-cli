@@ -1,4 +1,11 @@
-import { Artifacts, BuildContext, Builders, parseGradleProfile, formatGradleProfileReport, runGenericJobAsync } from '@expo/build-tools';
+import {
+  Artifacts,
+  BuildContext,
+  Builders,
+  parseGradleProfile,
+  formatGradleProfileReport,
+  runGenericJobAsync,
+} from '@expo/build-tools';
 import {
   Android,
   BuildJob,

@@ -118,7 +118,10 @@ export interface GradleProfileTask {
   result: string;
 }
 
-export async function parseGradleProfile(androidDir: string, logger?: bunyan): Promise<GradleProfileTask[] | null> {
+export async function parseGradleProfile(
+  androidDir: string,
+  logger?: bunyan
+): Promise<GradleProfileTask[] | null> {
   const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
   if (!(await fs.pathExists(profileDir))) {
     logger?.info('Gradle profile directory not found at %s', profileDir);
@@ -127,7 +130,7 @@ export async function parseGradleProfile(androidDir: string, logger?: bunyan): P
 
   const files = await fs.readdir(profileDir);
   const htmlFile = files
-    .filter((f) => f.startsWith('profile-') && f.endsWith('.html'))
+    .filter(f => f.startsWith('profile-') && f.endsWith('.html'))
     .sort()
     .pop();
 
@@ -149,7 +152,8 @@ export async function parseGradleProfile(androidDir: string, logger?: bunyan): P
   const tasks: GradleProfileTask[] = [];
 
   // Parse table rows: <td>task path</td><td>duration</td><td>result</td>
-  const rowRegex = /<tr>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<\/tr>/gi;
+  const rowRegex =
+    /<tr>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<\/tr>/gi;
   let match;
   while ((match = rowRegex.exec(section)) !== null) {
     const taskPath = match[1].trim();
@@ -182,18 +186,18 @@ function formatSeconds(ms: number): string {
 
 export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   // Filter out tasks under 1 second
-  const significantTasks = tasks.filter((t) => t.durationMs >= 1000);
+  const significantTasks = tasks.filter(t => t.durationMs >= 1000);
 
   // Separate module totals from individual tasks
-  const moduleTotals = significantTasks.filter((t) => t.result === '(total)');
-  const individualTasks = significantTasks.filter((t) => t.result !== '(total)');
+  const moduleTotals = significantTasks.filter(t => t.result === '(total)');
+  const individualTasks = significantTasks.filter(t => t.result !== '(total)');
 
   // Group individual tasks by their module prefix
   const moduleChildren = new Map<string, GradleProfileTask[]>();
   const orphanTasks: GradleProfileTask[] = [];
 
   for (const task of individualTasks) {
-    const parent = moduleTotals.find((m) => task.path.startsWith(m.path + ':'));
+    const parent = moduleTotals.find(m => task.path.startsWith(m.path + ':'));
     if (parent) {
       const children = moduleChildren.get(parent.path) ?? [];
       children.push(task);
@@ -232,21 +236,27 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   const totalMs = individualTasks.reduce((sum, t) => sum + t.durationMs, 0);
   const maxMs = rows[0]?.task.durationMs ?? 1;
 
-  const nameWidth = Math.max(4, ...rows.map((r) => r.displayName.length)) + 2;
+  const nameWidth = Math.max(4, ...rows.map(r => r.displayName.length)) + 2;
   const barMaxWidth = 20;
 
   const header =
-    '┌─' + '─'.repeat(nameWidth) +
+    '┌─' +
+    '─'.repeat(nameWidth) +
     '─┬────────────┬──────────┬────────────┬─' +
-    '─'.repeat(barMaxWidth) + '─┐';
+    '─'.repeat(barMaxWidth) +
+    '─┐';
   const divider =
-    '├─' + '─'.repeat(nameWidth) +
+    '├─' +
+    '─'.repeat(nameWidth) +
     '─┼────────────┼──────────┼────────────┼─' +
-    '─'.repeat(barMaxWidth) + '─┤';
+    '─'.repeat(barMaxWidth) +
+    '─┤';
   const footer =
-    '└─' + '─'.repeat(nameWidth) +
+    '└─' +
+    '─'.repeat(nameWidth) +
     '─┴────────────┴──────────┴────────────┴─' +
-    '─'.repeat(barMaxWidth) + '─┘';
+    '─'.repeat(barMaxWidth) +
+    '─┘';
 
   const taskCount = individualTasks.length;
   const lines: string[] = [];
@@ -258,11 +268,17 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   lines.push('');
   lines.push(header);
   lines.push(
-    '│ ' + 'Task'.padEnd(nameWidth) +
-    ' │ ' + 'Duration'.padStart(10) +
-    ' │ ' + '% Time'.padStart(8) +
-    ' │ ' + 'Result'.padEnd(10) +
-    ' │ ' + ' '.repeat(barMaxWidth) + ' │'
+    '│ ' +
+      'Task'.padEnd(nameWidth) +
+      ' │ ' +
+      'Duration'.padStart(10) +
+      ' │ ' +
+      '% Time'.padStart(8) +
+      ' │ ' +
+      'Result'.padEnd(10) +
+      ' │ ' +
+      ' '.repeat(barMaxWidth) +
+      ' │'
   );
   lines.push(divider);
 
@@ -273,21 +289,33 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
     const result = row.task.result === '(total)' ? 'total' : row.task.result;
 
     lines.push(
-      '│ ' + row.displayName.padEnd(nameWidth) +
-      ' │ ' + formatSeconds(row.task.durationMs).padStart(10) +
-      ' │ ' + `${pct.toFixed(1)}%`.padStart(8) +
-      ' │ ' + result.padEnd(10) +
-      ' │ ' + bar + ' │'
+      '│ ' +
+        row.displayName.padEnd(nameWidth) +
+        ' │ ' +
+        formatSeconds(row.task.durationMs).padStart(10) +
+        ' │ ' +
+        `${pct.toFixed(1)}%`.padStart(8) +
+        ' │ ' +
+        result.padEnd(10) +
+        ' │ ' +
+        bar +
+        ' │'
     );
   }
 
   lines.push(divider);
   lines.push(
-    '│ ' + 'TOTAL'.padEnd(nameWidth) +
-    ' │ ' + formatSeconds(totalMs).padStart(10) +
-    ' │ ' + '100.0%'.padStart(8) +
-    ' │ ' + ' '.repeat(10) +
-    ' │ ' + ' '.repeat(barMaxWidth) + ' │'
+    '│ ' +
+      'TOTAL'.padEnd(nameWidth) +
+      ' │ ' +
+      formatSeconds(totalMs).padStart(10) +
+      ' │ ' +
+      '100.0%'.padStart(8) +
+      ' │ ' +
+      ' '.repeat(10) +
+      ' │ ' +
+      ' '.repeat(barMaxWidth) +
+      ' │'
   );
   lines.push(footer);
   lines.push('');
