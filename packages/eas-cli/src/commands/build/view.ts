@@ -1,4 +1,5 @@
-import { Args } from '@oclif/core';
+import { Args, Errors, Flags } from '@oclif/core';
+import { streamBuildLogsAsync } from '../../build/logs';
 import { formatGraphQLBuild } from '../../build/utils/formatBuild';
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
@@ -18,6 +19,10 @@ export default class BuildView extends EasCommand {
 
   static override flags = {
     ...EasJsonOnlyFlag,
+    'stream-logs': Flags.boolean({
+      default: false,
+      description: 'Stream build logs until the build reaches a terminal state',
+    }),
   };
 
   static override contextDefinition = {
@@ -31,6 +36,9 @@ export default class BuildView extends EasCommand {
       args: { BUILD_ID: buildId },
       flags,
     } = await this.parse(BuildView);
+    if (flags.json && flags['stream-logs']) {
+      Errors.error('--stream-logs cannot be used with --json', { exit: 1 });
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -73,6 +81,10 @@ export default class BuildView extends EasCommand {
         printJsonOnlyOutput(build);
       } else {
         Log.log(`\n${formatGraphQLBuild(build)}`);
+
+        if (flags['stream-logs']) {
+          await streamBuildLogsAsync(graphqlClient, build);
+        }
       }
     } catch (err) {
       if (buildId) {
