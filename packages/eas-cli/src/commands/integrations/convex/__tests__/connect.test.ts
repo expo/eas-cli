@@ -157,6 +157,11 @@ describe(IntegrationsConvexConnect, () => {
     expect(Log.log).toHaveBeenCalledWith(
       expect.stringContaining('Check your email for an invitation')
     );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('npx convex dev'));
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://docs.expo.dev/guides/using-convex')
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://docs.convex.dev/'));
     expect(spawnAsync).toHaveBeenCalledWith('npx', ['expo', 'install', 'convex'], {
       cwd: testProjectDir,
       stdio: 'inherit',
