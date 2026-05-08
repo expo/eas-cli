@@ -79,7 +79,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     generateGymfileFromTemplateFunction(),
     runFastlaneFunction(),
     parseXcactivitylogFunction(),
-    createStartAgentDeviceRemoteSessionBuildFunction(),
+    createStartAgentDeviceRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),

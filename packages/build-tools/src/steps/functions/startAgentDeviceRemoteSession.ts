@@ -6,11 +6,13 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import { graphql } from 'gql.tada';
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { CustomBuildContext } from '../../customBuildContext';
 import { sleepAsync } from '../../utils/retry';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
@@ -23,7 +25,23 @@ const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const CLOUDFLARED_LINUX_INSTALL_PATH = '/usr/local/bin/cloudflared';
 const STARTUP_TIMEOUT_MS = 60_000;
 
-export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunction {
+const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
+  mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
+    deviceRunSession {
+      startDeviceRunSession(
+        deviceRunSessionId: $deviceRunSessionId
+        remoteConfig: $remoteConfig
+      ) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+export function createStartAgentDeviceRemoteSessionBuildFunction(
+  ctx: CustomBuildContext
+): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
     id: 'start_agent_device_remote_session',
@@ -37,6 +55,18 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
       }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
+      // Fail fast before any expensive setup if the orchestrator-injected
+      // DEVICE_RUN_SESSION_ID env var is missing — without it we cannot
+      // report the remote config back to the API server.
+      const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
+      if (!deviceRunSessionId) {
+        throw new Error(
+          'DEVICE_RUN_SESSION_ID is not set. ' +
+            'This step must run as part of a device run session created by the API server, ' +
+            'which injects DEVICE_RUN_SESSION_ID into the job environment.'
+        );
+      }
+
       const packageVersion = inputs.package_version.value as string | undefined;
       const { runtimePlatform } = global;
       logger.info(
@@ -109,9 +139,20 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
       });
       logger.info(`Tunnel is ready at ${tunnelUrl}.`);
 
-      logger.info('Emitting agent-device credentials for the CLI to pick up:');
-      logger.info(`export AGENT_DEVICE_DAEMON_BASE_URL="${tunnelUrl}"`);
-      logger.info(`export AGENT_DEVICE_DAEMON_AUTH_TOKEN="${daemonToken}"`);
+      logger.info(
+        `Reporting agent-device remote config to the API server (device run session: ${deviceRunSessionId}).`
+      );
+      const result = await ctx.graphqlClient
+        .mutation(START_DEVICE_RUN_SESSION_MUTATION, {
+          deviceRunSessionId,
+          remoteConfig: { url: tunnelUrl, token: daemonToken },
+        })
+        .toPromise();
+      if (result.error) {
+        throw new Error(
+          `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
+        );
+      }
 
       logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
       // Keep the turtle job alive so the daemon and tunnel stay reachable
