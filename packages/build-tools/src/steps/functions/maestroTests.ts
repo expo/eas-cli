@@ -98,6 +98,12 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
       BuildStepInput.createProvider({
+        id: 'smart_retry',
+        required: false,
+        defaultValue: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
         id: 'shards',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -186,6 +192,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         inputs.shards.value,
         'shards must be a positive integer.'
       );
+      const smartRetry = inputs.smart_retry.value as boolean;
 
       try {
         await fs.mkdir(junitReportDirectory, { recursive: true });
@@ -256,7 +263,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           break;
         }
 
-        if (outputFormat === 'junit' && outputPath && nameToPath) {
+        if (smartRetry && outputFormat === 'junit' && outputPath && nameToPath) {
           const failed = await parseFailedFlowsFromJUnit({
             junitFile: outputPath,
             nameToPath,

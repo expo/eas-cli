@@ -3,6 +3,7 @@ import spawn from '@expo/turtle-spawn';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import * as discovery from '../maestroFlowDiscovery';
 import * as parser from '../maestroResultParser';
 import { createMaestroTestsBuildFunction } from '../maestroTests';
 
@@ -205,6 +206,108 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(spawnMock.mock.calls[1][1]).toEqual(
       expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
     );
+  });
+
+  it('runs all original flows on every retry when smart_retry=false', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    const parseSpy = jest
+      .spyOn(parser, 'parseFailedFlowsFromJUnit')
+      .mockResolvedValue(['flows/b.yaml']);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      smart_retry: false,
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    // Both attempts must see both flows in the original input order. Tail-slice
+    // equality locks order, not just membership — guards against any future
+    // failed-first reshuffling of the dumb-retry list.
+    const a0 = mockedSpawn.mock.calls[0][1]!;
+    const a1 = mockedSpawn.mock.calls[1][1]!;
+    expect(a0.slice(-2)).toEqual(['flows/a.yaml', 'flows/b.yaml']);
+    expect(a1.slice(-2)).toEqual(['flows/a.yaml', 'flows/b.yaml']);
+    expect(parseSpy).not.toHaveBeenCalled();
+  });
+
+  it('subsets to failing flows on retry when smart_retry=true (default behaviour)', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/b.yaml']);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      smart_retry: true,
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+    const a1 = mockedSpawn.mock.calls[1][1]!;
+    expect(a1).toContain('flows/b.yaml');
+    expect(a1).not.toContain('flows/a.yaml');
+  });
+
+  it('falls back to all-flows retry when smart_retry=true but output_format!=junit', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    const parseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'html',
+      smart_retry: true,
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls[1][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+  });
+
+  it('falls back to all-flows retry when nameToPath is null (duplicate flow names)', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(discovery, 'buildFlowNameToPathMap').mockResolvedValue(null);
+    const parseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      smart_retry: true,
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls[1][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+  });
+
+  it('defaults smart_retry to true when omitted from inputs', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/b.yaml']);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    const a1 = mockedSpawn.mock.calls[1][1]!;
+    expect(a1).toContain('flows/b.yaml');
+    expect(a1).not.toContain('flows/a.yaml');
   });
 
   it('writes merged junit on success', async () => {
