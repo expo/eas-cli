@@ -52,7 +52,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
       }
 
       logger.info('Ensuring cloudflared is installed.');
-      await ensureCloudflaredInstalledAsync({ runtimePlatform, env, logger });
+      const cloudflaredCommand = await ensureCloudflaredInstalledAsync({
+        runtimePlatform,
+        env,
+        logger,
+      });
 
       logger.info(
         packageVersion
@@ -90,7 +94,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
         `Starting cloudflared tunnel to http://localhost:${daemonPort} (log file: ${TUNNEL_LOG}).`
       );
       await spawnDetachedAsync({
-        command: `cloudflared tunnel --url "http://localhost:${daemonPort}"`,
+        command: `${cloudflaredCommand} tunnel --url "http://localhost:${daemonPort}"`,
         logFile: TUNNEL_LOG,
         env,
         logger,
@@ -125,22 +129,37 @@ async function ensureCloudflaredInstalledAsync({
   runtimePlatform: BuildRuntimePlatform;
   env: NodeJS.ProcessEnv;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<string> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
     await ensureBrewPackageInstalledAsync({ name: 'cloudflared', env, logger });
-    return;
+    return 'cloudflared';
   }
   if (await isCommandAvailableAsync({ command: 'cloudflared', env })) {
-    return;
+    return 'cloudflared';
   }
-  const arch = os.arch() === 'arm64' ? 'arm64' : 'amd64';
-  const downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${arch}`;
+  const cloudflaredArch = cloudflaredLinuxArchForNodeArch(os.arch());
+  const downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${cloudflaredArch}`;
   logger.info(`Downloading cloudflared from ${downloadUrl} to ${CLOUDFLARED_LINUX_INSTALL_PATH}.`);
   await spawn('sudo', ['curl', '-fsSL', '-o', CLOUDFLARED_LINUX_INSTALL_PATH, downloadUrl], {
     env,
     logger,
   });
   await spawn('sudo', ['chmod', '+x', CLOUDFLARED_LINUX_INSTALL_PATH], { env, logger });
+  // Return the absolute install path so the tunnel command works even when
+  // /usr/local/bin is not on the step's PATH.
+  return CLOUDFLARED_LINUX_INSTALL_PATH;
+}
+
+function cloudflaredLinuxArchForNodeArch(arch: string): 'amd64' | 'arm64' {
+  if (arch === 'x64') {
+    return 'amd64';
+  }
+  if (arch === 'arm64') {
+    return 'arm64';
+  }
+  throw new Error(
+    `Unsupported architecture for cloudflared on Linux: "${arch}". Expected "x64" or "arm64".`
+  );
 }
 
 async function ensureBrewPackageInstalledAsync({
