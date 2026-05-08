@@ -18,10 +18,17 @@ export const DeviceRunSessionQuery = {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
                   status
+                  type
+                  remoteConfig {
+                    __typename
+                    ... on AgentDeviceRunSessionRemoteConfig {
+                      url
+                      token
+                    }
+                  }
                   turtleJobRun {
                     id
                     status
-                    logFileUrls
                   }
                 }
               }

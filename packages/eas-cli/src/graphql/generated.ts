@@ -173,8 +173,13 @@ export type Account = {
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
   sentryInstallation?: Maybe<SentryInstallation>;
-  /** Snacks associated with this account */
+  /**
+   * Snacks associated with this account
+   * @deprecated Use snacksPaginated
+   */
   snacks: Array<Snack>;
+  /** Paginated list of Snacks associated with this account, sorted by most recent activity. */
+  snacksPaginated: AccountSnacksConnection;
   /** Allowed SSO providers for this account */
   ssoAllowedAuthProviders: Array<AuthProviderIdentifier>;
   /** SSO configuration for this account */
@@ -465,6 +470,18 @@ export type AccountMembersPaginatedArgs = {
 export type AccountSnacksArgs = {
   limit: Scalars['Int']['input'];
   offset: Scalars['Int']['input'];
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountSnacksPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -886,6 +903,18 @@ export type AccountSsoConfigurationPublicDataQueryPublicDataByAccountNameArgs = 
   accountName: Scalars['String']['input'];
 };
 
+export type AccountSnacksConnection = {
+  __typename?: 'AccountSnacksConnection';
+  edges: Array<AccountSnacksEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AccountSnacksEdge = {
+  __typename?: 'AccountSnacksEdge';
+  cursor: Scalars['String']['output'];
+  node: Snack;
+};
+
 export enum AccountUploadSessionType {
   ProfileImageUpload = 'PROFILE_IMAGE_UPLOAD',
   WorkflowsProjectSources = 'WORKFLOWS_PROJECT_SOURCES'
@@ -1026,6 +1055,12 @@ export type Address = {
   line1?: Maybe<Scalars['String']['output']>;
   state?: Maybe<Scalars['String']['output']>;
   zip?: Maybe<Scalars['String']['output']>;
+};
+
+export type AgentDeviceRunSessionRemoteConfig = {
+  __typename?: 'AgentDeviceRunSessionRemoteConfig';
+  token: Scalars['String']['output'];
+  url: Scalars['String']['output'];
 };
 
 export type AndroidAppBuildCredentials = {
@@ -2118,8 +2153,13 @@ export type AppObserveCustomEventListArgs = {
 
 
 export type AppObserveCustomEventNamesArgs = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveCustomEventNamesOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
   startTime: Scalars['DateTime']['input'];
 };
@@ -2279,6 +2319,21 @@ export type AppObserveCustomEventNames = {
   isTruncated: Scalars['Boolean']['output'];
   names: Array<AppObserveCustomEventName>;
 };
+
+export type AppObserveCustomEventNamesOrderBy = {
+  direction: AppObserveCustomEventNamesOrderByDirection;
+  field: AppObserveCustomEventNamesOrderByField;
+};
+
+export enum AppObserveCustomEventNamesOrderByDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
+export enum AppObserveCustomEventNamesOrderByField {
+  Count = 'COUNT',
+  EventName = 'EVENT_NAME'
+}
 
 export type AppObserveCustomEventPropertyFilter = {
   key: Scalars['String']['input'];
@@ -2460,6 +2515,9 @@ export type AppObserveUpdatesConnection = {
 
 export type AppObserveUpdatesInput = {
   after?: InputMaybe<Scalars['String']['input']>;
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -5033,6 +5091,7 @@ export type DeviceRunSession = {
    */
   packageVersion?: Maybe<Scalars['String']['output']>;
   platform: AppPlatform;
+  remoteConfig?: Maybe<DeviceRunSessionRemoteConfig>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: DeviceRunSessionStatus;
   turtleJobRun?: Maybe<JobRun>;
@@ -5050,6 +5109,8 @@ export type DeviceRunSessionMutation = {
    * ERRORED).
    */
   ensureDeviceRunSessionStopped: DeviceRunSession;
+  /** Mark a device run session as started and persist remote connection details */
+  startDeviceRunSession: DeviceRunSession;
 };
 
 
@@ -5062,6 +5123,12 @@ export type DeviceRunSessionMutationEnsureDeviceRunSessionStoppedArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
+
+export type DeviceRunSessionMutationStartDeviceRunSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+  remoteConfig: Scalars['JSONObject']['input'];
+};
+
 export type DeviceRunSessionQuery = {
   __typename?: 'DeviceRunSessionQuery';
   byId: DeviceRunSession;
@@ -5071,6 +5138,8 @@ export type DeviceRunSessionQuery = {
 export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
+
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig;
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -5674,11 +5743,15 @@ export type EchoRepositoryResult = {
 export type EchoTurn = {
   __typename?: 'EchoTurn';
   completedAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Terminal status of the turn (null if still in progress) */
+  completionStatus?: Maybe<EchoTurnCompletionStatus>;
   createdAt: Scalars['DateTime']['output'];
   /** Parent chat */
   echoChat: EchoChat;
   /** Messages in this turn */
   echoMessages: Array<EchoMessage>;
+  /** Error message when completionStatus is ERROR */
+  error?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
 };
 
@@ -5689,14 +5762,28 @@ export type EchoTurnCacheWriteInput = {
   ttl24h?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export enum EchoTurnCompletionStatus {
+  Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  Error = 'ERROR'
+}
+
 export type EchoTurnMutation = {
   __typename?: 'EchoTurnMutation';
-  /** Mark a turn as completed and create a billing ledger entry */
+  /**
+   * Mark a turn as completed and create a billing ledger entry.
+   *
+   * completionStatus defaults to COMPLETED for backward compatibility with
+   * clients that do not yet send a status. error may be set when
+   * completionStatus is ERROR to record the failure reason.
+   */
   completeTurn: EchoTurn;
 };
 
 
 export type EchoTurnMutationCompleteTurnArgs = {
+  completionStatus?: InputMaybe<EchoTurnCompletionStatus>;
+  error?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
   usage: EchoTurnUsageInput;
 };
@@ -6102,6 +6189,36 @@ export type ExperimentationQuery = {
   deviceExperimentationUnit: Scalars['ID']['output'];
   /** Get user experimentation config */
   userConfig: Scalars['JSONObject']['output'];
+};
+
+export type ExpoGoBuildQuery = {
+  __typename?: 'ExpoGoBuildQuery';
+  repackConfiguration: ExpoGoProjectConfiguration;
+};
+
+
+export type ExpoGoBuildQueryRepackConfigurationArgs = {
+  input: ExpoGoRepackInput;
+};
+
+export type ExpoGoProjectConfiguration = {
+  __typename?: 'ExpoGoProjectConfiguration';
+  files: Array<ExpoGoProjectFile>;
+  sdkVersion: Scalars['String']['output'];
+};
+
+export type ExpoGoProjectFile = {
+  __typename?: 'ExpoGoProjectFile';
+  fileContents: Scalars['String']['output'];
+  fileName: Scalars['String']['output'];
+};
+
+export type ExpoGoRepackInput = {
+  appId: Scalars['ID']['input'];
+  appName?: InputMaybe<Scalars['String']['input']>;
+  ascAppId: Scalars['String']['input'];
+  bundleId: Scalars['String']['input'];
+  sdkVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type FcmSnippet = FcmSnippetLegacy | FcmSnippetV1;
@@ -7926,7 +8043,7 @@ export type RootMutation = {
   deployments: DeploymentsMutation;
   /** Mutations that assign or modify DevDomainNames for apps */
   devDomainName: AppDevDomainNameMutation;
-  /** Mutations that create and stop device run sessions */
+  /** Mutations that create, start, and stop device run sessions */
   deviceRunSession: DeviceRunSessionMutation;
   /** Mutations for Discord users */
   discordUser: DiscordUserMutation;
@@ -8101,6 +8218,7 @@ export type RootQuery = {
   echoVersion: EchoVersionQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
+  expoGoBuild: ExpoGoBuildQuery;
   /** Top-level query object for querying GitHub App information and resources it has access to. */
   githubApp: GitHubAppQuery;
   /** Top-level query object for querying Google Service Account Keys. */
@@ -11252,6 +11370,7 @@ export type WorkflowRunMutationCancelWorkflowRunArgs = {
 export type WorkflowRunMutationCreateExpoGoRepackWorkflowRunArgs = {
   appId: Scalars['ID']['input'];
   projectSource: WorkflowProjectSourceInput;
+  sdkVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -12541,7 +12660,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus, logFileUrls: Array<string> } | null } } };
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', url: string, token: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
