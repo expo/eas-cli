@@ -2,10 +2,18 @@ import spawnAsync from '@expo/spawn-async';
 import * as fs from 'fs-extra';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
+import { DefaultEnvironment } from '../../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
+import {
+  EnvironmentSecretType,
+  EnvironmentVariableScope,
+  EnvironmentVariableVisibility,
+} from '../../../../graphql/generated';
 import { ConvexMutation } from '../../../../graphql/mutations/ConvexMutation';
+import { EnvironmentVariableMutation } from '../../../../graphql/mutations/EnvironmentVariableMutation';
 import { ConvexQuery } from '../../../../graphql/queries/ConvexQuery';
+import { EnvironmentVariablesQuery } from '../../../../graphql/queries/EnvironmentVariablesQuery';
 import {
   ConvexTeamConnectionData,
   SetupConvexProjectResultData,
@@ -17,7 +25,9 @@ import { Actor } from '../../../../user/User';
 import IntegrationsConvexConnect from '../connect';
 
 jest.mock('../../../../graphql/queries/ConvexQuery');
+jest.mock('../../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../../graphql/mutations/ConvexMutation');
+jest.mock('../../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../../project/projectUtils');
 jest.mock('../../../../prompts');
 jest.mock('@expo/spawn-async');
@@ -132,6 +142,37 @@ describe(IntegrationsConvexConnect, () => {
     jest.mocked(ConvexMutation.createConvexTeamConnectionAsync).mockResolvedValue(mockConnection);
     jest.mocked(ConvexMutation.setupConvexProjectAsync).mockResolvedValue(mockSetupResult);
     jest.mocked(ConvexMutation.sendConvexTeamInviteToVerifiedEmailAsync).mockResolvedValue(true);
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([]);
+    jest.mocked(EnvironmentVariableMutation.createForAppAsync).mockResolvedValue({
+      id: 'env-var-1',
+      name: 'EXPO_PUBLIC_CONVEX_URL',
+      value: mockSetupResult.convexDeploymentUrl,
+      environments: [
+        DefaultEnvironment.Production,
+        DefaultEnvironment.Preview,
+        DefaultEnvironment.Development,
+      ],
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    });
+    jest.mocked(EnvironmentVariableMutation.updateAsync).mockResolvedValue({
+      id: 'env-var-1',
+      name: 'EXPO_PUBLIC_CONVEX_URL',
+      value: mockSetupResult.convexDeploymentUrl,
+      environments: [
+        DefaultEnvironment.Production,
+        DefaultEnvironment.Preview,
+        DefaultEnvironment.Development,
+      ],
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    });
   });
 
   it('creates a Convex team and project with the new mutation shape', async () => {
@@ -285,6 +326,108 @@ describe(IntegrationsConvexConnect, () => {
     const writeCall = jest.mocked(fs.writeFile).mock.calls.find(call => call[0] === envPath);
     expect(writeCall?.[1]).toContain('CONVEX_DEPLOY_KEY=dev:happy-otter-123|abc123token');
     expect(writeCall?.[1]).toContain('EXPO_PUBLIC_CONVEX_URL=https://happy-otter-123.convex.cloud');
+  });
+
+  it('creates the Convex URL as a project EAS environment variable for all default environments', async () => {
+    jest
+      .mocked(ConvexQuery.getConvexTeamConnectionsByAccountIdAsync)
+      .mockResolvedValue([mockConnection]);
+
+    await createCommand([]).runAsync();
+
+    expect(EnvironmentVariablesQuery.byAppIdAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      filterNames: ['EXPO_PUBLIC_CONVEX_URL'],
+    });
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        name: 'EXPO_PUBLIC_CONVEX_URL',
+        value: 'https://happy-otter-123.convex.cloud',
+        environments: [
+          DefaultEnvironment.Production,
+          DefaultEnvironment.Preview,
+          DefaultEnvironment.Development,
+        ],
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+      testProjectId
+    );
+    expect(EnvironmentVariableMutation.updateAsync).not.toHaveBeenCalled();
+  });
+
+  it('updates an existing project EAS environment variable for the Convex URL', async () => {
+    jest
+      .mocked(ConvexQuery.getConvexTeamConnectionsByAccountIdAsync)
+      .mockResolvedValue([mockConnection]);
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([
+      {
+        id: 'env-var-1',
+        name: 'EXPO_PUBLIC_CONVEX_URL',
+        value: 'https://old-deployment.convex.cloud',
+        environments: [DefaultEnvironment.Production],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+    ]);
+
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining(
+        'EAS already has an EXPO_PUBLIC_CONVEX_URL environment variable'
+      ),
+    });
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: 'env-var-1',
+      name: 'EXPO_PUBLIC_CONVEX_URL',
+      value: 'https://happy-otter-123.convex.cloud',
+      environments: [
+        DefaultEnvironment.Production,
+        DefaultEnvironment.Preview,
+        DefaultEnvironment.Development,
+      ],
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    });
+    expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
+  });
+
+  it('skips updating an existing project EAS environment variable for the Convex URL when declined', async () => {
+    jest
+      .mocked(ConvexQuery.getConvexTeamConnectionsByAccountIdAsync)
+      .mockResolvedValue([mockConnection]);
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([
+      {
+        id: 'env-var-1',
+        name: 'EXPO_PUBLIC_CONVEX_URL',
+        value: 'https://old-deployment.convex.cloud',
+        environments: [DefaultEnvironment.Production],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+    ]);
+    jest.mocked(confirmAsync).mockResolvedValue(false);
+
+    await createCommand([]).runAsync();
+
+    expect(confirmAsync).toHaveBeenCalledWith({
+      message: expect.stringContaining(
+        'EAS already has an EXPO_PUBLIC_CONVEX_URL environment variable'
+      ),
+    });
+    expect(EnvironmentVariableMutation.updateAsync).not.toHaveBeenCalled();
+    expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Skipped updating EAS environment variable')
+    );
   });
 
   it('prompts before overwriting existing Convex .env.local values', async () => {
