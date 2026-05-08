@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas update:upload-embedded` command to upload the JS bundle embedded in a native build so EAS Update can generate bsdiff patches against it. ([#TODO](https://github.com/expo/eas-cli/pull/TODO) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Update the minimum Expo version required for iOS precompiled modules. ([#3677](https://github.com/expo/eas-cli/pull/3677) by [@sjchmiela](https://github.com/sjchmiela))
