@@ -2,6 +2,7 @@ import { Platform, Workflow } from '@expo/eas-build-job';
 import { Errors } from '@oclif/core';
 import fs from 'fs-extra';
 import path from 'path';
+import resolveFrom from 'resolve-from';
 import semver from 'semver';
 
 import { CommonContext } from './context';
@@ -188,5 +189,101 @@ async function validatePNGAsync({ configPath, pngPath }: ConfigPng): Promise<voi
 
   if (!(await isPNGAsync(pngPath))) {
     throw new Error(`"${configPath}" is not valid PNG`);
+  }
+}
+
+/**
+ * Compose Compiler versions bundled by expo-modules-core and their required Kotlin versions.
+ */
+const COMPOSE_KOTLIN_COMPAT: Record<string, string> = {
+  '1.5.15': '1.9.25',
+  '1.5.14': '1.9.24',
+};
+
+/**
+ * Maps expo-modules-core version ranges to the Compose Compiler version they bundle.
+ */
+function getComposeCompilerVersion(expoModulesCoreVersion: string): string | null {
+  if (semver.satisfies(expoModulesCoreVersion, '~1.12.0')) {
+    return '1.5.15';
+  }
+  return null;
+}
+
+/**
+ * Attempts to read the project Kotlin version from gradle.properties or build.gradle.
+ */
+async function resolveProjectKotlinVersionAsync(projectDir: string): Promise<string | null> {
+  // Try android/gradle.properties first
+  const gradlePropertiesPath = path.join(projectDir, 'android', 'gradle.properties');
+  if (await fs.pathExists(gradlePropertiesPath)) {
+    const content = await fs.readFile(gradlePropertiesPath, 'utf8');
+    const match = content.match(/kotlinVersion\s*=\s*(\S+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  // Fall back to android/build.gradle
+  const buildGradlePath = path.join(projectDir, 'android', 'build.gradle');
+  if (await fs.pathExists(buildGradlePath)) {
+    const content = await fs.readFile(buildGradlePath, 'utf8');
+    const pluginMatch = content.match(
+      /org\.jetbrains\.kotlin:kotlin-gradle-plugin:(\d+\.\d+\.\d+)/
+    );
+    if (pluginMatch) {
+      return pluginMatch[1];
+    }
+    const extMatch = content.match(/ext\.kotlinVersion\s*=\s*['"](\d+\.\d+\.\d+)['"]/);
+    if (extMatch) {
+      return extMatch[1];
+    }
+  }
+
+  return null;
+}
+
+export async function checkComposeKotlinCompatibilityAsync(
+  ctx: CommonContext<Platform.ANDROID>
+): Promise<void> {
+  if (ctx.workflow !== Workflow.GENERIC) {
+    return;
+  }
+
+  const maybePackageJson = resolveFrom.silent(ctx.projectDir, 'expo-modules-core/package.json');
+  if (!maybePackageJson) {
+    return;
+  }
+
+  const { version: expoModulesCoreVersion } = await fs.readJson(maybePackageJson);
+  if (!expoModulesCoreVersion) {
+    return;
+  }
+
+  const composeVersion = getComposeCompilerVersion(expoModulesCoreVersion);
+  if (!composeVersion) {
+    return;
+  }
+
+  const requiredKotlin = COMPOSE_KOTLIN_COMPAT[composeVersion];
+  if (!requiredKotlin) {
+    return;
+  }
+
+  const projectKotlin = await resolveProjectKotlinVersionAsync(ctx.projectDir);
+  if (!projectKotlin) {
+    return;
+  }
+
+  if (projectKotlin !== requiredKotlin) {
+    Log.warn(
+      `Kotlin version mismatch: your project uses Kotlin ${projectKotlin}, but expo-modules-core requires Kotlin ${requiredKotlin} (for Compose Compiler ${composeVersion}).`
+    );
+    Log.warn('This will cause "compileReleaseKotlin" build failures.');
+    Log.warn(
+      `Update the Kotlin version in android/gradle.properties to ${requiredKotlin},`
+    );
+    Log.warn('or run "npx expo prebuild --clean" to regenerate the native project.');
+    Log.newLine();
   }
 }

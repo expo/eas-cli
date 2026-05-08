@@ -29,6 +29,7 @@ import {
 import { AndroidBuildContext, BuildContext, CommonContext } from '../context';
 import { logCredentialsSource } from '../utils/credentials';
 import {
+  checkComposeKotlinCompatibilityAsync,
   checkGoogleServicesFileAsync,
   checkNodeEnvVariable,
   validatePNGsForManagedProjectAsync,
@@ -58,6 +59,7 @@ This means that it will most likely produce an AAB and you will not be able to i
   checkNodeEnvVariable(ctx);
   await checkGoogleServicesFileAsync(ctx);
   await validatePNGsForManagedProjectAsync(ctx);
+  await checkComposeKotlinCompatibilityAsync(ctx);
 
   const gradleContext = await resolveGradleBuildContextAsync(
     ctx.projectDir,
