@@ -4,6 +4,7 @@ import { Artifacts, BuildContext } from '../context';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { maybeFindAndUploadBuildArtifacts } from '../utils/artifacts';
 import { Hook, runHookIfPresent } from '../utils/hooks';
+import { uploadJobOutputsFromBuildContextAsync } from '../utils/outputs';
 import { maybeUploadSourceMapAsync } from '../utils/sourceMaps';
 
 export async function runBuilderWithHooksAsync<T extends BuildJob>(
@@ -32,20 +33,41 @@ export async function runBuilderWithHooksAsync<T extends BuildJob>(
         });
       });
 
-      if (ctx.job.platform === Platform.IOS) {
-        await findAndUploadXcodeBuildLogsAsync(ctx as BuildContext<Ios.Job>, {
-          logger: ctx.logger,
+      let finalizationError: any;
+      try {
+        if (ctx.job.platform === Platform.IOS) {
+          await findAndUploadXcodeBuildLogsAsync(ctx as BuildContext<Ios.Job>, {
+            logger: ctx.logger,
+          });
+        }
+
+        await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
+          if (buildSuccess) {
+            await maybeUploadSourceMapAsync(ctx);
+          }
+          await maybeFindAndUploadBuildArtifacts(ctx, {
+            logger: ctx.logger,
+          });
         });
+      } catch (err: any) {
+        buildSuccess = false;
+        finalizationError = err;
       }
 
-      await ctx.runBuildPhase(BuildPhase.UPLOAD_BUILD_ARTIFACTS, async () => {
-        if (buildSuccess) {
-          await maybeUploadSourceMapAsync(ctx);
-        }
-        await maybeFindAndUploadBuildArtifacts(ctx, {
-          logger: ctx.logger,
+      try {
+        await ctx.runBuildPhase(BuildPhase.COMPLETE_JOB, async () => {
+          await uploadJobOutputsFromBuildContextAsync(ctx, {
+            logger: ctx.logger,
+            buildSucceeded: buildSuccess,
+          });
         });
-      });
+      } catch (err: any) {
+        finalizationError ??= err;
+      }
+
+      if (finalizationError) {
+        throw finalizationError;
+      }
     }
   } catch (err: any) {
     err.artifacts = ctx.artifacts;

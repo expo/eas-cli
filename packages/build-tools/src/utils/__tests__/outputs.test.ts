@@ -1,4 +1,4 @@
-import { JobInterpolationContext } from '@expo/eas-build-job';
+import { Android, JobInterpolationContext } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import {
   BuildRuntimePlatform,
@@ -9,7 +9,14 @@ import {
 import { randomBytes, randomUUID } from 'crypto';
 import fetch, { Response } from 'node-fetch';
 
-import { collectJobOutputs, uploadJobOutputsToWwwAsync } from '../outputs';
+import { createTestAndroidJob } from '../../__tests__/utils/job';
+import { createMockLogger } from '../../__tests__/utils/logger';
+import { BuildContext } from '../../context';
+import {
+  collectJobOutputs,
+  uploadJobOutputsFromBuildContextAsync,
+  uploadJobOutputsToWwwAsync,
+} from '../outputs';
 import { TurtleFetchError } from '../turtleFetch';
 
 jest.mock('node-fetch');
@@ -226,6 +233,10 @@ describe(collectJobOutputs, () => {
 });
 
 describe(uploadJobOutputsToWwwAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('uploads outputs', async () => {
     const logger = createLogger({ name: 'test' }).child('test');
 
@@ -330,3 +341,125 @@ describe(uploadJobOutputsToWwwAsync, () => {
     );
   });
 });
+
+describe(uploadJobOutputsFromBuildContextAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('uploads outputs from a build context', async () => {
+    const fetchMock = jest.mocked(fetch);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+    } as unknown as Response);
+
+    const ctx = createBuildContext({
+      outputs: {
+        status: '${{ success() }}',
+        failed: '${{ failure() }}',
+        build_type: 'apk',
+      },
+    });
+
+    await uploadJobOutputsFromBuildContextAsync(ctx, {
+      logger: ctx.logger,
+      buildSucceeded: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://exp.test/--/api/v2/workflows/${workflowJobId}`,
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 20000,
+        body: JSON.stringify({
+          outputs: { status: 'true', failed: 'false', build_type: 'apk' },
+        }),
+      })
+    );
+  });
+
+  it('skips upload when cloud upload context is missing', async () => {
+    const fetchMock = jest.mocked(fetch);
+    const ctx = createBuildContext(
+      {
+        outputs: {
+          build_type: 'apk',
+        },
+      },
+      {
+        expoApiV2BaseUrl: undefined,
+      }
+    );
+
+    await uploadJobOutputsFromBuildContextAsync(ctx, {
+      logger: ctx.logger,
+      buildSucceeded: true,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('skips upload when workflow job id is missing', async () => {
+    const fetchMock = jest.mocked(fetch);
+    const ctx = createBuildContext(
+      {
+        outputs: {
+          build_type: 'apk',
+        },
+      },
+      {
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+        },
+      }
+    );
+
+    await uploadJobOutputsFromBuildContextAsync(ctx, {
+      logger: ctx.logger,
+      buildSucceeded: true,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+function createBuildContext(
+  jobOverrides: Partial<Android.Job>,
+  options: {
+    expoApiV2BaseUrl?: string;
+    env?: Record<string, string>;
+  } = { expoApiV2BaseUrl: 'http://exp.test/--/api/v2/' }
+): BuildContext<Android.Job> {
+  const expoApiV2BaseUrl = Object.prototype.hasOwnProperty.call(options, 'expoApiV2BaseUrl')
+    ? options.expoApiV2BaseUrl
+    : 'http://exp.test/--/api/v2/';
+
+  return new BuildContext<Android.Job>(
+    {
+      ...createTestAndroidJob(),
+      ...jobOverrides,
+      secrets: {
+        ...createTestAndroidJob().secrets,
+        robotAccessToken,
+        ...jobOverrides.secrets,
+      },
+    },
+    {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: options.env ?? {
+        __API_SERVER_URL: 'http://api.expo.test',
+        __WORKFLOW_JOB_ID: workflowJobId,
+      },
+      uploadArtifact: jest.fn(),
+      expoApiV2BaseUrl,
+    }
+  );
+}
