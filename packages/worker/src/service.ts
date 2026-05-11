@@ -358,33 +358,25 @@ export default class BuildService {
           if (robotAccessToken) {
             additionalSecrets.push(robotAccessToken);
           }
-          const buildCredentials = job.secrets?.buildCredentials;
-          if (buildCredentials) {
-            if ('keystore' in buildCredentials) {
-              // Android
-              const { dataBase64, keystorePassword, keyPassword } = buildCredentials.keystore;
-              additionalSecrets.push(dataBase64);
-              if (keystorePassword) {
-                additionalSecrets.push(keystorePassword);
-              }
-              if (keyPassword) {
-                additionalSecrets.push(keyPassword);
-              }
-            } else {
-              // iOS
-              for (const targetCreds of Object.values(buildCredentials)) {
-                additionalSecrets.push(targetCreds.provisioningProfileBase64);
-                additionalSecrets.push(targetCreds.distributionCertificate.dataBase64);
-                if (targetCreds.distributionCertificate.password) {
-                  additionalSecrets.push(targetCreds.distributionCertificate.password);
-                }
-              }
-            }
+          const secrets = job.secrets as any;
+          const keystore = secrets?.buildCredentials?.keystore;
+          additionalSecrets.push(
+            keystore?.dataBase64,
+            keystore?.keystorePassword,
+            keystore?.keyPassword,
+          );
+          for (const targetCreds of Object.values(secrets?.buildCredentials ?? {})) {
+            const creds = targetCreds as any;
+            additionalSecrets.push(
+              creds?.provisioningProfileBase64,
+              creds?.distributionCertificate?.dataBase64,
+              creds?.distributionCertificate?.password,
+            );
           }
           const redactedErrorMessage = redactSecrets(
             rawErrorMessage,
             job.secrets?.environmentSecrets ?? [],
-            additionalSecrets
+            additionalSecrets.filter((s): s is string => typeof s === 'string')
           );
           await turtleFetch(
             new URL('turtle-builds/logs', config.wwwApiV2BaseUrl).toString(),
