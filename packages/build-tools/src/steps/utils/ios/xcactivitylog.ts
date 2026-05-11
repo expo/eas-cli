@@ -183,6 +183,7 @@ type XcactivitylogData = z.infer<typeof XcactivitylogDataSchemaZ>;
 interface TargetMetric {
   moduleName: string;
   taskSeconds: number;
+  // Not rendered; retained as secondary sort tie-breaker in buildTargetMetrics.
   wallSpan: number;
   activeWallTime: number;
 }
@@ -358,19 +359,22 @@ export function formatReport(data: XcactivitylogData): string {
   lines.push(
     `Schema: ${typeof data.schema === 'string' ? data.schema : (data.schema?.name ?? 'unknown')}`
   );
-  lines.push('% Task = share of total Compile Task Seconds');
-  lines.push('Wall = first compile start to last compile end');
+  lines.push(
+    'Sum = sum of compile-step wall durations within the target; overlapping steps are counted separately'
+  );
+  lines.push('% Sum = share of total Sum');
+  lines.push('Active = merged compile-step wall time, excluding idle gaps between compile steps');
   lines.push('');
   lines.push(header);
   lines.push(
     '│ ' +
       'Module'.padEnd(nameWidth) +
       ' │ ' +
-      'Task'.padStart(taskWidth) +
+      'Sum'.padStart(taskWidth) +
       ' │ ' +
-      '% Task'.padStart(pctWidth) +
+      '% Sum'.padStart(pctWidth) +
       ' │ ' +
-      'Wall'.padStart(wallWidth) +
+      'Active'.padStart(wallWidth) +
       ' │ ' +
       ' '.repeat(barMaxWidth) +
       ' │'
@@ -390,7 +394,7 @@ export function formatReport(data: XcactivitylogData): string {
         ' │ ' +
         `${pct.toFixed(1)}%`.padStart(pctWidth) +
         ' │ ' +
-        formatSeconds(result.wallSpan).padStart(wallWidth) +
+        formatSeconds(result.activeWallTime).padStart(wallWidth) +
         ' │ ' +
         bar +
         ' │'

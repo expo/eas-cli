@@ -146,6 +146,44 @@ const FIXTURE_NESTED = {
   ],
 };
 
+// Overlapping + gapped intervals with pairwise-distinct totals
+// (taskSeconds=11, wallSpan=12, activeWallTime=8). Distinct values catch a
+// regression that leaks wallSpan or taskSeconds into the rendered Active cell.
+const FIXTURE_OVERLAP_WITH_GAP = {
+  schema: { name: 'OverlapWithGap' },
+  subSteps: [
+    {
+      title: 'Build target GappedModule',
+      subSteps: [
+        {
+          detailStepType: 'cCompilation',
+          duration: 5.0,
+          startTimestamp: 100.0,
+          endTimestamp: 105.0,
+          signature: 'CompileC a.c',
+          subSteps: [],
+        },
+        {
+          detailStepType: 'cCompilation',
+          duration: 4.0,
+          startTimestamp: 102.0,
+          endTimestamp: 106.0,
+          signature: 'CompileC b.c',
+          subSteps: [],
+        },
+        {
+          detailStepType: 'cCompilation',
+          duration: 2.0,
+          startTimestamp: 110.0,
+          endTimestamp: 112.0,
+          signature: 'CompileC c.c',
+          subSteps: [],
+        },
+      ],
+    },
+  ],
+};
+
 const mockedDownloadFile = jest.mocked(downloadFile);
 const mockedSpawn = jest.mocked(spawn);
 
@@ -478,17 +516,38 @@ describe('buildTargetMetrics', () => {
     expect(mod).toBeDefined();
     expect(mod!.taskSeconds).toBeCloseTo(3.0);
     expect(mod!.wallSpan).toBe(0); // no valid intervals
+    expect(mod!.activeWallTime).toBe(0); // no valid intervals
+  });
+
+  it('computes activeWallTime by merging overlapping intervals and excluding gaps', () => {
+    const { results } = buildTargetMetrics(FIXTURE_OVERLAP_WITH_GAP);
+    const mod = results.find(r => r.moduleName === 'GappedModule');
+    expect(mod).toBeDefined();
+    expect(mod!.taskSeconds).toBeCloseTo(11.0); // 5 + 4 + 2
+    expect(mod!.wallSpan).toBeCloseTo(12.0); // 112 - 100
+    expect(mod!.activeWallTime).toBeCloseTo(8.0); // (106-100) + (112-110)
   });
 });
 
 describe('formatReport', () => {
-  it('produces table with header and module rows', () => {
+  it('produces table with header, legend, and module rows', () => {
     const report = formatReport(FIXTURE_TWO_MODULES);
     expect(report).toContain('Xcode Build — Compile Metrics by Module');
     expect(report).toContain('ModuleA');
     expect(report).toContain('ModuleB');
     expect(report).toContain('TOTAL');
-    expect(report).toContain('% Task');
+    expect(report).toContain('% Sum');
+    expect(report).toContain('Sum = sum of compile-step wall durations');
+    expect(report).toContain('Active = merged compile-step wall time');
+    expect(report).not.toContain('% Task');
+    expect(report).not.toContain('Wall = ');
+  });
+
+  it('renders Active using activeWallTime, not wallSpan', () => {
+    const report = formatReport(FIXTURE_OVERLAP_WITH_GAP);
+    expect(report).toContain('11.0s');
+    expect(report).toContain('8.0s');
+    expect(report).not.toContain('12.0s');
   });
 
   it('does not include modules below threshold', () => {
