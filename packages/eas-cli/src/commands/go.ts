@@ -509,7 +509,7 @@ export default class Go extends EasCommand {
             repackJob?.status === WorkflowJobStatus.Failure ||
             repackJob?.status === WorkflowJobStatus.Canceled
           ) {
-            buildSpinner.fail();
+            buildSpinner.fail('Build failed');
             return WorkflowRunStatus.Failure;
           }
         }
@@ -530,7 +530,7 @@ export default class Go extends EasCommand {
           return WorkflowRunStatus.Success;
         } else if (workflowRun.status === WorkflowRunStatus.Failure) {
           buildSpinner.stop();
-          submitSpinner?.fail();
+          submitSpinner?.fail('Submission failed');
           return WorkflowRunStatus.Failure;
         } else if (workflowRun.status === WorkflowRunStatus.Canceled) {
           buildSpinner.stop();
