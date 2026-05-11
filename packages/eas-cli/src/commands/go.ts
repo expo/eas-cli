@@ -412,10 +412,10 @@ export default class Go extends EasCommand {
     const originalCwd = process.cwd();
 
     try {
-      await fs.promises.mkdir(tmpDir, { recursive: true });
+      await fs.ensureDir(tmpDir);
       await Promise.all(
         repackConfig.files.map(f =>
-          fs.promises.writeFile(path.join(tmpDir, f.fileName), f.fileContents)
+          fs.writeFile(path.join(tmpDir, f.fileName), f.fileContents)
         )
       );
       process.chdir(tmpDir);
@@ -458,7 +458,7 @@ export default class Go extends EasCommand {
       return { workflowUrl, workflowRunId: result.id };
     } finally {
       process.chdir(originalCwd);
-      await fs.promises.rm(tmpDir, { recursive: true, force: true });
+      await fs.remove(tmpDir);
     }
   }
 
@@ -511,7 +511,7 @@ export default class Go extends EasCommand {
             repackJob?.status === WorkflowJobStatus.Failure ||
             repackJob?.status === WorkflowJobStatus.Canceled
           ) {
-            buildSpinner.stop();
+            buildSpinner.fail();
             return WorkflowRunStatus.Failure;
           }
         }
@@ -532,7 +532,7 @@ export default class Go extends EasCommand {
           return WorkflowRunStatus.Success;
         } else if (workflowRun.status === WorkflowRunStatus.Failure) {
           buildSpinner.stop();
-          submitSpinner?.stop();
+          submitSpinner?.fail();
           return WorkflowRunStatus.Failure;
         } else if (workflowRun.status === WorkflowRunStatus.Canceled) {
           buildSpinner.stop();
