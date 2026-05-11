@@ -352,6 +352,10 @@ export type DynamicInterpolationContext = {
 export type WorkflowInterpolationContext = StaticWorkflowInterpolationContext &
   DynamicInterpolationContext;
 
+export type JobOutputs = Record<string, string>;
+export const JobOutputsSchema = Joi.object<JobOutputs>().pattern(Joi.string(), Joi.string());
+export const JobOutputsSchemaZ = z.record(z.string(), z.string());
+
 export const CustomBuildConfigSchema = Joi.object().when('.mode', {
   is: [BuildMode.CUSTOM, BuildMode.REPACK],
   then: Joi.object().when('.customBuildConfig.path', {
@@ -361,7 +365,6 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
         path: Joi.string().required(),
       }).required(),
       steps: Joi.any().strip(),
-      outputs: Joi.any().strip(),
     }),
     otherwise: Joi.object({
       customBuildConfig: Joi.any().strip(),
@@ -369,13 +372,11 @@ export const CustomBuildConfigSchema = Joi.object().when('.mode', {
         .items(Joi.any())
         .required()
         .custom(steps => validateSteps(steps), 'steps validation'),
-      outputs: Joi.object().pattern(Joi.string(), Joi.string()).required(),
     }),
   }),
   otherwise: Joi.object({
     customBuildConfig: Joi.any().strip(),
     steps: Joi.any().strip(),
-    outputs: Joi.any().strip(),
   }),
 });
 

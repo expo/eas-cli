@@ -15,6 +15,8 @@ import {
   EnvironmentSecretsSchema,
   Hooks,
   HooksSchema,
+  JobOutputs,
+  JobOutputsSchema,
   Platform,
   StaticWorkflowInterpolationContext,
   StaticWorkflowInterpolationContextZ,
@@ -124,7 +126,7 @@ export interface Job {
   };
   hooks?: Hooks;
   steps?: Step[];
-  outputs?: Record<string, string>;
+  outputs?: JobOutputs;
 
   experimental?: {
     prebuildCommand?: string;
@@ -210,6 +212,7 @@ export const JobSchema = Joi.object({
 
   username: Joi.string(),
   hooks: HooksSchema,
+  outputs: JobOutputsSchema,
 
   experimental: Joi.object({
     prebuildCommand: Joi.string(),
