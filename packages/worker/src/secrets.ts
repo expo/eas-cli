@@ -1,3 +1,5 @@
+import { EnvironmentSecret } from '@expo/eas-build-job';
+
 export function maybeStringBase64Decode(maybeEncodedString: string): string | null {
   try {
     const buffer = Buffer.from(maybeEncodedString, 'base64');
@@ -8,6 +10,26 @@ export function maybeStringBase64Decode(maybeEncodedString: string): string | nu
   } catch {
     return null;
   }
+}
+
+export function redactSecrets(
+  message: string,
+  secrets: EnvironmentSecret[],
+  additionalSecrets?: string[]
+): string {
+  const secretValues = [
+    ...secrets.map(({ value }) => value),
+    ...(additionalSecrets ?? []),
+  ];
+  const secretList = [
+    ...secretValues,
+    ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
+  ].filter((i) => i.length > 1 && !simpleSecretsWhitelist.includes(i));
+
+  return secretList.reduce(
+    (acc, pattern) => acc.replaceAll(pattern, '*'.repeat(pattern.length)),
+    message
+  );
 }
 
 export const simpleSecretsWhitelist = [

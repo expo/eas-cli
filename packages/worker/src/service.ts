@@ -31,6 +31,7 @@ import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
+import { redactSecrets } from './secrets';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
@@ -353,13 +354,42 @@ export default class BuildService {
         }
 
         try {
+          const additionalSecrets: string[] = [];
+          if (robotAccessToken) {
+            additionalSecrets.push(robotAccessToken);
+          }
+          const buildCredentials = job.secrets?.buildCredentials;
+          if (buildCredentials) {
+            if ('keystore' in buildCredentials) {
+              // Android
+              const { keystorePassword, keyPassword } = buildCredentials.keystore;
+              if (keystorePassword) {
+                additionalSecrets.push(keystorePassword);
+              }
+              if (keyPassword) {
+                additionalSecrets.push(keyPassword);
+              }
+            } else {
+              // iOS
+              for (const targetCreds of Object.values(buildCredentials)) {
+                if (targetCreds.distributionCertificate?.password) {
+                  additionalSecrets.push(targetCreds.distributionCertificate.password);
+                }
+              }
+            }
+          }
+          const redactedErrorMessage = redactSecrets(
+            rawErrorMessage,
+            job.secrets?.environmentSecrets ?? [],
+            additionalSecrets
+          );
           await turtleFetch(
             new URL('turtle-builds/logs', config.wwwApiV2BaseUrl).toString(),
             'POST',
             {
               json: {
                 buildId: this.buildId,
-                message: rawErrorMessage,
+                message: redactedErrorMessage,
                 level: 'error',
                 tags: {
                   build_phase: err.buildPhase ?? null,
