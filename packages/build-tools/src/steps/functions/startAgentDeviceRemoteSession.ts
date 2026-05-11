@@ -1,5 +1,10 @@
 import { bunyan } from '@expo/logger';
-import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import {
+  BuildFunction,
+  BuildRuntimePlatform,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+} from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
@@ -15,6 +20,7 @@ const DAEMON_LOG = path.join(RUN_DIR, 'daemon.log');
 const TUNNEL_LOG = path.join(RUN_DIR, 'cloudflared.log');
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
+const CLOUDFLARED_LINUX_INSTALL_PATH = '/usr/local/bin/cloudflared';
 const STARTUP_TIMEOUT_MS = 60_000;
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunction {
@@ -30,21 +36,27 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env }) => {
       const packageVersion = inputs.package_version.value as string | undefined;
-      logger.info(`Starting agent-device remote session (version: ${packageVersion ?? 'latest'}).`);
+      const { runtimePlatform } = global;
+      logger.info(
+        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
+      );
 
       logger.info(`Preparing runtime directory at ${RUN_DIR}.`);
       await fs.promises.mkdir(RUN_DIR, { recursive: true });
 
-      logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
-      await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
+        await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+      }
 
       logger.info('Ensuring cloudflared is installed.');
-      await ensureCloudflaredInstalledAsync({ env, logger });
-
-      logger.info('Ensuring bun is installed.');
-      await ensureBunInstalledAsync({ env, logger });
+      const cloudflaredCommand = await ensureCloudflaredInstalledAsync({
+        runtimePlatform,
+        env,
+        logger,
+      });
 
       logger.info(
         packageVersion
@@ -82,7 +94,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
         `Starting cloudflared tunnel to http://localhost:${daemonPort} (log file: ${TUNNEL_LOG}).`
       );
       await spawnDetachedAsync({
-        command: `cloudflared tunnel --url "http://localhost:${daemonPort}"`,
+        command: `${cloudflaredCommand} tunnel --url "http://localhost:${daemonPort}"`,
         logFile: TUNNEL_LOG,
         env,
         logger,
@@ -110,23 +122,44 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(): BuildFunctio
 }
 
 async function ensureCloudflaredInstalledAsync({
+  runtimePlatform,
   env,
   logger,
 }: {
+  runtimePlatform: BuildRuntimePlatform;
   env: NodeJS.ProcessEnv;
   logger: bunyan;
-}): Promise<void> {
-  await ensureBrewPackageInstalledAsync({ name: 'cloudflared', env, logger });
+}): Promise<string> {
+  if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+    await ensureBrewPackageInstalledAsync({ name: 'cloudflared', env, logger });
+    return 'cloudflared';
+  }
+  if (await isCommandAvailableAsync({ command: 'cloudflared', env })) {
+    return 'cloudflared';
+  }
+  const cloudflaredArch = cloudflaredLinuxArchForNodeArch(os.arch());
+  const downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${cloudflaredArch}`;
+  logger.info(`Downloading cloudflared from ${downloadUrl} to ${CLOUDFLARED_LINUX_INSTALL_PATH}.`);
+  await spawn('sudo', ['curl', '-fsSL', '-o', CLOUDFLARED_LINUX_INSTALL_PATH, downloadUrl], {
+    env,
+    logger,
+  });
+  await spawn('sudo', ['chmod', '+x', CLOUDFLARED_LINUX_INSTALL_PATH], { env, logger });
+  // Return the absolute install path so the tunnel command works even when
+  // /usr/local/bin is not on the step's PATH.
+  return CLOUDFLARED_LINUX_INSTALL_PATH;
 }
 
-async function ensureBunInstalledAsync({
-  env,
-  logger,
-}: {
-  env: NodeJS.ProcessEnv;
-  logger: bunyan;
-}): Promise<void> {
-  await ensureBrewPackageInstalledAsync({ name: 'bun', env, logger });
+function cloudflaredLinuxArchForNodeArch(arch: string): 'amd64' | 'arm64' {
+  if (arch === 'x64') {
+    return 'amd64';
+  }
+  if (arch === 'arm64') {
+    return 'arm64';
+  }
+  throw new Error(
+    `Unsupported architecture for cloudflared on Linux: "${arch}". Expected "x64" or "arm64".`
+  );
 }
 
 async function ensureBrewPackageInstalledAsync({
@@ -143,6 +176,21 @@ async function ensureBrewPackageInstalledAsync({
     ['-c', `command -v ${name} >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install ${name}`],
     { env, logger }
   );
+}
+
+async function isCommandAvailableAsync({
+  command,
+  env,
+}: {
+  command: string;
+  env: NodeJS.ProcessEnv;
+}): Promise<boolean> {
+  try {
+    await spawn('bash', ['-c', `command -v ${command}`], { env, ignoreStdio: true });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function cloneAgentDeviceAsync({
