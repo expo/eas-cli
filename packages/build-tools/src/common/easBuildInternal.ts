@@ -42,6 +42,7 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
     autoSubmitArgs.push('--auto-submit');
   }
 
+  try {
   const result = await spawn(
     cmd,
     [
@@ -74,6 +75,8 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
     result: parsed,
     oldJob: job,
   });
+} catch (err: any) {
+  throw new Error(`Failed to run eas build:internal`);
 }
 
 export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
