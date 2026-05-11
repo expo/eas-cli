@@ -76,7 +76,7 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
     oldJob: job,
   });
 } catch (err: any) {
-  throw new Error(`Failed to run eas build:internal`);
+  throw new Error(`Failed to run eas build:internal: ${err.message}`);
 }
 
 export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
