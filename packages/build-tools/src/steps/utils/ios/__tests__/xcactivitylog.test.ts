@@ -191,14 +191,14 @@ describe('parseAndReportXcactivitylog', () => {
     });
 
     expect(mockedDownloadFile).toHaveBeenCalledWith(
-      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
-      path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.46.zip'),
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
+      path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'),
       { retry: 3, timeout: 20_000 }
     );
     expect(mockedSpawn).toHaveBeenNthCalledWith(
       1,
       'unzip',
-      ['-q', path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.46.zip'), '-d', tempDir],
+      ['-q', path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'), '-d', tempDir],
       { stdio: 'pipe' }
     );
     expect(mockedSpawn).toHaveBeenNthCalledWith(
@@ -244,14 +244,14 @@ describe('parseAndReportXcactivitylog', () => {
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
       1,
-      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
-      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
       { retry: 3, timeout: 20_000 }
     );
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
       2,
-      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
-      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
       { retry: 3, timeout: 20_000 }
     );
     expect(logger.debug).toHaveBeenCalledWith(
@@ -280,14 +280,14 @@ describe('parseAndReportXcactivitylog', () => {
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
       1,
-      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
-      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      'https://cache.example.com/storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
       { retry: 3, timeout: 20_000 }
     );
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
       2,
-      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
-      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.46.zip',
+      'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
+      '/tmp/xclogparser-123/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
       { retry: 3, timeout: 20_000 }
     );
     expect(logger.debug).toHaveBeenCalledWith(

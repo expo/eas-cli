@@ -7,7 +7,7 @@ import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
-const DEFAULT_XCLOGPARSER_VERSION = 'v0.2.46';
+const DEFAULT_XCLOGPARSER_VERSION = 'v0.2.47';
 const XCLOGPARSER_DOWNLOAD_URL = 'https://storage.googleapis.com/turtle-v2/xclogparser';
 const XCLOGPARSER_DOWNLOAD_TIMEOUT_MS = 20_000;
 const XCLOGPARSER_OUTPUT_FILENAME = 'xcactivitylog.json';
