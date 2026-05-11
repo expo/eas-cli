@@ -414,9 +414,7 @@ export default class Go extends EasCommand {
     try {
       await fs.ensureDir(tmpDir);
       await Promise.all(
-        repackConfig.files.map(f =>
-          fs.writeFile(path.join(tmpDir, f.fileName), f.fileContents)
-        )
+        repackConfig.files.map(f => fs.writeFile(path.join(tmpDir, f.fileName), f.fileContents))
       );
       process.chdir(tmpDir);
 
