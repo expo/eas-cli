@@ -43,40 +43,41 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
   }
 
   try {
-  const result = await spawn(
-    cmd,
-    [
-      ...args,
-      'build:internal',
-      '--platform',
-      job.platform,
-      '--profile',
-      buildProfile,
-      ...autoSubmitArgs,
-    ],
-    {
-      cwd,
-      env: {
-        ...env,
-        EXPO_TOKEN: nullthrows(job.secrets, 'Secrets must be defined for non-custom builds')
-          .robotAccessToken,
-        ...extraEnv,
-        EAS_PROJECT_ROOT: projectRootOverride,
-      },
-      logger,
-      // This prevents printing stdout with job secrets and credentials to logs.
-      mode: PipeMode.STDERR_ONLY_AS_STDOUT,
-    }
-  );
+    const result = await spawn(
+      cmd,
+      [
+        ...args,
+        'build:internal',
+        '--platform',
+        job.platform,
+        '--profile',
+        buildProfile,
+        ...autoSubmitArgs,
+      ],
+      {
+        cwd,
+        env: {
+          ...env,
+          EXPO_TOKEN: nullthrows(job.secrets, 'Secrets must be defined for non-custom builds')
+            .robotAccessToken,
+          ...extraEnv,
+          EAS_PROJECT_ROOT: projectRootOverride,
+        },
+        logger,
+        // This prevents printing stdout with job secrets and credentials to logs.
+        mode: PipeMode.STDERR_ONLY_AS_STDOUT,
+      }
+    );
 
-  const stdout = result.stdout.toString();
-  const parsed = JSON.parse(stdout);
-  return validateEasBuildInternalResult({
-    result: parsed,
-    oldJob: job,
-  });
-} catch (err: any) {
-  throw new Error(`Failed to run eas build:internal: ${err.message}`);
+    const stdout = result.stdout.toString();
+    const parsed = JSON.parse(stdout);
+    return validateEasBuildInternalResult({
+      result: parsed,
+      oldJob: job,
+    });
+  } catch (err: any) {
+    throw new Error('Failed to run eas build:internal');
+  }
 }
 
 export async function resolveEnvFromBuildProfileAsync<TJob extends BuildJob>(
