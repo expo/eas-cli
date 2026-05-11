@@ -19,9 +19,11 @@ const IOS_DIR = path.join(PROJECT_DIR, 'ios');
 
 function makeIosBuildContext({
   expoVersion,
+  cocoapodsCacheUrl,
   usePrecompiledModules = true,
 }: {
   expoVersion?: string;
+  cocoapodsCacheUrl?: string;
   usePrecompiledModules?: boolean;
 }): BuildContext<Ios.Job> {
   vol.fromJSON({
@@ -48,7 +50,10 @@ function makeIosBuildContext({
     workingdir: WORKING_DIR,
     logger: createMockLogger(),
     logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-    env: { __API_SERVER_URL: 'http://api.expo.test' },
+    env: {
+      __API_SERVER_URL: 'http://api.expo.test',
+      ...(cocoapodsCacheUrl ? { EAS_BUILD_COCOAPODS_CACHE_URL: cocoapodsCacheUrl } : {}),
+    },
     uploadArtifact: jest.fn(),
   });
 }
@@ -89,14 +94,38 @@ describe(installPods, () => {
         cwd: IOS_DIR,
         env: expect.objectContaining({
           EXPO_USE_PRECOMPILED_MODULES: '1',
+          EXPO_PRECOMPILED_MODULES_BASE_URL:
+            'https://storage.googleapis.com/eas-build-precompiled-modules/',
         }),
       })
     );
-    expect(
-      (spawn as jest.Mock).mock.calls[1][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
-    ).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
-      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nPrecompiled modules pod install environment is configured.'
+      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nEXPO_PRECOMPILED_MODULES_BASE_URL=https://storage.googleapis.com/eas-build-precompiled-modules/\nPrecompiled modules pod install environment is configured.'
+    );
+  });
+
+  it('proxies precompiled modules through CocoaPods cache when enabled', async () => {
+    const ctx = makeIosBuildContext({
+      expoVersion: '999.0.0',
+      cocoapodsCacheUrl: 'https://cocoapods-cache.expo.test/',
+    });
+
+    await installPods(ctx, {});
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pod',
+      ['install'],
+      expect.objectContaining({
+        cwd: IOS_DIR,
+        env: expect.objectContaining({
+          EXPO_USE_PRECOMPILED_MODULES: '1',
+          EXPO_PRECOMPILED_MODULES_BASE_URL:
+            'https://cocoapods-cache.expo.test/storage.googleapis.com/eas-build-precompiled-modules/',
+        }),
+      })
+    );
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'Detected expo=999.0.0; enabling precompiled modules use. Installing pods with additional environment variables.\nEXPO_USE_PRECOMPILED_MODULES=1\nEXPO_PRECOMPILED_MODULES_BASE_URL=https://cocoapods-cache.expo.test/storage.googleapis.com/eas-build-precompiled-modules/\nPrecompiled modules pod install environment is configured.'
     );
   });
 
@@ -146,6 +175,9 @@ describe(installPods, () => {
 
     expect((spawn as jest.Mock).mock.calls[0][2].env.EAS_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect(
+      (spawn as jest.Mock).mock.calls[0][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
+    ).toBeUndefined();
     expect(ctx.logger.info).not.toHaveBeenCalled();
   });
 });

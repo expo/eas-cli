@@ -7,7 +7,8 @@ import semver from 'semver';
 import { BuildContext } from '../context';
 
 const MIN_PRECOMPILED_MODULES_EXPO_VERSION = '55.0.21';
-// const PRECOMPILED_MODULES_BASE_URL = 'https://storage.googleapis.com/eas-build-precompiled-modules/';
+const PRECOMPILED_MODULES_BASE_URL =
+  'https://storage.googleapis.com/eas-build-precompiled-modules/';
 
 export async function installPods<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
@@ -76,10 +77,9 @@ async function resolvePrecompiledModulesPodInstallEnvAsync<TJob extends Ios.Job>
     return {};
   }
 
-  // Start rollout with Expo precompiled modules only. Add third-party modules after this is stable.
   const env: Env = {
     EXPO_USE_PRECOMPILED_MODULES: '1',
-    // EXPO_PRECOMPILED_MODULES_BASE_URL: getPrecompiledModulesBaseUrl(),
+    EXPO_PRECOMPILED_MODULES_BASE_URL: getPrecompiledModulesBaseUrl(ctx),
   };
 
   ctx.logger.info(
@@ -105,14 +105,14 @@ async function getInstalledExpoPackageVersionAsync<TJob extends Ios.Job>(
   return (await fs.readJson(expoPackageJsonPath)).version;
 }
 
-// function getPrecompiledModulesBaseUrl<TJob extends Ios.Job>(ctx: BuildContext<TJob>): string {
-//   if (!ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL) {
-//     return PRECOMPILED_MODULES_BASE_URL;
-//   }
-//
-//   const parsedUrl = new URL(PRECOMPILED_MODULES_BASE_URL);
-//   return PRECOMPILED_MODULES_BASE_URL.replace(
-//     `${parsedUrl.protocol}//${parsedUrl.host}`,
-//     `${ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL.replace(/\/$/, '')}/${parsedUrl.host}`
-//   );
-// }
+function getPrecompiledModulesBaseUrl<TJob extends Ios.Job>(ctx: BuildContext<TJob>): string {
+  if (!ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL) {
+    return PRECOMPILED_MODULES_BASE_URL;
+  }
+
+  const parsedUrl = new URL(PRECOMPILED_MODULES_BASE_URL);
+  return PRECOMPILED_MODULES_BASE_URL.replace(
+    `${parsedUrl.protocol}//${parsedUrl.host}`,
+    `${ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL.replace(/\/$/, '')}/${parsedUrl.host}`
+  );
+}
