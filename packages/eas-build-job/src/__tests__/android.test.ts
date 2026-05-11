@@ -266,6 +266,9 @@ describe('Android.JobSchema', () => {
       customBuildConfig: {
         path: 'production.android.yml',
       },
+      outputs: {
+        android_build_type: 'apk',
+      },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),
     };
@@ -337,6 +340,28 @@ describe('Android.JobSchema', () => {
 
     const { value, error } = Android.JobSchema.validate(customBuildJob, joiOptions);
     expect(value).toMatchObject(customBuildJob);
+    expect(error).toBeFalsy();
+  });
+
+  test('preserves outputs for build jobs', () => {
+    const job = {
+      mode: BuildMode.BUILD,
+      type: Workflow.GENERIC,
+      platform: Platform.ANDROID,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'https://expo.dev/builds/123',
+      },
+      projectRootDirectory: '.',
+      outputs: {
+        android_build_type: 'apk',
+      },
+      secrets,
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+    const { value, error } = Android.JobSchema.validate(job, joiOptions);
+    expect(value).toMatchObject(job);
     expect(error).toBeFalsy();
   });
 

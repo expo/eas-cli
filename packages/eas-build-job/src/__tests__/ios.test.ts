@@ -77,6 +77,9 @@ describe('Ios.JobSchema', () => {
       },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),
+      outputs: {
+        resign_job: 'true',
+      },
     };
 
     const { value, error } = Ios.JobSchema.validate(genericJob, joiOptions);
@@ -180,6 +183,9 @@ describe('Ios.JobSchema', () => {
       customBuildConfig: {
         path: 'production.ios.yml',
       },
+      outputs: {
+        ios_build_type: 'simulator',
+      },
       initiatingUserId: randomUUID(),
       appId: randomUUID(),
     };
@@ -251,6 +257,30 @@ describe('Ios.JobSchema', () => {
 
     const { value, error } = Ios.JobSchema.validate(customBuildJob, joiOptions);
     expect(value).toMatchObject(customBuildJob);
+    expect(error).toBeFalsy();
+  });
+
+  test('preserves outputs for build jobs', () => {
+    const job = {
+      mode: BuildMode.BUILD,
+      type: Workflow.UNKNOWN,
+      platform: Platform.IOS,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'https://expo.dev/builds/123',
+      },
+      projectRootDirectory: '.',
+      outputs: {
+        ios_build_type: 'simulator',
+      },
+      secrets: {
+        buildCredentials,
+      },
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(value).toMatchObject(job);
     expect(error).toBeFalsy();
   });
 
