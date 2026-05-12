@@ -24,8 +24,8 @@ describe('noVcs', () => {
       delete process.env.EAS_PROJECT_ROOT;
     });
 
-    it('should return the current working directory when not in Git repository', async () => {
-      expect(await vcs.getRootPathAsync()).toBe(process.cwd());
+    it('should return cwdOverride when not in Git repository', async () => {
+      expect(await vcs.getRootPathAsync()).toBe(repoRoot);
     });
 
     it('should return the Git root when in Git repository', async () => {
@@ -35,7 +35,7 @@ describe('noVcs', () => {
 
     it('should return the project root when EAS_PROJECT_ROOT is set', async () => {
       process.env.EAS_PROJECT_ROOT = 'project-root';
-      expect(await vcs.getRootPathAsync()).toBe(path.resolve(process.cwd(), 'project-root'));
+      expect(await vcs.getRootPathAsync()).toBe(path.resolve(repoRoot, 'project-root'));
 
       process.env.EAS_PROJECT_ROOT = '/app';
       expect(await vcs.getRootPathAsync()).toBe('/app');

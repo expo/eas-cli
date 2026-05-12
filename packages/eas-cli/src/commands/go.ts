@@ -31,6 +31,7 @@ import { ora } from '../ora';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
+import { ensureActorHasPrimaryAccount } from '../user/actions';
 import { Actor, getActorDisplayName } from '../user/User';
 import { sleepAsync } from '../utils/promise';
 import { Client } from '../vcs/vcs';
@@ -275,7 +276,7 @@ export default class Go extends EasCommand {
   }
 
   private generateBundleId(actor: Actor): string {
-    const username = actor.accounts[0].name;
+    const username = ensureActorHasPrimaryAccount(actor).name;
     const sanitizedUsername = username
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '-')
@@ -289,7 +290,7 @@ export default class Go extends EasCommand {
     actor: Actor,
     slug: string
   ): Promise<string> {
-    const account = actor.accounts[0];
+    const account = ensureActorHasPrimaryAccount(actor);
 
     const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
       graphqlClient,
@@ -401,7 +402,7 @@ export default class Go extends EasCommand {
     tmpDir: string,
     vcsClient: Client
   ): Promise<{ workflowUrl: string; workflowRunId: string }> {
-    const account = actor.accounts[0];
+    const account = ensureActorHasPrimaryAccount(actor);
 
     const repackConfig = await WorkflowRunQuery.expoGoRepackConfigurationAsync(graphqlClient, {
       appId: projectId,
