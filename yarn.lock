@@ -3585,7 +3585,7 @@ __metadata:
     check-disk-space: "npm:3.4.0"
     fast-glob: "npm:3.3.2"
     filesize: "npm:7.0.0"
-    flatted: "npm:3.2.5"
+    flatted: "npm:3.4.2"
     fs-extra: "npm:11.2.0"
     jest: "npm:29.7.0"
     koa: "npm:3.1.1"
@@ -11988,10 +11988,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"flatted@npm:3.2.5":
-  version: 3.2.5
-  resolution: "flatted@npm:3.2.5"
-  checksum: 10c0/ccc5231970b8447adff3cffb4d6940a6eb9ddbf127b91f35742d4736d63f8224a985e8abd4371dec2d11841a4bf8829afc99190a711df53805956222ee22703e
+"flatted@npm:3.4.2":
+  version: 3.4.2
+  resolution: "flatted@npm:3.4.2"
+  checksum: 10c0/a65b67aae7172d6cdf63691be7de6c5cd5adbdfdfe2e9da1a09b617c9512ed794037741ee53d93114276bff3f93cd3b0d97d54f9b316e1e4885dde6e9ffdf7ed
   languageName: node
   linkType: hard
 
