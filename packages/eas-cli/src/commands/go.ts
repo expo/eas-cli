@@ -253,7 +253,7 @@ export default class Go extends EasCommand {
       try {
         await setupTestFlightAsync(ascApp);
       } catch (e) {
-        Log.debug('TestFlight group setup failed (non-fatal):', e);
+        Log.debug('TestFlight group setup failed:', e);
       }
 
       Log.newLine();
@@ -281,11 +281,6 @@ export default class Go extends EasCommand {
       .replace(/[^a-z0-9-]/g, '-')
       .replace(/-{2,}/g, '-')
       .replace(/^-+|-+$/g, '');
-    if (!sanitizedUsername) {
-      throw new Error(
-        `Could not generate a bundle identifier from account name "${username}". Pass a valid identifier with --bundle-id.`
-      );
-    }
     return `com.${sanitizedUsername}.expogo`;
   }
 
