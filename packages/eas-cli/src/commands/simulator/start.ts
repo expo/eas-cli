@@ -6,7 +6,6 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
   AppPlatform,
-  DeviceRunSessionByIdQuery,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -15,6 +14,10 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import {
+  DeviceRunSessionRemoteConfig,
+  formatRemoteConfigShellSnippet,
+} from '../../simulator/utils';
 import { sleepAsync } from '../../utils/promise';
 import nullthrows from 'nullthrows';
 
@@ -32,9 +35,6 @@ const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
     ([type, value]) => [value, type]
   )
 ) as Record<string, DeviceRunSessionType>;
-
-type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
-type RemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
@@ -99,7 +99,7 @@ export default class SimulatorStart extends EasCommand {
 
     const pollSpinner = ora(`⏳ Waiting for ${flags.type} daemon to start`).start();
     const deadline = Date.now() + POLL_TIMEOUT_MS;
-    let remoteConfig: RemoteConfig | undefined;
+    let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
     try {
       while (Date.now() < deadline) {
@@ -273,15 +273,5 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
       }`
     );
     return false;
-  }
-}
-
-function formatRemoteConfigShellSnippet(remoteConfig: RemoteConfig): string {
-  switch (remoteConfig.__typename) {
-    case 'AgentDeviceRunSessionRemoteConfig':
-      return [
-        `export AGENT_DEVICE_DAEMON_BASE_URL='${remoteConfig.url}'`,
-        `export AGENT_DEVICE_DAEMON_AUTH_TOKEN='${remoteConfig.token}'`,
-      ].join('\n');
   }
 }
