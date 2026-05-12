@@ -19,6 +19,14 @@ export const DeviceRunSessionQuery = {
                   id
                   status
                   type
+                  app {
+                    id
+                    slug
+                    ownerAccount {
+                      id
+                      name
+                    }
+                  }
                   remoteConfig {
                     __typename
                     ... on AgentDeviceRunSessionRemoteConfig {
