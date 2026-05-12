@@ -6,6 +6,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
   AppPlatform,
+  DeviceRunSessionByIdQuery,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -32,8 +33,8 @@ const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
   )
 ) as Record<string, DeviceRunSessionType>;
 
-type ReadinessResult = { ready: true; message: string } | { ready: false };
-type ReadinessChecker = (logMessages: readonly string[]) => ReadinessResult;
+type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
+type RemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
@@ -96,11 +97,9 @@ export default class SimulatorStart extends EasCommand {
       throw err;
     }
 
-    const checkReadiness = getReadinessCheckerForType(flags.type);
-
     const pollSpinner = ora(`⏳ Waiting for ${flags.type} daemon to start`).start();
     const deadline = Date.now() + POLL_TIMEOUT_MS;
-    let result: ReadinessResult = { ready: false };
+    let remoteConfig: RemoteConfig | undefined;
 
     try {
       while (Date.now() < deadline) {
@@ -126,9 +125,8 @@ export default class SimulatorStart extends EasCommand {
           );
         }
 
-        const logMessages = await fetchLogMessagesAsync(session.turtleJobRun?.logFileUrls ?? []);
-        result = checkReadiness(logMessages);
-        if (result.ready) {
+        if (session.remoteConfig) {
+          remoteConfig = session.remoteConfig;
           pollSpinner.succeed(`🎉 ${flags.type} daemon is ready`);
           break;
         }
@@ -136,12 +134,12 @@ export default class SimulatorStart extends EasCommand {
         await sleepAsync(POLL_INTERVAL_MS);
       }
     } catch (err) {
-      pollSpinner.fail(`Failed while polling for ${flags.type} daemon logs`);
+      pollSpinner.fail(`Failed while polling for ${flags.type} daemon to start`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw err;
     }
 
-    if (!result.ready) {
+    if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} daemon to start`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw new Error(
@@ -152,7 +150,7 @@ export default class SimulatorStart extends EasCommand {
     Log.newLine();
     Log.log(`🔑 Run the following in your shell to attach to ${flags.type}:`);
     Log.newLine();
-    Log.log(result.message);
+    Log.log(formatRemoteConfigShellSnippet(remoteConfig));
     Log.newLine();
 
     if (flags['non-interactive']) {
@@ -278,101 +276,12 @@ async function ensureDeviceRunSessionStoppedSafelyAsync(
   }
 }
 
-function getReadinessCheckerForType(type: string): ReadinessChecker {
-  switch (type) {
-    case DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.AgentDevice]:
-      return checkAgentDeviceReadiness;
-    default:
-      throw new Error(`Unsupported device run session type: ${type}`);
+function formatRemoteConfigShellSnippet(remoteConfig: RemoteConfig): string {
+  switch (remoteConfig.__typename) {
+    case 'AgentDeviceRunSessionRemoteConfig':
+      return [
+        `export AGENT_DEVICE_DAEMON_BASE_URL='${remoteConfig.url}'`,
+        `export AGENT_DEVICE_DAEMON_AUTH_TOKEN='${remoteConfig.token}'`,
+      ].join('\n');
   }
-}
-
-const AGENT_DEVICE_BASE_URL_ENV_VAR = 'AGENT_DEVICE_DAEMON_BASE_URL';
-const AGENT_DEVICE_AUTH_TOKEN_ENV_VAR = 'AGENT_DEVICE_DAEMON_AUTH_TOKEN';
-
-function checkAgentDeviceReadiness(logMessages: readonly string[]): ReadinessResult {
-  let baseUrl: string | undefined;
-  let authToken: string | undefined;
-  for (const msg of logMessages) {
-    baseUrl = baseUrl ?? extractExportedEnvValue(msg, AGENT_DEVICE_BASE_URL_ENV_VAR);
-    authToken = authToken ?? extractExportedEnvValue(msg, AGENT_DEVICE_AUTH_TOKEN_ENV_VAR);
-    if (baseUrl && authToken) {
-      break;
-    }
-  }
-  if (baseUrl && authToken) {
-    return {
-      ready: true,
-      message: [
-        `export ${AGENT_DEVICE_BASE_URL_ENV_VAR}='${baseUrl}'`,
-        `export ${AGENT_DEVICE_AUTH_TOKEN_ENV_VAR}='${authToken}'`,
-      ].join('\n'),
-    };
-  }
-  return { ready: false };
-}
-
-async function fetchLogMessagesAsync(logUrls: readonly string[]): Promise<string[]> {
-  const messages: string[] = [];
-  for (const url of logUrls) {
-    const text = await fetchLogTextAsync(url);
-    if (!text) {
-      continue;
-    }
-    for (const line of text.split('\n')) {
-      if (!line.trim()) {
-        continue;
-      }
-      messages.push(extractLogMessage(line));
-    }
-  }
-  return messages;
-}
-
-async function fetchLogTextAsync(url: string): Promise<string | undefined> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return undefined;
-    }
-    return await response.text();
-  } catch {
-    return undefined;
-  }
-}
-
-function extractLogMessage(line: string): string {
-  // Turtle job run logs are JSONL (bunyan-shaped), e.g.
-  //   {"msg":"export FOO=\"bar\"","time":"...","logId":"..."}
-  // Fall back to the raw line if it's not JSON or doesn't have a string msg.
-  const trimmed = line.trim();
-  if (!trimmed.startsWith('{')) {
-    return line;
-  }
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (parsed && typeof parsed === 'object' && 'msg' in parsed) {
-      const msg = (parsed as { msg: unknown }).msg;
-      if (typeof msg === 'string') {
-        return msg;
-      }
-    }
-  } catch {
-    // not JSON, fall through
-  }
-  return line;
-}
-
-function extractExportedEnvValue(text: string, varName: string): string | undefined {
-  // Matches: export NAME=value | export NAME="value" | export NAME='value'
-  const pattern = new RegExp(`export\\s+${escapeRegExp(varName)}=(?:"([^"]*)"|'([^']*)'|(\\S+))`);
-  const match = pattern.exec(text);
-  if (!match) {
-    return undefined;
-  }
-  return match[1] ?? match[2] ?? match[3];
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
