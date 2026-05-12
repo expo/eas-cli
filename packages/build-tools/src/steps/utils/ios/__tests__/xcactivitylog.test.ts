@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { createMockLogger } from '../../../../__tests__/utils/logger';
+import { Sentry } from '../../../../sentry';
 import {
   buildTargetMetrics,
   isCompileStep,
@@ -16,6 +17,13 @@ jest.mock('@expo/downloader');
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+jest.mock('../../../../sentry', () => ({
+  Sentry: {
+    setup: jest.fn(),
+    capture: jest.fn(),
+    flush: jest.fn(),
+  },
 }));
 
 // Minimal fixture: two modules with compile steps
@@ -209,6 +217,7 @@ describe('parseAndReportXcactivitylog', () => {
   beforeEach(() => {
     mockedDownloadFile.mockReset();
     mockedSpawn.mockReset();
+    jest.mocked(Sentry.capture).mockClear();
   });
 
   afterEach(() => {
@@ -262,6 +271,7 @@ describe('parseAndReportXcactivitylog', () => {
     );
     expect(logger.debug).not.toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
   it('tries the proxy URL first and falls back to the direct GCS URL', async () => {
@@ -338,7 +348,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
-  it('skips reporting and logs debug when the JSON output is invalid', async () => {
+  it('reports phase "parsing_xclogparser_output" when the JSON output is invalid', async () => {
     const logger = createMockLogger();
     mockFilesystem({ jsonOutput: '{not valid json' });
 
@@ -353,15 +363,16 @@ describe('parseAndReportXcactivitylog', () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(logger.info).not.toHaveBeenCalled();
-    expect(logger.debug).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to analyze build performance; continuing without a report'
-    );
+    expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "parsing_xclogparser_output"',
+      expect.any(Error),
+      { tags: { phase: 'parsing_xclogparser_output' } }
+    );
   });
 
-  it('skips reporting and logs debug when the JSON output does not match the expected schema', async () => {
+  it('reports phase "parsing_xclogparser_output" when the JSON output does not match the expected schema', async () => {
     const logger = createMockLogger();
     mockFilesystem({
       jsonOutput: JSON.stringify({
@@ -381,12 +392,63 @@ describe('parseAndReportXcactivitylog', () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(logger.info).not.toHaveBeenCalled();
-    expect(logger.debug).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to analyze build performance; continuing without a report'
-    );
+    expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "parsing_xclogparser_output"',
+      expect.any(Error),
+      { tags: { phase: 'parsing_xclogparser_output' } }
+    );
+  });
+
+  it('reports phase "running_xclogparser" when the xclogparser invocation fails', async () => {
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any) // unzip
+      .mockRejectedValueOnce(new Error('spawn xclogparser ENOENT')); // xclogparser run
+
+    await expect(
+      parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "running_xclogparser"',
+      expect.objectContaining({ message: 'spawn xclogparser ENOENT' }),
+      { tags: { phase: 'running_xclogparser' } }
+    );
+  });
+
+  it('reports phase "downloading_xclogparser" when the direct download fails', async () => {
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    mockedDownloadFile.mockRejectedValue(new Error('network unreachable'));
+    mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+    await expect(
+      parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "downloading_xclogparser"',
+      expect.objectContaining({ message: 'network unreachable' }),
+      { tags: { phase: 'downloading_xclogparser' } }
+    );
   });
 
   it('swallows cleanup failures without emitting additional logs', async () => {

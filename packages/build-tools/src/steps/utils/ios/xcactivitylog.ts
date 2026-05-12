@@ -7,17 +7,17 @@ import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
+import { Sentry } from '../../../sentry';
+
 const DEFAULT_XCLOGPARSER_VERSION = 'v0.2.47';
 const XCLOGPARSER_DOWNLOAD_URL = 'https://storage.googleapis.com/turtle-v2/xclogparser';
 const XCLOGPARSER_DOWNLOAD_TIMEOUT_MS = 20_000;
 const XCLOGPARSER_OUTPUT_FILENAME = 'xcactivitylog.json';
 
 /**
- * Download xclogparser, parse xcactivitylog from derived data, and log a
- * compile metrics report. Never throws — all errors are logged at debug level.
- *
- * Can be called from both the step-based flow (BuildFunction) and the
- * traditional builder flow (runBuildPhase).
+ * Never throws — best-effort observability that does not affect build status.
+ * Failures route to Sentry via `Sentry.capture` for engineering triage;
+ * users see only a generic skip message.
  */
 export async function parseAndReportXcactivitylog({
   derivedDataPath,
@@ -33,26 +33,36 @@ export async function parseAndReportXcactivitylog({
   proxyBaseUrl?: string;
 }): Promise<void> {
   let tempDir: string | undefined;
+  let phase = 'creating_temp_directory';
   try {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
+
+    phase = 'downloading_xclogparser';
     const xclogparserPath = await downloadXclogparser(
       tempDir,
       xclogparserVersion,
       logger,
       proxyBaseUrl
     );
+
+    phase = 'running_xclogparser';
     const jsonOutputPath = await runXclogparser({
       binaryPath: xclogparserPath,
       derivedDataPath,
       workspacePath,
       outputDir: tempDir,
     });
+
+    phase = 'parsing_xclogparser_output';
     const data = XcactivitylogDataSchemaZ.parse(
       JSON.parse(await fs.readFile(jsonOutputPath, 'utf8'))
     );
+
     logger.info(formatReport(data));
-  } catch (err: unknown) {
-    logger.debug({ err }, 'Failed to analyze build performance; continuing without a report');
+  } catch (err: any) {
+    logger.info('Build performance analysis skipped.');
+    const msg = `Build performance analysis failed during "${phase}"`;
+    Sentry.capture(msg, err, { tags: { phase } });
   } finally {
     if (tempDir) {
       await asyncResult(fs.rm(tempDir, { force: true, recursive: true }));
