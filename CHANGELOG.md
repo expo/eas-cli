@@ -12,6 +12,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+## [18.12.2](https://github.com/expo/eas-cli/releases/tag/v18.12.2) - 2026-05-12
+
+### 🧹 Chores
+
 - [ci] Audit GitHub Actions workflows: harden `pull_request_target` usage, pin all external actions to commit SHAs, and add Dependabot to refresh them. ([#3718](https://github.com/expo/eas-cli/pull/3718) by [@brentvatne](https://github.com/brentvatne))
 
 ## [18.12.1](https://github.com/expo/eas-cli/releases/tag/v18.12.1) - 2026-05-12
