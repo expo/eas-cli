@@ -24,6 +24,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas go` to use server-side project setup and support multiple Expo Go SDK versions. ([#3657](https://github.com/expo/eas-cli/pull/3657) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Update the minimum Expo version required for iOS precompiled modules. ([#3677](https://github.com/expo/eas-cli/pull/3677) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] recommend that users read the docs after connecting Convex ([#3683](https://github.com/expo/eas-cli/pull/3683) by [@fiberjw](https://github.com/fiberjw))
 
