@@ -679,7 +679,7 @@ describe('parseFailedFlowsFromJUnit', () => {
 
   it('returns null when junit XML is truncated mid-tag (partial parse risk)', async () => {
     // fast-xml-parser can produce a partial parse from truncated XML — without
-    // strict validation, smart retry would only retry the visible failures and
+    // strict validation, retry-failed-only would only retry the visible failures and
     // silently skip flows that were cut off.
     vol.fromJSON({
       '/tmp/junit-reports/attempt-0.xml': `<?xml version="1.0"?>

@@ -98,7 +98,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
       BuildStepInput.createProvider({
-        id: 'smart_retry',
+        id: 'retry_failed_only',
         required: false,
         defaultValue: true,
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
@@ -192,7 +192,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         inputs.shards.value,
         'shards must be a positive integer.'
       );
-      const smartRetry = inputs.smart_retry.value as boolean;
+      const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
       try {
         await fs.mkdir(junitReportDirectory, { recursive: true });
@@ -200,7 +200,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         throw new SystemError('Failed to create JUnit report directory', { cause: err });
       }
 
-      // null → duplicate flow names; smart retry disabled, fall through to
+      // null → duplicate flow names; retry-failed-only disabled, fall through to
       // dumb retry (re-run everything) on failure.
       const nameToPath = await buildFlowNameToPathMap({
         inputFlowPaths: flowPaths,
@@ -213,7 +213,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       //   numeric err.status → maestro exited non-zero → retry.
       //   else (signal-only, OOM kill, unknown) → infra → SystemError, never
       //     downgraded to "tests failed".
-      // Smart retry (junit mode): after a failed attempt, subset to the failing
+      // Retry-failed-only (junit mode): after a failed attempt, subset to the failing
       // flows. parseFailedFlowsFromJUnit returns null when the JUnit cannot be
       // trusted; we then fall through to dumb retry (re-run everything).
       let flowsToRun: string[] = flowPaths;
@@ -263,7 +263,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           break;
         }
 
-        if (smartRetry && outputFormat === 'junit' && outputPath && nameToPath) {
+        if (retryFailedOnly && outputFormat === 'junit' && outputPath && nameToPath) {
           const failed = await parseFailedFlowsFromJUnit({
             junitFile: outputPath,
             nameToPath,

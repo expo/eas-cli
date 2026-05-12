@@ -97,8 +97,8 @@ function dedupAndDetectDuplicates(flows: FlowEntry[], logger: bunyan): Map<strin
       logger.warn(`Duplicate Maestro flow name "${name}" across paths: ${paths.join(', ')}.`);
     }
     logger.warn(
-      'Smart retry disabled for this run; will retry all flows on failure. ' +
-        'Give each Maestro flow a unique name (file basename or top-level name) to enable smart retry.'
+      'Retry-failed-only is disabled for this run; will retry all flows on failure. ' +
+        'Give each Maestro flow a unique name (file basename or top-level name) to enable retry-failed-only.'
     );
     return null;
   }
