@@ -33,9 +33,6 @@ const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
   )
 ) as Record<string, DeviceRunSessionType>;
 
-const AGENT_DEVICE_BASE_URL_ENV_VAR = 'AGENT_DEVICE_DAEMON_BASE_URL';
-const AGENT_DEVICE_AUTH_TOKEN_ENV_VAR = 'AGENT_DEVICE_DAEMON_AUTH_TOKEN';
-
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 type RemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
 
@@ -283,15 +280,8 @@ function formatRemoteConfigShellSnippet(remoteConfig: RemoteConfig): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig':
       return [
-        `export ${AGENT_DEVICE_BASE_URL_ENV_VAR}='${remoteConfig.url}'`,
-        `export ${AGENT_DEVICE_AUTH_TOKEN_ENV_VAR}='${remoteConfig.token}'`,
+        `export AGENT_DEVICE_DAEMON_BASE_URL='${remoteConfig.url}'`,
+        `export AGENT_DEVICE_DAEMON_AUTH_TOKEN='${remoteConfig.token}'`,
       ].join('\n');
-    default:
-      // Exhaustiveness guard: a new `DeviceRunSessionRemoteConfig` union member
-      // must be wired up here before the eas-cli build will compile against the
-      // updated GraphQL schema.
-      throw new Error(
-        `Unsupported device run session remote config type: ${(remoteConfig as { __typename: string }).__typename}`
-      );
   }
 }
