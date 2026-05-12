@@ -33,6 +33,10 @@ export const DeviceRunSessionQuery = {
                       url
                       token
                     }
+                    ... on ServeSimRunSessionRemoteConfig {
+                      previewUrl
+                      streamUrl
+                    }
                   }
                   turtleJobRun {
                     id
