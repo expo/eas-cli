@@ -33,6 +33,7 @@ import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFile
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
 import { Actor, getActorDisplayName } from '../user/User';
 import { sleepAsync } from '../utils/promise';
+import { Client } from '../vcs/vcs';
 import NoVcsClient from '../vcs/clients/noVcs';
 import {
   INVALID_BUNDLE_IDENTIFIER_MESSAGE,
@@ -156,7 +157,7 @@ export default class Go extends EasCommand {
       default: 'My Expo Go',
     }),
     'sdk-version': Flags.string({
-      description: 'Expo Go SDK version to repack (server uses latest supported if not specified)',
+      description: 'Expo Go SDK version to prepare (default: latest)',
       required: false,
     }),
     credentials: Flags.boolean({
@@ -201,65 +202,76 @@ export default class Go extends EasCommand {
     let projectId: string;
     try {
       projectId = await withSuppressedOutputAsync(() =>
-        this.ensureEasProjectAsync(graphqlClient, actor, bundleId)
+        this.ensureEasProjectAsync(graphqlClient, actor, slug)
       );
     } catch (error) {
       setupSpinner.fail();
       throw error;
     }
 
-    const ascApp = await this.setupCredentialsAsync(
-      slug,
-      projectId,
-      bundleId,
-      appName,
-      graphqlClient,
-      actor,
-      analytics,
-      flags.credentials,
-      () => {
-        setupSpinner.stop();
-        Log.markFreshLine();
-      }
-    );
-
-    const { workflowUrl, workflowRunId } = await this.dispatchWorkflowAsync(
-      graphqlClient,
-      projectId,
-      actor,
-      bundleId,
-      appName,
-      ascApp.id,
-      sdkVersion
-    );
-    Log.withTick(`Build started: ${chalk.cyan(workflowUrl)}`);
-
-    const status = await this.monitorWorkflowJobsAsync(graphqlClient, workflowRunId);
-    if (status === WorkflowRunStatus.Failure) {
-      throw new Error('Build failed');
-    } else if (status === WorkflowRunStatus.Canceled) {
-      throw new Error('Build was canceled');
-    }
+    const tmpDir = path.join(os.tmpdir(), `eas-go-${Date.now()}`);
+    await fs.ensureDir(tmpDir);
+    const vcsClient = new NoVcsClient({ cwdOverride: tmpDir });
 
     try {
-      await setupTestFlightAsync(ascApp);
-    } catch {
-      // Non-fatal: TestFlight group setup failure shouldn't block the user
-    }
+      const ascApp = await this.setupCredentialsAsync(
+        slug,
+        projectId,
+        bundleId,
+        appName,
+        graphqlClient,
+        actor,
+        analytics,
+        vcsClient,
+        flags.credentials,
+        () => {
+          setupSpinner.stop();
+          Log.markFreshLine();
+        }
+      );
 
-    Log.newLine();
-    Log.succeed(
-      `Done! Your custom Expo Go has been submitted to TestFlight. ${learnMore(
-        `https://appstoreconnect.apple.com/apps/${ascApp.id}/testflight`,
-        { learnMoreMessage: 'Open it on App Store Connect' }
-      )}`
-    );
-    Log.log(
-      `App Store processing may take several minutes to complete. ${learnMore(
-        'https://expo.fyi/personal-expo-go',
-        { learnMoreMessage: 'Learn more about Expo Go on TestFlight' }
-      )}`
-    );
+      const { workflowUrl, workflowRunId } = await this.dispatchWorkflowAsync(
+        graphqlClient,
+        projectId,
+        actor,
+        bundleId,
+        appName,
+        ascApp.id,
+        sdkVersion,
+        tmpDir,
+        vcsClient
+      );
+      Log.withTick(`Build started: ${chalk.cyan(workflowUrl)}`);
+
+      const status = await this.monitorWorkflowJobsAsync(graphqlClient, workflowRunId);
+      if (status === WorkflowRunStatus.Failure) {
+        throw new Error('Build failed');
+      } else if (status === WorkflowRunStatus.Canceled) {
+        throw new Error('Build was canceled');
+      }
+
+      try {
+        await setupTestFlightAsync(ascApp);
+      } catch (e) {
+        Log.debug('TestFlight group setup failed (non-fatal):', e);
+      }
+
+      Log.newLine();
+      Log.succeed(
+        `Done! Your custom Expo Go has been submitted to TestFlight. ${learnMore(
+          `https://appstoreconnect.apple.com/apps/${ascApp.id}/testflight`,
+          { learnMoreMessage: 'Open it on App Store Connect' }
+        )}`
+      );
+      Log.log(
+        `App Store processing may take several minutes to complete. ${learnMore(
+          'https://expo.fyi/personal-expo-go',
+          { learnMoreMessage: 'Learn more about Expo Go on TestFlight' }
+        )}`
+      );
+    } finally {
+      await fs.remove(tmpDir);
+    }
   }
 
   private generateBundleId(actor: Actor): string {
@@ -269,15 +281,19 @@ export default class Go extends EasCommand {
       .replace(/[^a-z0-9-]/g, '-')
       .replace(/-{2,}/g, '-')
       .replace(/^-+|-+$/g, '');
-    return `com.${sanitizedUsername || 'app'}.expogo`;
+    if (!sanitizedUsername) {
+      throw new Error(
+        `Could not generate a bundle identifier from account name "${username}". Pass a valid identifier with --bundle-id.`
+      );
+    }
+    return `com.${sanitizedUsername}.expogo`;
   }
 
   private async ensureEasProjectAsync(
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
-    bundleId: string
+    slug: string
   ): Promise<string> {
-    const slug = deriveBundleIdSlug(bundleId);
     const account = actor.accounts[0];
 
     const existingProjectId = await findProjectIdByAccountNameAndSlugNullableAsync(
@@ -304,23 +320,13 @@ export default class Go extends EasCommand {
     graphqlClient: ExpoGraphqlClient,
     actor: Actor,
     analytics: Analytics,
+    vcsClient: Client,
     customizeCreds: boolean,
     onBeforeAppleAuth?: () => void
   ): Promise<App> {
     const extensionBundleId = `${bundleId}.ExpoNotificationServiceExtension`;
 
-    const exp: ExpoConfig = {
-      name: appName,
-      slug,
-      version: '1.0.0',
-      platforms: ['ios'],
-      ios: {
-        bundleIdentifier: bundleId,
-        buildNumber: '1',
-        config: { usesNonExemptEncryption: false },
-      },
-      extra: { eas: { projectId } },
-    };
+    const exp: ExpoConfig = { name: appName, slug, ios: { bundleIdentifier: bundleId } };
 
     const credentialsCtx = new CredentialsContext({
       projectInfo: { exp, projectId },
@@ -330,7 +336,7 @@ export default class Go extends EasCommand {
       user: actor,
       graphqlClient,
       analytics,
-      vcsClient: new NoVcsClient(),
+      vcsClient,
     });
 
     onBeforeAppleAuth?.();
@@ -396,7 +402,9 @@ export default class Go extends EasCommand {
     bundleId: string,
     appName: string,
     ascAppId: string,
-    sdkVersion: string | undefined
+    sdkVersion: string | undefined,
+    tmpDir: string,
+    vcsClient: Client
   ): Promise<{ workflowUrl: string; workflowRunId: string }> {
     const account = actor.accounts[0];
 
@@ -408,56 +416,46 @@ export default class Go extends EasCommand {
       sdkVersion,
     });
 
-    const tmpDir = path.join(os.tmpdir(), `eas-go-${Date.now()}`);
-    const originalCwd = process.cwd();
+    await Promise.all(
+      repackConfig.files.map(f => fs.writeFile(path.join(tmpDir, f.fileName), f.fileContents))
+    );
 
-    try {
-      await fs.ensureDir(tmpDir);
-      await Promise.all(
-        repackConfig.files.map(f => fs.writeFile(path.join(tmpDir, f.fileName), f.fileContents))
-      );
-      process.chdir(tmpDir);
-
-      const { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey } =
-        await withSuppressedOutputAsync(async () => {
-          const { projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
-            graphqlClient,
-            vcsClient: new NoVcsClient(),
-            accountId: account.id,
-          });
-          const { fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
-            graphqlClient,
-            accountId: account.id,
-            filePath: path.join(tmpDir, 'eas.json'),
-            maxSizeBytes: 1024 * 1024,
-          });
-          const { fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
-            graphqlClient,
-            accountId: account.id,
-            filePath: path.join(tmpDir, 'package.json'),
-            maxSizeBytes: 1024 * 1024,
-          });
-          return { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey };
+    const { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey } =
+      await withSuppressedOutputAsync(async () => {
+        const { projectArchiveBucketKey } = await uploadAccountScopedProjectSourceAsync({
+          graphqlClient,
+          vcsClient,
+          accountId: account.id,
         });
-
-      const result = await WorkflowRunMutation.createExpoGoRepackWorkflowRunAsync(graphqlClient, {
-        appId: projectId,
-        sdkVersion: repackConfig.sdkVersion,
-        projectSource: {
-          type: WorkflowProjectSourceType.Gcs,
-          projectArchiveBucketKey,
-          easJsonBucketKey,
-          packageJsonBucketKey,
-        },
+        const { fileBucketKey: easJsonBucketKey } = await uploadAccountScopedFileAsync({
+          graphqlClient,
+          accountId: account.id,
+          filePath: path.join(tmpDir, 'eas.json'),
+          maxSizeBytes: 1024 * 1024,
+        });
+        const { fileBucketKey: packageJsonBucketKey } = await uploadAccountScopedFileAsync({
+          graphqlClient,
+          accountId: account.id,
+          filePath: path.join(tmpDir, 'package.json'),
+          maxSizeBytes: 1024 * 1024,
+        });
+        return { projectArchiveBucketKey, easJsonBucketKey, packageJsonBucketKey };
       });
 
-      const workflowUrl = getWorkflowRunUrl(account.name, deriveBundleIdSlug(bundleId), result.id);
+    const result = await WorkflowRunMutation.createExpoGoRepackWorkflowRunAsync(graphqlClient, {
+      appId: projectId,
+      sdkVersion: repackConfig.sdkVersion,
+      projectSource: {
+        type: WorkflowProjectSourceType.Gcs,
+        projectArchiveBucketKey,
+        easJsonBucketKey,
+        packageJsonBucketKey,
+      },
+    });
 
-      return { workflowUrl, workflowRunId: result.id };
-    } finally {
-      process.chdir(originalCwd);
-      await fs.remove(tmpDir);
-    }
+    const workflowUrl = getWorkflowRunUrl(account.name, deriveBundleIdSlug(bundleId), result.id);
+
+    return { workflowUrl, workflowRunId: result.id };
   }
 
   private async monitorWorkflowJobsAsync(
