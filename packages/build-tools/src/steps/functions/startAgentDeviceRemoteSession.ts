@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { sleepAsync } from '../../utils/retry';
+import { SystemError } from '@expo/eas-build-job';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
@@ -60,7 +61,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // report the remote config back to the API server.
       const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
       if (!deviceRunSessionId) {
-        throw new Error(
+        throw new SystemError(
           'DEVICE_RUN_SESSION_ID is not set. ' +
             'This step must run as part of a device run session created by the API server, ' +
             'which injects DEVICE_RUN_SESSION_ID into the job environment.'
@@ -149,7 +150,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         })
         .toPromise();
       if (result.error) {
-        throw new Error(
+        throw new SystemError(
           `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
         );
       }
