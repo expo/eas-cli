@@ -54,6 +54,18 @@ export class SetUpTargetBuildCredentials {
     ctx: CredentialsContext
   ): Promise<IosAppBuildCredentialsFragment> {
     const { app, distribution, enterpriseProvisioning, target } = this.options;
+    if (ctx.refreshAdHocProvisioningProfile) {
+      if (distribution !== 'internal') {
+        throw new Error(
+          '--refresh-ad-hoc-provisioning-profile is only supported for internal distribution builds.'
+        );
+      }
+      if (enterpriseProvisioning === 'universal') {
+        throw new Error(
+          '--refresh-ad-hoc-provisioning-profile is only supported for ad-hoc internal builds.'
+        );
+      }
+    }
     if (distribution === 'internal') {
       if (enterpriseProvisioning === 'adhoc') {
         return await new SetUpAdhocProvisioningProfile({ app, target }).runAsync(ctx);
