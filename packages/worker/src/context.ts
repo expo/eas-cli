@@ -84,7 +84,8 @@ export function createBuildContext<TJob extends Job>({
     env,
     uploadArtifact,
     reportError: (msg, err, { tags, extras } = {}) => {
-      sentry.handleError(msg, err, { tags, extras });
+      childLogger.error({ tags, extras, err }, msg);
+      sentry.captureMessage(msg, err, { tags, extras });
     },
     cacheManager: new GCSCacheManager(),
     metadata,

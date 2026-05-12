@@ -99,9 +99,9 @@ export default class BuildService {
 
     const taskId = rest.jobType === 'jobRun' ? rest.jobRunId : rest.buildId;
     if (taskId !== this.buildId) {
-      sentry.handleError(
-        `Launcher handling build with ID ${taskId} attempted to start build on worker assigned for handling build with ID ${this.buildId} (no action needed)`
-      );
+      const mismatchMsg = `Launcher handling build with ID ${taskId} attempted to start build on worker assigned for handling build with ID ${this.buildId} (no action needed)`;
+      logger.warn(mismatchMsg);
+      sentry.captureMessage(mismatchMsg);
       return;
     }
 
@@ -220,23 +220,22 @@ export default class BuildService {
   }
 
   public async reportHangingWorker(wasSocketClosedAtBuildFinish: boolean): Promise<void> {
-    sentry.handleError(
-      'Worker still alive 5 minutes after sending BuildSuccess/BuildError message - possibly hanging',
-      undefined,
-      {
-        tags: {
-          errorCode: 'WORKER_POSSIBLY_HANGING',
-        },
-        extras: {
-          buildId: this.buildId,
-          state: this.state.stateResponse().status,
-          shouldCloseWorker: String(this.shouldCloseWorker),
-          startBuildTime: String(this.startBuildTime),
-          isSockedClosed: String(!this.ws),
-          wasSocketClosedAtBuildFinish: String(wasSocketClosedAtBuildFinish),
-        },
-      }
-    );
+    const hangingMsg =
+      'Worker still alive 5 minutes after sending BuildSuccess/BuildError message - possibly hanging';
+    logger.error(hangingMsg);
+    sentry.captureMessage(hangingMsg, undefined, {
+      tags: {
+        errorCode: 'WORKER_POSSIBLY_HANGING',
+      },
+      extras: {
+        buildId: this.buildId,
+        state: this.state.stateResponse().status,
+        shouldCloseWorker: String(this.shouldCloseWorker),
+        startBuildTime: String(this.startBuildTime),
+        isSockedClosed: String(!this.ws),
+        wasSocketClosedAtBuildFinish: String(wasSocketClosedAtBuildFinish),
+      },
+    });
   }
 
   public reportBuildPhaseStats(stats: BuildPhaseStats): void {
@@ -320,7 +319,8 @@ export default class BuildService {
       const maybeRawError =
         error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
-      sentry.handleError(err.message, maybeRawError, {
+      logger.error({ err: maybeRawError }, err.message);
+      sentry.captureMessage(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
           errorCode: err.trackingCode ?? err.errorCode,

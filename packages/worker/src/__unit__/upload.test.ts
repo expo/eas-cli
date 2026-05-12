@@ -1,5 +1,6 @@
 import { BuildContext, GCS } from '@expo/build-tools';
 import { Job } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import { Response } from 'node-fetch';
@@ -11,6 +12,14 @@ import {
   uploadWorkflowArtifactAsync,
 } from '../upload';
 import { turtleFetch } from '../utils/turtleFetch';
+
+const mockLogger = {
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  child: jest.fn().mockReturnThis(),
+} as unknown as bunyan;
 
 jest.mock('fs');
 jest.mock('fs/promises');
@@ -38,6 +47,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
       job: {
         secrets: {},
       } as Job,
+      logger: mockLogger,
     };
     vol.fromJSON({
       './artifact.ipa': JSON.stringify(randomBytes(20)),
@@ -78,6 +88,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
 
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
@@ -184,6 +195,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
             robotAccessToken: 'fake-token',
           },
         } as Job,
+        logger: mockLogger,
       };
 
       turtleFetchMock.mockImplementation(async () => {
@@ -240,6 +252,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
       job: {
         secrets: {},
       } as Job,
+      logger: mockLogger,
     };
     vol.fromJSON({
       './video.mp4': JSON.stringify(randomBytes(20)),
@@ -276,6 +289,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
@@ -378,6 +392,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
             robotAccessToken: 'fake-token',
           },
         } as Job,
+        logger: mockLogger,
       };
 
       turtleFetchMock.mockImplementation(async () => {
@@ -451,6 +466,7 @@ describe('with signed upload url provided via www', () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
 
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
@@ -549,6 +565,7 @@ describe(uploadWorkflowArtifactAsync.name, () => {
           robotAccessToken: 'fake-token',
         },
       } as Job,
+      logger: mockLogger,
     };
     const bucketKey = `test/${randomUUID()}/video.mp4`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;

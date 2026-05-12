@@ -81,7 +81,9 @@ export async function logProjectDependenciesAsync(
       androidIntentFilters: (await ctx.appConfig).android?.intentFilters as any,
     });
   } catch (error: any) {
-    sentry.handleError('Failed to report project dependencies metrics', error, {
+    const msg = 'Failed to report project dependencies metrics';
+    ctx.logger.error({ err: error }, msg);
+    sentry.captureMessage(msg, error, {
       level: 'warning',
       tags: {
         errorCode: 'FAILED_TO_REPORT_PROJECT_DEPENDENCIES_EVENT',
@@ -171,7 +173,9 @@ async function resolveNewArchEnabled(
         return pbxProject.includes('-DRN_FABRIC_ENABLED');
       }
     } catch (error: any) {
-      sentry.handleError('Failed to detect react native new architecture', error);
+      const msg = 'Failed to detect react native new architecture';
+      ctx.logger.error({ err: error }, msg);
+      sentry.captureMessage(msg, error);
       return undefined;
     }
   }
