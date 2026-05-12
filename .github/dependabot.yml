@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Keep SHA-pinned GitHub Actions fresh. Without this, pins never receive
+  # upstream security patches because tag movements no longer reach us.
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/setup-mise
+      - /.github/internal-actions/setup-gcloud
+      - /.github/internal-actions/notify-slack-on-fail-or-recover
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - '*'
