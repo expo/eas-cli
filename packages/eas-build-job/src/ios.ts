@@ -144,6 +144,8 @@ export interface Job {
   appId: string;
 
   environment?: string;
+
+  refresh_ad_hoc_provisioning_profile?: boolean;
 }
 
 const SecretsSchema = Joi.object({
@@ -228,6 +230,8 @@ export const JobSchema = Joi.object({
   appId: Joi.string().required(),
 
   environment: Joi.string(),
+
+  refresh_ad_hoc_provisioning_profile: Joi.boolean(),
 
   workflowInterpolationContext: Joi.object().custom(workflowInterpolationContext =>
     StaticWorkflowInterpolationContextZ.optional().parse(workflowInterpolationContext)
