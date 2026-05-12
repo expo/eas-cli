@@ -42,6 +42,7 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata,
   buildLoggerLevel,
   freezeCredentials,
+  refreshAdHocProvisioningProfile: refreshAdHocProvisioningProfileFlag,
   isVerboseLoggingEnabled,
   whatToTest,
   env,
@@ -65,6 +66,7 @@ export async function createBuildContextAsync<T extends Platform>({
   customBuildConfigMetadata?: CustomBuildConfigMetadata;
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
+  refreshAdHocProvisioningProfile?: boolean;
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
   env: Record<string, string>;
@@ -90,6 +92,8 @@ export async function createBuildContextAsync<T extends Platform>({
 
   const requiredPackageManager = resolvePackageManager(projectDir);
 
+  const refreshAdHocProvisioningProfile = refreshAdHocProvisioningProfileFlag ?? false;
+
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },
     nonInteractive,
@@ -101,6 +105,7 @@ export async function createBuildContextAsync<T extends Platform>({
     easJsonCliConfig,
     vcsClient,
     freezeCredentials,
+    refreshAdHocProvisioningProfile,
   });
 
   const devClientProperties = getDevClientEventProperties({

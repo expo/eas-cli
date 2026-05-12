@@ -27,6 +27,7 @@ export class CredentialsContext {
   public readonly nonInteractive: boolean;
   public readonly autoAcceptCredentialReuse: boolean;
   public readonly freezeCredentials: boolean = false;
+  public readonly refreshAdHocProvisioningProfile: boolean = false;
   public readonly projectDir: string;
   public readonly user: Actor;
   public readonly graphqlClient: ExpoGraphqlClient;
@@ -52,6 +53,7 @@ export class CredentialsContext {
       vcsClient: Client;
       freezeCredentials?: boolean;
       autoAcceptCredentialReuse?: boolean;
+      refreshAdHocProvisioningProfile?: boolean;
       env?: Env;
     }
   ) {
@@ -65,6 +67,7 @@ export class CredentialsContext {
     this.autoAcceptCredentialReuse = options.autoAcceptCredentialReuse ?? false;
     this.projectInfo = options.projectInfo;
     this.freezeCredentials = options.freezeCredentials ?? false;
+    this.refreshAdHocProvisioningProfile = options.refreshAdHocProvisioningProfile ?? false;
     this.usesBroadcastPushNotifications =
       options.projectInfo?.exp.ios?.usesBroadcastPushNotifications ?? false;
   }
