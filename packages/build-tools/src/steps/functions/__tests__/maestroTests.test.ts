@@ -208,7 +208,7 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
-  it('runs all original flows on every retry when smart_retry=false', async () => {
+  it('runs all original flows on every retry when retry_failed_only=false', async () => {
     mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
     const parseSpy = jest
       .spyOn(parser, 'parseFailedFlowsFromJUnit')
@@ -218,7 +218,7 @@ describe('createMaestroTestsBuildFunction', () => {
       flow_path: ['flows/a.yaml', 'flows/b.yaml'],
       retries: 1,
       output_format: 'junit',
-      smart_retry: false,
+      retry_failed_only: false,
       platform: 'android',
     });
     await step.executeAsync();
@@ -233,7 +233,7 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(parseSpy).not.toHaveBeenCalled();
   });
 
-  it('subsets to failing flows on retry when smart_retry=true (default behaviour)', async () => {
+  it('subsets to failing flows on retry when retry_failed_only=true (default behaviour)', async () => {
     mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
     jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/b.yaml']);
 
@@ -241,7 +241,7 @@ describe('createMaestroTestsBuildFunction', () => {
       flow_path: ['flows/a.yaml', 'flows/b.yaml'],
       retries: 1,
       output_format: 'junit',
-      smart_retry: true,
+      retry_failed_only: true,
       platform: 'android',
     });
     await step.executeAsync();
@@ -254,7 +254,7 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(a1).not.toContain('flows/a.yaml');
   });
 
-  it('falls back to all-flows retry when smart_retry=true but output_format!=junit', async () => {
+  it('falls back to all-flows retry when retry_failed_only=true but output_format!=junit', async () => {
     mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
     const parseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
 
@@ -262,7 +262,7 @@ describe('createMaestroTestsBuildFunction', () => {
       flow_path: ['flows/a.yaml', 'flows/b.yaml'],
       retries: 1,
       output_format: 'html',
-      smart_retry: true,
+      retry_failed_only: true,
       platform: 'android',
     });
     await step.executeAsync();
@@ -282,7 +282,7 @@ describe('createMaestroTestsBuildFunction', () => {
       flow_path: ['flows/a.yaml', 'flows/b.yaml'],
       retries: 1,
       output_format: 'junit',
-      smart_retry: true,
+      retry_failed_only: true,
       platform: 'android',
     });
     await step.executeAsync();
@@ -293,7 +293,7 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
-  it('defaults smart_retry to true when omitted from inputs', async () => {
+  it('defaults retry_failed_only to true when omitted from inputs', async () => {
     mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
     jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(['flows/b.yaml']);
 

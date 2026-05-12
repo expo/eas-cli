@@ -215,7 +215,7 @@ export async function parseFailedFlowsFromJUnit(args: {
   nameToPath: Map<string, string>;
 }): Promise<string[] | null> {
   // fast-xml-parser is lenient — truncated XML can produce a partial parse
-  // with some testcases dropped. Trusting that subset for smart retry would
+  // with some testcases dropped. Trusting that subset for retry-failed-only would
   // skip retries for cut-off flows; reject any malformed XML and fall back
   // to dumb retry.
   let content: string;
