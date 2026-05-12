@@ -5151,7 +5151,7 @@ export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig;
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -5161,7 +5161,8 @@ export enum DeviceRunSessionStatus {
 }
 
 export enum DeviceRunSessionType {
-  AgentDevice = 'AGENT_DEVICE'
+  AgentDevice = 'AGENT_DEVICE',
+  ServeSim = 'SERVE_SIM'
 }
 
 export type DiscordUser = {
@@ -8649,6 +8650,12 @@ export type SentryProjectMutationCreateSentryProjectArgs = {
 
 export type SentryProjectMutationDeleteSentryProjectArgs = {
   sentryProjectId: Scalars['ID']['input'];
+};
+
+export type ServeSimRunSessionRemoteConfig = {
+  __typename?: 'ServeSimRunSessionRemoteConfig';
+  previewUrl: Scalars['String']['output'];
+  streamUrl: Scalars['String']['output'];
 };
 
 export type SetupConvexProjectInput = {
@@ -12694,7 +12701,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', url: string, token: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', url: string, token: string } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

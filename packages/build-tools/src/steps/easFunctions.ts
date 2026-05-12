@@ -43,6 +43,7 @@ import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/st
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
+import { createStartServeSimRemoteSessionBuildFunction } from './functions/startServeSimRemoteSession';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
@@ -83,6 +84,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
+    createStartServeSimRemoteSessionBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 
     createInstallPodsBuildFunction(),

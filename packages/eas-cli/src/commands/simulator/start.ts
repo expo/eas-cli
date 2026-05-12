@@ -16,7 +16,7 @@ import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
   DeviceRunSessionRemoteConfig,
-  formatRemoteConfigShellSnippet,
+  formatRemoteSessionInstructions,
 } from '../../simulator/utils';
 import { sleepAsync } from '../../utils/promise';
 import nullthrows from 'nullthrows';
@@ -28,6 +28,7 @@ const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
 // so adding a new enum value in codegen fails the build until it is wired up here.
 const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
+  [DeviceRunSessionType.ServeSim]: 'serve-sim',
 };
 
 const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
@@ -39,7 +40,7 @@ const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
   static override description =
-    '[EXPERIMENTAL] start a remote simulator session on EAS and get the credentials to connect to it with the CLI tool of your choice';
+    '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
   static override flags = {
     platform: Flags.option({
@@ -97,7 +98,7 @@ export default class SimulatorStart extends EasCommand {
       throw err;
     }
 
-    const pollSpinner = ora(`⏳ Waiting for ${flags.type} daemon to start`).start();
+    const pollSpinner = ora(`⏳ Waiting for ${flags.type} session to be ready`).start();
     const deadline = Date.now() + POLL_TIMEOUT_MS;
     let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
@@ -110,7 +111,7 @@ export default class SimulatorStart extends EasCommand {
           session.status === DeviceRunSessionStatus.Stopped
         ) {
           throw new Error(
-            `Device run session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} daemon was ready. ${link(jobRunUrl)}`
+            `Device run session ${deviceRunSessionId} ${session.status.toLowerCase()} before the ${flags.type} session was ready. ${link(jobRunUrl)}`
           );
         }
 
@@ -121,36 +122,34 @@ export default class SimulatorStart extends EasCommand {
           jobRunStatus === JobRunStatus.Finished
         ) {
           throw new Error(
-            `Turtle job run for device run session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} daemon was ready. ${link(jobRunUrl)}`
+            `Turtle job run for device run session ${deviceRunSessionId} ${jobRunStatus.toLowerCase()} before the ${flags.type} session was ready. ${link(jobRunUrl)}`
           );
         }
 
         if (session.remoteConfig) {
           remoteConfig = session.remoteConfig;
-          pollSpinner.succeed(`🎉 ${flags.type} daemon is ready`);
+          pollSpinner.succeed(`🎉 ${flags.type} session is ready`);
           break;
         }
 
         await sleepAsync(POLL_INTERVAL_MS);
       }
     } catch (err) {
-      pollSpinner.fail(`Failed while polling for ${flags.type} daemon to start`);
+      pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw err;
     }
 
     if (!remoteConfig) {
-      pollSpinner.fail(`Timed out waiting for ${flags.type} daemon to start`);
+      pollSpinner.fail(`Timed out waiting for ${flags.type} session to be ready`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
       throw new Error(
-        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} daemon to start. ${link(jobRunUrl)}`
+        `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to be ready. ${link(jobRunUrl)}`
       );
     }
 
     Log.newLine();
-    Log.log(`🔑 Run the following in your shell to attach to ${flags.type}:`);
-    Log.newLine();
-    Log.log(formatRemoteConfigShellSnippet(remoteConfig));
+    Log.log(formatRemoteSessionInstructions(remoteConfig));
     Log.newLine();
 
     if (flags['non-interactive']) {

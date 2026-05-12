@@ -36660,6 +36660,11 @@
             "kind": "OBJECT",
             "name": "AgentDeviceRunSessionRemoteConfig",
             "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ServeSimRunSessionRemoteConfig",
+            "ofType": null
           }
         ]
       },
@@ -36708,6 +36713,12 @@
         "enumValues": [
           {
             "name": "AGENT_DEVICE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SERVE_SIM",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -61574,6 +61585,49 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "DeleteSentryProjectResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ServeSimRunSessionRemoteConfig",
+        "description": null,
+        "fields": [
+          {
+            "name": "previewUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "streamUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               }
             },

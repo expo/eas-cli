@@ -1,44 +1,33 @@
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
+  BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import { graphql } from 'gql.tada';
-import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { sleepAsync } from '../../utils/retry';
-import { SystemError } from '@expo/eas-build-job';
+import {
+  DetachedProcessHandle,
+  ensureBrewPackageInstalledAsync,
+  getDeviceRunSessionIdOrThrow,
+  spawnDetached,
+  uploadRemoteSessionConfigAsync,
+} from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
-const RUN_DIR = '/tmp/agent-device';
-const DAEMON_LOG = path.join(RUN_DIR, 'daemon.log');
-const TUNNEL_LOG = path.join(RUN_DIR, 'cloudflared.log');
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const CLOUDFLARED_LINUX_INSTALL_PATH = '/usr/local/bin/cloudflared';
 const STARTUP_TIMEOUT_MS = 60_000;
-
-const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
-  mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
-    deviceRunSession {
-      startDeviceRunSession(
-        deviceRunSessionId: $deviceRunSessionId
-        remoteConfig: $remoteConfig
-      ) {
-        id
-        status
-      }
-    }
-  }
-`);
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -59,23 +48,13 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // Fail fast before any expensive setup if the orchestrator-injected
       // DEVICE_RUN_SESSION_ID env var is missing — without it we cannot
       // report the remote config back to the API server.
-      const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
-      if (!deviceRunSessionId) {
-        throw new SystemError(
-          'DEVICE_RUN_SESSION_ID is not set. ' +
-            'This step must run as part of a device run session created by the API server, ' +
-            'which injects DEVICE_RUN_SESSION_ID into the job environment.'
-        );
-      }
+      const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       const { runtimePlatform } = global;
       logger.info(
         `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
       );
-
-      logger.info(`Preparing runtime directory at ${RUN_DIR}.`);
-      await fs.promises.mkdir(RUN_DIR, { recursive: true });
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
@@ -103,13 +82,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
-      logger.info(`Launching agent-device daemon (log file: ${DAEMON_LOG}).`);
-      await spawnDetachedAsync({
-        command: 'bun run src/daemon.ts',
+      logger.info('Launching agent-device daemon.');
+      spawnDetached({
+        command: 'bun',
+        args: ['run', 'src/daemon.ts'],
         cwd: SRC_DIR,
-        logFile: DAEMON_LOG,
         env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
-        logger,
       });
 
       logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
@@ -121,39 +99,28 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const { port: daemonPort, token: daemonToken } = readDaemonInfo(DAEMON_JSON_PATH);
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
-      logger.info(
-        `Starting cloudflared tunnel to http://localhost:${daemonPort} (log file: ${TUNNEL_LOG}).`
-      );
-      await spawnDetachedAsync({
-        command: `${cloudflaredCommand} tunnel --url "http://localhost:${daemonPort}"`,
-        logFile: TUNNEL_LOG,
+      logger.info(`Starting cloudflared tunnel to http://localhost:${daemonPort}.`);
+      const cloudflared = spawnDetached({
+        command: cloudflaredCommand,
+        args: ['tunnel', '--url', `http://localhost:${daemonPort}`],
         env,
-        logger,
       });
 
       logger.info('Waiting for a public tunnel URL.');
-      const tunnelUrl = await waitForMatchInLogAsync({
-        logFile: TUNNEL_LOG,
+      const tunnelUrl = await waitForMatchInOutputAsync({
+        process: cloudflared,
         pattern: /https:\/\/[a-z0-9-]+\.trycloudflare\.com/,
         timeoutMs: STARTUP_TIMEOUT_MS,
         description: 'cloudflared tunnel',
       });
       logger.info(`Tunnel is ready at ${tunnelUrl}.`);
 
-      logger.info(
-        `Reporting agent-device remote config to the API server (device run session: ${deviceRunSessionId}).`
-      );
-      const result = await ctx.graphqlClient
-        .mutation(START_DEVICE_RUN_SESSION_MUTATION, {
-          deviceRunSessionId,
-          remoteConfig: { url: tunnelUrl, token: daemonToken },
-        })
-        .toPromise();
-      if (result.error) {
-        throw new SystemError(
-          `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
-        );
-      }
+      await uploadRemoteSessionConfigAsync({
+        ctx,
+        deviceRunSessionId,
+        remoteConfig: { url: tunnelUrl, token: daemonToken },
+        logger,
+      });
 
       logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
       // Keep the turtle job alive so the daemon and tunnel stay reachable
@@ -169,7 +136,7 @@ async function ensureCloudflaredInstalledAsync({
   logger,
 }: {
   runtimePlatform: BuildRuntimePlatform;
-  env: NodeJS.ProcessEnv;
+  env: BuildStepEnv;
   logger: bunyan;
 }): Promise<string> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
@@ -199,24 +166,8 @@ function cloudflaredLinuxArchForNodeArch(arch: string): 'amd64' | 'arm64' {
   if (arch === 'arm64') {
     return 'arm64';
   }
-  throw new Error(
+  throw new SystemError(
     `Unsupported architecture for cloudflared on Linux: "${arch}". Expected "x64" or "arm64".`
-  );
-}
-
-async function ensureBrewPackageInstalledAsync({
-  name,
-  env,
-  logger,
-}: {
-  name: string;
-  env: NodeJS.ProcessEnv;
-  logger: bunyan;
-}): Promise<void> {
-  await spawn(
-    'bash',
-    ['-c', `command -v ${name} >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install ${name}`],
-    { env, logger }
   );
 }
 
@@ -225,7 +176,7 @@ async function isCommandAvailableAsync({
   env,
 }: {
   command: string;
-  env: NodeJS.ProcessEnv;
+  env: BuildStepEnv;
 }): Promise<boolean> {
   try {
     await spawn('bash', ['-c', `command -v ${command}`], { env, ignoreStdio: true });
@@ -241,7 +192,7 @@ async function cloneAgentDeviceAsync({
   logger,
 }: {
   packageVersion: string | undefined;
-  env: NodeJS.ProcessEnv;
+  env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
   const branchArgs = packageVersion ? ['--branch', `v${packageVersion}`] : [];
@@ -251,63 +202,27 @@ async function cloneAgentDeviceAsync({
   });
 }
 
-async function spawnDetachedAsync({
-  command,
-  cwd,
-  logFile,
-  env,
-  logger,
-}: {
-  command: string;
-  cwd?: string;
-  logFile: string;
-  env: NodeJS.ProcessEnv;
-  logger: bunyan;
-}): Promise<void> {
-  // Launch the process fully detached so this function returns immediately and
-  // the grandchild survives the step. Stdio goes to a log file so the daemon
-  // output can be polled, and we unref so Node doesn't wait on it.
-  const fd = fs.openSync(logFile, 'a');
-  try {
-    const child = childProcess.spawn('bash', ['-c', command], {
-      cwd,
-      env,
-      detached: true,
-      stdio: ['ignore', fd, fd],
-    });
-    if (!child.pid) {
-      throw new Error(`Failed to spawn detached process: ${command}`);
-    }
-    child.unref();
-    logger.info(`Started detached process (pid ${child.pid}).`);
-  } finally {
-    fs.closeSync(fd);
-  }
-}
-
-async function waitForMatchInLogAsync({
-  logFile,
+async function waitForMatchInOutputAsync({
+  process,
   pattern,
   timeoutMs,
   description,
 }: {
-  logFile: string;
+  process: DetachedProcessHandle;
   pattern: RegExp;
   timeoutMs: number;
   description: string;
 }): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const content = await readFileOrEmptyAsync(logFile);
-    const match = pattern.exec(content);
+    const match = pattern.exec(process.getOutput());
     if (match) {
       return match[1] ?? match[0];
     }
     await sleepAsync(1_000);
   }
-  const tail = await readFileOrEmptyAsync(logFile);
-  throw new Error(
-    `Timed out waiting for ${description} to start. Last log contents:\n${tail || '<empty>'}`
+  throw new SystemError(
+    `Timed out waiting for ${description} to start. Last output:\n${process.getOutput() || '<empty>'}`
   );
 }
 
@@ -330,15 +245,7 @@ async function waitForFileAsync({
     }
     await sleepAsync(1_000);
   }
-  throw new Error(`Timed out waiting for ${description} to write ${filePath}.`);
-}
-
-async function readFileOrEmptyAsync(filePath: string): Promise<string> {
-  try {
-    return await fs.promises.readFile(filePath, 'utf8');
-  } catch {
-    return '';
-  }
+  throw new SystemError(`Timed out waiting for ${description} to write ${filePath}.`);
 }
 
 function readDaemonInfo(filePath: string): { port: number; token: string } {
@@ -350,7 +257,9 @@ function readDaemonInfo(filePath: string): { port: number; token: string } {
     typeof (parsed as { httpPort: unknown }).httpPort !== 'number' ||
     typeof (parsed as { token: unknown }).token !== 'string'
   ) {
-    throw new Error(`Expected ${filePath} to contain { "httpPort": <number>, "token": "..." }.`);
+    throw new SystemError(
+      `Expected ${filePath} to contain { "httpPort": <number>, "token": "..." }.`
+    );
   }
   const { httpPort, token } = parsed as { httpPort: number; token: string };
   return { port: httpPort, token };

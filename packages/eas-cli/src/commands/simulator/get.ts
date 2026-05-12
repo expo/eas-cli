@@ -7,7 +7,7 @@ import { DeviceRunSessionStatus } from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
-import { formatRemoteConfigShellSnippet } from '../../simulator/utils';
+import { formatRemoteSessionInstructions } from '../../simulator/utils';
 
 export default class SimulatorGet extends EasCommand {
   static override hidden = true;
@@ -58,9 +58,7 @@ export default class SimulatorGet extends EasCommand {
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();
       if (session.remoteConfig) {
-        Log.log('🔑 Run the following in your shell to attach to the session:');
-        Log.newLine();
-        Log.log(formatRemoteConfigShellSnippet(session.remoteConfig));
+        Log.log(formatRemoteSessionInstructions(session.remoteConfig));
       } else {
         Log.log(
           '⏳ Session is starting up — remote config is not available yet. Re-run this command in a moment.'
