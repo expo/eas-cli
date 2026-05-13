@@ -19,6 +19,7 @@ import {
   ensureBrewPackageInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   spawnDetached,
+  startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -107,18 +108,35 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       });
 
       logger.info('Waiting for a public tunnel URL.');
-      const tunnelUrl = await waitForMatchInOutputAsync({
+      const agentDeviceRemoteSessionUrl = await waitForMatchInOutputAsync({
         process: cloudflared,
         pattern: /https:\/\/[a-z0-9-]+\.trycloudflare\.com/,
         timeoutMs: STARTUP_TIMEOUT_MS,
         description: 'cloudflared tunnel',
       });
-      logger.info(`Tunnel is ready at ${tunnelUrl}.`);
+      logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
+
+      // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
+      // on Darwin. Android sessions go without a preview URL.
+      let webPreviewUrl: string | undefined;
+      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        const { previewUrl } = await startServeSimWithTunnelAsync({
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+        });
+        webPreviewUrl = previewUrl;
+        logger.info(`Web preview URL: ${webPreviewUrl}`);
+      }
 
       await uploadRemoteSessionConfigAsync({
         ctx,
         deviceRunSessionId,
-        remoteConfig: { url: tunnelUrl, token: daemonToken },
+        remoteConfig: {
+          agentDeviceRemoteSessionUrl,
+          agentDeviceRemoteSessionToken: daemonToken,
+          ...(webPreviewUrl ? { webPreviewUrl } : {}),
+        },
         logger,
       });
 

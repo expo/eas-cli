@@ -5,6 +5,9 @@ import spawn from '@expo/turtle-spawn';
 import { graphql } from 'gql.tada';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { sleepAsync } from '../../utils/retry';
+
+const TRYCLOUDFLARE_URL_PATTERN = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -106,4 +109,42 @@ export function spawnDetached({
   promise.child.stderr?.on('data', appendChunk);
 
   return { getOutput: () => output };
+}
+
+export async function startServeSimWithTunnelAsync({
+  env,
+  logger,
+  timeoutMs,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+  timeoutMs: number;
+}): Promise<{ previewUrl: string; streamUrl: string }> {
+  logger.info('Launching serve-sim with tunnel.');
+  const serveSim = spawnDetached({
+    command: 'npx',
+    args: ['serve-sim-szdziedzic@latest', '--tunnel'],
+    env,
+  });
+
+  logger.info('Waiting for serve-sim to report tunnel and stream URLs.');
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const output = serveSim.getOutput();
+    const previewUrl = matchLabeledUrl(output, 'Tunnel');
+    const streamUrl = matchLabeledUrl(output, 'Stream');
+    if (previewUrl && streamUrl) {
+      return { previewUrl, streamUrl };
+    }
+    await sleepAsync(1_000);
+  }
+  throw new SystemError(
+    `Timed out waiting for serve-sim to report Tunnel and Stream URLs. Last output:\n${serveSim.getOutput() || '<empty>'}`
+  );
+}
+
+function matchLabeledUrl(content: string, label: string): string | null {
+  const labelPattern = new RegExp(`${label}:\\s*(${TRYCLOUDFLARE_URL_PATTERN.source})`);
+  const match = labelPattern.exec(content);
+  return match ? match[1] : null;
 }
