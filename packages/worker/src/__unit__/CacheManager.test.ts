@@ -25,7 +25,7 @@ jest.mock('../config', () => ({
   },
 }));
 jest.mock('../sentry', () => ({
-  handleError: jest.fn(),
+  capture: jest.fn(),
 }));
 
 const { GCSCacheManager } = require('../CacheManager');

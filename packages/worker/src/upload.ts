@@ -65,7 +65,9 @@ export async function uploadApplicationArchiveAsync(
     return { filename: null };
   } catch (err: any) {
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
-    sentry.handleError('Upload to upload session failed', err, {
+    const msg = 'Upload to upload session failed';
+    logger.error({ err, filename, size }, msg);
+    sentry.capture(msg, err, {
       extras: {
         filename,
         size,
@@ -146,7 +148,9 @@ export async function uploadBuildArtifactsAsync(
     }
 
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
-    sentry.handleError('Upload to upload session failed', err, {
+    const msg = 'Upload to upload session failed';
+    logger.error({ err, filename, size }, msg);
+    sentry.capture(msg, err, {
       extras: {
         filename,
         size,
@@ -202,7 +206,9 @@ export async function uploadWorkflowArtifactAsync(
 
     return { artifactId };
   } catch (err: any) {
-    sentry.handleError('Failed to upload workflow artifact', err);
+    const msg = 'Failed to upload workflow artifact';
+    logger.error({ err }, msg);
+    sentry.capture(msg, err);
     throw new Error(`Failed to upload the file: ${err?.message}\n${err?.stack}`);
   }
 }

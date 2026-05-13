@@ -40,7 +40,9 @@ function handleConnection(socket: WebSocket, service: BuildService): void {
   service.setWS(wsServer);
 
   wsServer.onError((err: Error) => {
-    sentry.handleError('WebSocket error', err);
+    const msg = 'WebSocket error';
+    logger.error({ err }, msg);
+    sentry.capture(msg, err);
   });
 
   wsServer.onMessage((message: LauncherMessage.Message) => {
@@ -53,13 +55,16 @@ function handleConnection(socket: WebSocket, service: BuildService): void {
         );
       }
     } catch (err: any) {
-      sentry.handleError('Unhandled WebSocket message', err);
+      const msg = 'Unhandled WebSocket message';
+      logger.error({ err }, msg);
+      sentry.capture(msg, err);
     }
   });
 
-  wsServer.onClose(() => {
+  wsServer.onClose(async () => {
     logger.info('Closing WebSocket connection');
     if (service.shouldClose && config.env !== 'test') {
+      await sentry.flush();
       process.exit(0);
     } else {
       service.setWS(null);

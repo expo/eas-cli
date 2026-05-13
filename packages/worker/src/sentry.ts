@@ -1,12 +1,14 @@
-import config from './config';
-import Sentry from './external/sentry';
-import logger from './logger';
+import { Sentry } from '@expo/build-tools';
 
-export default new Sentry({
-  dsn: config.sentry.dsn,
+import config from './config';
+
+Sentry.setup({
+  // SENTRY_DSN defaults to '' in config; coerce to null so Sentry.setup skips SDK init.
+  dsn: config.sentry.dsn || null,
   environment: config.env,
   tags: {
     service: `worker:${process.platform}`,
   },
-  logger,
 });
+
+export default Sentry;
