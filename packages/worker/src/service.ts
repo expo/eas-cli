@@ -283,10 +283,7 @@ export default class BuildService {
       } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
-      const analytics = new Analytics(
-        initiatingUserId,
-        metadata?.trackingContext ?? {}
-      );
+      const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
 
       const ctx = createBuildContext({
         job,
