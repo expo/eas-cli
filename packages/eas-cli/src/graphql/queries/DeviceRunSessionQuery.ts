@@ -30,8 +30,9 @@ export const DeviceRunSessionQuery = {
                   remoteConfig {
                     __typename
                     ... on AgentDeviceRunSessionRemoteConfig {
-                      url
-                      token
+                      agentDeviceRemoteSessionUrl
+                      agentDeviceRemoteSessionToken
+                      webPreviewUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
