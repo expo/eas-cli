@@ -1061,8 +1061,13 @@ export type Address = {
 
 export type AgentDeviceRunSessionRemoteConfig = {
   __typename?: 'AgentDeviceRunSessionRemoteConfig';
-  token: Scalars['String']['output'];
-  url: Scalars['String']['output'];
+  agentDeviceRemoteSessionToken: Scalars['String']['output'];
+  agentDeviceRemoteSessionUrl: Scalars['String']['output'];
+  /**
+   * URL of the web preview surface for the session. Null when web previews are
+   * not available for the platform (e.g. Android).
+   */
+  webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
 
 export type AndroidAppBuildCredentials = {
@@ -2129,6 +2134,7 @@ export type AppObserve = {
   customEventNames: AppObserveCustomEventNames;
   environments: Array<Scalars['String']['output']>;
   events: AppObserveEventsConnection;
+  navigationRoutes: AppObserveNavigationRoutesConnection;
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
   updates: AppObserveUpdatesConnection;
@@ -2181,6 +2187,16 @@ export type AppObserveEventsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveEventsOrderBy>;
+};
+
+
+export type AppObserveNavigationRoutesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter: AppObserveNavigationRoutesFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<AppObserveNavigationRoutesOrderBy>;
 };
 
 
@@ -2409,6 +2425,7 @@ export type AppObserveEventsFilter = {
   environment?: InputMaybe<Scalars['String']['input']>;
   metricName?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  routeName?: InputMaybe<Scalars['String']['input']>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
   startTime?: InputMaybe<Scalars['DateTime']['input']>;
 };
@@ -2427,6 +2444,66 @@ export enum AppObserveEventsOrderByField {
   MetricValue = 'METRIC_VALUE',
   Timestamp = 'TIMESTAMP'
 }
+
+/**
+ * Per-route navigation timing breakdown. The "Navigations" count shown in the
+ * dashboard is `coldTtr.count` (one cold-TTR event per user navigation).
+ * Per-metric `median`/`p90` are null when `count` is 0 so the client can
+ * distinguish "no data" from "0ms".
+ */
+export type AppObserveNavigationRoute = {
+  __typename?: 'AppObserveNavigationRoute';
+  coldTtr: AppObserveNavigationStat;
+  routeName: Scalars['String']['output'];
+  tti: AppObserveNavigationStat;
+  warmTtr: AppObserveNavigationStat;
+};
+
+export type AppObserveNavigationRouteEdge = {
+  __typename?: 'AppObserveNavigationRouteEdge';
+  cursor: Scalars['String']['output'];
+  node: AppObserveNavigationRoute;
+};
+
+export type AppObserveNavigationRoutesConnection = {
+  __typename?: 'AppObserveNavigationRoutesConnection';
+  edges: Array<AppObserveNavigationRouteEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppObserveNavigationRoutesFilter = {
+  appBuildNumber?: InputMaybe<Scalars['String']['input']>;
+  appEasBuildId?: InputMaybe<Scalars['String']['input']>;
+  appUpdateId?: InputMaybe<Scalars['String']['input']>;
+  appVersion?: InputMaybe<Scalars['String']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  platform: AppObservePlatform;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveNavigationRoutesOrderBy = {
+  direction: AppObserveEventsOrderByDirection;
+  field: AppObserveNavigationRoutesOrderByField;
+};
+
+export enum AppObserveNavigationRoutesOrderByField {
+  MedianColdTtr = 'MEDIAN_COLD_TTR',
+  MedianTti = 'MEDIAN_TTI',
+  MedianWarmTtr = 'MEDIAN_WARM_TTR',
+  NavigationCount = 'NAVIGATION_COUNT',
+  P90ColdTtr = 'P90_COLD_TTR',
+  P90Tti = 'P90_TTI',
+  P90WarmTtr = 'P90_WARM_TTR',
+  RouteName = 'ROUTE_NAME'
+}
+
+export type AppObserveNavigationStat = {
+  __typename?: 'AppObserveNavigationStat';
+  count: Scalars['Int']['output'];
+  median?: Maybe<Scalars['Float']['output']>;
+  p90?: Maybe<Scalars['Float']['output']>;
+};
 
 export enum AppObservePlatform {
   Android = 'ANDROID',
@@ -2481,6 +2558,7 @@ export type AppObserveTimeSeriesInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   metricName: Scalars['String']['input'];
   platform: AppObservePlatform;
+  routeName?: InputMaybe<Scalars['String']['input']>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -12702,7 +12780,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', url: string, token: string } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
