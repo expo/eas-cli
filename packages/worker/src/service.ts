@@ -34,7 +34,6 @@ import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -333,24 +332,6 @@ export default class BuildService {
           ...(maybeRawError?.stderr ? { stderr: getLastNLines(100, maybeRawError.stderr) } : {}),
         },
       });
-
-      const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken) {
-        const expoPackageVersionResult = this.buildContext
-          ? await asyncResult(getExpoPackageVersionAsync(this.buildContext))
-          : null;
-        const expoPackageVersion =
-          expoPackageVersionResult?.ok === true ? expoPackageVersionResult.value : null;
-        let rawErrorMessage: string = '';
-        if (maybeRawError?.stderr) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
-        }
-        if (maybeRawError?.stdout) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
-        }
-        if (!rawErrorMessage) {
-          rawErrorMessage = maybeRawError?.message ?? err.message;
-        }
 
       await this.finishError(err, maybeArtifacts);
     }
