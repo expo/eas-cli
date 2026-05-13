@@ -352,42 +352,6 @@ export default class BuildService {
           rawErrorMessage = maybeRawError?.message ?? err.message;
         }
 
-        try {
-          await turtleFetch(
-            new URL('turtle-builds/logs', config.wwwApiV2BaseUrl).toString(),
-            'POST',
-            {
-              json: {
-                buildId: this.buildId,
-                message: rawErrorMessage,
-                level: 'error',
-                tags: {
-                  build_phase: err.buildPhase ?? null,
-                  error_code: err.errorCode,
-                  platform: job.platform,
-                  workflow: job.type,
-                  sdk_version: metadata?.sdkVersion ?? null,
-                  expo_package_version: expoPackageVersion,
-                  react_native_version: metadata?.reactNativeVersion ?? null,
-                  app_id: job.appId ?? null,
-                  build_profile: metadata?.buildProfile ?? null,
-                  app_name: metadata?.appName ?? null,
-                  app_identifier: metadata?.appIdentifier ?? null,
-                  distribution: metadata?.distribution ?? null,
-                  cli_version: metadata?.cliVersion ?? null,
-                },
-              },
-              headers: {
-                Authorization: `Bearer ${robotAccessToken}`,
-              },
-              shouldThrowOnNotOk: false,
-            }
-          );
-        } catch (fetchError: any) {
-          logger.warn({ err: fetchError }, 'Failed to send build error log');
-        }
-      }
-
       await this.finishError(err, maybeArtifacts);
     }
   }
