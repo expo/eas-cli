@@ -4,17 +4,12 @@ import {
   AppObserveNavigationRoute,
   AppObserveNavigationRoutesOrderBy,
   AppObserveNavigationRoutesOrderByField,
-  AppObservePlatform,
   AppPlatform,
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
-
-const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};
+import { appPlatformToObservePlatform } from './platforms';
 
 export interface NavigationRouteWithPlatform {
   platform: AppPlatform;

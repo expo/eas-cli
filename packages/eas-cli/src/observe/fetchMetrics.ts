@@ -1,6 +1,6 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
-import { AppObservePlatform, AppPlatform } from '../graphql/generated';
+import { AppPlatform } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
 import {
@@ -10,11 +10,7 @@ import {
   UpdateIdsMap,
   makeMetricsKey,
 } from './formatMetrics';
-
-const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
-  [AppPlatform.Android]: AppObservePlatform.Android,
-  [AppPlatform.Ios]: AppObservePlatform.Ios,
-};
+import { appPlatformToObservePlatform } from './platforms';
 
 export function validateDateFlag(value: string, flagName: string): void {
   const parsed = new Date(value);
