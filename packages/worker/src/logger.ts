@@ -4,7 +4,7 @@ import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
 
 import config from './config';
-import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
+import { redactSecrets } from './secrets';
 import { uuidv7 } from 'uuidv7';
 import HttpLogStream from './utils/HttpLogStream';
 
@@ -58,12 +58,6 @@ export class WorkerLogBuffer extends Writable implements LogBuffer {
 }
 
 function createTransformStream(secrets: EnvironmentSecret[]): Transform {
-  const secretValues = secrets.map(({ value }) => value);
-  const secretList: string[] = [
-    ...secretValues,
-    ...secretValues.map(maybeStringBase64Decode).filter((i): i is string => !!i),
-  ].filter(i => i.length > 1 && !simpleSecretsWhitelist.includes(i));
-
   return new Transform({
     readableObjectMode: true,
     writableObjectMode: true,
@@ -80,13 +74,9 @@ function createTransformStream(secrets: EnvironmentSecret[]): Transform {
       }
 
       if (chunk && typeof chunk === 'object' && chunk.msg) {
-        const msgWithoutSecrets = secretList.reduce((acc: string, pattern: string): string => {
-          return acc.replaceAll(pattern, '*'.repeat(pattern.length));
-        }, chunk.msg as string);
-
         callback(null, {
           ...chunk,
-          msg: msgWithoutSecrets,
+          msg: redactSecrets(chunk.msg as string, secrets),
         });
       } else {
         callback(null, chunk);
