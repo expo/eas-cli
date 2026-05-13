@@ -1,7 +1,7 @@
 import {
   Metadata,
   Platform,
-  resolveExpoPackageVersionAsync,
+  getExpoPackageVersionAsync,
   sanitizeMetadata,
 } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
@@ -39,7 +39,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
-    expoPackageVersion: await getExpoPackageVersionAsync(ctx.projectDir),
+    expoPackageVersion: await maybeGetExpoPackageVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
     appName: ctx.exp.name,
@@ -161,9 +161,11 @@ export async function getReactNativeVersionAsync(projectDir: string): Promise<st
   }
 }
 
-export async function getExpoPackageVersionAsync(projectDir: string): Promise<string | undefined> {
+export async function maybeGetExpoPackageVersionAsync(
+  projectDir: string
+): Promise<string | undefined> {
   try {
-    return await resolveExpoPackageVersionAsync({
+    return await getExpoPackageVersionAsync({
       env: process.env,
       projectDir,
     });

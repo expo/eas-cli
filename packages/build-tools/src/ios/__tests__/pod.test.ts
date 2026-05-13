@@ -1,4 +1,4 @@
-import { Ios, resolveExpoPackageVersionAsync } from '@expo/eas-build-job';
+import { Ios, getExpoPackageVersionAsync } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import { vol } from 'memfs';
@@ -11,7 +11,7 @@ import { installPods } from '../pod';
 
 jest.mock('@expo/eas-build-job', () => ({
   ...jest.requireActual('@expo/eas-build-job'),
-  resolveExpoPackageVersionAsync: jest.fn(),
+  getExpoPackageVersionAsync: jest.fn(),
 }));
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -66,7 +66,7 @@ function makeIosBuildContext({
 describe(installPods, () => {
   beforeEach(() => {
     vol.reset();
-    jest.mocked(resolveExpoPackageVersionAsync).mockImplementation(async ({ projectDir }) => {
+    jest.mocked(getExpoPackageVersionAsync).mockImplementation(async ({ projectDir }) => {
       return (await fs.readJson(path.join(projectDir, 'node_modules/expo/package.json'))).version;
     });
     (spawn as jest.Mock).mockResolvedValue(undefined);
@@ -77,7 +77,7 @@ describe(installPods, () => {
 
     await installPods(ctx, {});
 
-    expect(resolveExpoPackageVersionAsync).toHaveBeenCalledWith({
+    expect(getExpoPackageVersionAsync).toHaveBeenCalledWith({
       env: expect.objectContaining({
         __API_SERVER_URL: 'http://api.expo.test',
       }),

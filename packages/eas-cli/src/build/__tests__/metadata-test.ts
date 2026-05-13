@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 
-import { getExpoPackageVersionAsync, truncateGitCommitMessage } from '../metadata';
+import { maybeGetExpoPackageVersionAsync, truncateGitCommitMessage } from '../metadata';
 
 describe(truncateGitCommitMessage, () => {
   it('returns undefined if no message was passed', () => {
@@ -17,7 +17,7 @@ describe(truncateGitCommitMessage, () => {
   });
 });
 
-describe(getExpoPackageVersionAsync, () => {
+describe(maybeGetExpoPackageVersionAsync, () => {
   it('returns the installed expo package version', async () => {
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-metadata-test-'));
     try {
@@ -25,7 +25,7 @@ describe(getExpoPackageVersionAsync, () => {
         version: '55.0.17',
       });
 
-      await expect(getExpoPackageVersionAsync(projectDir)).resolves.toBe('55.0.17');
+      await expect(maybeGetExpoPackageVersionAsync(projectDir)).resolves.toBe('55.0.17');
     } finally {
       await fs.remove(projectDir);
     }
@@ -34,7 +34,7 @@ describe(getExpoPackageVersionAsync, () => {
   it('returns undefined when expo is not installed', async () => {
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-metadata-test-'));
     try {
-      await expect(getExpoPackageVersionAsync(projectDir)).resolves.toBeUndefined();
+      await expect(maybeGetExpoPackageVersionAsync(projectDir)).resolves.toBeUndefined();
     } finally {
       await fs.remove(projectDir);
     }

@@ -2,9 +2,9 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-import { resolveExpoPackageVersionAsync } from '../projectPackage';
+import { getExpoPackageVersionAsync } from '../projectPackage';
 
-describe(resolveExpoPackageVersionAsync, () => {
+describe(getExpoPackageVersionAsync, () => {
   it('returns the installed expo package version resolved by project node', async () => {
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-build-job-package-test-'));
     try {
@@ -14,7 +14,7 @@ describe(resolveExpoPackageVersionAsync, () => {
         JSON.stringify({ version: '55.0.17' })
       );
 
-      await expect(resolveExpoPackageVersionAsync({ projectDir })).resolves.toBe('55.0.17');
+      await expect(getExpoPackageVersionAsync({ projectDir })).resolves.toBe('55.0.17');
     } finally {
       await fs.rm(projectDir, { recursive: true, force: true });
     }
@@ -23,7 +23,7 @@ describe(resolveExpoPackageVersionAsync, () => {
   it('rejects when expo cannot be resolved from the project', async () => {
     const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-build-job-package-test-'));
     try {
-      await expect(resolveExpoPackageVersionAsync({ projectDir })).rejects.toThrow();
+      await expect(getExpoPackageVersionAsync({ projectDir })).rejects.toThrow();
     } finally {
       await fs.rm(projectDir, { recursive: true, force: true });
     }

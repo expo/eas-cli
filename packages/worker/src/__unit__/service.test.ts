@@ -5,19 +5,19 @@ import {
   Platform,
   Workflow,
   errors,
-  resolveExpoPackageVersionAsync,
+  getExpoPackageVersionAsync,
 } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
 import { build } from '../build';
 import { createBuildContext } from '../context';
-import BuildService, { getExpoPackageVersionAsync } from '../service';
+import BuildService, { resolveBuildExpoPackageVersionAsync } from '../service';
 import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('fs');
 jest.mock('@expo/eas-build-job', () => ({
   ...jest.requireActual('@expo/eas-build-job'),
-  resolveExpoPackageVersionAsync: jest.fn(),
+  getExpoPackageVersionAsync: jest.fn(),
 }));
 jest.mock('../build', () => ({
   build: jest.fn(),
@@ -73,7 +73,7 @@ jest.mock('../config', () => {
   };
 });
 
-describe(getExpoPackageVersionAsync, () => {
+describe(resolveBuildExpoPackageVersionAsync, () => {
   const projectRoot = '/test-project';
   const buildContext = {
     env: { PATH: '/usr/bin' },
@@ -86,10 +86,10 @@ describe(getExpoPackageVersionAsync, () => {
   });
 
   it('returns the exact installed expo package version', async () => {
-    jest.mocked(resolveExpoPackageVersionAsync).mockResolvedValue('55.0.17');
+    jest.mocked(getExpoPackageVersionAsync).mockResolvedValue('55.0.17');
 
-    await expect(getExpoPackageVersionAsync(buildContext)).resolves.toBe('55.0.17');
-    expect(resolveExpoPackageVersionAsync).toHaveBeenCalledWith({
+    await expect(resolveBuildExpoPackageVersionAsync(buildContext)).resolves.toBe('55.0.17');
+    expect(getExpoPackageVersionAsync).toHaveBeenCalledWith({
       env: buildContext.env,
       projectDir: projectRoot,
     });
@@ -97,22 +97,26 @@ describe(getExpoPackageVersionAsync, () => {
 
   it('throws a user error when expo package version resolution fails', async () => {
     jest
-      .mocked(resolveExpoPackageVersionAsync)
+      .mocked(getExpoPackageVersionAsync)
       .mockRejectedValue(new Error('Cannot find module expo/package.json'));
 
-    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
+    await expect(resolveBuildExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
       errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
     });
-    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(errors.UserError);
+    await expect(resolveBuildExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(
+      errors.UserError
+    );
   });
 
   it('throws a user error when the installed expo package version is not valid semver', async () => {
-    jest.mocked(resolveExpoPackageVersionAsync).mockResolvedValue('invalid-version');
+    jest.mocked(getExpoPackageVersionAsync).mockResolvedValue('invalid-version');
 
-    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
+    await expect(resolveBuildExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
       errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
     });
-    await expect(getExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(errors.UserError);
+    await expect(resolveBuildExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(
+      errors.UserError
+    );
   });
 });
 
@@ -142,7 +146,7 @@ describe(BuildService, () => {
   beforeEach(() => {
     vol.reset();
     jest.clearAllMocks();
-    jest.mocked(resolveExpoPackageVersionAsync).mockResolvedValue('55.0.18');
+    jest.mocked(getExpoPackageVersionAsync).mockResolvedValue('55.0.18');
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as any);
     jest.mocked(build).mockRejectedValue(new Error('raw build failure'));
     jest.mocked(createBuildContext).mockReturnValue({
@@ -184,7 +188,7 @@ describe(BuildService, () => {
 
   it('sends null expo_package_version to Datadog error logs when expo package version resolution fails', async () => {
     jest
-      .mocked(resolveExpoPackageVersionAsync)
+      .mocked(getExpoPackageVersionAsync)
       .mockRejectedValue(new Error('Cannot find module expo/package.json'));
     const service = new BuildService();
     jest.spyOn(service, 'finishError').mockResolvedValue(undefined);
@@ -228,7 +232,7 @@ describe(BuildService, () => {
       projectId: 'project-id',
     });
 
-    expect(resolveExpoPackageVersionAsync).not.toHaveBeenCalled();
+    expect(getExpoPackageVersionAsync).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
