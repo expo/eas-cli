@@ -4029,6 +4029,7 @@ export type BuildMetadataInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
   environment?: InputMaybe<Scalars['String']['input']>;
+  expoPackageVersion?: InputMaybe<Scalars['String']['input']>;
   fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   fingerprintSource?: InputMaybe<FingerprintSourceInput>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;

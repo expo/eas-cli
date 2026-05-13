@@ -9,9 +9,7 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
-import {
-  isExpoUpdatesInstalled,
-} from '../project/projectUtils';
+import { isExpoUpdatesInstalled } from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
@@ -33,6 +31,7 @@ export async function collectMetadataAsync<T extends Platform>(
     workflow: ctx.workflow,
     credentialsSource: ctx.buildProfile.credentialsSource,
     sdkVersion: ctx.exp.sdkVersion,
+    expoPackageVersion: await getExpoPackageVersionAsync(ctx.projectDir),
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
@@ -152,6 +151,17 @@ export async function getReactNativeVersionAsync(projectDir: string): Promise<st
     return (await fs.readJson(reactNativePackageJsonPath)).version;
   } catch (err) {
     Log.debug('Failed to resolve react-native version:');
+    Log.debug(err);
+    return undefined;
+  }
+}
+
+export async function getExpoPackageVersionAsync(projectDir: string): Promise<string | undefined> {
+  try {
+    const expoPackageJsonPath = resolveFrom(projectDir, 'expo/package.json');
+    return (await fs.readJson(expoPackageJsonPath)).version;
+  } catch (err) {
+    Log.debug('Failed to resolve expo package version:');
     Log.debug(err);
     return undefined;
   }
