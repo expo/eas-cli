@@ -1,6 +1,6 @@
 {
   "name": "@expo/build-tools",
-  "version": "18.12.1",
+  "version": "18.12.3",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "author": "Expo <support@expo.io>",
