@@ -22,7 +22,6 @@ import { asyncResult } from '@expo/results';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
-import semver from 'semver';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import { build } from './build';
@@ -422,27 +421,8 @@ function getLastNLines(numberOfLines: number, stream: string): string {
 }
 
 export async function getInstalledExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
-  const expoPackageVersionResult = await asyncResult(
-    getInstalledExpoPackageVersionFromProjectAsync({
-      env: ctx.env,
-      projectDir: ctx.getReactNativeProjectDirectory(),
-    })
-  );
-  if (!expoPackageVersionResult.ok) {
-    throw new errors.UserError(
-      'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
-      'Cannot resolve the installed expo package version because require.resolve("expo/package.json") failed.',
-      { cause: expoPackageVersionResult.reason }
-    );
-  }
-
-  const expoPackageVersion = expoPackageVersionResult.value;
-  if (!semver.valid(expoPackageVersion)) {
-    throw new errors.UserError(
-      'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
-      'Cannot resolve the installed expo package version because expo/package.json has an invalid version.'
-    );
-  }
-
-  return expoPackageVersion;
+  return await getInstalledExpoPackageVersionFromProjectAsync({
+    env: ctx.env,
+    projectDir: ctx.getReactNativeProjectDirectory(),
+  });
 }

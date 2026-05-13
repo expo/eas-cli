@@ -4,7 +4,6 @@ import {
   BuildTrigger,
   Platform,
   Workflow,
-  errors,
   getInstalledExpoPackageVersionAsync as getInstalledExpoPackageVersionFromProjectAsync,
 } from '@expo/eas-build-job';
 import { vol } from 'memfs';
@@ -100,22 +99,8 @@ describe(getInstalledExpoPackageVersionAsync, () => {
       .mocked(getInstalledExpoPackageVersionFromProjectAsync)
       .mockRejectedValue(new Error('Cannot find module expo/package.json'));
 
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
-      errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
-    });
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(
-      errors.UserError
-    );
-  });
-
-  it('throws a user error when the installed expo package version is not valid semver', async () => {
-    jest.mocked(getInstalledExpoPackageVersionFromProjectAsync).mockResolvedValue('invalid-version');
-
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toMatchObject({
-      errorCode: 'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
-    });
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toBeInstanceOf(
-      errors.UserError
+    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toThrow(
+      'Cannot find module expo/package.json'
     );
   });
 });
