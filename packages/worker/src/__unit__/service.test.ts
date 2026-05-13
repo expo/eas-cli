@@ -4,20 +4,15 @@ import {
   BuildTrigger,
   Platform,
   Workflow,
-  getInstalledExpoPackageVersionAsync as getInstalledExpoPackageVersionFromProjectAsync,
 } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
 import { build } from '../build';
 import { createBuildContext } from '../context';
-import BuildService, { getInstalledExpoPackageVersionAsync } from '../service';
+import BuildService from '../service';
 import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('fs');
-jest.mock('@expo/eas-build-job', () => ({
-  ...jest.requireActual('@expo/eas-build-job'),
-  getInstalledExpoPackageVersionAsync: jest.fn(),
-}));
 jest.mock('../build', () => ({
   build: jest.fn(),
 }));
@@ -72,39 +67,6 @@ jest.mock('../config', () => {
   };
 });
 
-describe(getInstalledExpoPackageVersionAsync, () => {
-  const projectRoot = '/test-project';
-  const buildContext = {
-    env: { PATH: '/usr/bin' },
-    getReactNativeProjectDirectory: () => projectRoot,
-  } as any;
-
-  beforeEach(() => {
-    vol.reset();
-    jest.clearAllMocks();
-  });
-
-  it('returns the exact installed expo package version', async () => {
-    jest.mocked(getInstalledExpoPackageVersionFromProjectAsync).mockResolvedValue('55.0.17');
-
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).resolves.toBe('55.0.17');
-    expect(getInstalledExpoPackageVersionFromProjectAsync).toHaveBeenCalledWith({
-      env: buildContext.env,
-      projectDir: projectRoot,
-    });
-  });
-
-  it('throws a user error when expo package version resolution fails', async () => {
-    jest
-      .mocked(getInstalledExpoPackageVersionFromProjectAsync)
-      .mockRejectedValue(new Error('Cannot find module expo/package.json'));
-
-    await expect(getInstalledExpoPackageVersionAsync(buildContext)).rejects.toThrow(
-      'Cannot find module expo/package.json'
-    );
-  });
-});
-
 describe(BuildService, () => {
   const projectRoot = '/test-project';
   const job = {
@@ -131,7 +93,6 @@ describe(BuildService, () => {
   beforeEach(() => {
     vol.reset();
     jest.clearAllMocks();
-    jest.mocked(getInstalledExpoPackageVersionFromProjectAsync).mockResolvedValue('55.0.18');
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as any);
     jest.mocked(build).mockRejectedValue(new Error('raw build failure'));
     jest.mocked(createBuildContext).mockReturnValue({
@@ -142,7 +103,7 @@ describe(BuildService, () => {
     } as any);
   });
 
-  it('resolves expo_package_version in the worker without changing sdk_version', async () => {
+  it('uses expo_package_version from build metadata without changing sdk_version', async () => {
     const service = new BuildService();
     jest.spyOn(service, 'finishError').mockResolvedValue(undefined);
 
@@ -151,6 +112,7 @@ describe(BuildService, () => {
       job,
       metadata: {
         buildProfile: 'production',
+        expoPackageVersion: '55.0.18',
         reactNativeVersion: '0.83.0',
         sdkVersion: '55.0.0',
       },
@@ -171,10 +133,7 @@ describe(BuildService, () => {
     );
   });
 
-  it('sends null expo_package_version to Datadog error logs when expo package version resolution fails', async () => {
-    jest
-      .mocked(getInstalledExpoPackageVersionFromProjectAsync)
-      .mockRejectedValue(new Error('Cannot find module expo/package.json'));
+  it('sends null expo_package_version to Datadog error logs when metadata does not include it', async () => {
     const service = new BuildService();
     jest.spyOn(service, 'finishError').mockResolvedValue(undefined);
 
@@ -201,7 +160,7 @@ describe(BuildService, () => {
     );
   });
 
-  it('does not try to resolve expo_package_version when build context setup fails', async () => {
+  it('sends null expo_package_version when build context setup fails before metadata is available', async () => {
     jest.mocked(createBuildContext).mockImplementation(() => {
       throw new Error('context setup failure');
     });
@@ -217,7 +176,6 @@ describe(BuildService, () => {
       projectId: 'project-id',
     });
 
-    expect(getInstalledExpoPackageVersionFromProjectAsync).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',

@@ -15,10 +15,8 @@ import {
   Metadata,
   Platform,
   errors,
-  getInstalledExpoPackageVersionAsync as getInstalledExpoPackageVersionFromProjectAsync,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
-import { asyncResult } from '@expo/results';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
@@ -277,7 +275,7 @@ export default class BuildService {
     projectId: string;
     initiatingUserId: string;
   }): Promise<void> {
-    const metadataWithWorkerFields = metadata ?? {};
+    const buildMetadata = metadata ?? {};
     try {
       const {
         logger: buildLogger,
@@ -288,14 +286,14 @@ export default class BuildService {
 
       const analytics = new Analytics(
         initiatingUserId,
-        metadataWithWorkerFields.trackingContext ?? {}
+        buildMetadata.trackingContext ?? {}
       );
 
       const ctx = createBuildContext({
         job,
         logBuffer,
         analytics,
-        metadata: metadataWithWorkerFields,
+        metadata: buildMetadata,
         projectId,
         buildId: this.buildId,
         buildLogger,
@@ -304,16 +302,6 @@ export default class BuildService {
         },
       });
       this.buildContext = ctx;
-
-      const expoPackageVersionResult = await asyncResult(getInstalledExpoPackageVersionAsync(ctx));
-      if (expoPackageVersionResult.ok) {
-        metadataWithWorkerFields.expoPackageVersion = expoPackageVersionResult.value;
-      } else {
-        logger.warn(
-          { err: expoPackageVersionResult.reason },
-          'Failed to resolve expo package version for build metadata'
-        );
-      }
 
       const artifacts = await build({
         ctx,
@@ -374,15 +362,15 @@ export default class BuildService {
                   error_code: err.errorCode,
                   platform: job.platform,
                   workflow: job.type,
-                  sdk_version: metadataWithWorkerFields.sdkVersion ?? null,
-                  expo_package_version: metadataWithWorkerFields.expoPackageVersion ?? null,
-                  react_native_version: metadataWithWorkerFields.reactNativeVersion ?? null,
+                  sdk_version: buildMetadata.sdkVersion ?? null,
+                  expo_package_version: buildMetadata.expoPackageVersion ?? null,
+                  react_native_version: buildMetadata.reactNativeVersion ?? null,
                   app_id: job.appId ?? null,
-                  build_profile: metadataWithWorkerFields.buildProfile ?? null,
-                  app_name: metadataWithWorkerFields.appName ?? null,
-                  app_identifier: metadataWithWorkerFields.appIdentifier ?? null,
-                  distribution: metadataWithWorkerFields.distribution ?? null,
-                  cli_version: metadataWithWorkerFields.cliVersion ?? null,
+                  build_profile: buildMetadata.buildProfile ?? null,
+                  app_name: buildMetadata.appName ?? null,
+                  app_identifier: buildMetadata.appIdentifier ?? null,
+                  distribution: buildMetadata.distribution ?? null,
+                  cli_version: buildMetadata.cliVersion ?? null,
                 },
               },
               headers: {
@@ -418,11 +406,4 @@ function getLastNLines(numberOfLines: number, stream: string): string {
   } else {
     return lines.slice(lines.length - numberOfLines, lines.length).join('\n');
   }
-}
-
-export async function getInstalledExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
-  return await getInstalledExpoPackageVersionFromProjectAsync({
-    env: ctx.env,
-    projectDir: ctx.getReactNativeProjectDirectory(),
-  });
 }

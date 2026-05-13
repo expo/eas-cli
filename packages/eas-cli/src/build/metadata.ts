@@ -5,6 +5,7 @@ import {
   sanitizeMetadata,
 } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
+import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
@@ -29,6 +30,16 @@ export async function collectMetadataAsync<T extends Platform>(
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
+  const expoPackageVersionResult = await asyncResult(
+    getInstalledExpoPackageVersionAsync({
+      env: process.env,
+      projectDir: ctx.projectDir,
+    })
+  );
+  if (!expoPackageVersionResult.ok) {
+    Log.debug('Failed to resolve expo package version:');
+    Log.debug(expoPackageVersionResult.reason);
+  }
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -39,7 +50,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
-    expoPackageVersion: await maybeGetExpoPackageVersionAsync(ctx.projectDir),
+    expoPackageVersion: expoPackageVersionResult.value,
     ...channelObject,
     distribution,
     appName: ctx.exp.name,
@@ -156,21 +167,6 @@ export async function getReactNativeVersionAsync(projectDir: string): Promise<st
     return (await fs.readJson(reactNativePackageJsonPath)).version;
   } catch (err) {
     Log.debug('Failed to resolve react-native version:');
-    Log.debug(err);
-    return undefined;
-  }
-}
-
-export async function maybeGetExpoPackageVersionAsync(
-  projectDir: string
-): Promise<string | undefined> {
-  try {
-    return await getInstalledExpoPackageVersionAsync({
-      env: process.env,
-      projectDir,
-    });
-  } catch (err) {
-    Log.debug('Failed to resolve expo package version:');
     Log.debug(err);
     return undefined;
   }
