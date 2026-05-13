@@ -4029,6 +4029,7 @@ export type BuildMetadataInput = {
   developmentClient?: InputMaybe<Scalars['Boolean']['input']>;
   distribution?: InputMaybe<DistributionType>;
   environment?: InputMaybe<Scalars['String']['input']>;
+  expoPackageVersion?: InputMaybe<Scalars['String']['input']>;
   fingerprintHash?: InputMaybe<Scalars['String']['input']>;
   fingerprintSource?: InputMaybe<FingerprintSourceInput>;
   gitCommitHash?: InputMaybe<Scalars['String']['input']>;
@@ -12902,6 +12903,17 @@ export type AppObserveCustomEventNamesQueryVariables = Exact<{
 
 
 export type AppObserveCustomEventNamesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', customEventNames: { __typename?: 'AppObserveCustomEventNames', isTruncated: boolean, names: Array<{ __typename?: 'AppObserveCustomEventName', eventName: string, count: number }> } } } } };
+
+export type AppObserveNavigationRoutesQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter: AppObserveNavigationRoutesFilter;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveNavigationRoutesOrderBy>;
+}>;
+
+
+export type AppObserveNavigationRoutesQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', navigationRoutes: { __typename?: 'AppObserveNavigationRoutesConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveNavigationRouteEdge', cursor: string, node: { __typename?: 'AppObserveNavigationRoute', routeName: string, coldTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, warmTtr: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null }, tti: { __typename?: 'AppObserveNavigationStat', count: number, median?: number | null, p90?: number | null } } }> } } } } };
 
 export type GetAssetMetadataQueryVariables = Exact<{
   storageKeys: Array<Scalars['String']['input']> | Scalars['String']['input'];
