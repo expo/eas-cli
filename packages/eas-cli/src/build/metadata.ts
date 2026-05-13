@@ -34,6 +34,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
+    expoPackageVersion: await getExpoPackageVersionAsync(ctx.projectDir),
     ...channelObject,
     distribution,
     appName: ctx.exp.name,
@@ -150,6 +151,17 @@ export async function getReactNativeVersionAsync(projectDir: string): Promise<st
     return (await fs.readJson(reactNativePackageJsonPath)).version;
   } catch (err) {
     Log.debug('Failed to resolve react-native version:');
+    Log.debug(err);
+    return undefined;
+  }
+}
+
+export async function getExpoPackageVersionAsync(projectDir: string): Promise<string | undefined> {
+  try {
+    const expoPackageJsonPath = resolveFrom(projectDir, 'expo/package.json');
+    return (await fs.readJson(expoPackageJsonPath)).version;
+  } catch (err) {
+    Log.debug('Failed to resolve expo package version:');
     Log.debug(err);
     return undefined;
   }

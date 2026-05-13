@@ -15,9 +15,6 @@ import { createBuildContext } from '../context';
 import BuildService, { getExpoPackageVersionAsync } from '../service';
 import { turtleFetch } from '../utils/turtleFetch';
 
-const mockGraphqlMutation = jest.fn();
-const mockGraphqlToPromise = jest.fn();
-
 jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../build', () => ({
@@ -157,16 +154,9 @@ describe(BuildService, () => {
     } as any);
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as any);
     jest.mocked(build).mockRejectedValue(new Error('raw build failure'));
-    mockGraphqlMutation.mockReturnValue({ toPromise: mockGraphqlToPromise });
-    mockGraphqlToPromise.mockResolvedValue({
-      data: { build: { updateBuildMetadata: { id: 'build-id' } } },
-    });
     jest.mocked(createBuildContext).mockReturnValue({
       env: { PATH: '/usr/bin' },
       getReactNativeProjectDirectory: () => projectRoot,
-      graphqlClient: {
-        mutation: mockGraphqlMutation,
-      },
       job,
       logger: {},
     } as any);
@@ -204,13 +194,6 @@ describe(BuildService, () => {
         }),
       })
     );
-    expect(mockGraphqlMutation).toHaveBeenCalledWith(
-      expect.stringContaining('updateBuildMetadata'),
-      {
-        buildId: 'build-id',
-        expoPackageVersion: '55.0.18',
-      }
-    );
   });
 
   it('sends null expo_package_version to Datadog error logs when expo package version resolution fails', async () => {
@@ -227,7 +210,6 @@ describe(BuildService, () => {
       projectId: 'project-id',
     });
 
-    expect(mockGraphqlMutation).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
@@ -259,7 +241,6 @@ describe(BuildService, () => {
     });
 
     expect(spawn).not.toHaveBeenCalled();
-    expect(mockGraphqlMutation).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',

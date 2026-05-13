@@ -309,19 +309,6 @@ export default class BuildService {
       const expoPackageVersionResult = await asyncResult(getExpoPackageVersionAsync(ctx));
       if (expoPackageVersionResult.ok) {
         metadataWithWorkerFields.expoPackageVersion = expoPackageVersionResult.value;
-        const updateMetadataResult = await asyncResult(
-          updateBuildExpoPackageVersionMetadataAsync(
-            ctx,
-            this.buildId,
-            expoPackageVersionResult.value
-          )
-        );
-        if (!updateMetadataResult.ok) {
-          logger.warn(
-            { err: updateMetadataResult.reason },
-            'Failed to update build metadata with expo package version'
-          );
-        }
       } else {
         logger.warn(
           { err: expoPackageVersionResult.reason },
@@ -431,40 +418,6 @@ function getLastNLines(numberOfLines: number, stream: string): string {
     return stream;
   } else {
     return lines.slice(lines.length - numberOfLines, lines.length).join('\n');
-  }
-}
-
-async function updateBuildExpoPackageVersionMetadataAsync(
-  ctx: BuildContext<Job>,
-  buildId: string,
-  expoPackageVersion: string
-): Promise<void> {
-  const result = await ctx.graphqlClient
-    .mutation(
-      `
-        mutation UpdateBuildExpoPackageVersionMetadataMutation(
-          $buildId: ID!
-          $expoPackageVersion: String!
-        ) {
-          build {
-            updateBuildMetadata(
-              buildId: $buildId
-              metadata: { expoPackageVersion: $expoPackageVersion }
-            ) {
-              id
-            }
-          }
-        }
-      `,
-      {
-        buildId,
-        expoPackageVersion,
-      }
-    )
-    .toPromise();
-
-  if (result.error) {
-    throw result.error;
   }
 }
 
