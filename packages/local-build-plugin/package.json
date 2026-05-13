@@ -40,7 +40,7 @@
     "nullthrows": "^1.1.1",
     "semver": "^7.6.2",
     "tar": "7.5.7",
-    "uuid": "^9.0.1"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/bunyan": "^1.8.11",
