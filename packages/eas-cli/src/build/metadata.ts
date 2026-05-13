@@ -1,4 +1,9 @@
-import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import {
+  Metadata,
+  Platform,
+  resolveExpoPackageVersionAsync,
+  sanitizeMetadata,
+} from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
@@ -158,8 +163,10 @@ export async function getReactNativeVersionAsync(projectDir: string): Promise<st
 
 export async function getExpoPackageVersionAsync(projectDir: string): Promise<string | undefined> {
   try {
-    const expoPackageJsonPath = resolveFrom(projectDir, 'expo/package.json');
-    return (await fs.readJson(expoPackageJsonPath)).version;
+    return await resolveExpoPackageVersionAsync({
+      env: process.env,
+      projectDir,
+    });
   } catch (err) {
     Log.debug('Failed to resolve expo package version:');
     Log.debug(err);

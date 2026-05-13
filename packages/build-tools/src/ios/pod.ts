@@ -1,6 +1,5 @@
-import { Env, Ios } from '@expo/eas-build-job';
+import { Env, Ios, resolveExpoPackageVersionAsync } from '@expo/eas-build-job';
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
-import fs from 'fs-extra';
 import path from 'path';
 import semver from 'semver';
 
@@ -96,13 +95,10 @@ async function resolvePrecompiledModulesPodInstallEnvAsync<TJob extends Ios.Job>
 async function getInstalledExpoPackageVersionAsync<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>
 ): Promise<string> {
-  const { stdout } = await spawn('node', ['--print', "require.resolve('expo/package.json')"], {
-    cwd: ctx.getReactNativeProjectDirectory(),
+  return await resolveExpoPackageVersionAsync({
     env: ctx.env,
-    stdio: 'pipe',
+    projectDir: ctx.getReactNativeProjectDirectory(),
   });
-  const expoPackageJsonPath = stdout.toString().trim();
-  return (await fs.readJson(expoPackageJsonPath)).version;
 }
 
 function getPrecompiledModulesBaseUrl<TJob extends Ios.Job>(ctx: BuildContext<TJob>): string {

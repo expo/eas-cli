@@ -15,10 +15,10 @@ import {
   Metadata,
   Platform,
   errors,
+  resolveExpoPackageVersionAsync,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
 import { asyncResult } from '@expo/results';
-import spawn from '@expo/turtle-spawn';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
@@ -422,34 +422,22 @@ function getLastNLines(numberOfLines: number, stream: string): string {
 }
 
 export async function getExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
-  const reactNativeProjectDirectory = ctx.getReactNativeProjectDirectory();
-  const expoPackageJsonPathResult = await asyncResult(
-    spawn('node', ['--print', "require.resolve('expo/package.json')"], {
-      cwd: reactNativeProjectDirectory,
+  const expoPackageVersionResult = await asyncResult(
+    resolveExpoPackageVersionAsync({
       env: ctx.env,
-      stdio: 'pipe',
+      projectDir: ctx.getReactNativeProjectDirectory(),
     })
   );
-  if (!expoPackageJsonPathResult.ok) {
+  if (!expoPackageVersionResult.ok) {
     throw new errors.UserError(
       'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
       'Cannot resolve the installed expo package version because require.resolve("expo/package.json") failed.',
-      { cause: expoPackageJsonPathResult.reason }
+      { cause: expoPackageVersionResult.reason }
     );
   }
 
-  const expoPackageJsonPath = expoPackageJsonPathResult.value.stdout.toString().trim();
-  const expoPackageJsonResult = await asyncResult(fs.readJson(expoPackageJsonPath));
-  if (!expoPackageJsonResult.ok) {
-    throw new errors.UserError(
-      'EAS_BUILD_EXPO_PACKAGE_VERSION_READ_FAILED',
-      'Cannot resolve the installed expo package version because expo/package.json could not be read.',
-      { cause: expoPackageJsonResult.reason }
-    );
-  }
-
-  const expoPackageVersion = expoPackageJsonResult.value.version;
-  if (typeof expoPackageVersion !== 'string' || !semver.valid(expoPackageVersion)) {
+  const expoPackageVersion = expoPackageVersionResult.value;
+  if (!semver.valid(expoPackageVersion)) {
     throw new errors.UserError(
       'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
       'Cannot resolve the installed expo package version because expo/package.json has an invalid version.'

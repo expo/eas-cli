@@ -27,6 +27,7 @@ export * from './context';
 export * from './generic';
 export * from './step';
 export * from './submission-config';
+export * from './projectPackage';
 
 const version = require('../package.json').version;
 export { version };

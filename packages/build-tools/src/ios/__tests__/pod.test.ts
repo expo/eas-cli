@@ -1,5 +1,6 @@
-import { Ios } from '@expo/eas-build-job';
+import { Ios, resolveExpoPackageVersionAsync } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import fs from 'fs-extra';
 import { vol } from 'memfs';
 import path from 'path';
 
@@ -8,6 +9,10 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { installPods } from '../pod';
 
+jest.mock('@expo/eas-build-job', () => ({
+  ...jest.requireActual('@expo/eas-build-job'),
+  resolveExpoPackageVersionAsync: jest.fn(),
+}));
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
   default: jest.fn(),
@@ -61,14 +66,10 @@ function makeIosBuildContext({
 describe(installPods, () => {
   beforeEach(() => {
     vol.reset();
-    (spawn as jest.Mock).mockImplementation(command => {
-      if (command === 'node') {
-        return Promise.resolve({
-          stdout: Buffer.from(path.join(PROJECT_DIR, 'node_modules/expo/package.json')),
-        });
-      }
-      return Promise.resolve(undefined);
+    jest.mocked(resolveExpoPackageVersionAsync).mockImplementation(async ({ projectDir }) => {
+      return (await fs.readJson(path.join(projectDir, 'node_modules/expo/package.json'))).version;
     });
+    (spawn as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('adds precompiled modules env var for Expo versions well above the minimum', async () => {
@@ -76,17 +77,12 @@ describe(installPods, () => {
 
     await installPods(ctx, {});
 
-    expect(spawn).toHaveBeenCalledWith(
-      'node',
-      ['--print', "require.resolve('expo/package.json')"],
-      expect.objectContaining({
-        cwd: PROJECT_DIR,
-        env: expect.objectContaining({
-          __API_SERVER_URL: 'http://api.expo.test',
-        }),
-        stdio: 'pipe',
-      })
-    );
+    expect(resolveExpoPackageVersionAsync).toHaveBeenCalledWith({
+      env: expect.objectContaining({
+        __API_SERVER_URL: 'http://api.expo.test',
+      }),
+      projectDir: PROJECT_DIR,
+    });
     expect(spawn).toHaveBeenCalledWith(
       'pod',
       ['install'],
@@ -134,7 +130,7 @@ describe(installPods, () => {
 
     await installPods(ctx, {});
 
-    expect((spawn as jest.Mock).mock.calls[1][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
       expect.stringMatching(
         /^Detected expo=55\.0\.17; not enabling precompiled modules use because precompiled modules require expo>=/
@@ -147,7 +143,7 @@ describe(installPods, () => {
 
     await installPods(ctx, {});
 
-    expect((spawn as jest.Mock).mock.calls[1][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
       'Detected expo=invalid-version; not enabling precompiled modules use because the installed Expo package version is not a valid semver version.'
     );
@@ -158,7 +154,7 @@ describe(installPods, () => {
 
     await installPods(ctx, {});
 
-    expect((spawn as jest.Mock).mock.calls[1][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect(ctx.logger.info).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.objectContaining({ code: 'ENOENT' }) }),
       'Failed to detect installed Expo package version; not enabling precompiled modules use.'
