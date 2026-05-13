@@ -15,6 +15,9 @@ import { createBuildContext } from '../context';
 import BuildService, { getExpoPackageVersionAsync } from '../service';
 import { turtleFetch } from '../utils/turtleFetch';
 
+const mockGraphqlMutation = jest.fn();
+const mockGraphqlToPromise = jest.fn();
+
 jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../build', () => ({
@@ -154,15 +157,22 @@ describe(BuildService, () => {
     } as any);
     jest.mocked(turtleFetch).mockResolvedValue({ ok: true } as any);
     jest.mocked(build).mockRejectedValue(new Error('raw build failure'));
+    mockGraphqlMutation.mockReturnValue({ toPromise: mockGraphqlToPromise });
+    mockGraphqlToPromise.mockResolvedValue({
+      data: { build: { updateBuildMetadata: { id: 'build-id' } } },
+    });
     jest.mocked(createBuildContext).mockReturnValue({
       env: { PATH: '/usr/bin' },
       getReactNativeProjectDirectory: () => projectRoot,
+      graphqlClient: {
+        mutation: mockGraphqlMutation,
+      },
       job,
       logger: {},
     } as any);
   });
 
-  it('sends metadata expo_package_version to Datadog error logs without changing sdk_version', async () => {
+  it('resolves expo_package_version in the worker without changing sdk_version', async () => {
     vol.fromJSON({
       [path.join(projectRoot, 'node_modules/expo/package.json')]: JSON.stringify({
         version: '55.0.18',
@@ -176,7 +186,6 @@ describe(BuildService, () => {
       job,
       metadata: {
         buildProfile: 'production',
-        expoPackageVersion: '55.0.17',
         reactNativeVersion: '0.83.0',
         sdkVersion: '55.0.0',
       },
@@ -189,11 +198,18 @@ describe(BuildService, () => {
       expect.objectContaining({
         json: expect.objectContaining({
           tags: expect.objectContaining({
-            expo_package_version: '55.0.17',
+            expo_package_version: '55.0.18',
             sdk_version: '55.0.0',
           }),
         }),
       })
+    );
+    expect(mockGraphqlMutation).toHaveBeenCalledWith(
+      expect.stringContaining('updateBuildMetadata'),
+      {
+        buildId: 'build-id',
+        expoPackageVersion: '55.0.18',
+      }
     );
   });
 
@@ -211,6 +227,7 @@ describe(BuildService, () => {
       projectId: 'project-id',
     });
 
+    expect(mockGraphqlMutation).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',
@@ -242,6 +259,7 @@ describe(BuildService, () => {
     });
 
     expect(spawn).not.toHaveBeenCalled();
+    expect(mockGraphqlMutation).not.toHaveBeenCalled();
     expect(turtleFetch).toHaveBeenCalledWith(
       'http://api.expo.test/v2/turtle-builds/logs',
       'POST',

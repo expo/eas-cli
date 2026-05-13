@@ -278,6 +278,7 @@ export default class BuildService {
     projectId: string;
     initiatingUserId: string;
   }): Promise<void> {
+    const metadataWithWorkerFields = metadata ?? {};
     try {
       const {
         logger: buildLogger,
@@ -286,13 +287,16 @@ export default class BuildService {
       } = await createBuildLoggerWithSecretsFilter(job.secrets ?? {});
       this.logsCleanUp = cleanUp;
 
-      const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
+      const analytics = new Analytics(
+        initiatingUserId,
+        metadataWithWorkerFields.trackingContext ?? {}
+      );
 
       const ctx = createBuildContext({
         job,
         logBuffer,
         analytics,
-        metadata: metadata ?? {},
+        metadata: metadataWithWorkerFields,
         projectId,
         buildId: this.buildId,
         buildLogger,
@@ -301,6 +305,29 @@ export default class BuildService {
         },
       });
       this.buildContext = ctx;
+
+      const expoPackageVersionResult = await asyncResult(getExpoPackageVersionAsync(ctx));
+      if (expoPackageVersionResult.ok) {
+        metadataWithWorkerFields.expoPackageVersion = expoPackageVersionResult.value;
+        const updateMetadataResult = await asyncResult(
+          updateBuildExpoPackageVersionMetadataAsync(
+            ctx,
+            this.buildId,
+            expoPackageVersionResult.value
+          )
+        );
+        if (!updateMetadataResult.ok) {
+          logger.warn(
+            { err: updateMetadataResult.reason },
+            'Failed to update build metadata with expo package version'
+          );
+        }
+      } else {
+        logger.warn(
+          { err: expoPackageVersionResult.reason },
+          'Failed to resolve expo package version for build metadata'
+        );
+      }
 
       const artifacts = await build({
         ctx,
@@ -336,11 +363,6 @@ export default class BuildService {
 
       const robotAccessToken = job.secrets?.robotAccessToken;
       if (robotAccessToken) {
-        const expoPackageVersionResult = this.buildContext
-          ? await asyncResult(getExpoPackageVersionAsync(this.buildContext))
-          : null;
-        const expoPackageVersion =
-          expoPackageVersionResult?.ok === true ? expoPackageVersionResult.value : null;
         let rawErrorMessage: string = '';
         if (maybeRawError?.stderr) {
           rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
@@ -366,15 +388,15 @@ export default class BuildService {
                   error_code: err.errorCode,
                   platform: job.platform,
                   workflow: job.type,
-                  sdk_version: metadata?.sdkVersion ?? null,
-                  expo_package_version: metadata?.expoPackageVersion ?? expoPackageVersion,
-                  react_native_version: metadata?.reactNativeVersion ?? null,
+                  sdk_version: metadataWithWorkerFields.sdkVersion ?? null,
+                  expo_package_version: metadataWithWorkerFields.expoPackageVersion ?? null,
+                  react_native_version: metadataWithWorkerFields.reactNativeVersion ?? null,
                   app_id: job.appId ?? null,
-                  build_profile: metadata?.buildProfile ?? null,
-                  app_name: metadata?.appName ?? null,
-                  app_identifier: metadata?.appIdentifier ?? null,
-                  distribution: metadata?.distribution ?? null,
-                  cli_version: metadata?.cliVersion ?? null,
+                  build_profile: metadataWithWorkerFields.buildProfile ?? null,
+                  app_name: metadataWithWorkerFields.appName ?? null,
+                  app_identifier: metadataWithWorkerFields.appIdentifier ?? null,
+                  distribution: metadataWithWorkerFields.distribution ?? null,
+                  cli_version: metadataWithWorkerFields.cliVersion ?? null,
                 },
               },
               headers: {
@@ -409,6 +431,40 @@ function getLastNLines(numberOfLines: number, stream: string): string {
     return stream;
   } else {
     return lines.slice(lines.length - numberOfLines, lines.length).join('\n');
+  }
+}
+
+async function updateBuildExpoPackageVersionMetadataAsync(
+  ctx: BuildContext<Job>,
+  buildId: string,
+  expoPackageVersion: string
+): Promise<void> {
+  const result = await ctx.graphqlClient
+    .mutation(
+      `
+        mutation UpdateBuildExpoPackageVersionMetadataMutation(
+          $buildId: ID!
+          $expoPackageVersion: String!
+        ) {
+          build {
+            updateBuildMetadata(
+              buildId: $buildId
+              metadata: { expoPackageVersion: $expoPackageVersion }
+            ) {
+              id
+            }
+          }
+        }
+      `,
+      {
+        buildId,
+        expoPackageVersion,
+      }
+    )
+    .toPromise();
+
+  if (result.error) {
+    throw result.error;
   }
 }
 
