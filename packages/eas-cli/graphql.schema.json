@@ -28668,6 +28668,18 @@
             "deprecationReason": null
           },
           {
+            "name": "expoPackageVersion",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "fingerprintHash",
             "description": null,
             "type": {
