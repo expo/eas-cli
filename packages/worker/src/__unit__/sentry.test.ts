@@ -4,9 +4,8 @@ jest.mock('@expo/build-tools', () => ({
   ...jest.requireActual('@expo/build-tools'),
   Sentry: {
     setup: jest.fn(),
-    captureMessage: jest.fn(),
+    capture: jest.fn(),
     flush: jest.fn(),
-    _resetForTest: jest.fn(),
   },
 }));
 

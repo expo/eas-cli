@@ -30,7 +30,7 @@ function bytesToGigabytes(bytes: number): number {
 
 function handleError(err: any, message: string): void {
   logger.error(message, { err });
-  sentry.captureMessage(message, err);
+  sentry.capture(message, err);
 }
 
 async function getRamMetricsGb(): Promise<RamMetrics | null> {

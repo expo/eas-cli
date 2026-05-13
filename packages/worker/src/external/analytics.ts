@@ -83,7 +83,7 @@ export async function logProjectDependenciesAsync(
   } catch (error: any) {
     const msg = 'Failed to report project dependencies metrics';
     ctx.logger.error({ err: error }, msg);
-    sentry.captureMessage(msg, error, {
+    sentry.capture(msg, error, {
       level: 'warning',
       tags: {
         errorCode: 'FAILED_TO_REPORT_PROJECT_DEPENDENCIES_EVENT',
@@ -175,7 +175,7 @@ async function resolveNewArchEnabled(
     } catch (error: any) {
       const msg = 'Failed to detect react native new architecture';
       ctx.logger.error({ err: error }, msg);
-      sentry.captureMessage(msg, error);
+      sentry.capture(msg, error);
       return undefined;
     }
   }

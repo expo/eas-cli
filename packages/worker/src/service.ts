@@ -101,7 +101,7 @@ export default class BuildService {
     if (taskId !== this.buildId) {
       const mismatchMsg = `Launcher handling build with ID ${taskId} attempted to start build on worker assigned for handling build with ID ${this.buildId} (no action needed)`;
       logger.warn(mismatchMsg);
-      sentry.captureMessage(mismatchMsg);
+      sentry.capture(mismatchMsg);
       return;
     }
 
@@ -223,7 +223,7 @@ export default class BuildService {
     const hangingMsg =
       'Worker still alive 5 minutes after sending BuildSuccess/BuildError message - possibly hanging';
     logger.error(hangingMsg);
-    sentry.captureMessage(hangingMsg, undefined, {
+    sentry.capture(hangingMsg, {
       tags: {
         errorCode: 'WORKER_POSSIBLY_HANGING',
       },
@@ -320,7 +320,7 @@ export default class BuildService {
         error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
 
       logger.error({ err: maybeRawError }, err.message);
-      sentry.captureMessage(err.message, maybeRawError, {
+      sentry.capture(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
           errorCode: err.trackingCode ?? err.errorCode,

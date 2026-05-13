@@ -53,7 +53,7 @@ jest.mock('../logger', () => {
 jest.mock('../sentry', () => ({
   __esModule: true,
   default: {
-    captureMessage: jest.fn(),
+    capture: jest.fn(),
   },
 }));
 jest.mock('../utils/turtleFetch', () => ({

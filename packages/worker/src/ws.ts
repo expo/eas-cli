@@ -42,7 +42,7 @@ function handleConnection(socket: WebSocket, service: BuildService): void {
   wsServer.onError((err: Error) => {
     const msg = 'WebSocket error';
     logger.error({ err }, msg);
-    sentry.captureMessage(msg, err);
+    sentry.capture(msg, err);
   });
 
   wsServer.onMessage((message: LauncherMessage.Message) => {
@@ -57,7 +57,7 @@ function handleConnection(socket: WebSocket, service: BuildService): void {
     } catch (err: any) {
       const msg = 'Unhandled WebSocket message';
       logger.error({ err }, msg);
-      sentry.captureMessage(msg, err);
+      sentry.capture(msg, err);
     }
   });
 
