@@ -6,6 +6,7 @@ import { appPlatformDisplayNames } from '../platform';
 import renderTextTable from '../utils/renderTextTable';
 import { NavigationRouteWithPlatform } from './fetchNavigationRoutes';
 import { buildTimeRangeDescription } from './formatUtils';
+import { getMetricDisplayName } from './metricNames';
 
 export type NavigationStatKey = 'median' | 'p90' | 'count';
 
@@ -36,44 +37,18 @@ export function resolveNavigationStatKey(input: string): NavigationStatKey {
   );
 }
 
-export type NavigationMetricKey = 'coldTtr' | 'warmTtr' | 'tti';
+type NavigationRouteField = 'coldTtr' | 'warmTtr' | 'tti';
 
-export interface NavigationMetricSpec {
-  key: NavigationMetricKey;
-  fullName: string;
-  displayName: string;
-}
-
-export const NAVIGATION_METRICS: NavigationMetricSpec[] = [
-  { key: 'coldTtr', fullName: 'expo.navigation.cold_ttr', displayName: 'Cold TTR' },
-  { key: 'warmTtr', fullName: 'expo.navigation.warm_ttr', displayName: 'Warm TTR' },
-  { key: 'tti', fullName: 'expo.navigation.tti', displayName: 'TTI' },
-];
-
-const NAVIGATION_METRIC_ALIASES: Record<string, NavigationMetricKey> = {
-  cold_ttr: 'coldTtr',
-  nav_cold_ttr: 'coldTtr',
-  coldTtr: 'coldTtr',
+const FULL_METRIC_NAME_TO_FIELD: Record<string, NavigationRouteField> = {
   'expo.navigation.cold_ttr': 'coldTtr',
-  warm_ttr: 'warmTtr',
-  nav_warm_ttr: 'warmTtr',
-  warmTtr: 'warmTtr',
   'expo.navigation.warm_ttr': 'warmTtr',
-  tti: 'tti',
-  nav_tti: 'tti',
   'expo.navigation.tti': 'tti',
 };
 
-export function resolveNavigationMetricKey(input: string): NavigationMetricKey {
-  const resolved = NAVIGATION_METRIC_ALIASES[input];
-  if (resolved) {
-    return resolved;
-  }
-  throw new EasCommandError(
-    `Unknown navigation metric: "${input}". Valid options: ${Object.keys(
-      NAVIGATION_METRIC_ALIASES
-    ).join(', ')}`
-  );
+export const NAVIGATION_METRIC_NAMES = Object.keys(FULL_METRIC_NAME_TO_FIELD);
+
+export function isNavigationMetric(metricName: string): boolean {
+  return metricName in FULL_METRIC_NAME_TO_FIELD;
 }
 
 function formatStatValue(stat: NavigationStatKey, value: number | null | undefined): string {
@@ -109,9 +84,13 @@ export interface ObserveNavigationRoutesJsonOutput {
 
 function metricStat(
   node: NavigationRouteWithPlatform,
-  metricKey: NavigationMetricKey
+  metricName: string
 ): { count: number; median: number | null; p90: number | null } {
-  const stat = node.route[metricKey];
+  const field = FULL_METRIC_NAME_TO_FIELD[metricName];
+  if (!field) {
+    throw new EasCommandError(`Unknown navigation metric: "${metricName}"`);
+  }
+  const stat = node.route[field];
   return {
     count: stat.count,
     median: stat.median ?? null,
@@ -121,20 +100,19 @@ function metricStat(
 
 export function buildObserveNavigationRoutesJson(
   routes: NavigationRouteWithPlatform[],
-  metricKeys: NavigationMetricKey[],
+  metricNames: string[],
   stats: NavigationStatKey[],
   pageInfoByPlatform: Map<AppPlatform, { hasNextPage: boolean; endCursor?: string | null }>
 ): ObserveNavigationRoutesJsonOutput {
   const jsonRoutes: NavigationRouteValuesJson[] = routes.map(node => {
     const metrics: Record<string, Partial<Record<NavigationStatKey, number | null>>> = {};
-    for (const metricKey of metricKeys) {
-      const spec = NAVIGATION_METRICS.find(m => m.key === metricKey)!;
-      const values = metricStat(node, metricKey);
+    for (const metricName of metricNames) {
+      const values = metricStat(node, metricName);
       const statValues: Partial<Record<NavigationStatKey, number | null>> = {};
       for (const stat of stats) {
         statValues[stat] = values[stat] ?? null;
       }
-      metrics[spec.fullName] = statValues;
+      metrics[metricName] = statValues;
     }
     return {
       routeName: node.route.routeName,
@@ -166,7 +144,7 @@ export interface BuildNavigationRoutesTableOptions {
 
 export function buildObserveNavigationRoutesTable(
   routes: NavigationRouteWithPlatform[],
-  metricKeys: NavigationMetricKey[],
+  metricNames: string[],
   stats: NavigationStatKey[],
   options?: BuildNavigationRoutesTableOptions
 ): string {
@@ -198,15 +176,14 @@ export function buildObserveNavigationRoutesTable(
   }
 
   const metricHeaders: string[] = [];
-  for (const key of metricKeys) {
-    const spec = NAVIGATION_METRICS.find(m => m.key === key)!;
+  for (const metricName of metricNames) {
+    const displayName = getMetricDisplayName(metricName);
     if (displayStats.length > 0 && hasCount) {
-      // Merged mode: one column per displayStat (combined with count)
       for (const stat of displayStats) {
         metricHeaders.push(
           displayStats.length > 1
-            ? `${spec.displayName} ${NAVIGATION_STAT_DISPLAY_NAMES[stat]}`
-            : spec.displayName
+            ? `${displayName} ${NAVIGATION_STAT_DISPLAY_NAMES[stat]}`
+            : displayName
         );
       }
     } else {
@@ -215,8 +192,8 @@ export function buildObserveNavigationRoutesTable(
         : (['count'] as NavigationStatKey[])) {
         metricHeaders.push(
           displayStats.length === 0
-            ? `${spec.displayName} Count`
-            : `${spec.displayName} ${NAVIGATION_STAT_DISPLAY_NAMES[stat]}`
+            ? `${displayName} Count`
+            : `${displayName} ${NAVIGATION_STAT_DISPLAY_NAMES[stat]}`
         );
       }
     }
@@ -231,8 +208,8 @@ export function buildObserveNavigationRoutesTable(
 
     const rows: string[][] = platformRoutes.map(node => {
       const cells: string[] = [];
-      for (const key of metricKeys) {
-        const values = metricStat(node, key);
+      for (const metricName of metricNames) {
+        const values = metricStat(node, metricName);
         if (displayStats.length > 0 && hasCount) {
           for (const stat of displayStats) {
             cells.push(formatMergedCell(stat, values[stat], values.count));

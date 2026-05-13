@@ -50,7 +50,7 @@ describe(ObserveRoutes, () => {
     return command;
   }
 
-  it('queries both platforms by default with default metric keys', async () => {
+  it('queries both platforms by default with all three navigation metric full names', async () => {
     const command = createCommand([]);
     await command.runAsync();
 
@@ -60,7 +60,11 @@ describe(ObserveRoutes, () => {
     expect(options.limit).toBe(50);
 
     const tableCall = mockBuildObserveNavigationRoutesTable.mock.calls[0];
-    expect(tableCall[1]).toEqual(['coldTtr', 'warmTtr', 'tti']);
+    expect(tableCall[1]).toEqual([
+      'expo.navigation.cold_ttr',
+      'expo.navigation.warm_ttr',
+      'expo.navigation.tti',
+    ]);
     expect(tableCall[2]).toEqual(['median', 'count']);
   });
 
@@ -72,18 +76,21 @@ describe(ObserveRoutes, () => {
     expect(options.platforms).toEqual([AppPlatform.Ios]);
   });
 
-  it('resolves --metric aliases to navigation metric keys and deduplicates', async () => {
+  it('resolves --metric short aliases to navigation metric full names and deduplicates', async () => {
     const command = createCommand([
       '--metric',
       'cold_ttr',
       '--metric',
-      'expo.navigation.cold_ttr',
+      'cold_ttr',
       '--metric',
-      'tti',
+      'nav_tti',
     ]);
     await command.runAsync();
 
-    expect(mockBuildObserveNavigationRoutesTable.mock.calls[0][1]).toEqual(['coldTtr', 'tti']);
+    expect(mockBuildObserveNavigationRoutesTable.mock.calls[0][1]).toEqual([
+      'expo.navigation.cold_ttr',
+      'expo.navigation.tti',
+    ]);
   });
 
   it('passes --limit and --after through to the fetcher', async () => {

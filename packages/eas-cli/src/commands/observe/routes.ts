@@ -6,34 +6,19 @@ import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigationRoutes';
 import {
-  NAVIGATION_METRICS,
-  NavigationMetricKey,
+  NAVIGATION_METRIC_NAMES,
   NavigationStatKey,
   buildObserveNavigationRoutesJson,
   buildObserveNavigationRoutesTable,
-  resolveNavigationMetricKey,
   resolveNavigationStatKey,
 } from '../../observe/formatNavigationRoutes';
+import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
 import { allowedPlatformFlagValues, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_ROUTES_LIMIT = 50;
-
-const DEFAULT_METRIC_KEYS: NavigationMetricKey[] = NAVIGATION_METRICS.map(m => m.key);
-
-const METRIC_ALIAS_OPTIONS = [
-  'cold_ttr',
-  'warm_ttr',
-  'tti',
-  'nav_cold_ttr',
-  'nav_warm_ttr',
-  'nav_tti',
-  'expo.navigation.cold_ttr',
-  'expo.navigation.warm_ttr',
-  'expo.navigation.tti',
-];
 
 const STAT_OPTIONS = ['median', 'med', 'p90', 'count', 'event_count', 'eventCount'];
 
@@ -54,7 +39,7 @@ export default class ObserveRoutes extends EasCommand {
       description:
         'Navigation metric to display (can be specified multiple times). Defaults to all three.',
       multiple: true,
-      options: METRIC_ALIAS_OPTIONS,
+      options: Object.keys(NAVIGATION_METRIC_ALIASES),
     })(),
     stat: Flags.option({
       description: 'Statistic to display per metric (can be specified multiple times)',
@@ -123,9 +108,9 @@ export default class ObserveRoutes extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    const metricKeys: NavigationMetricKey[] = flags.metric?.length
-      ? Array.from(new Set(flags.metric.map(resolveNavigationMetricKey)))
-      : DEFAULT_METRIC_KEYS;
+    const metricNames = flags.metric?.length
+      ? Array.from(new Set(flags.metric.map(resolveNavigationMetricName)))
+      : NAVIGATION_METRIC_NAMES;
 
     const argumentsStat = flags.stat?.length
       ? Array.from(new Set(flags.stat.map(resolveNavigationStatKey)))
@@ -152,13 +137,13 @@ export default class ObserveRoutes extends EasCommand {
     if (flags.json) {
       const stats = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
-        buildObserveNavigationRoutesJson(routes, metricKeys, stats, pageInfoByPlatform)
+        buildObserveNavigationRoutesJson(routes, metricNames, stats, pageInfoByPlatform)
       );
     } else {
       const stats = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
       Log.log(
-        buildObserveNavigationRoutesTable(routes, metricKeys, stats, {
+        buildObserveNavigationRoutesTable(routes, metricNames, stats, {
           daysBack,
           startTime,
           endTime,

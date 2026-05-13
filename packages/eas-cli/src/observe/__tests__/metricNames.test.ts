@@ -1,4 +1,8 @@
-import { getMetricDisplayName, resolveMetricName } from '../metricNames';
+import {
+  getMetricDisplayName,
+  resolveMetricName,
+  resolveNavigationMetricName,
+} from '../metricNames';
 
 describe(resolveMetricName, () => {
   it('resolves short alias "tti" to full metric name', () => {
@@ -37,13 +41,44 @@ describe(resolveMetricName, () => {
   });
 });
 
+describe(resolveNavigationMetricName, () => {
+  it('resolves short aliases to navigation metric full names', () => {
+    expect(resolveNavigationMetricName('cold_ttr')).toBe('expo.navigation.cold_ttr');
+    expect(resolveNavigationMetricName('warm_ttr')).toBe('expo.navigation.warm_ttr');
+    expect(resolveNavigationMetricName('nav_tti')).toBe('expo.navigation.tti');
+  });
+
+  it('passes through full navigation metric names unchanged', () => {
+    expect(resolveNavigationMetricName('expo.navigation.cold_ttr')).toBe(
+      'expo.navigation.cold_ttr'
+    );
+    expect(resolveNavigationMetricName('expo.navigation.warm_ttr')).toBe(
+      'expo.navigation.warm_ttr'
+    );
+    expect(resolveNavigationMetricName('expo.navigation.tti')).toBe('expo.navigation.tti');
+  });
+
+  it('throws on unknown alias or non-navigation metric', () => {
+    expect(() => resolveNavigationMetricName('unknown')).toThrow('Unknown navigation metric');
+    expect(() => resolveNavigationMetricName('expo.app_startup.tti')).toThrow(
+      'Unknown navigation metric'
+    );
+  });
+});
+
 describe(getMetricDisplayName, () => {
-  it('returns short display name for known metrics', () => {
+  it('returns short display name for known app-startup metrics', () => {
     expect(getMetricDisplayName('expo.app_startup.cold_launch_time')).toBe('Cold Launch');
     expect(getMetricDisplayName('expo.app_startup.warm_launch_time')).toBe('Warm Launch');
     expect(getMetricDisplayName('expo.app_startup.tti')).toBe('TTI');
     expect(getMetricDisplayName('expo.app_startup.ttr')).toBe('TTR');
     expect(getMetricDisplayName('expo.app_startup.bundle_load_time')).toBe('Bundle Load');
+  });
+
+  it('returns short display name for known navigation metrics', () => {
+    expect(getMetricDisplayName('expo.navigation.cold_ttr')).toBe('Cold TTR');
+    expect(getMetricDisplayName('expo.navigation.warm_ttr')).toBe('Warm TTR');
+    expect(getMetricDisplayName('expo.navigation.tti')).toBe('Nav TTI');
   });
 
   it('returns the full metric name for unknown metrics', () => {

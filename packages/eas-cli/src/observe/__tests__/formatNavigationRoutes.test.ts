@@ -3,7 +3,7 @@ import { NavigationRouteWithPlatform } from '../fetchNavigationRoutes';
 import {
   buildObserveNavigationRoutesJson,
   buildObserveNavigationRoutesTable,
-  resolveNavigationMetricKey,
+  isNavigationMetric,
   resolveNavigationStatKey,
 } from '../formatNavigationRoutes';
 
@@ -46,21 +46,17 @@ function makeRoute(
   };
 }
 
-describe(resolveNavigationMetricKey, () => {
-  it('resolves short, alias, and full names to canonical keys', () => {
-    expect(resolveNavigationMetricKey('cold_ttr')).toBe('coldTtr');
-    expect(resolveNavigationMetricKey('nav_cold_ttr')).toBe('coldTtr');
-    expect(resolveNavigationMetricKey('expo.navigation.cold_ttr')).toBe('coldTtr');
-    expect(resolveNavigationMetricKey('warm_ttr')).toBe('warmTtr');
-    expect(resolveNavigationMetricKey('nav_warm_ttr')).toBe('warmTtr');
-    expect(resolveNavigationMetricKey('expo.navigation.warm_ttr')).toBe('warmTtr');
-    expect(resolveNavigationMetricKey('tti')).toBe('tti');
-    expect(resolveNavigationMetricKey('nav_tti')).toBe('tti');
-    expect(resolveNavigationMetricKey('expo.navigation.tti')).toBe('tti');
+describe(isNavigationMetric, () => {
+  it('returns true for each known navigation metric full name', () => {
+    expect(isNavigationMetric('expo.navigation.cold_ttr')).toBe(true);
+    expect(isNavigationMetric('expo.navigation.warm_ttr')).toBe(true);
+    expect(isNavigationMetric('expo.navigation.tti')).toBe(true);
   });
 
-  it('throws on unknown metric', () => {
-    expect(() => resolveNavigationMetricKey('foo')).toThrow('Unknown navigation metric');
+  it('returns false for app-startup metrics or unknown names', () => {
+    expect(isNavigationMetric('expo.app_startup.tti')).toBe(false);
+    expect(isNavigationMetric('cold_ttr')).toBe(false);
+    expect(isNavigationMetric('unknown')).toBe(false);
   });
 });
 
@@ -81,7 +77,11 @@ describe(resolveNavigationStatKey, () => {
 
 describe(buildObserveNavigationRoutesTable, () => {
   it('returns a yellow warning when no routes are present', () => {
-    const output = buildObserveNavigationRoutesTable([], ['coldTtr'], ['median', 'count']);
+    const output = buildObserveNavigationRoutesTable(
+      [],
+      ['expo.navigation.cold_ttr'],
+      ['median', 'count']
+    );
     expect(output).toContain('No navigation routes found.');
   });
 
@@ -96,7 +96,7 @@ describe(buildObserveNavigationRoutesTable, () => {
 
     const output = buildObserveNavigationRoutesTable(
       routes,
-      ['coldTtr', 'warmTtr', 'tti'],
+      ['expo.navigation.cold_ttr', 'expo.navigation.warm_ttr', 'expo.navigation.tti'],
       ['median', 'count'],
       { daysBack: 7 }
     );
@@ -104,7 +104,7 @@ describe(buildObserveNavigationRoutesTable, () => {
     expect(output).toContain('Med values (navigation count) for the last 7 days');
     expect(output).toContain('Cold TTR');
     expect(output).toContain('Warm TTR');
-    expect(output).toContain('TTI');
+    expect(output).toContain('Nav TTI');
     expect(output).toContain('/home');
     expect(output).toContain('/profile');
     expect(output).toContain('0.50s (10)');
@@ -115,7 +115,11 @@ describe(buildObserveNavigationRoutesTable, () => {
 
   it('renders separate columns when count is omitted from stats', () => {
     const routes = [makeRoute('/home', AppPlatform.Ios)];
-    const output = buildObserveNavigationRoutesTable(routes, ['coldTtr'], ['median', 'p90']);
+    const output = buildObserveNavigationRoutesTable(
+      routes,
+      ['expo.navigation.cold_ttr'],
+      ['median', 'p90']
+    );
 
     expect(output).toContain('Med, P90 values');
     expect(output).toContain('Cold TTR Med');
@@ -126,7 +130,11 @@ describe(buildObserveNavigationRoutesTable, () => {
 
   it('renders count-only column when only count stat is requested', () => {
     const routes = [makeRoute('/home', AppPlatform.Ios)];
-    const output = buildObserveNavigationRoutesTable(routes, ['coldTtr'], ['count']);
+    const output = buildObserveNavigationRoutesTable(
+      routes,
+      ['expo.navigation.cold_ttr'],
+      ['count']
+    );
 
     expect(output).toContain('Navigation count values');
     expect(output).toContain('Cold TTR Count');
@@ -139,9 +147,12 @@ describe(buildObserveNavigationRoutesTable, () => {
       [AppPlatform.Ios, { hasNextPage: true, endCursor: 'cursor-ios' }],
     ]);
 
-    const output = buildObserveNavigationRoutesTable(routes, ['coldTtr'], ['median', 'count'], {
-      pageInfoByPlatform,
-    });
+    const output = buildObserveNavigationRoutesTable(
+      routes,
+      ['expo.navigation.cold_ttr'],
+      ['median', 'count'],
+      { pageInfoByPlatform }
+    );
 
     expect(output).toContain('Next page (iOS): --after cursor-ios');
   });
@@ -156,7 +167,7 @@ describe(buildObserveNavigationRoutesJson, () => {
 
     const result = buildObserveNavigationRoutesJson(
       routes,
-      ['coldTtr', 'tti'],
+      ['expo.navigation.cold_ttr', 'expo.navigation.tti'],
       ['median', 'p90', 'count'],
       pageInfoByPlatform
     );
@@ -185,7 +196,7 @@ describe(buildObserveNavigationRoutesJson, () => {
 
     const result = buildObserveNavigationRoutesJson(
       routes,
-      ['coldTtr'],
+      ['expo.navigation.cold_ttr'],
       ['median', 'p90', 'count'],
       new Map()
     );
