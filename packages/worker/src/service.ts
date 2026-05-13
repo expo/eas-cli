@@ -275,7 +275,6 @@ export default class BuildService {
     projectId: string;
     initiatingUserId: string;
   }): Promise<void> {
-    const buildMetadata = metadata ?? {};
     try {
       const {
         logger: buildLogger,
@@ -286,14 +285,14 @@ export default class BuildService {
 
       const analytics = new Analytics(
         initiatingUserId,
-        buildMetadata.trackingContext ?? {}
+        metadata?.trackingContext ?? {}
       );
 
       const ctx = createBuildContext({
         job,
         logBuffer,
         analytics,
-        metadata: buildMetadata,
+        metadata: metadata ?? {},
         projectId,
         buildId: this.buildId,
         buildLogger,
@@ -362,15 +361,15 @@ export default class BuildService {
                   error_code: err.errorCode,
                   platform: job.platform,
                   workflow: job.type,
-                  sdk_version: buildMetadata.sdkVersion ?? null,
-                  expo_package_version: buildMetadata.expoPackageVersion ?? null,
-                  react_native_version: buildMetadata.reactNativeVersion ?? null,
+                  sdk_version: metadata?.sdkVersion ?? null,
+                  expo_package_version: metadata?.expoPackageVersion ?? null,
+                  react_native_version: metadata?.reactNativeVersion ?? null,
                   app_id: job.appId ?? null,
-                  build_profile: buildMetadata.buildProfile ?? null,
-                  app_name: buildMetadata.appName ?? null,
-                  app_identifier: buildMetadata.appIdentifier ?? null,
-                  distribution: buildMetadata.distribution ?? null,
-                  cli_version: buildMetadata.cliVersion ?? null,
+                  build_profile: metadata?.buildProfile ?? null,
+                  app_name: metadata?.appName ?? null,
+                  app_identifier: metadata?.appIdentifier ?? null,
+                  distribution: metadata?.distribution ?? null,
+                  cli_version: metadata?.cliVersion ?? null,
                 },
               },
               headers: {
