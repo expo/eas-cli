@@ -15,7 +15,7 @@ import {
   Metadata,
   Platform,
   errors,
-  getExpoPackageVersionAsync,
+  getInstalledExpoPackageVersionAsync as getInstalledExpoPackageVersionFromProjectAsync,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
 import { asyncResult } from '@expo/results';
@@ -306,7 +306,7 @@ export default class BuildService {
       });
       this.buildContext = ctx;
 
-      const expoPackageVersionResult = await asyncResult(resolveBuildExpoPackageVersionAsync(ctx));
+      const expoPackageVersionResult = await asyncResult(getInstalledExpoPackageVersionAsync(ctx));
       if (expoPackageVersionResult.ok) {
         metadataWithWorkerFields.expoPackageVersion = expoPackageVersionResult.value;
       } else {
@@ -421,9 +421,9 @@ function getLastNLines(numberOfLines: number, stream: string): string {
   }
 }
 
-export async function resolveBuildExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
+export async function getInstalledExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
   const expoPackageVersionResult = await asyncResult(
-    getExpoPackageVersionAsync({
+    getInstalledExpoPackageVersionFromProjectAsync({
       env: ctx.env,
       projectDir: ctx.getReactNativeProjectDirectory(),
     })

@@ -1,7 +1,7 @@
 import {
   Metadata,
   Platform,
-  getExpoPackageVersionAsync,
+  getInstalledExpoPackageVersionAsync,
   sanitizeMetadata,
 } from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
@@ -165,7 +165,7 @@ export async function maybeGetExpoPackageVersionAsync(
   projectDir: string
 ): Promise<string | undefined> {
   try {
-    return await getExpoPackageVersionAsync({
+    return await getInstalledExpoPackageVersionAsync({
       env: process.env,
       projectDir,
     });

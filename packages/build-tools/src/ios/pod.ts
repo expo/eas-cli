@@ -1,4 +1,4 @@
-import { Env, Ios, getExpoPackageVersionAsync } from '@expo/eas-build-job';
+import { Env, Ios, getInstalledExpoPackageVersionAsync } from '@expo/eas-build-job';
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import path from 'path';
 import semver from 'semver';
@@ -52,7 +52,7 @@ async function resolvePrecompiledModulesPodInstallEnvAsync<TJob extends Ios.Job>
 
   let expoPackageVersion: string;
   try {
-    expoPackageVersion = await getExpoPackageVersionAsync({
+    expoPackageVersion = await getInstalledExpoPackageVersionAsync({
       env: ctx.env,
       projectDir: ctx.getReactNativeProjectDirectory(),
     });
