@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Refactor observe commands to extract common flag definitions. ([#3731](https://github.com/expo/eas-cli/pull/3731) by [@douglowder](https://github.com/douglowder))
+
 ## [18.12.3](https://github.com/expo/eas-cli/releases/tag/v18.12.3) - 2026-05-13
 
 ## [18.12.2](https://github.com/expo/eas-cli/releases/tag/v18.12.2) - 2026-05-12
