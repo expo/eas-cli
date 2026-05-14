@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] New command `observe:routes` for navigation metrics. ([#3730](https://github.com/expo/eas-cli/pull/3730) by [@douglowder](https://github.com/douglowder))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [18.13.0](https://github.com/expo/eas-cli/releases/tag/v18.13.0) - 2026-05-14
+
+### 🎉 New features
+
+- [eas-cli] New command `observe:routes` for navigation metrics. ([#3730](https://github.com/expo/eas-cli/pull/3730) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
