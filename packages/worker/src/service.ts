@@ -17,9 +17,12 @@ import {
   errors,
 } from '@expo/eas-build-job';
 import { LoggerLevel } from '@expo/logger';
+import { asyncResult } from '@expo/results';
+import spawn from '@expo/turtle-spawn';
 import assert from 'assert';
 import fs from 'fs-extra';
 import path from 'path';
+import semver from 'semver';
 import { setTimeout as setTimeoutAsync } from 'timers/promises';
 
 import { build } from './build';
@@ -31,7 +34,6 @@ import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
 import { WebSocketServer } from './utils/WebSocketServer';
-import { turtleFetch } from './utils/turtleFetch';
 
 export const HANGING_WORKER_CHECK_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -331,55 +333,6 @@ export default class BuildService {
         },
       });
 
-      const robotAccessToken = job.secrets?.robotAccessToken;
-      if (robotAccessToken) {
-        let rawErrorMessage: string = '';
-        if (maybeRawError?.stderr) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stderr);
-        }
-        if (maybeRawError?.stdout) {
-          rawErrorMessage += '\n' + getLastNLines(100, maybeRawError.stdout);
-        }
-        if (!rawErrorMessage) {
-          rawErrorMessage = maybeRawError?.message ?? err.message;
-        }
-
-        try {
-          await turtleFetch(
-            new URL('turtle-builds/logs', config.wwwApiV2BaseUrl).toString(),
-            'POST',
-            {
-              json: {
-                buildId: this.buildId,
-                message: rawErrorMessage,
-                level: 'error',
-                tags: {
-                  build_phase: err.buildPhase ?? null,
-                  error_code: err.errorCode,
-                  platform: job.platform,
-                  workflow: job.type,
-                  sdk_version: metadata?.sdkVersion ?? null,
-                  expo_package_version: metadata?.expoPackageVersion ?? null,
-                  react_native_version: metadata?.reactNativeVersion ?? null,
-                  app_id: job.appId ?? null,
-                  build_profile: metadata?.buildProfile ?? null,
-                  app_name: metadata?.appName ?? null,
-                  app_identifier: metadata?.appIdentifier ?? null,
-                  distribution: metadata?.distribution ?? null,
-                  cli_version: metadata?.cliVersion ?? null,
-                },
-              },
-              headers: {
-                Authorization: `Bearer ${robotAccessToken}`,
-              },
-              shouldThrowOnNotOk: false,
-            }
-          );
-        } catch (fetchError: any) {
-          logger.warn({ err: fetchError }, 'Failed to send build error log');
-        }
-      }
-
       await this.finishError(err, maybeArtifacts);
     }
   }
@@ -402,4 +355,42 @@ function getLastNLines(numberOfLines: number, stream: string): string {
   } else {
     return lines.slice(lines.length - numberOfLines, lines.length).join('\n');
   }
+}
+
+export async function getExpoPackageVersionAsync(ctx: BuildContext<Job>): Promise<string> {
+  const reactNativeProjectDirectory = ctx.getReactNativeProjectDirectory();
+  const expoPackageJsonPathResult = await asyncResult(
+    spawn('node', ['--print', "require.resolve('expo/package.json')"], {
+      cwd: reactNativeProjectDirectory,
+      env: ctx.env,
+      stdio: 'pipe',
+    })
+  );
+  if (!expoPackageJsonPathResult.ok) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_NOT_FOUND',
+      'Cannot resolve the installed expo package version because require.resolve("expo/package.json") failed.',
+      { cause: expoPackageJsonPathResult.reason }
+    );
+  }
+
+  const expoPackageJsonPath = expoPackageJsonPathResult.value.stdout.toString().trim();
+  const expoPackageJsonResult = await asyncResult(fs.readJson(expoPackageJsonPath));
+  if (!expoPackageJsonResult.ok) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_READ_FAILED',
+      'Cannot resolve the installed expo package version because expo/package.json could not be read.',
+      { cause: expoPackageJsonResult.reason }
+    );
+  }
+
+  const expoPackageVersion = expoPackageJsonResult.value.version;
+  if (typeof expoPackageVersion !== 'string' || !semver.valid(expoPackageVersion)) {
+    throw new errors.UserError(
+      'EAS_BUILD_EXPO_PACKAGE_VERSION_INVALID',
+      'Cannot resolve the installed expo package version because expo/package.json has an invalid version.'
+    );
+  }
+
+  return expoPackageVersion;
 }
