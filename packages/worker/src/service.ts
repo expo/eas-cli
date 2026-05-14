@@ -29,7 +29,7 @@ import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
-import { reportWorkflowCustomMetricAsync } from './external/customMetrics';
+import { reportWorkflowCustomMetricsAsync } from './external/customMetrics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
@@ -248,15 +248,17 @@ export default class BuildService {
     }
 
     if (this.buildContext) {
-      void reportWorkflowCustomMetricAsync(this.buildContext, {
-        name: 'eas.workflow.build.phase.duration',
-        value: stats.durationMs,
-        tags: {
-          build_phase: stats.buildPhase.toLowerCase(),
-          ...(this.buildContext.job.platform ? { platform: this.buildContext.job.platform } : {}),
-          result: stats.result,
+      void reportWorkflowCustomMetricsAsync(this.buildContext, [
+        {
+          name: 'eas.workflow.build.phase.duration',
+          value: stats.durationMs,
+          tags: {
+            build_phase: stats.buildPhase.toLowerCase(),
+            ...(this.buildContext.job.platform ? { platform: this.buildContext.job.platform } : {}),
+            result: stats.result,
+          },
         },
-      });
+      ]);
     }
   }
 

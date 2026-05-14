@@ -11,10 +11,13 @@ interface WorkflowCustomMetric {
   tags?: Record<string, string>;
 }
 
-export async function reportWorkflowCustomMetricAsync(
+export async function reportWorkflowCustomMetricsAsync(
   ctx: BuildContext<Job>,
-  metric: WorkflowCustomMetric
+  metrics: WorkflowCustomMetric[]
 ): Promise<void> {
+  if (metrics.length === 0) {
+    return;
+  }
   const workflowJobId = ctx.env.__WORKFLOW_JOB_ID;
   if (!workflowJobId) {
     return;
@@ -29,13 +32,13 @@ export async function reportWorkflowCustomMetricAsync(
       new URL(`workflows/${workflowJobId}/custom-metrics/`, config.wwwApiV2BaseUrl).toString(),
       'POST',
       {
-        json: { metrics: [metric] },
+        json: { metrics },
         headers: {
           Authorization: `Bearer ${robotAccessToken}`,
         },
       }
     );
   } catch (err) {
-    logger.warn({ err, metric }, 'Failed to report workflow custom metric');
+    logger.warn({ err, metrics }, 'Failed to report workflow custom metrics');
   }
 }

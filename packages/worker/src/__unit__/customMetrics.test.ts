@@ -3,7 +3,7 @@ import { Job } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
 import { Response } from 'node-fetch';
 
-import { reportWorkflowCustomMetricAsync } from '../external/customMetrics';
+import { reportWorkflowCustomMetricsAsync } from '../external/customMetrics';
 import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('../utils/turtleFetch', () => ({
@@ -38,22 +38,24 @@ function makeCtx({
   } as unknown as BuildContext<Job>;
 }
 
-describe(reportWorkflowCustomMetricAsync, () => {
+describe(reportWorkflowCustomMetricsAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('POSTs to /workflows/:id/custom-metrics with bearer token', async () => {
+  it('POSTs metrics to /workflows/:id/custom-metrics with bearer token', async () => {
     const workflowJobId = randomUUID();
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
-    await reportWorkflowCustomMetricAsync(
+    await reportWorkflowCustomMetricsAsync(
       makeCtx({ workflowJobId, robotAccessToken: 'token-abc' }),
-      {
-        name: 'eas.workflow.build.phase.duration',
-        value: 1234,
-        tags: { build_phase: 'install_dependencies', platform: 'ios', result: 'success' },
-      }
+      [
+        {
+          name: 'eas.workflow.build.phase.duration',
+          value: 1234,
+          tags: { build_phase: 'install_dependencies', platform: 'ios', result: 'success' },
+        },
+      ]
     );
 
     expect(turtleFetchMock).toHaveBeenCalledWith(
@@ -78,20 +80,50 @@ describe(reportWorkflowCustomMetricAsync, () => {
     );
   });
 
-  it('is a no-op when not running under a workflow job', async () => {
-    await reportWorkflowCustomMetricAsync(makeCtx({ robotAccessToken: 'token-abc' }), {
-      name: 'eas.workflow.build.phase.duration',
-      value: 1,
+  it('forwards multiple metrics in a single POST', async () => {
+    const workflowJobId = randomUUID();
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+
+    await reportWorkflowCustomMetricsAsync(
+      makeCtx({ workflowJobId, robotAccessToken: 'token-abc' }),
+      [
+        { name: 'eas.workflow.build.phase.duration', value: 1 },
+        { name: 'eas.workflow.build.phase.duration', value: 2 },
+      ]
+    );
+
+    expect(turtleFetchMock).toHaveBeenCalledTimes(1);
+    expect(turtleFetchMock.mock.calls[0][2]).toMatchObject({
+      json: {
+        metrics: [
+          { name: 'eas.workflow.build.phase.duration', value: 1 },
+          { name: 'eas.workflow.build.phase.duration', value: 2 },
+        ],
+      },
     });
+  });
+
+  it('is a no-op when called with an empty array', async () => {
+    await reportWorkflowCustomMetricsAsync(
+      makeCtx({ workflowJobId: randomUUID(), robotAccessToken: 'token-abc' }),
+      []
+    );
+
+    expect(turtleFetchMock).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when not running under a workflow job', async () => {
+    await reportWorkflowCustomMetricsAsync(makeCtx({ robotAccessToken: 'token-abc' }), [
+      { name: 'eas.workflow.build.phase.duration', value: 1 },
+    ]);
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no robot access token is available', async () => {
-    await reportWorkflowCustomMetricAsync(makeCtx({ workflowJobId: randomUUID() }), {
-      name: 'eas.workflow.build.phase.duration',
-      value: 1,
-    });
+    await reportWorkflowCustomMetricsAsync(makeCtx({ workflowJobId: randomUUID() }), [
+      { name: 'eas.workflow.build.phase.duration', value: 1 },
+    ]);
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
@@ -100,9 +132,9 @@ describe(reportWorkflowCustomMetricAsync, () => {
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
 
     await expect(
-      reportWorkflowCustomMetricAsync(
+      reportWorkflowCustomMetricsAsync(
         makeCtx({ workflowJobId: randomUUID(), robotAccessToken: 'token-abc' }),
-        { name: 'eas.workflow.build.phase.duration', value: 1 }
+        [{ name: 'eas.workflow.build.phase.duration', value: 1 }]
       )
     ).resolves.toBeUndefined();
   });
