@@ -33,7 +33,7 @@ export function createBuildContext<TJob extends Job>({
   projectId: string;
   buildId: string;
   buildLogger: bunyan;
-  reportBuildPhaseStatsFn: (stats: BuildPhaseStats) => void;
+  reportBuildPhaseStatsFn?: (stats: BuildPhaseStats) => void;
 }): BuildContext<TJob> {
   const env = getBuildEnv({ job, projectId, metadata, buildId });
   const childLogger = buildLogger.child({ buildId });

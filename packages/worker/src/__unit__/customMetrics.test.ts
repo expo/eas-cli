@@ -3,7 +3,7 @@ import { Job } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
 import { Response } from 'node-fetch';
 
-import { reportWorkflowCustomMetricsAsync } from '../external/customMetrics';
+import { reportTurtleBuildCustomMetricsAsync } from '../external/customMetrics';
 import { turtleFetch } from '../utils/turtleFetch';
 
 jest.mock('../utils/turtleFetch', () => ({
@@ -19,53 +19,57 @@ jest.mock('../logger', () => ({
   __esModule: true,
   default: {
     warn: jest.fn(),
-    info: jest.fn(),
   },
 }));
 
 const turtleFetchMock = jest.mocked(turtleFetch);
 
+const SAMPLE_METRIC = {
+  name: 'eas.workflow.build.phase.duration',
+  type: 'distribution',
+  value: 1,
+} as const;
+
 function makeCtx({
-  workflowJobId,
+  buildId,
   robotAccessToken,
 }: {
-  workflowJobId?: string;
+  buildId?: string;
   robotAccessToken?: string;
 }): BuildContext<Job> {
   return {
-    env: workflowJobId ? { __WORKFLOW_JOB_ID: workflowJobId } : {},
+    env: buildId ? { EAS_BUILD_ID: buildId } : {},
     job: { secrets: robotAccessToken ? { robotAccessToken } : undefined } as Job,
   } as unknown as BuildContext<Job>;
 }
 
-describe(reportWorkflowCustomMetricsAsync, () => {
+describe(reportTurtleBuildCustomMetricsAsync, () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('POSTs metrics to /workflows/:id/custom-metrics with bearer token', async () => {
-    const workflowJobId = randomUUID();
+  it('POSTs metrics to /turtle-builds/:id/custom-metrics with bearer token', async () => {
+    const buildId = randomUUID();
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
-    await reportWorkflowCustomMetricsAsync(
-      makeCtx({ workflowJobId, robotAccessToken: 'token-abc' }),
-      [
-        {
-          name: 'eas.workflow.build.phase.duration',
-          value: 1234,
-          tags: { build_phase: 'install_dependencies', platform: 'ios', result: 'success' },
-        },
-      ]
-    );
+    await reportTurtleBuildCustomMetricsAsync(makeCtx({ buildId, robotAccessToken: 'token-abc' }), [
+      {
+        name: 'eas.workflow.build.phase.duration',
+        type: 'distribution',
+        value: 1234,
+        tags: { build_phase: 'install_dependencies', platform: 'ios', result: 'success' },
+      },
+    ]);
 
     expect(turtleFetchMock).toHaveBeenCalledWith(
-      `https://api.expo.test/v2/workflows/${workflowJobId}/custom-metrics/`,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/custom-metrics/`,
       'POST',
       {
         json: {
           metrics: [
             {
               name: 'eas.workflow.build.phase.duration',
+              type: 'distribution',
               value: 1234,
               tags: {
                 build_phase: 'install_dependencies',
@@ -76,54 +80,50 @@ describe(reportWorkflowCustomMetricsAsync, () => {
           ],
         },
         headers: { Authorization: 'Bearer token-abc' },
+        retries: 2,
       }
     );
   });
 
   it('forwards multiple metrics in a single POST', async () => {
-    const workflowJobId = randomUUID();
+    const buildId = randomUUID();
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
-    await reportWorkflowCustomMetricsAsync(
-      makeCtx({ workflowJobId, robotAccessToken: 'token-abc' }),
-      [
-        { name: 'eas.workflow.build.phase.duration', value: 1 },
-        { name: 'eas.workflow.build.phase.duration', value: 2 },
-      ]
-    );
+    await reportTurtleBuildCustomMetricsAsync(makeCtx({ buildId, robotAccessToken: 'token-abc' }), [
+      { name: 'eas.workflow.build.phase.duration', type: 'distribution', value: 1 },
+      { name: 'eas.workflow.build.phase.duration', type: 'histogram', value: 2 },
+    ]);
 
     expect(turtleFetchMock).toHaveBeenCalledTimes(1);
     expect(turtleFetchMock.mock.calls[0][2]).toMatchObject({
       json: {
         metrics: [
-          { name: 'eas.workflow.build.phase.duration', value: 1 },
-          { name: 'eas.workflow.build.phase.duration', value: 2 },
+          { name: 'eas.workflow.build.phase.duration', type: 'distribution', value: 1 },
+          { name: 'eas.workflow.build.phase.duration', type: 'histogram', value: 2 },
         ],
       },
     });
   });
 
   it('is a no-op when called with an empty array', async () => {
-    await reportWorkflowCustomMetricsAsync(
-      makeCtx({ workflowJobId: randomUUID(), robotAccessToken: 'token-abc' }),
+    await reportTurtleBuildCustomMetricsAsync(
+      makeCtx({ buildId: randomUUID(), robotAccessToken: 'token-abc' }),
       []
     );
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
-  it('is a no-op when not running under a workflow job', async () => {
-    await reportWorkflowCustomMetricsAsync(makeCtx({ robotAccessToken: 'token-abc' }), [
-      { name: 'eas.workflow.build.phase.duration', value: 1 },
+  it('is a no-op when not running under a turtle build', async () => {
+    await reportTurtleBuildCustomMetricsAsync(makeCtx({ robotAccessToken: 'token-abc' }), [
+      SAMPLE_METRIC,
     ]);
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
   it('is a no-op when no robot access token is available', async () => {
-    await reportWorkflowCustomMetricsAsync(makeCtx({ workflowJobId: randomUUID() }), [
-      { name: 'eas.workflow.build.phase.duration', value: 1 },
-    ]);
+    await reportTurtleBuildCustomMetricsAsync(makeCtx({ buildId: randomUUID() }), [SAMPLE_METRIC]);
 
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
@@ -132,10 +132,11 @@ describe(reportWorkflowCustomMetricsAsync, () => {
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
 
     await expect(
-      reportWorkflowCustomMetricsAsync(
-        makeCtx({ workflowJobId: randomUUID(), robotAccessToken: 'token-abc' }),
-        [{ name: 'eas.workflow.build.phase.duration', value: 1 }]
+      reportTurtleBuildCustomMetricsAsync(
+        makeCtx({ buildId: randomUUID(), robotAccessToken: 'token-abc' }),
+        [SAMPLE_METRIC]
       )
     ).resolves.toBeUndefined();
+    expect(turtleFetchMock).toHaveBeenCalled();
   });
 });

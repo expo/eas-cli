@@ -29,7 +29,7 @@ import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
-import { reportWorkflowCustomMetricsAsync } from './external/customMetrics';
+import { reportTurtleBuildCustomMetricsAsync } from './external/customMetrics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
@@ -247,14 +247,16 @@ export default class BuildService {
       });
     }
 
-    if (this.buildContext) {
-      void reportWorkflowCustomMetricsAsync(this.buildContext, [
+    const platform = this.buildContext?.job.platform;
+    if (this.buildContext && platform) {
+      void reportTurtleBuildCustomMetricsAsync(this.buildContext, [
         {
           name: 'eas.workflow.build.phase.duration',
+          type: 'distribution',
           value: stats.durationMs,
           tags: {
             build_phase: stats.buildPhase.toLowerCase(),
-            ...(this.buildContext.job.platform ? { platform: this.buildContext.job.platform } : {}),
+            platform,
             result: stats.result,
           },
         },
@@ -310,9 +312,13 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
-        reportBuildPhaseStatsFn: stats => {
-          this.reportBuildPhaseStats(stats);
-        },
+        // Skip non-build jobs (jobRun/custom): both the ws BUILD_PHASE_STATS
+        // consumer and the custom-metrics endpoint are build-scoped.
+        reportBuildPhaseStatsFn: job.platform
+          ? stats => {
+              this.reportBuildPhaseStats(stats);
+            }
+          : undefined,
       });
       this.buildContext = ctx;
 

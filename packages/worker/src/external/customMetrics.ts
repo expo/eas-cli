@@ -5,21 +5,22 @@ import config from '../config';
 import logger from '../logger';
 import { turtleFetch } from '../utils/turtleFetch';
 
-interface WorkflowCustomMetric {
+interface TurtleBuildCustomMetric {
   name: string;
+  type: 'histogram' | 'distribution';
   value: number;
   tags?: Record<string, string>;
 }
 
-export async function reportWorkflowCustomMetricsAsync(
+export async function reportTurtleBuildCustomMetricsAsync(
   ctx: BuildContext<Job>,
-  metrics: WorkflowCustomMetric[]
+  metrics: TurtleBuildCustomMetric[]
 ): Promise<void> {
   if (metrics.length === 0) {
     return;
   }
-  const workflowJobId = ctx.env.__WORKFLOW_JOB_ID;
-  if (!workflowJobId) {
+  const buildId = ctx.env.EAS_BUILD_ID;
+  if (!buildId) {
     return;
   }
   const robotAccessToken = ctx.job.secrets?.robotAccessToken;
@@ -29,16 +30,19 @@ export async function reportWorkflowCustomMetricsAsync(
 
   try {
     await turtleFetch(
-      new URL(`workflows/${workflowJobId}/custom-metrics/`, config.wwwApiV2BaseUrl).toString(),
+      new URL(`turtle-builds/${buildId}/custom-metrics/`, config.wwwApiV2BaseUrl).toString(),
       'POST',
       {
         json: { metrics },
         headers: {
           Authorization: `Bearer ${robotAccessToken}`,
         },
+        // Datadog distribution/histogram tolerates duplicate samples, so retrying
+        // transient www failures is safer than dropping the data point.
+        retries: 2,
       }
     );
   } catch (err) {
-    logger.warn({ err, metrics }, 'Failed to report workflow custom metrics');
+    logger.warn({ err, metrics }, 'Failed to report turtle build custom metrics');
   }
 }

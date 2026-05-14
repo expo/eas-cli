@@ -3,13 +3,13 @@ import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import path from 'path';
 
-import { reportWorkflowCustomMetricsAsync } from '../external/customMetrics';
+import { reportTurtleBuildCustomMetricsAsync } from '../external/customMetrics';
 import BuildService, { getExpoPackageVersionAsync } from '../service';
 
 jest.mock('fs');
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../external/customMetrics', () => ({
-  reportWorkflowCustomMetricsAsync: jest.fn(),
+  reportTurtleBuildCustomMetricsAsync: jest.fn(),
 }));
 jest.mock('../config', () => {
   const actual = jest.requireActual('../config').default;
@@ -21,10 +21,9 @@ jest.mock('../config', () => {
 jest.mock('../logger', () => ({
   __esModule: true,
   default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-  createBuildLoggerWithSecretsFilter: jest.fn(),
 }));
 
-const reportMetricsMock = jest.mocked(reportWorkflowCustomMetricsAsync);
+const reportMetricsMock = jest.mocked(reportTurtleBuildCustomMetricsAsync);
 
 describe(getExpoPackageVersionAsync, () => {
   const projectRoot = '/test-project';
@@ -98,18 +97,19 @@ describe('BuildService.reportBuildPhaseStats', () => {
       [
         {
           name: 'eas.workflow.build.phase.duration',
+          type: 'distribution',
           value: 1234,
           tags: {
-            build_phase: BuildPhase.RUN_FASTLANE.toLowerCase(),
-            platform: Platform.IOS,
-            result: BuildPhaseResult.SUCCESS,
+            build_phase: 'run_fastlane',
+            platform: 'ios',
+            result: 'success',
           },
         },
       ]
     );
   });
 
-  it('omits the platform tag when the job has no platform', () => {
+  it('does not report when the job has no platform (jobRun/custom job)', () => {
     const service = new BuildService();
     (service as any).buildContext = { job: {} };
 
@@ -119,10 +119,7 @@ describe('BuildService.reportBuildPhaseStats', () => {
       durationMs: 1,
     });
 
-    expect(reportMetricsMock).toHaveBeenCalledTimes(1);
-    const tags = reportMetricsMock.mock.calls[0][1][0].tags;
-    expect(tags).not.toHaveProperty('platform');
-    expect(tags).toMatchObject({ build_phase: 'prepare_project', result: 'success' });
+    expect(reportMetricsMock).not.toHaveBeenCalled();
   });
 
   it('does not report when no build context is set', () => {
