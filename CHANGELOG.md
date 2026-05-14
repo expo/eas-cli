@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [worker] Report build phase durations to the new universe custom-metrics endpoint. ([#3732](https://github.com/expo/eas-cli/pull/3732) by [@gwdp](https://github.com/gwdp))
+
 ## [18.13.1](https://github.com/expo/eas-cli/releases/tag/v18.13.1) - 2026-05-18
 
 ### 🎉 New features
