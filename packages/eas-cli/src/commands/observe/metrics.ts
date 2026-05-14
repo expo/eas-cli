@@ -5,13 +5,18 @@ import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
+  ObservePlatformFlag,
+  ObserveProjectIdFlag,
+  ObserveTimeRangeFlags,
+} from '../../observe/flags';
+import {
   StatisticKey,
   buildObserveMetricsJson,
   buildObserveMetricsTable,
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
-import { allowedPlatformFlagValues, appPlatformsFromFlag } from '../../observe/platforms';
+import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -41,10 +46,7 @@ export default class ObserveMetrics extends EasCommand {
   static override description = 'display app performance metrics grouped by app version';
 
   static override flags = {
-    platform: Flags.option({
-      description: 'Filter by platform',
-      options: allowedPlatformFlagValues,
-    })(),
+    ...ObservePlatformFlag,
     metric: Flags.option({
       description: 'Metric name to display (can be specified multiple times).',
       multiple: true,
@@ -55,22 +57,8 @@ export default class ObserveMetrics extends EasCommand {
       multiple: true,
       options: DEFAULT_STATS_JSON,
     })(),
-    start: Flags.string({
-      description: 'Start of time range for metrics data (ISO date).',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of time range for metrics data (ISO date).',
-      exclusive: ['days'],
-    }),
-    days: Flags.integer({
-      description: 'Show metrics from the last N days (mutually exclusive with --start/--end)',
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    'project-id': Flags.string({
-      description: 'EAS project ID (defaults to the project ID of the current directory)',
-    }),
+    ...ObserveTimeRangeFlags,
+    ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
