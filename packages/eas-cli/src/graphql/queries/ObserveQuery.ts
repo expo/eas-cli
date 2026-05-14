@@ -10,6 +10,9 @@ import {
   AppObserveEvent,
   AppObserveEventsFilter,
   AppObserveEventsOrderBy,
+  AppObserveNavigationRoute,
+  AppObserveNavigationRoutesFilter,
+  AppObserveNavigationRoutesOrderBy,
   AppObservePlatform,
   AppObserveReleasesInput,
   AppObserveTimeSeriesInput,
@@ -131,6 +134,31 @@ type AppObserveCustomEventNamesQueryVariables = {
   endTime: string;
   platform?: AppObservePlatform;
   environment?: string;
+};
+
+type AppObserveNavigationRoutesQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        navigationRoutes: {
+          pageInfo: PageInfo;
+          edges: Array<{
+            cursor: string;
+            node: AppObserveNavigationRoute;
+          }>;
+        };
+      };
+    };
+  };
+};
+
+type AppObserveNavigationRoutesQueryVariables = {
+  appId: string;
+  filter: AppObserveNavigationRoutesFilter;
+  first?: number;
+  after?: string;
+  orderBy?: AppObserveNavigationRoutesOrderBy;
 };
 
 export const ObserveQuery = {
@@ -397,5 +425,69 @@ export const ObserveQuery = {
     );
 
     return data.app.byId.observe.customEventNames;
+  },
+
+  async navigationRoutesAsync(
+    graphqlClient: ExpoGraphqlClient,
+    variables: AppObserveNavigationRoutesQueryVariables
+  ): Promise<{ routes: AppObserveNavigationRoute[]; pageInfo: PageInfo }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveNavigationRoutesQuery, AppObserveNavigationRoutesQueryVariables>(
+          gql`
+            query AppObserveNavigationRoutes(
+              $appId: String!
+              $filter: AppObserveNavigationRoutesFilter!
+              $first: Int
+              $after: String
+              $orderBy: AppObserveNavigationRoutesOrderBy
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    navigationRoutes(filter: $filter, first: $first, after: $after, orderBy: $orderBy) {
+                      pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        endCursor
+                      }
+                      edges {
+                        cursor
+                        node {
+                          routeName
+                          coldTtr {
+                            count
+                            median
+                            p90
+                          }
+                          warmTtr {
+                            count
+                            median
+                            p90
+                          }
+                          tti {
+                            count
+                            median
+                            p90
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables
+        )
+        .toPromise()
+    );
+
+    const { edges, pageInfo } = data.app.byId.observe.navigationRoutes;
+    return {
+      routes: edges.map(edge => edge.node),
+      pageInfo,
+    };
   },
 };

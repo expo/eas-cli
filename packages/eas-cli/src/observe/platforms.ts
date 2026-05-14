@@ -51,3 +51,8 @@ export function appPlatformsFromFlag(flag: PlatformFlagValue | undefined): AppPl
   }
   return [defaultAppPlatform];
 }
+
+export const appPlatformToObservePlatform: Record<AppPlatform, AppObservePlatform> = {
+  [AppPlatform.Android]: AppObservePlatform.Android,
+  [AppPlatform.Ios]: AppObservePlatform.Ios,
+};
