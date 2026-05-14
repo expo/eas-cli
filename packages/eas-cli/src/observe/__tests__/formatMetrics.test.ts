@@ -71,12 +71,12 @@ describe(buildObserveMetricsTable, () => {
 "[1mMed values (event count)[22m
 
 [1miOS[22m
-[1mApp Version  Cold Launch  TTI       [22m
------------  -----------  ----------
-1.2.0        0.35s (110)  1.32s (90)
+[1mApp Version  Cold Launch  Startup TTI[22m
+-----------  -----------  -----------
+1.2.0        0.35s (110)  1.32s (90) 
 
 [1mAndroid[22m
-[1mApp Version  Cold Launch  TTI        [22m
+[1mApp Version  Cold Launch  Startup TTI[22m
 -----------  -----------  -----------
 1.1.0        0.25s (120)  1.12s (100)"
 `);
@@ -93,9 +93,9 @@ describe(buildObserveMetricsTable, () => {
 "[1mMed values (event count)[22m
 
 [1miOS[22m
-[1mApp Version  Cold Launch  TTI  [22m
------------  -----------  -----
-2.0.0        - (-)        - (-)"
+[1mApp Version  Cold Launch  Startup TTI[22m
+-----------  -----------  -----------
+2.0.0        - (-)        - (-)      "
 `);
   });
 

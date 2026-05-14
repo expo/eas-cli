@@ -70,14 +70,14 @@ describe(getMetricDisplayName, () => {
   it('returns short display name for known app-startup metrics', () => {
     expect(getMetricDisplayName('expo.app_startup.cold_launch_time')).toBe('Cold Launch');
     expect(getMetricDisplayName('expo.app_startup.warm_launch_time')).toBe('Warm Launch');
-    expect(getMetricDisplayName('expo.app_startup.tti')).toBe('TTI');
-    expect(getMetricDisplayName('expo.app_startup.ttr')).toBe('TTR');
+    expect(getMetricDisplayName('expo.app_startup.tti')).toBe('Startup TTI');
+    expect(getMetricDisplayName('expo.app_startup.ttr')).toBe('Startup TTR');
     expect(getMetricDisplayName('expo.app_startup.bundle_load_time')).toBe('Bundle Load');
   });
 
   it('returns short display name for known navigation metrics', () => {
-    expect(getMetricDisplayName('expo.navigation.cold_ttr')).toBe('Cold TTR');
-    expect(getMetricDisplayName('expo.navigation.warm_ttr')).toBe('Warm TTR');
+    expect(getMetricDisplayName('expo.navigation.cold_ttr')).toBe('Nav Cold TTR');
+    expect(getMetricDisplayName('expo.navigation.warm_ttr')).toBe('Nav Warm TTR');
     expect(getMetricDisplayName('expo.navigation.tti')).toBe('Nav TTI');
   });
 

@@ -20,11 +20,11 @@ const KNOWN_FULL_NAVIGATION_NAMES = new Set(Object.values(NAVIGATION_METRIC_ALIA
 export const METRIC_SHORT_NAMES: Record<string, string> = {
   'expo.app_startup.cold_launch_time': 'Cold Launch',
   'expo.app_startup.warm_launch_time': 'Warm Launch',
-  'expo.app_startup.tti': 'TTI',
-  'expo.app_startup.ttr': 'TTR',
+  'expo.app_startup.tti': 'Startup TTI',
+  'expo.app_startup.ttr': 'Startup TTR',
   'expo.app_startup.bundle_load_time': 'Bundle Load',
-  'expo.navigation.cold_ttr': 'Cold TTR',
-  'expo.navigation.warm_ttr': 'Warm TTR',
+  'expo.navigation.cold_ttr': 'Nav Cold TTR',
+  'expo.navigation.warm_ttr': 'Nav Warm TTR',
   'expo.navigation.tti': 'Nav TTI',
 };
 
