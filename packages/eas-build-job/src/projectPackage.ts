@@ -1,6 +1,6 @@
 import spawn from '@expo/turtle-spawn';
 import { asyncResult } from '@expo/results';
-import fs from 'fs-extra';
+import fs from 'fs/promises';
 import semver from 'semver';
 
 import { type Env } from './common';
@@ -29,7 +29,7 @@ export async function getInstalledExpoPackageVersionAsync({
   }
 
   const expoPackageJsonPath = expoPackageJsonPathResult.value.stdout.toString().trim();
-  const expoPackageJsonResult = await asyncResult(fs.readJson(expoPackageJsonPath));
+  const expoPackageJsonResult = await asyncResult(readJsonAsync(expoPackageJsonPath));
   if (!expoPackageJsonResult.ok) {
     throw new errors.UserError(
       'EAS_BUILD_EXPO_PACKAGE_VERSION_READ_FAILED',
@@ -47,4 +47,8 @@ export async function getInstalledExpoPackageVersionAsync({
   }
 
   return expoPackageVersion;
+}
+
+async function readJsonAsync(filePath: string): Promise<any> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8'));
 }

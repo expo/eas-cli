@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-import fsExtra from 'fs-extra';
 import os from 'os';
 import path from 'path';
 
@@ -44,7 +43,7 @@ describe(getInstalledExpoPackageVersionAsync, () => {
         path.join(projectDir, 'node_modules/expo/package.json'),
         JSON.stringify({ version: '55.0.17' })
       );
-      jest.spyOn(fsExtra, 'readJson').mockRejectedValueOnce(new Error('read failed'));
+      jest.spyOn(fs, 'readFile').mockRejectedValueOnce(new Error('read failed'));
 
       const promise = getInstalledExpoPackageVersionAsync({ projectDir });
       await expect(promise).rejects.toMatchObject({
