@@ -11,13 +11,17 @@ import {
   fetchTotalEventCountAsync,
   resolveOrderBy,
 } from '../../observe/fetchEvents';
+import {
+  ObserveAfterFlag,
+  ObserveAppVersionFlag,
+  ObservePlatformFlag,
+  ObserveProjectIdFlag,
+  ObserveTimeRangeFlags,
+  ObserveUpdateIdFlag,
+} from '../../observe/flags';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
-import {
-  allowedPlatformFlagValues,
-  appObservePlatformFromFlag,
-  appPlatformsFromFlag,
-} from '../../observe/platforms';
+import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { selectAsync } from '../../prompts';
@@ -44,40 +48,16 @@ export default class ObserveEvents extends EasCommand {
       required: false,
       default: EventsOrderPreset.Oldest.valueOf().toLowerCase(),
     })(),
-    platform: Flags.option({
-      description: 'Filter by platform',
-      options: allowedPlatformFlagValues,
-    })(),
-    after: Flags.string({
-      description:
-        'Cursor for pagination. Use the endCursor from a previous query to fetch the next page.',
-    }),
+    ...ObservePlatformFlag,
+    ...ObserveAfterFlag,
     limit: getLimitFlagWithCustomValues({
       defaultTo: DEFAULT_EVENTS_LIMIT,
       limit: 100,
     }),
-    start: Flags.string({
-      description: 'Start of time range (ISO date)',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of time range (ISO date)',
-      exclusive: ['days'],
-    }),
-    days: Flags.integer({
-      description: 'Show events from the last N days (mutually exclusive with --start/--end)',
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    'app-version': Flags.string({
-      description: 'Filter by app version',
-    }),
-    'update-id': Flags.string({
-      description: 'Filter by EAS update ID',
-    }),
-    'project-id': Flags.string({
-      description: 'EAS project ID (defaults to the project ID of the current directory)',
-    }),
+    ...ObserveTimeRangeFlags,
+    ...ObserveAppVersionFlag,
+    ...ObserveUpdateIdFlag,
+    ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 

@@ -6,6 +6,14 @@ import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigationRoutes';
 import {
+  ObserveAfterFlag,
+  ObserveAppVersionFlag,
+  ObservePlatformFlag,
+  ObserveProjectIdFlag,
+  ObserveTimeRangeFlags,
+  ObserveUpdateIdFlag,
+} from '../../observe/flags';
+import {
   NAVIGATION_METRIC_NAMES,
   NavigationStatKey,
   buildObserveNavigationRoutesJson,
@@ -13,7 +21,7 @@ import {
   resolveNavigationStatKey,
 } from '../../observe/formatNavigationRoutes';
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
-import { allowedPlatformFlagValues, appPlatformsFromFlag } from '../../observe/platforms';
+import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -31,10 +39,7 @@ export default class ObserveRoutes extends EasCommand {
     'display app navigation route metrics (Cold TTR, Warm TTR, TTI) grouped by route name';
 
   static override flags = {
-    platform: Flags.option({
-      description: 'Filter by platform',
-      options: allowedPlatformFlagValues,
-    })(),
+    ...ObservePlatformFlag,
     metric: Flags.option({
       description:
         'Navigation metric to display (can be specified multiple times). Defaults to all three.',
@@ -46,39 +51,18 @@ export default class ObserveRoutes extends EasCommand {
       multiple: true,
       options: STAT_OPTIONS,
     })(),
-    after: Flags.string({
-      description:
-        'Cursor for pagination. Use the endCursor from a previous query to fetch the next page.',
-    }),
+    ...ObserveAfterFlag,
     limit: getLimitFlagWithCustomValues({
       defaultTo: DEFAULT_ROUTES_LIMIT,
       limit: 200,
     }),
-    start: Flags.string({
-      description: 'Start of time range (ISO date)',
-      exclusive: ['days'],
-    }),
-    end: Flags.string({
-      description: 'End of time range (ISO date)',
-      exclusive: ['days'],
-    }),
-    days: Flags.integer({
-      description: 'Show routes from the last N days (mutually exclusive with --start/--end)',
-      min: 1,
-      exclusive: ['start', 'end'],
-    }),
-    'app-version': Flags.string({
-      description: 'Filter by app version',
-    }),
-    'update-id': Flags.string({
-      description: 'Filter by EAS update ID',
-    }),
+    ...ObserveTimeRangeFlags,
+    ...ObserveAppVersionFlag,
+    ...ObserveUpdateIdFlag,
     'build-number': Flags.string({
       description: 'Filter by app build number',
     }),
-    'project-id': Flags.string({
-      description: 'EAS project ID (defaults to the project ID of the current directory)',
-    }),
+    ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
 
