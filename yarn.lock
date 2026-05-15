@@ -3117,6 +3117,8 @@ __metadata:
   resolution: "@expo/eas-build-job@workspace:packages/eas-build-job"
   dependencies:
     "@expo/logger": "npm:18.5.0"
+    "@expo/results": "npm:1.0.0"
+    "@expo/turtle-spawn": "npm:18.5.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:20.14.2"
     jest: "npm:^29.7.0"

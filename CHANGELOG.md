@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Send the installed `expo` package version in build metadata. ([#3725](https://github.com/expo/eas-cli/pull/3725) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

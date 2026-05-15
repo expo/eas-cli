@@ -1,5 +1,11 @@
-import { Metadata, Platform, sanitizeMetadata } from '@expo/eas-build-job';
+import {
+  Metadata,
+  Platform,
+  getInstalledExpoPackageVersionAsync,
+  sanitizeMetadata,
+} from '@expo/eas-build-job';
 import { IosEnterpriseProvisioning } from '@expo/eas-json';
+import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
@@ -9,9 +15,7 @@ import { maybeResolveVersionsAsync as maybeResolveIosVersionsAsync } from './ios
 import { LocalBuildMode } from './local';
 import { BuildDistributionType } from './types';
 import Log from '../log';
-import {
-  isExpoUpdatesInstalled,
-} from '../project/projectUtils';
+import { isExpoUpdatesInstalled } from '../project/projectUtils';
 import { readChannelSafelyAsync as readAndroidChannelSafelyAsync } from '../update/android/UpdatesModule';
 import { readChannelSafelyAsync as readIosChannelSafelyAsync } from '../update/ios/UpdatesModule';
 import { easCliVersion } from '../utils/easCli';
@@ -26,6 +30,16 @@ export async function collectMetadataAsync<T extends Platform>(
 ): Promise<Metadata> {
   const channelObject = await resolveChannelAsync(ctx);
   const distribution = ctx.buildProfile.distribution ?? BuildDistributionType.STORE;
+  const expoPackageVersionResult = await asyncResult(
+    getInstalledExpoPackageVersionAsync({
+      env: process.env,
+      projectDir: ctx.projectDir,
+    })
+  );
+  if (!expoPackageVersionResult.ok) {
+    Log.debug('Failed to resolve expo package version:');
+    Log.debug(expoPackageVersionResult.reason);
+  }
   const metadata: Metadata = {
     trackingContext: ctx.analyticsEventProperties,
     ...(await maybeResolveVersionsAsync(ctx)),
@@ -36,6 +50,7 @@ export async function collectMetadataAsync<T extends Platform>(
     runtimeVersion: runtimeAndFingerprintMetadata?.runtimeVersion,
     fingerprintHash: runtimeAndFingerprintMetadata?.fingerprintHash,
     reactNativeVersion: await getReactNativeVersionAsync(ctx.projectDir),
+    expoPackageVersion: expoPackageVersionResult.value,
     ...channelObject,
     distribution,
     appName: ctx.exp.name,
