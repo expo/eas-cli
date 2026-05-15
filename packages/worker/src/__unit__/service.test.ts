@@ -96,7 +96,7 @@ describe('BuildService.reportBuildPhaseStats', () => {
       expect.objectContaining({ job: { platform: Platform.IOS } }),
       [
         {
-          name: 'eas.workflow.build.phase.duration',
+          name: 'eas.build.phase_duration',
           type: 'distribution',
           value: 1234,
           tags: {

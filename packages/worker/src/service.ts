@@ -251,7 +251,7 @@ export default class BuildService {
     if (this.buildContext && platform) {
       void reportTurtleBuildCustomMetricsAsync(this.buildContext, [
         {
-          name: 'eas.workflow.build.phase.duration',
+          name: 'eas.build.phase_duration',
           type: 'distribution',
           value: stats.durationMs,
           tags: {

@@ -7,7 +7,7 @@ import { turtleFetch } from '../utils/turtleFetch';
 
 interface TurtleBuildCustomMetric {
   name: string;
-  type: 'histogram' | 'distribution';
+  type: 'distribution';
   value: number;
   tags?: Record<string, string>;
 }
@@ -30,7 +30,7 @@ export async function reportTurtleBuildCustomMetricsAsync(
 
   try {
     await turtleFetch(
-      new URL(`turtle-builds/${buildId}/custom-metrics/`, config.wwwApiV2BaseUrl).toString(),
+      new URL(`turtle-builds/${buildId}/metrics`, config.wwwApiV2BaseUrl).toString(),
       'POST',
       {
         json: { metrics },

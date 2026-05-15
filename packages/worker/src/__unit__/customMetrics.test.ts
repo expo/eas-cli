@@ -25,7 +25,7 @@ jest.mock('../logger', () => ({
 const turtleFetchMock = jest.mocked(turtleFetch);
 
 const SAMPLE_METRIC = {
-  name: 'eas.workflow.build.phase.duration',
+  name: 'eas.build.phase_duration',
   type: 'distribution',
   value: 1,
 } as const;
@@ -48,13 +48,13 @@ describe(reportTurtleBuildCustomMetricsAsync, () => {
     jest.clearAllMocks();
   });
 
-  it('POSTs metrics to /turtle-builds/:id/custom-metrics with bearer token', async () => {
+  it('POSTs metrics to /turtle-builds/:id/metrics with bearer token', async () => {
     const buildId = randomUUID();
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
     await reportTurtleBuildCustomMetricsAsync(makeCtx({ buildId, robotAccessToken: 'token-abc' }), [
       {
-        name: 'eas.workflow.build.phase.duration',
+        name: 'eas.build.phase_duration',
         type: 'distribution',
         value: 1234,
         tags: { build_phase: 'install_dependencies', platform: 'ios', result: 'success' },
@@ -62,13 +62,13 @@ describe(reportTurtleBuildCustomMetricsAsync, () => {
     ]);
 
     expect(turtleFetchMock).toHaveBeenCalledWith(
-      `https://api.expo.test/v2/turtle-builds/${buildId}/custom-metrics/`,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/metrics`,
       'POST',
       {
         json: {
           metrics: [
             {
-              name: 'eas.workflow.build.phase.duration',
+              name: 'eas.build.phase_duration',
               type: 'distribution',
               value: 1234,
               tags: {
@@ -90,16 +90,16 @@ describe(reportTurtleBuildCustomMetricsAsync, () => {
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
     await reportTurtleBuildCustomMetricsAsync(makeCtx({ buildId, robotAccessToken: 'token-abc' }), [
-      { name: 'eas.workflow.build.phase.duration', type: 'distribution', value: 1 },
-      { name: 'eas.workflow.build.phase.duration', type: 'histogram', value: 2 },
+      { name: 'eas.build.phase_duration', type: 'distribution', value: 1 },
+      { name: 'eas.build.phase_duration', type: 'distribution', value: 2 },
     ]);
 
     expect(turtleFetchMock).toHaveBeenCalledTimes(1);
     expect(turtleFetchMock.mock.calls[0][2]).toMatchObject({
       json: {
         metrics: [
-          { name: 'eas.workflow.build.phase.duration', type: 'distribution', value: 1 },
-          { name: 'eas.workflow.build.phase.duration', type: 'histogram', value: 2 },
+          { name: 'eas.build.phase_duration', type: 'distribution', value: 1 },
+          { name: 'eas.build.phase_duration', type: 'distribution', value: 2 },
         ],
       },
     });
