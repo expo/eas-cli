@@ -91,7 +91,7 @@ export async function build({
 
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
 
-    if (job.platform === Platform.ANDROID && ctx.env.EXPERIMENTAL_GRADLE_PROFILE === '1') {
+    if (job.platform === Platform.ANDROID) {
       await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
         const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
         const profileTasks = await parseGradleProfile(androidDir, logger);

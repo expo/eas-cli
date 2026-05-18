@@ -31,11 +31,10 @@ export async function runGradleCommand(
   logger.info(`Running 'gradlew ${gradleCommand}' in ${androidDir}`);
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
-  const profileFlag = ctx.env['EXPERIMENTAL_GRADLE_PROFILE'] === '1' ? '--profile' : '';
 
   const spawnPromise = spawn(
     'bash',
-    ['-c', `./gradlew ${gradleCommand} ${profileFlag} ${verboseFlag}`],
+    ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`],
     {
       cwd: androidDir,
       logger,
