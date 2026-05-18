@@ -85,6 +85,34 @@ describe('fetchObserveNavigationRoutesAsync', () => {
     expect(filter).not.toHaveProperty('appVersion');
     expect(filter).not.toHaveProperty('appUpdateId');
     expect(filter).not.toHaveProperty('appBuildNumber');
+    expect(filter).not.toHaveProperty('routeNames');
+  });
+
+  it('forwards routeNames filter when provided', async () => {
+    await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+      platforms: [AppPlatform.Ios],
+      limit: 50,
+      routeNames: ['/home', '/profile'],
+    });
+
+    expect(mockNavigationRoutesAsync.mock.calls[0][1].filter.routeNames).toEqual([
+      '/home',
+      '/profile',
+    ]);
+  });
+
+  it('does not send routeNames when array is empty', async () => {
+    await fetchObserveNavigationRoutesAsync(mockGraphqlClient, 'project-123', {
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+      platforms: [AppPlatform.Ios],
+      limit: 50,
+      routeNames: [],
+    });
+
+    expect(mockNavigationRoutesAsync.mock.calls[0][1].filter).not.toHaveProperty('routeNames');
   });
 
   it('forwards after cursor when provided', async () => {

@@ -152,6 +152,22 @@ describe(ObserveRoutes, () => {
     expect(options.buildNumber).toBe('42');
   });
 
+  it('passes --route-name flags through as routeNames array', async () => {
+    const command = createCommand(['--route-name', '/home', '--route-name', '/profile']);
+    await command.runAsync();
+
+    const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
+    expect(options.routeNames).toEqual(['/home', '/profile']);
+  });
+
+  it('does not pass routeNames when --route-name is not provided', async () => {
+    const command = createCommand([]);
+    await command.runAsync();
+
+    const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
+    expect(options.routeNames).toBeUndefined();
+  });
+
   it('resolves --stat aliases and passes them through', async () => {
     const command = createCommand(['--stat', 'p90', '--stat', 'eventCount']);
     await command.runAsync();
