@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import debug from 'debug';
 import figures from 'figures';
 import { boolish } from 'getenv';
 import logSymbols from 'log-symbols';
@@ -6,8 +7,7 @@ import terminalLink from 'terminal-link';
 
 type Color = (...text: string[]) => string;
 
-// eslint-disable-next-line eslint-import/no-extraneous-dependencies
-const nodeDebug = require('debug')('eas:log:debug') as (...args: any[]) => void;
+const nodeDebug = debug('eas:log:debug');
 
 export default class Log {
   public static readonly isDebug = boolish('EXPO_DEBUG', false);
@@ -48,7 +48,8 @@ export default class Log {
       Log.consoleLog(...args);
     } else {
       Log.updateIsLastLineNewLine(args);
-      nodeDebug(...args);
+      const [first, ...rest] = args;
+      nodeDebug(first, ...rest);
     }
   }
 
