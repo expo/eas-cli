@@ -1,50 +1,36 @@
-import { bunyan } from '@expo/logger';
-
+import { Sentry } from './sentry';
 import { turtleFetch } from './utils/turtleFetch';
 
 type DatadogSetupOptions = {
-  expoApiV2BaseUrl?: string | null;
-  turtleBuildId?: string | null;
-  robotAccessToken?: string | null;
-  logger?: bunyan;
+  expoApiV2BaseUrl: string;
+  turtleBuildOrJobRunId: string;
+  robotAccessToken?: string;
 };
 
-type DatadogDistributionMetric = {
-  name: string;
-  type: 'distribution';
-  value: number;
-  tags?: Record<string, string>;
-};
+let setupOptions: DatadogSetupOptions | null = null;
 
-type DatadogAPI = {
-  setup(opts: DatadogSetupOptions): void;
-  distribution(name: string, value: number, tags?: Record<string, string>): void;
-};
-
-let setupOptions: DatadogSetupOptions = {};
-
-export const Datadog: DatadogAPI = {
-  setup(opts: DatadogSetupOptions): void {
+export const Datadog = {
+  setup(opts: DatadogSetupOptions | null): void {
     setupOptions = opts;
   },
 
   distribution(name: string, value: number, tags?: Record<string, string>): void {
-    const { expoApiV2BaseUrl, turtleBuildId, robotAccessToken, logger } = setupOptions;
-    if (!expoApiV2BaseUrl || !turtleBuildId || !robotAccessToken) {
+    if (!setupOptions?.robotAccessToken) {
       return;
     }
+    const { expoApiV2BaseUrl, turtleBuildOrJobRunId, robotAccessToken } = setupOptions;
 
-    const metric: DatadogDistributionMetric = {
+    const metric = {
       name,
-      type: 'distribution',
+      type: 'distribution' as const,
       value,
       ...(tags ? { tags } : {}),
     };
 
-    try {
+    void (async () => {
       const baseUrl = expoApiV2BaseUrl.endsWith('/') ? expoApiV2BaseUrl : `${expoApiV2BaseUrl}/`;
-      void turtleFetch(
-        new URL(`turtle-builds/${turtleBuildId}/metrics`, baseUrl).toString(),
+      await turtleFetch(
+        new URL(`turtle-builds/${turtleBuildOrJobRunId}/metrics`, baseUrl).toString(),
         'POST',
         {
           json: { metrics: [metric] },
@@ -52,13 +38,12 @@ export const Datadog: DatadogAPI = {
             Authorization: `Bearer ${robotAccessToken}`,
           },
           retries: 2,
-          logger,
         }
-      ).catch(err => {
-        logger?.warn({ err, metrics: [metric] }, 'Failed to report turtle build metric');
+      );
+    })().catch(err => {
+      Sentry.capture('Failed to report turtle build metric', err, {
+        extras: { metrics: [metric] },
       });
-    } catch (err) {
-      logger?.warn({ err, metrics: [metric] }, 'Failed to report turtle build metric');
-    }
+    });
   },
 };

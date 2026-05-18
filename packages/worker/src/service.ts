@@ -288,10 +288,9 @@ export default class BuildService {
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
       Datadog.setup({
-        expoApiV2BaseUrl: job.platform ? config.wwwApiV2BaseUrl : null,
-        turtleBuildId: job.platform ? this.buildId : null,
-        robotAccessToken: job.platform ? job.secrets?.robotAccessToken : null,
-        logger: buildLogger,
+        expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+        turtleBuildOrJobRunId: this.buildId,
+        robotAccessToken: job.secrets?.robotAccessToken,
       });
 
       const ctx = createBuildContext({

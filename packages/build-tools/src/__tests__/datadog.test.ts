@@ -1,29 +1,34 @@
 import { Response } from 'node-fetch';
 
 import { Datadog } from '../datadog';
+import { Sentry } from '../sentry';
 import { turtleFetch } from '../utils/turtleFetch';
 
+jest.mock('../sentry', () => ({
+  Sentry: {
+    capture: jest.fn(),
+  },
+}));
 jest.mock('../utils/turtleFetch', () => ({
   turtleFetch: jest.fn(),
 }));
 
 const turtleFetchMock = jest.mocked(turtleFetch);
+const sentryCaptureMock = jest.mocked(Sentry.capture);
 
 describe('Datadog singleton', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    Datadog.setup({});
+    Datadog.setup(null);
   });
 
   it('POSTs distribution metrics to the turtle build metrics endpoint', () => {
     turtleFetchMock.mockResolvedValueOnce({} as Response);
-    const logger = { warn: jest.fn() } as any;
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
+      turtleBuildOrJobRunId: 'build-id',
       robotAccessToken: 'token-abc',
-      logger,
     });
 
     Datadog.distribution('eas.build.phase_duration', 1234, {
@@ -52,22 +57,15 @@ describe('Datadog singleton', () => {
         },
         headers: { Authorization: 'Bearer token-abc' },
         retries: 2,
-        logger,
       }
     );
   });
 
   it.each([
-    { expoApiV2BaseUrl: null, turtleBuildId: 'build-id', robotAccessToken: 'token-abc' },
+    null,
     {
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: null,
-      robotAccessToken: 'token-abc',
-    },
-    {
-      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
-      robotAccessToken: null,
+      turtleBuildOrJobRunId: 'build-id',
     },
   ])('is a no-op when setup is incomplete: %p', setupOptions => {
     Datadog.setup(setupOptions);
@@ -78,39 +76,42 @@ describe('Datadog singleton', () => {
   });
 
   it('swallows upload failures', async () => {
-    const logger = { warn: jest.fn() } as any;
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
+      turtleBuildOrJobRunId: 'build-id',
       robotAccessToken: 'token-abc',
-      logger,
     });
 
     Datadog.distribution('eas.build.phase_duration', 1);
-    await Promise.resolve();
+    await flushPromises();
 
     expect(turtleFetchMock).toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to report turtle build metric'
+    expect(sentryCaptureMock).toHaveBeenCalledWith(
+      'Failed to report turtle build metric',
+      expect.any(Error),
+      expect.objectContaining({
+        extras: {
+          metrics: [{ name: 'eas.build.phase_duration', type: 'distribution', value: 1 }],
+        },
+      })
     );
   });
 
-  it('swallows synchronous URL construction failures', () => {
-    const logger = { warn: jest.fn() } as any;
+  it('swallows synchronous URL construction failures', async () => {
     Datadog.setup({
       expoApiV2BaseUrl: 'not a url',
-      turtleBuildId: 'build-id',
+      turtleBuildOrJobRunId: 'build-id',
       robotAccessToken: 'token-abc',
-      logger,
     });
 
     expect(() => Datadog.distribution('eas.build.phase_duration', 1)).not.toThrow();
     expect(turtleFetchMock).not.toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.objectContaining({ message: 'Invalid URL' }) }),
-      'Failed to report turtle build metric'
+    await flushPromises();
+    expect(sentryCaptureMock).toHaveBeenCalledWith(
+      'Failed to report turtle build metric',
+      expect.objectContaining({ message: 'Invalid URL' }),
+      expect.any(Object)
     );
   });
 
@@ -119,12 +120,12 @@ describe('Datadog singleton', () => {
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'first-build-id',
+      turtleBuildOrJobRunId: 'first-build-id',
       robotAccessToken: 'first-token',
     });
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'second-build-id',
+      turtleBuildOrJobRunId: 'second-build-id',
       robotAccessToken: 'second-token',
     });
 
@@ -139,3 +140,7 @@ describe('Datadog singleton', () => {
     );
   });
 });
+
+async function flushPromises(): Promise<void> {
+  await new Promise(resolve => setImmediate(resolve));
+}

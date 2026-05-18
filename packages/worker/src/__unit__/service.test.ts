@@ -170,9 +170,8 @@ describe('BuildService Datadog setup', () => {
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
       expoApiV2BaseUrl: expect.any(String),
-      turtleBuildId: 'build-id',
+      turtleBuildOrJobRunId: 'build-id',
       robotAccessToken: 'token-abc',
-      logger: buildLogger,
     });
     expect(createBuildContextMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -181,7 +180,7 @@ describe('BuildService Datadog setup', () => {
     );
   });
 
-  it('clears Datadog setup for non-platform jobs', async () => {
+  it('configures Datadog for non-platform jobs with the worker task id', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});
 
@@ -195,10 +194,9 @@ describe('BuildService Datadog setup', () => {
     });
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
-      expoApiV2BaseUrl: null,
-      turtleBuildId: null,
-      robotAccessToken: null,
-      logger: buildLogger,
+      expoApiV2BaseUrl: expect.any(String),
+      turtleBuildOrJobRunId: 'build-id',
+      robotAccessToken: 'token-abc',
     });
     expect(createBuildContextMock).toHaveBeenCalledWith(
       expect.objectContaining({
