@@ -120,6 +120,7 @@ export type Account = {
   /** Billing information. Only visible to members with the ADMIN or OWNER role. */
   billing?: Maybe<Billing>;
   billingPeriod: BillingPeriod;
+  concurrencyConsumers: Array<ConcurrencyConsumer>;
   /** Convex team connections for this account */
   convexTeamConnections: Array<ConvexTeamConnection>;
   createdAt: Scalars['DateTime']['output'];
@@ -396,6 +397,15 @@ export type AccountAuditLogsPaginatedArgs = {
  */
 export type AccountBillingPeriodArgs = {
   date: Scalars['DateTime']['input'];
+};
+
+
+/**
+ * An account is a container owning projects, credentials, billing and other organization
+ * data and settings. Actors may own and be members of accounts.
+ */
+export type AccountConcurrencyConsumersArgs = {
+  limit?: Scalars['Int']['input'];
 };
 
 
@@ -2167,6 +2177,7 @@ export type AppObserveCustomEventNamesArgs = {
   appVersion?: InputMaybe<Scalars['String']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   orderBy?: InputMaybe<AppObserveCustomEventNamesOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
   startTime: Scalars['DateTime']['input'];
@@ -2209,10 +2220,23 @@ export type AppObserveUpdatesArgs = {
   input: AppObserveUpdatesInput;
 };
 
+export type AppObserveAppBuildEmbeddedSummary = {
+  __typename?: 'AppObserveAppBuildEmbeddedSummary';
+  eventCount: Scalars['Int']['output'];
+  firstSeenAt: Scalars['DateTime']['output'];
+  uniqueUserCount: Scalars['Int']['output'];
+};
+
 export type AppObserveAppBuildNumber = {
   __typename?: 'AppObserveAppBuildNumber';
   appBuildNumber: Scalars['String']['output'];
   easBuilds: Array<AppObserveAppEasBuild>;
+  /**
+   * Summary restricted to events running this build's embedded bundle
+   * (no OTA update applied). Null when the build has no such events
+   * in the queried time range.
+   */
+  embedded?: Maybe<AppObserveAppBuildEmbeddedSummary>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
   uniqueUserCount: Scalars['Int']['output'];
@@ -2229,6 +2253,7 @@ export type AppObserveAppEasBuild = {
 export type AppObserveAppUpdate = {
   __typename?: 'AppObserveAppUpdate';
   appUpdateId: Scalars['String']['output'];
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
   easBuilds: Array<AppObserveAppEasBuild>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
@@ -2259,6 +2284,7 @@ export type AppObserveCustomEvent = {
   appEasBuildId?: Maybe<Scalars['String']['output']>;
   appIdentifier: Scalars['String']['output'];
   appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
   clientVersion?: Maybe<Scalars['String']['output']>;
   countryCode?: Maybe<Scalars['String']['output']>;
@@ -2300,6 +2326,7 @@ export type AppObserveCustomEventCountsInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   eventName: Scalars['String']['input'];
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform: AppObservePlatform;
   startTime: Scalars['DateTime']['input'];
 };
@@ -2325,6 +2352,7 @@ export type AppObserveCustomEventListFilter = {
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
   eventName?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
   propertyFilters?: InputMaybe<Array<AppObserveCustomEventPropertyFilter>>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
@@ -2369,6 +2397,7 @@ export type AppObserveEvent = {
   appIdentifier: Scalars['String']['output'];
   appName: Scalars['String']['output'];
   appUpdateId?: Maybe<Scalars['String']['output']>;
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
   clientVersion?: Maybe<Scalars['String']['output']>;
   countryCode?: Maybe<Scalars['String']['output']>;
@@ -2423,6 +2452,7 @@ export type AppObserveEventsFilter = {
   easClientId?: InputMaybe<Scalars['String']['input']>;
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   metricName?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
   routeName?: InputMaybe<Scalars['String']['input']>;
@@ -2479,6 +2509,7 @@ export type AppObserveNavigationRoutesFilter = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   platform: AppObservePlatform;
+  routeNames?: InputMaybe<Array<Scalars['String']['input']>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2556,6 +2587,7 @@ export type AppObserveTimeSeriesInput = {
   bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
+  isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   metricName: Scalars['String']['input'];
   platform: AppObservePlatform;
   routeName?: InputMaybe<Scalars['String']['input']>;
@@ -2577,6 +2609,7 @@ export type AppObserveTimeSeriesStatistics = {
 export type AppObserveUpdate = {
   __typename?: 'AppObserveUpdate';
   appUpdateId: Scalars['String']['output'];
+  appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
   downloadCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
@@ -4187,6 +4220,7 @@ export enum BuildPhase {
   OnBuildErrorHook = 'ON_BUILD_ERROR_HOOK',
   OnBuildSuccessHook = 'ON_BUILD_SUCCESS_HOOK',
   ParseCustomWorkflowConfig = 'PARSE_CUSTOM_WORKFLOW_CONFIG',
+  ParseXcactivitylog = 'PARSE_XCACTIVITYLOG',
   PostInstallHook = 'POST_INSTALL_HOOK',
   Prebuild = 'PREBUILD',
   PrepareArtifacts = 'PREPARE_ARTIFACTS',
@@ -4409,6 +4443,8 @@ export type Concurrencies = {
   ios: Scalars['Int']['output'];
   total: Scalars['Int']['output'];
 };
+
+export type ConcurrencyConsumer = Build | JobRun;
 
 export enum ContinentCode {
   Af = 'AF',
@@ -6000,6 +6036,32 @@ export type EditUpdateBranchInput = {
   newName: Scalars['String']['input'];
 };
 
+export type EmbeddedUpdateAssetMutation = {
+  __typename?: 'EmbeddedUpdateAssetMutation';
+  /**
+   * Returns a presigned POST URL for uploading an embedded update bundle.
+   * Requires PUBLISH permission on the app.
+   */
+  getSignedEmbeddedUpdateAssetUploadSpecifications: EmbeddedUpdateAssetUploadSpec;
+};
+
+
+export type EmbeddedUpdateAssetMutationGetSignedEmbeddedUpdateAssetUploadSpecificationsArgs = {
+  appId: Scalars['ID']['input'];
+  contentType: Scalars['String']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
+};
+
+export type EmbeddedUpdateAssetUploadSpec = {
+  __typename?: 'EmbeddedUpdateAssetUploadSpec';
+  /** Form fields that must be included with the POST request alongside the file. */
+  fields: Scalars['JSONObject']['output'];
+  /** Presigned POST URL targeting the upload bucket. Valid for one hour. */
+  presignedUrl: Scalars['String']['output'];
+  /** Storage key (`{appId}/{embeddedUpdateId}`). Same key in both upload and destination buckets. */
+  storageKey: Scalars['String']['output'];
+};
+
 export enum EntityTypeName {
   AccountEntity = 'AccountEntity',
   AccountSsoConfigurationEntity = 'AccountSSOConfigurationEntity',
@@ -7275,6 +7337,8 @@ export type JobRun = {
   logFileUrls: Array<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   priority: JobRunPriority;
+  /** String describing the worker profile used to run this job run. */
+  resourceClassDisplayName: Scalars['String']['output'];
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
@@ -8154,6 +8218,7 @@ export type RootMutation = {
   echoTurn: EchoTurnMutation;
   /** Mutations for Echo versions */
   echoVersion: EchoVersionMutation;
+  embeddedUpdateAsset: EmbeddedUpdateAssetMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations that create and delete EnvironmentVariables */
