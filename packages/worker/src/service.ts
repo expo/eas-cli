@@ -1,6 +1,7 @@
 import {
   Artifacts,
   BuildContext,
+  Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
   runHookIfPresent,
@@ -29,7 +30,6 @@ import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
-import { reportTurtleBuildCustomMetricsAsync } from './external/customMetrics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
@@ -246,22 +246,6 @@ export default class BuildService {
         ...stats,
       });
     }
-
-    const platform = this.buildContext?.job.platform;
-    if (this.buildContext && platform) {
-      void reportTurtleBuildCustomMetricsAsync(this.buildContext, [
-        {
-          name: 'eas.build.phase_duration',
-          type: 'distribution',
-          value: stats.durationMs,
-          tags: {
-            build_phase: stats.buildPhase.toLowerCase(),
-            platform,
-            result: stats.result,
-          },
-        },
-      ]);
-    }
   }
 
   public syncLauncherState({ buildId }: LauncherMessage.StateQuery): void {
@@ -303,6 +287,12 @@ export default class BuildService {
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
+      Datadog.setup({
+        expoApiV2BaseUrl: job.platform ? config.wwwApiV2BaseUrl : null,
+        turtleBuildId: job.platform ? this.buildId : null,
+        robotAccessToken: job.platform ? job.secrets?.robotAccessToken : null,
+        logger: buildLogger,
+      });
 
       const ctx = createBuildContext({
         job,
@@ -312,13 +302,9 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
-        // Skip non-build jobs (jobRun/custom): both the ws BUILD_PHASE_STATS
-        // consumer and the custom-metrics endpoint are build-scoped.
-        reportBuildPhaseStatsFn: job.platform
-          ? stats => {
-              this.reportBuildPhaseStats(stats);
-            }
-          : undefined,
+        reportBuildPhaseStatsFn: stats => {
+          this.reportBuildPhaseStats(stats);
+        },
       });
       this.buildContext = ctx;
 

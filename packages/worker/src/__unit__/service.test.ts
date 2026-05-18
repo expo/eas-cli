@@ -1,15 +1,31 @@
-import { BuildPhase, BuildPhaseResult, Platform, errors } from '@expo/eas-build-job';
+import { Datadog } from '@expo/build-tools';
+import { BuildPhase, BuildPhaseResult, Job, errors } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import path from 'path';
 
-import { reportTurtleBuildCustomMetricsAsync } from '../external/customMetrics';
+import { build } from '../build';
+import { createBuildContext } from '../context';
+import { createBuildLoggerWithSecretsFilter } from '../logger';
 import BuildService, { getExpoPackageVersionAsync } from '../service';
 
 jest.mock('fs');
+jest.mock('@expo/build-tools', () => {
+  const actual = jest.requireActual('@expo/build-tools');
+  return {
+    ...actual,
+    GCS: { uploadWithSignedUrl: jest.fn() },
+    Datadog: {
+      setup: jest.fn(),
+    },
+  };
+});
 jest.mock('@expo/turtle-spawn', () => jest.fn());
-jest.mock('../external/customMetrics', () => ({
-  reportTurtleBuildCustomMetricsAsync: jest.fn(),
+jest.mock('../build', () => ({
+  build: jest.fn(),
+}));
+jest.mock('../context', () => ({
+  createBuildContext: jest.fn(() => ({ job: {} })),
 }));
 jest.mock('../config', () => {
   const actual = jest.requireActual('../config').default;
@@ -20,10 +36,20 @@ jest.mock('../config', () => {
 });
 jest.mock('../logger', () => ({
   __esModule: true,
-  default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  default: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    level: jest.fn(),
+  },
+  createBuildLoggerWithSecretsFilter: jest.fn(),
 }));
 
-const reportMetricsMock = jest.mocked(reportTurtleBuildCustomMetricsAsync);
+const buildMock = jest.mocked(build);
+const createBuildContextMock = jest.mocked(createBuildContext);
+const createBuildLoggerWithSecretsFilterMock = jest.mocked(createBuildLoggerWithSecretsFilter);
+const datadogSetupMock = jest.mocked(Datadog.setup);
 
 describe(getExpoPackageVersionAsync, () => {
   const projectRoot = '/test-project';
@@ -82,36 +108,26 @@ describe('BuildService.reportBuildPhaseStats', () => {
     jest.clearAllMocks();
   });
 
-  it('reports the phase as a custom metric when a build context is set', () => {
+  it('sends phase stats to the launcher websocket', () => {
+    const send = jest.fn();
     const service = new BuildService();
-    (service as any).buildContext = { job: { platform: Platform.IOS } };
+    service.setWS({ send } as any);
 
-    service.reportBuildPhaseStats({
+    const stats = {
       buildPhase: BuildPhase.RUN_FASTLANE,
       result: BuildPhaseResult.SUCCESS,
       durationMs: 1234,
-    });
+    };
+    service.reportBuildPhaseStats(stats);
 
-    expect(reportMetricsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ job: { platform: Platform.IOS } }),
-      [
-        {
-          name: 'eas.build.phase_duration',
-          type: 'distribution',
-          value: 1234,
-          tags: {
-            build_phase: 'run_fastlane',
-            platform: 'ios',
-            result: 'success',
-          },
-        },
-      ]
-    );
+    expect(send).toHaveBeenCalledWith({
+      type: 'build-phase-stats',
+      ...stats,
+    });
   });
 
-  it('does not report when the job has no platform (jobRun/custom job)', () => {
+  it('does not send phase stats when there is no launcher websocket', () => {
     const service = new BuildService();
-    (service as any).buildContext = { job: {} };
 
     service.reportBuildPhaseStats({
       buildPhase: BuildPhase.PREPARE_PROJECT,
@@ -119,18 +135,75 @@ describe('BuildService.reportBuildPhaseStats', () => {
       durationMs: 1,
     });
 
-    expect(reportMetricsMock).not.toHaveBeenCalled();
+    expect(datadogSetupMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('BuildService Datadog setup', () => {
+  const buildLogger = { child: jest.fn(() => buildLogger) } as any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    buildMock.mockResolvedValue({});
+    createBuildContextMock.mockReturnValue({ job: {} } as any);
+    createBuildLoggerWithSecretsFilterMock.mockResolvedValue({
+      logger: buildLogger,
+      cleanUp: jest.fn(async () => {}),
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] } as any,
+      outputStream: {} as any,
+    });
   });
 
-  it('does not report when no build context is set', () => {
+  it('configures Datadog for build jobs', async () => {
     const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
 
-    service.reportBuildPhaseStats({
-      buildPhase: BuildPhase.RUN_FASTLANE,
-      result: BuildPhaseResult.SUCCESS,
-      durationMs: 1,
+    await (service as any).startBuildInternal({
+      job: {
+        platform: 'ios',
+        secrets: { robotAccessToken: 'token-abc' },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
     });
 
-    expect(reportMetricsMock).not.toHaveBeenCalled();
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: expect.any(String),
+      turtleBuildId: 'build-id',
+      robotAccessToken: 'token-abc',
+      logger: buildLogger,
+    });
+    expect(createBuildContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportBuildPhaseStatsFn: expect.any(Function),
+      })
+    );
+  });
+
+  it('clears Datadog setup for non-platform jobs', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+
+    await (service as any).startBuildInternal({
+      job: {
+        secrets: { robotAccessToken: 'token-abc' },
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+
+    expect(datadogSetupMock).toHaveBeenCalledWith({
+      expoApiV2BaseUrl: null,
+      turtleBuildId: null,
+      robotAccessToken: null,
+      logger: buildLogger,
+    });
+    expect(createBuildContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportBuildPhaseStatsFn: expect.any(Function),
+      })
+    );
   });
 });
