@@ -1,4 +1,3 @@
-import { bunyan } from '@expo/logger';
 import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
 import path from 'path';
@@ -9,14 +8,10 @@ export interface GradleProfileTask {
   result: string;
 }
 
-export async function parseGradleProfile(
-  androidDir: string,
-  logger?: bunyan
-): Promise<GradleProfileTask[] | null> {
+export async function parseGradleProfile(androidDir: string): Promise<GradleProfileTask[]> {
   const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
   if (!(await fs.pathExists(profileDir))) {
-    logger?.info('Gradle profile directory not found at %s', profileDir);
-    return null;
+    throw new Error(`Gradle profile directory not found at ${profileDir}`);
   }
 
   const files = await fs.readdir(profileDir);
@@ -26,8 +21,7 @@ export async function parseGradleProfile(
     .pop();
 
   if (!htmlFile) {
-    logger?.info('No Gradle profile HTML found in %s', profileDir);
-    return null;
+    throw new Error(`No Gradle profile HTML found in ${profileDir}`);
   }
 
   const html = await fs.readFile(path.join(profileDir, htmlFile), 'utf8');
@@ -35,16 +29,14 @@ export async function parseGradleProfile(
   // Locate the <h2>Task Execution</h2> heading and extract its <table>
   const headingMatch = html.match(/<h2[^>]*>\s*Task Execution\s*<\/h2>/i);
   if (!headingMatch || headingMatch.index === undefined) {
-    logger?.info('Could not find Task Execution section in Gradle profile');
-    return null;
+    throw new Error('Could not find Task Execution section in Gradle profile');
   }
 
   const sectionStart = headingMatch.index;
   const tableStart = html.indexOf('<table', sectionStart);
   const tableEnd = html.indexOf('</table>', tableStart);
   if (tableStart === -1 || tableEnd === -1) {
-    logger?.info('Could not find task execution table in Gradle profile');
-    return null;
+    throw new Error('Could not find task execution table in Gradle profile');
   }
 
   const tableHtml = html.slice(tableStart, tableEnd + '</table>'.length);
@@ -59,7 +51,7 @@ export async function parseGradleProfile(
 
   const tasks: GradleProfileTask[] = [];
   for (const row of rows) {
-    const cells: any[] = row?.td;
+    const cells: unknown[] = row?.td;
     if (!cells || cells.length < 2) {
       continue;
     }
@@ -76,7 +68,7 @@ export async function parseGradleProfile(
     tasks.push({ path: taskPath, durationMs, result: result.toLowerCase() });
   }
 
-  return tasks.length > 0 ? tasks : null;
+  return tasks;
 }
 
 function parseDurationToMs(duration: string): number {
