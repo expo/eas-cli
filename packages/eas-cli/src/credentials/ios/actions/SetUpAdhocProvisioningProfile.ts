@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { resolveAscApiKeyForAppCredentialsAsync } from './AscApiKeyUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import {
   chooseDevicesAsync,
@@ -22,8 +23,6 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
-import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../../../log';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import {
@@ -35,13 +34,11 @@ import {
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
 import { MissingCredentialsNonInteractiveError } from '../../errors';
-import { getAscApiKeyForAppSubmissionsAsync } from '../api/GraphqlClient';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { ApplePlatform } from '../appstore/constants';
 import { hasAscEnvVars } from '../appstore/resolveCredentials';
-import { MinimalAscApiKey } from '../credentials';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -407,6 +404,9 @@ export class SetUpAdhocProvisioningProfile {
     ctx: CredentialsContext,
     app: AppLookupParams
   ): Promise<void> {
+    if (ctx.appStore.authCtx) {
+      return;
+    }
     if (hasAscEnvVars()) {
       await ctx.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
       return;
@@ -432,35 +432,6 @@ export class SetUpAdhocProvisioningProfile {
       teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
     });
   }
-}
-
-async function resolveAscApiKeyForAppCredentialsAsync({
-  graphqlClient,
-  app,
-}: {
-  graphqlClient: ExpoGraphqlClient;
-  app: AppLookupParams;
-}): Promise<{
-  ascApiKey: MinimalAscApiKey;
-  teamId?: string;
-  teamName?: string;
-} | null> {
-  const ascKeyFragment = await getAscApiKeyForAppSubmissionsAsync(graphqlClient, app);
-  if (!ascKeyFragment) {
-    return null;
-  }
-
-  Log.log('Using App Store Connect API Key from EAS credentials service.');
-  const fullKey = await AppStoreConnectApiKeyQuery.getByIdAsync(graphqlClient, ascKeyFragment.id);
-  return {
-    ascApiKey: {
-      keyP8: fullKey.keyP8,
-      keyId: fullKey.keyIdentifier,
-      issuerId: fullKey.issuerIdentifier,
-    },
-    teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
-    teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
-  };
 }
 
 export function doUDIDsMatch(udidsA: string[], udidsB: string[]): boolean {
