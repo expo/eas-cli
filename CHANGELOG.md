@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Prevent `npx` invocations that can be unreliable and fail when retrieving entitlements or project configs ([#3282](https://github.com/expo/eas-cli/pull/3282) by [@kitten](https://github.com/kitten))
+
 ### 🧹 Chores
 
 ## [18.13.0](https://github.com/expo/eas-cli/releases/tag/v18.13.0) - 2026-05-14
