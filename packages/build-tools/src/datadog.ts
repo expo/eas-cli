@@ -8,7 +8,7 @@ type DatadogSetupOptions = {
 };
 
 let setupOptions: DatadogSetupOptions | null = null;
-let pendingMetricUploads: Promise<void>[] = [];
+let pendingMetricUploads: Promise<unknown>[] = [];
 
 export const Datadog = {
   setup(opts: DatadogSetupOptions | null): void {
@@ -39,13 +39,11 @@ export const Datadog = {
         },
         retries: 2,
       }
-    )
-      .catch(err => {
-        Sentry.capture('Failed to report turtle build metric', err, {
-          extras: { metrics },
-        });
-      })
-      .then(() => undefined);
+    ).catch(err => {
+      Sentry.capture('Failed to report turtle build metric', err, {
+        extras: { metrics },
+      });
+    });
 
     pendingMetricUploads.push(uploadPromise);
   },
