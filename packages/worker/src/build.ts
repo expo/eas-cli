@@ -97,9 +97,7 @@ export async function build({
         const profileTasks = await parseGradleProfile(androidDir, logger);
         if (profileTasks && profileTasks.length > 0) {
           const report = formatGradleProfileReport(profileTasks);
-          for (const line of report.split('\n')) {
-            logger.info(line);
-          }
+          logger.info(report);
         }
       });
     }

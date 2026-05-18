@@ -1,4 +1,5 @@
 import { bunyan } from '@expo/logger';
+import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
 import path from 'path';
 
@@ -31,24 +32,45 @@ export async function parseGradleProfile(
 
   const html = await fs.readFile(path.join(profileDir, htmlFile), 'utf8');
 
-  // Find the "Task Execution" section - it's the last <table> in the "Task Execution" tab
-  const taskExecMatch = html.match(/<h2[^>]*>\s*Task Execution\s*<\/h2>([\s\S]*?)(?:<\/div>)/i);
-  if (!taskExecMatch) {
+  // Locate the <h2>Task Execution</h2> heading and extract its <table>
+  const headingMatch = html.match(/<h2[^>]*>\s*Task Execution\s*<\/h2>/i);
+  if (!headingMatch || headingMatch.index === undefined) {
     logger?.info('Could not find Task Execution section in Gradle profile');
     return null;
   }
 
-  const section = taskExecMatch[1];
-  const tasks: GradleProfileTask[] = [];
+  const sectionStart = headingMatch.index;
+  const tableStart = html.indexOf('<table', sectionStart);
+  const tableEnd = html.indexOf('</table>', tableStart);
+  if (tableStart === -1 || tableEnd === -1) {
+    logger?.info('Could not find task execution table in Gradle profile');
+    return null;
+  }
 
-  // Parse table rows: <td>task path</td><td>duration</td><td>result</td>
-  const rowRegex =
-    /<tr>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<\/tr>/gi;
-  let match;
-  while ((match = rowRegex.exec(section)) !== null) {
-    const taskPath = match[1].trim();
-    const durationStr = match[2].trim();
-    const result = match[3].trim() || 'executed';
+  const tableHtml = html.slice(tableStart, tableEnd + '</table>'.length);
+  const parser = new XMLParser({
+    ignoreAttributes: true,
+    isArray: (name) => name === 'tr' || name === 'td',
+    trimValues: true,
+  });
+
+  const parsed = parser.parse(tableHtml);
+  const rows: any[] = parsed?.table?.tbody?.tr ?? parsed?.table?.tr ?? [];
+
+  const tasks: GradleProfileTask[] = [];
+  for (const row of rows) {
+    const cells: any[] = row?.td;
+    if (!cells || cells.length < 2) {
+      continue;
+    }
+
+    const taskPath = String(cells[0] ?? '').trim();
+    const durationStr = String(cells[1] ?? '').trim();
+    const result = String(cells[2] ?? '').trim() || 'executed';
+
+    if (!taskPath || !durationStr) {
+      continue;
+    }
 
     const durationMs = parseDurationToMs(durationStr);
     tasks.push({ path: taskPath, durationMs, result: result.toLowerCase() });
