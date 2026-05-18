@@ -50,7 +50,7 @@ export async function parseGradleProfile(
   const tableHtml = html.slice(tableStart, tableEnd + '</table>'.length);
   const parser = new XMLParser({
     ignoreAttributes: true,
-    isArray: (name) => name === 'tr' || name === 'td',
+    isArray: name => name === 'tr' || name === 'td',
     trimValues: true,
   });
 
