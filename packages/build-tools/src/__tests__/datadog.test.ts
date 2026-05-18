@@ -86,7 +86,7 @@ describe('Datadog singleton', () => {
       expect.any(Error),
       expect.objectContaining({
         extras: {
-          metrics: [{ name: 'eas.build.phase_duration', type: 'distribution', value: 1 }],
+          metrics: [{ name: 'eas.build.phase_duration', type: 'distribution', value: 1, tags: {} }],
         },
       })
     );

@@ -15,7 +15,7 @@ export const Datadog = {
     setupOptions = opts;
   },
 
-  distribution(name: string, value: number, tags?: Record<string, string>): void {
+  distribution(name: string, value: number, tags: Record<string, string> = {}): void {
     if (!setupOptions) {
       return;
     }
@@ -25,7 +25,7 @@ export const Datadog = {
         name,
         type: 'distribution' as const,
         value,
-        ...(tags ? { tags } : {}),
+        tags,
       },
     ];
 
@@ -53,6 +53,5 @@ export const Datadog = {
 
   async flushAsync(): Promise<void> {
     await Promise.allSettled(pendingMetricUploads);
-    pendingMetricUploads = [];
   },
 };
