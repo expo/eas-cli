@@ -27,7 +27,7 @@ describe('Datadog singleton', () => {
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
 
@@ -73,7 +73,7 @@ describe('Datadog singleton', () => {
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
 
@@ -95,7 +95,7 @@ describe('Datadog singleton', () => {
   it('swallows synchronous URL construction failures', async () => {
     Datadog.setup({
       expoApiV2BaseUrl: 'not a url',
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
 
@@ -114,12 +114,12 @@ describe('Datadog singleton', () => {
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'first-build-id',
+      turtleBuildId: 'first-build-id',
       robotAccessToken: 'first-token',
     });
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'second-build-id',
+      turtleBuildId: 'second-build-id',
       robotAccessToken: 'second-token',
     });
 
@@ -143,7 +143,7 @@ describe('Datadog singleton', () => {
     );
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
 

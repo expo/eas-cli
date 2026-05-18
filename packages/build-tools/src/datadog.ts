@@ -3,7 +3,7 @@ import { turtleFetch } from './utils/turtleFetch';
 
 type DatadogSetupOptions = {
   expoApiV2BaseUrl: string;
-  turtleBuildOrJobRunId: string;
+  turtleBuildId: string;
   robotAccessToken: string;
 };
 
@@ -12,14 +12,21 @@ let pendingMetricUploads: Promise<void>[] = [];
 
 export const Datadog = {
   setup(opts: DatadogSetupOptions | null): void {
-    setupOptions = opts;
+    setupOptions = opts
+      ? {
+          ...opts,
+          expoApiV2BaseUrl: opts.expoApiV2BaseUrl.endsWith('/')
+            ? opts.expoApiV2BaseUrl
+            : `${opts.expoApiV2BaseUrl}/`,
+        }
+      : null;
   },
 
   distribution(name: string, value: number, tags?: Record<string, string>): void {
     if (!setupOptions) {
       return;
     }
-    const { expoApiV2BaseUrl, turtleBuildOrJobRunId, robotAccessToken } = setupOptions;
+    const { expoApiV2BaseUrl, turtleBuildId, robotAccessToken } = setupOptions;
     const metrics = [
       {
         name,
@@ -31,10 +38,7 @@ export const Datadog = {
 
     try {
       const uploadPromise = turtleFetch(
-        new URL(
-          `turtle-builds/${turtleBuildOrJobRunId}/metrics`,
-          expoApiV2BaseUrl.endsWith('/') ? expoApiV2BaseUrl : `${expoApiV2BaseUrl}/`
-        ).toString(),
+        new URL(`turtle-builds/${turtleBuildId}/metrics`, expoApiV2BaseUrl).toString(),
         'POST',
         {
           json: { metrics },
@@ -53,9 +57,6 @@ export const Datadog = {
       );
 
       pendingMetricUploads.push(uploadPromise);
-      void uploadPromise.finally(() => {
-        pendingMetricUploads = pendingMetricUploads.filter(p => p !== uploadPromise);
-      });
     } catch (err) {
       Sentry.capture('Failed to report turtle build metric', err as Error, {
         extras: { metrics },
@@ -64,8 +65,7 @@ export const Datadog = {
   },
 
   async flushAsync(): Promise<void> {
-    while (pendingMetricUploads.length > 0) {
-      await Promise.allSettled(pendingMetricUploads);
-    }
+    await Promise.allSettled(pendingMetricUploads);
+    pendingMetricUploads = [];
   },
 };

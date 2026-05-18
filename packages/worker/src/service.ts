@@ -291,15 +291,13 @@ export default class BuildService {
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
       const robotAccessToken = job.secrets?.robotAccessToken;
-      Datadog.setup(
-        robotAccessToken
-          ? {
-              expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
-              turtleBuildOrJobRunId: this.buildId,
-              robotAccessToken,
-            }
-          : null
-      );
+      if (robotAccessToken) {
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          turtleBuildId: this.buildId,
+          robotAccessToken,
+        });
+      }
 
       const ctx = createBuildContext({
         job,

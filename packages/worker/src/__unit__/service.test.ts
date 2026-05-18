@@ -172,7 +172,7 @@ describe('BuildService Datadog setup', () => {
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
       expoApiV2BaseUrl: expect.any(String),
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
     expect(createBuildContextMock).toHaveBeenCalledWith(
@@ -183,7 +183,7 @@ describe('BuildService Datadog setup', () => {
     expect(datadogFlushAsyncMock).toHaveBeenCalled();
   });
 
-  it('configures Datadog for non-platform jobs with the worker task id', async () => {
+  it('configures Datadog for non-platform jobs with the turtle build id', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});
 
@@ -198,7 +198,7 @@ describe('BuildService Datadog setup', () => {
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
       expoApiV2BaseUrl: expect.any(String),
-      turtleBuildOrJobRunId: 'build-id',
+      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
     expect(createBuildContextMock).toHaveBeenCalledWith(
@@ -208,7 +208,7 @@ describe('BuildService Datadog setup', () => {
     );
   });
 
-  it('does not configure Datadog when the robot access token is unavailable', async () => {
+  it('leaves Datadog unconfigured when the robot access token is unavailable', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});
 
@@ -222,6 +222,6 @@ describe('BuildService Datadog setup', () => {
       initiatingUserId: 'user-id',
     });
 
-    expect(datadogSetupMock).toHaveBeenCalledWith(null);
+    expect(datadogSetupMock).not.toHaveBeenCalled();
   });
 });
