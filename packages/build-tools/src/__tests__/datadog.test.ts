@@ -61,14 +61,8 @@ describe('Datadog singleton', () => {
     );
   });
 
-  it.each([
-    null,
-    {
-      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildOrJobRunId: 'build-id',
-    },
-  ])('is a no-op when setup is incomplete: %p', setupOptions => {
-    Datadog.setup(setupOptions);
+  it('is a no-op when setup is null', () => {
+    Datadog.setup(null);
 
     Datadog.distribution('eas.build.phase_duration', 1);
 
@@ -138,6 +132,33 @@ describe('Datadog singleton', () => {
         headers: { Authorization: 'Bearer second-token' },
       })
     );
+  });
+
+  it('flushes pending metric uploads', async () => {
+    let resolveUpload!: (response: Response) => void;
+    turtleFetchMock.mockReturnValueOnce(
+      new Promise<Response>(resolve => {
+        resolveUpload = resolve;
+      })
+    );
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      turtleBuildOrJobRunId: 'build-id',
+      robotAccessToken: 'token-abc',
+    });
+
+    let flushed = false;
+    Datadog.distribution('eas.build.phase_duration', 1);
+    const flushPromise = Datadog.flushAsync().then(() => {
+      flushed = true;
+    });
+    await Promise.resolve();
+    expect(flushed).toBe(false);
+
+    resolveUpload({} as Response);
+    await flushPromise;
+
+    expect(flushed).toBe(true);
   });
 });
 

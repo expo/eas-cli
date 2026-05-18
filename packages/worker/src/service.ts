@@ -123,6 +123,7 @@ export default class BuildService {
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
     await setTimeoutAsync(5 * 1000);
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - error');
@@ -144,6 +145,7 @@ export default class BuildService {
       buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
     });
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - success');
@@ -196,6 +198,7 @@ export default class BuildService {
     }
 
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - aborted');
@@ -287,11 +290,16 @@ export default class BuildService {
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
-      Datadog.setup({
-        expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
-        turtleBuildOrJobRunId: this.buildId,
-        robotAccessToken: job.secrets?.robotAccessToken,
-      });
+      const robotAccessToken = job.secrets?.robotAccessToken;
+      Datadog.setup(
+        robotAccessToken
+          ? {
+              expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+              turtleBuildOrJobRunId: this.buildId,
+              robotAccessToken,
+            }
+          : null
+      );
 
       const ctx = createBuildContext({
         job,

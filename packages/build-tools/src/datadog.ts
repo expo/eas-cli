@@ -4,10 +4,11 @@ import { turtleFetch } from './utils/turtleFetch';
 type DatadogSetupOptions = {
   expoApiV2BaseUrl: string;
   turtleBuildOrJobRunId: string;
-  robotAccessToken?: string;
+  robotAccessToken: string;
 };
 
 let setupOptions: DatadogSetupOptions | null = null;
+let pendingMetricUploads: Promise<void>[] = [];
 
 export const Datadog = {
   setup(opts: DatadogSetupOptions | null): void {
@@ -15,35 +16,56 @@ export const Datadog = {
   },
 
   distribution(name: string, value: number, tags?: Record<string, string>): void {
-    if (!setupOptions?.robotAccessToken) {
+    if (!setupOptions) {
       return;
     }
     const { expoApiV2BaseUrl, turtleBuildOrJobRunId, robotAccessToken } = setupOptions;
+    const metrics = [
+      {
+        name,
+        type: 'distribution' as const,
+        value,
+        ...(tags ? { tags } : {}),
+      },
+    ];
 
-    const metric = {
-      name,
-      type: 'distribution' as const,
-      value,
-      ...(tags ? { tags } : {}),
-    };
-
-    void (async () => {
-      const baseUrl = expoApiV2BaseUrl.endsWith('/') ? expoApiV2BaseUrl : `${expoApiV2BaseUrl}/`;
-      await turtleFetch(
-        new URL(`turtle-builds/${turtleBuildOrJobRunId}/metrics`, baseUrl).toString(),
+    try {
+      const uploadPromise = turtleFetch(
+        new URL(
+          `turtle-builds/${turtleBuildOrJobRunId}/metrics`,
+          expoApiV2BaseUrl.endsWith('/') ? expoApiV2BaseUrl : `${expoApiV2BaseUrl}/`
+        ).toString(),
         'POST',
         {
-          json: { metrics: [metric] },
+          json: { metrics },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
           retries: 2,
         }
+      ).then(
+        () => undefined,
+        err => {
+          Sentry.capture('Failed to report turtle build metric', err, {
+            extras: { metrics },
+          });
+        }
       );
-    })().catch(err => {
-      Sentry.capture('Failed to report turtle build metric', err, {
-        extras: { metrics: [metric] },
+
+      pendingMetricUploads.push(uploadPromise);
+      void uploadPromise.finally(() => {
+        pendingMetricUploads = pendingMetricUploads.filter(p => p !== uploadPromise);
       });
-    });
+    } catch (err) {
+      Sentry.capture('Failed to report turtle build metric', err as Error, {
+        extras: { metrics },
+      });
+    }
+  },
+
+  async flushAsync(): Promise<void> {
+    while (pendingMetricUploads.length > 0) {
+      await Promise.allSettled(pendingMetricUploads);
+    }
   },
 };

@@ -17,6 +17,7 @@ jest.mock('@expo/build-tools', () => {
     GCS: { uploadWithSignedUrl: jest.fn() },
     Datadog: {
       setup: jest.fn(),
+      flushAsync: jest.fn(async () => {}),
     },
   };
 });
@@ -50,6 +51,7 @@ const buildMock = jest.mocked(build);
 const createBuildContextMock = jest.mocked(createBuildContext);
 const createBuildLoggerWithSecretsFilterMock = jest.mocked(createBuildLoggerWithSecretsFilter);
 const datadogSetupMock = jest.mocked(Datadog.setup);
+const datadogFlushAsyncMock = jest.mocked(Datadog.flushAsync);
 
 describe(getExpoPackageVersionAsync, () => {
   const projectRoot = '/test-project';
@@ -178,6 +180,7 @@ describe('BuildService Datadog setup', () => {
         reportBuildPhaseStatsFn: expect.any(Function),
       })
     );
+    expect(datadogFlushAsyncMock).toHaveBeenCalled();
   });
 
   it('configures Datadog for non-platform jobs with the worker task id', async () => {
@@ -203,5 +206,22 @@ describe('BuildService Datadog setup', () => {
         reportBuildPhaseStatsFn: expect.any(Function),
       })
     );
+  });
+
+  it('does not configure Datadog when the robot access token is unavailable', async () => {
+    const service = new BuildService();
+    service.checkForHangingWorker = jest.fn(async () => {});
+
+    await (service as any).startBuildInternal({
+      job: {
+        platform: 'ios',
+        secrets: {},
+      } as Job,
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+    });
+
+    expect(datadogSetupMock).toHaveBeenCalledWith(null);
   });
 });
