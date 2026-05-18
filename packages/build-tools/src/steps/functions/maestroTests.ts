@@ -1,4 +1,6 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { Env, SystemError, UserError } from '@expo/eas-build-job';
+import { asyncResult } from '@expo/results';
+import spawnAsync from '@expo/spawn-async';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -8,6 +10,7 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
@@ -129,6 +132,11 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'android_connection_mode',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({ id: 'junit_report_directory', required: true }),
@@ -166,7 +174,19 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       // Public docs (EAS workflows pre-packaged-jobs) document
       // `${MAESTRO_TESTS_DIR}` for users to save screenshots/recordings into
       // the uploaded dir.
-      const spawnEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
+      const spawnEnv: Env = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
+
+      // If Android connection mode is to be dadb we need to:
+      // - hide adb before maestro, or it will spin it up,
+      // - kill adb so it's not running.
+      if (inputs.android_connection_mode.value === 'dadb') {
+        const adbOverrideDirectoryPath = await fs.mkdtemp(
+          path.join(os.tmpdir(), 'maestro_tests-adb_override-')
+        );
+        await fs.writeFile(path.join(adbOverrideDirectoryPath, 'adb'), 'exit 1');
+        await asyncResult(spawnAsync('adb', ['kill-server'], { env: spawnEnv }));
+        spawnEnv.PATH = `${adbOverrideDirectoryPath}:${spawnEnv.PATH}`;
+      }
 
       // Outputs are published BEFORE any throw below so downstream
       // `if: always()` upload steps still see populated values when this
