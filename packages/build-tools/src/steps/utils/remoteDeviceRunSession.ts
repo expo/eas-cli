@@ -123,7 +123,16 @@ export async function startServeSimWithTunnelAsync({
   logger.info('Launching serve-sim with tunnel.');
   const serveSim = spawnDetached({
     command: 'npx',
-    args: ['serve-sim-szdziedzic@latest', '--tunnel'],
+    args: [
+      'serve-sim-szdziedzic@latest',
+      '--tunnel',
+      '--tunnel-protocol',
+      'quic',
+      '--stream-max-dimension',
+      '1280',
+      '--stream-quality',
+      '0.55',
+    ],
     env,
   });
 
