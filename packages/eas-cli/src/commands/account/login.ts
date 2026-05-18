@@ -13,14 +13,15 @@ export default class AccountLogin extends EasCommand {
   static override flags = {
     // can pass either --sso or -s
     sso: Flags.boolean({
-      description: 'Login with SSO',
+      description: 'Log in with SSO',
       char: 's',
       default: false,
     }),
     browser: Flags.boolean({
-      description: 'Login with your browser',
+      description: 'Log in with your browser (default; use --no-browser for CLI-based login)',
       char: 'b',
-      default: false,
+      default: true,
+      allowNo: true,
     }),
   };
 
