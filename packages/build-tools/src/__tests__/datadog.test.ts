@@ -92,23 +92,6 @@ describe('Datadog singleton', () => {
     );
   });
 
-  it('swallows synchronous URL construction failures', async () => {
-    Datadog.setup({
-      expoApiV2BaseUrl: 'not a url',
-      turtleBuildId: 'build-id',
-      robotAccessToken: 'token-abc',
-    });
-
-    expect(() => Datadog.distribution('eas.build.phase_duration', 1)).not.toThrow();
-    expect(turtleFetchMock).not.toHaveBeenCalled();
-    await flushPromises();
-    expect(sentryCaptureMock).toHaveBeenCalledWith(
-      'Failed to report turtle build metric',
-      expect.objectContaining({ message: 'Invalid URL' }),
-      expect.any(Object)
-    );
-  });
-
   it('uses the latest setup options', () => {
     turtleFetchMock.mockResolvedValue({} as Response);
 

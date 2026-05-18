@@ -12,14 +12,7 @@ let pendingMetricUploads: Promise<void>[] = [];
 
 export const Datadog = {
   setup(opts: DatadogSetupOptions | null): void {
-    setupOptions = opts
-      ? {
-          ...opts,
-          expoApiV2BaseUrl: opts.expoApiV2BaseUrl.endsWith('/')
-            ? opts.expoApiV2BaseUrl
-            : `${opts.expoApiV2BaseUrl}/`,
-        }
-      : null;
+    setupOptions = opts;
   },
 
   distribution(name: string, value: number, tags?: Record<string, string>): void {
@@ -36,32 +29,26 @@ export const Datadog = {
       },
     ];
 
-    try {
-      const uploadPromise = turtleFetch(
-        new URL(`turtle-builds/${turtleBuildId}/metrics`, expoApiV2BaseUrl).toString(),
-        'POST',
-        {
-          json: { metrics },
-          headers: {
-            Authorization: `Bearer ${robotAccessToken}`,
-          },
-          retries: 2,
-        }
-      ).then(
-        () => undefined,
-        err => {
-          Sentry.capture('Failed to report turtle build metric', err, {
-            extras: { metrics },
-          });
-        }
-      );
+    const uploadPromise = turtleFetch(
+      new URL(`turtle-builds/${turtleBuildId}/metrics`, expoApiV2BaseUrl).toString(),
+      'POST',
+      {
+        json: { metrics },
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+        },
+        retries: 2,
+      }
+    ).then(
+      () => undefined,
+      err => {
+        Sentry.capture('Failed to report turtle build metric', err, {
+          extras: { metrics },
+        });
+      }
+    );
 
-      pendingMetricUploads.push(uploadPromise);
-    } catch (err) {
-      Sentry.capture('Failed to report turtle build metric', err as Error, {
-        extras: { metrics },
-      });
-    }
+    pendingMetricUploads.push(uploadPromise);
   },
 
   async flushAsync(): Promise<void> {
