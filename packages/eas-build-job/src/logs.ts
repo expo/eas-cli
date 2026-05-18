@@ -36,6 +36,7 @@ export enum BuildPhase {
   // ANDROID
   FIX_GRADLEW = 'FIX_GRADLEW',
   RUN_GRADLEW = 'RUN_GRADLEW',
+  GRADLE_BUILD_PROFILE = 'GRADLE_BUILD_PROFILE',
 
   // IOS
   INSTALL_PODS = 'INSTALL_PODS',
@@ -104,6 +105,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   // ANDROID
   [BuildPhase.FIX_GRADLEW]: 'Fix gradlew',
   [BuildPhase.RUN_GRADLEW]: 'Run gradlew',
+  [BuildPhase.GRADLE_BUILD_PROFILE]: 'Gradle build profile',
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'Install pods',
@@ -169,6 +171,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   // ANDROID
   [BuildPhase.FIX_GRADLEW]: 'fix-gradlew',
   [BuildPhase.RUN_GRADLEW]: 'run-gradlew',
+  [BuildPhase.GRADLE_BUILD_PROFILE]: 'gradle-build-profile',
 
   // IOS
   [BuildPhase.INSTALL_PODS]: 'install-pods',
