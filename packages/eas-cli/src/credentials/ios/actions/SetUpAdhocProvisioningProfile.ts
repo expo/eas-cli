@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { resolveAscApiKeyForAppCredentialsAsync } from './AscApiKeyUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
 import {
   chooseDevicesAsync,
@@ -404,6 +405,9 @@ export class SetUpAdhocProvisioningProfile {
     ctx: CredentialsContext,
     app: AppLookupParams
   ): Promise<void> {
+    if (ctx.appStore.authCtx) {
+      return;
+    }
     if (hasAscEnvVars()) {
       await ctx.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
       return;
