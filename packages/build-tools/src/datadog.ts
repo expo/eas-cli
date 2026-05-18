@@ -39,14 +39,13 @@ export const Datadog = {
         },
         retries: 2,
       }
-    ).then(
-      () => undefined,
-      err => {
+    )
+      .catch(err => {
         Sentry.capture('Failed to report turtle build metric', err, {
           extras: { metrics },
         });
-      }
-    );
+      })
+      .then(() => undefined);
 
     pendingMetricUploads.push(uploadPromise);
   },
