@@ -294,7 +294,7 @@ describe(SessionManager, () => {
           username: 'USERNAME',
         });
 
-      await sessionManager.showLoginPromptAsync();
+      await sessionManager.showLoginPromptAsync({ browser: false });
 
       expect(sessionManagerRetryUsernamePasswordAuthWithOTPAsyncSpy).toHaveBeenCalledWith(
         'hello',
@@ -313,7 +313,7 @@ describe(SessionManager, () => {
       );
     });
 
-    it('calls regular login if the sso flag is false', async () => {
+    it('calls regular login by default', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -321,14 +321,19 @@ describe(SessionManager, () => {
           throw new Error("shouldn't happen");
         });
 
+      jest.mocked(fetchSessionSecretAndUserAsync).mockResolvedValue({
+        sessionSecret: 'SESSION_SECRET',
+        id: 'USER_ID',
+        username: 'USERNAME',
+      });
       const sessionManager = new SessionManager(analytics);
 
-      // Regular login
-      await sessionManager.showLoginPromptAsync({ sso: false });
+      await sessionManager.showLoginPromptAsync();
+
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
     });
 
-    it('calls regular login if the sso flag is undefined', async () => {
+    it('calls regular login when browser is false', async () => {
       jest
         .mocked(promptAsync)
         .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
@@ -338,8 +343,21 @@ describe(SessionManager, () => {
 
       const sessionManager = new SessionManager(analytics);
 
-      // Regular login
-      await sessionManager.showLoginPromptAsync({ sso: undefined });
+      await sessionManager.showLoginPromptAsync({ browser: false });
+      expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
+    });
+
+    it('calls regular login if the sso flag is false and browser is false', async () => {
+      jest
+        .mocked(promptAsync)
+        .mockImplementationOnce(async () => ({ username: 'USERNAME', password: 'PASSWORD' }))
+        .mockImplementation(() => {
+          throw new Error("shouldn't happen");
+        });
+
+      const sessionManager = new SessionManager(analytics);
+
+      await sessionManager.showLoginPromptAsync({ sso: false, browser: false });
       expect(fetchSessionSecretAndUserAsync).toHaveBeenCalled();
     });
 

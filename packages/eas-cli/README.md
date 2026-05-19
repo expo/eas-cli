@@ -177,11 +177,11 @@ log in with your Expo account
 
 ```
 USAGE
-  $ eas account:login [-s] [-b]
+  $ eas account:login [-s] [-b | --no-browser]
 
 FLAGS
-  -b, --browser  Login with your browser
-  -s, --sso      Login with SSO
+  -b, --[no-]browser  Log in with your browser (default; use --no-browser for CLI-based login)
+  -s, --sso           Log in with SSO
 
 DESCRIPTION
   log in with your Expo account
@@ -1811,11 +1811,11 @@ log in with your Expo account
 
 ```
 USAGE
-  $ eas login [-s] [-b]
+  $ eas login [-s] [-b | --no-browser]
 
 FLAGS
-  -b, --browser  Login with your browser
-  -s, --sso      Login with SSO
+  -b, --[no-]browser  Log in with your browser (default; use --no-browser for CLI-based login)
+  -s, --sso           Log in with SSO
 
 DESCRIPTION
   log in with your Expo account

@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Make browser-based authentication the default for `eas login`. Use `--no-browser` for CLI-based login. ([#3746](https://github.com/expo/eas-cli/pull/3746) by [@byronkarlen](https://github.com/byronkarlen))
+
 ### 🎉 New features
 
 - [eas-cli] Allow command `observe:routes` to filter results to specific route names. ([#3744](https://github.com/expo/eas-cli/pull/3744) by [@douglowder](https://github.com/douglowder))
