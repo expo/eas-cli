@@ -160,6 +160,21 @@ describe(ObserveRoutes, () => {
     expect(options.routeNames).toEqual(['/home', '/profile']);
   });
 
+  it('dedupes duplicate --route-name flags', async () => {
+    const command = createCommand([
+      '--route-name',
+      '/home',
+      '--route-name',
+      '/profile',
+      '--route-name',
+      '/home',
+    ]);
+    await command.runAsync();
+
+    const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
+    expect(options.routeNames).toEqual(['/home', '/profile']);
+  });
+
   it('does not pass routeNames when --route-name is not provided', async () => {
     const command = createCommand([]);
     await command.runAsync();
