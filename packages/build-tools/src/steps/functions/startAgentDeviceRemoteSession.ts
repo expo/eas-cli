@@ -8,26 +8,24 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
-import { sleepAsync } from '../../utils/retry';
 import {
-  DetachedProcessHandle,
-  ensureBrewPackageInstalledAsync,
+  ensureCloudflaredInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   spawnDetached,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForFileAsync,
+  waitForMatchInOutputAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-const CLOUDFLARED_LINUX_INSTALL_PATH = '/usr/local/bin/cloudflared';
 const STARTUP_TIMEOUT_MS = 60_000;
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
@@ -92,12 +90,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       });
 
       logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      await waitForFileAsync({
+      const { port: daemonPort, token: daemonToken } = await waitForFileAsync({
         filePath: DAEMON_JSON_PATH,
         timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'agent-device daemon',
+        description: 'agent-device daemon credentials',
+        parse: parseDaemonInfo,
       });
-      const { port: daemonPort, token: daemonToken } = readDaemonInfo(DAEMON_JSON_PATH);
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
       logger.info(`Starting cloudflared tunnel to http://localhost:${daemonPort}.`);
@@ -148,62 +146,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
   });
 }
 
-async function ensureCloudflaredInstalledAsync({
-  runtimePlatform,
-  env,
-  logger,
-}: {
-  runtimePlatform: BuildRuntimePlatform;
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<string> {
-  if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    await ensureBrewPackageInstalledAsync({ name: 'cloudflared', env, logger });
-    return 'cloudflared';
-  }
-  if (await isCommandAvailableAsync({ command: 'cloudflared', env })) {
-    return 'cloudflared';
-  }
-  const cloudflaredArch = cloudflaredLinuxArchForNodeArch(os.arch());
-  const downloadUrl = `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${cloudflaredArch}`;
-  logger.info(`Downloading cloudflared from ${downloadUrl} to ${CLOUDFLARED_LINUX_INSTALL_PATH}.`);
-  await spawn('sudo', ['curl', '-fsSL', '-o', CLOUDFLARED_LINUX_INSTALL_PATH, downloadUrl], {
-    env,
-    logger,
-  });
-  await spawn('sudo', ['chmod', '+x', CLOUDFLARED_LINUX_INSTALL_PATH], { env, logger });
-  // Return the absolute install path so the tunnel command works even when
-  // /usr/local/bin is not on the step's PATH.
-  return CLOUDFLARED_LINUX_INSTALL_PATH;
-}
-
-function cloudflaredLinuxArchForNodeArch(arch: string): 'amd64' | 'arm64' {
-  if (arch === 'x64') {
-    return 'amd64';
-  }
-  if (arch === 'arm64') {
-    return 'arm64';
-  }
-  throw new SystemError(
-    `Unsupported architecture for cloudflared on Linux: "${arch}". Expected "x64" or "arm64".`
-  );
-}
-
-async function isCommandAvailableAsync({
-  command,
-  env,
-}: {
-  command: string;
-  env: BuildStepEnv;
-}): Promise<boolean> {
-  try {
-    await spawn('bash', ['-c', `command -v ${command}`], { env, ignoreStdio: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function cloneAgentDeviceAsync({
   packageVersion,
   env,
@@ -220,54 +162,7 @@ async function cloneAgentDeviceAsync({
   });
 }
 
-async function waitForMatchInOutputAsync({
-  process,
-  pattern,
-  timeoutMs,
-  description,
-}: {
-  process: DetachedProcessHandle;
-  pattern: RegExp;
-  timeoutMs: number;
-  description: string;
-}): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const match = pattern.exec(process.getOutput());
-    if (match) {
-      return match[1] ?? match[0];
-    }
-    await sleepAsync(1_000);
-  }
-  throw new SystemError(
-    `Timed out waiting for ${description} to start. Last output:\n${process.getOutput() || '<empty>'}`
-  );
-}
-
-async function waitForFileAsync({
-  filePath,
-  timeoutMs,
-  description,
-}: {
-  filePath: string;
-  timeoutMs: number;
-  description: string;
-}): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      await fs.promises.access(filePath);
-      return;
-    } catch {
-      // not yet; keep polling
-    }
-    await sleepAsync(1_000);
-  }
-  throw new SystemError(`Timed out waiting for ${description} to write ${filePath}.`);
-}
-
-function readDaemonInfo(filePath: string): { port: number; token: string } {
-  const raw = fs.readFileSync(filePath, 'utf8');
+function parseDaemonInfo(raw: string): { port: number; token: string } {
   const parsed = JSON.parse(raw) as unknown;
   if (
     !parsed ||
@@ -276,7 +171,7 @@ function readDaemonInfo(filePath: string): { port: number; token: string } {
     typeof (parsed as { token: unknown }).token !== 'string'
   ) {
     throw new SystemError(
-      `Expected ${filePath} to contain { "httpPort": <number>, "token": "..." }.`
+      'Expected daemon credentials to contain { "httpPort": <number>, "token": "..." }.'
     );
   }
   const { httpPort, token } = parsed as { httpPort: number; token: string };
