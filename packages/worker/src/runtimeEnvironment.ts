@@ -189,20 +189,60 @@ async function installBun({
   currentVersion: string;
 }): Promise<void> {
   const versionToInstall = userSpecifiedVersion ?? currentVersion;
+  const proxyUrl = config.cocoapodsCacheUrl;
   try {
     ctx.logger.info(`Installing bun@${versionToInstall}`);
 
     const bunInstallScriptPath = path.join(os.tmpdir(), `install-bun-${uuidv4()}.sh`);
+    const proxiedBunInstallScriptUrl = proxyUrl
+      ? rewriteUrlThroughProxy('https://bun.sh/install', proxyUrl)
+      : null;
 
-    await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
-      logger: ctx.logger,
-      env: ctx.env,
-    });
+    if (proxiedBunInstallScriptUrl) {
+      try {
+        await spawn('curl', ['-fsSL', proxiedBunInstallScriptUrl, '-o', bunInstallScriptPath], {
+          logger: ctx.logger,
+          env: ctx.env,
+        });
+      } catch (err: any) {
+        ctx.logger.warn(
+          { err },
+          'Failed to download Bun install script through proxy, retrying directly.'
+        );
+        await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+          logger: ctx.logger,
+          env: ctx.env,
+        });
+      }
+    } else {
+      await spawn('curl', ['-fsSL', 'https://bun.sh/install', '-o', bunInstallScriptPath], {
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    }
 
-    await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
-      logger: ctx.logger,
-      env: ctx.env,
-    });
+    if (proxyUrl) {
+      try {
+        await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+          logger: ctx.logger,
+          env: {
+            ...ctx.env,
+            GITHUB: rewriteUrlThroughProxy('https://github.com', proxyUrl),
+          },
+        });
+      } catch (err: any) {
+        ctx.logger.warn({ err }, 'Failed to install Bun through proxy, retrying directly.');
+        await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+          logger: ctx.logger,
+          env: ctx.env,
+        });
+      }
+    } else {
+      await spawn('bash', [bunInstallScriptPath, `bun-v${versionToInstall}`], {
+        logger: ctx.logger,
+        env: ctx.env,
+      });
+    }
 
     await spawn('rm', [bunInstallScriptPath], {
       logger: ctx.logger,
@@ -228,6 +268,11 @@ async function installBun({
       );
     }
   }
+}
+
+function rewriteUrlThroughProxy(url: string, proxy: string): string {
+  const parsedUrl = new URL(url);
+  return url.replace(`${parsedUrl.protocol}//${parsedUrl.host}`, `${proxy}/${parsedUrl.host}`);
 }
 
 async function installPnpm({
