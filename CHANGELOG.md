@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Check that `expo` is resolvable before assuming it's installed ([#3748](https://github.com/expo/eas-cli/pull/3748) by [@kitten](https://github.com/kitten))
+
 ### 🧹 Chores
 
 - [worker] Report build phase durations stats. ([#3732](https://github.com/expo/eas-cli/pull/3732) by [@gwdp](https://github.com/gwdp))
