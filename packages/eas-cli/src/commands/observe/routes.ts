@@ -62,6 +62,11 @@ export default class ObserveRoutes extends EasCommand {
     'build-number': Flags.string({
       description: 'Filter by app build number',
     }),
+    'route-name': Flags.string({
+      description:
+        'Filter by route name (can be specified multiple times to include several routes)',
+      multiple: true,
+    }),
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -100,6 +105,10 @@ export default class ObserveRoutes extends EasCommand {
       ? Array.from(new Set(flags.stat.map(resolveNavigationStatKey)))
       : undefined;
 
+    const routeNames = flags['route-name']?.length
+      ? Array.from(new Set(flags['route-name']))
+      : undefined;
+
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
     const platforms = appPlatformsFromFlag(flags.platform);
 
@@ -115,6 +124,7 @@ export default class ObserveRoutes extends EasCommand {
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
         buildNumber: flags['build-number'],
+        routeNames,
       }
     );
 

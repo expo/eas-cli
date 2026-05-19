@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Allow command `observe:routes` to filter results to specific route names. ([#3744](https://github.com/expo/eas-cli/pull/3744) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Check that `expo` is resolvable before assuming it's installed ([#3748](https://github.com/expo/eas-cli/pull/3748) by [@kitten](https://github.com/kitten))
