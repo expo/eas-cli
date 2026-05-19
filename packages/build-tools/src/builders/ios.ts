@@ -173,18 +173,20 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
   }
 
-  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
-    const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
-    await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
-      await parseAndReportXcactivitylog({
-        derivedDataPath,
-        workspacePath,
-        logger: ctx.logger,
-        proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
-        env: ctx.env,
-      });
+  const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
+  await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+    if (ctx.isLocal) {
+      ctx.logger.info('Local builds skip build performance analysis.');
+      return;
+    }
+    await parseAndReportXcactivitylog({
+      derivedDataPath,
+      workspacePath,
+      logger: ctx.logger,
+      proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+      env: ctx.env,
     });
-  }
+  });
 
   await ctx.runBuildPhase(BuildPhase.PRE_UPLOAD_ARTIFACTS_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
