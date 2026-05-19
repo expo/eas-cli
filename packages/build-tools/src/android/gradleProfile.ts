@@ -2,8 +2,6 @@ import { XMLParser } from 'fast-xml-parser';
 import fs from 'fs-extra';
 import path from 'path';
 
-export class GradleProfileNotFoundError extends Error {}
-
 export interface GradleProfileTask {
   path: string;
   durationMs: number;
@@ -12,8 +10,11 @@ export interface GradleProfileTask {
 
 export async function parseGradleProfile(androidDir: string): Promise<GradleProfileTask[]> {
   const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
+  // Gradle profile may not exist for all builds (e.g. custom gradle
+  // commands or builds that fail before producing a profile). We just
+  // short circuit and don't log.
   if (!(await fs.pathExists(profileDir))) {
-    throw new GradleProfileNotFoundError(`Gradle profile directory not found at ${profileDir}`);
+    return [];
   }
 
   const files = await fs.readdir(profileDir);
