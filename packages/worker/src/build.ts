@@ -2,6 +2,7 @@ import {
   Artifacts,
   BuildContext,
   Builders,
+  Sentry,
   parseGradleProfile,
   formatGradleProfileReport,
   runGenericJobAsync,
@@ -26,7 +27,6 @@ import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
-import sentry from './sentry';
 import { cleanUpWorkingdir } from './workingdir';
 
 export async function build({
@@ -99,12 +99,12 @@ export async function build({
           const profileTasks = await parseGradleProfile(androidDir);
           if (profileTasks.length > 0) {
             const report = formatGradleProfileReport(profileTasks);
-            logger.info(report);
+            ctx.logger.info(report);
           }
         });
       } catch (err: any) {
         logger.error({ err }, 'Failed to parse Gradle build profile');
-        sentry.handleError('Failed to parse Gradle build profile', err);
+        Sentry.capture('Failed to parse Gradle build profile', err);
       }
     }
 
