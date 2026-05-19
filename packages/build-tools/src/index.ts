@@ -22,4 +22,5 @@ export { Hook, runHookIfPresent } from './utils/hooks';
 
 export * from './generic';
 
+export { Datadog } from './datadog';
 export { Sentry } from './sentry';

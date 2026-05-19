@@ -20,6 +20,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { resolveBuildPhaseErrorAsync } from './buildErrors/detectError';
+import { Datadog } from './datadog';
 import { readAppConfig } from './utils/appConfig';
 import { createTemporaryEnvironmentSecretFile } from './utils/environmentSecrets';
 import { PackageManager, resolvePackageManager } from './utils/packageManager';
@@ -355,6 +356,13 @@ export class BuildContext<TJob extends Job = Job> {
     await this.collectAndUpdateEnvVariablesAsync();
 
     this.reportBuildPhaseStats?.({ buildPhase: this.buildPhase, result, durationMs });
+    if (this.job.platform) {
+      Datadog.distribution('eas.build.phase_duration', durationMs, {
+        build_phase: this.buildPhase.toLowerCase(),
+        platform: this.job.platform,
+        result,
+      });
+    }
 
     if (!doNotMarkEnd) {
       this.logger.info(

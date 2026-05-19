@@ -1,6 +1,7 @@
 import {
   Artifacts,
   BuildContext,
+  Datadog,
   Hook,
   findAndUploadXcodeBuildLogsAsync,
   runHookIfPresent,
@@ -122,6 +123,7 @@ export default class BuildService {
     const isSocketClosed: boolean = !this.ws;
     // wait 5 seconds to make sure all logs are flushed
     await setTimeoutAsync(5 * 1000);
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - error');
@@ -143,6 +145,7 @@ export default class BuildService {
       buildArtifactsName: artifacts.BUILD_ARTIFACTS ?? null,
     });
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - success');
@@ -195,6 +198,7 @@ export default class BuildService {
     }
 
     const isSocketClosed: boolean = !this.ws;
+    await Datadog.flushAsync();
     await this.logsCleanUp?.();
     if (this.ws) {
       logger.info('Send build result - aborted');
@@ -286,6 +290,14 @@ export default class BuildService {
       this.logsCleanUp = cleanUp;
 
       const analytics = new Analytics(initiatingUserId, metadata?.trackingContext ?? {});
+      const robotAccessToken = job.secrets?.robotAccessToken;
+      if (robotAccessToken) {
+        Datadog.setup({
+          expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
+          turtleBuildId: this.buildId,
+          robotAccessToken,
+        });
+      }
 
       const ctx = createBuildContext({
         job,
