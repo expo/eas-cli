@@ -103,7 +103,6 @@ export async function build({
           }
         });
       } catch (err: any) {
-        logger.error({ err }, 'Failed to parse Gradle build profile');
         Sentry.capture('Failed to parse Gradle build profile', err);
       }
     }
