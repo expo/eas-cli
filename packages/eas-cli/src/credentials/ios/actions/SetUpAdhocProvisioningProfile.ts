@@ -64,7 +64,7 @@ export class SetUpAdhocProvisioningProfile {
 
     if (ctx.refreshAdHocProvisioningProfile && ctx.freezeCredentials) {
       throw new Error(
-        'Cannot refresh ad-hoc provisioning profile when credentials are frozen. Disable --freeze-credentials or --refresh-ad-hoc-provisioning-profile.'
+        'Cannot refresh ad-hoc provisioning profile when credentials are frozen. Remove --freeze-credentials or --refresh-ad-hoc-provisioning-profile.'
       );
     }
 
