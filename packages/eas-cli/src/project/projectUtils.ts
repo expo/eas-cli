@@ -10,7 +10,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { AccountFragment } from '../graphql/generated';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { learnMore } from '../log';
-import { expoCommandAsync } from '../utils/expoCli';
+import { expoCommandAsync, resolveExpoCli } from '../utils/expoCli';
 
 /**
  * Return a useful name describing the project config.
@@ -45,7 +45,22 @@ export function isExpoNotificationsInstalled(projectDir: string): boolean {
 
 export function isExpoInstalled(projectDir: string): boolean {
   const packageJson = getPackageJson(projectDir);
-  return !!(packageJson.dependencies && 'expo' in packageJson.dependencies);
+  if (!!(packageJson.dependencies && 'expo' in packageJson.dependencies)) {
+    // NOTE(@kitten): We usually don't apply strict checks for installed packages, but
+    // `isExpoInstalled` is often used to check if we should call the Expo CLI, so we're
+    // also checking if we can resolve `expo` here
+    try {
+      return !!resolveExpoCli(projectDir);
+    } catch (e: any) {
+      if (e.code === 'MODULE_NOT_FOUND') {
+        return false;
+      } else {
+        throw e;
+      }
+    }
+  } else {
+    return false;
+  }
 }
 
 export function isExpoUpdatesInstalledAsDevDependency(projectDir: string): boolean {

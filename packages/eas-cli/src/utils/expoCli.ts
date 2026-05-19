@@ -78,6 +78,12 @@ export const shouldUseVersionedExpoCLIWithExplicitPlatforms = memoize(
   shouldUseVersionedExpoCLIWithExplicitPlatformsExpensive
 );
 
+export function resolveExpoCli(projectDir: string): string {
+  return (
+    silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js')
+  );
+}
+
 export function spawnExpoCommand(
   projectDir: string,
   args: string[],
@@ -85,8 +91,7 @@ export function spawnExpoCommand(
 ): spawnAsync.SpawnPromise<spawnAsync.SpawnResult> {
   let expoCliPath;
   try {
-    expoCliPath =
-      silentResolveFrom(projectDir, 'expo/bin/cli') ?? resolveFrom(projectDir, 'expo/bin/cli.js');
+    expoCliPath = resolveExpoCli(projectDir);
   } catch (e: any) {
     if (e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
