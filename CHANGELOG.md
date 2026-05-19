@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [19.0.0](https://github.com/expo/eas-cli/releases/tag/v19.0.0) - 2026-05-19
+
+### 🛠 Breaking changes
+
 - [eas-cli] Make browser-based authentication the default for `eas login`. Use `--no-browser` for CLI-based login. ([#3746](https://github.com/expo/eas-cli/pull/3746) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🎉 New features
