@@ -10,9 +10,8 @@ export interface GradleProfileTask {
 
 export async function parseGradleProfile(androidDir: string): Promise<GradleProfileTask[]> {
   const profileDir = path.join(androidDir, 'build', 'reports', 'profile');
-  // Gradle profile may not exist for all builds (e.g. custom gradle
-  // commands or builds that fail before producing a profile). We just
-  // short circuit and don't log.
+  // Gradle profile may not exist for all builds (e.g. custom, repack
+  // jobs). We should short circuit and not unnecessarily log.
   if (!(await fs.pathExists(profileDir))) {
     return [];
   }
