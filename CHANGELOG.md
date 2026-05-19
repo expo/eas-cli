@@ -10,10 +10,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [19.0.1](https://github.com/expo/eas-cli/releases/tag/v19.0.1) - 2026-05-19
+
+### 🐛 Bug fixes
+
 - [eas-cli] Disable dotenv loading when resolving managed iOS entitlements. ([#3752](https://github.com/expo/eas-cli/pull/3752) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] Restore the bundled config fallback for managed iOS entitlements introspection. ([#3753](https://github.com/expo/eas-cli/pull/3753) by [@sjchmiela](https://github.com/sjchmiela))
-
-### 🧹 Chores
 
 ## [19.0.0](https://github.com/expo/eas-cli/releases/tag/v19.0.0) - 2026-05-19
 
