@@ -3,7 +3,10 @@ import { Flags } from '@oclif/core';
 import { getBareJobRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import {
   AppPlatform,
   DeviceRunSessionStatus,
@@ -18,6 +21,7 @@ import {
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
 } from '../../simulator/utils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 import nullthrows from 'nullthrows';
 
@@ -57,7 +61,7 @@ export default class SimulatorStart extends EasCommand {
       description:
         'Version of the package backing the device run session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -67,12 +71,17 @@ export default class SimulatorStart extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(SimulatorStart);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStart, {
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
     const platform = flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
@@ -148,11 +157,21 @@ export default class SimulatorStart extends EasCommand {
       );
     }
 
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        id: deviceRunSessionId,
+        type: flags.type,
+        jobRunUrl,
+        remoteConfig,
+      });
+      return;
+    }
+
     Log.newLine();
     Log.log(formatRemoteSessionInstructions(remoteConfig));
     Log.newLine();
 
-    if (flags['non-interactive']) {
+    if (nonInteractive) {
       Log.log(
         `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
       );
