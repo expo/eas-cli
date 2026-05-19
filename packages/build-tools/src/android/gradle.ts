@@ -32,18 +32,27 @@ export async function runGradleCommand(
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
 
-  const spawnPromise = spawn('bash', ['-c', `./gradlew ${gradleCommand} ${verboseFlag}`], {
-    cwd: androidDir,
-    logger,
-    lineTransformer: (line?: string) => {
-      if (!line || /^\.+$/.exec(line)) {
-        return null;
-      } else {
-        return line;
-      }
-    },
-    env: { ...ctx.env, ...extraEnv, ...resolveVersionOverridesEnvs(ctx), LC_ALL: 'C.UTF-8' },
-  });
+  const spawnPromise = spawn(
+    'bash',
+    ['-c', `./gradlew ${gradleCommand} --profile ${verboseFlag}`],
+    {
+      cwd: androidDir,
+      logger,
+      lineTransformer: (line?: string) => {
+        if (!line || /^\.+$/.exec(line)) {
+          return null;
+        } else {
+          return line;
+        }
+      },
+      env: {
+        ...ctx.env,
+        ...extraEnv,
+        ...resolveVersionOverridesEnvs(ctx),
+        LC_ALL: 'C.UTF-8',
+      },
+    }
+  );
   if (ctx.env.EAS_BUILD_RUNNER === 'eas-build' && process.platform === 'linux') {
     adjustOOMScore(spawnPromise, logger);
   }
