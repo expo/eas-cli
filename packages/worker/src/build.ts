@@ -5,6 +5,7 @@ import {
   Sentry,
   parseGradleProfile,
   formatGradleProfileReport,
+  GradleProfileNotFoundError,
   runGenericJobAsync,
 } from '@expo/build-tools';
 import {
@@ -103,8 +104,12 @@ export async function build({
           }
         });
       } catch (err: any) {
-        logger.error({ err }, 'Failed to parse Gradle build profile');
-        Sentry.capture('Failed to parse Gradle build profile', err);
+        // Gradle profile may not exist for all builds (e.g. custom gradle
+        // commands or builds that fail before producing a profile). This is
+        // expected, so we silently ignore the error.
+        if (!(err instanceof GradleProfileNotFoundError)) {
+          Sentry.capture('Failed to parse Gradle build profile', err);
+        }
       }
     }
 

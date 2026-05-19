@@ -20,7 +20,11 @@ export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
 
-export { parseGradleProfile, formatGradleProfileReport } from './android/gradleProfile';
+export {
+  parseGradleProfile,
+  formatGradleProfileReport,
+  GradleProfileNotFoundError,
+} from './android/gradleProfile';
 export type { GradleProfileTask } from './android/gradleProfile';
 
 export * from './generic';
