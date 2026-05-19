@@ -17,7 +17,10 @@ export async function getManagedApplicationTargetEntitlementsAsync(
     projectDir,
     ['config', '--json', '--type', 'introspect'],
     {
-      env,
+      env: {
+        ...env,
+        EXPO_NO_DOTENV: '1',
+      },
     }
   );
   const expWithMods: ExportedConfig = JSON.parse(stdout);
