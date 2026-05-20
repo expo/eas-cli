@@ -10,7 +10,6 @@ import { ora } from '../../ora';
 import { formatRemoteSessionInstructions } from '../../simulator/utils';
 
 export default class SimulatorGet extends EasCommand {
-  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] get info about a remote simulator session on EAS by its device run session ID';
 

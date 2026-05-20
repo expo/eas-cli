@@ -6,7 +6,6 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { ora } from '../../ora';
 
 export default class SimulatorStop extends EasCommand {
-  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] stop a remote simulator session on EAS by its device run session ID';
 

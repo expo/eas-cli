@@ -221,6 +221,9 @@
       "secret": {
         "description": "manage project and account secrets"
       },
+      "simulator": {
+        "description": "manage remote simulator sessions"
+      },
       "update": {
         "description": "manage individual updates"
       },

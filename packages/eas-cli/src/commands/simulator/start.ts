@@ -43,7 +43,6 @@ const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
 ) as Record<string, DeviceRunSessionType>;
 
 export default class SimulatorStart extends EasCommand {
-  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
