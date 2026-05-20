@@ -2147,6 +2147,15 @@ export type AppObserve = {
   navigationRoutes: AppObserveNavigationRoutesConnection;
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
+  /**
+   * Approximate count of unique users (`eas_client_id`) with at least one
+   * supported-metric event in `[startTime, endTime)`. Uses ClickHouse's
+   * HyperLogLog `uniq()`, so the value can drift by a small percent on apps
+   * with very large user bases. `metricNames` on the input is currently
+   * ignored: the count is always over all supported metrics, matching the
+   * universe used by `appVersions` headline counts.
+   */
+  uniqueActiveUserCount: Scalars['Int']['output'];
   updates: AppObserveUpdatesConnection;
 };
 
@@ -2213,6 +2222,11 @@ export type AppObserveNavigationRoutesArgs = {
 
 export type AppObserveTimeSeriesArgs = {
   input: AppObserveTimeSeriesInput;
+};
+
+
+export type AppObserveUniqueActiveUserCountArgs = {
+  input: AppObserveReleasesInput;
 };
 
 

@@ -14383,6 +14383,39 @@
             "deprecationReason": null
           },
           {
+            "name": "uniqueActiveUserCount",
+            "description": "Approximate count of unique users (`eas_client_id`) with at least one\nsupported-metric event in `[startTime, endTime)`. Uses ClickHouse's\nHyperLogLog `uniq()`, so the value can drift by a small percent on apps\nwith very large user bases. `metricNames` on the input is currently\nignored: the count is always over all supported metrics, matching the\nuniverse used by `appVersions` headline counts.",
+            "args": [
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "AppObserveReleasesInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "updates",
             "description": null,
             "args": [
