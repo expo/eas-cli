@@ -34,6 +34,10 @@ export const DeviceRunSessionQuery = {
                       agentDeviceRemoteSessionToken
                       webPreviewUrl
                     }
+                    ... on ArgentRunSessionRemoteConfig {
+                      toolsUrl
+                      webPreviewUrl
+                    }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
                       streamUrl

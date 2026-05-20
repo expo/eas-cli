@@ -3503,6 +3503,16 @@ export enum AppsFilter {
   New = 'NEW'
 }
 
+export type ArgentRunSessionRemoteConfig = {
+  __typename?: 'ArgentRunSessionRemoteConfig';
+  toolsUrl: Scalars['String']['output'];
+  /**
+   * URL of the web preview surface for the session. Null when web previews are
+   * not available for the platform (e.g. Android).
+   */
+  webPreviewUrl?: Maybe<Scalars['String']['output']>;
+};
+
 export type AscApiKeyInput = {
   issuerIdentifier: Scalars['String']['input'];
   keyIdentifier: Scalars['String']['input'];
@@ -4212,6 +4222,7 @@ export enum BuildPhase {
   EasBuildInternal = 'EAS_BUILD_INTERNAL',
   FailBuild = 'FAIL_BUILD',
   FixGradlew = 'FIX_GRADLEW',
+  GradleBuildProfile = 'GRADLE_BUILD_PROFILE',
   InstallCustomTools = 'INSTALL_CUSTOM_TOOLS',
   InstallDependencies = 'INSTALL_DEPENDENCIES',
   InstallPods = 'INSTALL_PODS',
@@ -5266,7 +5277,7 @@ export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -5277,6 +5288,7 @@ export enum DeviceRunSessionStatus {
 
 export enum DeviceRunSessionType {
   AgentDevice = 'AGENT_DEVICE',
+  Argent = 'ARGENT',
   ServeSim = 'SERVE_SIM'
 }
 
@@ -6036,6 +6048,27 @@ export type EditUpdateBranchInput = {
   newName: Scalars['String']['input'];
 };
 
+export type EmbeddedUpdate = {
+  __typename?: 'EmbeddedUpdate';
+  channel: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  /** The manifest UUID baked into the binary by expo-updates at build time. */
+  id: Scalars['ID']['output'];
+  launchAsset: EmbeddedUpdateAsset;
+  platform: AppPlatform;
+  runtimeVersion: Scalars['String']['output'];
+};
+
+export type EmbeddedUpdateAsset = {
+  __typename?: 'EmbeddedUpdateAsset';
+  contentType: Scalars['String']['output'];
+  fileSHA256: Scalars['String']['output'];
+  fileSize: Scalars['Int']['output'];
+  finalFileSize?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['ID']['output'];
+  storageKey: Scalars['String']['output'];
+};
+
 export type EmbeddedUpdateAssetMutation = {
   __typename?: 'EmbeddedUpdateAssetMutation';
   /**
@@ -6060,6 +6093,20 @@ export type EmbeddedUpdateAssetUploadSpec = {
   presignedUrl: Scalars['String']['output'];
   /** Storage key (`{appId}/{embeddedUpdateId}`). Same key in both upload and destination buckets. */
   storageKey: Scalars['String']['output'];
+};
+
+export type EmbeddedUpdateMutation = {
+  __typename?: 'EmbeddedUpdateMutation';
+  /**
+   * Register an embedded bundle as the launch asset for a given app/platform/channel.
+   * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet.
+   */
+  uploadEmbeddedUpdate: EmbeddedUpdate;
+};
+
+
+export type EmbeddedUpdateMutationUploadEmbeddedUpdateArgs = {
+  input: UploadEmbeddedUpdateInput;
 };
 
 export enum EntityTypeName {
@@ -7326,6 +7373,7 @@ export type JobRun = {
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
   endedAt?: Maybe<Scalars['DateTime']['output']>;
+  enqueuedAt?: Maybe<Scalars['DateTime']['output']>;
   errors: Array<JobRunError>;
   expiresAt: Scalars['DateTime']['output'];
   gitCommitHash?: Maybe<Scalars['String']['output']>;
@@ -8218,6 +8266,8 @@ export type RootMutation = {
   echoTurn: EchoTurnMutation;
   /** Mutations for Echo versions */
   echoVersion: EchoVersionMutation;
+  /** Mutations that register embedded update bundles for bundle diffing. */
+  embeddedUpdate: EmbeddedUpdateMutation;
   embeddedUpdateAsset: EmbeddedUpdateAssetMutation;
   /** Mutations that create and delete EnvironmentSecrets */
   environmentSecret: EnvironmentSecretMutation;
@@ -9764,6 +9814,16 @@ export type UpdatesMetricsData = {
   failedInstallsDataset: CumulativeUpdatesDataset;
   installsDataset: CumulativeUpdatesDataset;
   labels: Array<Scalars['String']['output']>;
+};
+
+export type UploadEmbeddedUpdateInput = {
+  appId: Scalars['ID']['input'];
+  channel: Scalars['String']['input'];
+  /** UUID baked into the binary by expo-updates at build time (from app.manifest id field). */
+  embeddedUpdateId: Scalars['ID']['input'];
+  platform: AppPlatform;
+  runtimeVersion: Scalars['String']['input'];
+  turtleBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type UploadSession = {
@@ -12846,7 +12906,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

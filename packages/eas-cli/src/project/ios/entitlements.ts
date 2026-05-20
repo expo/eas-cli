@@ -3,6 +3,7 @@ import { JSONObject } from '@expo/json-file';
 import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
 import Log from '../../log';
+import Sentry from '../../sentry';
 import { spawnExpoCommand } from '../../utils/expoCli';
 import { readPlistAsync } from '../../utils/plist';
 import { Client } from '../../vcs/vcs';
@@ -35,6 +36,24 @@ export async function getManagedApplicationTargetEntitlementsAsync(
       const expWithMods: ExportedConfig = JSON.parse(stdout);
       return expWithMods.ios?.entitlements ?? {};
     } catch (error: any) {
+      try {
+        Sentry.withScope(scope => {
+          if (process.env.EAS_BUILD_PROJECT_ID) {
+            scope.setTag('app_id', process.env.EAS_BUILD_PROJECT_ID);
+          }
+          if (process.env.EAS_BUILD_ID) {
+            scope.setTag('build_id', process.env.EAS_BUILD_ID);
+          }
+          scope.setTag('config_resolution', 'ios_entitlements_introspection');
+          scope.setExtra('message', 'iOS entitlements config fallback');
+          scope.setExtra('stdout', error.stdout);
+          scope.setExtra('stderr', error.stderr);
+          Sentry.captureException(error);
+        });
+      } catch {
+        // do nothing
+      }
+
       expoConfigError = error;
       Log.warn(
         `Failed to read the app config from the project using the local Expo CLI: ${formatError(error)}`

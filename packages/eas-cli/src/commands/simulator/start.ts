@@ -32,6 +32,7 @@ const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
 // so adding a new enum value in codegen fails the build until it is wired up here.
 const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
+  [DeviceRunSessionType.Argent]: 'argent',
   [DeviceRunSessionType.ServeSim]: 'serve-sim',
 };
 
