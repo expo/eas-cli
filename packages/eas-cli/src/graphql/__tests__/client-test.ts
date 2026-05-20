@@ -1,15 +1,45 @@
 import { CombinedError } from '@urql/core';
 
+import Log from '../../log';
 import {
   EAS_CLI_UPGRADE_REQUIRED_ERROR_CODE,
+  withErrorHandlingAsync,
   withUpgradeRequiredErrorHandlingAsync,
 } from '../client';
+
+jest.mock('../../log');
 
 function makeError(message: string, extensions?: Record<string, unknown>): CombinedError {
   return new CombinedError({
     graphQLErrors: [{ message, extensions } as any],
   });
 }
+
+const mockLogError = jest.mocked(Log.error);
+
+describe(withErrorHandlingAsync, () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('logs the transient error message for generic transient errors', async () => {
+    const error = makeError('Transient failure', {
+      isTransient: true,
+      errorCode: 'SOME_TRANSIENT',
+    });
+    await expect(withErrorHandlingAsync(Promise.resolve({ error } as any))).rejects.toBe(error);
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.stringContaining("We've encountered a transient error")
+    );
+  });
+
+  it('suppresses the transient error message for EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE', async () => {
+    const error = makeError('Asset not yet available', {
+      isTransient: true,
+      errorCode: 'EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE',
+    });
+    await expect(withErrorHandlingAsync(Promise.resolve({ error } as any))).rejects.toBe(error);
+    expect(mockLogError).not.toHaveBeenCalled();
+  });
+});
 
 describe(withUpgradeRequiredErrorHandlingAsync, () => {
   it('returns data when the promise resolves successfully', async () => {

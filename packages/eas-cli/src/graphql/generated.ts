@@ -12514,6 +12514,22 @@ export type EnsureDeviceRunSessionStoppedMutationVariables = Exact<{
 
 export type EnsureDeviceRunSessionStoppedMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', ensureDeviceRunSessionStopped: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
 
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
+  contentType: Scalars['String']['input'];
+}>;
+
+
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutation = { __typename?: 'RootMutation', embeddedUpdateAsset: { __typename?: 'EmbeddedUpdateAssetMutation', getSignedEmbeddedUpdateAssetUploadSpecifications: { __typename?: 'EmbeddedUpdateAssetUploadSpec', storageKey: string, presignedUrl: string, fields: any } } };
+
+export type UploadEmbeddedUpdateMutationVariables = Exact<{
+  input: UploadEmbeddedUpdateInput;
+}>;
+
+
+export type UploadEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', uploadEmbeddedUpdate: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any } } };
+
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
   accountId: Scalars['String']['input'];
