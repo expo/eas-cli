@@ -27,6 +27,7 @@ export enum BuildPhase {
    */
   UPLOAD_ARTIFACTS = 'UPLOAD_ARTIFACTS',
   UPLOAD_APPLICATION_ARCHIVE = 'UPLOAD_APPLICATION_ARCHIVE',
+  UPLOAD_EMBEDDED_BUNDLE = 'UPLOAD_EMBEDDED_BUNDLE',
   UPLOAD_BUILD_ARTIFACTS = 'UPLOAD_BUILD_ARTIFACTS',
   PREPARE_ARTIFACTS = 'PREPARE_ARTIFACTS',
   CLEAN_UP_CREDENTIALS = 'CLEAN_UP_CREDENTIALS',
@@ -91,6 +92,7 @@ export const buildPhaseDisplayName: Record<BuildPhase, string> = {
   [BuildPhase.CACHE_STATS]: 'Cache stats',
   [BuildPhase.UPLOAD_ARTIFACTS]: 'Upload artifacts',
   [BuildPhase.UPLOAD_APPLICATION_ARCHIVE]: 'Upload application archive',
+  [BuildPhase.UPLOAD_EMBEDDED_BUNDLE]: 'Upload embedded bundle',
   [BuildPhase.UPLOAD_BUILD_ARTIFACTS]: 'Upload build artifacts',
   [BuildPhase.PREPARE_ARTIFACTS]: 'Prepare artifacts',
   [BuildPhase.CLEAN_UP_CREDENTIALS]: 'Clean up credentials',
@@ -157,6 +159,7 @@ export const buildPhaseWebsiteId: Record<BuildPhase, string> = {
   [BuildPhase.CACHE_STATS]: 'cache-stats',
   [BuildPhase.UPLOAD_ARTIFACTS]: 'upload-artifacts',
   [BuildPhase.UPLOAD_APPLICATION_ARCHIVE]: 'upload-application-archive',
+  [BuildPhase.UPLOAD_EMBEDDED_BUNDLE]: 'upload-embedded-bundle',
   [BuildPhase.UPLOAD_BUILD_ARTIFACTS]: 'upload-build-artifacts',
   [BuildPhase.PREPARE_ARTIFACTS]: 'prepare-artifacts',
   [BuildPhase.CLEAN_UP_CREDENTIALS]: 'clean-up-credentials',
