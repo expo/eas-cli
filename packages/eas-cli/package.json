@@ -1,6 +1,6 @@
 {
   "name": "eas-cli",
-  "version": "19.0.2",
+  "version": "19.0.4",
   "description": "EAS command line tool",
   "keywords": [
     "cli",
