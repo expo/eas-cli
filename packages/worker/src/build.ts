@@ -1,9 +1,4 @@
-import {
-  Artifacts,
-  BuildContext,
-  Builders,
-  runGenericJobAsync,
-} from '@expo/build-tools';
+import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
 import {
   Android,
   BuildJob,
