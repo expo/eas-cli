@@ -171,6 +171,7 @@ describe(ObserveVersions, () => {
             firstSeenAt: '2025-06-01T00:00:00.000Z',
             eventCount: 100,
             uniqueUserCount: 50,
+            lastSeenUserCount: 12,
             buildNumbers: [],
             updates: [],
             metrics: [],

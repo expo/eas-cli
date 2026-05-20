@@ -28,6 +28,7 @@ function makeAppVersion(
     eventCount: metrics.reduce((sum, m) => sum + m.eventCount, 0),
     uniqueUserCount: 50,
     firstSeenAt: '2025-01-01T00:00:00.000Z',
+    lastSeenUserCount: 12,
     buildNumbers: [],
     updates: [],
     metrics: metrics.map(m => ({
