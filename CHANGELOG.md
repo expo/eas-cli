@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] `eas go` now prompts to select an Expo SDK version interactively when `--sdk-version` is not provided. ([#3768](https://github.com/expo/eas-cli/pull/3768) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas update:embedded:upload` command. ([#3720](https://github.com/expo/eas-cli/pull/3720) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Auto-upload embedded bundle after build when `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE` is set. ([#3767](https://github.com/expo/eas-cli/pull/3767) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
