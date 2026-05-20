@@ -3,6 +3,7 @@ import { AppClipTask } from './app-clip';
 import { AppInfoTask } from './app-info';
 import { AppReviewDetailTask } from './app-review-detail';
 import { AppVersionOptions, AppVersionTask } from './app-version';
+import { DataUsageTask } from './data-usage';
 import { PreviewsTask } from './previews';
 import { ScreenshotsTask } from './screenshots';
 import { AppleTask } from '../task';
@@ -23,5 +24,6 @@ export function createAppleTasks({ version }: AppleTaskOptions = {}): AppleTask[
     new ScreenshotsTask(),
     new PreviewsTask(),
     new AppClipTask(),
+    new DataUsageTask(),
   ];
 }

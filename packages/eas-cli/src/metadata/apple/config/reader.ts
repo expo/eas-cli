@@ -20,6 +20,7 @@ import {
   AppleAppClip,
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
+  AppleDataUsage,
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
@@ -256,5 +257,13 @@ export class AppleConfigReader {
   /** Get the localized App Clip info (subtitle + header image) for a specific locale. */
   public getAppClipLocalizedInfo(locale: string): AppleAppClipLocalizedInfo | null {
     return this.schema.appClip?.defaultExperience?.info?.[locale] ?? null;
+  }
+
+  /**
+   * Get the privacy data usage block (Privacy Nutrition Labels), or `null` if
+   * not configured. When `null`, the data usage task is a no-op.
+   */
+  public getDataUsage(): AppleDataUsage | null {
+    return this.schema.privacy?.dataUsage ?? null;
   }
 }

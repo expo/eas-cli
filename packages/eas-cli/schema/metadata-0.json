@@ -800,6 +800,118 @@
           "vi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Vietnamese" }
         }
       },
+      "ApplePrivacy": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Privacy metadata. Currently only contains App Privacy Nutrition Labels (data usage).",
+        "properties": {
+          "dataUsage": {
+            "$ref": "#/definitions/apple/AppleDataUsage",
+            "description": "App Privacy Nutrition Labels. Declares what data the app collects, how it is used, and how it is linked to the user. Required for new app submissions since 2021."
+          }
+        }
+      },
+      "AppleDataUsage": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Privacy Nutrition Labels — declarative declaration of data the app collects. When `dataNotCollected` is true, no data is collected and `categories` must be empty.",
+        "properties": {
+          "dataNotCollected": {
+            "type": "boolean",
+            "description": "Whether the app collects no data at all. Mirrors Apple's \"Data Not Collected\" toggle. When true, `categories` must be empty."
+          },
+          "categories": {
+            "type": "array",
+            "description": "Per-category data usage declarations.",
+            "items": {
+              "$ref": "#/definitions/apple/AppleDataUsageCategoryEntry"
+            }
+          }
+        }
+      },
+      "AppleDataUsageCategoryEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category"],
+        "description": "A single Privacy Nutrition Labels declaration: pairs a data category with the purposes it is used for and the data protection / linkage classification.",
+        "properties": {
+          "category": {
+            "$ref": "#/definitions/apple/AppleDataUsageCategoryId",
+            "description": "Apple data category."
+          },
+          "purposes": {
+            "type": "array",
+            "description": "Purposes the category is used for. At least one entry is required when the category is collected.",
+            "items": {
+              "$ref": "#/definitions/apple/AppleDataUsagePurposeId"
+            }
+          },
+          "protections": {
+            "type": "array",
+            "description": "Data protection / linkage classification(s). A single category can be both linked to the user and used for tracking.",
+            "items": {
+              "$ref": "#/definitions/apple/AppleDataUsageDataProtectionId"
+            }
+          }
+        }
+      },
+      "AppleDataUsageCategoryId": {
+        "enum": [
+          "ADVERTISING_DATA",
+          "AUDIO",
+          "BROWSING_HISTORY",
+          "COARSE_LOCATION",
+          "CONTACTS",
+          "CRASH_DATA",
+          "CREDIT_AND_FRAUD",
+          "CUSTOMER_SUPPORT",
+          "DEVICE_ID",
+          "EMAIL_ADDRESS",
+          "EMAILS_OR_TEXT_MESSAGES",
+          "ENVIRONMENTAL_SCANNING",
+          "FITNESS",
+          "GAMEPLAY_CONTENT",
+          "HANDS",
+          "HEAD_MOVEMENT",
+          "HEALTH",
+          "NAME",
+          "OTHER_CONTACT_INFO",
+          "OTHER_DATA",
+          "OTHER_DIAGNOSTIC_DATA",
+          "OTHER_FINANCIAL_INFO",
+          "OTHER_USAGE_DATA",
+          "OTHER_USER_CONTENT",
+          "PAYMENT_INFORMATION",
+          "PERFORMANCE_DATA",
+          "PHONE_NUMBER",
+          "PHOTOS_OR_VIDEOS",
+          "PHYSICAL_ADDRESS",
+          "PRECISE_LOCATION",
+          "PRODUCT_INTERACTION",
+          "PURCHASE_HISTORY",
+          "SEARCH_HISTORY",
+          "SENSITIVE_INFO",
+          "USER_ID"
+        ]
+      },
+      "AppleDataUsagePurposeId": {
+        "enum": [
+          "THIRD_PARTY_ADVERTISING",
+          "DEVELOPERS_ADVERTISING",
+          "ANALYTICS",
+          "PRODUCT_PERSONALIZATION",
+          "APP_FUNCTIONALITY",
+          "OTHER_PURPOSES"
+        ]
+      },
+      "AppleDataUsageDataProtectionId": {
+        "enum": [
+          "DATA_USED_TO_TRACK_YOU",
+          "DATA_LINKED_TO_YOU",
+          "DATA_NOT_LINKED_TO_YOU",
+          "DATA_NOT_COLLECTED"
+        ]
+      },
       "AppleAgeRatingOverride": {
         "enum": [
           "NONE",
@@ -1034,6 +1146,10 @@
         "appClip": {
           "$ref": "#/definitions/apple/AppleAppClip",
           "description": "App Clip metadata. Only applies to apps that ship an App Clip target."
+        },
+        "privacy": {
+          "$ref": "#/definitions/apple/ApplePrivacy",
+          "description": "Privacy metadata, including App Privacy Nutrition Labels (data usage). Required for new app submissions since 2021."
         }
       }
     }

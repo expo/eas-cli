@@ -1,6 +1,9 @@
 import type {
   AgeRatingDeclarationProps,
   AppClipAction,
+  AppDataUsageCategoryId,
+  AppDataUsageDataProtectionId,
+  AppDataUsagePurposeId,
   PreviewType,
   ScreenshotDisplayType,
 } from '@expo/apple-utils';
@@ -54,6 +57,64 @@ export interface AppleMetadata {
   review?: AppleReview;
   /** App Clip metadata. Only applies to apps that ship an App Clip target. */
   appClip?: AppleAppClip;
+  /** Privacy metadata, including App Privacy Nutrition Labels (data usage). */
+  privacy?: ApplePrivacy;
+}
+
+/** Top-level privacy block. Currently only contains data usage (Privacy Nutrition Labels). */
+export interface ApplePrivacy {
+  /**
+   * Privacy Nutrition Labels (App Privacy details). Required for new app
+   * submissions since 2021. When set, the local config is treated as the
+   * source of truth: existing data usage entries on App Store Connect are
+   * replaced to match, then published.
+   */
+  dataUsage?: AppleDataUsage;
+}
+
+/** Data usage category enum (e.g. CONTACTS, PRECISE_LOCATION). */
+export type AppleDataUsageCategoryId = `${AppDataUsageCategoryId}`;
+
+/** Data usage purpose enum (e.g. ANALYTICS, APP_FUNCTIONALITY). */
+export type AppleDataUsagePurposeId = `${AppDataUsagePurposeId}`;
+
+/** Data protection / linkage enum (e.g. DATA_LINKED_TO_YOU). */
+export type AppleDataUsageDataProtectionId = `${AppDataUsageDataProtectionId}`;
+
+/**
+ * Privacy Nutrition Labels — declarative declaration of data collected by the
+ * app. When `dataNotCollected` is true, no data is collected and `categories`
+ * must be omitted (or empty).
+ */
+export interface AppleDataUsage {
+  /**
+   * Whether the app collects no data at all. When set, `categories` must be
+   * empty. Mirrors Apple's "Data Not Collected" toggle in App Store Connect.
+   */
+  dataNotCollected?: boolean;
+  /** Per-category declarations. Order is not significant. */
+  categories?: AppleDataUsageCategoryEntry[];
+}
+
+/**
+ * One declaration row in the App Privacy details. Each row pairs a data
+ * category with the purposes it's used for and the protection / linkage
+ * applied to it.
+ */
+export interface AppleDataUsageCategoryEntry {
+  /** Apple data category, e.g. `CONTACTS`, `PRECISE_LOCATION`. */
+  category: AppleDataUsageCategoryId;
+  /**
+   * Purposes the category is used for, e.g. `ANALYTICS`, `APP_FUNCTIONALITY`.
+   * At least one entry is required when the category is collected.
+   */
+  purposes?: AppleDataUsagePurposeId[];
+  /**
+   * Data protection / linkage classification, e.g. `DATA_LINKED_TO_YOU`,
+   * `DATA_USED_TO_TRACK_YOU`. Multiple values are allowed: a single category
+   * can be both linked to the user and used for tracking.
+   */
+  protections?: AppleDataUsageDataProtectionId[];
 }
 
 /** App Clip action enum values from App Store Connect API */
