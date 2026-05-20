@@ -45,6 +45,7 @@ jest.mock('../../../../graphql/queries/AppStoreConnectApiKeyQuery', () => ({
 jest.mock('../DeviceUtils', () => {
   return {
     __esModule: true,
+    ...jest.requireActual('../DeviceUtils'),
     chooseDevicesAsync: jest.fn(),
     formatDeviceLabel: jest.requireActual('../DeviceUtils').formatDeviceLabel,
   };
@@ -231,6 +232,7 @@ describe('refresh ad-hoc provisioning profile', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
+    jest.mocked(getApplePlatformFromTarget).mockReturnValue(ApplePlatform.IOS);
     jest.mocked(SetUpDistributionCertificate).mockImplementation(
       () =>
         ({
@@ -260,6 +262,27 @@ describe('refresh ad-hoc provisioning profile', () => {
       distCert.serialNumber,
       expect.anything()
     );
+  });
+
+  it('filters devices by target platform only in refresh mode', async () => {
+    const { ctx, distCert } = setUpRefreshTest();
+    Object.defineProperty(ctx, 'nonInteractive', { value: true });
+    Object.defineProperty(ctx, 'refreshAdHocProvisioningProfile', { value: true });
+    ctx.ios.getDevicesForAppleTeamAsync = jest.fn().mockResolvedValue([
+      { identifier: 'id1', model: 'iPhone17,1', deviceClass: AppleDeviceClass.Iphone },
+      { identifier: 'id2', model: 'AppleTV6,3', deviceClass: AppleDeviceClass.Unknown },
+      { identifier: 'id3', deviceClass: AppleDeviceClass.Mac },
+    ]);
+
+    await setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(ctx, distCert);
+
+    expect(ctx.appStore.createOrReuseAdhocProvisioningProfileAsync).toHaveBeenCalledWith(
+      ['id1'],
+      'bundleId',
+      distCert.serialNumber,
+      expect.anything()
+    );
+    expect(chooseDevicesAsync).not.toHaveBeenCalled();
   });
 
   it('continues without prompting when some devices are not provisioned in refresh mode', async () => {
@@ -362,6 +385,11 @@ function setUpRefreshTest(): {
   distCert.serialNumber = 'serial-number';
   ctx.appStore.ensureAuthenticatedAsync = jest.fn().mockResolvedValue({});
   jest.mocked(getBuildCredentialsAsync).mockResolvedValue(null);
+  ctx.ios.getDevicesForAppleTeamAsync = jest.fn().mockResolvedValue([
+    { identifier: 'id1', deviceClass: AppleDeviceClass.Iphone },
+    { identifier: 'id2', deviceClass: AppleDeviceClass.Ipad },
+    { identifier: 'id3', deviceClass: AppleDeviceClass.Iphone },
+  ] as AppleDeviceFragment[]);
   return { ctx, distCert };
 }
 
@@ -394,8 +422,7 @@ function setUpTest(): { ctx: CredentialsContext; distCert: AppleDistributionCert
     { identifier: 'id2', name: 'Device 2', deviceClass: AppleDeviceClass.Iphone },
     { identifier: 'id3', name: 'Device 3', deviceClass: AppleDeviceClass.Mac },
   ] as AppleDevice[]);
-  // @ts-expect-error
-  jest.mocked(getApplePlatformFromTarget).mockResolvedValue(ApplePlatform.IOS);
+  jest.mocked(getApplePlatformFromTarget).mockReturnValue(ApplePlatform.IOS);
   Object.defineProperty(ctx, 'appStore', { value: jest.mock('../../appstore/AppStoreApi') });
   ctx.appStore.createOrReuseAdhocProvisioningProfileAsync = jest.fn().mockResolvedValue({
     provisioningProfileId: 'provisioningProfileId',

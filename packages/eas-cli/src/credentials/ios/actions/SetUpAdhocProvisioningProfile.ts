@@ -6,7 +6,11 @@ import nullthrows from 'nullthrows';
 
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from './BuildCredentialsUtils';
-import { chooseDevicesAsync, formatDeviceLabel } from './DeviceUtils';
+import {
+  chooseDevicesAsync,
+  filterDevicesForApplePlatform,
+  formatDeviceLabel,
+} from './DeviceUtils';
 import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
@@ -150,13 +154,13 @@ export class SetUpAdhocProvisioningProfile {
     const provisionedDeviceIdentifiers = (
       currentBuildCredentials?.provisioningProfile?.appleDevices ?? []
     ).map(i => i.identifier);
+    const applePlatform = getApplePlatformFromTarget(target);
     const chosenDevices =
       ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile
-        ? registeredAppleDevices
+        ? filterDevicesForApplePlatform(registeredAppleDevices, applePlatform)
         : await chooseDevicesAsync(registeredAppleDevices, provisionedDeviceIdentifiers);
 
     // 4. Reuse or create the profile on Apple Developer Portal
-    const applePlatform = getApplePlatformFromTarget(target);
     const profileType =
       applePlatform === ApplePlatform.TV_OS
         ? ProfileType.TVOS_APP_ADHOC
