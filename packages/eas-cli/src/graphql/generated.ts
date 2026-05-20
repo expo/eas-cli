@@ -2238,6 +2238,11 @@ export type AppObserveAppBuildEmbeddedSummary = {
   __typename?: 'AppObserveAppBuildEmbeddedSummary';
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range ran this build's embedded bundle.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -2253,7 +2258,18 @@ export type AppObserveAppBuildNumber = {
   embedded?: Maybe<AppObserveAppBuildEmbeddedSummary>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range was on this (appVersion, appBuildNumber) tuple.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
+  /**
+   * Updates seen on this build number in the queried time range. Each
+   * entry's counts and EAS builds are scoped to this (appVersion,
+   * appBuildNumber, appUpdateId) tuple.
+   */
+  updates: Array<AppObserveAppUpdate>;
 };
 
 export type AppObserveAppEasBuild = {
@@ -2271,6 +2287,11 @@ export type AppObserveAppUpdate = {
   easBuilds: Array<AppObserveAppEasBuild>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range matched this update at its current nesting level.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -12443,6 +12464,22 @@ export type EnsureDeviceRunSessionStoppedMutationVariables = Exact<{
 
 
 export type EnsureDeviceRunSessionStoppedMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', ensureDeviceRunSessionStopped: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
+
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
+  contentType: Scalars['String']['input'];
+}>;
+
+
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutation = { __typename?: 'RootMutation', embeddedUpdateAsset: { __typename?: 'EmbeddedUpdateAssetMutation', getSignedEmbeddedUpdateAssetUploadSpecifications: { __typename?: 'EmbeddedUpdateAssetUploadSpec', storageKey: string, presignedUrl: string, fields: any } } };
+
+export type UploadEmbeddedUpdateMutationVariables = Exact<{
+  input: UploadEmbeddedUpdateInput;
+}>;
+
+
+export type UploadEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', uploadEmbeddedUpdate: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any } } };
 
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
