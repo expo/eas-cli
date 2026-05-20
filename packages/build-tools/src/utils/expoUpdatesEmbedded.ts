@@ -18,6 +18,14 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
   }
 
   const { platform } = ctx.job;
+  if (platform === Platform.IOS && (ctx.job as Ios.Job).simulator) {
+    ctx.logger.info(
+      'Skipping embedded bundle upload: simulator builds do not embed release update bundles.'
+    );
+    ctx.markBuildPhaseSkipped();
+    return;
+  }
+
   const channel = ctx.job.updates?.channel;
   const projectDir = ctx.getReactNativeProjectDirectory();
 
@@ -48,12 +56,12 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
     const bundleEntry = entries.find(e =>
       platform === Platform.IOS
         ? e.name.endsWith('/main.jsbundle')
-        : e.name === 'assets/index.android.bundle'
+        : e.name.endsWith('assets/index.android.bundle')
     );
     const manifestEntry = entries.find(e =>
       platform === Platform.IOS
         ? e.name.includes('EXUpdates.bundle/app.manifest')
-        : e.name === 'assets/app.manifest'
+        : e.name.endsWith('assets/app.manifest')
     );
 
     if (!bundleEntry || !manifestEntry) {
