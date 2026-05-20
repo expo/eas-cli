@@ -22,7 +22,7 @@ const XCLOGPARSER_OUTPUT_FILENAME = 'xcactivitylog.json';
 export async function parseAndReportXcactivitylog({
   derivedDataPath,
   workspacePath,
-  xclogparserVersion = DEFAULT_XCLOGPARSER_VERSION,
+  xclogparserVersion,
   logger,
   proxyBaseUrl,
 }: {
@@ -37,17 +37,27 @@ export async function parseAndReportXcactivitylog({
   try {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
 
-    phase = 'downloading_xclogparser';
-    const xclogparserPath = await downloadXclogparser(
-      tempDir,
-      xclogparserVersion,
-      logger,
-      proxyBaseUrl
-    );
+    phase = 'resolving_xclogparser';
+    const preinstalledVersion = await detectPreinstalledXclogparserVersion();
+    let binaryPath: string;
+    let resolvedVersion: string;
+    if (
+      preinstalledVersion &&
+      (!xclogparserVersion || preinstalledVersion === xclogparserVersion)
+    ) {
+      binaryPath = 'xclogparser';
+      resolvedVersion = preinstalledVersion;
+      logger.info(`Using preinstalled xclogparser ${resolvedVersion}.`);
+    } else {
+      phase = 'downloading_xclogparser';
+      resolvedVersion = xclogparserVersion ?? DEFAULT_XCLOGPARSER_VERSION;
+      binaryPath = await downloadXclogparser(tempDir, resolvedVersion, logger, proxyBaseUrl);
+      logger.info(`Using downloaded xclogparser ${resolvedVersion}.`);
+    }
 
     phase = 'running_xclogparser';
     const jsonOutputPath = await runXclogparser({
-      binaryPath: xclogparserPath,
+      binaryPath,
       derivedDataPath,
       workspacePath,
       outputDir: tempDir,
@@ -68,6 +78,15 @@ export async function parseAndReportXcactivitylog({
       await asyncResult(fs.rm(tempDir, { force: true, recursive: true }));
     }
   }
+}
+
+async function detectPreinstalledXclogparserVersion(): Promise<string | null> {
+  const result = await asyncResult(spawn('xclogparser', ['version'], { stdio: 'pipe' }));
+  if (!result.ok) {
+    return null;
+  }
+  const match = result.value.stdout.match(/(\d+\.\d+\.\d+)/);
+  return match ? `v${match[1]}` : null;
 }
 
 async function downloadXclogparser(

@@ -224,11 +224,12 @@ describe('parseAndReportXcactivitylog', () => {
     jest.restoreAllMocks();
   });
 
-  it('downloads xclogparser from GCS and logs only the final report on success', async () => {
+  it('downloads xclogparser from GCS and logs resolution + final report when no binary is preinstalled', async () => {
     const logger = createMockLogger();
     const { tempDir, reportPath } = mockFilesystem();
 
     mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await parseAndReportXcactivitylog({
@@ -237,19 +238,22 @@ describe('parseAndReportXcactivitylog', () => {
       logger,
     });
 
+    expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'xclogparser', ['version'], {
+      stdio: 'pipe',
+    });
     expect(mockedDownloadFile).toHaveBeenCalledWith(
       'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
       path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'),
       { retry: 3, timeout: 20_000 }
     );
     expect(mockedSpawn).toHaveBeenNthCalledWith(
-      1,
+      2,
       'unzip',
       ['-q', path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'), '-d', tempDir],
       { stdio: 'pipe' }
     );
     expect(mockedSpawn).toHaveBeenNthCalledWith(
-      2,
+      3,
       path.join(tempDir, 'xclogparser'),
       [
         'parse',
@@ -265,7 +269,7 @@ describe('parseAndReportXcactivitylog', () => {
       { stdio: 'pipe' }
     );
     expect(fs.readFile).toHaveBeenCalledWith(reportPath, 'utf8');
-    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.47.');
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining('Xcode Build — Compile Metrics by Module')
     );
@@ -281,6 +285,7 @@ describe('parseAndReportXcactivitylog', () => {
     mockedDownloadFile
       .mockRejectedValueOnce(new Error('proxy failed'))
       .mockResolvedValueOnce(undefined);
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await parseAndReportXcactivitylog({
@@ -315,6 +320,7 @@ describe('parseAndReportXcactivitylog', () => {
 
     mockedDownloadFile.mockResolvedValue(undefined);
     mockedSpawn
+      .mockRejectedValueOnce(new Error('xclogparser not found'))
       .mockRejectedValueOnce(new Error('invalid zip'))
       .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
       .mockResolvedValueOnce({ stdout: '', stderr: '' } as any);
@@ -353,6 +359,7 @@ describe('parseAndReportXcactivitylog', () => {
     mockFilesystem({ jsonOutput: '{not valid json' });
 
     mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await expect(
@@ -382,6 +389,7 @@ describe('parseAndReportXcactivitylog', () => {
     });
 
     mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await expect(
@@ -407,6 +415,7 @@ describe('parseAndReportXcactivitylog', () => {
 
     mockedDownloadFile.mockResolvedValue(undefined);
     mockedSpawn
+      .mockRejectedValueOnce(new Error('xclogparser not found')) // version detect
       .mockResolvedValueOnce({ stdout: '', stderr: '' } as any) // unzip
       .mockRejectedValueOnce(new Error('spawn xclogparser ENOENT')); // xclogparser run
 
@@ -432,6 +441,7 @@ describe('parseAndReportXcactivitylog', () => {
     mockFilesystem();
 
     mockedDownloadFile.mockRejectedValue(new Error('network unreachable'));
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await expect(
@@ -459,6 +469,7 @@ describe('parseAndReportXcactivitylog', () => {
     });
 
     mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
     await expect(
@@ -469,9 +480,160 @@ describe('parseAndReportXcactivitylog', () => {
       })
     ).resolves.toBeUndefined();
 
-    expect(logger.info).toHaveBeenCalledTimes(1);
     expect(logger.debug).not.toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  describe('xclogparser version resolution', () => {
+    it('uses preinstalled binary when no version is requested', async () => {
+      const logger = createMockLogger();
+      const { reportPath } = mockFilesystem();
+
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: 'XCLogParser 0.2.50\n', stderr: '' } as any) // version detect
+        .mockResolvedValueOnce({ stdout: '', stderr: '' } as any); // xclogparser parse
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      });
+
+      expect(mockedDownloadFile).not.toHaveBeenCalled();
+      expect(mockedSpawn).not.toHaveBeenCalledWith('unzip', expect.any(Array), expect.any(Object));
+      expect(mockedSpawn).toHaveBeenNthCalledWith(
+        2,
+        'xclogparser',
+        [
+          'parse',
+          '--derived_data',
+          '/tmp/derived-data',
+          '--workspace',
+          '/tmp/workspace',
+          '--reporter',
+          'json',
+          '--output',
+          reportPath,
+        ],
+        { stdio: 'pipe' }
+      );
+      expect(logger.info).toHaveBeenCalledWith('Using preinstalled xclogparser v0.2.50.');
+      expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('downloaded'));
+      expect(Sentry.capture).not.toHaveBeenCalled();
+    });
+
+    it('downloads default version when no version requested and no preinstall found', async () => {
+      const logger = createMockLogger();
+      mockFilesystem();
+
+      mockedDownloadFile.mockResolvedValue(undefined);
+      mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
+      mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      });
+
+      expect(mockedDownloadFile).toHaveBeenCalledWith(
+        expect.stringContaining('XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'),
+        expect.any(String),
+        expect.any(Object)
+      );
+      expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.47.');
+    });
+
+    it('uses preinstalled binary when requested version matches', async () => {
+      const logger = createMockLogger();
+      mockFilesystem();
+
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: 'XCLogParser 0.2.50\n', stderr: '' } as any) // version detect
+        .mockResolvedValueOnce({ stdout: '', stderr: '' } as any); // xclogparser parse
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        xclogparserVersion: 'v0.2.50',
+        logger,
+      });
+
+      expect(mockedDownloadFile).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith('Using preinstalled xclogparser v0.2.50.');
+      expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('downloaded'));
+    });
+
+    it('downloads requested version when it does not match the preinstalled binary', async () => {
+      const logger = createMockLogger();
+      mockFilesystem();
+
+      mockedDownloadFile.mockResolvedValue(undefined);
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: 'XCLogParser 0.2.48\n', stderr: '' } as any) // version detect
+        .mockResolvedValueOnce({ stdout: '', stderr: '' } as any) // unzip
+        .mockResolvedValueOnce({ stdout: '', stderr: '' } as any); // xclogparser parse
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        xclogparserVersion: 'v0.2.50',
+        logger,
+      });
+
+      expect(mockedDownloadFile).toHaveBeenCalledWith(
+        expect.stringContaining('XCLogParser-macOS-x86-64-arm64-v0.2.50.zip'),
+        expect.any(String),
+        expect.any(Object)
+      );
+      expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.50.');
+    });
+
+    it('downloads requested version when no preinstall is found', async () => {
+      const logger = createMockLogger();
+      mockFilesystem();
+
+      mockedDownloadFile.mockResolvedValue(undefined);
+      mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
+      mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        xclogparserVersion: 'v0.2.50',
+        logger,
+      });
+
+      expect(mockedDownloadFile).toHaveBeenCalledWith(
+        expect.stringContaining('XCLogParser-macOS-x86-64-arm64-v0.2.50.zip'),
+        expect.any(String),
+        expect.any(Object)
+      );
+      expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.50.');
+    });
+
+    it('falls back to download when the version output cannot be parsed', async () => {
+      const logger = createMockLogger();
+      mockFilesystem();
+
+      mockedDownloadFile.mockResolvedValue(undefined);
+      mockedSpawn
+        .mockResolvedValueOnce({ stdout: 'something unexpected', stderr: '' } as any) // version detect
+        .mockResolvedValue({ stdout: '', stderr: '' } as any);
+
+      await parseAndReportXcactivitylog({
+        derivedDataPath: '/tmp/derived-data',
+        workspacePath: '/tmp/workspace',
+        logger,
+      });
+
+      expect(mockedDownloadFile).toHaveBeenCalledWith(
+        expect.stringContaining('XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'),
+        expect.any(String),
+        expect.any(Object)
+      );
+      expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.47.');
+    });
   });
 });
 
