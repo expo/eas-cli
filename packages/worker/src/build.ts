@@ -1,12 +1,4 @@
-import {
-  Artifacts,
-  BuildContext,
-  Builders,
-  Sentry,
-  parseGradleProfile,
-  formatGradleProfileReport,
-  runGenericJobAsync,
-} from '@expo/build-tools';
+import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -21,8 +13,6 @@ import {
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import omit from 'lodash/omit';
-import path from 'path';
-
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
@@ -91,21 +81,6 @@ export async function build({
     }
 
     analytics.logEvent(Event.WORKER_BUILD_SUCCESS, {});
-
-    if (job.platform === Platform.ANDROID) {
-      try {
-        await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
-          const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
-          const profileTasks = await parseGradleProfile(androidDir);
-          if (profileTasks.length > 0) {
-            const report = formatGradleProfileReport(profileTasks);
-            ctx.logger.info(report);
-          }
-        });
-      } catch (err: any) {
-        Sentry.capture('Failed to parse Gradle build profile', err);
-      }
-    }
 
     return artifacts;
   } catch (err: any) {

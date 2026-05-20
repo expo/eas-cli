@@ -10,6 +10,8 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
+import { parseGradleProfile, formatGradleProfileReport } from '../android/gradleProfile';
+import { Sentry } from '../sentry';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
 import { setupAsync } from '../common/setup';
@@ -178,6 +180,20 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
           }
         : null),
     });
+  });
+
+  await ctx.runBuildPhase(BuildPhase.GRADLE_BUILD_PROFILE, async () => {
+    try {
+      const androidDir = path.join(ctx.getReactNativeProjectDirectory(), 'android');
+      const profileTasks = await parseGradleProfile(androidDir);
+      if (profileTasks.length > 0) {
+        const report = formatGradleProfileReport(profileTasks);
+        ctx.logger.info(report);
+      }
+    } catch (err: any) {
+      Sentry.capture('Failed to parse Gradle build profile', err);
+      ctx.markBuildPhaseSkipped();
+    }
   });
 
   await ctx.runBuildPhase(BuildPhase.PRE_UPLOAD_ARTIFACTS_HOOK, async () => {
