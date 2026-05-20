@@ -18,6 +18,8 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
+  DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
 } from '../../simulator/utils';
@@ -27,20 +29,6 @@ import nullthrows from 'nullthrows';
 
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
 const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
-
-// Mapping enum → CLI flag value. Declared as Record<DeviceRunSessionType, string>
-// so adding a new enum value in codegen fails the build until it is wired up here.
-const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
-  [DeviceRunSessionType.AgentDevice]: 'agent-device',
-  [DeviceRunSessionType.Argent]: 'argent',
-  [DeviceRunSessionType.ServeSim]: 'serve-sim',
-};
-
-const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
-  (Object.entries(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES) as [DeviceRunSessionType, string][]).map(
-    ([type, value]) => [value, type]
-  )
-) as Record<string, DeviceRunSessionType>;
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
