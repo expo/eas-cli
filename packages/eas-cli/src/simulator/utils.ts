@@ -24,6 +24,22 @@ export function formatRemoteSessionInstructions(
       }
       return lines.join('\n');
     }
+    case 'ArgentRunSessionRemoteConfig': {
+      const lines = [
+        '🔑 Open the following URL to access the Argent tools for this session:',
+        '',
+        remoteConfig.toolsUrl,
+      ];
+      if (remoteConfig.webPreviewUrl) {
+        lines.push(
+          '',
+          '🌐 Open the following URL in your browser to preview the simulator:',
+          '',
+          remoteConfig.webPreviewUrl
+        );
+      }
+      return lines.join('\n');
+    }
     case 'ServeSimRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
