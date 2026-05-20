@@ -1,5 +1,8 @@
-import { AppStoreReviewDetail } from '@expo/apple-utils';
+import { AppStoreReviewAttachment, AppStoreReviewDetail } from '@expo/apple-utils';
 import chalk from 'chalk';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 import Log from '../../../log';
 import { logAsync } from '../../utils/log';
@@ -9,6 +12,14 @@ export type AppReviewData = {
   /** The current app info that should be edited */
   reviewDetail: AppStoreReviewDetail;
 };
+
+/** Default directory (relative to project root) for downloaded review attachments. */
+const REVIEW_ATTACHMENT_DIR = path.join('store', 'apple', 'review-attachment');
+
+function md5OfFile(absolutePath: string): string {
+  const bytes = fs.readFileSync(absolutePath);
+  return crypto.createHash('md5').update(bytes).digest('hex');
+}
 
 /** Handle all contact, demo account, or instruction info that are required for the App Store review team. */
 export class AppReviewDetailTask extends AppleTask {
@@ -22,9 +33,41 @@ export class AppReviewDetailTask extends AppleTask {
   }
 
   public async downloadAsync({ config, context }: TaskDownloadOptions): Promise<void> {
-    if (context.reviewDetail) {
-      config.setReviewDetails(context.reviewDetail.attributes);
+    if (!context.reviewDetail) {
+      return;
     }
+
+    config.setReviewDetails(context.reviewDetail.attributes);
+
+    // ASC limitation — see expo/third-party#146. AppStoreReviewAttachment has no
+    // download URL (contrast with AppScreenshot.imageAsset.templateUrl). The API
+    // only exposes fileName, fileSize, sourceFileChecksum, uploadOperations, and
+    // assetDeliveryState. We record the expected path in the config so that the
+    // pull -> push round-trip preserves the attachment entry, but we cannot
+    // download the actual file bytes.
+    const attachments = context.reviewDetail.attributes.appStoreReviewAttachments ?? [];
+    const attachment = attachments[0];
+    if (!attachment) {
+      return;
+    }
+
+    const fileName = attachment.attributes.fileName || 'attachment';
+    const relativePath = path.join(REVIEW_ATTACHMENT_DIR, fileName);
+    const absolutePath = path.resolve(context.projectDir, relativePath);
+
+    if (!fs.existsSync(absolutePath)) {
+      Log.log(
+        chalk`{yellow Review attachment "${chalk.bold(
+          fileName
+        )}" exists in App Store Connect but cannot be downloaded.}\n` +
+          chalk`  App Store Connect does not expose a download URL for review attachments\n` +
+          chalk`  (unlike screenshots which have {dim imageAsset.templateUrl}). Only {dim fileName},\n` +
+          chalk`  {dim fileSize}, and {dim sourceFileChecksum} are available from the API.\n` +
+          chalk`  To keep the attachment in sync, place the file at: {bold ${relativePath}}`
+      );
+    }
+
+    config.setReviewAttachment(relativePath);
   }
 
   public async uploadAsync({ config, context }: TaskUploadOptions): Promise<void> {
@@ -54,10 +97,82 @@ export class AppReviewDetailTask extends AppleTask {
       );
     }
 
+    // Capture existing attachments before the patch response overwrites them. The
+    // PATCH response doesn't include the related `appStoreReviewAttachments`, so
+    // we need to reuse the version we fetched in `prepareAsync` to make a
+    // checksum-based skip decision below.
+    const existingAttachments = context.reviewDetail.attributes.appStoreReviewAttachments ?? [];
+
     context.reviewDetail = await logAsync(() => context.reviewDetail.updateAsync(reviewDetail), {
       pending: `Updating store review details for ${chalk.bold(versionString)}...`,
       success: `Updated store review details for ${chalk.bold(versionString)}`,
       failure: `Failed updating store review details for ${chalk.bold(versionString)}`,
+    });
+
+    await this.syncAttachmentAsync({
+      attachmentPath: config.getReviewAttachment(),
+      reviewDetail: context.reviewDetail,
+      existingAttachments,
+      projectDir: context.projectDir,
+    });
+  }
+
+  /**
+   * Sync the App Store review attachment.
+   * - When no attachment is configured, do nothing (existing remote attachments are left alone).
+   * - When the configured file matches an existing attachment by checksum, skip re-upload.
+   * - Otherwise delete any existing attachment(s) and upload the new file.
+   */
+  private async syncAttachmentAsync({
+    attachmentPath,
+    reviewDetail,
+    existingAttachments,
+    projectDir,
+  }: {
+    attachmentPath: string | null;
+    reviewDetail: AppStoreReviewDetail;
+    existingAttachments: AppStoreReviewAttachment[];
+    projectDir: string;
+  }): Promise<void> {
+    if (!attachmentPath) {
+      return;
+    }
+
+    const absolutePath = path.resolve(projectDir, attachmentPath);
+    if (!fs.existsSync(absolutePath)) {
+      Log.warn(chalk`{yellow Review attachment not found: ${absolutePath}}`);
+      return;
+    }
+
+    const fileName = path.basename(absolutePath);
+    const localChecksum = md5OfFile(absolutePath);
+
+    const matching = existingAttachments.find(
+      attachment =>
+        attachment.attributes.uploaded &&
+        attachment.attributes.sourceFileChecksum === localChecksum
+    );
+
+    if (matching) {
+      Log.log(chalk`{dim - Skipped review attachment ${fileName}, already up to date}`);
+      return;
+    }
+
+    // Remove any stale attachments before uploading the new one. App Store
+    // Connect generally allows a single review attachment per review detail,
+    // so we replace whatever is currently there.
+    for (const attachment of existingAttachments) {
+      await logAsync(() => attachment.deleteAsync(), {
+        pending: `Deleting review attachment ${chalk.bold(attachment.attributes.fileName)}...`,
+        success: `Deleted review attachment ${chalk.bold(attachment.attributes.fileName)}`,
+        failure: `Failed deleting review attachment ${chalk.bold(attachment.attributes.fileName)}`,
+      });
+    }
+
+    await logAsync(() => reviewDetail.uploadAttachmentAsync(absolutePath), {
+      pending: `Uploading review attachment ${chalk.bold(fileName)}...`,
+      success: `Uploaded review attachment ${chalk.bold(fileName)}`,
+      failure: `Failed uploading review attachment ${chalk.bold(fileName)}`,
     });
   }
 }

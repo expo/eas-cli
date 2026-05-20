@@ -216,3 +216,35 @@ describe('getAppClip', () => {
     expect(reader.getAppClipLocalizedInfo('de-DE')).toBeNull();
   });
 });
+
+describe('getReviewAttachment', () => {
+  it('returns null when review is not configured', () => {
+    const reader = new AppleConfigReader({});
+    expect(reader.getReviewAttachment()).toBeNull();
+  });
+
+  it('returns null when review has no attachment', () => {
+    const reader = new AppleConfigReader({
+      review: {
+        firstName: 'Evan',
+        lastName: 'Bacon',
+        email: 'review@example.com',
+        phone: '+1 555 555 5555',
+      },
+    });
+    expect(reader.getReviewAttachment()).toBeNull();
+  });
+
+  it('returns the configured attachment path', () => {
+    const reader = new AppleConfigReader({
+      review: {
+        firstName: 'Evan',
+        lastName: 'Bacon',
+        email: 'review@example.com',
+        phone: '+1 555 555 5555',
+        attachment: 'store/apple/review-attachment/demo.pdf',
+      },
+    });
+    expect(reader.getReviewAttachment()).toBe('store/apple/review-attachment/demo.pdf');
+  });
+});

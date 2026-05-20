@@ -224,8 +224,12 @@ export class AppleConfigReader {
       demoAccountPassword: review.demoPassword,
       demoAccountRequired: review.demoRequired,
       notes: review.notes,
-      // TODO: add attachment
     };
+  }
+
+  /** Get the configured review attachment path (relative to the project root), or null if not set. */
+  public getReviewAttachment(): string | null {
+    return this.schema.review?.attachment ?? null;
   }
 
   /** Get screenshots configuration for a specific locale */

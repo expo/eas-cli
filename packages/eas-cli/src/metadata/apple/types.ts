@@ -128,5 +128,10 @@ export interface AppleReview {
   demoPassword?: string;
   demoRequired?: boolean;
   notes?: string;
-  // attachment?: string;
+  /**
+   * Relative path (from project root) to a file shared with App Review.
+   * This is uploaded as an `appStoreReviewAttachment` and re-uploaded only when the
+   * file's checksum differs from the existing attachment.
+   */
+  attachment?: string;
 }
