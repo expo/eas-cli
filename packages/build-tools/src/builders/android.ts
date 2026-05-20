@@ -30,7 +30,6 @@ import {
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
-  isEASUpdateConfigured,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
 import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
@@ -210,10 +209,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     });
   });
 
-  if (
-    ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE &&
-    (await isEASUpdateConfigured(ctx))
-  ) {
+  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
     await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
       await uploadEmbeddedBundleAsync(ctx);
     });

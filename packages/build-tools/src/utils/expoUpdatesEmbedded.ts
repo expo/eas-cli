@@ -9,8 +9,14 @@ import { findArtifacts } from './artifacts';
 import { runEasCliCommand } from './easCli';
 import { resolveArtifactPath } from '../ios/resolve';
 import { BuildContext } from '../context';
+import { isEASUpdateConfigured } from './expoUpdates';
 
 export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Promise<void> {
+  if (!(await isEASUpdateConfigured(ctx))) {
+    ctx.markBuildPhaseSkipped();
+    return;
+  }
+
   const { platform } = ctx.job;
   const channel = ctx.job.updates?.channel;
   const projectDir = ctx.getReactNativeProjectDirectory();
