@@ -17,6 +17,7 @@ import {
   AppleAppClipDefaultExperience,
   AppleAppClipLocalizedInfo,
   AppleAppClipReviewDetail,
+  AppleInAppPurchase,
   AppleMetadata,
   ApplePreviews,
   AppleScreenshots,
@@ -239,6 +240,25 @@ export class AppleConfigWriter {
     } else {
       delete this.schema.appClip.defaultExperience.reviewDetail;
     }
+  }
+
+  /**
+   * Set the In-App Purchase listing. Sorts by `productId` for stable
+   * `metadata:pull` round-trips and drops the key entirely when there are
+   * no IAPs to avoid spamming `store.config.json` with empty arrays.
+   */
+  public setInAppPurchases(entries: AppleInAppPurchase[]): void {
+    if (!entries || entries.length === 0) {
+      delete this.schema.inAppPurchases;
+      return;
+    }
+    const sorted = [...entries].sort((a, b) => a.productId.localeCompare(b.productId));
+    this.schema.inAppPurchases = sorted.map(entry => ({
+      productId: entry.productId,
+      referenceName: entry.referenceName,
+      type: entry.type,
+      ...(entry.state ? { state: entry.state } : {}),
+    }));
   }
 
   /** Set per-locale App Clip info (subtitle + header image). */
