@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Fix `eas build --local` for iOS on macOS 26 (Tahoe) where `Keychain.findIdentitiesByTeamId` falsely reported the dist certificate as not imported. The `-v` flag on `security find-identity` requires the full trust chain to resolve from the build keychain alone, but the build keychain only holds the cert + private key — Apple Root CA lives in `/Library/Keychains/System.keychain` and `find-identity` does not aggregate trust resolution across keychains. Dropped `-v`; presence check now works across macOS versions and codesign continues to resolve trust downstream via `Security.framework`. ([#3679](https://github.com/expo/eas-cli/pull/3679) by [@kearnsm293-afk](https://github.com/kearnsm293-afk))
+
 ### 🧹 Chores
 
 ## [19.0.1](https://github.com/expo/eas-cli/releases/tag/v19.0.1) - 2026-05-19
