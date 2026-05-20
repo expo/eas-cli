@@ -285,16 +285,15 @@ describe('refresh ad-hoc provisioning profile', () => {
     expect(assignBuildCredentialsAsync).toHaveBeenCalled();
   });
 
-  it('errors when no devices are registered in refresh mode', async () => {
+  it('errors when no devices are registered in non-interactive mode', async () => {
     const { ctx, distCert } = setUpRefreshTest();
     Object.defineProperty(ctx, 'nonInteractive', { value: true });
-    Object.defineProperty(ctx, 'refreshAdHocProvisioningProfile', { value: true });
     ctx.ios.getDevicesForAppleTeamAsync = jest.fn().mockResolvedValue([]);
 
     await expect(
       setUpAdhocProvisioningProfile.runWithDistributionCertificateAsync(ctx, distCert)
     ).rejects.toThrow(
-      'No devices are registered for this Apple team. Register devices with eas device:create before refreshing ad-hoc provisioning profile.'
+      'No devices are registered for this Apple team. Register devices with eas device:create first.'
     );
   });
 
