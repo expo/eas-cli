@@ -14492,6 +14492,22 @@
             "deprecationReason": null
           },
           {
+            "name": "lastSeenUserCount",
+            "description": "Unique users whose most recent supported-metric event in the queried\nrange ran this build's embedded bundle.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "uniqueUserCount",
             "description": null,
             "args": [],
@@ -14603,6 +14619,22 @@
             "deprecationReason": null
           },
           {
+            "name": "lastSeenUserCount",
+            "description": "Unique users whose most recent supported-metric event in the queried\nrange was on this (appVersion, appBuildNumber) tuple.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "uniqueUserCount",
             "description": null,
             "args": [],
@@ -14613,6 +14645,30 @@
                 "kind": "SCALAR",
                 "name": "Int",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updates",
+            "description": "Updates seen on this build number in the queried time range. Each\nentry's counts and EAS builds are scoped to this (appVersion,\nappBuildNumber, appUpdateId) tuple.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveAppUpdate",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -14782,6 +14838,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "lastSeenUserCount",
+            "description": "Unique users whose most recent supported-metric event in the queried\nrange matched this update at its current nesting level.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },

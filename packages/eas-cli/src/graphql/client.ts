@@ -16,6 +16,7 @@ export async function withErrorHandlingAsync<T>(promise: Promise<OperationResult
           ![
             'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED',
             'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED',
+            'EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE',
           ].includes(e?.extensions?.errorCode as string)
       )
     ) {
