@@ -7,9 +7,9 @@ import { createMockLogger } from '../../../../__tests__/utils/logger';
 import { Sentry } from '../../../../sentry';
 import {
   buildTargetMetrics,
-  isCompileStep,
   collectTopLevelCompileSteps,
   formatReport,
+  isCompileStep,
   parseAndReportXcactivitylog,
 } from '../xcactivitylog';
 
@@ -267,6 +267,9 @@ describe('parseAndReportXcactivitylog', () => {
         '/tmp/workspace',
         '--reporter',
         'json',
+        '--omit_warnings',
+        '--omit_notes',
+        '--trunc_large_issues',
         '--output',
         reportPath,
       ],
@@ -524,6 +527,9 @@ describe('parseAndReportXcactivitylog', () => {
           '/tmp/workspace',
           '--reporter',
           'json',
+          '--omit_warnings',
+          '--omit_notes',
+          '--trunc_large_issues',
           '--output',
           reportPath,
         ],
