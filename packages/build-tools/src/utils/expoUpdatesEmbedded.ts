@@ -19,9 +19,6 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
 
   const { platform } = ctx.job;
   if (platform === Platform.IOS && (ctx.job as Ios.Job).simulator) {
-    ctx.logger.info(
-      'Skipping embedded bundle upload: simulator builds do not embed release update bundles.'
-    );
     ctx.markBuildPhaseSkipped();
     return;
   }
@@ -50,6 +47,9 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
   }
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-embedded-bundle-'));
+  const bundleName = platform === Platform.IOS ? 'main.jsbundle' : 'index.android.bundle';
+  const bundlePath = path.join(tmpDir, bundleName);
+  const manifestPath = path.join(tmpDir, 'app.manifest');
   const zip = new StreamZip.async({ file: archivePath });
   try {
     const entries = Object.values(await zip.entries());
@@ -70,9 +70,6 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
       return;
     }
 
-    const bundleName = platform === Platform.IOS ? 'main.jsbundle' : 'index.android.bundle';
-    const bundlePath = path.join(tmpDir, bundleName);
-    const manifestPath = path.join(tmpDir, 'app.manifest');
     await zip.extract(bundleEntry.name, bundlePath);
     await zip.extract(manifestEntry.name, manifestPath);
 
