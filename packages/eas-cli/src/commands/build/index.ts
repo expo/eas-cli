@@ -41,6 +41,7 @@ interface RawBuildFlags {
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
   'refresh-ad-hoc-provisioning-profile': boolean;
+  'refresh-distribution-certificate': boolean;
   'verbose-logs'?: boolean;
   'what-to-test'?: string;
 }
@@ -127,6 +128,11 @@ export default class Build extends EasCommand {
       description:
         'Refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials',
     }),
+    'refresh-distribution-certificate': Flags.boolean({
+      default: false,
+      description:
+        'Validate and refresh the distribution certificate from App Store Connect before gathering build credentials',
+    }),
     'verbose-logs': Flags.boolean({
       default: false,
       description: 'Use verbose logs for the build process',
@@ -208,6 +214,20 @@ export default class Build extends EasCommand {
         );
       }
     }
+    if (flags['refresh-distribution-certificate']) {
+      if (!nonInteractive) {
+        Errors.error(
+          '--refresh-distribution-certificate can only be used in non-interactive mode.',
+          { exit: 1 }
+        );
+      }
+      if (flags['freeze-credentials']) {
+        Errors.error(
+          'Cannot use --refresh-distribution-certificate with --freeze-credentials.',
+          { exit: 1 }
+        );
+      }
+    }
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
     }
@@ -270,6 +290,7 @@ export default class Build extends EasCommand {
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
       refreshAdHocProvisioningProfile: flags['refresh-ad-hoc-provisioning-profile'],
+      refreshDistributionCertificate: flags['refresh-distribution-certificate'],
       isVerboseLoggingEnabled: flags['verbose-logs'],
       whatToTest: flags['what-to-test'],
     };

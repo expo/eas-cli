@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `--refresh-ad-hoc-provisioning-profile` flag to refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials in non-interactive mode. ([#3716](https://github.com/expo/eas-cli/pull/3716) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `--refresh-distribution-certificate` flag to validate and refresh the distribution certificate from App Store Connect before gathering build credentials in non-interactive mode. ([#3739](https://github.com/expo/eas-cli/pull/3739) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 

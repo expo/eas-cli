@@ -6,7 +6,11 @@ import { UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log, { learnMore } from '../../../log';
+import { getAscApiKeyForAppSubmissionsAsync } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { confirmAsync, promptAsync, selectAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
 import { CredentialsContext } from '../../context';
@@ -276,4 +280,33 @@ export function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): strin
 
   line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago`);
   return line;
+}
+
+export async function resolveAscApiKeyForAppCredentialsAsync({
+  graphqlClient,
+  app,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  app: AppLookupParams;
+}): Promise<{
+  ascApiKey: MinimalAscApiKey;
+  teamId?: string;
+  teamName?: string;
+} | null> {
+  const ascKeyFragment = await getAscApiKeyForAppSubmissionsAsync(graphqlClient, app);
+  if (!ascKeyFragment) {
+    return null;
+  }
+
+  Log.log('Using App Store Connect API Key from EAS credentials service.');
+  const fullKey = await AppStoreConnectApiKeyQuery.getByIdAsync(graphqlClient, ascKeyFragment.id);
+  return {
+    ascApiKey: {
+      keyP8: fullKey.keyP8,
+      keyId: fullKey.keyIdentifier,
+      issuerId: fullKey.issuerIdentifier,
+    },
+    teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
+    teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
+  };
 }
