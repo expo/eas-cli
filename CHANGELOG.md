@@ -10,9 +10,13 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Improve Sentry diagnostics for managed iOS entitlements config fallback. ([#3763](https://github.com/expo/eas-cli/pull/3763) by [@sjchmiela](https://github.com/sjchmiela))
-
 ### 🧹 Chores
+
+## [19.0.5](https://github.com/expo/eas-cli/releases/tag/v19.0.5) - 2026-05-20
+
+### 🐛 Bug fixes
+
+- [eas-cli] Improve Sentry diagnostics for managed iOS entitlements config fallback. ([#3763](https://github.com/expo/eas-cli/pull/3763) by [@sjchmiela](https://github.com/sjchmiela))
 
 ## [19.0.4](https://github.com/expo/eas-cli/releases/tag/v19.0.4) - 2026-05-20
 
