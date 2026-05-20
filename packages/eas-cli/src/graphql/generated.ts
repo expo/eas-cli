@@ -2280,6 +2280,17 @@ export type AppObserveAppVersion = {
   buildNumbers: Array<AppObserveAppBuildNumber>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in
+   * `[startTime, endTime)` was on this version. Each active user
+   * contributes to exactly one version, so summing this field across the
+   * returned versions yields the total active users in the window (equal
+   * to `AppObserve.uniqueActiveUserCount` up to HyperLogLog noise).
+   * A version may be returned with `lastSeenUserCount = 0` when
+   * every user who touched it later moved to a newer version. Users with
+   * no events in the window are not counted on any version.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   metrics: Array<AppObserveAppVersionMetric>;
   uniqueUserCount: Scalars['Int']['output'];
   updates: Array<AppObserveAppUpdate>;

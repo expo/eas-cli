@@ -14888,6 +14888,22 @@
             "deprecationReason": null
           },
           {
+            "name": "lastSeenUserCount",
+            "description": "Unique users whose most recent supported-metric event in\n`[startTime, endTime)` was on this version. Each active user\ncontributes to exactly one version, so summing this field across the\nreturned versions yields the total active users in the window (equal\nto `AppObserve.uniqueActiveUserCount` up to HyperLogLog noise).\nA version may be returned with `lastSeenUserCount = 0` when\nevery user who touched it later moved to a newer version. Users with\nno events in the window are not counted on any version.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "metrics",
             "description": null,
             "args": [],
