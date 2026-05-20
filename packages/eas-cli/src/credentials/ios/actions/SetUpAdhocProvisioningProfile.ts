@@ -129,9 +129,9 @@ export class SetUpAdhocProvisioningProfile {
       appleTeam
     );
     if (registeredAppleDevices.length === 0) {
-      if (ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile) {
+      if (ctx.nonInteractive) {
         throw new Error(
-          'No devices are registered for this Apple team. Register devices with eas device:create before refreshing ad-hoc provisioning profile.'
+          'No devices are registered for this Apple team. Register devices with eas device:create first.'
         );
       }
       const shouldRegisterDevices = await confirmAsync({
