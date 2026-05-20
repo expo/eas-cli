@@ -40,6 +40,7 @@ interface RawBuildFlags {
   message?: string;
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
+  'refresh-ad-hoc-provisioning-profile': boolean;
   'verbose-logs'?: boolean;
   'what-to-test'?: string;
 }
@@ -121,6 +122,11 @@ export default class Build extends EasCommand {
       default: false,
       description: 'Prevent the build from updating credentials in non-interactive mode',
     }),
+    'refresh-ad-hoc-provisioning-profile': Flags.boolean({
+      default: false,
+      description:
+        'Refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials',
+    }),
     'verbose-logs': Flags.boolean({
       default: false,
       description: 'Use verbose logs for the build process',
@@ -188,6 +194,20 @@ export default class Build extends EasCommand {
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (flags['refresh-ad-hoc-provisioning-profile']) {
+      if (!nonInteractive) {
+        Errors.error(
+          '--refresh-ad-hoc-provisioning-profile can only be used in non-interactive mode.',
+          { exit: 1 }
+        );
+      }
+      if (flags['freeze-credentials']) {
+        Errors.error(
+          'Cannot use --refresh-ad-hoc-provisioning-profile with --freeze-credentials.',
+          { exit: 1 }
+        );
+      }
+    }
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });
     }
@@ -249,6 +269,7 @@ export default class Build extends EasCommand {
       message,
       buildLoggerLevel: flags['build-logger-level'],
       freezeCredentials: flags['freeze-credentials'],
+      refreshAdHocProvisioningProfile: flags['refresh-ad-hoc-provisioning-profile'],
       isVerboseLoggingEnabled: flags['verbose-logs'],
       whatToTest: flags['what-to-test'],
     };
