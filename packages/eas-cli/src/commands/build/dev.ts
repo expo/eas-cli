@@ -92,8 +92,8 @@ export default class BuildDev extends EasCommand {
     }
     const simulator = flags.simulator === '' ? true : flags.simulator;
 
-    await vcsClient.ensureRepoExistsAsync();
-    await ensureRepoIsCleanAsync(vcsClient, flags.nonInteractive);
+    await vcsClient.ensureRepoExistsAsync({ nonInteractive: false });
+    await ensureRepoIsCleanAsync(vcsClient, false);
     await ensureProjectConfiguredAsync({
       projectDir,
       nonInteractive: false,

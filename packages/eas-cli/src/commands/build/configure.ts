@@ -46,9 +46,7 @@ export default class BuildConfigure extends EasCommand {
       '💡 The following process will configure your iOS and/or Android project to be compatible with EAS Build. These changes only apply to your local project files and you can safely revert them at any time.'
     );
 
-    // BuildConfigure.ContextOptions.Vcs.client.getValueAsync()
-
-    await vcsClient.ensureRepoExistsAsync();
+    await vcsClient.ensureRepoExistsAsync({ nonInteractive: false });
 
     const expoUpdatesIsInstalled = isExpoUpdatesInstalled(projectDir);
 
