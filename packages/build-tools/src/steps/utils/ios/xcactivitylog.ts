@@ -462,7 +462,7 @@ export function formatReport(data: XcactivitylogData): string {
       ' │ ' +
       '100.0%'.padStart(pctWidth) +
       ' │ ' +
-      'n/a'.padStart(wallWidth) +
+      ' '.repeat(wallWidth) +
       ' │ ' +
       ' '.repeat(barMaxWidth) +
       ' │'

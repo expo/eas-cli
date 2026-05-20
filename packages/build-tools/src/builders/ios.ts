@@ -16,6 +16,7 @@ import { runFastlaneGym, runFastlaneResign } from '../ios/fastlane';
 import { installPods } from '../ios/pod';
 import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
+import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
 import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
 import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
@@ -173,9 +174,13 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     });
   }
 
-  if (ctx.env.EXPERIMENTAL_EAS_XCACTIVITYLOG === '1') {
-    const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
-    await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+  await ctx.runBuildPhase(BuildPhase.PARSE_XCACTIVITYLOG, async () => {
+    if (ctx.isLocal) {
+      ctx.logger.info('Local builds skip build performance analysis.');
+      return;
+    }
+    try {
+      const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
       await parseAndReportXcactivitylog({
         derivedDataPath,
         workspacePath,
@@ -183,8 +188,11 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
         proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
         env: ctx.env,
       });
-    });
-  }
+    } catch (err: any) {
+      Sentry.capture('Failed to parse xcactivitylog', err);
+      ctx.markBuildPhaseSkipped();
+    }
+  });
 
   await ctx.runBuildPhase(BuildPhase.PRE_UPLOAD_ARTIFACTS_HOOK, async () => {
     await runHookIfPresent(ctx, Hook.PRE_UPLOAD_ARTIFACTS);
