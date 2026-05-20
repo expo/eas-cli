@@ -20,7 +20,7 @@ export async function getManagedApplicationTargetEntitlementsAsync(
   env: Record<string, string>,
   vcsClient: Client
 ): Promise<JSONObject> {
-  let expoConfigError: Error | undefined;
+  let expoConfigError: any;
   if (isExpoInstalled(projectDir)) {
     try {
       const { stdout } = await spawnExpoCommand(
@@ -45,15 +45,22 @@ export async function getManagedApplicationTargetEntitlementsAsync(
             scope.setTag('build_id', process.env.EAS_BUILD_ID);
           }
           scope.setTag('config_resolution', 'ios_entitlements_introspection');
-          scope.setExtra('message', 'iOS entitlements config fallback');
-          scope.setExtra('stdout', error.stdout);
-          scope.setExtra('stderr', error.stderr);
-          Sentry.captureException(error);
+          scope.setExtra(
+            'expo_config_command_error',
+            JSON.stringify({
+              message: error.message,
+              output: error.output,
+              signal: error.signal,
+              status: error.status,
+              stderr: error.stderr,
+              stdout: error.stdout,
+            })
+          );
+          Sentry.captureMessage('iOS entitlements config fallback', 'error');
         });
       } catch {
         // do nothing
       }
-
       expoConfigError = error;
       Log.warn(
         `Failed to read the app config from the project using the local Expo CLI: ${formatError(error)}`
@@ -110,7 +117,7 @@ async function resolveManagedApplicationTargetEntitlementsWithBundledConfigAsync
   }
 }
 
-function formatError(error: Error & { stderr?: string; stdout?: string }): string {
+function formatError(error: any): string {
   return error.stderr?.trim() || error.stdout?.trim() || error.message;
 }
 
