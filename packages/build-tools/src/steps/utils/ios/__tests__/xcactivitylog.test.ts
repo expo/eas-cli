@@ -195,6 +195,8 @@ const FIXTURE_OVERLAP_WITH_GAP = {
 const mockedDownloadFile = jest.mocked(downloadFile);
 const mockedSpawn = jest.mocked(spawn);
 
+const TEST_ENV = { PATH: '/custom/bin:/usr/bin' };
+
 function mockFilesystem({
   tempDir = '/tmp/xclogparser-123',
   jsonOutput = JSON.stringify(FIXTURE_TWO_MODULES),
@@ -236,10 +238,12 @@ describe('parseAndReportXcactivitylog', () => {
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
+      env: TEST_ENV,
     });
 
     expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'xclogparser', ['version'], {
       stdio: 'pipe',
+      env: TEST_ENV,
     });
     expect(mockedDownloadFile).toHaveBeenCalledWith(
       'https://storage.googleapis.com/turtle-v2/xclogparser/XCLogParser-macOS-x86-64-arm64-v0.2.47.zip',
@@ -250,7 +254,7 @@ describe('parseAndReportXcactivitylog', () => {
       2,
       'unzip',
       ['-q', path.join(tempDir, 'XCLogParser-macOS-x86-64-arm64-v0.2.47.zip'), '-d', tempDir],
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: TEST_ENV }
     );
     expect(mockedSpawn).toHaveBeenNthCalledWith(
       3,
@@ -266,7 +270,7 @@ describe('parseAndReportXcactivitylog', () => {
         '--output',
         reportPath,
       ],
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: TEST_ENV }
     );
     expect(fs.readFile).toHaveBeenCalledWith(reportPath, 'utf8');
     expect(logger.info).toHaveBeenCalledWith('Using downloaded xclogparser v0.2.47.');
@@ -293,6 +297,7 @@ describe('parseAndReportXcactivitylog', () => {
       workspacePath: '/tmp/workspace',
       logger,
       proxyBaseUrl: 'https://cache.example.com',
+      env: TEST_ENV,
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
@@ -330,6 +335,7 @@ describe('parseAndReportXcactivitylog', () => {
       workspacePath: '/tmp/workspace',
       logger,
       proxyBaseUrl: 'https://cache.example.com',
+      env: TEST_ENV,
     });
 
     expect(mockedDownloadFile).toHaveBeenNthCalledWith(
@@ -367,6 +373,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       })
     ).resolves.toBeUndefined();
 
@@ -397,6 +404,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       })
     ).resolves.toBeUndefined();
 
@@ -424,6 +432,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       })
     ).resolves.toBeUndefined();
 
@@ -449,6 +458,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       })
     ).resolves.toBeUndefined();
 
@@ -477,6 +487,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       })
     ).resolves.toBeUndefined();
 
@@ -497,6 +508,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).not.toHaveBeenCalled();
@@ -515,7 +527,7 @@ describe('parseAndReportXcactivitylog', () => {
           '--output',
           reportPath,
         ],
-        { stdio: 'pipe' }
+        { stdio: 'pipe', env: TEST_ENV }
       );
       expect(logger.info).toHaveBeenCalledWith('Using preinstalled xclogparser v0.2.50.');
       expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('downloaded'));
@@ -534,6 +546,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).toHaveBeenCalledWith(
@@ -557,6 +570,7 @@ describe('parseAndReportXcactivitylog', () => {
         workspacePath: '/tmp/workspace',
         xclogparserVersion: 'v0.2.50',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).not.toHaveBeenCalled();
@@ -579,6 +593,7 @@ describe('parseAndReportXcactivitylog', () => {
         workspacePath: '/tmp/workspace',
         xclogparserVersion: 'v0.2.50',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).toHaveBeenCalledWith(
@@ -602,6 +617,7 @@ describe('parseAndReportXcactivitylog', () => {
         workspacePath: '/tmp/workspace',
         xclogparserVersion: 'v0.2.50',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).toHaveBeenCalledWith(
@@ -625,6 +641,7 @@ describe('parseAndReportXcactivitylog', () => {
         derivedDataPath: '/tmp/derived-data',
         workspacePath: '/tmp/workspace',
         logger,
+        env: TEST_ENV,
       });
 
       expect(mockedDownloadFile).toHaveBeenCalledWith(

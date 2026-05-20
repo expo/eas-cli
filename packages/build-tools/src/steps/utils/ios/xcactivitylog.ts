@@ -1,6 +1,7 @@
 import downloadFile from '@expo/downloader';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
+import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs-extra';
 import os from 'os';
@@ -25,12 +26,14 @@ export async function parseAndReportXcactivitylog({
   xclogparserVersion,
   logger,
   proxyBaseUrl,
+  env,
 }: {
   derivedDataPath: string;
   workspacePath: string;
   xclogparserVersion?: string;
   logger: bunyan;
   proxyBaseUrl?: string;
+  env: BuildStepEnv;
 }): Promise<void> {
   let tempDir: string | undefined;
   let phase = 'creating_temp_directory';
@@ -38,7 +41,7 @@ export async function parseAndReportXcactivitylog({
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
 
     phase = 'resolving_xclogparser';
-    const preinstalledVersion = await detectPreinstalledXclogparserVersion();
+    const preinstalledVersion = await detectPreinstalledXclogparserVersion(env);
     let binaryPath: string;
     let resolvedVersion: string;
     if (
@@ -51,7 +54,13 @@ export async function parseAndReportXcactivitylog({
     } else {
       phase = 'downloading_xclogparser';
       resolvedVersion = xclogparserVersion ?? DEFAULT_XCLOGPARSER_VERSION;
-      binaryPath = await downloadXclogparser(tempDir, resolvedVersion, logger, proxyBaseUrl);
+      binaryPath = await downloadXclogparser({
+        tempDir,
+        version: resolvedVersion,
+        logger,
+        proxyBaseUrl,
+        env,
+      });
       logger.info(`Using downloaded xclogparser ${resolvedVersion}.`);
     }
 
@@ -61,6 +70,7 @@ export async function parseAndReportXcactivitylog({
       derivedDataPath,
       workspacePath,
       outputDir: tempDir,
+      env,
     });
 
     phase = 'parsing_xclogparser_output';
@@ -80,8 +90,8 @@ export async function parseAndReportXcactivitylog({
   }
 }
 
-async function detectPreinstalledXclogparserVersion(): Promise<string | null> {
-  const result = await asyncResult(spawn('xclogparser', ['version'], { stdio: 'pipe' }));
+async function detectPreinstalledXclogparserVersion(env: BuildStepEnv): Promise<string | null> {
+  const result = await asyncResult(spawn('xclogparser', ['version'], { stdio: 'pipe', env }));
   if (!result.ok) {
     return null;
   }
@@ -89,12 +99,19 @@ async function detectPreinstalledXclogparserVersion(): Promise<string | null> {
   return match ? `v${match[1]}` : null;
 }
 
-async function downloadXclogparser(
-  tempDir: string,
-  version: string,
-  logger: bunyan,
-  proxyBaseUrl?: string
-): Promise<string> {
+async function downloadXclogparser({
+  tempDir,
+  version,
+  logger,
+  proxyBaseUrl,
+  env,
+}: {
+  tempDir: string;
+  version: string;
+  logger: bunyan;
+  proxyBaseUrl?: string;
+  env: BuildStepEnv;
+}): Promise<string> {
   const zipName = getXclogparserZipName(version);
   const zipPath = path.join(tempDir, zipName);
   const directUrl = `${XCLOGPARSER_DOWNLOAD_URL}/${zipName}`;
@@ -102,7 +119,7 @@ async function downloadXclogparser(
 
   if (proxiedUrl) {
     const proxiedDownloadResult = await asyncResult(
-      downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: proxiedUrl })
+      downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: proxiedUrl, env })
     );
     if (!proxiedDownloadResult.ok) {
       logger.debug(
@@ -115,31 +132,35 @@ async function downloadXclogparser(
     }
   }
 
-  return await downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: directUrl });
+  return await downloadAndUnpackXclogparser({ tempDir, zipPath, sourceUrl: directUrl, env });
 }
 
 async function downloadAndUnpackXclogparser({
   tempDir,
   zipPath,
   sourceUrl,
+  env,
 }: {
   tempDir: string;
   zipPath: string;
   sourceUrl: string;
+  env: BuildStepEnv;
 }): Promise<string> {
   await downloadFile(sourceUrl, zipPath, { retry: 3, timeout: XCLOGPARSER_DOWNLOAD_TIMEOUT_MS });
 
-  return await unpackXclogparser({ tempDir, zipPath });
+  return await unpackXclogparser({ tempDir, zipPath, env });
 }
 
 async function unpackXclogparser({
   tempDir,
   zipPath,
+  env,
 }: {
   tempDir: string;
   zipPath: string;
+  env: BuildStepEnv;
 }): Promise<string> {
-  await spawn('unzip', ['-q', zipPath, '-d', tempDir], { stdio: 'pipe' });
+  await spawn('unzip', ['-q', zipPath, '-d', tempDir], { stdio: 'pipe', env });
 
   const binaryPath = path.join(tempDir, 'xclogparser');
   await fs.chmod(binaryPath, 0o755);
@@ -162,11 +183,13 @@ async function runXclogparser({
   derivedDataPath,
   workspacePath,
   outputDir,
+  env,
 }: {
   binaryPath: string;
   derivedDataPath: string;
   workspacePath: string;
   outputDir: string;
+  env: BuildStepEnv;
 }): Promise<string> {
   const outputPath = path.join(outputDir, XCLOGPARSER_OUTPUT_FILENAME);
 
@@ -183,7 +206,7 @@ async function runXclogparser({
       '--output',
       outputPath,
     ],
-    { stdio: 'pipe' }
+    { stdio: 'pipe', env }
   );
 
   return outputPath;

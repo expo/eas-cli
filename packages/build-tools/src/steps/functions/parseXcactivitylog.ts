@@ -45,6 +45,7 @@ export function parseXcactivitylogFunction(): BuildFunction {
         xclogparserVersion: version,
         logger: stepCtx.logger,
         proxyBaseUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
+        env,
       });
     },
   });
