@@ -8,7 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Auto-upload embedded bundle after build when `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE` is set. ([#3767](https://github.com/expo/eas-cli/pull/3767) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas update:embedded:upload` command. ([#3720](https://github.com/expo/eas-cli/pull/3720) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas update:embedded:view` command. ([#3721](https://github.com/expo/eas-cli/pull/3721) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
