@@ -6,6 +6,7 @@ import type { AppInfoData } from './tasks/app-info';
 import type { AppReviewData } from './tasks/app-review-detail';
 import type { AppVersionData } from './tasks/app-version';
 import type { PreviewsData } from './tasks/previews';
+import type { PricingData } from './tasks/pricing';
 import type { ScreenshotsData } from './tasks/screenshots';
 
 /**
@@ -18,7 +19,8 @@ export type AppleData = { app: App; projectDir: string } & AppInfoData &
   AppReviewData &
   ScreenshotsData &
   PreviewsData &
-  AppClipData;
+  AppClipData &
+  PricingData;
 
 /**
  * The unprepared partial apple data, used within the `prepareAsync` tasks.

@@ -800,6 +800,65 @@
           "vi": { "$ref": "#/definitions/apple/AppleAppClipLocalizedInfo", "description": "Vietnamese" }
         }
       },
+      "ApplePricing": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "App pricing configuration. NOTE: Apple migrated to base-territory pricing in 2023. EAS metadata currently uses the legacy `appPriceTier` API exposed by @expo/apple-utils.",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "description": "App Store price tier id (e.g. \"0\" for free, \"1\" for tier 1).",
+            "defaultSnippets": [
+              { "label": "Free", "body": "0" },
+              { "label": "Tier 1", "body": "1" }
+            ]
+          },
+          "schedule": {
+            "type": "array",
+            "description": "Future scheduled price changes. Each entry switches the app to the given tier on `startDate`. Currently parsed but not pushed (the underlying appPriceSchedules endpoint is not yet wrapped by @expo/apple-utils).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["startDate", "tier"],
+              "properties": {
+                "startDate": {
+                  "type": "string",
+                  "description": "ISO-8601 date the new price tier takes effect.",
+                  "format": "date-time"
+                },
+                "tier": {
+                  "type": "string",
+                  "description": "App Store price tier id (e.g. \"0\" for free)."
+                }
+              }
+            }
+          }
+        }
+      },
+      "AppleAvailability": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Territory availability configuration. Use ISO-3166 alpha-3 codes (e.g. \"USA\", \"GBR\", \"JPN\") which match App Store Connect Territory ids.",
+        "properties": {
+          "territories": {
+            "description": "Territories the app is available in. Use the literal string \"all\" to make the app available worldwide.",
+            "oneOf": [
+              {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "description": "ISO-3166 alpha-3 territory code (e.g. \"USA\")."
+                }
+              },
+              {
+                "type": "string",
+                "enum": ["all"]
+              }
+            ]
+          }
+        }
+      },
       "AppleAgeRatingOverride": {
         "enum": [
           "NONE",
@@ -1034,6 +1093,14 @@
         "appClip": {
           "$ref": "#/definitions/apple/AppleAppClip",
           "description": "App Clip metadata. Only applies to apps that ship an App Clip target."
+        },
+        "pricing": {
+          "$ref": "#/definitions/apple/ApplePricing",
+          "description": "App pricing configuration (price tier + scheduled changes)."
+        },
+        "availability": {
+          "$ref": "#/definitions/apple/AppleAvailability",
+          "description": "Territory availability configuration."
         }
       }
     }

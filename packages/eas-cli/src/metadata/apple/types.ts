@@ -54,7 +54,64 @@ export interface AppleMetadata {
   review?: AppleReview;
   /** App Clip metadata. Only applies to apps that ship an App Clip target. */
   appClip?: AppleAppClip;
+  /** Pricing configuration for the app (price tier, scheduled changes). */
+  pricing?: ApplePricing;
+  /** Territory availability configuration for the app. */
+  availability?: AppleAvailability;
 }
+
+/**
+ * Pricing configuration for an app.
+ *
+ * NOTE: Apple migrated to "base territory" pricing in 2023, replacing the
+ * legacy global price tier model. The App Store Connect API still exposes a
+ * `priceTier` concept on the legacy `appPrices`/`appPriceTiers` resources,
+ * which is what `@expo/apple-utils` currently exposes via
+ * `App.updateAsync({ appPriceTier })`. Newer apps may need to use
+ * `appPriceSchedules` + `appPricePoints` (which require selecting a base
+ * territory and a price point id), but those endpoints are not yet wrapped by
+ * `@expo/apple-utils`. We use the legacy field for now and document this in
+ * the PR. The schema is intentionally forward-compatible.
+ */
+export interface ApplePricing {
+  /**
+   * App Store price tier (e.g. `'0'` for free, `'1'` for tier 1). When
+   * unset on a brand new app, the App Store defaults to free (tier 0).
+   */
+  tier?: string;
+  /**
+   * Future scheduled price changes. Each entry switches the app to the
+   * given tier on `startDate`. The first entry that matches "now" or earlier
+   * is treated as the current price. This block is currently parsed but not
+   * pushed (the legacy `App.updateAsync` endpoint exposed by
+   * `@expo/apple-utils` only sets the active tier).
+   */
+  schedule?: ApplePriceScheduleEntry[];
+}
+
+export interface ApplePriceScheduleEntry {
+  /** ISO-8601 date the new price tier takes effect. */
+  startDate: string;
+  /** App Store price tier id (e.g. `'0'` for free). */
+  tier: string;
+}
+
+/**
+ * Territory availability configuration. Use ISO-3166 alpha-3 codes (e.g.
+ * `"USA"`, `"GBR"`, `"JPN"`) — these match the App Store Connect Territory
+ * resource ids.
+ */
+export interface AppleAvailability {
+  /**
+   * The territories the app is available in. Use the literal string `'all'`
+   * to make the app available worldwide (every territory currently supported
+   * by App Store Connect). Omitting this field leaves availability untouched.
+   */
+  territories?: AppleTerritoryCode[] | 'all';
+}
+
+/** ISO-3166 alpha-3 territory code (e.g. `"USA"`, `"GBR"`). */
+export type AppleTerritoryCode = string;
 
 /** App Clip action enum values from App Store Connect API */
 export type AppleAppClipAction = `${AppClipAction}`;
