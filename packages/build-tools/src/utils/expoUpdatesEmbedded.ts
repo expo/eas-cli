@@ -26,11 +26,14 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
   const channel = ctx.job.updates?.channel;
   const projectDir = ctx.getReactNativeProjectDirectory();
 
-  const archivePattern =
-    platform === Platform.IOS
-      ? resolveArtifactPath(ctx as BuildContext<Ios.Job>)
-      : ((ctx as BuildContext<Android.Job>).job.applicationArchivePath ??
-        'android/app/build/outputs/**/*.{apk,aab}');
+  let archivePattern: string;
+  if (platform === Platform.IOS) {
+    archivePattern = resolveArtifactPath(ctx as BuildContext<Ios.Job>);
+  } else {
+    archivePattern =
+      (ctx as BuildContext<Android.Job>).job.applicationArchivePath ??
+      'android/app/build/outputs/**/*.{apk,aab}';
+  }
 
   const [archivePath] = await findArtifacts({
     rootDir: projectDir,
