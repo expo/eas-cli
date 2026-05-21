@@ -17,9 +17,14 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { promptAsync } from '../../prompts';
 import {
+  ArgentEditPlan,
   DeviceRunSessionRemoteConfig,
+  applyArgentEdits,
+  captureWritableArgentEdits,
   formatRemoteSessionInstructions,
+  revertArgentEdits,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
@@ -168,22 +173,47 @@ export default class SimulatorStart extends EasCommand {
       return;
     }
 
-    Log.newLine();
-    Log.log(formatRemoteSessionInstructions(remoteConfig));
-    Log.newLine();
+    let appliedArgentEdits: ArgentEditPlan[] = [];
+    try {
+      Log.newLine();
 
-    if (nonInteractive) {
-      Log.log(
-        `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
-      );
-      return;
+      if (!nonInteractive && remoteConfig.__typename === 'ArgentRunSessionRemoteConfig') {
+        appliedArgentEdits = await promptAndApplyArgentEditsAsync({
+          toolsUrl: remoteConfig.toolsUrl,
+        });
+      }
+
+      if (appliedArgentEdits.length > 0) {
+        printArgentEditSummary(appliedArgentEdits, remoteConfig);
+      } else {
+        Log.log(formatRemoteSessionInstructions(remoteConfig));
+      }
+      Log.newLine();
+
+      if (nonInteractive) {
+        Log.log(
+          `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
+        );
+        return;
+      }
+
+      await waitForSessionEndOrInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        jobRunUrl,
+      });
+    } finally {
+      if (appliedArgentEdits.length > 0) {
+        Log.log(
+          `Reverting ARGENT_TOOLS_URL in ${appliedArgentEdits.length} MCP config file${appliedArgentEdits.length === 1 ? '' : 's'}...`
+        );
+        revertArgentEdits(appliedArgentEdits, (filePath, err) => {
+          Log.warn(
+            `Failed to revert ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        });
+      }
     }
-
-    await waitForSessionEndOrInterruptAsync({
-      graphqlClient,
-      deviceRunSessionId,
-      jobRunUrl,
-    });
   }
 }
 
@@ -271,6 +301,79 @@ async function waitForSessionEndOrInterruptAsync({
     }
   } finally {
     process.removeListener('SIGINT', sigintHandler);
+  }
+}
+
+async function promptAndApplyArgentEditsAsync({
+  toolsUrl,
+}: {
+  toolsUrl: string;
+}): Promise<ArgentEditPlan[]> {
+  const candidates = captureWritableArgentEdits();
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  Log.log('🚀 Argent session is live.');
+  Log.newLine();
+  Log.log(
+    `Detected argent in ${candidates.length} writable MCP config file${candidates.length === 1 ? '' : 's'}. Proposed edits:`
+  );
+  Log.newLine();
+  for (const edit of candidates) {
+    Log.log(`  • ${edit.editorLabel} (${edit.scope}): ${edit.filePath}`);
+    if (edit.previousValue !== null && edit.previousValue !== toolsUrl) {
+      Log.log(`      - ARGENT_TOOLS_URL = "${edit.previousValue}"`);
+    }
+    Log.log(`      + ARGENT_TOOLS_URL = "${toolsUrl}"`);
+  }
+  Log.newLine();
+
+  const { selectedPaths } = await promptAsync({
+    type: 'multiselect',
+    name: 'selectedPaths',
+    message: 'Apply these edits? (will revert when the session ends)',
+    instructions: false,
+    choices: candidates.map(edit => ({
+      title: `${edit.editorLabel} (${edit.scope}): ${edit.filePath}`,
+      value: edit.filePath,
+      selected: true,
+    })),
+  });
+
+  const selectedSet = new Set<string>((selectedPaths as string[] | undefined) ?? []);
+  const selected = candidates.filter(candidate => selectedSet.has(candidate.filePath));
+  if (selected.length === 0) {
+    return [];
+  }
+
+  try {
+    applyArgentEdits(selected, toolsUrl);
+  } catch (err) {
+    Log.warn(`Failed to apply argent edits: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
+  }
+  return selected;
+}
+
+function printArgentEditSummary(
+  applied: readonly ArgentEditPlan[],
+  remoteConfig: DeviceRunSessionRemoteConfig
+): void {
+  Log.log(`✅ Updated ARGENT_TOOLS_URL in:`);
+  for (const edit of applied) {
+    Log.log(`   • ${edit.editorLabel} (${edit.scope}): ${edit.filePath}`);
+  }
+  Log.newLine();
+  Log.log('Restart your editor (or reload MCP servers — e.g. /mcp → reconnect in Claude Code)');
+  Log.log('so it re-reads the config. Edits revert automatically when this session ends.');
+  Log.log('If anything goes sideways, `npx -y @swmansion/argent init` resets the config.');
+
+  if (remoteConfig.__typename === 'ArgentRunSessionRemoteConfig' && remoteConfig.webPreviewUrl) {
+    Log.newLine();
+    Log.log('🌐 Open the following URL in your browser to preview the simulator:');
+    Log.newLine();
+    Log.log(remoteConfig.webPreviewUrl);
   }
 }
 
