@@ -8,8 +8,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add `--json` flag to `eas simulator:get`. ([#3765](https://github.com/expo/eas-cli/pull/3765) by [@krystofwoldrich](https://github.com/krystofwoldrich))
-
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
