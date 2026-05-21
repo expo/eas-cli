@@ -2,7 +2,10 @@ import { CombinedError } from '@urql/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform } from '../../generated';
-import { EmbeddedUpdateMutation, isEmbeddedUpdateAssetNotAvailableError } from '../EmbeddedUpdateMutation';
+import {
+  EmbeddedUpdateMutation,
+  isEmbeddedUpdateAssetNotAvailableError,
+} from '../EmbeddedUpdateMutation';
 
 function makeGraphqlClient(data: unknown): ExpoGraphqlClient {
   return {
