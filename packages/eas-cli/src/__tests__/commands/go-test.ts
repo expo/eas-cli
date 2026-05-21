@@ -100,7 +100,9 @@ describe('Go command', () => {
     jest.mocked(uploadAccountScopedProjectSourceAsync).mockResolvedValue({
       projectArchiveBucketKey: 'archive-key',
     });
-    jest.mocked(uploadAccountScopedFileAsync).mockResolvedValue({ fileBucketKey: 'file-key' } as any);
+    jest
+      .mocked(uploadAccountScopedFileAsync)
+      .mockResolvedValue({ fileBucketKey: 'file-key' } as any);
     jest.mocked(getWorkflowRunUrl).mockReturnValue('https://expo.dev/run/123');
   });
 
