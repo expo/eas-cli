@@ -448,6 +448,43 @@ describe('parseAndReportXcactivitylog', () => {
     );
   });
 
+  it('surfaces spawn error stderr/stdout/status/signal as Sentry extras', async () => {
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    const spawnError: any = new Error('xclogparser exited with non-zero code: 1');
+    spawnError.stderr = 'XCLogParser fatal: missing xcactivitylog\n';
+    spawnError.stdout = 'some stdout';
+    spawnError.status = 1;
+    spawnError.signal = null;
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn
+      .mockRejectedValueOnce(new Error('xclogparser not found')) // version detect
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any) // unzip
+      .mockRejectedValueOnce(spawnError); // xclogparser run
+
+    await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "running_xclogparser"',
+      expect.any(Error),
+      {
+        tags: { phase: 'running_xclogparser' },
+        extras: {
+          stderr: 'XCLogParser fatal: missing xcactivitylog\n',
+          stdout: 'some stdout',
+          exitStatus: 1,
+        },
+      }
+    );
+  });
+
   it('reports phase "downloading_xclogparser" when the direct download fails', async () => {
     const logger = createMockLogger();
     mockFilesystem();
