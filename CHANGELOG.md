@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Rename observe commands: `observe:logs` → `observe:events` (events emitted via `logEvent`), previous `observe:events` → `observe:metrics` (individual performance metric samples), previous `observe:metrics` → `observe:metric-summary` (aggregated stats by app version). ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@kadikraman](https://github.com/kadikraman))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
