@@ -112,6 +112,9 @@ export async function prepareJobAsync(
     // See: https://github.com/expo/eas-build/pull/454
     appId: ctx.projectId,
     initiatingUserId: ctx.user.id,
+    ...(ctx.credentialsCtx.refreshAdHocProvisioningProfile && {
+      refreshAdHocProvisioningProfile: true,
+    }),
   };
   return sanitizeBuildJob(job) as Ios.Job;
 }
