@@ -8,7 +8,7 @@ import {
 import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
-import ObserveEvents from '../events';
+import ObserveMetrics from '../metrics';
 
 jest.mock('../../../observe/fetchEvents', () => {
   const actual = jest.requireActual('../../../observe/fetchEvents');
@@ -29,7 +29,7 @@ const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-describe(ObserveEvents, () => {
+describe(ObserveMetrics, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
   const projectId = 'test-project-id';
@@ -42,8 +42,8 @@ describe(ObserveEvents, () => {
     });
   });
 
-  function createCommand(argv: string[]): ObserveEvents {
-    const command = new ObserveEvents(argv, mockConfig);
+  function createCommand(argv: string[]): ObserveMetrics {
+    const command = new ObserveMetrics(argv, mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       projectId,

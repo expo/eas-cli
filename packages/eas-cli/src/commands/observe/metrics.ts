@@ -29,9 +29,10 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
 
-export default class ObserveEvents extends EasCommand {
+export default class ObserveMetrics extends EasCommand {
   static override hidden = true;
-  static override description = 'display individual app performance events ordered by metric value';
+  static override description =
+    'display individual performance metric samples ordered by value';
 
   static override args = {
     metric: Args.string({
@@ -71,12 +72,12 @@ export default class ObserveEvents extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags, args } = await this.parse(ObserveEvents);
+    const { flags, args } = await this.parse(ObserveMetrics);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
-      commandClass: ObserveEvents,
-      loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
+      commandClass: ObserveMetrics,
+      loggedInOnlyContextDefinition: ObserveMetrics.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
       nonInteractive: flags['non-interactive'],
     });
