@@ -13,6 +13,7 @@ import { AppPlatform } from '../../../../graphql/generated';
 import Log from '../../../../log';
 import { ora } from '../../../../ora';
 import * as uploads from '../../../../uploads';
+import * as json from '../../../../utils/json';
 import * as promise from '../../../../utils/promise';
 import UpdateEmbeddedUpload from '../upload';
 
@@ -30,6 +31,7 @@ jest.mock('../../../../graphql/mutations/EmbeddedUpdateMutation', () => ({
 }));
 jest.mock('../../../../uploads');
 jest.mock('../../../../log');
+jest.mock('../../../../utils/json');
 jest.mock('../../../../utils/promise', () => ({
   sleepAsync: jest.fn().mockResolvedValue(undefined),
 }));
@@ -304,6 +306,15 @@ describe(UpdateEmbeddedUpload, () => {
       expect(mockUploadEmbeddedUpdate).toHaveBeenCalledTimes(1);
       expect(mockRegisterSpinnerFail).toHaveBeenCalledWith('Failed to register embedded update');
       expect(mockLogWarn).toHaveBeenCalledWith(expect.stringContaining('already be registered'));
+    });
+  });
+
+  describe('--json flag', () => {
+    it('enables JSON output and prints the embedded update as JSON', async () => {
+      const command = createCommand([...BASE_ARGV, '--json', '--non-interactive']);
+      await command.runAsync();
+      expect(jest.mocked(json.enableJsonOutput)).toHaveBeenCalled();
+      expect(jest.mocked(json.printJsonOnlyOutput)).toHaveBeenCalledWith(MOCK_EMBEDDED_UPDATE);
     });
   });
 });

@@ -1,6 +1,16 @@
 import { CombinedError } from '@urql/core';
 
-import { isEmbeddedUpdateAssetNotAvailableError } from '../EmbeddedUpdateMutation';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { AppPlatform } from '../../generated';
+import { EmbeddedUpdateMutation, isEmbeddedUpdateAssetNotAvailableError } from '../EmbeddedUpdateMutation';
+
+function makeGraphqlClient(data: unknown): ExpoGraphqlClient {
+  return {
+    mutation: jest.fn().mockReturnValue({
+      toPromise: jest.fn().mockResolvedValue({ data }),
+    }),
+  } as unknown as ExpoGraphqlClient;
+}
 
 function makeCombinedError(errorCode: string): CombinedError {
   return new CombinedError({
@@ -39,5 +49,31 @@ describe('isEmbeddedUpdateAssetNotAvailableError', () => {
     expect(isEmbeddedUpdateAssetNotAvailableError(null)).toBe(false);
     expect(isEmbeddedUpdateAssetNotAvailableError('string')).toBe(false);
     expect(isEmbeddedUpdateAssetNotAvailableError(42)).toBe(false);
+  });
+});
+
+describe('EmbeddedUpdateMutation.uploadEmbeddedUpdateAsync', () => {
+  it('returns the embedded update from the GraphQL response', async () => {
+    const expected = {
+      id: 'update-1',
+      platform: AppPlatform.Android,
+      runtimeVersion: '1.0.0',
+      channel: 'production',
+      createdAt: '2024-01-01T00:00:00Z',
+    };
+    const client = makeGraphqlClient({
+      embeddedUpdate: { uploadEmbeddedUpdate: expected },
+    });
+
+    const result = await EmbeddedUpdateMutation.uploadEmbeddedUpdateAsync(client, {
+      appId: 'app-1',
+      platform: AppPlatform.Android,
+      runtimeVersion: '1.0.0',
+      channel: 'production',
+      embeddedUpdateId: 'update-1',
+      turtleBuildId: null,
+    });
+
+    expect(result).toEqual(expected);
   });
 });
