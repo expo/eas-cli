@@ -1,4 +1,12 @@
-import { BuildJob, Env, Metadata, sanitizeBuildJob, sanitizeMetadata } from '@expo/eas-build-job';
+import {
+  BuildJob,
+  Env,
+  Ios,
+  Metadata,
+  Platform,
+  sanitizeBuildJob,
+  sanitizeMetadata,
+} from '@expo/eas-build-job';
 import { PipeMode, bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -42,6 +50,11 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
     autoSubmitArgs.push('--auto-submit');
   }
 
+  const refreshAdHocProvisioningProfileArgs = [];
+  if (job.platform === Platform.IOS && job.refreshAdHocProvisioningProfile === true) {
+    refreshAdHocProvisioningProfileArgs.push('--refresh-ad-hoc-provisioning-profile');
+  }
+
   try {
     const result = await spawn(
       cmd,
@@ -53,6 +66,7 @@ export async function runEasBuildInternalAsync<TJob extends BuildJob>({
         '--profile',
         buildProfile,
         ...autoSubmitArgs,
+        ...refreshAdHocProvisioningProfileArgs,
       ],
       {
         cwd,
@@ -138,6 +152,9 @@ function validateEasBuildInternalResult<TJob extends BuildJob>({
     // We want to retain values that we have set on the job.
     appId: oldJob.appId,
     initiatingUserId: oldJob.initiatingUserId,
+    ...(oldJob.platform === Platform.IOS && oldJob.refreshAdHocProvisioningProfile === true
+      ? { refreshAdHocProvisioningProfile: true }
+      : null),
   }) as TJob;
   assert(newJob.platform === oldJob.platform, 'eas-cli returned a job for a wrong platform');
   const newMetadata = sanitizeMetadata(value.metadata);

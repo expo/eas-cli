@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `--refresh-ad-hoc-provisioning-profile` flag to refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials in non-interactive mode. ([#3716](https://github.com/expo/eas-cli/pull/3716) by [@sswrk](https://github.com/sswrk))
 - [eas-build-job] Add optional `refreshAdHocProvisioningProfile` field to iOS build jobs. ([#3717](https://github.com/expo/eas-cli/pull/3717) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Pass `refreshAdHocProvisioningProfile` through `eas build:internal` for git-based integration builds. ([#3770](https://github.com/expo/eas-cli/pull/3770) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
