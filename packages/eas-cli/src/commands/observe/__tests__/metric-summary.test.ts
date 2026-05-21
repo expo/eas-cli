@@ -4,7 +4,7 @@ import { AppPlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
-import ObserveMetrics from '../metrics';
+import ObserveMetricSummary from '../metric-summary';
 
 jest.mock('../../../observe/fetchMetrics', () => {
   const actual = jest.requireActual('../../../observe/fetchMetrics');
@@ -21,20 +21,20 @@ jest.mock('../../../observe/formatMetrics', () => ({
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
-const mockFetchObserveMetricsAsync = jest.mocked(fetchObserveMetricsAsync);
-const mockBuildObserveMetricsTable = jest.mocked(buildObserveMetricsTable);
-const mockBuildObserveMetricsJson = jest.mocked(buildObserveMetricsJson);
+const mockFetchObserveMetricSummaryAsync = jest.mocked(fetchObserveMetricsAsync);
+const mockBuildObserveMetricSummaryTable = jest.mocked(buildObserveMetricsTable);
+const mockBuildObserveMetricSummaryJson = jest.mocked(buildObserveMetricsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-describe(ObserveMetrics, () => {
+describe(ObserveMetricSummary, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
   const projectId = 'test-project-id';
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchObserveMetricsAsync.mockResolvedValue({
+    mockFetchObserveMetricSummaryAsync.mockResolvedValue({
       metricsMap: new Map(),
       buildNumbersMap: new Map(),
       updateIdsMap: new Map(),
@@ -42,8 +42,8 @@ describe(ObserveMetrics, () => {
     });
   });
 
-  function createCommand(argv: string[]): ObserveMetrics {
-    const command = new ObserveMetrics(argv, mockConfig);
+  function createCommand(argv: string[]): ObserveMetricSummary {
+    const command = new ObserveMetricSummary(argv, mockConfig);
     // @ts-expect-error getContextAsync is a protected method
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       projectId,
@@ -59,8 +59,8 @@ describe(ObserveMetrics, () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    expect(mockFetchObserveMetricsAsync).toHaveBeenCalledTimes(1);
-    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    expect(mockFetchObserveMetricSummaryAsync).toHaveBeenCalledTimes(1);
+    const platforms = mockFetchObserveMetricSummaryAsync.mock.calls[0][3];
     expect(platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
 
     jest.useRealTimers();
@@ -70,7 +70,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--platform', 'android']);
     await command.runAsync();
 
-    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    const platforms = mockFetchObserveMetricSummaryAsync.mock.calls[0][3];
     expect(platforms).toEqual([AppPlatform.Android]);
   });
 
@@ -78,7 +78,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
-    const platforms = mockFetchObserveMetricsAsync.mock.calls[0][3];
+    const platforms = mockFetchObserveMetricSummaryAsync.mock.calls[0][3];
     expect(platforms).toEqual([AppPlatform.Ios]);
   });
 
@@ -86,7 +86,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--metric', 'tti', '--metric', 'cold_launch']);
     await command.runAsync();
 
-    const metricNames = mockFetchObserveMetricsAsync.mock.calls[0][2];
+    const metricNames = mockFetchObserveMetricSummaryAsync.mock.calls[0][2];
     expect(metricNames).toEqual(['expo.app_startup.tti', 'expo.app_startup.cold_launch_time']);
   });
 
@@ -97,8 +97,8 @@ describe(ObserveMetrics, () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    const startTime = mockFetchObserveMetricsAsync.mock.calls[0][4];
-    const endTime = mockFetchObserveMetricsAsync.mock.calls[0][5];
+    const startTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][5];
     expect(endTime).toBe('2025-06-15T12:00:00.000Z');
     expect(startTime).toBe('2025-04-16T12:00:00.000Z');
 
@@ -114,8 +114,8 @@ describe(ObserveMetrics, () => {
     ]);
     await command.runAsync();
 
-    const startTime = mockFetchObserveMetricsAsync.mock.calls[0][4];
-    const endTime = mockFetchObserveMetricsAsync.mock.calls[0][5];
+    const startTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][5];
     expect(startTime).toBe('2025-01-01T00:00:00.000Z');
     expect(endTime).toBe('2025-02-01T00:00:00.000Z');
   });
@@ -124,7 +124,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--stat', 'p90', '--stat', 'eventCount']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
+    expect(mockBuildObserveMetricSummaryTable).toHaveBeenCalledWith(
       expect.any(Map),
       expect.any(Array),
       ['p90', 'eventCount'],
@@ -136,7 +136,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--stat', 'median', '--stat', 'median']);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
+    expect(mockBuildObserveMetricSummaryTable).toHaveBeenCalledWith(
       expect.any(Map),
       expect.any(Array),
       ['median'],
@@ -151,8 +151,8 @@ describe(ObserveMetrics, () => {
     const command = createCommand(['--days', '7']);
     await command.runAsync();
 
-    const startTime = mockFetchObserveMetricsAsync.mock.calls[0][4];
-    const endTime = mockFetchObserveMetricsAsync.mock.calls[0][5];
+    const startTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][4];
+    const endTime = mockFetchObserveMetricSummaryAsync.mock.calls[0][5];
     expect(endTime).toBe('2025-06-15T12:00:00.000Z');
     expect(startTime).toBe('2025-06-08T12:00:00.000Z');
 
@@ -175,7 +175,7 @@ describe(ObserveMetrics, () => {
     const command = createCommand([]);
     await command.runAsync();
 
-    expect(mockBuildObserveMetricsTable).toHaveBeenCalledWith(
+    expect(mockBuildObserveMetricSummaryTable).toHaveBeenCalledWith(
       expect.any(Map),
       expect.any(Array),
       ['median', 'eventCount'],
@@ -195,7 +195,7 @@ describe(ObserveMetrics, () => {
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockBuildObserveMetricsJson).toHaveBeenCalledWith(
+    expect(mockBuildObserveMetricSummaryJson).toHaveBeenCalledWith(
       expect.any(Map),
       expect.any(Array),
       ['min', 'average'],
