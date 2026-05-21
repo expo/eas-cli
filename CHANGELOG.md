@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Update the minimum Expo version required for iOS precompiled modules to 55.0.26. ([#3771](https://github.com/expo/eas-cli/pull/3771) by [@chrfalch](https://github.com/chrfalch))
+
 ### 🧹 Chores
 
 ## [19.0.5](https://github.com/expo/eas-cli/releases/tag/v19.0.5) - 2026-05-20
