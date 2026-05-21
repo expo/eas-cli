@@ -110,7 +110,11 @@ describe(UpdateEmbeddedUpload, () => {
       presignedUrl: 'https://storage.googleapis.com/upload-bucket',
       fields: { key: 'obj-key', policy: 'abc123' },
     });
-    mockUpload.mockResolvedValue(undefined as any);
+    mockUpload.mockImplementation(async (_path, _spec, onProgress) => {
+      // Invoke the progress callback so the no-op arrow passed by the command is executed.
+      (onProgress as () => void)();
+      return undefined as any;
+    });
     mockUploadEmbeddedUpdate.mockResolvedValue(MOCK_EMBEDDED_UPDATE);
     mockIsEmbeddedUpdateAssetNotAvailableError.mockReturnValue(false);
   });
