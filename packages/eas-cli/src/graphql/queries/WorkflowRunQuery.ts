@@ -18,7 +18,44 @@ import {
 import { WorkflowJobFragmentNode } from '../types/WorkflowJob';
 import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
 
+type ExpoGoSdkVersion = {
+  sdkVersion: string;
+  isLatest: boolean;
+  isBeta: boolean;
+  isDeprecated: boolean;
+};
+
 export const WorkflowRunQuery = {
+  async expoGoSupportedSdkVersionsAsync(
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<ExpoGoSdkVersion[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          { expoGoBuild: { supportedSdkVersions: ExpoGoSdkVersion[] } },
+          Record<string, never>
+        >(
+          /* eslint-disable graphql/template-strings */
+          gql`
+            query ExpoGoSupportedSdkVersions {
+              expoGoBuild {
+                supportedSdkVersions {
+                  sdkVersion
+                  isLatest
+                  isBeta
+                  isDeprecated
+                }
+              }
+            }
+          `,
+          /* eslint-enable graphql/template-strings */
+          {},
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.expoGoBuild.supportedSdkVersions;
+  },
   async expoGoRepackConfigurationAsync(
     graphqlClient: ExpoGraphqlClient,
     input: ExpoGoRepackInput
