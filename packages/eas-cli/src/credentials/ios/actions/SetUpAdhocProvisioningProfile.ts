@@ -429,6 +429,8 @@ export class SetUpAdhocProvisioningProfile {
       ascApiKey: resolvedKey.ascApiKey,
       teamId: resolvedKey.teamId,
       teamName: resolvedKey.teamName,
+      // Provide a non-enterprise team type to avoid interactive team-type resolution.
+      // Ad-hoc profile handling below uses explicit ProfileType and does not branch on team.inHouse.
       teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
     });
   }
