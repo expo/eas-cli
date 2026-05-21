@@ -6,6 +6,7 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { Datadog } from '../../datadog';
 import { restoreCredentials } from '../../android/credentials';
+import { uploadEmbeddedBundleAsync } from '../../utils/expoUpdatesEmbedded';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
 import {
@@ -56,6 +57,9 @@ jest.mock('../../utils/artifacts', () => ({
 jest.mock('../../utils/expoUpdates', () => ({
   configureExpoUpdatesIfInstalledAsync: jest.fn(),
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync: jest.fn(async () => null),
+}));
+jest.mock('../../utils/expoUpdatesEmbedded', () => ({
+  uploadEmbeddedBundleAsync: jest.fn(),
 }));
 jest.mock('../../utils/hooks', () => ({
   Hook: {
@@ -268,5 +272,38 @@ describe(androidBuilder, () => {
     await androidBuilder(ctx);
 
     expect(runBuilderWithHooksAsync).toHaveBeenCalledWith(ctx, expect.any(Function));
+  });
+
+  it('runs the embedded bundle upload phase when EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is set', async () => {
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+        EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE: '1',
+      },
+      uploadArtifact: jest.fn(),
+    });
+
+    await androidBuilder(ctx);
+
+    expect(uploadEmbeddedBundleAsync).toHaveBeenCalledWith(ctx);
+  });
+
+  it('skips the embedded bundle upload phase when EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is not set', async () => {
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+      },
+      uploadArtifact: jest.fn(),
+    });
+
+    await androidBuilder(ctx);
+
+    expect(uploadEmbeddedBundleAsync).not.toHaveBeenCalled();
   });
 });

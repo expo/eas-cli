@@ -197,4 +197,50 @@ describe('uploadEmbeddedBundleAsync', () => {
     );
     expect(easCli.runEasCliCommand).not.toHaveBeenCalled();
   });
+
+  it('warns when build archive is not found', async () => {
+    jest.mocked(artifacts.findArtifacts).mockResolvedValue([]);
+    const ctx = makeCtx({ platform: Platform.ANDROID, channel: 'production' });
+
+    await uploadEmbeddedBundleAsync(ctx);
+
+    expect(ctx.logger.warn).toHaveBeenCalledWith(
+      'Skipping embedded bundle upload: build archive not found.'
+    );
+    expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
+    expect(easCli.runEasCliCommand).not.toHaveBeenCalled();
+  });
+
+  it('treats findArtifacts errors as no archive found', async () => {
+    jest.mocked(artifacts.findArtifacts).mockRejectedValue(new Error('glob failed'));
+    const ctx = makeCtx({ platform: Platform.ANDROID, channel: 'production' });
+
+    await uploadEmbeddedBundleAsync(ctx);
+
+    expect(ctx.logger.warn).toHaveBeenCalledWith(
+      'Skipping embedded bundle upload: build archive not found.'
+    );
+    expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
+    expect(easCli.runEasCliCommand).not.toHaveBeenCalled();
+  });
+
+  it('warns and continues when CLI upload throws', async () => {
+    jest.mocked(artifacts.findArtifacts).mockResolvedValue(['/tmp/app-release.apk']);
+    mockZipEntries.mockResolvedValue(
+      zipEntryMap({
+        'assets/index.android.bundle': true,
+        'assets/app.manifest': true,
+      })
+    );
+    jest.mocked(easCli.runEasCliCommand).mockRejectedValue(new Error('upload failed'));
+    const ctx = makeCtx({ platform: Platform.ANDROID, channel: 'production' });
+
+    await uploadEmbeddedBundleAsync(ctx);
+
+    expect(ctx.logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'Failed to upload embedded bundle.'
+    );
+    expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
+  });
 });
