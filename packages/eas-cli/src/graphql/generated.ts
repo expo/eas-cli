@@ -1458,6 +1458,7 @@ export type App = Project & {
   /** @deprecated Classic updates have been deprecated. */
   description: Scalars['String']['output'];
   devDomainName?: Maybe<AppDevDomainName>;
+  deviceRunSessionsPaginated: AppDeviceRunSessionsConnection;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
@@ -1681,6 +1682,16 @@ export type AppDeploymentsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeploymentFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppDeviceRunSessionsPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<DeviceRunSessionFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2004,6 +2015,18 @@ export type AppDevDomainNameMutationChangeDevDomainNameArgs = {
   name: Scalars['DevDomainName']['input'];
 };
 
+export type AppDeviceRunSessionEdge = {
+  __typename?: 'AppDeviceRunSessionEdge';
+  cursor: Scalars['String']['output'];
+  node: DeviceRunSession;
+};
+
+export type AppDeviceRunSessionsConnection = {
+  __typename?: 'AppDeviceRunSessionsConnection';
+  edges: Array<AppDeviceRunSessionEdge>;
+  pageInfo: PageInfo;
+};
+
 export type AppFingerprintEdge = {
   __typename?: 'AppFingerprintEdge';
   cursor: Scalars['String']['output'];
@@ -2238,6 +2261,11 @@ export type AppObserveAppBuildEmbeddedSummary = {
   __typename?: 'AppObserveAppBuildEmbeddedSummary';
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range ran this build's embedded bundle.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -2253,7 +2281,18 @@ export type AppObserveAppBuildNumber = {
   embedded?: Maybe<AppObserveAppBuildEmbeddedSummary>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range was on this (appVersion, appBuildNumber) tuple.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
+  /**
+   * Updates seen on this build number in the queried time range. Each
+   * entry's counts and EAS builds are scoped to this (appVersion,
+   * appBuildNumber, appUpdateId) tuple.
+   */
+  updates: Array<AppObserveAppUpdate>;
 };
 
 export type AppObserveAppEasBuild = {
@@ -2271,6 +2310,11 @@ export type AppObserveAppUpdate = {
   easBuilds: Array<AppObserveAppEasBuild>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
+  /**
+   * Unique users whose most recent supported-metric event in the queried
+   * range matched this update at its current nesting level.
+   */
+  lastSeenUserCount: Scalars['Int']['output'];
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -5260,6 +5304,12 @@ export type DeviceRunSession = {
   turtleJobRun?: Maybe<JobRun>;
   type: DeviceRunSessionType;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type DeviceRunSessionFilterInput = {
+  platforms?: InputMaybe<Array<AppPlatform>>;
+  statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
+  types?: InputMaybe<Array<DeviceRunSessionType>>;
 };
 
 export type DeviceRunSessionMutation = {
@@ -12932,6 +12982,16 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+
+export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<DeviceRunSessionFilterInput>;
+}>;
+
+
+export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
