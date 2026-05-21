@@ -1,4 +1,7 @@
 import { Flags } from '@oclif/core';
+import * as fs from 'fs-extra';
+import path from 'path';
+import nullthrows from 'nullthrows';
 
 import { getBareJobRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -22,13 +25,17 @@ import {
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
+  getRemoteSessionEnvironmentVariables,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
-import nullthrows from 'nullthrows';
 
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
 const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
+const OUT_CONFIG_TYPE_VALUES = {
+  Env: 'env',
+  Dotenv: 'dotenv',
+} as const;
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
@@ -50,11 +57,18 @@ export default class SimulatorStart extends EasCommand {
       description:
         'Version of the package backing the device run session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'out-config-type': Flags.option({
+      description:
+        'How to output simulator connection configuration. Use "env" to print shell exports, or "dotenv" to write .env.local.',
+      options: Object.values(OUT_CONFIG_TYPE_VALUES),
+      default: OUT_CONFIG_TYPE_VALUES.Dotenv,
+    })(),
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -68,6 +82,7 @@ export default class SimulatorStart extends EasCommand {
 
     const {
       projectId,
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStart, {
       nonInteractive,
@@ -156,9 +171,17 @@ export default class SimulatorStart extends EasCommand {
       return;
     }
 
-    Log.newLine();
-    Log.log(formatRemoteSessionInstructions(remoteConfig));
-    Log.newLine();
+    if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
+      await writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
+        projectDir,
+        remoteConfig,
+        deviceRunSessionId
+      );
+    } else {
+      Log.newLine();
+      Log.log(formatRemoteSessionInstructions(remoteConfig));
+      Log.newLine();
+    }
 
     if (nonInteractive) {
       Log.log(
@@ -173,6 +196,68 @@ export default class SimulatorStart extends EasCommand {
       jobRunUrl,
     });
   }
+}
+
+async function writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
+  projectDir: string,
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  deviceRunSessionId: string
+): Promise<void> {
+  const environmentVariables = {
+    ...getRemoteSessionEnvironmentVariables(remoteConfig),
+    EAS_SIMULATOR_SESSION_ID: deviceRunSessionId,
+  };
+  if (Object.keys(environmentVariables).length === 0) {
+    return;
+  }
+
+  try {
+    await appendEnvironmentVariablesToEnvLocalAsync(projectDir, environmentVariables);
+    Log.newLine();
+    Log.withTick('Wrote simulator environment variables to .env.local');
+    Log.newLine();
+    Log.log('🔑 Run the following to use agent-device with the simulator:');
+    Log.newLine();
+    Log.log('eas simulator:exec agent-device <command>');
+    if (
+      remoteConfig.__typename === 'AgentDeviceRunSessionRemoteConfig' &&
+      remoteConfig.webPreviewUrl
+    ) {
+      Log.newLine();
+      Log.log('🌐 Open the following URL in your browser to preview the simulator:');
+      Log.newLine();
+      Log.log(remoteConfig.webPreviewUrl);
+    }
+    Log.newLine();
+  } catch (err) {
+    Log.warn(
+      `Failed to write simulator environment variables to .env.local: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+  }
+}
+
+async function appendEnvironmentVariablesToEnvLocalAsync(
+  projectDir: string,
+  environmentVariables: Record<string, string>
+): Promise<void> {
+  const envLocalPath = path.join(projectDir, '.env.local');
+  let prefix = '';
+
+  if (await fs.pathExists(envLocalPath)) {
+    const existingContent = await fs.readFile(envLocalPath, 'utf8');
+    if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
+      prefix = '\n';
+    }
+  }
+
+  const envLocalContent =
+    Object.entries(environmentVariables)
+      .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+      .join('\n') + '\n';
+
+  await fs.appendFile(envLocalPath, prefix + envLocalContent);
 }
 
 async function waitForSessionEndOrInterruptAsync({

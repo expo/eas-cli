@@ -21,16 +21,31 @@ export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): str
   return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
 }
 
+export function getRemoteSessionEnvironmentVariables(
+  remoteConfig: DeviceRunSessionRemoteConfig
+): Record<string, string> {
+  switch (remoteConfig.__typename) {
+    case 'AgentDeviceRunSessionRemoteConfig':
+      return {
+        AGENT_DEVICE_DAEMON_BASE_URL: remoteConfig.agentDeviceRemoteSessionUrl,
+        AGENT_DEVICE_DAEMON_AUTH_TOKEN: remoteConfig.agentDeviceRemoteSessionToken,
+      };
+    case 'ArgentRunSessionRemoteConfig':
+    case 'ServeSimRunSessionRemoteConfig':
+      return {};
+  }
+}
+
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
+      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
       const lines = [
         '🔑 Run the following in your shell to attach to the agent-device daemon:',
         '',
-        `export AGENT_DEVICE_DAEMON_BASE_URL='${remoteConfig.agentDeviceRemoteSessionUrl}'`,
-        `export AGENT_DEVICE_DAEMON_AUTH_TOKEN='${remoteConfig.agentDeviceRemoteSessionToken}'`,
+        ...Object.entries(environmentVariables).map(([key, value]) => `export ${key}='${value}'`),
       ];
       if (remoteConfig.webPreviewUrl) {
         lines.push(
