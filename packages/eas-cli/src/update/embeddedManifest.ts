@@ -1,10 +1,10 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import * as uuid from 'uuid';
 
-export function readEmbeddedManifest(manifestPath: string): { id: string } {
+export async function readEmbeddedManifestAsync(manifestPath: string): Promise<{ id: string }> {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    parsed = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
   } catch {
     throw new Error(
       `Could not read or parse manifest at "${manifestPath}". ` +

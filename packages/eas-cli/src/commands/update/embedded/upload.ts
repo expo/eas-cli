@@ -1,7 +1,7 @@
 import { Platform } from '@expo/eas-build-job';
 import { Updates } from '@expo/config-plugins';
 import { Errors, Flags } from '@oclif/core';
-import fs from 'fs';
+import fs from 'fs-extra';
 
 import EasCommand from '../../../commandUtils/EasCommand';
 import {
@@ -17,7 +17,7 @@ import {
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
 import Log from '../../../log';
 import { ora } from '../../../ora';
-import { readEmbeddedManifest } from '../../../update/embeddedManifest';
+import { readEmbeddedManifestAsync } from '../../../update/embeddedManifest';
 import { uploadWithPresignedPostWithRetryAsync } from '../../../uploads';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import { sleepAsync } from '../../../utils/promise';
@@ -86,14 +86,14 @@ export default class UpdateEmbeddedUpload extends EasCommand {
       enableJsonOutput();
     }
 
-    if (!fs.existsSync(bundlePath)) {
+    if (!(await fs.pathExists(bundlePath))) {
       Errors.error(
         `Bundle file not found at "${bundlePath}". Check that the path is correct and points to the JS bundle in your native build output.`,
         { exit: 1 }
       );
     }
 
-    const { id: embeddedUpdateId } = readEmbeddedManifest(manifestPath);
+    const { id: embeddedUpdateId } = await readEmbeddedManifestAsync(manifestPath);
 
     const runtimeVersion = await Updates.getRuntimeVersionNullableAsync(projectDir, exp, platform);
     if (runtimeVersion === null) {
