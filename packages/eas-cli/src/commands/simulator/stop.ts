@@ -1,9 +1,13 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { ora } from '../../ora';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorStop extends EasCommand {
   static override hidden = true;
@@ -15,7 +19,7 @@ export default class SimulatorStop extends EasCommand {
       description: 'Device run session ID',
       required: true,
     }),
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -24,11 +28,16 @@ export default class SimulatorStop extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(SimulatorStop);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStop, {
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
     const stopSpinner = ora(`🛑 Stopping device run session ${flags.id}`).start();
@@ -38,6 +47,10 @@ export default class SimulatorStop extends EasCommand {
         flags.id
       );
       stopSpinner.succeed(`🎉 Device run session ${session.id} is ${session.status.toLowerCase()}`);
+
+      if (jsonFlag) {
+        printJsonOnlyOutput({ id: session.id, status: session.status });
+      }
     } catch (err) {
       stopSpinner.fail(`Failed to stop device run session ${flags.id}`);
       throw err;
