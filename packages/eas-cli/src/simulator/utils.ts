@@ -1,7 +1,25 @@
-import { DeviceRunSessionByIdQuery } from '../graphql/generated';
+import { DeviceRunSessionByIdQuery, DeviceRunSessionType } from '../graphql/generated';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
+
+// Mapping enum -> CLI flag value. Declared as Record<DeviceRunSessionType, string>
+// so adding a new enum value in codegen fails the build until it is wired up here.
+export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
+  [DeviceRunSessionType.AgentDevice]: 'agent-device',
+  [DeviceRunSessionType.Argent]: 'argent',
+  [DeviceRunSessionType.ServeSim]: 'serve-sim',
+};
+
+export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
+  (Object.entries(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES) as [DeviceRunSessionType, string][]).map(
+    ([type, value]) => [value, type]
+  )
+) as Record<string, DeviceRunSessionType>;
+
+export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): string {
+  return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
+}
 
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig

@@ -2,12 +2,19 @@ import { Flags } from '@oclif/core';
 
 import { getBareJobRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { DeviceRunSessionStatus } from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
-import { formatRemoteSessionInstructions } from '../../simulator/utils';
+import {
+  deviceRunSessionTypeToFlagValue,
+  formatRemoteSessionInstructions,
+} from '../../simulator/utils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorGet extends EasCommand {
   static override hidden = true;
@@ -19,7 +26,7 @@ export default class SimulatorGet extends EasCommand {
       description: 'Device run session ID',
       required: true,
     }),
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -28,11 +35,16 @@ export default class SimulatorGet extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(SimulatorGet);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorGet, {
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
     const fetchSpinner = ora(`Fetching device run session ${flags.id}`).start();
@@ -48,6 +60,17 @@ export default class SimulatorGet extends EasCommand {
     const jobRunUrl = session.turtleJobRun
       ? getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, session.turtleJobRun.id)
       : '';
+
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        id: session.id,
+        type: deviceRunSessionTypeToFlagValue(session.type),
+        status: session.status,
+        jobRunUrl: jobRunUrl || undefined,
+        remoteConfig: session.remoteConfig,
+      });
+      return;
+    }
 
     Log.newLine();
     Log.log(`ID:       ${session.id}`);
