@@ -31,8 +31,7 @@ const DEFAULT_EVENTS_LIMIT = 10;
 
 export default class ObserveMetrics extends EasCommand {
   static override hidden = true;
-  static override description =
-    'display individual performance metric samples ordered by value';
+  static override description = 'display individual performance metric samples ordered by value';
 
   static override args = {
     metric: Args.string({
