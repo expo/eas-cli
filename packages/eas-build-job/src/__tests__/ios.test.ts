@@ -534,4 +534,47 @@ describe('Ios.JobSchema', () => {
     expect(value).toMatchObject(job);
     expect(error).toBeFalsy();
   });
+
+  test('accepts optional refreshAdHocProvisioningProfile', () => {
+    const job = {
+      secrets: {
+        buildCredentials,
+      },
+      type: Workflow.GENERIC,
+      platform: Platform.IOS,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'http://localhost:3000',
+      },
+      projectRootDirectory: '.',
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+      refreshAdHocProvisioningProfile: true,
+    };
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(value.refreshAdHocProvisioningProfile).toBe(true);
+    expect(error).toBeFalsy();
+  });
+
+  test('does not require refreshAdHocProvisioningProfile', () => {
+    const job = {
+      secrets: {
+        buildCredentials,
+      },
+      type: Workflow.GENERIC,
+      platform: Platform.IOS,
+      projectArchive: {
+        type: ArchiveSourceType.URL,
+        url: 'http://localhost:3000',
+      },
+      projectRootDirectory: '.',
+      initiatingUserId: randomUUID(),
+      appId: randomUUID(),
+    };
+
+    const { value, error } = Ios.JobSchema.validate(job, joiOptions);
+    expect(value.refreshAdHocProvisioningProfile).toBeUndefined();
+    expect(error).toBeFalsy();
+  });
 });
