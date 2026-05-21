@@ -51,6 +51,10 @@ export async function installDependenciesAsync({
           '--production',
           'false',
         ];
+        // Yarn Classic doesn't respect NPM_CONFIG_REGISTRY, so pass --registry flag
+        if (env['EAS_BUILD_NPM_CACHE_URL']) {
+          args.push('--registry', env['EAS_BUILD_NPM_CACHE_URL']);
+        }
       }
       break;
     }
