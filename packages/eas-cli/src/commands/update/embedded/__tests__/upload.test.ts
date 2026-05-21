@@ -50,7 +50,6 @@ const mockIsEmbeddedUpdateAssetNotAvailableError = jest.mocked(
   isEmbeddedUpdateAssetNotAvailableError
 );
 const mockLogLog = jest.mocked(Log.log);
-const mockLogWarn = jest.mocked(Log.warn);
 
 const BUNDLE_PATH = '/project/app.bundle';
 const MANIFEST_PATH = '/project/app.manifest';
@@ -309,7 +308,6 @@ describe(UpdateEmbeddedUpload, () => {
       await expect(command.runAsync()).rejects.toThrow('network timeout');
       expect(mockUploadEmbeddedUpdate).toHaveBeenCalledTimes(1);
       expect(mockRegisterSpinnerFail).toHaveBeenCalledWith('Failed to register embedded update');
-      expect(mockLogWarn).toHaveBeenCalledWith(expect.stringContaining('already be registered'));
     });
   });
 

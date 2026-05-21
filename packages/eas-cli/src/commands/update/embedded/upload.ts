@@ -139,9 +139,6 @@ export default class UpdateEmbeddedUpload extends EasCommand {
       } catch (e: unknown) {
         if (!isEmbeddedUpdateAssetNotAvailableError(e)) {
           registerSpinner.fail('Failed to register embedded update');
-          Log.warn(
-            'This bundle may already be registered. To replace it, delete it manually and re-upload.'
-          );
           throw e;
         }
         if (attempt < MAX_ATTEMPTS) {
