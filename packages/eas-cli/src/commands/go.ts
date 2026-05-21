@@ -1,4 +1,4 @@
-import { ExpoConfig } from '@expo/config';
+import { ExpoConfig, getConfigFilePaths } from '@expo/config';
 import { App, User, UserRole } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -28,6 +28,7 @@ import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
 import { confirmAsync } from '../prompts';
 import { ora } from '../ora';
+import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
@@ -43,6 +44,20 @@ import {
 
 function deriveBundleIdSlug(bundleId: string): string {
   return bundleId.split('.').filter(Boolean).pop()!;
+}
+
+export async function detectProjectSdkVersionAsync(
+  projectDir: string
+): Promise<string | undefined> {
+  const paths = getConfigFilePaths(projectDir);
+  if (!paths.staticConfigPath && !paths.dynamicConfigPath) {
+    return;
+  }
+  try {
+    return (await getPrivateExpoConfigAsync(projectDir)).sdkVersion;
+  } catch {
+    return;
+  }
 }
 
 const TESTFLIGHT_GROUP_NAME = 'Team (Expo)';
@@ -189,7 +204,13 @@ export default class Go extends EasCommand {
     });
     Log.withTick(`Logged in as ${chalk.cyan(getActorDisplayName(actor))}`);
 
-    const sdkVersion = flags['sdk-version'];
+    const detectedSdkVersion = await detectProjectSdkVersionAsync(process.cwd());
+    if (detectedSdkVersion && !flags['sdk-version']) {
+      Log.log(
+        `Current project using SDK ${detectedSdkVersion.split('.')[0]}. Auto-selected same version. To use a different version, pass --sdk-version.`
+      );
+    }
+    const sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
     if (!isBundleIdentifierValid(bundleId)) {
       throw new Error(
@@ -231,7 +252,11 @@ export default class Go extends EasCommand {
         }
       );
 
-      const { workflowUrl, workflowRunId } = await this.dispatchWorkflowAsync(
+      const {
+        workflowUrl,
+        workflowRunId,
+        sdkVersion: resolvedSdkVersion,
+      } = await this.dispatchWorkflowAsync(
         graphqlClient,
         projectId,
         actor,
@@ -242,6 +267,7 @@ export default class Go extends EasCommand {
         tmpDir,
         vcsClient
       );
+      Log.withTick(`Using Expo Go SDK ${chalk.cyan(resolvedSdkVersion.split('.')[0])}`);
       Log.withTick(`Build started: ${chalk.cyan(workflowUrl)}`);
 
       const status = await this.monitorWorkflowJobsAsync(graphqlClient, workflowRunId);
@@ -401,7 +427,7 @@ export default class Go extends EasCommand {
     sdkVersion: string | undefined,
     tmpDir: string,
     vcsClient: Client
-  ): Promise<{ workflowUrl: string; workflowRunId: string }> {
+  ): Promise<{ workflowUrl: string; workflowRunId: string; sdkVersion: string }> {
     const account = ensureActorHasPrimaryAccount(actor);
 
     const repackConfig = await WorkflowRunQuery.expoGoRepackConfigurationAsync(graphqlClient, {
@@ -451,7 +477,7 @@ export default class Go extends EasCommand {
 
     const workflowUrl = getWorkflowRunUrl(account.name, deriveBundleIdSlug(bundleId), result.id);
 
-    return { workflowUrl, workflowRunId: result.id };
+    return { workflowUrl, workflowRunId: result.id, sdkVersion: repackConfig.sdkVersion };
   }
 
   private async monitorWorkflowJobsAsync(

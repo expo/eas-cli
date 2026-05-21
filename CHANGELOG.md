@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] `eas go` now pre-selects the SDK version from the current project's `app.json` or `app.config.js` when available. ([#3776](https://github.com/expo/eas-cli/pull/3776) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [19.0.7](https://github.com/expo/eas-cli/releases/tag/v19.0.7) - 2026-05-21
