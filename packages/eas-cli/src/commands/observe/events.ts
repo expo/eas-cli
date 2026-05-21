@@ -29,14 +29,14 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
 
-export default class ObserveLogs extends EasCommand {
+export default class ObserveEvents extends EasCommand {
   static override hidden = true;
   static override description =
-    'display individual custom events (logs) emitted by the app, filtered by the event name in the argument. With no arguments, a list of the available event names and associated event counts is returned.';
+    'display individual events emitted by the app via `logEvent`, filtered by the event name in the argument. With no arguments, a list of the available event names and associated event counts is returned.';
 
   static override args = {
     eventName: Args.string({
-      description: 'Custom event name to filter by',
+      description: 'Event name to filter by',
       required: false,
     }),
   };
@@ -73,7 +73,7 @@ export default class ObserveLogs extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags, args } = await this.parse(ObserveLogs);
+    const { flags, args } = await this.parse(ObserveEvents);
 
     if (args.eventName && flags['all-events']) {
       throw new Error(
@@ -83,8 +83,8 @@ export default class ObserveLogs extends EasCommand {
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
-      commandClass: ObserveLogs,
-      loggedInOnlyContextDefinition: ObserveLogs.loggedInOnlyContextDefinition,
+      commandClass: ObserveEvents,
+      loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
       nonInteractive: flags['non-interactive'],
     });

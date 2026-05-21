@@ -10,7 +10,7 @@ import {
   buildObserveCustomEventsJson,
 } from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
-import ObserveLogs from '../logs';
+import ObserveEvents from '../events';
 
 jest.mock('../../../observe/fetchCustomEvents');
 jest.mock('../../../observe/formatCustomEvents', () => ({
@@ -49,7 +49,7 @@ const mockCustomEventNamesAsync = jest.mocked(ObserveQuery.customEventNamesAsync
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-describe(ObserveLogs, () => {
+describe(ObserveEvents, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
   const projectId = 'test-project-id';
@@ -63,8 +63,8 @@ describe(ObserveLogs, () => {
     mockCustomEventNamesAsync.mockResolvedValue({ names: [], isTruncated: false });
   });
 
-  function createCommand(argv: string[]): ObserveLogs {
-    const command = new ObserveLogs(argv, mockConfig);
+  function createCommand(argv: string[]): ObserveEvents {
+    const command = new ObserveEvents(argv, mockConfig);
     // @ts-expect-error
     jest.spyOn(command, 'getContextAsync').mockReturnValue({
       projectId,
