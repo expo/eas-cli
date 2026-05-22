@@ -6,6 +6,7 @@ import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { BuildContext } from '../context';
+import { Sentry } from '../sentry';
 
 export class FindArtifactsError extends Error {}
 
@@ -24,6 +25,11 @@ export async function findArtifacts({
       ? [patternOrPath]
       : []
     : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
+  await maybeReportAbsoluteGlobDryRunMismatchAsync({
+    rootDir,
+    patternOrPath,
+    files,
+  });
   if (files.length === 0) {
     if (fg.isDynamicPattern(patternOrPath)) {
       throw new FindArtifactsError(`There are no files matching pattern "${patternOrPath}"`);
@@ -46,6 +52,78 @@ export async function findArtifacts({
     // fg will return a path relative to rootDir.
     return path.join(rootDir, filePath);
   });
+}
+
+async function findArtifactsWithAbsoluteGlobSupportDryRunAsync(
+  rootDir: string,
+  patternOrPath: string
+): Promise<string[]> {
+  return path.isAbsolute(patternOrPath) && !fg.isDynamicPattern(patternOrPath)
+    ? (await fs.pathExists(patternOrPath))
+      ? [patternOrPath]
+      : []
+    : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
+}
+
+async function maybeReportAbsoluteGlobDryRunMismatchAsync({
+  rootDir,
+  patternOrPath,
+  files,
+}: {
+  rootDir: string;
+  patternOrPath: string;
+  files: string[];
+}): Promise<void> {
+  if (!path.isAbsolute(patternOrPath)) {
+    return;
+  }
+
+  try {
+    const filesWithAbsoluteGlobSupport = await findArtifactsWithAbsoluteGlobSupportDryRunAsync(
+      rootDir,
+      patternOrPath
+    );
+    if (areArtifactListsEqual(files, filesWithAbsoluteGlobSupport)) {
+      return;
+    }
+
+    Sentry.capture(new Error('findArtifacts output changed for an absolute path'), {
+      tags: {
+        source: 'find-artifacts',
+        reason: 'absolute_path',
+      },
+      extras: {
+        rootDir,
+        patternOrPath,
+        currentCount: files.length,
+        dryRunCount: filesWithAbsoluteGlobSupport.length,
+        currentSample: files.slice(0, 20),
+        dryRunSample: filesWithAbsoluteGlobSupport.slice(0, 20),
+      },
+    });
+  } catch (err: any) {
+    Sentry.capture(err, {
+      tags: {
+        source: 'find-artifacts',
+        reason: 'absolute_path_dry_run_failed',
+      },
+      extras: {
+        rootDir,
+        patternOrPath,
+        currentCount: files.length,
+        currentSample: files.slice(0, 20),
+      },
+    });
+  }
+}
+
+function areArtifactListsEqual(first: string[], second: string[]): boolean {
+  if (first.length !== second.length) {
+    return false;
+  }
+  const sortedFirst = [...first].sort();
+  const sortedSecond = [...second].sort();
+  return sortedFirst.every((artifactPath, index) => artifactPath === sortedSecond[index]);
 }
 
 async function logMissingFileError(artifactPath: string, buildLogger: bunyan): Promise<void> {
