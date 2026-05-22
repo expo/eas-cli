@@ -82,7 +82,6 @@ export async function logProjectDependenciesAsync(
     });
   } catch (error: any) {
     const msg = 'Failed to report project dependencies metrics';
-    ctx.logger.error({ err: error }, msg);
     sentry.capture(msg, error, {
       level: 'warning',
       tags: {
