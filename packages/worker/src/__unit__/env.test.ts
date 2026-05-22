@@ -1,13 +1,15 @@
 import { Platform, Workflow } from '@expo/eas-build-job';
+import os from 'os';
 
 import config from '../config';
-import { getBuildEnv } from '../env';
+import { getBuildEnv, getGradleMemoryOptions } from '../env';
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
 
   afterEach(() => {
     config.sentry.dsn = originalSentryDsn;
+    jest.restoreAllMocks();
   });
 
   it('passes the CLI sentry DSN to worker child processes', () => {
@@ -58,5 +60,27 @@ describe(getBuildEnv.name, () => {
     expect(env.EXPO_USE_PRECOMPILED_MODULES).toBeUndefined();
     expect(env.EXPO_PRECOMPILED_MODULES_BASE_URL).toBeUndefined();
     expect(env.EXPO_PRECOMPILED_MODULES_PATH).toBeUndefined();
+  });
+
+  it('sizes Gradle memory options from total memory', () => {
+    const totalMemory = jest.spyOn(os, 'totalmem');
+
+    totalMemory.mockReturnValue(16 * 1024 ** 3);
+    expect(getGradleMemoryOptions()).toEqual({
+      maxHeapSize: '4g',
+    });
+
+    totalMemory.mockReturnValue(32 * 1024 ** 3);
+    expect(getGradleMemoryOptions()).toEqual({
+      maxHeapSize: '8g',
+    });
+  });
+
+  it('keeps Gradle memory options conservative on low-memory runners', () => {
+    jest.spyOn(os, 'totalmem').mockReturnValue(4 * 1024 ** 3);
+
+    expect(getGradleMemoryOptions()).toEqual({
+      maxHeapSize: '1g',
+    });
   });
 });
