@@ -1,15 +1,12 @@
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
+import os from 'os';
 import path from 'path';
 
 import config from './config';
 import { Environment } from './constants';
-import {
-  ResourceClass,
-  ResourceClassToPlatform,
-  androidImagesWithJavaVersionLowerThen11,
-} from './external/turtle';
+import { androidImagesWithJavaVersionLowerThen11 } from './external/turtle';
 import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
@@ -48,8 +45,7 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
   setEnv(env, 'EAS_BUILD_PROJECT_ID', projectId);
 
-  const runnerPlatform =
-    job.platform ?? (config.resourceClass && ResourceClassToPlatform[config.resourceClass]);
+  const runnerPlatform = job.platform;
   if (runnerPlatform === Platform.IOS) {
     setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
@@ -77,9 +73,7 @@ export function getBuildEnv({
   }
 
   if (config.env !== Environment.TEST) {
-    const maxHeapSize = config.resourceClass
-      ? (ResourceClassToMaxHeapSize[config.resourceClass] ?? '4g')
-      : '4g';
+    const { maxHeapSize } = getGradleMemoryOptions();
 
     setEnv(
       env,
@@ -163,19 +157,10 @@ function setEnv(env: Env, key: string, value: string | null | undefined): void {
   }
 }
 
-const ResourceClassToMaxHeapSize: Record<ResourceClass, string | null> = {
-  [ResourceClass.LINUX_C3D_STANDARD_4]: '4g', // 4 out of 16 GB, 12 GB left
-  [ResourceClass.LINUX_C3D_STANDARD_8]: '8g', // 8 out of 32 GB, 24 GB left
-  [ResourceClass.LINUX_C4D_STANDARD_4]: '4g', // 4 out of 15 GB, 11 GB left
-  [ResourceClass.LINUX_C4D_STANDARD_8]: '8g', // 8 out of 31 GB, 23 GB left
-  [ResourceClass.ANDROID_N2_1_3_12]: '4g', // 4 out of 12 GB, 8 GB left
-  [ResourceClass.ANDROID_N2_2_6_24]: '8g', // 8 out of 24 GB, 16 GB left
+export function getGradleMemoryOptions() {
+  const totalMemoryGb = os.totalmem() / 1024 / 1024 / 1024;
 
-  // We don't care about Gradle heap size for macOS resource classes
-  [ResourceClass.IOS_M1_4_16]: null,
-  [ResourceClass.IOS_M2_2_8]: null,
-  [ResourceClass.IOS_M2_PRO_4_12]: null,
-  [ResourceClass.IOS_M4_PRO_5_20]: null,
-  [ResourceClass.IOS_M4_PRO_10_40]: null,
-  [ResourceClass.IOS_M2_4_22]: null,
-};
+  return {
+    maxHeapSize: `${Math.max(1, Math.round(totalMemoryGb / 4))}g`,
+  };
+}
