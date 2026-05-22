@@ -9,6 +9,7 @@ exports[`fastfile createFastfileForResigningBuild should create Fastfile with al
       "com.example.app" => "/path/to/profiles/main.mobileprovision",
       "com.example.app.widget" => "/path/to/profiles/widget.mobileprovision",
     },
+    use_app_entitlements: true,
     keychain_path: "/Users/expo/Library/Keychains/login.keychain"
   )
 end
@@ -22,6 +23,7 @@ exports[`fastfile createFastfileForResigningBuild should handle empty provisioni
     signing_identity: "iPhone Distribution",
     provisioning_profile: {
     },
+    use_app_entitlements: true,
     keychain_path: "/tmp/keychain"
   )
 end
@@ -39,6 +41,7 @@ exports[`fastfile createFastfileForResigningBuild should handle multiple provisi
       "com.example.app.extension" => "/profiles/extension.mobileprovision",
       "com.example.app.intents" => "/profiles/intents.mobileprovision",
     },
+    use_app_entitlements: true,
     keychain_path: "/tmp/keychain"
   )
 end
@@ -53,6 +56,7 @@ exports[`fastfile createFastfileForResigningBuild should handle paths with speci
     provisioning_profile: {
       "com.example.app" => "/path/with spaces/profile (1).mobileprovision",
     },
+    use_app_entitlements: true,
     keychain_path: "/Users/expo/Library/Keychains/login keychain.keychain"
   )
 end
@@ -67,6 +71,7 @@ exports[`fastfile createFastfileForResigningBuild should handle single provision
     provisioning_profile: {
       "com.example.app" => "/tmp/profile.mobileprovision",
     },
+    use_app_entitlements: true,
     keychain_path: "/tmp/keychain"
   )
 end
@@ -81,6 +86,7 @@ exports[`fastfile createFastfileForResigningBuild should produce valid Ruby synt
     provisioning_profile: {
       "com.example.app" => "/path/to/profile.mobileprovision",
     },
+    use_app_entitlements: true,
     keychain_path: "/tmp/keychain"
   )
 end
