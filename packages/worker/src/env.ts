@@ -73,7 +73,7 @@ export function getBuildEnv({
   }
 
   if (config.env !== Environment.TEST) {
-    const gradleMemoryOptions = getGradleMemoryOptions();
+    const { maxHeapSize } = getGradleMemoryOptions();
 
     setEnv(
       env,
@@ -85,7 +85,7 @@ export function getBuildEnv({
         // We need to be careful with Xmx, because the same value will be
         // used for Gradle and Kotlin compiler.
         // https://kotlinlang.org/docs/gradle-compilation-and-caches.html#gradle-daemon-arguments-inheritance
-        `-Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xmx${gradleMemoryOptions.maxHeapSize} ${
+        `-Dorg.gradle.jvmargs="-XX:MaxMetaspaceSize=1g -Xmx${maxHeapSize} ${
           job.builderEnvironment?.image &&
           androidImagesWithJavaVersionLowerThen11.includes(job.builderEnvironment?.image)
             ? '-XX:MaxPermSize=512m '
@@ -157,11 +157,7 @@ function setEnv(env: Env, key: string, value: string | null | undefined): void {
   }
 }
 
-type GradleMemoryOptions = {
-  maxHeapSize: string;
-};
-
-export function getGradleMemoryOptions(): GradleMemoryOptions {
+export function getGradleMemoryOptions() {
   const totalMemoryGb = os.totalmem() / 1024 / 1024 / 1024;
 
   return {
