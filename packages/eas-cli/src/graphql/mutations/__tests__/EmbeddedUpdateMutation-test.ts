@@ -4,7 +4,6 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import { AppPlatform } from '../../generated';
 import {
   EmbeddedUpdateMutation,
-  isEmbeddedUpdateAlreadyExistsError,
   isEmbeddedUpdateAssetNotAvailableError,
 } from '../EmbeddedUpdateMutation';
 
@@ -53,22 +52,6 @@ describe('isEmbeddedUpdateAssetNotAvailableError', () => {
     expect(isEmbeddedUpdateAssetNotAvailableError(null)).toBe(false);
     expect(isEmbeddedUpdateAssetNotAvailableError('string')).toBe(false);
     expect(isEmbeddedUpdateAssetNotAvailableError(42)).toBe(false);
-  });
-});
-
-describe('isEmbeddedUpdateAlreadyExistsError', () => {
-  it('returns true for CombinedError with EMBEDDED_UPDATE_ALREADY_EXISTS errorCode', () => {
-    expect(
-      isEmbeddedUpdateAlreadyExistsError(makeCombinedError('EMBEDDED_UPDATE_ALREADY_EXISTS'))
-    ).toBe(true);
-  });
-
-  it('returns false for CombinedError with a different errorCode', () => {
-    expect(isEmbeddedUpdateAlreadyExistsError(makeCombinedError('SOME_OTHER_ERROR'))).toBe(false);
-  });
-
-  it('returns false for a plain Error', () => {
-    expect(isEmbeddedUpdateAlreadyExistsError(new Error('plain error'))).toBe(false);
   });
 });
 
