@@ -41,7 +41,7 @@ const DEFAULT_STATS_JSON: StatisticKey[] = [
   'eventCount',
 ];
 
-export default class ObserveMetricSummary extends EasCommand {
+export default class ObserveMetricsSummary extends EasCommand {
   static override hidden = true;
   static override description =
     'display aggregated performance metric statistics grouped by app version';
@@ -73,12 +73,12 @@ export default class ObserveMetricSummary extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ObserveMetricSummary);
+    const { flags } = await this.parse(ObserveMetricsSummary);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
-      commandClass: ObserveMetricSummary,
-      loggedInOnlyContextDefinition: ObserveMetricSummary.loggedInOnlyContextDefinition,
+      commandClass: ObserveMetricsSummary,
+      loggedInOnlyContextDefinition: ObserveMetricsSummary.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
       nonInteractive: flags['non-interactive'],
     });
