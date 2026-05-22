@@ -10,6 +10,7 @@ import {
 } from '@expo/repack-app';
 import {
   BuildFunction,
+  BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
   BuildStepOutput,
@@ -89,8 +90,9 @@ export function createRepackBuildFunction(): BuildFunction {
       }
 
       const repackSpawnAsync = createSpawnAsyncStepAdapter({
-        verbose,
+        env: stepsCtx.global.env,
         logger: stepsCtx.logger,
+        verbose,
       });
 
       const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), `repack-`));
@@ -208,11 +210,13 @@ async function installAndImportRepackAsync({
  * Creates `@expo/steps` based spawnAsync for repack.
  */
 function createSpawnAsyncStepAdapter({
-  verbose,
+  env,
   logger,
+  verbose,
 }: {
-  verbose: boolean;
+  env: BuildStepEnv;
   logger: bunyan;
+  verbose: boolean;
 }): SpawnProcessAsync {
   return function repackSpawnAsync(
     command: string,
@@ -220,6 +224,7 @@ function createSpawnAsyncStepAdapter({
     options?: SpawnProcessOptions
   ): SpawnProcessPromise<SpawnProcessResult> {
     const promise = spawnAsync(command, args, {
+      env,
       ...options,
       ...(verbose ? { logger, stdio: 'pipe' } : { logger: undefined }),
     });
