@@ -2,7 +2,7 @@ import { GCS, GCSLoggerStream } from '@expo/build-tools';
 import path from 'path';
 
 import { Environment } from './constants';
-import { ResourceClass, Worker } from './external/turtle';
+import { Worker } from './external/turtle';
 import env from './utils/env';
 
 type ReplaceUndefinedWithNull<T> = undefined extends T ? Exclude<T, undefined> | null : T;
@@ -100,10 +100,6 @@ export default {
   }),
   runMetricsServer: env<boolean | null>('WORKER_RUNTIME_CONFIG_BASE64', {
     transform: createBase64EnvTransformer('runMetricsServer'),
-    defaultValue: null,
-  }),
-  resourceClass: env<ResourceClass | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('resourceClass'),
     defaultValue: null,
   }),
   buildId: env<string>('WORKER_RUNTIME_CONFIG_BASE64', {
