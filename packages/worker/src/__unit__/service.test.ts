@@ -1,5 +1,5 @@
 import { Datadog } from '@expo/build-tools';
-import { BuildPhase, BuildPhaseResult, Job, errors } from '@expo/eas-build-job';
+import { Job, errors } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import path from 'path';
@@ -105,42 +105,6 @@ describe(getExpoPackageVersionAsync, () => {
   });
 });
 
-describe('BuildService.reportBuildPhaseStats', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('sends phase stats to the launcher websocket', () => {
-    const send = jest.fn();
-    const service = new BuildService();
-    service.setWS({ send } as any);
-
-    const stats = {
-      buildPhase: BuildPhase.RUN_FASTLANE,
-      result: BuildPhaseResult.SUCCESS,
-      durationMs: 1234,
-    };
-    service.reportBuildPhaseStats(stats);
-
-    expect(send).toHaveBeenCalledWith({
-      type: 'build-phase-stats',
-      ...stats,
-    });
-  });
-
-  it('does not send phase stats when there is no launcher websocket', () => {
-    const service = new BuildService();
-
-    service.reportBuildPhaseStats({
-      buildPhase: BuildPhase.PREPARE_PROJECT,
-      result: BuildPhaseResult.SUCCESS,
-      durationMs: 1,
-    });
-
-    expect(datadogSetupMock).not.toHaveBeenCalled();
-  });
-});
-
 describe('BuildService Datadog setup', () => {
   const buildLogger = { child: jest.fn(() => buildLogger) } as any;
 
@@ -175,11 +139,7 @@ describe('BuildService Datadog setup', () => {
       turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
-    expect(createBuildContextMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reportBuildPhaseStatsFn: expect.any(Function),
-      })
-    );
+    expect(createBuildContextMock).toHaveBeenCalled();
     expect(datadogFlushAsyncMock).toHaveBeenCalled();
   });
 
@@ -201,11 +161,7 @@ describe('BuildService Datadog setup', () => {
       turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
     });
-    expect(createBuildContextMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reportBuildPhaseStatsFn: expect.any(Function),
-      })
-    );
+    expect(createBuildContextMock).toHaveBeenCalled();
   });
 
   it('leaves Datadog unconfigured when the robot access token is unavailable', async () => {

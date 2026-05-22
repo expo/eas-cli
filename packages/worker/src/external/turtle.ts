@@ -1,12 +1,5 @@
 import { GCS } from '@expo/build-tools';
-import {
-  BuildJob,
-  BuildPhase,
-  BuildPhaseResult,
-  Generic,
-  Metadata,
-  errors,
-} from '@expo/eas-build-job';
+import { BuildJob, Generic, Metadata, errors } from '@expo/eas-build-job';
 
 export const androidImagesWithJavaVersionLowerThen11 = [
   'ubuntu-20.04-jdk-8-ndk-r19c',
@@ -67,7 +60,6 @@ export namespace WorkerMessage {
     STATE_RESPONSE = 'state-response',
     SUCCESS = 'success',
     ERROR = 'error',
-    BUILD_PHASE_STATS = 'build-phase-stats',
     ABORTED = 'aborted',
   }
 
@@ -76,7 +68,7 @@ export namespace WorkerMessage {
     TIMEOUT = 'timeout',
   }
 
-  export type Message = StateResponse | BuildSuccess | BuildError | BuildPhaseStats | BuildAborted;
+  export type Message = StateResponse | BuildSuccess | BuildError | BuildAborted;
   export interface StateResponse {
     type: MessageType.STATE_RESPONSE;
     status: Worker.Status;
@@ -97,12 +89,6 @@ export namespace WorkerMessage {
     internalErrorCode?: string;
     applicationArchiveName: string | null;
     buildArtifactsName: string | null;
-  }
-  export interface BuildPhaseStats {
-    type: MessageType.BUILD_PHASE_STATS;
-    buildPhase: BuildPhase;
-    result: BuildPhaseResult;
-    durationMs: number;
   }
   export interface BuildAborted {
     type: MessageType.ABORTED;

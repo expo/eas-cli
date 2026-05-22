@@ -5,7 +5,6 @@ export {
   ArchiveSource,
   ArchiveSourceSchemaZ,
   BuildMode,
-  BuildPhaseStats,
   BuildTrigger,
   EasCliNpmTags,
   Env,

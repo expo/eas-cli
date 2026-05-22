@@ -4,6 +4,7 @@ import { vol } from 'memfs';
 import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
+import { Datadog } from '../../datadog';
 import { restoreCredentials } from '../../android/credentials';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
@@ -67,8 +68,11 @@ jest.mock('../../utils/prepareBuildExecutable', () => ({
   prepareExecutableAsync: jest.fn(),
 }));
 
+const datadogDistributionMock = jest.spyOn(Datadog, 'distribution');
+
 describe(androidBuilder, () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     vol.fromJSON(
       {
         '/workingdir/env/.gitkeep': '',
@@ -138,7 +142,6 @@ describe(androidBuilder, () => {
   });
 
   it('marks the configure Android version phase as warning for legacy eas-build.gradle', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const job: Android.Job = {
       ...createTestAndroidJob(),
       secrets: {
@@ -157,23 +160,23 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
 
     await androidBuilder(ctx);
 
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        build_phase: BuildPhase.CONFIGURE_ANDROID_VERSION.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
   });
 
   it('marks the prepare credentials phase as warning for legacy eas-build.gradle', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const ctx = new BuildContext(createTestAndroidJob(), {
       workingdir: '/workingdir',
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
@@ -182,23 +185,23 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
 
     await androidBuilder(ctx);
 
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        build_phase: BuildPhase.PREPARE_CREDENTIALS.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
   });
 
   it('injects credentials and version config when both are configured', async () => {
-    const reportBuildPhaseStats = jest.fn();
     const job: Android.Job = {
       ...createTestAndroidJob(),
       version: {
@@ -214,7 +217,6 @@ describe(androidBuilder, () => {
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
-      reportBuildPhaseStats,
     });
     vol.mkdirSync('/workingdir/build/android/app', { recursive: true });
     vol.writeFileSync('/workingdir/build/android/app/eas-build.gradle', '// Legacy content');
@@ -234,15 +236,19 @@ describe(androidBuilder, () => {
         versionName: '1.2.3',
       }
     );
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.PREPARE_CREDENTIALS,
+        build_phase: BuildPhase.PREPARE_CREDENTIALS.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
-    expect(reportBuildPhaseStats).toHaveBeenCalledWith(
+    expect(datadogDistributionMock).toHaveBeenCalledWith(
+      'eas.build.phase_duration',
+      expect.any(Number),
       expect.objectContaining({
-        buildPhase: BuildPhase.CONFIGURE_ANDROID_VERSION,
+        build_phase: BuildPhase.CONFIGURE_ANDROID_VERSION.toLowerCase(),
         result: BuildPhaseResult.WARNING,
       })
     );
