@@ -32919,6 +32919,18 @@
             "deprecationReason": null
           },
           {
+            "name": "maxRunTimeMinutes",
+            "description": "Override for the underlying turtle job run's max run time, in minutes. Must\nbe non-negative and smaller than 120 (2 hours). Only customizable on paid\nplans. If omitted, the default is derived based on the job run's priority.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "packageVersion",
             "description": "The version of the package backing the device run session (e.g. \"0.1.3-alpha.3\").\nIf omitted, consumers treat the session as pinned to \"latest\".",
             "type": {
@@ -43278,7 +43290,7 @@
         "fields": [
           {
             "name": "uploadEmbeddedUpdate",
-            "description": "Register an embedded bundle as the launch asset for a given app/platform/channel.\nReturns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet.",
+            "description": "Register an embedded bundle as the launch asset for a given app/platform/channel.\nReturns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,\nor EMBEDDED_UPDATE_ALREADY_EXISTS if an embedded update with this id is already registered.",
             "args": [
               {
                 "name": "input",
@@ -52954,6 +52966,18 @@
             "deprecationReason": null
           },
           {
+            "name": "maxRunTimeSeconds",
+            "description": "Max run time in seconds for this job run.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
             "description": null,
             "args": [],
@@ -53057,6 +53081,18 @@
                   }
                 }
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "workflowJob",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowJob",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

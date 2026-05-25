@@ -4680,6 +4680,12 @@ export type CreateConvexTeamConnectionInput = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
+   * Override for the underlying turtle job run's max run time, in minutes. Must
+   * be non-negative and smaller than 120 (2 hours). Only customizable on paid
+   * plans. If omitted, the default is derived based on the job run's priority.
+   */
+  maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
@@ -6174,7 +6180,8 @@ export type EmbeddedUpdateMutation = {
   __typename?: 'EmbeddedUpdateMutation';
   /**
    * Register an embedded bundle as the launch asset for a given app/platform/channel.
-   * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet.
+   * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,
+   * or EMBEDDED_UPDATE_ALREADY_EXISTS if an embedded update with this id is already registered.
    */
   uploadEmbeddedUpdate: EmbeddedUpdate;
 };
@@ -7468,6 +7475,8 @@ export type JobRun = {
   initiatingActor?: Maybe<Actor>;
   isWaived: Scalars['Boolean']['output'];
   logFileUrls: Array<Scalars['String']['output']>;
+  /** Max run time in seconds for this job run. */
+  maxRunTimeSeconds?: Maybe<Scalars['Int']['output']>;
   name: Scalars['String']['output'];
   priority: JobRunPriority;
   /** String describing the worker profile used to run this job run. */
@@ -7475,6 +7484,7 @@ export type JobRun = {
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 export type JobRunError = {
