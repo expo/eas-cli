@@ -54,7 +54,7 @@ describe(findArtifacts, () => {
     expect(paths.length).toBe(1);
     expect(paths[0]).toBe('/Users/expo/.maestro/tests');
     expect(Datadog.log).toHaveBeenCalledWith(
-      'findArtifacts absolute path dry-run match: /Users/expo/.maestro/tests (current: 1, dry-run: 1)',
+      'findArtifacts absolute path dry-run match: /Users/expo/.maestro/tests (current: 1, dry-run: 1, samples: {"current":["/Users/expo/.maestro/tests"],"dryRun":["/Users/expo/.maestro/tests"]})',
       {
         event: 'find_artifacts_absolute_path_dry_run',
         status: 'match',
@@ -106,7 +106,7 @@ describe(findArtifacts, () => {
     );
     expect(loggerMock.error).toHaveBeenCalledTimes(0);
     expect(Datadog.log).toHaveBeenCalledWith(
-      'findArtifacts absolute path dry-run mismatch: /tmp/maestro_xctestrunner_xcodebuild_output* (current: 0, dry-run: 2)',
+      'findArtifacts absolute path dry-run mismatch: /tmp/maestro_xctestrunner_xcodebuild_output* (current: 0, dry-run: 2, samples: {"current":[],"dryRun":["/tmp/maestro_xctestrunner_xcodebuild_output123","/tmp/maestro_xctestrunner_xcodebuild_output456"]})',
       {
         event: 'find_artifacts_absolute_path_dry_run',
         status: 'mismatch',

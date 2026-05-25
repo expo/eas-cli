@@ -87,7 +87,12 @@ async function maybeLogAbsoluteGlobDryRunAsync({
       ? 'match'
       : 'mismatch';
     Datadog.log(
-      `findArtifacts absolute path dry-run ${status}: ${patternOrPath} (current: ${files.length}, dry-run: ${filesWithAbsoluteGlobSupport.length})`,
+      `findArtifacts absolute path dry-run ${status}: ${patternOrPath} (current: ${files.length}, dry-run: ${filesWithAbsoluteGlobSupport.length}, samples: ${formatArtifactSamples(
+        {
+          current: files,
+          dryRun: filesWithAbsoluteGlobSupport,
+        }
+      )})`,
       {
         event: 'find_artifacts_absolute_path_dry_run',
         status,
@@ -101,6 +106,19 @@ async function maybeLogAbsoluteGlobDryRunAsync({
       dynamic_pattern: `${fg.isDynamicPattern(patternOrPath)}`,
     });
   }
+}
+
+function formatArtifactSamples({
+  current,
+  dryRun,
+}: {
+  current: string[];
+  dryRun: string[];
+}): string {
+  return JSON.stringify({
+    current: current.slice(0, 20),
+    dryRun: dryRun.slice(0, 20),
+  });
 }
 
 function areArtifactListsEqual(first: string[], second: string[]): boolean {
