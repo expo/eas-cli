@@ -6,7 +6,7 @@ import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { BuildContext } from '../context';
-import { Sentry } from '../sentry';
+import { Datadog } from '../datadog';
 
 export class FindArtifactsError extends Error {}
 
@@ -25,7 +25,7 @@ export async function findArtifacts({
       ? [patternOrPath]
       : []
     : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
-  await maybeReportAbsoluteGlobDryRunMismatchAsync({
+  await maybeLogAbsoluteGlobDryRunAsync({
     rootDir,
     patternOrPath,
     files,
@@ -65,7 +65,7 @@ async function findArtifactsWithAbsoluteGlobSupportDryRunAsync(
     : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
 }
 
-async function maybeReportAbsoluteGlobDryRunMismatchAsync({
+async function maybeLogAbsoluteGlobDryRunAsync({
   rootDir,
   patternOrPath,
   files,
@@ -83,38 +83,42 @@ async function maybeReportAbsoluteGlobDryRunMismatchAsync({
       rootDir,
       patternOrPath
     );
-    if (areArtifactListsEqual(files, filesWithAbsoluteGlobSupport)) {
-      return;
-    }
-
-    Sentry.capture(new Error('findArtifacts output changed for an absolute path'), {
-      tags: {
-        source: 'find-artifacts',
-        reason: 'absolute_path',
-      },
-      extras: {
-        rootDir,
-        patternOrPath,
-        currentCount: files.length,
-        dryRunCount: filesWithAbsoluteGlobSupport.length,
-        currentSample: files.slice(0, 20),
-        dryRunSample: filesWithAbsoluteGlobSupport.slice(0, 20),
-      },
-    });
-  } catch (err: any) {
-    Sentry.capture(err, {
-      tags: {
-        source: 'find-artifacts',
-        reason: 'absolute_path_dry_run_failed',
-      },
-      extras: {
-        rootDir,
-        patternOrPath,
-        currentCount: files.length,
-        currentSample: files.slice(0, 20),
-      },
+    const status = areArtifactListsEqual(files, filesWithAbsoluteGlobSupport)
+      ? 'match'
+      : 'mismatch';
+    Datadog.log(
+      `findArtifacts absolute path dry-run ${status}: ${patternOrPath} (current: ${files.length}, dry-run: ${filesWithAbsoluteGlobSupport.length}, samples: ${formatArtifactSamples(
+        {
+          current: files,
+          dryRun: filesWithAbsoluteGlobSupport,
+        }
+      )})`,
+      {
+        event: 'find_artifacts_absolute_path_dry_run',
+        status,
+        dynamic_pattern: `${fg.isDynamicPattern(patternOrPath)}`,
+      }
+    );
+  } catch {
+    Datadog.log(`findArtifacts absolute path dry-run error: ${patternOrPath}`, {
+      event: 'find_artifacts_absolute_path_dry_run',
+      status: 'error',
+      dynamic_pattern: `${fg.isDynamicPattern(patternOrPath)}`,
     });
   }
+}
+
+function formatArtifactSamples({
+  current,
+  dryRun,
+}: {
+  current: string[];
+  dryRun: string[];
+}): string {
+  return JSON.stringify({
+    current: current.slice(0, 20),
+    dryRun: dryRun.slice(0, 20),
+  });
 }
 
 function areArtifactListsEqual(first: string[], second: string[]): boolean {
