@@ -1,5 +1,5 @@
 import { BuildContext, BuildContextOptions, LogBuffer } from '@expo/build-tools';
-import { BuildPhaseStats, Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
+import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
 
@@ -24,7 +24,6 @@ export function createBuildContext<TJob extends Job>({
   projectId,
   buildId,
   buildLogger,
-  reportBuildPhaseStatsFn,
 }: {
   job: TJob;
   logBuffer: LogBuffer;
@@ -33,7 +32,6 @@ export function createBuildContext<TJob extends Job>({
   projectId: string;
   buildId: string;
   buildLogger: bunyan;
-  reportBuildPhaseStatsFn: (stats: BuildPhaseStats) => void;
 }): BuildContext<TJob> {
   const env = getBuildEnv({ job, projectId, metadata, buildId });
   const childLogger = buildLogger.child({ buildId });
@@ -89,7 +87,6 @@ export function createBuildContext<TJob extends Job>({
     },
     cacheManager: new GCSCacheManager(),
     metadata,
-    reportBuildPhaseStats: reportBuildPhaseStatsFn,
     expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
   });
   return ctx;

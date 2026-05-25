@@ -2,7 +2,6 @@ import { ExpoConfig } from '@expo/config';
 import {
   BuildPhase,
   BuildPhaseResult,
-  BuildPhaseStats,
   Env,
   EnvironmentSecretType,
   GenericArtifactType,
@@ -65,7 +64,6 @@ export interface BuildContextOptions {
     err?: Error,
     options?: { tags?: Record<string, string>; extras?: Record<string, string> }
   ) => void;
-  reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
   expoApiV2BaseUrl?: string;
@@ -98,7 +96,6 @@ export class BuildContext<TJob extends Job = Job> {
   private buildPhaseSkipped = false;
   private buildPhaseHasWarnings = false;
   private _appConfig?: Promise<ExpoConfig>;
-  private readonly reportBuildPhaseStats?: (stats: BuildPhaseStats) => void;
   public readonly graphqlClient: Client;
 
   constructor(job: TJob, options: BuildContextOptions) {
@@ -114,7 +111,6 @@ export class BuildContext<TJob extends Job = Job> {
     this._metadata = options.metadata;
     this.skipNativeBuild = options.skipNativeBuild;
     this.expoApiV2BaseUrl = options.expoApiV2BaseUrl;
-    this.reportBuildPhaseStats = options.reportBuildPhaseStats;
 
     const environmentSecrets = this.getEnvironmentSecrets(job);
     this._env = {
@@ -355,7 +351,6 @@ export class BuildContext<TJob extends Job = Job> {
     }
     await this.collectAndUpdateEnvVariablesAsync();
 
-    this.reportBuildPhaseStats?.({ buildPhase: this.buildPhase, result, durationMs });
     if (this.job.platform) {
       Datadog.distribution('eas.build.phase_duration', durationMs, {
         build_phase: this.buildPhase.toLowerCase(),

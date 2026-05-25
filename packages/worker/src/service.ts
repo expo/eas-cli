@@ -10,7 +10,6 @@ import {
   BuildJob,
   BuildMode,
   BuildPhase,
-  BuildPhaseStats,
   Ios,
   Job,
   Metadata,
@@ -241,16 +240,6 @@ export default class BuildService {
     });
   }
 
-  public reportBuildPhaseStats(stats: BuildPhaseStats): void {
-    if (this.ws) {
-      logger.info(stats, 'Sending build phase stats');
-      this.ws.send({
-        type: WorkerMessage.MessageType.BUILD_PHASE_STATS,
-        ...stats,
-      });
-    }
-  }
-
   public syncLauncherState({ buildId }: LauncherMessage.StateQuery): void {
     if (this.buildId !== buildId) {
       // should not happen (malicious or invalid connection)
@@ -307,9 +296,6 @@ export default class BuildService {
         projectId,
         buildId: this.buildId,
         buildLogger,
-        reportBuildPhaseStatsFn: stats => {
-          this.reportBuildPhaseStats(stats);
-        },
       });
       this.buildContext = ctx;
 

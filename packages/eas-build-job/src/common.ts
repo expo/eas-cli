@@ -181,12 +181,6 @@ export const CacheSchema = Joi.object({
   paths: Joi.array().items(Joi.string()).default([]),
 });
 
-export interface BuildPhaseStats {
-  buildPhase: BuildPhase;
-  result: BuildPhaseResult;
-  durationMs: number;
-}
-
 const GitHubContextZ = z.object({
   triggering_actor: z.string().optional(),
   event_name: z.enum(['push', 'pull_request', 'workflow_dispatch', 'schedule']),
