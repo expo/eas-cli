@@ -1,6 +1,6 @@
 {
   "name": "@expo/eas-build-job",
-  "version": "19.0.0",
+  "version": "19.1.0",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "MIT",
   "author": "Expo <support@expo.io>",
