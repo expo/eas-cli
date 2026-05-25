@@ -306,7 +306,7 @@ export default class Go extends EasCommand {
 
   private async selectSdkVersionAsync(
     graphqlClient: ExpoGraphqlClient
-  ): Promise<string | undefined> {
+  ): Promise<{ sdkVersion: string | undefined }> {
     let versions;
     try {
       versions = await WorkflowRunQuery.expoGoSupportedSdkVersionsAsync(graphqlClient);
