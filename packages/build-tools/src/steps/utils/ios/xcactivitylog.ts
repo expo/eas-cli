@@ -82,14 +82,14 @@ export async function parseAndReportXcactivitylog({
   } catch (err: any) {
     logger.info('Build performance analysis skipped.');
     const msg = `Build performance analysis failed during "${phase}"`;
-    const extras: Record<string, unknown> = {};
-    if (typeof err?.stderr === 'string') extras.stderr = err.stderr.slice(-4000);
-    if (typeof err?.stdout === 'string') extras.stdout = err.stdout.slice(-4000);
-    if (err?.status != null) extras.exitStatus = err.status;
-    if (err?.signal != null) extras.signal = err.signal;
     Sentry.capture(msg, err, {
       tags: { phase },
-      ...(Object.keys(extras).length > 0 ? { extras } : {}),
+      extras: {
+        exitStatus: err?.status,
+        signal: err?.signal,
+        stderr: err?.stderr?.slice(-4000),
+        stdout: err?.stdout?.slice(-4000),
+      },
     });
   } finally {
     if (tempDir) {

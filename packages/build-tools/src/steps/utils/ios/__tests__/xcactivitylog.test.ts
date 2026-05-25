@@ -385,7 +385,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "parsing_xclogparser_output"',
       expect.any(Error),
-      { tags: { phase: 'parsing_xclogparser_output' } }
+      expect.objectContaining({ tags: { phase: 'parsing_xclogparser_output' } })
     );
   });
 
@@ -416,7 +416,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "parsing_xclogparser_output"',
       expect.any(Error),
-      { tags: { phase: 'parsing_xclogparser_output' } }
+      expect.objectContaining({ tags: { phase: 'parsing_xclogparser_output' } })
     );
   });
 
@@ -444,7 +444,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "running_xclogparser"',
       expect.objectContaining({ message: 'spawn xclogparser ENOENT' }),
-      { tags: { phase: 'running_xclogparser' } }
+      expect.objectContaining({ tags: { phase: 'running_xclogparser' } })
     );
   });
 
@@ -477,9 +477,10 @@ describe('parseAndReportXcactivitylog', () => {
       {
         tags: { phase: 'running_xclogparser' },
         extras: {
+          exitStatus: 1,
+          signal: null,
           stderr: 'XCLogParser fatal: missing xcactivitylog\n',
           stdout: 'some stdout',
-          exitStatus: 1,
         },
       }
     );
@@ -507,7 +508,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "downloading_xclogparser"',
       expect.objectContaining({ message: 'network unreachable' }),
-      { tags: { phase: 'downloading_xclogparser' } }
+      expect.objectContaining({ tags: { phase: 'downloading_xclogparser' } })
     );
   });
 
