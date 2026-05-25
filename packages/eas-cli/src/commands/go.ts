@@ -212,7 +212,7 @@ export default class Go extends EasCommand {
     }
     let sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
     if (!sdkVersion) {
-      sdkVersion = await this.selectSdkVersionAsync(graphqlClient);
+      ({ sdkVersion } = await this.selectSdkVersionAsync(graphqlClient));
     }
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
     if (!isBundleIdentifierValid(bundleId)) {
@@ -311,26 +311,28 @@ export default class Go extends EasCommand {
     try {
       versions = await WorkflowRunQuery.expoGoSupportedSdkVersionsAsync(graphqlClient);
     } catch {
-      return;
+      return { sdkVersion: undefined };
     }
     const selectable = versions.filter(v => !v.isDeprecated);
     if (selectable.length === 0) {
-      return;
+      return { sdkVersion: undefined };
     }
     const defaultVersion = selectable.find(v => v.isLatest) ?? selectable.at(-1);
-    return selectAsync(
-      'Select an Expo SDK version',
-      selectable.map(v => {
-        const major = v.sdkVersion.split('.')[0];
-        const title = v.isLatest
-          ? `Latest (SDK ${major})`
-          : v.isBeta
-            ? `Beta (SDK ${major})`
-            : `SDK ${major}`;
-        return { title, value: v.sdkVersion };
-      }),
-      { initial: defaultVersion?.sdkVersion }
-    );
+    return {
+      sdkVersion: await selectAsync(
+        'Select an Expo SDK version',
+        selectable.map(v => {
+          const major = v.sdkVersion.split('.')[0];
+          const title = v.isLatest
+            ? `SDK ${major} (latest)`
+            : v.isBeta
+              ? `SDK ${major} (beta)`
+              : `SDK ${major}`;
+          return { title, value: v.sdkVersion };
+        }),
+        { initial: defaultVersion?.sdkVersion }
+      ),
+    };
   }
 
   private generateBundleId(actor: Actor): string {

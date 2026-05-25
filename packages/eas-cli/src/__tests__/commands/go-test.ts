@@ -164,8 +164,8 @@ describe('Go command', () => {
       'Select an Expo SDK version',
       expect.arrayContaining([
         expect.objectContaining({ title: 'SDK 54', value: '54.0.0' }),
-        expect.objectContaining({ title: 'Latest (SDK 55)', value: '55.0.0' }),
-        expect.objectContaining({ title: 'Beta (SDK 56)', value: '56.0.0' }),
+        expect.objectContaining({ title: 'SDK 55 (latest)', value: '55.0.0' }),
+        expect.objectContaining({ title: 'SDK 56 (beta)', value: '56.0.0' }),
       ]),
       expect.objectContaining({ initial: '55.0.0' })
     );
