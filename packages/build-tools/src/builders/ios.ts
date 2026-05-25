@@ -181,13 +181,16 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     }
     try {
       const { derivedDataPath, workspacePath } = nullthrows(fastlaneResult);
-      await parseAndReportXcactivitylog({
+      const { skipped } = await parseAndReportXcactivitylog({
         derivedDataPath,
         workspacePath,
         logger: ctx.logger,
         proxyBaseUrl: ctx.env.EAS_BUILD_COCOAPODS_CACHE_URL,
         env: ctx.env,
       });
+      if (skipped) {
+        ctx.markBuildPhaseSkipped();
+      }
     } catch (err: any) {
       Sentry.capture('Failed to parse xcactivitylog', err);
       ctx.markBuildPhaseSkipped();

@@ -16,9 +16,9 @@ const XCLOGPARSER_DOWNLOAD_TIMEOUT_MS = 20_000;
 const XCLOGPARSER_OUTPUT_FILENAME = 'xcactivitylog.json';
 
 /**
- * Never throws — best-effort observability that does not affect build status.
- * Failures route to Sentry via `Sentry.capture` for engineering triage;
- * users see only a generic skip message.
+ * Catches all internal failures (logged + routed to Sentry); returns
+ * `{ skipped: true }` when analysis did not produce a report so callers can
+ * mark the build phase skipped.
  */
 export async function parseAndReportXcactivitylog({
   derivedDataPath,
@@ -34,10 +34,38 @@ export async function parseAndReportXcactivitylog({
   logger: bunyan;
   proxyBaseUrl?: string;
   env: BuildStepEnv;
-}): Promise<void> {
+}): Promise<{ skipped: boolean }> {
   let tempDir: string | undefined;
-  let phase = 'creating_temp_directory';
+  let phase = 'checking_xcactivitylog_existence';
   try {
+    const logsBuildDir = path.join(derivedDataPath, 'Logs', 'Build');
+    let buildLogEntries: string[];
+    try {
+      buildLogEntries = await fs.readdir(logsBuildDir);
+    } catch (err: any) {
+      if (err?.code !== 'ENOENT') {
+        throw err;
+      }
+      buildLogEntries = [];
+    }
+    const hasActivityLog = buildLogEntries.some(entry => entry.endsWith('.xcactivitylog'));
+    if (!hasActivityLog) {
+      logger.info(
+        [
+          `Build performance analysis skipped: no .xcactivitylog files found at ${logsBuildDir}.`,
+          '',
+          'This typically happens when your project has a custom ios/Gymfile. To enable',
+          'build performance analysis, add the following lines to your Gymfile:',
+          '',
+          '    derived_data_path("./build")',
+          '    result_bundle(true)',
+          '    result_bundle_path("./build/result-bundle.xcresult")',
+        ].join('\n')
+      );
+      return { skipped: true };
+    }
+
+    phase = 'creating_temp_directory';
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'xclogparser-'));
 
     phase = 'resolving_xclogparser';
@@ -79,6 +107,7 @@ export async function parseAndReportXcactivitylog({
     );
 
     logger.info(formatReport(data));
+    return { skipped: false };
   } catch (err: any) {
     logger.info('Build performance analysis skipped.');
     const msg = `Build performance analysis failed during "${phase}"`;
@@ -91,6 +120,7 @@ export async function parseAndReportXcactivitylog({
         stdout: err?.stdout?.slice(-4000),
       },
     });
+    return { skipped: true };
   } finally {
     if (tempDir) {
       await asyncResult(fs.rm(tempDir, { force: true, recursive: true }));
