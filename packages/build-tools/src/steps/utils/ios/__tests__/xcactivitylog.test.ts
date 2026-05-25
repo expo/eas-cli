@@ -385,7 +385,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "parsing_xclogparser_output"',
       expect.any(Error),
-      { tags: { phase: 'parsing_xclogparser_output' } }
+      expect.objectContaining({ tags: { phase: 'parsing_xclogparser_output' } })
     );
   });
 
@@ -416,7 +416,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "parsing_xclogparser_output"',
       expect.any(Error),
-      { tags: { phase: 'parsing_xclogparser_output' } }
+      expect.objectContaining({ tags: { phase: 'parsing_xclogparser_output' } })
     );
   });
 
@@ -444,7 +444,45 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "running_xclogparser"',
       expect.objectContaining({ message: 'spawn xclogparser ENOENT' }),
-      { tags: { phase: 'running_xclogparser' } }
+      expect.objectContaining({ tags: { phase: 'running_xclogparser' } })
+    );
+  });
+
+  it('surfaces spawn error stderr/stdout/status/signal as Sentry extras', async () => {
+    const logger = createMockLogger();
+    mockFilesystem();
+
+    const spawnError: any = new Error('xclogparser exited with non-zero code: 1');
+    spawnError.stderr = 'XCLogParser fatal: missing xcactivitylog\n';
+    spawnError.stdout = 'some stdout';
+    spawnError.status = 1;
+    spawnError.signal = null;
+
+    mockedDownloadFile.mockResolvedValue(undefined);
+    mockedSpawn
+      .mockRejectedValueOnce(new Error('xclogparser not found')) // version detect
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any) // unzip
+      .mockRejectedValueOnce(spawnError); // xclogparser run
+
+    await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "running_xclogparser"',
+      expect.any(Error),
+      {
+        tags: { phase: 'running_xclogparser' },
+        extras: {
+          exitStatus: 1,
+          signal: null,
+          stderr: 'XCLogParser fatal: missing xcactivitylog\n',
+          stdout: 'some stdout',
+        },
+      }
     );
   });
 
@@ -470,7 +508,7 @@ describe('parseAndReportXcactivitylog', () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Build performance analysis failed during "downloading_xclogparser"',
       expect.objectContaining({ message: 'network unreachable' }),
-      { tags: { phase: 'downloading_xclogparser' } }
+      expect.objectContaining({ tags: { phase: 'downloading_xclogparser' } })
     );
   });
 

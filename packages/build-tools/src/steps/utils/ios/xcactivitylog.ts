@@ -82,7 +82,15 @@ export async function parseAndReportXcactivitylog({
   } catch (err: any) {
     logger.info('Build performance analysis skipped.');
     const msg = `Build performance analysis failed during "${phase}"`;
-    Sentry.capture(msg, err, { tags: { phase } });
+    Sentry.capture(msg, err, {
+      tags: { phase },
+      extras: {
+        exitStatus: err?.status,
+        signal: err?.signal,
+        stderr: err?.stderr?.slice(-4000),
+        stdout: err?.stdout?.slice(-4000),
+      },
+    });
   } finally {
     if (tempDir) {
       await asyncResult(fs.rm(tempDir, { force: true, recursive: true }));
