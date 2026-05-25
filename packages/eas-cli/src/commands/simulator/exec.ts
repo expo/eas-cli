@@ -1,18 +1,22 @@
 import spawnAsync from '@expo/spawn-async';
-import pkgDir from 'pkg-dir';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { loadSimulatorEnvironmentVariablesAsync } from '../../simulator/env';
+import { SIMULATOR_DOTENV_FILE_NAME, loadSimulatorEnvAsync } from '../../simulator/env';
 
 export default class SimulatorExec extends EasCommand {
   static override hidden = true;
-  static override description =
-    '[EXPERIMENTAL] execute a simulator command with local .env files loaded';
+  static override description = `[EXPERIMENTAL] execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
   static override strict = false;
 
+  static override contextDefinition = {
+    ...this.ContextOptions.ProjectDir,
+  };
+
   async runAsync(): Promise<void> {
-    const projectDir = (await pkgDir(process.cwd())) ?? process.cwd();
-    await loadSimulatorEnvironmentVariablesAsync(projectDir);
+    const { projectDir } = await this.getContextAsync(SimulatorExec, {
+      nonInteractive: true,
+    });
+    await loadSimulatorEnvAsync(projectDir);
 
     const [command, ...args] = this.argv as [string, ...string[]];
     await spawnAsync(command, args, {

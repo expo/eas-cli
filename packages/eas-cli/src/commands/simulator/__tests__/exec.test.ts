@@ -1,15 +1,14 @@
-import { loadProjectEnv } from '@expo/env';
+import { loadEnvFiles, loadProjectEnv } from '@expo/env';
 import spawnAsync from '@expo/spawn-async';
 import { Config } from '@oclif/core';
-import * as fs from 'fs-extra';
 
 import SimulatorExec from '../exec';
 
 jest.mock('@expo/env', () => ({
+  loadEnvFiles: jest.fn(),
   loadProjectEnv: jest.fn(),
 }));
 jest.mock('@expo/spawn-async');
-jest.mock('fs-extra');
 
 function getMockOclifConfig(): Config {
   const config = new Config({ root: __dirname });
@@ -22,24 +21,37 @@ function getMockOclifConfig(): Config {
 
 describe(SimulatorExec, () => {
   const mockConfig = getMockOclifConfig();
+  const projectDir = '/test/project';
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(spawnAsync).mockResolvedValue({} as never);
-    jest.mocked(fs.pathExists).mockResolvedValue(false as never);
-    jest.mocked(fs.readFile).mockResolvedValue('' as never);
   });
 
+  function createCommand(argv: string[]): {
+    command: SimulatorExec;
+    getContextAsync: jest.SpyInstance;
+  } {
+    const command = new SimulatorExec(argv, mockConfig);
+    // @ts-expect-error getContextAsync is protected
+    const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+      projectDir,
+    });
+    return { command, getContextAsync };
+  }
+
   it('loads local env files and spawns the supplied command with inherited stdio', async () => {
-    const command = new SimulatorExec(['agent-device', 'touch', '@e2'], mockConfig);
+    const { command, getContextAsync } = createCommand(['agent-device', 'touch', '@e2']);
 
     await command.runAsync();
 
-    expect(loadProjectEnv).toHaveBeenCalledWith(process.cwd(), {
-      force: true,
-      silent: true,
+    expect(getContextAsync).toHaveBeenCalledWith(SimulatorExec, {
+      nonInteractive: true,
     });
-    expect(fs.pathExists).toHaveBeenCalledWith(`${process.cwd()}/.env.eas-simulator`);
+    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, { silent: true });
+    expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
+      force: true,
+    });
     expect(spawnAsync).toHaveBeenCalledWith('agent-device', ['touch', '@e2'], {
       stdio: 'inherit',
       env: process.env,
@@ -47,10 +59,13 @@ describe(SimulatorExec, () => {
   });
 
   it('passes through command flags as args', async () => {
-    const command = new SimulatorExec(
-      ['agent-device', 'screenshot', '/test/path.png', '--format', 'png'],
-      mockConfig
-    );
+    const { command } = createCommand([
+      'agent-device',
+      'screenshot',
+      '/test/path.png',
+      '--format',
+      'png',
+    ]);
 
     await command.runAsync();
 
@@ -65,27 +80,15 @@ describe(SimulatorExec, () => {
   });
 
   it('loads simulator-specific env after regular env files', async () => {
-    const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-    jest.mocked(fs.pathExists).mockResolvedValue(true as never);
-    jest
-      .mocked(fs.readFile)
-      .mockResolvedValue('AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' as never);
+    const { command } = createCommand(['agent-device', 'touch', '@e2']);
+    await command.runAsync();
 
-    try {
-      const command = new SimulatorExec(['agent-device', 'touch', '@e2'], mockConfig);
-      await command.runAsync();
-
-      expect(loadProjectEnv).toHaveBeenCalledWith(process.cwd(), {
-        force: true,
-        silent: true,
-      });
-      expect(process.env.AGENT_DEVICE_DAEMON_BASE_URL).toBe('https://agent.example.com');
-    } finally {
-      if (previousBaseUrl === undefined) {
-        delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-      } else {
-        process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
-      }
-    }
+    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, { silent: true });
+    expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
+      force: true,
+    });
+    expect(jest.mocked(loadProjectEnv).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(loadEnvFiles).mock.invocationCallOrder[0]
+    );
   });
 });

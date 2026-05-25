@@ -2,18 +2,15 @@ import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  DeviceRunSessionByIdQuery,
   DeviceRunSessionStatus,
-  DeviceRunSessionType,
-  JobRunStatus,
+  EnsureDeviceRunSessionStoppedMutation,
 } from '../../../graphql/generated';
-import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
 import { EAS_SIMULATOR_SESSION_ID, loadSimulatorEnvAsync } from '../../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
-import SimulatorGet from '../get';
+import SimulatorStop from '../stop';
 
-jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
-jest.mock('../../../log');
+jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
   loadSimulatorEnvAsync: jest.fn(),
@@ -31,36 +28,22 @@ jest.mock('../../../ora', () => ({
 }));
 jest.mock('../../../utils/json');
 
-type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
+type StoppedDeviceRunSession =
+  EnsureDeviceRunSessionStoppedMutation['deviceRunSession']['ensureDeviceRunSessionStopped'];
 
-const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
+const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
+  DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
+);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockLoadSimulatorEnvironmentVariablesAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
+function makeStoppedDeviceRunSession(
+  overrides: Partial<StoppedDeviceRunSession> = {}
+): StoppedDeviceRunSession {
   return {
     id: 'session-123',
-    status: DeviceRunSessionStatus.InProgress,
-    type: DeviceRunSessionType.AgentDevice,
-    app: {
-      id: 'app-123',
-      slug: 'testapp',
-      ownerAccount: {
-        id: 'account-123',
-        name: 'testuser',
-      },
-    },
-    remoteConfig: {
-      __typename: 'AgentDeviceRunSessionRemoteConfig',
-      agentDeviceRemoteSessionUrl: 'https://agent.example.com',
-      agentDeviceRemoteSessionToken: 'token-123',
-      webPreviewUrl: 'https://preview.example.com',
-    },
-    turtleJobRun: {
-      id: 'job-123',
-      status: JobRunStatus.InProgress,
-    },
+    status: DeviceRunSessionStatus.Stopped,
     ...overrides,
   };
 }
@@ -74,21 +57,22 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-describe(SimulatorGet, () => {
+describe(SimulatorStop, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
   const projectDir = '/test/project';
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue(makeStoppedDeviceRunSession());
     mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
   });
 
   function createCommand(argv: string[]): {
-    command: SimulatorGet;
+    command: SimulatorStop;
     getContextAsync: jest.SpyInstance;
   } {
-    const command = new SimulatorGet(argv, mockConfig);
+    const command = new SimulatorStop(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       loggedIn: { graphqlClient },
@@ -98,39 +82,40 @@ describe(SimulatorGet, () => {
   }
 
   it('emits JSON when --json is passed', async () => {
-    const session = makeDeviceRunSession();
-    mockByIdAsync.mockResolvedValue(session);
-
     const { command, getContextAsync } = createCommand(['--id', 'session-123', '--json']);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
-    expect(getContextAsync).toHaveBeenCalledWith(SimulatorGet, {
+    expect(getContextAsync).toHaveBeenCalledWith(SimulatorStop, {
       nonInteractive: true,
     });
-    expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
-      type: 'agent-device',
-      status: DeviceRunSessionStatus.InProgress,
-      jobRunUrl: 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123',
-      remoteConfig: session.remoteConfig,
+      status: DeviceRunSessionStatus.Stopped,
     });
   });
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
     const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
-    const session = makeDeviceRunSession({ id: 'session-from-env' });
-    mockByIdAsync.mockResolvedValue(session);
     process.env[EAS_SIMULATOR_SESSION_ID] = 'session-from-env';
+    mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue(
+      makeStoppedDeviceRunSession({ id: 'session-from-env' })
+    );
 
     try {
       const { command } = createCommand([]);
       await command.runAsync();
 
       expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
-      expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-from-env');
+      expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        'session-from-env'
+      );
     } finally {
       if (previousDeviceRunSessionId === undefined) {
         delete process.env[EAS_SIMULATOR_SESSION_ID];

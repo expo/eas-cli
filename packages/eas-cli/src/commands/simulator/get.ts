@@ -11,6 +11,11 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../simulator/env';
+import {
   deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
 } from '../../simulator/utils';
@@ -23,14 +28,14 @@ export default class SimulatorGet extends EasCommand {
 
   static override flags = {
     id: Flags.string({
-      description: 'Device run session ID',
-      required: true,
+      description: `Device run session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
@@ -42,18 +47,25 @@ export default class SimulatorGet extends EasCommand {
     }
 
     const {
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorGet, {
       nonInteractive,
     });
 
-    const fetchSpinner = ora(`Fetching device run session ${flags.id}`).start();
+    await loadSimulatorEnvAsync(projectDir);
+    const flagId = flags.id || process.env[EAS_SIMULATOR_SESSION_ID];
+    if (!flagId) {
+      throw new Error('Missing required flag id');
+    }
+
+    const fetchSpinner = ora(`Fetching device run session ${flagId}`).start();
     let session;
     try {
-      session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, flags.id);
+      session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, flagId);
       fetchSpinner.succeed(`Fetched device run session ${session.id}`);
     } catch (err) {
-      fetchSpinner.fail(`Failed to fetch device run session ${flags.id}`);
+      fetchSpinner.fail(`Failed to fetch device run session ${flagId}`);
       throw err;
     }
 

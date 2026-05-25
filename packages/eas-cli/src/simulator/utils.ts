@@ -36,17 +36,29 @@ export function getRemoteSessionEnvironmentVariables(
   }
 }
 
+type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
+
 export function formatRemoteSessionInstructions(
-  remoteConfig: DeviceRunSessionRemoteConfig
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  configType: RemoteSessionInstructionsConfigType = 'env'
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
       const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
-      const lines = [
-        '🔑 Run the following in your shell to attach to the agent-device daemon:',
-        '',
-        ...Object.entries(environmentVariables).map(([key, value]) => `export ${key}='${value}'`),
-      ];
+      const lines =
+        configType === 'dotenv'
+          ? [
+              '🔑 Run the following to use agent-device with the simulator:',
+              '',
+              'eas simulator:exec agent-device <command>',
+            ]
+          : [
+              '🔑 Run the following in your shell to attach to the agent-device daemon:',
+              '',
+              ...Object.entries(environmentVariables).map(
+                ([key, value]) => `export ${key}='${value}'`
+              ),
+            ];
       if (remoteConfig.webPreviewUrl) {
         lines.push(
           '',
