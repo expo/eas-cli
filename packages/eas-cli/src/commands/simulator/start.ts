@@ -1,6 +1,5 @@
 import { Flags } from '@oclif/core';
 import * as fs from 'fs-extra';
-import path from 'path';
 import nullthrows from 'nullthrows';
 
 import { getBareJobRunUrl } from '../../build/utils/url';
@@ -20,6 +19,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { SIMULATOR_DOTENV_FILE_NAME, getSimulatorDotenvFilePath } from '../../simulator/env';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -58,8 +58,7 @@ export default class SimulatorStart extends EasCommand {
         'Version of the package backing the device run session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
     'out-config-type': Flags.option({
-      description:
-        'How to output simulator connection configuration. Use "env" to print shell exports, or "dotenv" to write .env.local.',
+      description: `How to output simulator connection configuration. Use "env" to print shell exports, or "dotenv" to write ${SIMULATOR_DOTENV_FILE_NAME}.`,
       options: Object.values(OUT_CONFIG_TYPE_VALUES),
       default: OUT_CONFIG_TYPE_VALUES.Dotenv,
     })(),
@@ -172,7 +171,7 @@ export default class SimulatorStart extends EasCommand {
     }
 
     if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
-      await writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
+      await writeRemoteSessionEnvironmentVariablesToSimulatorDotenvSafelyAsync(
         projectDir,
         remoteConfig,
         deviceRunSessionId
@@ -198,7 +197,7 @@ export default class SimulatorStart extends EasCommand {
   }
 }
 
-async function writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
+async function writeRemoteSessionEnvironmentVariablesToSimulatorDotenvSafelyAsync(
   projectDir: string,
   remoteConfig: DeviceRunSessionRemoteConfig,
   deviceRunSessionId: string
@@ -212,9 +211,9 @@ async function writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
   }
 
   try {
-    await appendEnvironmentVariablesToEnvLocalAsync(projectDir, environmentVariables);
+    await appendEnvironmentVariablesToSimulatorDotenvAsync(projectDir, environmentVariables);
     Log.newLine();
-    Log.withTick('Wrote simulator environment variables to .env.local');
+    Log.withTick(`Wrote simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}`);
     Log.newLine();
     Log.log('🔑 Run the following to use agent-device with the simulator:');
     Log.newLine();
@@ -231,33 +230,33 @@ async function writeRemoteSessionEnvironmentVariablesToEnvLocalSafelyAsync(
     Log.newLine();
   } catch (err) {
     Log.warn(
-      `Failed to write simulator environment variables to .env.local: ${
+      `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}: ${
         err instanceof Error ? err.message : String(err)
       }`
     );
   }
 }
 
-async function appendEnvironmentVariablesToEnvLocalAsync(
+async function appendEnvironmentVariablesToSimulatorDotenvAsync(
   projectDir: string,
   environmentVariables: Record<string, string>
 ): Promise<void> {
-  const envLocalPath = path.join(projectDir, '.env.local');
+  const simulatorDotenvFilePath = getSimulatorDotenvFilePath(projectDir);
   let prefix = '';
 
-  if (await fs.pathExists(envLocalPath)) {
-    const existingContent = await fs.readFile(envLocalPath, 'utf8');
+  if (await fs.pathExists(simulatorDotenvFilePath)) {
+    const existingContent = await fs.readFile(simulatorDotenvFilePath, 'utf8');
     if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
       prefix = '\n';
     }
   }
 
-  const envLocalContent =
+  const simulatorDotenvContent =
     Object.entries(environmentVariables)
       .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
       .join('\n') + '\n';
 
-  await fs.appendFile(envLocalPath, prefix + envLocalContent);
+  await fs.appendFile(simulatorDotenvFilePath, prefix + simulatorDotenvContent);
 }
 
 async function waitForSessionEndOrInterruptAsync({

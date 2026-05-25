@@ -1,8 +1,8 @@
-import { load } from '@expo/env';
 import spawnAsync from '@expo/spawn-async';
 import pkgDir from 'pkg-dir';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { loadSimulatorEnvironmentVariablesAsync } from '../../simulator/env';
 
 export default class SimulatorExec extends EasCommand {
   static override hidden = true;
@@ -12,7 +12,7 @@ export default class SimulatorExec extends EasCommand {
 
   async runAsync(): Promise<void> {
     const projectDir = (await pkgDir(process.cwd())) ?? process.cwd();
-    load(projectDir, { force: true, silent: true });
+    await loadSimulatorEnvironmentVariablesAsync(projectDir);
 
     const [command, ...args] = this.argv as [string, ...string[]];
     await spawnAsync(command, args, {

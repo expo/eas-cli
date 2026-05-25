@@ -47,7 +47,7 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 
 const graphqlClient = {} as ExpoGraphqlClient;
 const projectDir = '/test/project';
-const envLocalPath = `${projectDir}/.env.local`;
+const simulatorDotenvPath = `${projectDir}/.env.eas-simulator`;
 
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
@@ -161,20 +161,20 @@ describe(SimulatorStart, () => {
     );
   });
 
-  it('creates .env.local with the environment variables by default', async () => {
+  it('creates .env.eas-simulator with the environment variables by default', async () => {
     jest.mocked(fs.pathExists).mockResolvedValue(false as never);
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
     await command.runAsync();
 
     expect(fs.appendFile).toHaveBeenCalledWith(
-      envLocalPath,
+      simulatorDotenvPath,
       'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
         'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
         'EAS_SIMULATOR_SESSION_ID="session-123"\n'
     );
     expect(Log.withTick).toHaveBeenCalledWith(
-      'Wrote simulator environment variables to .env.local'
+      'Wrote simulator environment variables to .env.eas-simulator'
     );
     expect(Log.log).toHaveBeenCalledWith(
       '🔑 Run the following to use agent-device with the simulator:'
@@ -186,7 +186,7 @@ describe(SimulatorStart, () => {
     expect(Log.log).toHaveBeenCalledWith('https://preview.example.com');
   });
 
-  it('appends the environment variables when outputting dotenv and .env.local exists', async () => {
+  it('appends the environment variables when outputting dotenv and .env.eas-simulator exists', async () => {
     jest.mocked(fs.pathExists).mockResolvedValue(true as never);
     jest.mocked(fs.readFile).mockResolvedValue('EXISTING_ENV=1' as never);
 
@@ -199,9 +199,9 @@ describe(SimulatorStart, () => {
     ]);
     await command.runAsync();
 
-    expect(fs.readFile).toHaveBeenCalledWith(envLocalPath, 'utf8');
+    expect(fs.readFile).toHaveBeenCalledWith(simulatorDotenvPath, 'utf8');
     expect(fs.appendFile).toHaveBeenCalledWith(
-      envLocalPath,
+      simulatorDotenvPath,
       '\nAGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
         'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
         'EAS_SIMULATOR_SESSION_ID="session-123"\n'
