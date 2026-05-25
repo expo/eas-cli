@@ -1,4 +1,4 @@
-import { BuildJob } from '@expo/eas-build-job';
+import { ArchiveSourceType, BuildJob, Platform, Workflow } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 
 import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from '../easBuildInternal';
@@ -15,7 +15,7 @@ jest.mock('../../utils/easCli', () => ({
 
 describe('easBuildInternal', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     jest.mocked(resolveEasCommandPrefixAndEnvAsync).mockResolvedValue({
       cmd: 'npx',
       args: ['-y', 'eas-cli@latest'],
@@ -68,5 +68,132 @@ describe('easBuildInternal', () => {
 
     expect(resolveEasCommandPrefixAndEnvAsync).toHaveBeenCalledWith();
     expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('passes --refresh-ad-hoc-provisioning-profile to build:internal for iOS jobs with refreshAdHocProvisioningProfile', async () => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      child: jest.fn(),
+    } as any;
+
+    const internalJob = {
+      platform: Platform.IOS,
+      type: Workflow.GENERIC,
+      triggeredBy: 'EAS_CLI',
+      projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com' },
+      projectRootDirectory: '.',
+      secrets: {
+        buildCredentials: {
+          testapp: {
+            distributionCertificate: {
+              dataBase64: 'YmluYXJ5Y29udGVudDE=',
+              password: 'distCertPassword',
+            },
+            provisioningProfileBase64: 'MnRuZXRub2N5cmFuaWI=',
+          },
+        },
+      },
+      initiatingUserId: 'user-id',
+      appId: 'app-id',
+    };
+
+    jest.mocked(spawn).mockResolvedValue({
+      stdout: Buffer.from(
+        JSON.stringify({
+          job: internalJob,
+          metadata: {},
+        })
+      ),
+      stderr: Buffer.from(''),
+    } as any);
+
+    const job = {
+      platform: Platform.IOS,
+      buildProfile: 'preview',
+      refreshAdHocProvisioningProfile: true,
+      appId: 'app-id',
+      initiatingUserId: 'user-id',
+      secrets: { robotAccessToken: 'token' },
+    } as unknown as BuildJob;
+
+    await runEasBuildInternalAsync({
+      job,
+      logger,
+      env: {},
+      cwd: '/tmp/project',
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      expect.arrayContaining([
+        'build:internal',
+        '--platform',
+        Platform.IOS,
+        '--profile',
+        'preview',
+        '--refresh-ad-hoc-provisioning-profile',
+      ]),
+      expect.any(Object)
+    );
+  });
+
+  it('preserves refreshAdHocProvisioningProfile from the incoming job', async () => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      child: jest.fn(),
+    } as any;
+
+    const internalJob = {
+      platform: Platform.IOS,
+      type: Workflow.GENERIC,
+      triggeredBy: 'EAS_CLI',
+      projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com' },
+      projectRootDirectory: '.',
+      secrets: {
+        buildCredentials: {
+          testapp: {
+            distributionCertificate: {
+              dataBase64: 'YmluYXJ5Y29udGVudDE=',
+              password: 'distCertPassword',
+            },
+            provisioningProfileBase64: 'MnRuZXRub2N5cmFuaWI=',
+          },
+        },
+      },
+      initiatingUserId: 'user-id',
+      appId: 'app-id',
+    };
+
+    jest.mocked(spawn).mockResolvedValue({
+      stdout: Buffer.from(
+        JSON.stringify({
+          job: internalJob,
+          metadata: {},
+        })
+      ),
+      stderr: Buffer.from(''),
+    } as any);
+
+    const job = {
+      platform: Platform.IOS,
+      buildProfile: 'preview',
+      refreshAdHocProvisioningProfile: true,
+      appId: 'app-id',
+      initiatingUserId: 'user-id',
+      secrets: { robotAccessToken: 'token' },
+    } as unknown as BuildJob;
+
+    const { newJob } = await runEasBuildInternalAsync({
+      job,
+      logger,
+      env: {},
+      cwd: '/tmp/project',
+    });
+
+    expect((newJob as any).refreshAdHocProvisioningProfile).toBe(true);
   });
 });
