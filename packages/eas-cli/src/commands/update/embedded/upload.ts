@@ -138,19 +138,23 @@ export default class UpdateEmbeddedUpload extends EasCommand {
         });
         break;
       } catch (e: unknown) {
-        if (!isEmbeddedUpdateAssetNotAvailableError(e)) {
-          registerSpinner.fail('Failed to register embedded update');
-          if (isEmbeddedUpdateAlreadyExistsError(e)) {
-            Errors.error(
-              `An embedded update with id "${embeddedUpdateId}" is already registered for this app. Delete it before re-uploading.`,
-              { exit: 1 }
+        if (isEmbeddedUpdateAssetNotAvailableError(e)) {
+          if (attempt < MAX_ATTEMPTS) {
+            await sleepAsync(
+              Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), RETRY_MAX_DELAY_MS)
             );
           }
-          throw e;
+          continue;
         }
-        if (attempt < MAX_ATTEMPTS) {
-          await sleepAsync(Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), RETRY_MAX_DELAY_MS));
+
+        registerSpinner.fail('Failed to register embedded update');
+        if (isEmbeddedUpdateAlreadyExistsError(e)) {
+          Errors.error(
+            `An embedded update with id "${embeddedUpdateId}" is already registered for this app. Delete it before re-uploading.`,
+            { exit: 1 }
+          );
         }
+        throw e;
       }
     }
 
