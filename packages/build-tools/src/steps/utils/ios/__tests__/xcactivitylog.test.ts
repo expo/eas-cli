@@ -200,13 +200,21 @@ const TEST_ENV = { PATH: '/custom/bin:/usr/bin' };
 function mockFilesystem({
   tempDir = '/tmp/xclogparser-123',
   jsonOutput = JSON.stringify(FIXTURE_TWO_MODULES),
+  buildLogEntries = ['12345-abc.xcactivitylog'] as string[] | Error,
 }: {
   tempDir?: string;
   jsonOutput?: string;
+  buildLogEntries?: string[] | Error;
 } = {}) {
   jest.spyOn(fs, 'mkdtemp').mockImplementation(async () => tempDir);
   jest.spyOn(fs, 'chmod').mockImplementation(async () => undefined);
   jest.spyOn(fs, 'readFile').mockImplementation(async () => jsonOutput);
+  jest.spyOn(fs, 'readdir').mockImplementation((async () => {
+    if (buildLogEntries instanceof Error) {
+      throw buildLogEntries;
+    }
+    return buildLogEntries;
+  }) as any);
   jest.spyOn(fs, 'rm').mockImplementation(async () => undefined);
 
   return {
@@ -234,13 +242,14 @@ describe('parseAndReportXcactivitylog', () => {
     mockedSpawn.mockRejectedValueOnce(new Error('xclogparser not found'));
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
 
-    await parseAndReportXcactivitylog({
+    const result = await parseAndReportXcactivitylog({
       derivedDataPath: '/tmp/derived-data',
       workspacePath: '/tmp/workspace',
       logger,
       env: TEST_ENV,
     });
 
+    expect(result).toEqual({ skipped: false });
     expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'xclogparser', ['version'], {
       stdio: 'pipe',
       env: TEST_ENV,
@@ -378,7 +387,7 @@ describe('parseAndReportXcactivitylog', () => {
         logger,
         env: TEST_ENV,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ skipped: true });
 
     expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
@@ -409,7 +418,7 @@ describe('parseAndReportXcactivitylog', () => {
         logger,
         env: TEST_ENV,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ skipped: true });
 
     expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
@@ -437,7 +446,7 @@ describe('parseAndReportXcactivitylog', () => {
         logger,
         env: TEST_ENV,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ skipped: true });
 
     expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
@@ -486,6 +495,108 @@ describe('parseAndReportXcactivitylog', () => {
     );
   });
 
+  it('skips with actionable guidance when Logs/Build has no .xcactivitylog files', async () => {
+    const logger = createMockLogger();
+    mockFilesystem({ buildLogEntries: [] });
+
+    const result = await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(result).toEqual({ skipped: true });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Build performance analysis skipped: no .xcactivitylog files found at ${path.join(
+          '/tmp/derived-data',
+          'Logs',
+          'Build'
+        )}.`
+      )
+    );
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('custom ios/Gymfile'));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('derived_data_path("./build")')
+    );
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('result_bundle(true)'));
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('result_bundle_path("./build/result-bundle.xcresult")')
+    );
+  });
+
+  it('skips when Logs/Build directory does not exist', async () => {
+    const logger = createMockLogger();
+    const enoent: any = new Error('ENOENT');
+    enoent.code = 'ENOENT';
+    mockFilesystem({ buildLogEntries: enoent });
+
+    const result = await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(result).toEqual({ skipped: true });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Build performance analysis skipped: no .xcactivitylog files found')
+    );
+  });
+
+  it('captures to Sentry and skips when readdir fails with a non-ENOENT error', async () => {
+    const logger = createMockLogger();
+    const eacces: any = new Error('EACCES: permission denied');
+    eacces.code = 'EACCES';
+    mockFilesystem({ buildLogEntries: eacces });
+
+    const result = await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(result).toEqual({ skipped: true });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Build performance analysis failed during "checking_xcactivitylog_existence"',
+      expect.objectContaining({ code: 'EACCES' }),
+      expect.objectContaining({
+        tags: { phase: 'checking_xcactivitylog_existence' },
+      })
+    );
+    expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
+    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('custom ios/Gymfile'));
+  });
+
+  it('ignores non-xcactivitylog entries in Logs/Build when deciding to skip', async () => {
+    const logger = createMockLogger();
+    mockFilesystem({ buildLogEntries: ['LogStoreManifest.plist', 'some-other-file.txt'] });
+
+    const result = await parseAndReportXcactivitylog({
+      derivedDataPath: '/tmp/derived-data',
+      workspacePath: '/tmp/workspace',
+      logger,
+      env: TEST_ENV,
+    });
+
+    expect(result).toEqual({ skipped: true });
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Build performance analysis skipped: no .xcactivitylog files found')
+    );
+  });
+
   it('reports phase "downloading_xclogparser" when the direct download fails', async () => {
     const logger = createMockLogger();
     mockFilesystem();
@@ -501,7 +612,7 @@ describe('parseAndReportXcactivitylog', () => {
         logger,
         env: TEST_ENV,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ skipped: true });
 
     expect(logger.info).toHaveBeenCalledWith('Build performance analysis skipped.');
     expect(logger.warn).not.toHaveBeenCalled();
@@ -530,7 +641,7 @@ describe('parseAndReportXcactivitylog', () => {
         logger,
         env: TEST_ENV,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ skipped: false });
 
     expect(logger.debug).not.toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
