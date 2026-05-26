@@ -26,7 +26,7 @@ import { AppMutation } from '../graphql/mutations/AppMutation';
 import { WorkflowRunMutation } from '../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
-import { confirmAsync } from '../prompts';
+import { confirmAsync, selectAsync } from '../prompts';
 import { ora } from '../ora';
 import { getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
@@ -210,7 +210,10 @@ export default class Go extends EasCommand {
         `Current project using SDK ${detectedSdkVersion.split('.')[0]}. Auto-selected same version. To use a different version, pass --sdk-version.`
       );
     }
-    const sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
+    let sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
+    if (!sdkVersion) {
+      ({ sdkVersion } = await this.selectSdkVersionAsync(graphqlClient));
+    }
     const bundleId = flags['bundle-id'] ?? this.generateBundleId(actor);
     if (!isBundleIdentifierValid(bundleId)) {
       throw new Error(
@@ -299,6 +302,37 @@ export default class Go extends EasCommand {
     } finally {
       await fs.remove(tmpDir);
     }
+  }
+
+  private async selectSdkVersionAsync(
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<{ sdkVersion: string | undefined }> {
+    let versions;
+    try {
+      versions = await WorkflowRunQuery.expoGoSupportedSdkVersionsAsync(graphqlClient);
+    } catch {
+      return { sdkVersion: undefined };
+    }
+    const selectable = versions.filter(v => !v.isDeprecated);
+    if (selectable.length === 0) {
+      return { sdkVersion: undefined };
+    }
+    const defaultVersion = selectable.find(v => v.isLatest) ?? selectable.at(-1);
+    return {
+      sdkVersion: await selectAsync(
+        'Select an Expo SDK version',
+        selectable.map(v => {
+          const major = v.sdkVersion.split('.')[0];
+          const title = v.isLatest
+            ? `SDK ${major} (latest)`
+            : v.isBeta
+              ? `SDK ${major} (beta)`
+              : `SDK ${major}`;
+          return { title, value: v.sdkVersion };
+        }),
+        { initial: defaultVersion?.sdkVersion }
+      ),
+    };
   }
 
   private generateBundleId(actor: Actor): string {

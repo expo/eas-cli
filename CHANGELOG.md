@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] `eas go` now prompts to select an Expo SDK version interactively when `--sdk-version` is not provided. ([#3768](https://github.com/expo/eas-cli/pull/3768) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

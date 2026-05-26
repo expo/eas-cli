@@ -6,6 +6,7 @@ import { WorkflowRunStatus } from '../../graphql/generated';
 import { WorkflowRunMutation } from '../../graphql/mutations/WorkflowRunMutation';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
+import { selectAsync } from '../../prompts';
 import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
@@ -50,6 +51,7 @@ jest.mock('../../graphql/mutations/WorkflowRunMutation');
 jest.mock('../../project/uploadAccountScopedFileAsync');
 jest.mock('../../project/uploadAccountScopedProjectSourceAsync');
 jest.mock('../../build/utils/url');
+jest.mock('../../prompts');
 
 const mockGetConfigFilePaths = jest.mocked(getConfigFilePaths);
 const mockGetPrivateExpoConfigAsync = jest.mocked(getPrivateExpoConfigAsync);
@@ -145,5 +147,51 @@ describe('Go command', () => {
     await makeCmd(['--sdk-version', '55.0.0']).run();
 
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Auto-selected'));
+  });
+
+  it('prompts for SDK version when no project config is found', async () => {
+    mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+    jest.mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync).mockResolvedValue([
+      { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: false },
+      { sdkVersion: '55.0.0', isLatest: true, isBeta: false, isDeprecated: false },
+      { sdkVersion: '56.0.0', isLatest: false, isBeta: true, isDeprecated: false },
+    ]);
+    jest.mocked(selectAsync).mockResolvedValue('55.0.0');
+
+    await makeCmd().run();
+
+    expect(selectAsync).toHaveBeenCalledWith(
+      'Select an Expo SDK version',
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'SDK 54', value: '54.0.0' }),
+        expect.objectContaining({ title: 'SDK 55 (latest)', value: '55.0.0' }),
+        expect.objectContaining({ title: 'SDK 56 (beta)', value: '56.0.0' }),
+      ]),
+      expect.objectContaining({ initial: '55.0.0' })
+    );
+  });
+
+  it('skips prompt when all versions are deprecated', async () => {
+    mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+    jest
+      .mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync)
+      .mockResolvedValue([
+        { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: true },
+      ]);
+
+    await makeCmd().run();
+
+    expect(selectAsync).not.toHaveBeenCalled();
+  });
+
+  it('falls back gracefully when supportedSdkVersions fetch fails', async () => {
+    mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+    jest
+      .mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync)
+      .mockRejectedValue(new Error('network error'));
+
+    await makeCmd().run();
+
+    expect(selectAsync).not.toHaveBeenCalled();
   });
 });

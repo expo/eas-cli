@@ -4680,6 +4680,12 @@ export type CreateConvexTeamConnectionInput = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
+   * Override for the underlying turtle job run's max run time, in minutes. Must
+   * be non-negative and smaller than 120 (2 hours). Only customizable on paid
+   * plans. If omitted, the default is derived based on the job run's priority.
+   */
+  maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
@@ -6174,7 +6180,8 @@ export type EmbeddedUpdateMutation = {
   __typename?: 'EmbeddedUpdateMutation';
   /**
    * Register an embedded bundle as the launch asset for a given app/platform/channel.
-   * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet.
+   * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,
+   * or EMBEDDED_UPDATE_ALREADY_EXISTS if an embedded update with this id is already registered.
    */
   uploadEmbeddedUpdate: EmbeddedUpdate;
 };
@@ -6470,6 +6477,8 @@ export type ExperimentationQuery = {
 export type ExpoGoBuildQuery = {
   __typename?: 'ExpoGoBuildQuery';
   repackConfiguration: ExpoGoProjectConfiguration;
+  supportedSdkVersionKeys: Array<Scalars['String']['output']>;
+  supportedSdkVersions: Array<ExpoGoSdkVersion>;
 };
 
 
@@ -6495,6 +6504,14 @@ export type ExpoGoRepackInput = {
   ascAppId: Scalars['String']['input'];
   bundleId: Scalars['String']['input'];
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ExpoGoSdkVersion = {
+  __typename?: 'ExpoGoSdkVersion';
+  isBeta: Scalars['Boolean']['output'];
+  isDeprecated: Scalars['Boolean']['output'];
+  isLatest: Scalars['Boolean']['output'];
+  sdkVersion: Scalars['String']['output'];
 };
 
 export type FcmSnippet = FcmSnippetLegacy | FcmSnippetV1;
@@ -7458,6 +7475,8 @@ export type JobRun = {
   initiatingActor?: Maybe<Actor>;
   isWaived: Scalars['Boolean']['output'];
   logFileUrls: Array<Scalars['String']['output']>;
+  /** Max run time in seconds for this job run. */
+  maxRunTimeSeconds?: Maybe<Scalars['Int']['output']>;
   name: Scalars['String']['output'];
   priority: JobRunPriority;
   /** String describing the worker profile used to run this job run. */
@@ -7465,6 +7484,7 @@ export type JobRun = {
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
+  workflowJob?: Maybe<WorkflowJob>;
 };
 
 export type JobRunError = {
@@ -13246,6 +13266,11 @@ export type WorkflowJobByIdQueryVariables = Exact<{
 
 
 export type WorkflowJobByIdQuery = { __typename?: 'RootQuery', workflowJobs: { __typename?: 'WorkflowJobQuery', byId: { __typename?: 'WorkflowJob', id: string, key: string, name: string, status: WorkflowJobStatus, type: WorkflowJobType, outputs: any, createdAt: any, updatedAt: any, workflowRun: { __typename?: 'WorkflowRun', id: string }, turtleJobRun?: { __typename?: 'JobRun', id: string, logFileUrls: Array<string>, artifacts: Array<{ __typename?: 'WorkflowArtifact', id: string, name: string, contentType?: string | null, fileSizeBytes?: number | null, filename: string, downloadUrl?: string | null }>, errors: Array<{ __typename?: 'JobRunError', errorCode: string, message: string }> } | null, turtleBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?: { __typename: 'PartnerActor', id: string, displayName: string } | { __typename: 'Robot', id: string, displayName: string } | { __typename: 'SSOUser', id: string, displayName: string } | { __typename: 'User', id: string, displayName: string } | null, project: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } } | { __typename: 'Snack', id: string, name: string, slug: string }, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> } } };
+
+export type ExpoGoSupportedSdkVersionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ExpoGoSupportedSdkVersionsQuery = { __typename?: 'RootQuery', expoGoBuild: { __typename?: 'ExpoGoBuildQuery', supportedSdkVersions: Array<{ __typename?: 'ExpoGoSdkVersion', sdkVersion: string, isLatest: boolean, isBeta: boolean, isDeprecated: boolean }> } };
 
 export type ExpoGoRepackConfigurationQueryVariables = Exact<{
   input: ExpoGoRepackInput;

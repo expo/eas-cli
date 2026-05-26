@@ -6,7 +6,12 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   ExpoGoProjectConfiguration,
+  ExpoGoRepackConfigurationQuery,
+  ExpoGoRepackConfigurationQueryVariables,
   ExpoGoRepackInput,
+  ExpoGoSdkVersion,
+  ExpoGoSupportedSdkVersionsQuery,
+  ExpoGoSupportedSdkVersionsQueryVariables,
   WorkflowRunByIdQuery,
   WorkflowRunByIdQueryVariables,
   WorkflowRunByIdWithJobsQuery,
@@ -19,17 +24,38 @@ import { WorkflowJobFragmentNode } from '../types/WorkflowJob';
 import { WorkflowRunFragmentNode } from '../types/WorkflowRun';
 
 export const WorkflowRunQuery = {
+  async expoGoSupportedSdkVersionsAsync(
+    graphqlClient: ExpoGraphqlClient
+  ): Promise<ExpoGoSdkVersion[]> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ExpoGoSupportedSdkVersionsQuery, ExpoGoSupportedSdkVersionsQueryVariables>(
+          gql`
+            query ExpoGoSupportedSdkVersions {
+              expoGoBuild {
+                supportedSdkVersions {
+                  sdkVersion
+                  isLatest
+                  isBeta
+                  isDeprecated
+                }
+              }
+            }
+          `,
+          {},
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.expoGoBuild.supportedSdkVersions;
+  },
   async expoGoRepackConfigurationAsync(
     graphqlClient: ExpoGraphqlClient,
     input: ExpoGoRepackInput
   ): Promise<ExpoGoProjectConfiguration> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<
-          { expoGoBuild: { repackConfiguration: ExpoGoProjectConfiguration } },
-          { input: ExpoGoRepackInput }
-        >(
-          /* eslint-disable graphql/template-strings */
+        .query<ExpoGoRepackConfigurationQuery, ExpoGoRepackConfigurationQueryVariables>(
           gql`
             query ExpoGoRepackConfiguration($input: ExpoGoRepackInput!) {
               expoGoBuild {
@@ -43,7 +69,6 @@ export const WorkflowRunQuery = {
               }
             }
           `,
-          /* eslint-enable graphql/template-strings */
           { input },
           { requestPolicy: 'network-only' }
         )
