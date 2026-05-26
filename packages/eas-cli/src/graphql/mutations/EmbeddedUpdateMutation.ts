@@ -27,6 +27,13 @@ export function isEmbeddedUpdateAssetNotAvailableError(error: unknown): boolean 
   );
 }
 
+export function isEmbeddedUpdateAlreadyExistsError(error: unknown): boolean {
+  return (
+    error instanceof CombinedError &&
+    error.graphQLErrors.some(e => e.extensions?.['errorCode'] === 'EMBEDDED_UPDATE_ALREADY_EXISTS')
+  );
+}
+
 export const EmbeddedUpdateMutation = {
   async uploadEmbeddedUpdateAsync(
     graphqlClient: ExpoGraphqlClient,

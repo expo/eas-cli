@@ -7,6 +7,7 @@ import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils
 import { EmbeddedUpdateAssetMutation } from '../../../../graphql/mutations/EmbeddedUpdateAssetMutation';
 import {
   EmbeddedUpdateMutation,
+  isEmbeddedUpdateAlreadyExistsError,
   isEmbeddedUpdateAssetNotAvailableError,
 } from '../../../../graphql/mutations/EmbeddedUpdateMutation';
 import { AppPlatform } from '../../../../graphql/generated';
@@ -28,6 +29,7 @@ jest.mock('../../../../graphql/mutations/EmbeddedUpdateAssetMutation', () => ({
 jest.mock('../../../../graphql/mutations/EmbeddedUpdateMutation', () => ({
   EmbeddedUpdateMutation: { uploadEmbeddedUpdateAsync: jest.fn() },
   isEmbeddedUpdateAssetNotAvailableError: jest.fn(),
+  isEmbeddedUpdateAlreadyExistsError: jest.fn(),
 }));
 jest.mock('../../../../uploads');
 jest.mock('../../../../log');
@@ -49,6 +51,7 @@ const mockSleepAsync = jest.mocked(promise.sleepAsync);
 const mockIsEmbeddedUpdateAssetNotAvailableError = jest.mocked(
   isEmbeddedUpdateAssetNotAvailableError
 );
+const mockIsEmbeddedUpdateAlreadyExistsError = jest.mocked(isEmbeddedUpdateAlreadyExistsError);
 const mockLogLog = jest.mocked(Log.log);
 
 const BUNDLE_PATH = '/project/app.bundle';
@@ -116,6 +119,7 @@ describe(UpdateEmbeddedUpload, () => {
     });
     mockUploadEmbeddedUpdate.mockResolvedValue(MOCK_EMBEDDED_UPDATE);
     mockIsEmbeddedUpdateAssetNotAvailableError.mockReturnValue(false);
+    mockIsEmbeddedUpdateAlreadyExistsError.mockReturnValue(false);
   });
 
   function createCommand(argv: string[]): UpdateEmbeddedUpload {
@@ -306,6 +310,17 @@ describe(UpdateEmbeddedUpload, () => {
 
       const command = createCommand(BASE_ARGV);
       await expect(command.runAsync()).rejects.toThrow('network timeout');
+      expect(mockUploadEmbeddedUpdate).toHaveBeenCalledTimes(1);
+      expect(mockRegisterSpinnerFail).toHaveBeenCalledWith('Failed to register embedded update');
+    });
+
+    it('fails with a clean message when the update is already registered', async () => {
+      const alreadyExistsError = new Error('already exists');
+      mockIsEmbeddedUpdateAlreadyExistsError.mockImplementation(e => e === alreadyExistsError);
+      mockUploadEmbeddedUpdate.mockRejectedValue(alreadyExistsError);
+
+      const command = createCommand(BASE_ARGV);
+      await expect(command.runAsync()).rejects.toThrow(/already registered/);
       expect(mockUploadEmbeddedUpdate).toHaveBeenCalledTimes(1);
       expect(mockRegisterSpinnerFail).toHaveBeenCalledWith('Failed to register embedded update');
     });

@@ -12,6 +12,7 @@ import { EmbeddedUpdateAssetMutation } from '../../../graphql/mutations/Embedded
 import {
   EmbeddedUpdateMutation,
   EmbeddedUpdateResult,
+  isEmbeddedUpdateAlreadyExistsError,
   isEmbeddedUpdateAssetNotAvailableError,
 } from '../../../graphql/mutations/EmbeddedUpdateMutation';
 import { toAppPlatform } from '../../../graphql/types/AppPlatform';
@@ -139,6 +140,12 @@ export default class UpdateEmbeddedUpload extends EasCommand {
       } catch (e: unknown) {
         if (!isEmbeddedUpdateAssetNotAvailableError(e)) {
           registerSpinner.fail('Failed to register embedded update');
+          if (isEmbeddedUpdateAlreadyExistsError(e)) {
+            Errors.error(
+              `An embedded update with id "${embeddedUpdateId}" is already registered for this app. Delete it before re-uploading.`,
+              { exit: 1 }
+            );
+          }
           throw e;
         }
         if (attempt < MAX_ATTEMPTS) {
