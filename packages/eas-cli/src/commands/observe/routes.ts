@@ -92,8 +92,6 @@ export default class ObserveRoutes extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     const metricNames = flags.metric?.length

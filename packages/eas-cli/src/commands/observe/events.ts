@@ -90,8 +90,6 @@ export default class ObserveEvents extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);

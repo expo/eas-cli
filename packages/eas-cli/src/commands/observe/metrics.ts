@@ -82,8 +82,6 @@ export default class ObserveMetrics extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     let metricName: string;
