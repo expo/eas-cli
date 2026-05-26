@@ -42,7 +42,6 @@ const DEFAULT_STATS_JSON: StatisticKey[] = [
 ];
 
 export default class ObserveMetricsSummary extends EasCommand {
-  static override hidden = true;
   static override description =
     'display aggregated performance metric statistics grouped by app version';
 
