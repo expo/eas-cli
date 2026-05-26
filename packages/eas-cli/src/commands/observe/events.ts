@@ -1,16 +1,11 @@
 import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
-import {
-  EventsOrderPreset,
-  fetchObserveEventsAsync,
-  fetchTotalEventCountAsync,
-  resolveOrderBy,
-} from '../../observe/fetchEvents';
+import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
+import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
@@ -19,35 +14,34 @@ import {
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
-import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
-import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
-import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
+import {
+  buildObserveCustomEventNamesJson,
+  buildObserveCustomEventNamesTable,
+  buildObserveCustomEventsEmptyWithSuggestionsJson,
+  buildObserveCustomEventsEmptyWithSuggestionsTable,
+  buildObserveCustomEventsJson,
+  buildObserveCustomEventsTable,
+} from '../../observe/formatCustomEvents';
+import { appObservePlatformFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
-import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const DEFAULT_EVENTS_LIMIT = 10;
 
 export default class ObserveEvents extends EasCommand {
   static override hidden = true;
-  static override description = 'display individual app performance events ordered by metric value';
+  static override description =
+    'display individual events emitted by the app via `logEvent`, filtered by the event name in the argument. With no arguments, a list of the available event names and associated event counts is returned.';
 
   static override args = {
-    metric: Args.string({
-      description: 'Metric to query (e.g. tti, cold_launch)',
+    eventName: Args.string({
+      description: 'Event name to filter by',
       required: false,
-      options: Object.keys(METRIC_ALIASES),
     }),
   };
 
   static override flags = {
-    sort: Flags.option({
-      description: 'Sort order for events',
-      options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
-      required: false,
-      default: EventsOrderPreset.Oldest.valueOf().toLowerCase(),
-    })(),
     ...ObservePlatformFlag,
     ...ObserveAfterFlag,
     limit: getLimitFlagWithCustomValues({
@@ -57,6 +51,14 @@ export default class ObserveEvents extends EasCommand {
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
     ...ObserveUpdateIdFlag,
+    'session-id': Flags.string({
+      description: 'Filter by session ID',
+    }),
+    'all-events': Flags.boolean({
+      description:
+        'When no event name argument is provided, list all events across all event names instead of a summary of event names + counts.',
+      default: false,
+    }),
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -73,6 +75,12 @@ export default class ObserveEvents extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveEvents);
 
+    if (args.eventName && flags['all-events']) {
+      throw new Error(
+        '--all-events cannot be combined with an event name argument. Pass an event name to filter by it, or pass --all-events to list all events across all event names.'
+      );
+    }
+
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveEvents,
@@ -87,61 +95,82 @@ export default class ObserveEvents extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    let metricName: string;
-    if (args.metric) {
-      metricName = resolveMetricName(args.metric);
-    } else if (flags['non-interactive']) {
-      throw new EasCommandError(
-        'A metric argument is required in non-interactive mode. Available metrics: ' +
-          Object.keys(METRIC_ALIASES).join(', ')
-      );
-    } else {
-      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
-        title: `${displayName} (${fullName})`,
-        value: fullName,
-      }));
-      metricName = await selectAsync('Select a metric', choices);
-    }
-    const orderBy = resolveOrderBy(flags.sort);
-
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
     const platform = appObservePlatformFromFlag(flags.platform);
-    const platforms = appPlatformsFromFlag(flags.platform);
 
-    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
-      fetchObserveEventsAsync(graphqlClient, projectId, {
-        metricName,
-        orderBy,
-        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-        ...(flags.after && { after: flags.after }),
+    if (!args.eventName && !flags['all-events']) {
+      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
+        appId: projectId,
         startTime,
         endTime,
         platform,
-        appVersion: flags['app-version'],
-        updateId: flags['update-id'],
-      }),
-      fetchTotalEventCountAsync(
-        graphqlClient,
-        projectId,
-        metricName,
-        platforms,
+      });
+
+      if (flags.json) {
+        printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
+      } else {
+        Log.addNewLineIfNone();
+        Log.log(
+          buildObserveCustomEventNamesTable(names, {
+            daysBack,
+            startTime,
+            endTime,
+            isTruncated,
+          })
+        );
+      }
+      return;
+    }
+
+    const { events, pageInfo } = await fetchObserveCustomEventsAsync(graphqlClient, projectId, {
+      eventName: args.eventName,
+      limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+      ...(flags.after && { after: flags.after }),
+      startTime,
+      endTime,
+      platform,
+      appVersion: flags['app-version'],
+      updateId: flags['update-id'],
+      sessionId: flags['session-id'],
+    });
+
+    if (args.eventName && events.length === 0) {
+      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
+        appId: projectId,
         startTime,
-        endTime
-      ),
-    ]);
+        endTime,
+        platform,
+      });
+
+      if (flags.json) {
+        printJsonOnlyOutput(
+          buildObserveCustomEventsEmptyWithSuggestionsJson(args.eventName, names, isTruncated)
+        );
+      } else {
+        Log.addNewLineIfNone();
+        Log.log(
+          buildObserveCustomEventsEmptyWithSuggestionsTable(args.eventName, names, {
+            daysBack,
+            startTime,
+            endTime,
+            isTruncated,
+          })
+        );
+      }
+      return;
+    }
 
     if (flags.json) {
-      printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
+      printJsonOnlyOutput(buildObserveCustomEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();
       Log.log(
-        buildObserveEventsTable(events, pageInfo, {
-          metricName,
+        buildObserveCustomEventsTable(events, pageInfo, {
+          eventName: args.eventName,
           daysBack,
           startTime,
           endTime,
-          totalEventCount,
         })
       );
     }

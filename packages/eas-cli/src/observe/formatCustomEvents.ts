@@ -54,7 +54,7 @@ export function buildObserveCustomEventsTable(
   options?: BuildCustomEventsTableOptions
 ): string {
   if (events.length === 0) {
-    return chalk.yellow('No custom events found.');
+    return chalk.yellow('No events found.');
   }
 
   const showEventName = !options?.eventName;
@@ -88,7 +88,7 @@ export function buildObserveCustomEventsTable(
       options.totalEventCount != null
         ? ` — ${options.totalEventCount.toLocaleString()} total events`
         : '';
-    const subject = options.eventName ? `${options.eventName} events` : 'Custom events';
+    const subject = options.eventName ? `${options.eventName} events` : 'Events';
     lines.push(chalk.bold(`${subject} ${timeDesc}${totalDesc}`.trim()), '');
   }
 
@@ -156,7 +156,7 @@ export function buildObserveCustomEventsEmptyWithSuggestionsTable(
   lines.push(chalk.yellow(`No events found matching "${eventName}" ${timeDesc}.`.trim()));
 
   if (names.length === 0) {
-    lines.push('', chalk.yellow('No custom event names found in this time range.'));
+    lines.push('', chalk.yellow('No event names found in this time range.'));
     return lines.join('\n');
   }
 
@@ -203,7 +203,7 @@ export function buildObserveCustomEventNamesTable(
   options?: BuildCustomEventNamesTableOptions
 ): string {
   if (names.length === 0) {
-    return chalk.yellow('No custom event names found.');
+    return chalk.yellow('No event names found.');
   }
 
   const headers = ['Event Name', 'Count'];
@@ -213,7 +213,7 @@ export function buildObserveCustomEventNamesTable(
 
   if (options) {
     const timeDesc = buildTimeRangeDescription(options);
-    const subject = 'Custom event names';
+    const subject = 'Event names';
     lines.push(chalk.bold(`${subject} ${timeDesc}`.trim()), '');
   }
 

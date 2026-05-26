@@ -6,6 +6,7 @@ export const METRIC_ALIASES: Record<string, string> = {
   cold_launch: 'expo.app_startup.cold_launch_time',
   warm_launch: 'expo.app_startup.warm_launch_time',
   bundle_load: 'expo.app_startup.bundle_load_time',
+  update_download: 'expo.updates.download_time',
 };
 
 export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
@@ -23,6 +24,7 @@ export const METRIC_SHORT_NAMES: Record<string, string> = {
   'expo.app_startup.tti': 'Startup TTI',
   'expo.app_startup.ttr': 'Startup TTR',
   'expo.app_startup.bundle_load_time': 'Bundle Load',
+  'expo.updates.download_time': 'Update Download',
   'expo.navigation.cold_ttr': 'Nav Cold TTR',
   'expo.navigation.warm_ttr': 'Nav Warm TTR',
   'expo.navigation.tti': 'Nav TTI',

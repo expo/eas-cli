@@ -69,7 +69,7 @@ Jan 14, 2025, 08:15:00.000 AM  checkout  1.1.0 (38)   Android 14  Pixel 8    PL 
 
   it('returns yellow warning for empty events', () => {
     const output = buildObserveCustomEventsTable([], noNextPage);
-    expect(output).toContain('No custom events found.');
+    expect(output).toContain('No events found.');
   });
 
   it('shows event name in summary header when an event name option is provided', () => {
@@ -82,13 +82,13 @@ Jan 14, 2025, 08:15:00.000 AM  checkout  1.1.0 (38)   Android 14  Pixel 8    PL 
     expect(output).toContain('login events for the last 30 days');
   });
 
-  it('shows the generic "Custom events" subject when no event name option is provided', () => {
+  it('shows the generic "Events" subject when no event name option is provided', () => {
     const events = [makeCustomEvent()];
     const output = buildObserveCustomEventsTable(events, noNextPage, {
       daysBack: 30,
     });
 
-    expect(output).toContain('Custom events for the last 30 days');
+    expect(output).toContain('Events for the last 30 days');
   });
 
   it('shows date range in summary header when start/end provided', () => {
@@ -294,7 +294,7 @@ describe(buildObserveCustomEventsJson, () => {
 describe(buildObserveCustomEventNamesTable, () => {
   it('returns yellow warning when names list is empty', () => {
     const output = buildObserveCustomEventNamesTable([]);
-    expect(output).toContain('No custom event names found.');
+    expect(output).toContain('No event names found.');
   });
 
   it('shows event names with counts', () => {
@@ -336,7 +336,7 @@ describe(buildObserveCustomEventsEmptyWithSuggestionsTable, () => {
     const output = buildObserveCustomEventsEmptyWithSuggestionsTable('login', []);
 
     expect(output).toContain('No events found matching "login"');
-    expect(output).toContain('No custom event names found in this time range.');
+    expect(output).toContain('No event names found in this time range.');
   });
 
   it('appends a truncation notice when isTruncated is set', () => {

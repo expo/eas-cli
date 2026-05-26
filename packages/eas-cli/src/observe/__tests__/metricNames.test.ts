@@ -25,6 +25,10 @@ describe(resolveMetricName, () => {
     expect(resolveMetricName('bundle_load')).toBe('expo.app_startup.bundle_load_time');
   });
 
+  it('resolves short alias "update_download" to full metric name', () => {
+    expect(resolveMetricName('update_download')).toBe('expo.updates.download_time');
+  });
+
   it('passes through full metric names unchanged', () => {
     expect(resolveMetricName('expo.app_startup.tti')).toBe('expo.app_startup.tti');
     expect(resolveMetricName('expo.app_startup.cold_launch_time')).toBe(
@@ -73,6 +77,7 @@ describe(getMetricDisplayName, () => {
     expect(getMetricDisplayName('expo.app_startup.tti')).toBe('Startup TTI');
     expect(getMetricDisplayName('expo.app_startup.ttr')).toBe('Startup TTR');
     expect(getMetricDisplayName('expo.app_startup.bundle_load_time')).toBe('Bundle Load');
+    expect(getMetricDisplayName('expo.updates.download_time')).toBe('Update Download');
   });
 
   it('returns short display name for known navigation metrics', () => {

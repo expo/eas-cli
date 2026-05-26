@@ -1,31 +1,51 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { AppObservePlatform } from '../../../graphql/generated';
+import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
+import { fetchObserveCustomEventsAsync } from '../../../observe/fetchCustomEvents';
 import {
-  AppObserveEventsOrderByDirection,
-  AppObserveEventsOrderByField,
-  AppObservePlatform,
-} from '../../../graphql/generated';
-import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
-import { buildObserveEventsJson } from '../../../observe/formatEvents';
+  buildObserveCustomEventNamesJson,
+  buildObserveCustomEventsEmptyWithSuggestionsJson,
+  buildObserveCustomEventsEmptyWithSuggestionsTable,
+  buildObserveCustomEventsJson,
+} from '../../../observe/formatCustomEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveEvents from '../events';
 
-jest.mock('../../../observe/fetchEvents', () => {
-  const actual = jest.requireActual('../../../observe/fetchEvents');
-  return {
-    ...actual,
-    fetchObserveEventsAsync: jest.fn(),
-  };
-});
-jest.mock('../../../observe/formatEvents', () => ({
-  buildObserveEventsTable: jest.fn().mockReturnValue('table'),
-  buildObserveEventsJson: jest.fn().mockReturnValue({}),
+jest.mock('../../../observe/fetchCustomEvents');
+jest.mock('../../../observe/formatCustomEvents', () => ({
+  buildObserveCustomEventsTable: jest.fn().mockReturnValue('table'),
+  buildObserveCustomEventsJson: jest.fn().mockReturnValue({}),
+  buildObserveCustomEventNamesTable: jest.fn().mockReturnValue('names-table'),
+  buildObserveCustomEventNamesJson: jest.fn().mockReturnValue({ names: [], isTruncated: false }),
+  buildObserveCustomEventsEmptyWithSuggestionsTable: jest
+    .fn()
+    .mockReturnValue('empty-with-suggestions-table'),
+  buildObserveCustomEventsEmptyWithSuggestionsJson: jest.fn().mockReturnValue({
+    filteredEventName: 'my_event',
+    events: [],
+    availableEventNames: [],
+    availableEventNamesIsTruncated: false,
+  }),
+}));
+jest.mock('../../../graphql/queries/ObserveQuery', () => ({
+  ObserveQuery: {
+    customEventNamesAsync: jest.fn(),
+  },
 }));
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
-const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
-const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
+const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
+const mockBuildObserveCustomEventsJson = jest.mocked(buildObserveCustomEventsJson);
+const mockBuildObserveCustomEventNamesJson = jest.mocked(buildObserveCustomEventNamesJson);
+const mockBuildObserveCustomEventsEmptyWithSuggestionsTable = jest.mocked(
+  buildObserveCustomEventsEmptyWithSuggestionsTable
+);
+const mockBuildObserveCustomEventsEmptyWithSuggestionsJson = jest.mocked(
+  buildObserveCustomEventsEmptyWithSuggestionsJson
+);
+const mockCustomEventNamesAsync = jest.mocked(ObserveQuery.customEventNamesAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
@@ -36,10 +56,11 @@ describe(ObserveEvents, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchObserveEventsAsync.mockResolvedValue({
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [],
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
+    mockCustomEventNamesAsync.mockResolvedValue({ names: [], isTruncated: false });
   });
 
   function createCommand(argv: string[]): ObserveEvents {
@@ -52,38 +73,80 @@ describe(ObserveEvents, () => {
     return command;
   }
 
-  it('uses --days to compute start/end time range', async () => {
+  it('passes eventName arg to fetchObserveCustomEventsAsync', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [{ id: 'evt-1' } as any],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+    const command = createCommand(['my_event']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBe('my_event');
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+  });
+
+  it('routes to customEventNamesAsync when no positional arg is provided', async () => {
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledTimes(1);
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('routes to fetchObserveCustomEventsAsync when --all-events is set with no positional arg', async () => {
+    const command = createCommand(['--all-events']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBeUndefined();
+  });
+
+  it('throws when both an event name argument and --all-events are provided', async () => {
+    const command = createCommand(['my_event', '--all-events']);
+    await expect(command.runAsync()).rejects.toThrow(
+      '--all-events cannot be combined with an event name argument'
+    );
+    expect(mockFetchObserveCustomEventsAsync).not.toHaveBeenCalled();
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+  });
+
+  it('passes the resolved time range and platform to customEventNamesAsync', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
 
-    const command = createCommand(['tti', '--days', '7']);
+    const command = createCommand(['--days', '7', '--platform', 'ios']);
     await command.runAsync();
 
-    expect(mockFetchObserveEventsAsync).toHaveBeenCalledTimes(1);
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: projectId,
+      startTime: '2025-06-08T12:00:00.000Z',
+      endTime: '2025-06-15T12:00:00.000Z',
+      platform: AppObservePlatform.Ios,
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('uses --days to compute start/end time range when an event name is provided', async () => {
+    const now = new Date('2025-06-15T12:00:00.000Z');
+    jest.useFakeTimers({ now });
+
+    const command = createCommand(['my_event', '--days', '7']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.endTime).toBe('2025-06-15T12:00:00.000Z');
     expect(options.startTime).toBe('2025-06-08T12:00:00.000Z');
 
     jest.useRealTimers();
   });
 
-  it('uses DEFAULT_DAYS_BACK (60 days) when neither --days nor --start/--end are provided', async () => {
-    const now = new Date('2025-06-15T12:00:00.000Z');
-    jest.useFakeTimers({ now });
-
-    const command = createCommand(['tti']);
-    await command.runAsync();
-
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.startTime).toBe('2025-04-16T12:00:00.000Z');
-    expect(options.endTime).toBe('2025-06-15T12:00:00.000Z');
-
-    jest.useRealTimers();
-  });
-
   it('uses explicit --start and --end when provided', async () => {
     const command = createCommand([
-      'tti',
+      'my_event',
       '--start',
       '2025-01-01T00:00:00.000Z',
       '--end',
@@ -91,109 +154,86 @@ describe(ObserveEvents, () => {
     ]);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
     expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
   });
 
-  it('defaults endTime to now when only --start is provided', async () => {
-    const now = new Date('2025-06-15T12:00:00.000Z');
-    jest.useFakeTimers({ now });
-
-    const command = createCommand(['tti', '--start', '2025-01-01T00:00:00.000Z']);
-    await command.runAsync();
-
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
-    expect(options.endTime).toBe('2025-06-15T12:00:00.000Z');
-
-    jest.useRealTimers();
-  });
-
   it('rejects --days combined with --start', async () => {
-    const command = createCommand(['tti', '--days', '7', '--start', '2025-01-01T00:00:00.000Z']);
-
+    const command = createCommand([
+      'my_event',
+      '--days',
+      '7',
+      '--start',
+      '2025-01-01T00:00:00.000Z',
+    ]);
     await expect(command.runAsync()).rejects.toThrow();
   });
 
-  it('passes --limit to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['tti', '--limit', '42']);
+  it('passes --limit to fetchObserveCustomEventsAsync', async () => {
+    const command = createCommand(['my_event', '--limit', '42']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.limit).toBe(42);
   });
 
-  it('passes --after cursor to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['tti', '--after', 'cursor-xyz']);
+  it('passes --after cursor', async () => {
+    const command = createCommand(['my_event', '--after', 'cursor-xyz']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.after).toBe('cursor-xyz');
   });
 
-  it('does not pass after when --after flag is not provided', async () => {
-    const command = createCommand(['tti']);
+  it('passes --platform ios as AppObservePlatform.Ios', async () => {
+    const command = createCommand(['my_event', '--platform', 'ios']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options).not.toHaveProperty('after');
-  });
-
-  it('rejects --days combined with --end', async () => {
-    const command = createCommand(['tti', '--days', '7', '--end', '2025-02-01T00:00:00.000Z']);
-
-    await expect(command.runAsync()).rejects.toThrow();
-  });
-
-  it('passes --platform ios to fetchObserveEventsAsync as AppObservePlatform.Ios', async () => {
-    const command = createCommand(['tti', '--platform', 'ios']);
-    await command.runAsync();
-
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.platform).toBe(AppObservePlatform.Ios);
   });
 
-  it('passes --platform android to fetchObserveEventsAsync as AppObservePlatform.Android', async () => {
-    const command = createCommand(['tti', '--platform', 'android']);
+  it('passes --app-version', async () => {
+    const command = createCommand(['my_event', '--app-version', '2.1.0']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Android);
-  });
-
-  it('passes --app-version to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['tti', '--app-version', '2.1.0']);
-    await command.runAsync();
-
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.appVersion).toBe('2.1.0');
   });
 
-  it('passes --update-id to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['tti', '--update-id', 'update-xyz']);
+  it('passes --update-id', async () => {
+    const command = createCommand(['my_event', '--update-id', 'update-xyz']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.updateId).toBe('update-xyz');
   });
 
-  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
-    const command = createCommand(['tti']);
+  it('passes --session-id', async () => {
+    const command = createCommand(['my_event', '--session-id', 'session-xyz']);
     await command.runAsync();
 
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.sessionId).toBe('session-xyz');
+  });
+
+  it('does not pass platform, appVersion, updateId, or sessionId when flags are not provided', async () => {
+    const command = createCommand(['my_event']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.platform).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
+    expect(options.sessionId).toBeUndefined();
   });
 
-  it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
+  it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided with an event name', async () => {
     const mockEvents = [
       {
         id: 'evt-1',
-        metricName: 'expo.app_startup.tti',
-        metricValue: 1.23,
+        eventName: 'my_event',
         timestamp: '2025-01-15T10:30:00.000Z',
         appVersion: '1.0.0',
         appBuildNumber: '42',
@@ -203,78 +243,139 @@ describe(ObserveEvents, () => {
         countryCode: 'US',
         sessionId: 'session-1',
         easClientId: 'client-1',
+        properties: [],
       },
     ];
-    mockFetchObserveEventsAsync.mockResolvedValue({
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: mockEvents as any,
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
 
-    const command = createCommand(['tti', '--json', '--non-interactive']);
+    const command = createCommand(['my_event', '--json', '--non-interactive']);
     await command.runAsync();
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
-    expect(mockBuildObserveEventsJson).toHaveBeenCalledWith(
+    expect(mockBuildObserveCustomEventsJson).toHaveBeenCalledWith(
       mockEvents,
       expect.objectContaining({ hasNextPage: false })
     );
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 
-  it('does not call enableJsonOutput when --json is not provided', async () => {
-    const command = createCommand(['tti']);
-    await command.runAsync();
-
-    expect(mockEnableJsonOutput).not.toHaveBeenCalled();
-    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
-  });
-
-  it('passes --sort flag through to fetchObserveEventsAsync', async () => {
-    const command = createCommand(['tti', '--sort', 'slowest']);
-    await command.runAsync();
-
-    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.orderBy).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+  it('falls back to fetching event names and renders the empty-with-suggestions table when filtered fetch returns 0 events', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
-  });
+    const mockNames = [
+      { eventName: 'foo', count: 10 },
+      { eventName: 'bar', count: 5 },
+    ];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
 
-  it('throws in non-interactive mode when no metric is provided', async () => {
-    const command = createCommand(['--non-interactive']);
+    const command = createCommand(['my_event']);
+    await command.runAsync();
 
-    await expect(command.runAsync()).rejects.toThrow(
-      'metric argument is required in non-interactive mode'
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).toHaveBeenCalledTimes(1);
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).toHaveBeenCalledWith(
+      'my_event',
+      mockNames,
+      expect.objectContaining({ isTruncated: false })
     );
   });
-});
 
-describe(resolveOrderBy, () => {
-  it('resolves lowercase "slowest" to MetricValue DESC', () => {
-    expect(resolveOrderBy('slowest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Desc,
+  it('does not call customEventNamesAsync when filtered fetch returns at least one event', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [
+        {
+          id: 'evt-1',
+          eventName: 'my_event',
+          timestamp: '2025-01-15T10:30:00.000Z',
+          appVersion: '1.0.0',
+          appBuildNumber: '42',
+          deviceModel: 'iPhone 15',
+          deviceOs: 'iOS',
+          deviceOsVersion: '17.0',
+          easClientId: 'client-1',
+          properties: [],
+        } as any,
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
+
+    const command = createCommand(['my_event']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
   });
 
-  it('resolves lowercase "fastest" to MetricValue ASC', () => {
-    expect(resolveOrderBy('fastest')).toEqual({
-      field: AppObserveEventsOrderByField.MetricValue,
-      direction: AppObserveEventsOrderByDirection.Asc,
+  it('emits empty-with-suggestions JSON when filtered fetch returns 0 events and --json is set', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
+    const mockNames = [{ eventName: 'foo', count: 10 }];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
+
+    const command = createCommand(['my_event', '--json', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).toHaveBeenCalledWith(
+      'my_event',
+      mockNames,
+      false
+    );
+    expect(mockBuildObserveCustomEventsJson).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 
-  it('resolves lowercase "newest" to Timestamp DESC', () => {
-    expect(resolveOrderBy('newest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Desc,
-    });
+  it('does not run the empty-with-suggestions fallback when no event name is provided (event names mode)', async () => {
+    mockCustomEventNamesAsync.mockResolvedValue({ names: [], isTruncated: false });
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsJson).not.toHaveBeenCalled();
   });
 
-  it('resolves lowercase "oldest" to Timestamp ASC', () => {
-    expect(resolveOrderBy('oldest')).toEqual({
-      field: AppObserveEventsOrderByField.Timestamp,
-      direction: AppObserveEventsOrderByDirection.Asc,
+  it('does not run the empty-with-suggestions fallback for --all-events with 0 results', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
+
+    const command = createCommand(['--all-events']);
+    await command.runAsync();
+
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventsEmptyWithSuggestionsTable).not.toHaveBeenCalled();
+  });
+
+  it('emits JSON of event names + counts when --json is provided without an event name', async () => {
+    const mockNames = [
+      { eventName: 'foo', count: 10 },
+      { eventName: 'bar', count: 5 },
+    ];
+    mockCustomEventNamesAsync.mockResolvedValue({
+      names: mockNames as any,
+      isTruncated: false,
+    });
+
+    const command = createCommand(['--json', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockBuildObserveCustomEventNamesJson).toHaveBeenCalledWith(mockNames, false);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalled();
   });
 });

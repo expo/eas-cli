@@ -1,63 +1,62 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
+import { EasCommandError } from '../../commandUtils/errors';
 import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
-import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
+  EventsOrderPreset,
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../../observe/fetchEvents';
+import {
+  ObserveAfterFlag,
+  ObserveAppVersionFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
+  ObserveUpdateIdFlag,
 } from '../../observe/flags';
-import {
-  StatisticKey,
-  buildObserveMetricsJson,
-  buildObserveMetricsTable,
-  resolveStatKey,
-} from '../../observe/formatMetrics';
-import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
-import { appPlatformsFromFlag } from '../../observe/platforms';
+import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
+import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
+import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
+import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
-const DEFAULT_METRICS = [
-  'expo.app_startup.cold_launch_time',
-  'expo.app_startup.warm_launch_time',
-  'expo.app_startup.tti',
-  'expo.app_startup.ttr',
-  'expo.app_startup.bundle_load_time',
-];
-
-const DEFAULT_STATS_TABLE: StatisticKey[] = ['median', 'eventCount'];
-const DEFAULT_STATS_JSON: StatisticKey[] = [
-  'min',
-  'median',
-  'max',
-  'average',
-  'p80',
-  'p90',
-  'p99',
-  'eventCount',
-];
+const DEFAULT_EVENTS_LIMIT = 10;
 
 export default class ObserveMetrics extends EasCommand {
   static override hidden = true;
-  static override description = 'display app performance metrics grouped by app version';
+  static override description = 'display individual performance metric samples ordered by value';
+
+  static override args = {
+    metric: Args.string({
+      description: 'Metric to query (e.g. tti, cold_launch)',
+      required: false,
+      options: Object.keys(METRIC_ALIASES),
+    }),
+  };
 
   static override flags = {
+    sort: Flags.option({
+      description: 'Sort order for events',
+      options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
+      required: false,
+      default: EventsOrderPreset.Oldest.valueOf().toLowerCase(),
+    })(),
     ...ObservePlatformFlag,
-    metric: Flags.option({
-      description: 'Metric name to display (can be specified multiple times).',
-      multiple: true,
-      options: Object.keys(METRIC_ALIASES),
-    })(),
-    stat: Flags.option({
-      description: 'Statistic to display per metric (can be specified multiple times)',
-      multiple: true,
-      options: DEFAULT_STATS_JSON,
-    })(),
+    ...ObserveAfterFlag,
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: DEFAULT_EVENTS_LIMIT,
+      limit: 100,
+    }),
     ...ObserveTimeRangeFlags,
+    ...ObserveAppVersionFlag,
+    ...ObserveUpdateIdFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -72,7 +71,7 @@ export default class ObserveMetrics extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(ObserveMetrics);
+    const { flags, args } = await this.parse(ObserveMetrics);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
@@ -88,48 +87,61 @@ export default class ObserveMetrics extends EasCommand {
       Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
-    const metricNames = flags.metric?.length
-      ? flags.metric.map(resolveMetricName)
-      : DEFAULT_METRICS;
+    let metricName: string;
+    if (args.metric) {
+      metricName = resolveMetricName(args.metric);
+    } else if (flags['non-interactive']) {
+      throw new EasCommandError(
+        'A metric argument is required in non-interactive mode. Available metrics: ' +
+          Object.keys(METRIC_ALIASES).join(', ')
+      );
+    } else {
+      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
+        title: `${displayName} (${fullName})`,
+        value: fullName,
+      }));
+      metricName = await selectAsync('Select a metric', choices);
+    }
+    const orderBy = resolveOrderBy(flags.sort);
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
+    const platform = appObservePlatformFromFlag(flags.platform);
     const platforms = appPlatformsFromFlag(flags.platform);
 
-    const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
-      await fetchObserveMetricsAsync(
+    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
+      fetchObserveEventsAsync(graphqlClient, projectId, {
+        metricName,
+        orderBy,
+        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+        ...(flags.after && { after: flags.after }),
+        startTime,
+        endTime,
+        platform,
+        appVersion: flags['app-version'],
+        updateId: flags['update-id'],
+      }),
+      fetchTotalEventCountAsync(
         graphqlClient,
         projectId,
-        metricNames,
+        metricName,
         platforms,
         startTime,
         endTime
-      );
-
-    const argumentsStat = flags.stat?.length
-      ? Array.from(new Set(flags.stat.map(resolveStatKey)))
-      : undefined;
+      ),
+    ]);
 
     if (flags.json) {
-      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
-      printJsonOnlyOutput(
-        buildObserveMetricsJson(
-          metricsMap,
-          metricNames,
-          stats,
-          totalEventCounts,
-          buildNumbersMap,
-          updateIdsMap
-        )
-      );
+      printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
     } else {
-      const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_TABLE;
       Log.addNewLineIfNone();
       Log.log(
-        buildObserveMetricsTable(metricsMap, metricNames, stats, {
+        buildObserveEventsTable(events, pageInfo, {
+          metricName,
           daysBack,
-          buildNumbersMap,
-          totalEventCounts,
+          startTime,
+          endTime,
+          totalEventCount,
         })
       );
     }
