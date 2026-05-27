@@ -4,7 +4,7 @@ import spawn from '@expo/turtle-spawn';
 import { CustomBuildContext } from '../../customBuildContext';
 import {
   getDeviceRunSessionIdOrThrow,
-  ensureBrewPackageInstalledAsync,
+  getNgrokTunnelDomainOrThrow,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -23,16 +23,15 @@ export function createStartServeSimRemoteSessionBuildFunction(
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     fn: async ({ logger }, { env }) => {
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
 
       logger.info('Starting serve-sim remote session.');
 
       logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
       await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
 
-      logger.info('Ensuring cloudflared is installed.');
-      await ensureBrewPackageInstalledAsync({ name: 'cloudflared', env, logger });
-
       const { previewUrl, streamUrl } = await startServeSimWithTunnelAsync({
+        baseDomain: ngrokTunnelDomain,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,

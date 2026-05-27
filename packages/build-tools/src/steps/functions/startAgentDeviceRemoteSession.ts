@@ -13,13 +13,14 @@ import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureCloudflaredInstalledAsync,
   getDeviceRunSessionIdOrThrow,
+  getNgrokAuthtokenOrThrow,
+  getNgrokTunnelDomainOrThrow,
   spawnDetached,
+  startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForFileAsync,
-  waitForMatchInOutputAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
@@ -44,10 +45,13 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
-      // Fail fast before any expensive setup if the orchestrator-injected
-      // DEVICE_RUN_SESSION_ID env var is missing — without it we cannot
-      // report the remote config back to the API server.
+      // Fail fast before any expensive setup if the injected env
+      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
+      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
+      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       const { runtimePlatform } = global;
@@ -59,13 +63,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
         await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
       }
-
-      logger.info('Ensuring cloudflared is installed.');
-      const cloudflaredCommand = await ensureCloudflaredInstalledAsync({
-        runtimePlatform,
-        env,
-        logger,
-      });
 
       logger.info(
         packageVersion
@@ -98,19 +95,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
-      logger.info(`Starting cloudflared tunnel to http://localhost:${daemonPort}.`);
-      const cloudflared = spawnDetached({
-        command: cloudflaredCommand,
-        args: ['tunnel', '--url', `http://localhost:${daemonPort}`],
-        env,
-      });
-
-      logger.info('Waiting for a public tunnel URL.');
-      const agentDeviceRemoteSessionUrl = await waitForMatchInOutputAsync({
-        process: cloudflared,
-        pattern: /https:\/\/[a-z0-9-]+\.trycloudflare\.com/,
-        timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'cloudflared tunnel',
+      const agentDeviceRemoteSessionUrl = await startNgrokTunnelAsync({
+        port: daemonPort,
+        subdomainPrefix: 'agent-device',
+        baseDomain: ngrokTunnelDomain,
+        authtoken: ngrokAuthtoken,
+        logger,
       });
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
@@ -119,6 +109,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         const { previewUrl } = await startServeSimWithTunnelAsync({
+          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
