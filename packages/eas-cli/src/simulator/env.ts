@@ -5,7 +5,7 @@ import path from 'path';
 export const SIMULATOR_DOTENV_FILE_NAME = '.env.eas-simulator';
 export const EAS_SIMULATOR_SESSION_ID = 'EAS_SIMULATOR_SESSION_ID';
 export const SIMULATOR_DOTENV_FILE_HEADER =
-  '# Do not commit this file.\n# It holds configuration only for the current simulator session.\n\n';
+  '# Do not commit this file.\n# Do not modify these values manually. They are managed by eas-cli.\n# It holds configuration only for the current simulator session.\n\n';
 
 export function getSimulatorEnvFilePath(projectDir: string): string {
   return path.join(projectDir, SIMULATOR_DOTENV_FILE_NAME);
