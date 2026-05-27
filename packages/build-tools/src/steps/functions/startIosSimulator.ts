@@ -65,6 +65,12 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         env,
       });
 
+      try {
+        await IosSimulatorUtils.disableApsdAsync({ udid, env });
+      } catch (error) {
+        logger.warn('Failed to disable apsd in the Simulator; continuing.', error);
+      }
+
       await IosSimulatorUtils.waitForReadyAsync({ udid, env });
 
       logger.info('');
@@ -95,6 +101,12 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             deviceIdentifier: cloneDeviceName,
             env,
           });
+
+          try {
+            await IosSimulatorUtils.disableApsdAsync({ udid: cloneUdid, env });
+          } catch (error) {
+            logger.warn('Failed to disable apsd in the Simulator; continuing.', error);
+          }
 
           await IosSimulatorUtils.waitForReadyAsync({
             udid: cloneUdid,
