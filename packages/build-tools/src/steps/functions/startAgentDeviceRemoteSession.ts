@@ -13,8 +13,9 @@ import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureNgrokInstalledAsync,
+  ensureNgrokCliInstalledAsync,
   getDeviceRunSessionIdOrThrow,
+  getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   spawnDetached,
   startNgrokTunnelAsync,
@@ -46,11 +47,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
       // Fail fast before any expensive setup if the orchestrator-injected env
-      // vars are missing: DEVICE_RUN_SESSION_ID (needed to report the remote
-      // config back to the API server) and EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN
-      // (the base domain for the ngrok tunnels we open below).
+      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
+      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
+      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
+      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       const { runtimePlatform } = global;
@@ -62,13 +64,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
         await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
       }
-
-      logger.info('Ensuring ngrok is installed.');
-      const ngrokCommand = await ensureNgrokInstalledAsync({
-        runtimePlatform,
-        env,
-        logger,
-      });
 
       logger.info(
         packageVersion
@@ -102,13 +97,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
       const agentDeviceRemoteSessionUrl = await startNgrokTunnelAsync({
-        ngrokCommand,
         port: daemonPort,
         subdomainPrefix: 'agent-device',
         baseDomain: ngrokTunnelDomain,
-        env,
+        authtoken: ngrokAuthtoken,
         logger,
-        timeoutMs: STARTUP_TIMEOUT_MS,
       });
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
@@ -116,6 +109,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // on Darwin. Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        logger.info('Ensuring ngrok CLI is installed for serve-sim.');
+        await ensureNgrokCliInstalledAsync({ env, logger });
         const { previewUrl } = await startServeSimWithTunnelAsync({
           baseDomain: ngrokTunnelDomain,
           env,

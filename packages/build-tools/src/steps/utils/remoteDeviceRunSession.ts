@@ -1,18 +1,14 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
+import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { sleepAsync } from '../../utils/retry';
-
-const NGROK_LINUX_INSTALL_DIR = '/usr/local/bin';
-const NGROK_LINUX_INSTALL_PATH = `${NGROK_LINUX_INSTALL_DIR}/ngrok`;
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -51,6 +47,18 @@ export function getNgrokTunnelDomainOrThrow(env: BuildStepEnv): string {
     );
   }
   return baseDomain;
+}
+
+export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
+  const authtoken = env.NGROK_AUTHTOKEN;
+  if (!authtoken) {
+    throw new SystemError(
+      'NGROK_AUTHTOKEN is not set. ' +
+        'This step must run as part of a device run session created by the API server, ' +
+        'which injects NGROK_AUTHTOKEN into the job environment.'
+    );
+  }
+  return authtoken;
 }
 
 export async function uploadRemoteSessionConfigAsync({
@@ -166,104 +174,48 @@ function matchLabeledUrl(content: string, label: string, baseDomain: string): st
   return match ? match[1] : null;
 }
 
-export async function ensureNgrokInstalledAsync({
-  runtimePlatform,
+// serve-sim shells out to the `ngrok` CLI for `--tunnel-provider ngrok`, so it
+// needs the agent on PATH. serve-sim is macOS-only, so Homebrew suffices. Our
+// own tunnels use the in-process SDK (startNgrokTunnelAsync) and need no CLI.
+export async function ensureNgrokCliInstalledAsync({
   env,
   logger,
 }: {
-  runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
-}): Promise<string> {
+}): Promise<void> {
   if (await isCommandAvailableAsync({ command: 'ngrok', env })) {
-    return 'ngrok';
+    return;
   }
-  if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    await spawn('bash', ['-c', 'HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask ngrok'], {
-      env,
-      logger,
-    });
-    return 'ngrok';
-  }
-  const arch = linuxArchForNodeArch(os.arch());
-  const downloadUrl = `https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-${arch}.tgz`;
-  logger.info(`Downloading ngrok from ${downloadUrl} to ${NGROK_LINUX_INSTALL_PATH}.`);
-  await spawn(
-    'bash',
-    ['-c', `curl -fsSL "${downloadUrl}" | sudo tar -xzf - -C "${NGROK_LINUX_INSTALL_DIR}" ngrok`],
-    { env, logger }
-  );
-  await spawn('sudo', ['chmod', '+x', NGROK_LINUX_INSTALL_PATH], { env, logger });
-  // Return the absolute install path so the tunnel command works even when
-  // /usr/local/bin is not on the step's PATH.
-  return NGROK_LINUX_INSTALL_PATH;
-}
-
-function linuxArchForNodeArch(arch: string): 'amd64' | 'arm64' {
-  if (arch === 'x64') {
-    return 'amd64';
-  }
-  if (arch === 'arm64') {
-    return 'arm64';
-  }
-  throw new SystemError(
-    `Unsupported architecture for ngrok on Linux: "${arch}". Expected "x64" or "arm64".`
-  );
+  await spawn('bash', ['-c', 'HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask ngrok'], {
+    env,
+    logger,
+  });
 }
 
 export async function startNgrokTunnelAsync({
-  ngrokCommand,
   port,
   subdomainPrefix,
   baseDomain,
-  env,
+  authtoken,
   logger,
-  timeoutMs,
 }: {
-  ngrokCommand: string;
   port: number;
   subdomainPrefix: string;
   baseDomain: string;
-  env: BuildStepEnv;
+  authtoken: string;
   logger: bunyan;
-  timeoutMs: number;
 }): Promise<string> {
-  const url = `https://${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
-
-  // ngrok serves its inspection web UI on 127.0.0.1:4040 and offers no CLI flag
-  // to move it, but serve-sim runs a second ngrok agent on the same host — so
-  // two agents would fight over that port. We read the tunnel URL from the
-  // agent's stdout logs rather than the web UI, so disable it via config.
-  const configDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ngrok-'));
-  const configPath = path.join(configDir, 'ngrok.yml');
-  await fs.promises.writeFile(configPath, 'version: "3"\nagent:\n  web_addr: false\n');
-
-  logger.info(`Starting ngrok tunnel ${url} -> http://localhost:${port}.`);
-  const ngrok = spawnDetached({
-    command: ngrokCommand,
-    args: [
-      'http',
-      String(port),
-      '--url',
-      url,
-      '--log',
-      'stdout',
-      '--log-format',
-      'logfmt',
-      '--config',
-      configPath,
-    ],
-    env,
-  });
-
-  // The agent echoes the endpoint URL back once the tunnel is live; wait for it
-  // so we never report a URL the client cannot reach yet.
-  await waitForMatchInOutputAsync({
-    process: ngrok,
-    pattern: new RegExp(escapeRegExp(url)),
-    timeoutMs,
-    description: `ngrok tunnel ${url}`,
-  });
+  const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
+  logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
+  // Run the ngrok agent in-process via the SDK. The SDK keeps the session alive
+  // until the process exits (the step blocks forever to hold it open), and it
+  // has no local web UI, so it never collides with serve-sim's own ngrok agent.
+  const listener = await ngrok.forward({ addr: port, authtoken, domain });
+  const url = listener.url();
+  if (!url) {
+    throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
+  }
   return url;
 }
 
@@ -284,30 +236,6 @@ async function isCommandAvailableAsync({
   } catch {
     return false;
   }
-}
-
-export async function waitForMatchInOutputAsync({
-  process,
-  pattern,
-  timeoutMs,
-  description,
-}: {
-  process: DetachedProcessHandle;
-  pattern: RegExp;
-  timeoutMs: number;
-  description: string;
-}): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const match = pattern.exec(process.getOutput());
-    if (match) {
-      return match[1] ?? match[0];
-    }
-    await sleepAsync(1_000);
-  }
-  throw new SystemError(
-    `Timed out waiting for ${description} to start. Last output:\n${process.getOutput() || '<empty>'}`
-  );
 }
 
 export async function waitForFileAsync<T>({
