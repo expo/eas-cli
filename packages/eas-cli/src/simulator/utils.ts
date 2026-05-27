@@ -40,7 +40,7 @@ type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
 
 export function formatRemoteSessionInstructions(
   remoteConfig: DeviceRunSessionRemoteConfig,
-  configType: RemoteSessionInstructionsConfigType = 'env'
+  configType: RemoteSessionInstructionsConfigType
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
