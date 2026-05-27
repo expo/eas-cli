@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Fix `eas/start_ios_simulator` hanging on Xcode 26.4 by writing the readiness screenshot to a temp file instead of `/dev/null`. ([#3794](https://github.com/expo/eas-cli/pull/3794) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [19.1.0](https://github.com/expo/eas-cli/releases/tag/v19.1.0) - 2026-05-25
