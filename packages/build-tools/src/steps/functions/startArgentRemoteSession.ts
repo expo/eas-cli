@@ -46,7 +46,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
-      // Fail fast before any expensive setup if the orchestrator-injected env
+      // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
       // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).

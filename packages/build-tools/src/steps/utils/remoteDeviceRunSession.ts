@@ -29,7 +29,7 @@ export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   if (!deviceRunSessionId) {
     throw new SystemError(
       'DEVICE_RUN_SESSION_ID is not set. ' +
-        'This step must run as part of a device run session created by the API server, ' +
+        'This step must run as part of a device run session ' +
         'which injects DEVICE_RUN_SESSION_ID into the job environment.'
     );
   }
@@ -41,9 +41,8 @@ export function getNgrokTunnelDomainOrThrow(env: BuildStepEnv): string {
   if (!baseDomain) {
     throw new SystemError(
       'EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN is not set. ' +
-        'This step must run as part of a device run session created by the API server, ' +
-        'which injects EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (the base domain for ngrok ' +
-        'tunnels, e.g. expo-simulator.ngrok.dev) into the job environment.'
+        'This step must run as part of a device run session ' +
+        'which injects EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN into the job environment.'
     );
   }
   return baseDomain;
@@ -54,7 +53,7 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
   if (!authtoken) {
     throw new SystemError(
       'NGROK_AUTHTOKEN is not set. ' +
-        'This step must run as part of a device run session created by the API server, ' +
+        'This step must run as part of a device run session ' +
         'which injects NGROK_AUTHTOKEN into the job environment.'
     );
   }
@@ -154,8 +153,8 @@ export async function startServeSimWithTunnelAsync({
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const output = serveSim.getOutput();
-    const previewUrl = matchLabeledUrl(output, 'Tunnel', baseDomain);
-    const streamUrl = matchLabeledUrl(output, 'Stream', baseDomain);
+    const previewUrl = matchLabeledUrl({ output, label: 'Tunnel', baseDomain });
+    const streamUrl = matchLabeledUrl({ output, label: 'Stream', baseDomain });
     if (previewUrl && streamUrl) {
       return { previewUrl, streamUrl };
     }
@@ -166,11 +165,19 @@ export async function startServeSimWithTunnelAsync({
   );
 }
 
-function matchLabeledUrl(content: string, label: string, baseDomain: string): string | null {
+function matchLabeledUrl({
+  output,
+  label,
+  baseDomain,
+}: {
+  output: string;
+  label: string;
+  baseDomain: string;
+}): string | null {
   const labelPattern = new RegExp(
     `${label}:\\s*(https:\\/\\/[a-z0-9-]+\\.${escapeRegExp(baseDomain)})`
   );
-  const match = labelPattern.exec(content);
+  const match = labelPattern.exec(output);
   return match ? match[1] : null;
 }
 
