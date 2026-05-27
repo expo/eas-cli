@@ -122,9 +122,10 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
+    const readinessScreenshotPath = path.join(os.tmpdir(), 'eas-simulator-readiness.png');
     await retryAsync(
       async () => {
-        await spawn('xcrun', ['simctl', 'io', udid, 'screenshot', '/dev/null'], {
+        await spawn('xcrun', ['simctl', 'io', udid, 'screenshot', readinessScreenshotPath], {
           env,
         });
       },
@@ -136,6 +137,7 @@ export namespace IosSimulatorUtils {
         },
       }
     );
+    await fs.promises.rm(readinessScreenshotPath, { force: true });
 
     // Wait for data migration to complete before declaring the simulator ready
     // Based on WebKit's approach: https://trac.webkit.org/changeset/231452/webkit
