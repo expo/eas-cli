@@ -1,5 +1,5 @@
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
-import fs from 'node:fs';
+import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -122,9 +122,10 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
+    const readinessScreenshotPath = '/tmp/shot.png';
     await retryAsync(
       async () => {
-        await spawn('xcrun', ['simctl', 'io', udid, 'screenshot', '/dev/null'], {
+        await spawn('xcrun', ['simctl', 'io', udid, 'screenshot', readinessScreenshotPath], {
           env,
         });
       },
@@ -136,6 +137,7 @@ export namespace IosSimulatorUtils {
         },
       }
     );
+    await fs.remove(readinessScreenshotPath);
 
     // Wait for data migration to complete before declaring the simulator ready
     // Based on WebKit's approach: https://trac.webkit.org/changeset/231452/webkit
