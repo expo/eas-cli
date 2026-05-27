@@ -203,6 +203,9 @@
       "env": {
         "description": "manage project and account environment variables"
       },
+      "go": {
+        "description": "manage Expo Go downloads"
+      },
       "integrations": {
         "description": "manage third-party service integrations"
       },

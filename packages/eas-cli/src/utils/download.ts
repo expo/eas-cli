@@ -74,9 +74,12 @@ export async function downloadFileWithProgressTrackerAsync(
   url: string,
   outputPath: string,
   progressTrackerMessage: string | ((ratio: number, total: number) => string),
-  progressTrackerCompletedMessage: string
+  progressTrackerCompletedMessage: string,
+  { showNewLine = true }: { showNewLine?: boolean } = {}
 ): Promise<void> {
-  Log.newLine();
+  if (showNewLine) {
+    Log.newLine();
+  }
 
   try {
     const response = await wrapFetchWithProgress()(
@@ -142,7 +145,7 @@ export async function downloadAndMaybeExtractAppAsync(
         `Downloading app archive (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
       'Successfully downloaded app archive'
     );
-    await tarExtractAsync(tmpArchivePath, outputDir);
+    await extractArchiveAsync(tmpArchivePath, outputDir);
 
     const appPath = await getAppPathAsync(outputDir, platform === AppPlatform.Ios ? 'app' : 'apk');
 
@@ -157,7 +160,7 @@ export async function extractAppFromLocalArchiveAsync(
   const outputDir = path.join(getTmpDirectory(), uuidv4());
   await fs.promises.mkdir(outputDir, { recursive: true });
 
-  await tarExtractAsync(appArchivePath, outputDir);
+  await extractArchiveAsync(appArchivePath, outputDir);
 
   return await getAppPathAsync(outputDir, platform === AppPlatform.Android ? 'apk' : 'app');
 }
@@ -194,7 +197,7 @@ async function getAppPathAsync(outputDir: string, applicationExtension: string):
   return path.join(outputDir, selectedFile);
 }
 
-async function tarExtractAsync(input: string, output: string): Promise<void> {
+export async function extractArchiveAsync(input: string, output: string): Promise<void> {
   try {
     if (process.platform !== 'win32') {
       await spawnAsync('tar', ['-xf', input, '-C', output], {

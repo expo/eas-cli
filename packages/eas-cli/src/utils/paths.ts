@@ -4,7 +4,7 @@ import * as path from 'path';
 
 // The ~/.expo directory is used to store authentication sessions,
 // which are shared between EAS CLI and Expo CLI.
-function dotExpoHomeDirectory(): string {
+export function getExpoHomeDirectory(): string {
   const home = homedir();
   if (!home) {
     throw new Error(
@@ -23,7 +23,7 @@ function dotExpoHomeDirectory(): string {
   return dirPath;
 }
 
-export const getStateJsonPath = (): string => path.join(dotExpoHomeDirectory(), 'state.json');
+export const getStateJsonPath = (): string => path.join(getExpoHomeDirectory(), 'state.json');
 
 export const getEasBuildRunCacheDirectoryPath = (): string =>
   path.join(getTmpDirectory(), 'eas-build-run-cache');
