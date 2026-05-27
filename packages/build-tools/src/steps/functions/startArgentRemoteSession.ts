@@ -13,13 +13,14 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureCloudflaredInstalledAsync,
+  ensureNgrokInstalledAsync,
   getDeviceRunSessionIdOrThrow,
+  getNgrokTunnelDomainOrThrow,
   spawnDetached,
+  startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForFileAsync,
-  waitForMatchInOutputAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
@@ -45,10 +46,12 @@ export function createStartArgentRemoteSessionBuildFunction(
       }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
-      // Fail fast before any expensive setup if the orchestrator-injected
-      // DEVICE_RUN_SESSION_ID env var is missing — without it we cannot
-      // report the remote config back to the API server.
+      // Fail fast before any expensive setup if the orchestrator-injected env
+      // vars are missing: DEVICE_RUN_SESSION_ID (needed to report the remote
+      // config back to the API server) and EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN
+      // (the base domain for the ngrok tunnels we open below).
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+      const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
       const versionSpec = packageVersion ?? 'latest';
@@ -62,8 +65,8 @@ export function createStartArgentRemoteSessionBuildFunction(
         await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
       }
 
-      logger.info('Ensuring cloudflared is installed.');
-      const cloudflaredCommand = await ensureCloudflaredInstalledAsync({
+      logger.info('Ensuring ngrok is installed.');
+      const ngrokCommand = await ensureNgrokInstalledAsync({
         runtimePlatform,
         env,
         logger,
@@ -92,19 +95,14 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
 
-      logger.info(`Starting cloudflared tunnel to http://localhost:${toolServerPort}.`);
-      const cloudflared = spawnDetached({
-        command: cloudflaredCommand,
-        args: ['tunnel', '--url', `http://localhost:${toolServerPort}`],
+      const toolsUrl = await startNgrokTunnelAsync({
+        ngrokCommand,
+        port: toolServerPort,
+        subdomainPrefix: 'argent',
+        baseDomain: ngrokTunnelDomain,
         env,
-      });
-
-      logger.info('Waiting for a public tunnel URL.');
-      const toolsUrl = await waitForMatchInOutputAsync({
-        process: cloudflared,
-        pattern: /https:\/\/[a-z0-9-]+\.trycloudflare\.com/,
+        logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'cloudflared tunnel',
       });
       logger.info(`Tunnel is ready at ${toolsUrl}.`);
 
@@ -112,6 +110,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         const serveSim = await startServeSimWithTunnelAsync({
+          baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,
