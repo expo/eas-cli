@@ -25,8 +25,9 @@ export default class SimulatorExec extends EasCommand {
     });
   }
 
-  // eslint-disable-next-line async-protect/async-suffix
-  protected override async catch(err: Error): Promise<any> {
+  protected override catch(err: Error): Promise<any> {
+    // Propagate wrapped command from spawnAsync rejection
     process.exitCode = process.exitCode ?? (err as any).status ?? 1;
+    return Promise.resolve();
   }
 }
