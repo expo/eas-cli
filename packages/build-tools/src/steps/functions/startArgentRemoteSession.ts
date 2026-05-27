@@ -13,7 +13,6 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureNgrokCliInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -102,8 +101,6 @@ export function createStartArgentRemoteSessionBuildFunction(
       // serve-sim is iOS-only — Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        logger.info('Ensuring ngrok CLI is installed for serve-sim.');
-        await ensureNgrokCliInstalledAsync({ env, logger });
         const serveSim = await startServeSimWithTunnelAsync({
           baseDomain: ngrokTunnelDomain,
           env,

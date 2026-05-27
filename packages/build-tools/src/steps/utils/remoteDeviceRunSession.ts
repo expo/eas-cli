@@ -174,25 +174,6 @@ function matchLabeledUrl(content: string, label: string, baseDomain: string): st
   return match ? match[1] : null;
 }
 
-// serve-sim shells out to the `ngrok` CLI for `--tunnel-provider ngrok`, so it
-// needs the agent on PATH. serve-sim is macOS-only, so Homebrew suffices. Our
-// own tunnels use the in-process SDK (startNgrokTunnelAsync) and need no CLI.
-export async function ensureNgrokCliInstalledAsync({
-  env,
-  logger,
-}: {
-  env: BuildStepEnv;
-  logger: bunyan;
-}): Promise<void> {
-  if (await isCommandAvailableAsync({ command: 'ngrok', env })) {
-    return;
-  }
-  await spawn('bash', ['-c', 'HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask ngrok'], {
-    env,
-    logger,
-  });
-}
-
 export async function startNgrokTunnelAsync({
   port,
   subdomainPrefix,
@@ -208,9 +189,8 @@ export async function startNgrokTunnelAsync({
 }): Promise<string> {
   const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
-  // Run the ngrok agent in-process via the SDK. The SDK keeps the session alive
-  // until the process exits (the step blocks forever to hold it open), and it
-  // has no local web UI, so it never collides with serve-sim's own ngrok agent.
+  // Run the ngrok agent in-process via the SDK; it keeps the session alive until
+  // the process exits, and the step blocks forever to hold it open.
   const listener = await ngrok.forward({ addr: port, authtoken, domain });
   const url = listener.url();
   if (!url) {
@@ -221,21 +201,6 @@ export async function startNgrokTunnelAsync({
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function isCommandAvailableAsync({
-  command,
-  env,
-}: {
-  command: string;
-  env: BuildStepEnv;
-}): Promise<boolean> {
-  try {
-    await spawn('bash', ['-c', `command -v ${command}`], { env, ignoreStdio: true });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export async function waitForFileAsync<T>({

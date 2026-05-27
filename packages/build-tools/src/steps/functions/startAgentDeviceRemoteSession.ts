@@ -13,7 +13,6 @@ import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureNgrokCliInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -109,8 +108,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // on Darwin. Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        logger.info('Ensuring ngrok CLI is installed for serve-sim.');
-        await ensureNgrokCliInstalledAsync({ env, logger });
         const { previewUrl } = await startServeSimWithTunnelAsync({
           baseDomain: ngrokTunnelDomain,
           env,

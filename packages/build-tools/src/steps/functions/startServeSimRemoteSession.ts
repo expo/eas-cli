@@ -3,7 +3,6 @@ import spawn from '@expo/turtle-spawn';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
-  ensureNgrokCliInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
   startServeSimWithTunnelAsync,
@@ -30,9 +29,6 @@ export function createStartServeSimRemoteSessionBuildFunction(
 
       logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
       await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
-
-      logger.info('Ensuring ngrok CLI is installed for serve-sim.');
-      await ensureNgrokCliInstalledAsync({ env, logger });
 
       const { previewUrl, streamUrl } = await startServeSimWithTunnelAsync({
         baseDomain: ngrokTunnelDomain,
