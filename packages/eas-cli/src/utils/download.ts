@@ -10,21 +10,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatBytes } from './files';
 import { getTmpDirectory } from './paths';
 import { ProgressHandler, createProgressTracker } from './progress';
-import fetch, { RequestInit, Response } from '../fetch';
+import defaultFetch, { RequestInfo, RequestInit, Response } from '../fetch';
 import { AppPlatform } from '../graphql/generated';
 import Log from '../log';
 import { promptAsync } from '../prompts';
 
 const pipeline = promisify(Stream.pipeline);
 
-function wrapFetchWithProgress(): (
-  url: string,
-  init: RequestInit,
-  progressHandler: ProgressHandler
-) => Promise<Response> {
+type RawFetch = (url: RequestInfo, init?: RequestInit) => Promise<Response>;
+
+function wrapFetchWithProgress(
+  fetchInstance: RawFetch = defaultFetch
+): (url: string, init: RequestInit, progressHandler: ProgressHandler) => Promise<Response> {
   let didProgressBarFinish = false;
   return async (url: string, init: RequestInit, progressHandler: ProgressHandler) => {
-    const response = await fetch(url, init);
+    const response = await fetchInstance(url, init);
 
     if (response.ok) {
       const totalDownloadSize = response.headers.get('Content-Length');
@@ -75,14 +75,14 @@ export async function downloadFileWithProgressTrackerAsync(
   outputPath: string,
   progressTrackerMessage: string | ((ratio: number, total: number) => string),
   progressTrackerCompletedMessage: string,
-  { showNewLine = true }: { showNewLine?: boolean } = {}
+  { showNewLine = true, fetch: fetchInstance }: { showNewLine?: boolean; fetch?: RawFetch } = {}
 ): Promise<void> {
   if (showNewLine) {
     Log.newLine();
   }
 
   try {
-    const response = await wrapFetchWithProgress()(
+    const response = await wrapFetchWithProgress(fetchInstance)(
       url,
       {
         timeout: 1000 * 60 * 5, // 5 minutes

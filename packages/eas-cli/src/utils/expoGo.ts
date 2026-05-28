@@ -5,12 +5,16 @@ import os from 'os';
 import path from 'path';
 import semver from 'semver';
 
+import { v4 as uuidv4 } from 'uuid';
+
 import { ApiV2Client } from '../api';
 import Log from '../log';
 import { getPrivateExpoConfigAsync } from '../project/expoConfig';
+import { createCachedFetch } from './cache/createCachedFetch';
+import type { FetchLike } from './cache/wrapFetchWithCache';
 import { downloadFileWithProgressTrackerAsync, extractArchiveAsync } from './download';
 import { formatBytes } from './files';
-import { getExpoHomeDirectory } from './paths';
+import { getExpoHomeDirectory, getTmpDirectory } from './paths';
 
 export type ExpoGoPlatform = 'ios' | 'android';
 
@@ -29,16 +33,24 @@ export type ExpoVersions = {
 
 const SIX_MONTHS_IN_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
+// Mirrors @expo/cli's `platformSettings`.
+// Source: https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/utils/downloadExpoGoAsync.ts#L18-L31
+//
+// Adapted for eas-cli:
+//   - Adds `extension` for `copyExpoGoToPathAsync` (a feature upstream doesn't have:
+//     the `eas go:download` command lets the user pick an output path).
 const platformSettings = {
   ios: {
     versionsKey: 'iosClientUrl',
     extension: 'app',
+    shouldExtractResults: true,
     getFilePath: (filename: string) =>
       path.join(getExpoHomeDirectory(), 'ios-simulator-app-cache', `${filename}.app`),
   },
   android: {
     versionsKey: 'androidClientUrl',
     extension: 'apk',
+    shouldExtractResults: false,
     getFilePath: (filename: string) =>
       path.join(getExpoHomeDirectory(), 'android-apk-cache', `${filename}.apk`),
   },
@@ -113,6 +125,16 @@ export function getLatestSdkVersion(sdkVersions: Record<string, SDKVersion>): st
   return latestVersion;
 }
 
+// Resolves a single `SDKVersion` entry. Distilled from @expo/cli's
+// `getExpoGoVersionEntryAsync` (inline version-map lookup + UNVERSIONED handling).
+// Source: https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/utils/downloadExpoGoAsync.ts#L37-L61
+//
+// Adapted for eas-cli:
+//   - Pure (takes a `versions` map) so the network fetch can be cached separately and
+//     the function is trivially testable; upstream fetches inline.
+//   - Accepts the literal token `"latest"` in addition to `"UNVERSIONED"`. The
+//     `eas go:download <platform> latest <output>` syntax uses it to skip the
+//     project-detection / explicit-version path.
 export function getExpoGoVersionEntryFromVersions(
   sdkVersion: string,
   versions: ExpoVersions
@@ -174,6 +196,13 @@ export async function getExpoGoDownloadUrlAsync(
   return { sdkVersion: matchingSdkVersion, url };
 }
 
+// Direct port of @expo/cli's `cleanupOldExpoGoCacheEntriesAsync`.
+// Source: https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/utils/downloadExpoGoAsync.ts#L63-L90
+//
+// Adapted for eas-cli:
+//   - Uses `fs-extra`'s `lstat`/`remove` instead of `fs.promises.lstat`/`fs.promises.rm`
+//     to match eas-cli's existing fs idioms; behaviour is equivalent (recursive remove,
+//     mtime-based pruning).
 export async function cleanupOldExpoGoCacheEntriesAsync(
   cacheDirectory: string,
   maxAgeMs: number = SIX_MONTHS_IN_MS
@@ -200,6 +229,15 @@ export async function cleanupOldExpoGoCacheEntriesAsync(
   }
 }
 
+// Mirrors @expo/cli's `downloadExpoGoAsync`.
+// Source: https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/utils/downloadExpoGoAsync.ts#L92-L160
+//
+// Adapted for eas-cli:
+//   - Accepts an optional `projectDir` + `url` and returns the resolved `sdkVersion`
+//     and `url` alongside the cached path. The `eas go:download` and `eas go:url`
+//     commands need both pieces of metadata; upstream only returns the path.
+//   - Progress is rendered by `downloadFileWithProgressTrackerAsync` (eas-cli's
+//     existing ora-based progress tracker) instead of upstream's custom `ProgressBar`.
 export async function downloadExpoGoAsync(
   platform: ExpoGoPlatform,
   {
@@ -215,8 +253,10 @@ export async function downloadExpoGoAsync(
   const result = url
     ? { sdkVersion: sdkVersion ? normalizeSdkVersion(sdkVersion) : 'unknown', url }
     : await getExpoGoDownloadUrlAsync(platform, { projectDir, sdkVersion });
+
+  const { getFilePath, shouldExtractResults } = platformSettings[platform];
   const filename = path.parse(result.url).name;
-  const outputPath = platformSettings[platform].getFilePath(filename);
+  const outputPath = getFilePath(filename);
 
   await cleanupOldExpoGoCacheEntriesAsync(path.dirname(outputPath));
   if (await fs.pathExists(outputPath)) {
@@ -224,34 +264,76 @@ export async function downloadExpoGoAsync(
     return { ...result, path: outputPath };
   }
 
-  if (platform === 'android') {
-    await fs.ensureDir(path.dirname(outputPath));
-    await fs.copy(await downloadExpoGoFileToCacheAsync(result.url), outputPath);
-  } else {
-    await fs.ensureDir(path.dirname(outputPath));
-    await fs.remove(outputPath);
-    await fs.ensureDir(outputPath);
-    await extractArchiveAsync(await downloadExpoGoFileToCacheAsync(result.url), outputPath);
-  }
+  await downloadAppAsync({
+    url: result.url,
+    outputPath,
+    extract: shouldExtractResults,
+  });
 
   return { ...result, path: outputPath };
 }
 
-async function downloadExpoGoFileToCacheAsync(url: string): Promise<string> {
-  const outputPath = path.join(getExpoHomeDirectory(), 'expo-go', getUrlBasename(url));
-  if (await fs.pathExists(outputPath)) {
-    return outputPath;
-  }
+// Mirrors @expo/cli's `downloadAppAsync`.
+// Source: https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/utils/downloadAppAsync.ts#L53-L80
+//
+// Adapted for eas-cli:
+//   - Uses `downloadFileWithProgressTrackerAsync` (which wraps eas-cli's
+//     proxy/error-aware `fetch`) and threads a cached fetch into it, instead of
+//     upstream's `downloadAsync` helper.
+//   - Reuses `getTmpDirectory()` (env-paths-based OS temp dir) for the intermediate
+//     iOS archive, mirroring upstream's `os.tmpdir()` via `createTempFilePath`.
+//   - Defensively removes any stale `outputPath` before iOS extraction so a partial
+//     bundle from a previous failed run doesn't get mixed with the new contents.
+async function downloadAppAsync({
+  url,
+  outputPath,
+  extract,
+}: {
+  url: string;
+  outputPath: string;
+  extract: boolean;
+}): Promise<void> {
+  const fetchInstance: FetchLike = createCachedFetch({
+    // Persist the cached HTTP responses under `~/.expo/expo-go/`. Matches upstream.
+    cacheDirectory: 'expo-go',
+    // 1 week TTL, mirroring upstream:
+    // https://github.com/expo/expo/blob/2c21e2f96ce6aede3d6bb5c780f0964d2116d37b/packages/%40expo/cli/src/api/rest/client.ts#L184
+    ttl: 1000 * 60 * 60 * 24 * 7,
+  });
 
-  await fs.ensureDir(path.dirname(outputPath));
-  await downloadFileWithProgressTrackerAsync(
-    url,
-    outputPath,
-    (ratio, total) => `Downloading Expo Go (${formatBytes(total * ratio)} / ${formatBytes(total)})`,
-    'Successfully downloaded Expo Go',
-    { showNewLine: false }
-  );
-  return outputPath;
+  const progressMessage = (ratio: number, total: number): string =>
+    `Downloading Expo Go (${formatBytes(total * ratio)} / ${formatBytes(total)})`;
+
+  if (extract) {
+    // iOS: download the archive into the OS tmp dir, then extract into the
+    // `<name>.app` cache directory. Nothing is persisted under `~/.expo/expo-go`
+    // as a raw archive — the only long-lived cache layers are (a) the HTTP
+    // response cache (TTL-evicted) and (b) the platform `.app` cache (mtime-evicted).
+    const tmpDir = path.join(getTmpDirectory(), uuidv4());
+    await fs.ensureDir(tmpDir);
+    const tmpPath = path.join(tmpDir, getUrlBasename(url));
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      tmpPath,
+      progressMessage,
+      'Successfully downloaded Expo Go',
+      { showNewLine: false, fetch: fetchInstance }
+    );
+
+    await fs.remove(outputPath);
+    await fs.ensureDir(outputPath);
+    await extractArchiveAsync(tmpPath, outputPath);
+  } else {
+    // Android: write the .apk straight to its final location in `android-apk-cache/`.
+    await fs.ensureDir(path.dirname(outputPath));
+    await downloadFileWithProgressTrackerAsync(
+      url,
+      outputPath,
+      progressMessage,
+      'Successfully downloaded Expo Go',
+      { showNewLine: false, fetch: fetchInstance }
+    );
+  }
 }
 
 export async function copyExpoGoToPathAsync({

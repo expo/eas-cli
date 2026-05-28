@@ -165,5 +165,31 @@ describe('expoGo utils', () => {
       );
       expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Exponent-55.tar.app'));
     });
+
+    it('writes the Android apk straight to the platform cache without an intermediate copy', async () => {
+      jest.spyOn(fs, 'readdir').mockRejectedValue(new Error('missing') as never);
+      jest.spyOn(fs, 'pathExists').mockResolvedValue(false as never);
+      jest.spyOn(fs, 'ensureDir').mockResolvedValue(undefined as never);
+      const downloadSpy = jest
+        .spyOn(downloadUtils, 'downloadFileWithProgressTrackerAsync')
+        .mockResolvedValue();
+      const extractArchiveSpy = jest
+        .spyOn(downloadUtils, 'extractArchiveAsync')
+        .mockResolvedValue();
+
+      await expect(downloadExpoGoAsync('android', { sdkVersion: '55' })).resolves.toMatchObject({
+        sdkVersion: '55.0.0',
+        url: 'https://example.com/Exponent-55.apk',
+      });
+
+      expect(downloadSpy).toHaveBeenCalledWith(
+        'https://example.com/Exponent-55.apk',
+        expect.stringMatching(/android-apk-cache.*Exponent-55\.apk$/),
+        expect.any(Function),
+        'Successfully downloaded Expo Go',
+        expect.objectContaining({ showNewLine: false })
+      );
+      expect(extractArchiveSpy).not.toHaveBeenCalled();
+    });
   });
 });
