@@ -31,15 +31,20 @@ export class GCSCacheManager implements CacheManager {
       ctx.logger.info(`- ${filePath}`);
     });
     const archivePath = path.join(ctx.workingdir, 'cache-save.tar.gz');
-    await tar.create(
-      {
-        file: archivePath,
-        cwd: '/',
-        gzip: true,
-        preservePaths: true,
-      },
-      paths
-    );
+    try {
+      await tar.create(
+        {
+          file: archivePath,
+          cwd: '/',
+          gzip: true,
+          preservePaths: true,
+        },
+        paths
+      );
+    } catch (err: any) {
+      ctx.logger.error({ err }, 'Failed to create cache archive');
+      return;
+    }
 
     const archiveSize = (await fs.stat(archivePath)).size;
     const { maxSizeBytes } = this.allowedContentLengthRange;
@@ -88,16 +93,21 @@ export class GCSCacheManager implements CacheManager {
       return;
     }
 
-    await tar.extract(
-      {
-        file: archivePath,
-        cwd: '/',
-        preserveOwner: true,
-        preservePaths: true,
-        keep: true, // do not override existing files
-      },
-      paths
-    );
+    try {
+      await tar.extract(
+        {
+          file: archivePath,
+          cwd: '/',
+          preserveOwner: true,
+          preservePaths: true,
+          keep: true, // do not override existing files
+        },
+        paths
+      );
+    } catch (err: any) {
+      ctx.logger.error({ err }, 'Failed to extract cache archive');
+      this.skipCacheUpdate = true;
+    }
   }
 
   private getPaths(ctx: BuildContext<BuildJob>): string[] {
