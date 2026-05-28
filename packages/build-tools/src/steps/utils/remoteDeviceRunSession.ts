@@ -145,6 +145,8 @@ export async function startServeSimWithTunnelAsync({
       '1280',
       '--stream-quality',
       '0.55',
+      '--codec',
+      'h264',
     ],
     env,
   });
