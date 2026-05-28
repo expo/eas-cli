@@ -46,6 +46,11 @@ export async function installPods<TJob extends Ios.Job>(
 async function resolvePrecompiledModulesPodInstallEnvAsync<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>
 ): Promise<Env> {
+  if (ctx.env.EXPO_USE_PRECOMPILED_MODULES === '0') {
+    ctx.logger.info('EXPO_USE_PRECOMPILED_MODULES=0 is set; not enabling precompiled modules use.');
+    return {};
+  }
+
   if (ctx.job.builderEnvironment?.env?.EAS_USE_PRECOMPILED_MODULES !== '1') {
     return {};
   }
