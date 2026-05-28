@@ -26,10 +26,12 @@ function makeIosBuildContext({
   expoVersion,
   cocoapodsCacheUrl,
   usePrecompiledModules = true,
+  expoUsePrecompiledModules,
 }: {
   expoVersion?: string;
   cocoapodsCacheUrl?: string;
   usePrecompiledModules?: boolean;
+  expoUsePrecompiledModules?: string;
 }): BuildContext<Ios.Job> {
   vol.fromJSON({
     [path.join(IOS_DIR, '.keep')]: '',
@@ -57,6 +59,9 @@ function makeIosBuildContext({
     logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
     env: {
       __API_SERVER_URL: 'http://api.expo.test',
+      ...(expoUsePrecompiledModules
+        ? { EXPO_USE_PRECOMPILED_MODULES: expoUsePrecompiledModules }
+        : {}),
       ...(cocoapodsCacheUrl ? { EAS_BUILD_COCOAPODS_CACHE_URL: cocoapodsCacheUrl } : {}),
     },
     uploadArtifact: jest.fn(),
@@ -175,5 +180,24 @@ describe(installPods, () => {
       (spawn as jest.Mock).mock.calls[0][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
     ).toBeUndefined();
     expect(ctx.logger.info).not.toHaveBeenCalled();
+  });
+
+  it('does not override EXPO_USE_PRECOMPILED_MODULES=0 even when builder flag is enabled', async () => {
+    const ctx = makeIosBuildContext({
+      expoVersion: '999.0.0',
+      usePrecompiledModules: true,
+      expoUsePrecompiledModules: '0',
+    });
+
+    await installPods(ctx, {});
+
+    expect((spawn as jest.Mock).mock.calls[0][2].env.EXPO_USE_PRECOMPILED_MODULES).toBe('0');
+    expect(
+      (spawn as jest.Mock).mock.calls[0][2].env.EXPO_PRECOMPILED_MODULES_BASE_URL
+    ).toBeUndefined();
+    expect(ctx.logger.info).toHaveBeenCalledWith(
+      'EXPO_USE_PRECOMPILED_MODULES=0 is set; not enabling precompiled modules use.'
+    );
+    expect(getInstalledExpoPackageVersionAsync).not.toHaveBeenCalled();
   });
 });
