@@ -30,7 +30,6 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 const DEFAULT_EVENTS_LIMIT = 10;
 
 export default class ObserveEvents extends EasCommand {
-  static override hidden = true;
   static override description =
     'display individual events emitted by the app via `logEvent`, filtered by the event name in the argument. With no arguments, a list of the available event names and associated event counts is returned.';
 
@@ -91,8 +90,6 @@ export default class ObserveEvents extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);

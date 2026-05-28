@@ -34,7 +34,6 @@ const DEFAULT_STATS_TABLE: NavigationStatKey[] = ['median', 'count'];
 const DEFAULT_STATS_JSON: NavigationStatKey[] = ['median', 'p90', 'count'];
 
 export default class ObserveRoutes extends EasCommand {
-  static override hidden = true;
   static override description =
     'display app navigation route metrics (Cold TTR, Warm TTR, TTI) grouped by route name';
 
@@ -93,8 +92,6 @@ export default class ObserveRoutes extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     const metricNames = flags.metric?.length
