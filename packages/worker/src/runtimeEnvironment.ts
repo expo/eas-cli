@@ -8,6 +8,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
+import { shouldUseCache } from './runtimeSettings';
 
 class SystemDepsInstallError extends errors.UserError {
   constructor(dependency: string) {
@@ -23,25 +24,28 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  if (config.npmCacheUrl) {
+  const npmCacheUrl = shouldUseCache('npm') ? config.npmCacheUrl : null;
+  const mavenCacheUrl = shouldUseCache('maven') ? config.mavenCacheUrl : null;
+
+  if (npmCacheUrl) {
     // create ~/.npmrc
-    await spawn('npm', ['config', 'set', 'registry', config.npmCacheUrl]);
+    await spawn('npm', ['config', 'set', 'registry', npmCacheUrl]);
     // create ~/.yarnrc.yml
     await templateFile(
       path.join(__dirname, '../src/templates/yarnrc.yml'),
       {
-        URL: config.npmCacheUrl,
+        URL: npmCacheUrl,
       },
       path.join(os.homedir(), '.yarnrc.yml')
     );
   }
 
-  if (config.mavenCacheUrl) {
+  if (mavenCacheUrl) {
     await fs.mkdirp(path.join(os.homedir(), '.gradle'));
     await templateFile(
       path.join(__dirname, '../src/templates/init.gradle'),
       {
-        URL: config.mavenCacheUrl,
+        URL: mavenCacheUrl,
       },
       path.join(os.homedir(), '.gradle/init.gradle')
     );

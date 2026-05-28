@@ -7,6 +7,7 @@ import path from 'path';
 import config from './config';
 import { Environment } from './constants';
 import { androidImagesWithJavaVersionLowerThen11 } from './external/turtle';
+import { getRuntimeSettings, shouldUseCache } from './runtimeSettings';
 import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
@@ -35,9 +36,14 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
   setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
-  setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
-  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);
-  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', config.npmCacheUrl);
+  const npmCacheUrl = shouldUseCache('npm') ? config.npmCacheUrl : null;
+  const nodeJsCacheUrl = shouldUseCache('nodejs') ? config.nodeJsCacheUrl : null;
+  const mavenCacheUrl = shouldUseCache('maven') ? config.mavenCacheUrl : null;
+  const cocoapodsCacheUrl = shouldUseCache('cocoapods') ? config.cocoapodsCacheUrl : null;
+
+  setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
+  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
+  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
   setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
@@ -47,8 +53,11 @@ export function getBuildEnv({
 
   const runnerPlatform = job.platform;
   if (runnerPlatform === Platform.IOS) {
-    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
+    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
+    if (shouldUsePrecompiledModules(job)) {
+      setEnv(env, 'EAS_USE_PRECOMPILED_MODULES', '1');
+    }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
       setEnv(env, 'USE_CCACHE', '1');
@@ -69,7 +78,7 @@ export function getBuildEnv({
         setEnv(env, 'ANDROID_CCACHE', binPath);
       }
     }
-    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', config.mavenCacheUrl);
+    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', mavenCacheUrl);
   }
 
   if (config.env !== Environment.TEST) {
@@ -133,6 +142,14 @@ export function getBuildEnv({
   }
 
   return env;
+}
+
+function shouldUsePrecompiledModules(job: Job): boolean {
+  if (job.platform !== Platform.IOS) {
+    return false;
+  }
+
+  return getRuntimeSettings().iosPrecompiledModules;
 }
 
 function getFilteredEnv(): Env {

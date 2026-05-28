@@ -1,10 +1,18 @@
 // @ts-nocheck
 import { Android, Ios, Job } from '@expo/eas-build-job';
+import templateFile from '@expo/template-file';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
-import { pathExists } from 'fs-extra';
-import { prepareRuntimeEnvironment } from '../runtimeEnvironment';
+import { mkdirp, pathExists } from 'fs-extra';
+
+import config from '../config';
+import {
+  prepareRuntimeEnvironment,
+  prepareRuntimeEnvironmentConfigFiles,
+} from '../runtimeEnvironment';
+import { applyRuntimeSettings, resetRuntimeSettings } from '../runtimeSettings';
 
 jest.mock('fs-extra');
+jest.mock('@expo/template-file');
 jest.mock('@expo/turtle-spawn');
 
 const spawnResult: SpawnResult = {
@@ -31,8 +39,84 @@ const ctx = {
 const builderConfig: Ios.BuilderEnvironment | Android.BuilderEnvironment = {};
 
 describe('prepareRuntimeEnvironment', () => {
+  const originalEnvironment = config.env;
+  const originalPlatform = process.platform;
+  const originalCacheUrls = {
+    npmCacheUrl: config.npmCacheUrl,
+    mavenCacheUrl: config.mavenCacheUrl,
+  };
+
   beforeEach(() => {
     jest.mocked(spawn).mockReset();
+  });
+
+  afterEach(() => {
+    config.env = originalEnvironment;
+    config.npmCacheUrl = originalCacheUrls.npmCacheUrl;
+    config.mavenCacheUrl = originalCacheUrls.mavenCacheUrl;
+    mockProcessPlatform(originalPlatform);
+    resetRuntimeSettings();
+    jest.restoreAllMocks();
+  });
+
+  describe(prepareRuntimeEnvironmentConfigFiles.name, () => {
+    beforeEach(() => {
+      config.env = 'production';
+      config.npmCacheUrl = 'https://npm.example';
+      config.mavenCacheUrl = 'https://maven.example';
+    });
+
+    it('does not prepare disabled Linux cache config files', async () => {
+      mockProcessPlatform('linux');
+      applyRuntimeSettings({
+        caches: {
+          linux: { npm: false, nodejs: true, maven: false },
+          darwin: { npm: true, nodejs: true, cocoapods: true },
+        },
+        iosPrecompiledModules: false,
+      });
+
+      await prepareRuntimeEnvironmentConfigFiles();
+
+      expect(spawn).not.toHaveBeenCalledWith('npm', [
+        'config',
+        'set',
+        'registry',
+        'https://npm.example',
+      ]);
+      expect(templateFile).not.toHaveBeenCalled();
+      expect(mkdirp).not.toHaveBeenCalled();
+    });
+
+    it('prepares enabled Linux cache config files', async () => {
+      mockProcessPlatform('linux');
+      applyRuntimeSettings({
+        caches: {
+          linux: { npm: true, nodejs: true, maven: true },
+          darwin: { npm: true, nodejs: true, cocoapods: true },
+        },
+        iosPrecompiledModules: false,
+      });
+
+      await prepareRuntimeEnvironmentConfigFiles();
+
+      expect(spawn).toHaveBeenCalledWith('npm', [
+        'config',
+        'set',
+        'registry',
+        'https://npm.example',
+      ]);
+      expect(templateFile).toHaveBeenCalledWith(
+        expect.stringContaining('yarnrc.yml'),
+        { URL: 'https://npm.example' },
+        expect.stringContaining('.yarnrc.yml')
+      );
+      expect(templateFile).toHaveBeenCalledWith(
+        expect.stringContaining('init.gradle'),
+        { URL: 'https://maven.example' },
+        expect.stringContaining('init.gradle')
+      );
+    });
   });
 
   describe('installNode', () => {
@@ -188,3 +272,10 @@ describe('prepareRuntimeEnvironment', () => {
     });
   });
 });
+
+function mockProcessPlatform(platform: NodeJS.Platform): void {
+  Object.defineProperty(process, 'platform', {
+    configurable: true,
+    value: platform,
+  });
+}
