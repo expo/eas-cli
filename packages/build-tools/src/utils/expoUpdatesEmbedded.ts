@@ -1,5 +1,6 @@
 import { Android, BuildJob, Ios, Platform } from '@expo/eas-build-job';
 import { PipeMode } from '@expo/logger';
+import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
@@ -24,15 +25,25 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
   }
 
   const channel = ctx.job.updates?.channel;
+  if (!channel) {
+    ctx.logger.warn(
+      'Skipping embedded bundle upload: no channel configured for this build profile.'
+    );
+    ctx.markBuildPhaseHasWarnings();
+    return;
+  }
+
   const projectDir = ctx.getReactNativeProjectDirectory();
 
   let archivePattern: string;
   if (platform === Platform.IOS) {
     archivePattern = resolveArtifactPath(ctx as BuildContext<Ios.Job>);
-  } else {
+  } else if (platform === Platform.ANDROID) {
     archivePattern =
       (ctx as BuildContext<Android.Job>).job.applicationArchivePath ??
       'android/app/build/outputs/**/*.{apk,aab}';
+  } else {
+    throw new Error(`Uploading embedded updates is not supported for the ${platform} platform.`);
   }
 
   const [archivePath] = await findArtifacts({
@@ -41,10 +52,8 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
     logger: null,
   }).catch(() => [] as string[]);
 
-  if (!channel || !archivePath) {
-    ctx.logger.warn(
-      `Skipping embedded bundle upload: ${!channel ? 'no channel configured for this build profile' : 'build archive not found'}.`
-    );
+  if (!archivePath) {
+    ctx.logger.warn('Skipping embedded bundle upload: build archive not found.');
     ctx.markBuildPhaseHasWarnings();
     return;
   }
@@ -104,6 +113,6 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
     ctx.logger.warn({ err }, 'Failed to upload embedded bundle.');
     ctx.markBuildPhaseHasWarnings();
   } finally {
-    await zip.close();
+    await asyncResult(zip.close());
   }
 }

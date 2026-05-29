@@ -88,7 +88,7 @@ describe('uploadEmbeddedBundleAsync', () => {
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
-  it('warns when no channel is configured', async () => {
+  it('warns when no channel is configured and does not look for the archive', async () => {
     const ctx = makeCtx({ platform: Platform.ANDROID });
 
     await uploadEmbeddedBundleAsync(ctx);
@@ -97,6 +97,17 @@ describe('uploadEmbeddedBundleAsync', () => {
       'Skipping embedded bundle upload: no channel configured for this build profile.'
     );
     expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
+    expect(artifacts.findArtifacts).not.toHaveBeenCalled();
+  });
+
+  it('throws for an unsupported platform', async () => {
+    const ctx = makeCtx({ platform: Platform.ANDROID, channel: 'production' });
+    (ctx.job as { platform: string }).platform = 'web';
+
+    await expect(uploadEmbeddedBundleAsync(ctx)).rejects.toThrow(
+      'Uploading embedded updates is not supported for the web platform.'
+    );
+    expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
   it('uploads from Android APK archives', async () => {
@@ -242,5 +253,21 @@ describe('uploadEmbeddedBundleAsync', () => {
       'Failed to upload embedded bundle.'
     );
     expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
+  });
+
+  it('swallows zip.close() failures so they do not mask the upload result', async () => {
+    jest.mocked(artifacts.findArtifacts).mockResolvedValue(['/tmp/app-release.apk']);
+    mockZipEntries.mockResolvedValue(
+      zipEntryMap({
+        'assets/index.android.bundle': true,
+        'assets/app.manifest': true,
+      })
+    );
+    mockZipClose.mockRejectedValue(new Error('close failed'));
+    const ctx = makeCtx({ platform: Platform.ANDROID, channel: 'production' });
+
+    await expect(uploadEmbeddedBundleAsync(ctx)).resolves.toBeUndefined();
+    expect(easCli.runEasCliCommand).toHaveBeenCalled();
+    expect(mockZipClose).toHaveBeenCalled();
   });
 });
