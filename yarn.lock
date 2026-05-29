@@ -2868,7 +2868,7 @@ __metadata:
     "@expo/logger": "npm:20.0.0"
     "@expo/package-manager": "npm:1.9.10"
     "@expo/plist": "npm:^0.2.0"
-    "@expo/repack-app": "npm:~0.4.1"
+    "@expo/repack-app": "npm:~0.6.1"
     "@expo/results": "npm:^1.0.0"
     "@expo/spawn-async": "npm:1.7.2"
     "@expo/steps": "npm:20.0.0"
@@ -3419,15 +3419,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/repack-app@npm:~0.4.1":
-  version: 0.4.1
-  resolution: "@expo/repack-app@npm:0.4.1"
+"@expo/repack-app@npm:~0.6.1":
+  version: 0.6.1
+  resolution: "@expo/repack-app@npm:0.6.1"
   dependencies:
     commander: "npm:^14.0.2"
     picocolors: "npm:^1.1.1"
   bin:
     repack-app: bin/cli.js
-  checksum: 10c0/4bc30a7ca95221f079026633802c32894ef25d55677212e86859194bf1a042598eaa5977510a277c3ceee6af6bd0d0a3aff3e21c4510c37b7dea584dd927ed0e
+  checksum: 10c0/fdf3088b4f327393056631270bf90a67ba949e7994892a62abc985bd9478119ab2f1d5be35fa1efb6bd1d2780c49a3dbb87cb669d9c65b44e3d9a0b41fbf091f
   languageName: node
   linkType: hard
 
