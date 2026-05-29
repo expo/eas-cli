@@ -1459,6 +1459,7 @@ export type App = Project & {
   description: Scalars['String']['output'];
   devDomainName?: Maybe<AppDevDomainName>;
   deviceRunSessionsPaginated: AppDeviceRunSessionsConnection;
+  embeddedUpdatesPaginated: AppEmbeddedUpdatesConnection;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
@@ -1694,6 +1695,16 @@ export type AppDeviceRunSessionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEmbeddedUpdatesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2041,6 +2052,18 @@ export type AppDeviceRunSessionEdge = {
 export type AppDeviceRunSessionsConnection = {
   __typename?: 'AppDeviceRunSessionsConnection';
   edges: Array<AppDeviceRunSessionEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppEmbeddedUpdateEdge = {
+  __typename?: 'AppEmbeddedUpdateEdge';
+  cursor: Scalars['String']['output'];
+  node: EmbeddedUpdate;
+};
+
+export type AppEmbeddedUpdatesConnection = {
+  __typename?: 'AppEmbeddedUpdatesConnection';
+  edges: Array<AppEmbeddedUpdateEdge>;
   pageInfo: PageInfo;
 };
 
@@ -6191,6 +6214,12 @@ export type EmbeddedUpdateAssetUploadSpec = {
   presignedUrl: Scalars['String']['output'];
   /** Storage key (`{appId}/{embeddedUpdateId}`). Same key in both upload and destination buckets. */
   storageKey: Scalars['String']['output'];
+};
+
+export type EmbeddedUpdateFilterInput = {
+  channel?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppPlatform>;
+  runtimeVersion?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type EmbeddedUpdateMutation = {
@@ -13312,6 +13341,16 @@ export type ViewEmbeddedUpdateByIdQueryVariables = Exact<{
 
 
 export type ViewEmbeddedUpdateByIdQuery = { __typename?: 'RootQuery', embeddedUpdates: { __typename?: 'EmbeddedUpdateQuery', byId: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } } };
+
+export type ViewEmbeddedUpdatesPaginatedQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  first: Scalars['Int']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
+}>;
+
+
+export type ViewEmbeddedUpdatesPaginatedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, embeddedUpdatesPaginated: { __typename?: 'AppEmbeddedUpdatesConnection', edges: Array<{ __typename?: 'AppEmbeddedUpdateEdge', cursor: string, node: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

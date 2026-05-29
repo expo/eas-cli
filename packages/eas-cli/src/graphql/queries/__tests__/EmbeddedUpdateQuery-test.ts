@@ -104,3 +104,75 @@ describe('EmbeddedUpdateQuery.viewByIdAsync', () => {
     );
   });
 });
+
+describe('EmbeddedUpdateQuery.viewPaginatedAsync', () => {
+  function makeConnection(): {
+    edges: { cursor: string; node: any }[];
+    pageInfo: {
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor: string | null;
+      endCursor: string | null;
+    };
+  } {
+    return {
+      edges: [
+        {
+          cursor: 'c1',
+          node: {
+            id: 'update-1',
+            platform: AppPlatform.Ios,
+            runtimeVersion: '1.0.0',
+            channel: 'production',
+            createdAt: '2024-01-01T00:00:00Z',
+            launchAsset: {
+              id: 'asset-1',
+              fileSize: 1024,
+              finalFileSize: null,
+              fileSHA256: 'abc',
+            },
+          },
+        },
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: 'c1', endCursor: 'c1' },
+    };
+  }
+
+  it('returns the connection from the GraphQL response', async () => {
+    const connection = makeConnection();
+    const client = makeGraphqlClient({
+      app: { byId: { id: 'app-1', embeddedUpdatesPaginated: connection } },
+    });
+
+    const result = await EmbeddedUpdateQuery.viewPaginatedAsync(client, {
+      appId: 'app-1',
+      first: 25,
+    });
+
+    expect(result).toEqual(connection);
+  });
+
+  it('forwards filter / first / after to the query variables', async () => {
+    const client = makeGraphqlClient({
+      app: { byId: { id: 'app-1', embeddedUpdatesPaginated: makeConnection() } },
+    });
+
+    await EmbeddedUpdateQuery.viewPaginatedAsync(client, {
+      appId: 'app-1',
+      first: 10,
+      after: 'cursor-99',
+      filter: { platform: AppPlatform.Ios, runtimeVersion: '1.0.0', channel: 'production' },
+    });
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        appId: 'app-1',
+        first: 10,
+        after: 'cursor-99',
+        filter: { platform: AppPlatform.Ios, runtimeVersion: '1.0.0', channel: 'production' },
+      },
+      expect.objectContaining({ additionalTypenames: ['EmbeddedUpdate'] })
+    );
+  });
+});
