@@ -146,7 +146,7 @@ export async function startServeSimWithTunnelAsync({
       '--stream-quality',
       '0.55',
       '--codec',
-      'h264',
+      'webrtc',
     ],
     env,
   });
