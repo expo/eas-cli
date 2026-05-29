@@ -7,7 +7,7 @@ import path from 'path';
 
 import { BuildContext } from '../context';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
-import { resolveSentryUploadEnv } from '../utils/sentryUpload';
+import { resolveSentryUploadEnv } from '../utils/buildEnv';
 
 export async function ensureLFLineEndingsInGradlewScript<TJob extends Job>(
   ctx: BuildContext<TJob>

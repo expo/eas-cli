@@ -1,4 +1,4 @@
-import { resolveSentryUploadEnv } from '../sentryUpload';
+import { resolveSentryUploadEnv } from '../buildEnv';
 
 describe(resolveSentryUploadEnv, () => {
   it('allows Sentry upload failures by default', () => {
@@ -19,5 +19,4 @@ describe(resolveSentryUploadEnv, () => {
       resolveSentryUploadEnv({ EAS_BUILD_RUNNER: 'eas-build', SENTRY_DISABLE_AUTO_UPLOAD: 'true' })
     ).toEqual({});
   });
-
 });

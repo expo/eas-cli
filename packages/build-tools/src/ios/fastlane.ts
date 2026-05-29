@@ -13,7 +13,7 @@ import { isTVOS } from './tvos';
 import { XcodeBuildLogger } from './xcpretty';
 import { COMMON_FASTLANE_ENV } from '../common/fastlane';
 import { BuildContext, SkipNativeBuildError } from '../context';
-import { resolveSentryUploadEnv } from '../utils/sentryUpload';
+import { resolveSentryUploadEnv } from '../utils/buildEnv';
 
 export async function runFastlaneGym<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
