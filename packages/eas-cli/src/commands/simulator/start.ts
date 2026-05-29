@@ -52,9 +52,8 @@ export default class SimulatorStart extends EasCommand {
     }),
     'max-duration-minutes': Flags.integer({
       description:
-        'Maximum duration of the device run session in minutes before it is automatically stopped. Must be between 1 and 119. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
-      min: 1,
-      max: 119,
+        'Maximum duration of the device run session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
+      min: 0,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
