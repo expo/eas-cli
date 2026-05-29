@@ -1,6 +1,6 @@
 {
   "name": "@expo/turtle-spawn",
-  "version": "19.0.0",
+  "version": "20.0.0",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "author": "Expo <support@expo.io>",
@@ -25,7 +25,7 @@
     "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/logger": "19.0.0",
+    "@expo/logger": "20.0.0",
     "@expo/spawn-async": "^1.7.2"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@expo/eas-build-job",
-  "version": "19.1.0",
+  "version": "20.0.0",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "MIT",
   "author": "Expo <support@expo.io>",
@@ -25,9 +25,9 @@
     "clean": "rimraf node_modules dist coverage \"*.tsbuildinfo\""
   },
   "dependencies": {
-    "@expo/logger": "19.0.0",
+    "@expo/logger": "20.0.0",
     "@expo/results": "1.0.0",
-    "@expo/turtle-spawn": "19.0.0",
+    "@expo/turtle-spawn": "20.0.0",
     "joi": "^17.13.1",
     "semver": "^7.6.2",
     "zod": "^4.3.5"
