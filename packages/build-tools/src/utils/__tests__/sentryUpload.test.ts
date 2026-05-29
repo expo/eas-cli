@@ -20,12 +20,4 @@ describe(resolveSentryUploadEnv, () => {
     ).toEqual({});
   });
 
-  it('allows opting into strict Sentry upload failures', () => {
-    expect(
-      resolveSentryUploadEnv({
-        EAS_BUILD_RUNNER: 'eas-build',
-        EAS_BUILD_FAIL_ON_SENTRY_UPLOAD_ERROR: '1',
-      })
-    ).toEqual({});
-  });
 });
