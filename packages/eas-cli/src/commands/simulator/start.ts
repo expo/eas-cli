@@ -50,6 +50,12 @@ export default class SimulatorStart extends EasCommand {
       description:
         'Version of the package backing the device run session (e.g. "0.1.3-alpha.3"). Defaults to "latest" when omitted.',
     }),
+    'max-duration-minutes': Flags.integer({
+      description:
+        'Maximum duration of the device run session in minutes before it is automatically stopped. Must be between 1 and 119. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
+      min: 1,
+      max: 119,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -84,6 +90,7 @@ export default class SimulatorStart extends EasCommand {
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
+        maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
       const jobRunId = nullthrows(session.turtleJobRun?.id, 'Expected device run session to start');
