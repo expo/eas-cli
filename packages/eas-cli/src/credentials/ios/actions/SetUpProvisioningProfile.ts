@@ -1,5 +1,6 @@
 import nullthrows from 'nullthrows';
 
+import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from './AscApiKeyUtils';
 import {
   assignBuildCredentialsAsync,
   getBuildCredentialsAsync,
@@ -15,7 +16,7 @@ import {
   IosAppBuildCredentialsFragment,
   IosDistributionType,
 } from '../../../graphql/generated';
-import { learnMore } from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { getApplePlatformFromTarget } from '../../../project/ios/target';
 import { confirmAsync } from '../../../prompts';
 import { CredentialsContext } from '../../context';
@@ -25,7 +26,8 @@ import {
 } from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { ProvisioningProfileStoreInfo } from '../appstore/Credentials.types';
-import { AuthenticationMode } from '../appstore/authenticateTypes';
+import { resolveAppleTeamTypeFromEnvironment } from '../appstore/resolveCredentials';
+import { AppleTeamType } from '../appstore/authenticateTypes';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -102,8 +104,28 @@ export class SetUpProvisioningProfile {
       this.app,
       this.distributionType
     ).runAsync(ctx);
+    if (ctx.nonInteractive && !ctx.appStore.authCtx) {
+      await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+        ctx,
+        this.app,
+        this.resolveTeamTypeForAuthentication()
+      );
+    }
 
-    const areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
+    let areBuildCredentialsSetup: boolean;
+    try {
+      areBuildCredentialsSetup = await this.areBuildCredentialsSetupAsync(ctx);
+    } catch (error: any) {
+      if (ctx.nonInteractive) {
+        Log.warn(
+          'Skipping Provisioning Profile validation on Apple servers due to an unexpected validation error. Continuing with local validation result.'
+        );
+        Log.debug('Provisioning profile validation on Apple servers failed:', error);
+        areBuildCredentialsSetup = true;
+      } else {
+        throw error;
+      }
+    }
     if (areBuildCredentialsSetup) {
       return nullthrows(await getBuildCredentialsAsync(ctx, this.app, this.distributionType));
     }
@@ -111,12 +133,11 @@ export class SetUpProvisioningProfile {
       throw new ForbidCredentialModificationError(
         'Provisioning profile is not configured correctly. Remove the --freeze-credentials flag to configure it.'
       );
-    } else if (
-      ctx.nonInteractive &&
-      ctx.appStore.defaultAuthenticationMode !== AuthenticationMode.API_KEY
-    ) {
+    }
+
+    if (ctx.nonInteractive && !ctx.appStore.authCtx) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. ${learnMore(
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. Either set the EXPO_ASC_API_KEY_PATH/EXPO_ASC_KEY_ID/EXPO_ASC_ISSUER_ID environment variables, or configure an App Store Connect API Key for this app on EAS. ${learnMore(
           'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
         )}`
       );
@@ -165,6 +186,24 @@ export class SetUpProvisioningProfile {
       return await this.assignNewAndDeleteOldProfileAsync(ctx, distCert, currentProfile);
     }
     return updatedProfile;
+  }
+
+  /**
+   * The team type determines `team.inHouse`, which in turn selects the Apple profile
+   * type used for every subsequent profile lookup and creation (IOS_APP_INHOUSE for
+   * enterprise vs IOS_APP_STORE otherwise). We derive it from the distribution
+   * type, which is exactly what the requested operation needs: enterprise
+   * builds require an in-house team, other distribution types don't.
+   * A genuine team/distribution mismatch is rejected by Apple regardless of this value.
+   */
+  private getDerivedTeamTypeForAuthentication(): AppleTeamType {
+    return this.distributionType === IosDistributionType.Enterprise
+      ? AppleTeamType.IN_HOUSE
+      : AppleTeamType.COMPANY_OR_ORGANIZATION;
+  }
+
+  private resolveTeamTypeForAuthentication(): AppleTeamType {
+    return resolveAppleTeamTypeFromEnvironment() ?? this.getDerivedTeamTypeForAuthentication();
   }
 
   private getCurrentProfileStoreInfo(

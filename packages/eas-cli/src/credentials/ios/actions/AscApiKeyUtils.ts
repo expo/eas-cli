@@ -5,7 +5,9 @@ import path from 'path';
 import { UserRole } from '@expo/apple-utils';
 
 import { formatAppleTeam } from './AppleTeamFormatting';
+import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountFragment, AppStoreConnectApiKeyFragment } from '../../../graphql/generated';
+import { AppStoreConnectApiKeyQuery } from '../../../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log, { learnMore } from '../../../log';
 import { confirmAsync, promptAsync, selectAsync } from '../../../prompts';
 import { fromNow } from '../../../utils/date';
@@ -14,7 +16,11 @@ import {
   getCredentialsFromUserAsync,
   shouldAutoGenerateCredentialsAsync,
 } from '../../utils/promptForCredentials';
+import { getAscApiKeyForAppSubmissionsAsync } from '../api/GraphqlClient';
+import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { AscApiKey } from '../appstore/Credentials.types';
+import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
+import { hasAscEnvVars } from '../appstore/resolveCredentials';
 import {
   AscApiKeyPath,
   MinimalAscApiKey,
@@ -276,4 +282,78 @@ export function formatAscApiKey(ascApiKey: AppStoreConnectApiKeyFragment): strin
 
   line += chalk.gray(`\n    Updated: ${fromNow(new Date(updatedAt))} ago`);
   return line;
+}
+
+export async function resolveAscApiKeyForAppCredentialsAsync({
+  graphqlClient,
+  app,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  app: AppLookupParams;
+}): Promise<{
+  ascApiKey: MinimalAscApiKey;
+  teamId?: string;
+  teamName?: string;
+} | null> {
+  const ascKeyFragment = await getAscApiKeyForAppSubmissionsAsync(graphqlClient, app);
+  if (!ascKeyFragment) {
+    return null;
+  }
+  const fullKey = await AppStoreConnectApiKeyQuery.getByIdAsync(graphqlClient, ascKeyFragment.id);
+  return {
+    ascApiKey: {
+      keyP8: fullKey.keyP8,
+      keyId: fullKey.keyIdentifier,
+      issuerId: fullKey.issuerIdentifier,
+    },
+    teamId: ascKeyFragment.appleTeam?.appleTeamIdentifier,
+    teamName: ascKeyFragment.appleTeam?.appleTeamName ?? undefined,
+  };
+}
+
+/**
+ * Best-effort, side-effecting helper that ensures `ctx.appStore` is authenticated
+ * with an App Store Connect API key when running in non-interactive mode.
+ *
+ * Returns true if `ctx.appStore.authCtx` is set after the call, false otherwise.
+ * Never throws.
+ */
+export async function tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+  ctx: CredentialsContext,
+  app: AppLookupParams,
+  teamType: AppleTeamType
+): Promise<boolean> {
+  if (ctx.appStore.authCtx) {
+    return true;
+  }
+  try {
+    if (hasAscEnvVars()) {
+      await ctx.appStore.ensureAuthenticatedAsync({
+        mode: AuthenticationMode.API_KEY,
+        teamType,
+      });
+      return !!ctx.appStore.authCtx;
+    }
+    const resolvedKey = await resolveAscApiKeyForAppCredentialsAsync({
+      graphqlClient: ctx.graphqlClient,
+      app,
+    });
+    if (!resolvedKey) {
+      return false;
+    }
+    Log.log('Using App Store Connect API Key from EAS credentials service.');
+    await ctx.appStore.ensureAuthenticatedAsync({
+      mode: AuthenticationMode.API_KEY,
+      ascApiKey: resolvedKey.ascApiKey,
+      teamId: resolvedKey.teamId,
+      teamName: resolvedKey.teamName,
+      teamType,
+    });
+    return !!ctx.appStore.authCtx;
+  } catch (err: any) {
+    Log.warn(
+      `Failed to authenticate with the App Store Connect API key from EAS credentials service: ${err.message ?? err}`
+    );
+    return false;
+  }
 }
