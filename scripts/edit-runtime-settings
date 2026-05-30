@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 1 || ("$1" != "staging" && "$1" != "production") ]]; then
+  echo "Usage: scripts/edit-runtime-settings staging|production" >&2
+  exit 1
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "curl is required." >&2
+  exit 1
+fi
+
+for tool in gsutil jq; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "$tool is required. Run \`mise install\` from the repository root and try again." >&2
+    exit 1
+  fi
+done
+
+env="$1"
+object_uri="gs://eas-workflows-${env}/runtime-settings.json"
+object_url="https://storage.googleapis.com/eas-workflows-${env}/runtime-settings.json"
+cache_control="no-cache, no-store, must-revalidate"
+editor="${EDITOR:-vi}"
+
+tmpfile="$(mktemp)"
+minified_tmpfile="$(mktemp)"
+downloaded_tmpfile="$(mktemp)"
+trap 'rm -f "$tmpfile" "$minified_tmpfile" "$downloaded_tmpfile"' EXIT
+
+echo "Remote URL: $object_url"
+gsutil cat "$object_uri" | jq . >"$tmpfile"
+echo "Edit and verify the pretty-formatted JSON file before saving."
+
+while true; do
+  "$editor" "$tmpfile"
+  if jq empty "$tmpfile" >/dev/null; then
+    break
+  fi
+
+  echo "JSON is invalid. Reopening editor." >&2
+done
+
+jq -c . "$tmpfile" >"$minified_tmpfile"
+
+echo "Contents to upload:"
+cat "$minified_tmpfile"
+echo
+
+if [[ "$env" == "production" ]]; then
+  confirmation=""
+  read -r -p 'Type "production" to upload production runtime settings: ' confirmation
+  if [[ "$confirmation" != "production" ]]; then
+    echo "Production upload canceled." >&2
+    exit 1
+  fi
+fi
+
+gsutil \
+  -h "Cache-Control:${cache_control}" \
+  -h "Content-Type:application/json" \
+  cp "$minified_tmpfile" "$object_uri"
+gsutil acl ch -u AllUsers:R "$object_uri"
+
+curl -fsSL "$object_url" >"$downloaded_tmpfile"
+if ! cmp -s "$minified_tmpfile" "$downloaded_tmpfile"; then
+  echo "Read-after-write check failed: uploaded file differs from remote object." >&2
+  exit 1
+fi
+
+echo "Confirmed remote contents:"
+cat "$downloaded_tmpfile"
+echo
