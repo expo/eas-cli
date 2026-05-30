@@ -6,6 +6,7 @@ import {
   DEFAULT_RUNTIME_SETTINGS,
   applyRuntimeSettings,
   getRuntimeSettings,
+  getRuntimeSettingsCacheUrl,
   getRuntimeSettingsUrl,
   loadRuntimeSettingsAsync,
   parseRuntimeSettings,
@@ -27,11 +28,23 @@ describe('runtimeSettings', () => {
     info: jest.fn(),
     warn: jest.fn(),
   };
+  const originalCacheUrls = {
+    EAS_BUILD_NPM_CACHE_URL: process.env.EAS_BUILD_NPM_CACHE_URL,
+    NPM_CACHE_URL: process.env.NPM_CACHE_URL,
+    NVM_NODEJS_ORG_MIRROR: process.env.NVM_NODEJS_ORG_MIRROR,
+    EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
+    EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+  };
 
   afterEach(() => {
     resetRuntimeSettings();
     jest.mocked(fetch).mockReset();
     jest.restoreAllMocks();
+    restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
+    restoreEnv('NPM_CACHE_URL', originalCacheUrls.NPM_CACHE_URL);
+    restoreEnv('NVM_NODEJS_ORG_MIRROR', originalCacheUrls.NVM_NODEJS_ORG_MIRROR);
+    restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
+    restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
   });
 
   it('resolves hardcoded GCS URLs for staging and production only', () => {
@@ -123,4 +136,39 @@ describe('runtimeSettings', () => {
     expect(shouldUseCache('maven', 'darwin')).toBe(false);
     expect(shouldUseCache('cocoapods', 'linux')).toBe(false);
   });
+
+  it('requires runtime settings to be loaded before use', () => {
+    resetRuntimeSettings();
+
+    expect(() => getRuntimeSettings()).toThrow('Runtime settings must be loaded before use');
+    expect(() => shouldUseCache('npm')).toThrow('Runtime settings must be loaded before use');
+  });
+
+  it('infers enabled cache URLs from environment variables', () => {
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
+    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
+    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
+    applyRuntimeSettings({
+      caches: {
+        linux: { npm: true, nodejs: true, maven: false },
+        darwin: { npm: false, nodejs: true, cocoapods: true },
+      },
+      iosPrecompiledModules: false,
+    });
+
+    expect(getRuntimeSettingsCacheUrl('npm', 'linux')).toBe('https://npm.example');
+    expect(getRuntimeSettingsCacheUrl('nodejs', 'linux')).toBe('https://node.example');
+    expect(getRuntimeSettingsCacheUrl('maven', 'linux')).toBeNull();
+    expect(getRuntimeSettingsCacheUrl('cocoapods', 'darwin')).toBe('https://pods.example');
+    expect(getRuntimeSettingsCacheUrl('npm', 'darwin')).toBeNull();
+  });
 });
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}

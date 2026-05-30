@@ -3,24 +3,32 @@ import os from 'os';
 
 import config from '../config';
 import { getBuildEnv, getGradleMemoryOptions } from '../env';
-import { applyRuntimeSettings, resetRuntimeSettings } from '../runtimeSettings';
+import {
+  DEFAULT_RUNTIME_SETTINGS,
+  applyRuntimeSettings,
+  resetRuntimeSettings,
+} from '../runtimeSettings';
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
   const originalPlatform = process.platform;
   const originalCacheUrls = {
-    npmCacheUrl: config.npmCacheUrl,
-    nodeJsCacheUrl: config.nodeJsCacheUrl,
-    mavenCacheUrl: config.mavenCacheUrl,
-    cocoapodsCacheUrl: config.cocoapodsCacheUrl,
+    EAS_BUILD_NPM_CACHE_URL: process.env.EAS_BUILD_NPM_CACHE_URL,
+    NVM_NODEJS_ORG_MIRROR: process.env.NVM_NODEJS_ORG_MIRROR,
+    EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
+    EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
   };
+
+  beforeEach(() => {
+    applyRuntimeSettings(DEFAULT_RUNTIME_SETTINGS);
+  });
 
   afterEach(() => {
     config.sentry.dsn = originalSentryDsn;
-    config.npmCacheUrl = originalCacheUrls.npmCacheUrl;
-    config.nodeJsCacheUrl = originalCacheUrls.nodeJsCacheUrl;
-    config.mavenCacheUrl = originalCacheUrls.mavenCacheUrl;
-    config.cocoapodsCacheUrl = originalCacheUrls.cocoapodsCacheUrl;
+    restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
+    restoreEnv('NVM_NODEJS_ORG_MIRROR', originalCacheUrls.NVM_NODEJS_ORG_MIRROR);
+    restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
+    restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
     mockProcessPlatform(originalPlatform);
     resetRuntimeSettings();
     jest.restoreAllMocks();
@@ -169,9 +177,9 @@ describe(getBuildEnv.name, () => {
 
   it('does not expose disabled Linux cache URLs in build env', () => {
     mockProcessPlatform('linux');
-    config.npmCacheUrl = 'https://npm.example';
-    config.nodeJsCacheUrl = 'https://node.example';
-    config.mavenCacheUrl = 'https://maven.example';
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
+    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
     applyRuntimeSettings({
       caches: {
         linux: { npm: false, nodejs: false, maven: false },
@@ -206,9 +214,9 @@ describe(getBuildEnv.name, () => {
 
   it('does not expose disabled Darwin cache URLs in build env', () => {
     mockProcessPlatform('darwin');
-    config.npmCacheUrl = 'https://npm.example';
-    config.nodeJsCacheUrl = 'https://node.example';
-    config.cocoapodsCacheUrl = 'https://pods.example';
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
+    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
     applyRuntimeSettings({
       caches: {
         linux: { npm: true, nodejs: true, maven: true },
@@ -240,6 +248,36 @@ describe(getBuildEnv.name, () => {
     expect(env.EAS_BUILD_COCOAPODS_CACHE_URL).toBeUndefined();
   });
 
+  it('exposes enabled cache URLs inferred from worker environment variables', () => {
+    mockProcessPlatform('linux');
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
+    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
+
+    const env = getBuildEnv({
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.MANAGED,
+        builderEnvironment: {
+          env: {},
+        },
+        username: 'expo-user',
+      } as any,
+      projectId: 'project-id',
+      metadata: {
+        buildProfile: 'production',
+        gitCommitHash: 'abc123',
+        username: 'expo-user',
+      } as any,
+      buildId: 'build-id',
+    });
+
+    expect(env.NPM_CACHE_URL).toBe('https://npm.example');
+    expect(env.EAS_BUILD_NPM_CACHE_URL).toBe('https://npm.example');
+    expect(env.NVM_NODEJS_ORG_MIRROR).toBe('https://node.example');
+    expect(env.EAS_BUILD_MAVEN_CACHE_URL).toBe('https://maven.example');
+  });
+
   it('sizes Gradle memory options from total memory', () => {
     const totalMemory = jest.spyOn(os, 'totalmem');
 
@@ -268,4 +306,12 @@ function mockProcessPlatform(platform: NodeJS.Platform): void {
     configurable: true,
     value: platform,
   });
+}
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
 }

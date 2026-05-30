@@ -8,7 +8,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
-import { shouldUseCache } from './runtimeSettings';
+import { getRuntimeSettingsCacheUrl } from './runtimeSettings';
 
 class SystemDepsInstallError extends errors.UserError {
   constructor(dependency: string) {
@@ -24,8 +24,8 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  const npmCacheUrl = shouldUseCache('npm') ? config.npmCacheUrl : null;
-  const mavenCacheUrl = shouldUseCache('maven') ? config.mavenCacheUrl : null;
+  const npmCacheUrl = getRuntimeSettingsCacheUrl('npm');
+  const mavenCacheUrl = getRuntimeSettingsCacheUrl('maven');
 
   if (npmCacheUrl) {
     // create ~/.npmrc
