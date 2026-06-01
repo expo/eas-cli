@@ -95,6 +95,64 @@ describe(configureExpoTransitiveDependenciesNodePathAsync, () => {
     expect(env.NODE_PATH).toBeUndefined();
     expect(logger.info).not.toHaveBeenCalled();
   });
+
+  it('skips transitive dependencies that do not resolve from expo', async () => {
+    const projectDir = '/workingdir/build';
+    const expoPackageDir = '/workingdir/build/node_modules/.pnpm/expo@52/node_modules/expo';
+    const expoNodeModulesDir = path.join(expoPackageDir, 'node_modules');
+    const env: Env = {};
+    const logger = createMockLogger();
+
+    mockResolveFrom({
+      [resolutionKey(projectDir, 'expo/package.json')]: path.join(expoPackageDir, 'package.json'),
+      [resolutionKey(expoPackageDir, 'babel-preset-expo/package.json')]: path.join(
+        expoNodeModulesDir,
+        'babel-preset-expo',
+        'package.json'
+      ),
+    });
+
+    await configureExpoTransitiveDependenciesNodePathAsync({
+      projectDir,
+      packagerDir: projectDir,
+      env,
+      logger,
+    });
+
+    expect(env.NODE_PATH).toBe(expoNodeModulesDir);
+  });
+
+  it('does not duplicate existing NODE_PATH entries', async () => {
+    const projectDir = '/workingdir/build';
+    const expoPackageDir = '/workingdir/build/node_modules/.pnpm/expo@52/node_modules/expo';
+    const expoNodeModulesDir = path.join(expoPackageDir, 'node_modules');
+    const env: Env = { NODE_PATH: expoNodeModulesDir };
+    const logger = createMockLogger();
+
+    mockResolveFrom({
+      [resolutionKey(projectDir, 'expo/package.json')]: path.join(expoPackageDir, 'package.json'),
+      [resolutionKey(expoPackageDir, 'babel-preset-expo/package.json')]: path.join(
+        expoNodeModulesDir,
+        'babel-preset-expo',
+        'package.json'
+      ),
+      [resolutionKey(expoPackageDir, 'expo-asset/package.json')]: path.join(
+        expoNodeModulesDir,
+        'expo-asset',
+        'package.json'
+      ),
+    });
+
+    await configureExpoTransitiveDependenciesNodePathAsync({
+      projectDir,
+      packagerDir: projectDir,
+      env,
+      logger,
+    });
+
+    expect(env.NODE_PATH).toBe(expoNodeModulesDir);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
 });
 
 function mockResolveFrom(resolutions: Record<string, string>): void {

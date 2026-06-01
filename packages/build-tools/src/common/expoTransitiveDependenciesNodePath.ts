@@ -36,7 +36,7 @@ export async function configureExpoTransitiveDependenciesNodePathAsync({
       continue;
     }
 
-    nodePathEntriesToAdd.add(getNodeModulesDirForPackage(packageJsonPath, packageName));
+    nodePathEntriesToAdd.add(getNodeModulesDirForPackage(packageJsonPath));
   }
 
   if (nodePathEntriesToAdd.size === 0) {
@@ -76,11 +76,9 @@ async function getPackageResolutionRootsAsync(packageJsonPath: string): Promise<
   }
 }
 
-function getNodeModulesDirForPackage(packageJsonPath: string, packageName: string): string {
+function getNodeModulesDirForPackage(packageJsonPath: string): string {
   const packageDir = path.dirname(packageJsonPath);
-  return packageName.startsWith('@')
-    ? path.dirname(path.dirname(packageDir))
-    : path.dirname(packageDir);
+  return path.dirname(packageDir);
 }
 
 function splitNodePath(nodePath: string | undefined): string[] {
