@@ -14,6 +14,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 
 import { resolveEnvFromBuildProfileAsync, runEasBuildInternalAsync } from './easBuildInternal';
+import { configureExpoTransitiveDependenciesNodePathAsync } from './expoTransitiveDependenciesNodePath';
 import { installDependenciesAsync, resolvePackagerDir } from './installDependencies';
 import { prepareProjectSourcesAsync } from './projectSources';
 import { BuildContext } from '../context';
@@ -86,6 +87,7 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
   });
 
   await ctx.runBuildPhase(BuildPhase.INSTALL_DEPENDENCIES, async () => {
+    const packagerDir = resolvePackagerDir(ctx);
     const expoVersion =
       ctx.metadata?.sdkVersion ??
       getPackageVersionFromPackageJson({
@@ -101,11 +103,18 @@ export async function setupAsync<TJob extends BuildJob>(ctx: BuildContext<TJob>)
       });
 
     await runInstallDependenciesAsync(ctx, {
+      cwd: packagerDir,
       useFrozenLockfile: shouldUseFrozenLockfile({
         env: ctx.env,
         sdkVersion: expoVersion,
         reactNativeVersion,
       }),
+    });
+    await configureExpoTransitiveDependenciesNodePathAsync({
+      projectDir: ctx.getReactNativeProjectDirectory(),
+      packagerDir,
+      env: ctx.env,
+      logger: ctx.logger,
     });
   });
 
@@ -196,8 +205,10 @@ async function runExpoDoctor<TJob extends Job>(ctx: BuildContext<TJob>): Promise
 async function runInstallDependenciesAsync<TJob extends Job>(
   ctx: BuildContext<TJob>,
   {
+    cwd,
     useFrozenLockfile,
   }: {
+    cwd: string;
     useFrozenLockfile: boolean;
   }
 ): Promise<void> {
@@ -218,7 +229,7 @@ async function runInstallDependenciesAsync<TJob extends Job>(
             killTimeout.refresh();
           }
         },
-        cwd: resolvePackagerDir(ctx),
+        cwd,
         useFrozenLockfile,
       })
     ).spawnPromise;
