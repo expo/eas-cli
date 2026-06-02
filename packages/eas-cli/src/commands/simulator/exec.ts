@@ -15,8 +15,11 @@ export default class SimulatorExec extends EasCommand {
   private isRunningSubprocess = false;
 
   async runAsync(): Promise<void> {
-    const { argv } = await this.parse(SimulatorExec);
-    const [command, ...args] = argv as string[];
+    const rawArgv = [...this.argv];
+    // Required to avoid `Warning: Command exec did not parse its arguments. Did you forget to call 'this.parse'?`
+    await this.parse(SimulatorExec, []);
+
+    const [command, ...args] = rawArgv;
     if (typeof command !== 'string' || command.length === 0) {
       throw new Error('No command provided. Run `eas simulator:exec <command> [args...]`.');
     }

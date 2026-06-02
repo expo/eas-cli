@@ -79,6 +79,34 @@ describe(SimulatorExec, () => {
     );
   });
 
+  it('does not emit an oclif unparsed arguments warning', async () => {
+    const { command } = createCommand(['echo', '"test"']);
+    const emitWarningSpy = jest.spyOn(process, 'emitWarning').mockImplementation();
+    jest.spyOn(command, 'run').mockImplementation(async () => {
+      await command.runAsync();
+    });
+    jest.spyOn(command, 'finally').mockResolvedValue(undefined);
+
+    try {
+      // @ts-expect-error _run is internal to oclif, but it is where the unparsed warning is emitted.
+      await command._run();
+
+      const emittedUnparsedCommandWarning = emitWarningSpy.mock.calls.some(([warning, options]) => {
+        return (
+          typeof warning === 'string' &&
+          warning.includes('did not parse its arguments') &&
+          typeof options === 'object' &&
+          options !== null &&
+          'code' in options &&
+          options.code === 'UnparsedCommand'
+        );
+      });
+      expect(emittedUnparsedCommandWarning).toBe(false);
+    } finally {
+      emitWarningSpy.mockRestore();
+    }
+  });
+
   it('throws a helpful error when no command is provided', async () => {
     const { command, getContextAsync } = createCommand([]);
 
