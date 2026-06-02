@@ -262,7 +262,9 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(Log.warn).toHaveBeenCalledWith(
-      '  Overwriting previous simulator session (id: existing-session).'
+      '  Overwriting previous simulator session (id: existing-session). ' +
+        'The previous remote session will continue running until stopped. ' +
+        'To stop it, run: eas simulator:stop --id existing-session'
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
@@ -279,7 +281,9 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(Log.warn).toHaveBeenCalledWith(
-      '  Overwriting previous simulator session (id: existing-session).'
+      '  Overwriting previous simulator session (id: existing-session). ' +
+        'The previous remote session will continue running until stopped. ' +
+        'To stop it, run: eas simulator:stop --id existing-session'
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',

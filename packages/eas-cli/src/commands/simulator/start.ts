@@ -106,7 +106,11 @@ export default class SimulatorStart extends EasCommand {
       );
     }
     if (existingDeviceRunSessionId) {
-      Log.warn(`  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}).`);
+      Log.warn(
+        `  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}). ` +
+          `The previous remote session will continue running until stopped. ` +
+          `To stop it, run: eas simulator:stop --id ${existingDeviceRunSessionId}`
+      );
       Log.newLine();
     }
 
@@ -311,7 +315,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Device run session ended. ${link(jobRunUrl)}`);
-        await resetSimulatorEnvSafelyAsync(projectDir);
+        await resetSimulatorEnvAsyncWithLog(projectDir);
         return;
       }
 
@@ -325,7 +329,7 @@ async function waitForSessionEndOrInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Device run session stopped');
-      await resetSimulatorEnvSafelyAsync(projectDir);
+      await resetSimulatorEnvAsyncWithLog(projectDir);
     } else {
       spinner.fail(
         `Could not confirm the device run session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -336,7 +340,7 @@ async function waitForSessionEndOrInterruptAsync({
   }
 }
 
-async function resetSimulatorEnvSafelyAsync(projectDir: string): Promise<void> {
+async function resetSimulatorEnvAsyncWithLog(projectDir: string): Promise<void> {
   try {
     await resetSimulatorEnvAsync(projectDir);
   } catch (err) {

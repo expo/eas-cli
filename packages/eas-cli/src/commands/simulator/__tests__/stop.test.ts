@@ -6,7 +6,11 @@ import {
   EnsureDeviceRunSessionStoppedMutation,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
-import { EAS_SIMULATOR_SESSION_ID, loadSimulatorEnvAsync } from '../../../simulator/env';
+import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorStop from '../stop';
 
@@ -116,6 +120,27 @@ describe(SimulatorStop, () => {
         graphqlClient,
         'session-from-env'
       );
+    } finally {
+      if (previousDeviceRunSessionId === undefined) {
+        delete process.env[EAS_SIMULATOR_SESSION_ID];
+      } else {
+        process.env[EAS_SIMULATOR_SESSION_ID] = previousDeviceRunSessionId;
+      }
+    }
+  });
+
+  it('throws a helpful error when no simulator session ID is available', async () => {
+    const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
+    delete process.env[EAS_SIMULATOR_SESSION_ID];
+
+    try {
+      const { command } = createCommand([]);
+
+      await expect(command.runAsync()).rejects.toThrow(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
+      expect(mockLoadSimulatorEnvironmentVariablesAsync).toHaveBeenCalledWith(projectDir);
+      expect(mockEnsureDeviceRunSessionStoppedAsync).not.toHaveBeenCalled();
     } finally {
       if (previousDeviceRunSessionId === undefined) {
         delete process.env[EAS_SIMULATOR_SESSION_ID];

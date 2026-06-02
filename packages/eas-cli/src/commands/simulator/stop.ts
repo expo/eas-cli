@@ -49,7 +49,9 @@ export default class SimulatorStop extends EasCommand {
     await loadSimulatorEnvAsync(projectDir);
     const flagId = flags.id || process.env[EAS_SIMULATOR_SESSION_ID];
     if (!flagId) {
-      throw new Error('Missing required flag id');
+      throw new Error(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
     }
 
     const stopSpinner = ora(`🛑 Stopping device run session ${flagId}`).start();
