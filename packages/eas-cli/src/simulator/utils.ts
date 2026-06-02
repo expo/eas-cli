@@ -21,17 +21,44 @@ export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): str
   return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
 }
 
-export function formatRemoteSessionInstructions(
+export function getRemoteSessionEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
+): Record<string, string> {
+  switch (remoteConfig.__typename) {
+    case 'AgentDeviceRunSessionRemoteConfig':
+      return {
+        AGENT_DEVICE_DAEMON_BASE_URL: remoteConfig.agentDeviceRemoteSessionUrl,
+        AGENT_DEVICE_DAEMON_AUTH_TOKEN: remoteConfig.agentDeviceRemoteSessionToken,
+      };
+    case 'ArgentRunSessionRemoteConfig':
+    case 'ServeSimRunSessionRemoteConfig':
+      return {};
+  }
+}
+
+type RemoteSessionInstructionsConfigType = 'env' | 'dotenv';
+
+export function formatRemoteSessionInstructions(
+  remoteConfig: DeviceRunSessionRemoteConfig,
+  configType: RemoteSessionInstructionsConfigType
 ): string {
   switch (remoteConfig.__typename) {
     case 'AgentDeviceRunSessionRemoteConfig': {
-      const lines = [
-        '🔑 Run the following in your shell to attach to the agent-device daemon:',
-        '',
-        `export AGENT_DEVICE_DAEMON_BASE_URL='${remoteConfig.agentDeviceRemoteSessionUrl}'`,
-        `export AGENT_DEVICE_DAEMON_AUTH_TOKEN='${remoteConfig.agentDeviceRemoteSessionToken}'`,
-      ];
+      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const lines =
+        configType === 'dotenv'
+          ? [
+              '🔑 Run the following to use agent-device with the simulator:',
+              '',
+              'eas simulator:exec agent-device <command>',
+            ]
+          : [
+              '🔑 Run the following in your shell to attach to the agent-device daemon:',
+              '',
+              ...Object.entries(environmentVariables).map(
+                ([key, value]) => `export ${key}='${value}'`
+              ),
+            ];
       if (remoteConfig.webPreviewUrl) {
         lines.push(
           '',
