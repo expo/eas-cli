@@ -315,7 +315,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Device run session ended. ${link(jobRunUrl)}`);
-        await resetSimulatorEnvAsyncWithLog(projectDir);
+        await resetSimulatorEnvVerboseAsync(projectDir);
         return;
       }
 
@@ -329,7 +329,7 @@ async function waitForSessionEndOrInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Device run session stopped');
-      await resetSimulatorEnvAsyncWithLog(projectDir);
+      await resetSimulatorEnvVerboseAsync(projectDir);
     } else {
       spinner.fail(
         `Could not confirm the device run session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -340,7 +340,7 @@ async function waitForSessionEndOrInterruptAsync({
   }
 }
 
-async function resetSimulatorEnvAsyncWithLog(projectDir: string): Promise<void> {
+async function resetSimulatorEnvVerboseAsync(projectDir: string): Promise<void> {
   try {
     await resetSimulatorEnvAsync(projectDir);
   } catch (err) {
