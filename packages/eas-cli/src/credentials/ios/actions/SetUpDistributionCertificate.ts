@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
-import { resolveAscApiKeyForAppCredentialsAsync } from './AscApiKeyUtils';
+import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from './AscApiKeyUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 import {
@@ -13,12 +13,15 @@ import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import sortBy from '../../../utils/expodash/sortBy';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+  MissingCredentialsNonInteractiveError,
+} from '../../errors';
 import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
-import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
-import { hasAscEnvVars } from '../appstore/resolveCredentials';
+import { AppleTeamType } from '../appstore/authenticateTypes';
 import { AppleTeamMissingError } from '../errors';
 
 export class SetUpDistributionCertificate {
@@ -53,68 +56,48 @@ export class SetUpDistributionCertificate {
     }
   }
 
-  private async ensureAppStoreAuthenticatedForDistCertRefreshAsync(
-    ctx: CredentialsContext
-  ): Promise<void> {
-    if (ctx.appStore.authCtx) {
-      return;
-    }
-    if (hasAscEnvVars()) {
-      await ctx.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
-      return;
-    }
-
-    const resolvedKey = await resolveAscApiKeyForAppCredentialsAsync({
-      graphqlClient: ctx.graphqlClient,
-      app: this.app,
-    });
-    if (!resolvedKey) {
-      throw new Error(
-        'No App Store Connect API Key found for distribution certificate refresh. In non-interactive mode, provide one via:\n' +
-          '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
-          '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
-      );
-    }
-    await ctx.appStore.ensureAuthenticatedAsync({
-      mode: AuthenticationMode.API_KEY,
-      ascApiKey: resolvedKey.ascApiKey,
-      teamId: resolvedKey.teamId,
-      teamName: resolvedKey.teamName,
-      teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
-    });
-  }
-
   private async runNonInteractiveAsync(
     ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    if (ctx.refreshDistributionCertificate) {
-      await this.ensureAppStoreAuthenticatedForDistCertRefreshAsync(ctx);
-
-      if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-        assert(currentCertificate, 'currentCertificate is defined here');
-        Log.log('Using existing valid distribution certificate.');
-        return currentCertificate;
-      }
-
-      Log.warn('Current distribution certificate is invalid. Creating a new one...');
-      const validDistCerts = await this.getValidDistCertsAsync(ctx);
-      if (validDistCerts.length > 0) {
-        const cert = validDistCerts[0];
-        Log.log(`Reusing distribution certificate with serial number ${cert.serialNumber}`);
-        return cert;
-      }
-      return await this.createNewDistCertAsync(ctx);
-    }
-
-    Log.addNewLineIfNone();
-    Log.warn(
-      'Using the existing distribution certificate without validating it against Apple servers. Use --refresh-distribution-certificate to validate and refresh if needed.'
-    );
     if (!currentCertificate) {
       throw new MissingCredentialsNonInteractiveError();
     }
-    return currentCertificate;
+
+    await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+      ctx,
+      this.app,
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
+
+    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
+      assert(currentCertificate, 'currentCertificate is defined here');
+      Log.log('Using existing valid distribution certificate.');
+      return currentCertificate;
+    }
+
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Distribution certificate is not configured correctly. Remove the --freeze-credentials flag to configure it.'
+      );
+    }
+
+    if (!ctx.appStore.authCtx) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        'Authentication with an ASC API key is required to validate and refresh a distribution certificate in non-interactive mode. Provide one via:\n' +
+          '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
+          '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
+      );
+    }
+
+    Log.warn('Current distribution certificate is invalid. Creating a new one...');
+    const validDistCerts = await this.getValidDistCertsAsync(ctx);
+    if (validDistCerts.length > 0) {
+      const cert = validDistCerts[0];
+      Log.log(`Reusing distribution certificate with serial number ${cert.serialNumber}`);
+      return cert;
+    }
+    return await this.createNewDistCertAsync(ctx);
   }
 
   private async runInteractiveAsync(

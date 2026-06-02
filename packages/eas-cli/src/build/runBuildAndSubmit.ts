@@ -104,7 +104,6 @@ export interface BuildFlags {
   buildLoggerLevel?: LoggerLevel;
   freezeCredentials: boolean;
   refreshAdHocProvisioningProfile?: boolean;
-  refreshDistributionCertificate?: boolean;
   isVerboseLoggingEnabled?: boolean;
   whatToTest?: string;
   simulator?: SimulatorRunTarget;
@@ -416,7 +415,6 @@ async function prepareAndStartBuildAsync({
     buildLoggerLevel: flags.buildLoggerLevel ?? (Log.isDebug ? LoggerLevel.DEBUG : undefined),
     freezeCredentials: flags.freezeCredentials,
     refreshAdHocProvisioningProfile: flags.refreshAdHocProvisioningProfile,
-    refreshDistributionCertificate: flags.refreshDistributionCertificate,
     isVerboseLoggingEnabled: flags.isVerboseLoggingEnabled ?? false,
     whatToTest: flags.whatToTest,
     env,
