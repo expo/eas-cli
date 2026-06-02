@@ -79,6 +79,18 @@ describe(SimulatorExec, () => {
     );
   });
 
+  it('throws a helpful error when no command is provided', async () => {
+    const { command, getContextAsync } = createCommand([]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'No command provided. Run `eas simulator:exec <command> [args...]`.'
+    );
+    expect(getContextAsync).not.toHaveBeenCalled();
+    expect(loadProjectEnv).not.toHaveBeenCalled();
+    expect(loadEnvFiles).not.toHaveBeenCalled();
+    expect(spawnAsync).not.toHaveBeenCalled();
+  });
+
   it('loads simulator-specific env after regular env files', async () => {
     const { command } = createCommand(['agent-device', 'touch', '@e2']);
     await command.runAsync();

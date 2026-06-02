@@ -12,13 +12,20 @@ export default class SimulatorExec extends EasCommand {
     ...this.ContextOptions.ProjectDir,
   };
 
+  private isRunningSubprocess = false;
+
   async runAsync(): Promise<void> {
+    const [command, ...args] = this.argv;
+    if (!command) {
+      throw new Error('No command provided. Run `eas simulator:exec <command> [args...]`.');
+    }
+
     const { projectDir } = await this.getContextAsync(SimulatorExec, {
       nonInteractive: true,
     });
     await loadSimulatorEnvAsync(projectDir);
 
-    const [command, ...args] = this.argv as [string, ...string[]];
+    this.isRunningSubprocess = true;
     await spawnAsync(command, args, {
       stdio: 'inherit',
       env: process.env,
@@ -27,7 +34,10 @@ export default class SimulatorExec extends EasCommand {
 
   protected override catch(err: Error): Promise<any> {
     // Propagate wrapped command from spawnAsync rejection
-    process.exitCode = process.exitCode ?? (err as any).status ?? 1;
-    return Promise.resolve();
+    if (this.isRunningSubprocess) {
+      process.exitCode = process.exitCode ?? (err as any).status ?? 1;
+      return Promise.resolve();
+    }
+    return super.catch(err);
   }
 }
