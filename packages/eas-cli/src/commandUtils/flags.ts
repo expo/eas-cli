@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 import { boolish } from 'getenv';
 
 export function isNonInteractiveByDefault(): boolean {
@@ -24,6 +25,50 @@ export function resolveNonInteractiveAndJsonFlags(flags: {
   const json = flags.json ?? false;
   const nonInteractive = flags['non-interactive'] || json;
   return { json, nonInteractive };
+}
+
+export function extendFlagDescription<T extends { description?: string }>(
+  flag: T,
+  extraDescription: string
+): T {
+  const description = flag.description ?? '';
+  const separator = !description || description.match(/[.!?]$/) ? ' ' : '. ';
+  return {
+    ...flag,
+    description: description ? `${description}${separator}${extraDescription}` : extraDescription,
+  };
+}
+
+export function validateNonInteractiveRequiredInputs({
+  nonInteractive,
+  requiredInputs,
+  helpCommand,
+}: {
+  nonInteractive: boolean;
+  requiredInputs: { name: string; value: unknown }[];
+  helpCommand: string;
+}): void {
+  if (!nonInteractive) {
+    return;
+  }
+
+  const missingInputs = requiredInputs
+    .filter(({ value }) => {
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+      return !value;
+    })
+    .map(({ name }) => name);
+
+  if (missingInputs.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `Missing required inputs for non-interactive mode: ${missingInputs.join(', ')}.\n` +
+      `Run ${chalk.bold(helpCommand)} for usage and examples.`
+  );
 }
 
 export const EasEnvironmentFlagParameters = {
