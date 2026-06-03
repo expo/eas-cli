@@ -365,6 +365,19 @@ describe(EnvCreate, () => {
     });
   });
 
+  describe('in non-interactive mode', () => {
+    it('reports missing required inputs before loading command context', async () => {
+      const command = new EnvCreate(['--non-interactive'], mockConfig);
+      // @ts-expect-error
+      const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
+
+      await expect(command.runAsync()).rejects.toThrow(
+        /Missing required inputs for non-interactive mode: --name, --value, --visibility, ENVIRONMENT or --environment\.[\s\S]*eas env:create --help/
+      );
+      expect(getContextAsyncSpy).not.toHaveBeenCalled();
+    });
+  });
+
   it('accepts development environment when using positional argument', async () => {
     const command = new EnvCreate(
       [

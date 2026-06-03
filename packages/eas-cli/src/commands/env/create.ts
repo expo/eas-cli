@@ -11,6 +11,8 @@ import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableVisibilityFlag,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
@@ -57,35 +59,53 @@ interface CreateFlags {
 }
 
 export default class EnvCreate extends EasCommand {
-  static override description = 'create an environment variable for the current project or account';
+  static override description = `create an environment variable for the current project or account
+
+In non-interactive mode, provide --name, --value, --visibility, and --environment.
+Use --force in non-interactive mode when overwriting an existing variable.`;
+
+  static override examples = [
+    '$ eas env:create --environment production --environment preview --name API_TOKEN --value "$API_TOKEN" --visibility sensitive --non-interactive',
+    '$ eas env:create production --scope account --name SHARED_TOKEN --value "$SHARED_TOKEN" --visibility secret --non-interactive',
+  ];
 
   static override args = {
     environment: Args.string({
       description:
-        "Environment to create the variable in. Default environments are 'production', 'preview', and 'development'.",
+        "Environment to create the variable in. Required in non-interactive mode unless --environment is provided. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     }),
   };
 
   static override flags = {
     name: Flags.string({
-      description: 'Name of the variable',
+      description: 'Name of the variable. Required in non-interactive mode.',
     }),
     value: Flags.string({
-      description: 'Text value or the variable',
+      description:
+        'Text value for the variable, or a file path when --type=file. Required in non-interactive mode.',
     }),
     force: Flags.boolean({
-      description: 'Overwrite existing variable',
+      description: 'Overwrite existing variable. Required in non-interactive mode to overwrite.',
       default: false,
     }),
     type: Flags.option({
       description: 'The type of variable',
       options: ['string', 'file'] as const,
     })(),
-    ...EASVariableVisibilityFlag,
+    visibility: extendFlagDescription(
+      EASVariableVisibilityFlag.visibility,
+      'Required in non-interactive mode.'
+    ),
     ...EASEnvironmentVariableScopeFlag,
-    ...EASMultiEnvironmentFlag,
-    ...EASNonInteractiveFlag,
+    environment: extendFlagDescription(
+      EASMultiEnvironmentFlag.environment,
+      'Required in non-interactive mode unless ENVIRONMENT is provided.'
+    ),
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires --name, --value, --visibility, and an environment via ENVIRONMENT or --environment.'
+    ),
   };
 
   static override contextDefinition = {
@@ -98,6 +118,19 @@ export default class EnvCreate extends EasCommand {
     const { args, flags } = await this.parse(EnvCreate);
 
     const validatedFlags = this.sanitizeFlags(flags);
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: validatedFlags['non-interactive'],
+      requiredInputs: [
+        { name: '--name', value: validatedFlags.name },
+        { name: '--value', value: validatedFlags.value },
+        { name: '--visibility', value: validatedFlags.visibility },
+        {
+          name: 'ENVIRONMENT or --environment',
+          value: args.environment ?? validatedFlags.environment,
+        },
+      ],
+      helpCommand: 'eas env:create --help',
+    });
 
     const {
       projectId,
