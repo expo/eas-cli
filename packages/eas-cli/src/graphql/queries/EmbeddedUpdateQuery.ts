@@ -6,13 +6,10 @@ import { withErrorHandlingAsync } from '../client';
 import { ViewEmbeddedUpdateByIdQuery, ViewEmbeddedUpdateByIdQueryVariables } from '../generated';
 
 export function isEmbeddedUpdateNotFoundError(error: unknown): boolean {
-  if (!(error instanceof CombinedError)) {
-    return false;
-  }
-  return error.graphQLErrors.some(e => {
-    const code = e.extensions?.['errorCode'];
-    return code === 'EMBEDDED_UPDATE_NOT_FOUND' || code === 'NOT_FOUND_ERROR';
-  });
+  return (
+    error instanceof CombinedError &&
+    error.graphQLErrors.some(e => e.extensions?.['errorCode'] === 'EMBEDDED_UPDATE_NOT_FOUND')
+  );
 }
 
 export type EmbeddedUpdateFragment = ViewEmbeddedUpdateByIdQuery['embeddedUpdates']['byId'];
