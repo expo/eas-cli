@@ -111,14 +111,14 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
       description: 'Display files content in the output',
       default: false,
     }),
-    environment: extendFlagDescription(
-      EASMultiEnvironmentFlag.environment,
+    ...extendFlagDescription(
+      EASMultiEnvironmentFlag,
       'Required in non-interactive mode unless ENVIRONMENT is provided.'
     ),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires an environment via ENVIRONMENT or --environment.'
     ),
   };

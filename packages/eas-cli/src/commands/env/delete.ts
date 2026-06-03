@@ -50,10 +50,7 @@ In non-interactive mode, provide --variable-name. Use ENVIRONMENT or --variable-
       description: 'Current environment of the variable to delete. Helps disambiguate variables.',
     }),
     ...EASEnvironmentVariableScopeFlag,
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
-      'Requires --variable-name.'
-    ),
+    ...extendFlagDescription(EASNonInteractiveFlag, 'Requires --variable-name.'),
   };
 
   static override args = {

@@ -45,10 +45,7 @@ In non-interactive mode, provide ENVIRONMENT and bash_command.`;
   };
 
   static override flags = {
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
-      'Requires ENVIRONMENT and bash_command.'
-    ),
+    ...extendFlagDescription(EASNonInteractiveFlag, 'Requires ENVIRONMENT and bash_command.'),
   };
 
   static override args = {

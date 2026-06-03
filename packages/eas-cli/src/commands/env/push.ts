@@ -38,8 +38,8 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
   };
 
   static override flags = {
-    environment: extendFlagDescription(
-      EASMultiEnvironmentFlag.environment,
+    ...extendFlagDescription(
+      EASMultiEnvironmentFlag,
       'Required in non-interactive mode unless ENVIRONMENT is provided.'
     ),
     path: Flags.string({
@@ -51,8 +51,8 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
         'Skip confirmation and automatically override existing variables. Required in non-interactive mode when overwriting.',
       default: false,
     }),
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires an environment via ENVIRONMENT or --environment.'
     ),
   };

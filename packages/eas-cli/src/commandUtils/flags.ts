@@ -27,16 +27,25 @@ export function resolveNonInteractiveAndJsonFlags(flags: {
   return { json, nonInteractive };
 }
 
-export function extendFlagDescription<T extends { description?: string }>(
-  flag: T,
+export function extendFlagDescription<T extends Record<string, { description?: string }>>(
+  flags: T,
   extraDescription: string
 ): T {
-  const description = flag.description ?? '';
-  const separator = !description || description.match(/[.!?]$/) ? ' ' : '. ';
-  return {
-    ...flag,
-    description: description ? `${description}${separator}${extraDescription}` : extraDescription,
-  };
+  return Object.fromEntries(
+    Object.entries(flags).map(([name, flag]) => {
+      const description = flag.description ?? '';
+      const separator = !description || description.match(/[.!?]$/) ? ' ' : '. ';
+      return [
+        name,
+        {
+          ...flag,
+          description: description
+            ? `${description}${separator}${extraDescription}`
+            : extraDescription,
+        },
+      ];
+    })
+  ) as T;
 }
 
 export function validateNonInteractiveRequiredInputs({
