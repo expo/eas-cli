@@ -253,6 +253,17 @@ describe(EnvUpdate, () => {
     });
   });
 
+  it('throws an error when current environment is not provided in non-interactive mode', async () => {
+    const command = new EnvUpdate(
+      ['--variable-name', 'TEST_VARIABLE', '--non-interactive', '--value', 'new-value'],
+      mockConfig
+    );
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Missing required inputs for non-interactive mode: --variable-environment\.[\s\S]*eas env:update --help/
+    );
+  });
+
   it('processes file type variable in non-interactive mode with --type file and --value', async () => {
     const testFilePath = '/path/to/test-file.json';
     const testFileBase64 = 'dGVzdCBmaWxlIGNvbnRlbnQ=';

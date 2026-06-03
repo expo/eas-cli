@@ -9,7 +9,6 @@ import {
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
   EasEnvironmentFlagParameters,
-  extendFlagDescription,
   validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
@@ -39,13 +38,11 @@ interface GetFlags {
 }
 
 export default class EnvGet extends EasCommand {
-  static override description = `view an environment variable for the current project or account
-
-In non-interactive mode, provide --variable-name and an environment with ENVIRONMENT or --variable-environment.`;
+  static override description = 'view an environment variable for the current project or account';
 
   static override examples = [
-    '$ eas env:get production --variable-name API_URL --non-interactive',
-    '$ eas env:get --variable-environment production --variable-name API_TOKEN --format long --non-interactive',
+    '$ eas env:get --variable-environment production --variable-name API_URL',
+    '$ eas env:get --variable-environment production --variable-name API_TOKEN --format long',
   ];
 
   static override contextDefinition = {
@@ -63,19 +60,15 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
 
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Name of the variable. Required in non-interactive mode.',
+      description: '(required) Name of the variable',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description:
-        'Current environment of the variable. Required in non-interactive mode unless ENVIRONMENT is provided.',
+      description: '(required) Current environment of the variable',
     }),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
-    ...extendFlagDescription(
-      EASNonInteractiveFlag,
-      'Requires --variable-name and an environment via ENVIRONMENT or --variable-environment.'
-    ),
+    ...EASNonInteractiveFlag,
   };
 
   async runAsync(): Promise<void> {
@@ -152,7 +145,7 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
       requiredInputs: [
         { name: '--variable-name', value: flags['variable-name'] },
         {
-          name: 'ENVIRONMENT or --variable-environment',
+          name: '--variable-environment',
           value: environment ?? flags['variable-environment'],
         },
       ],

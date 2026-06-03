@@ -7,7 +7,6 @@ import {
   EASEnvironmentVariableScopeFlagValue,
   EASNonInteractiveFlag,
   EasEnvironmentFlagParameters,
-  extendFlagDescription,
   validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
@@ -32,25 +31,23 @@ interface RawDeleteFlags {
 }
 
 export default class EnvDelete extends EasCommand {
-  static override description = `delete an environment variable for the current project or account
-
-In non-interactive mode, provide --variable-name. Use ENVIRONMENT or --variable-environment to disambiguate variables that share a name.`;
+  static override description = 'delete an environment variable for the current project or account';
 
   static override examples = [
-    '$ eas env:delete production --variable-name API_TOKEN --non-interactive',
-    '$ eas env:delete --scope account --variable-name SHARED_TOKEN --non-interactive',
+    '$ eas env:delete --variable-environment production --variable-name API_TOKEN',
+    '$ eas env:delete --scope account --variable-name SHARED_TOKEN',
   ];
 
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Name of the variable to delete. Required in non-interactive mode.',
+      description: '(required) Name of the variable to delete',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: 'Current environment of the variable to delete. Helps disambiguate variables.',
+      description: 'Current environment of the variable to delete',
     }),
     ...EASEnvironmentVariableScopeFlag,
-    ...extendFlagDescription(EASNonInteractiveFlag, 'Requires --variable-name.'),
+    ...EASNonInteractiveFlag,
   };
 
   static override args = {
