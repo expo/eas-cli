@@ -90,13 +90,13 @@ export class SetUpDistributionCertificate {
       );
     }
 
-    Log.warn('Current distribution certificate is invalid. Creating a new one...');
     const validDistCerts = await this.getValidDistCertsAsync(ctx);
     if (validDistCerts.length > 0) {
       const cert = validDistCerts[0];
       Log.log(`Reusing distribution certificate with serial number ${cert.serialNumber}`);
       return cert;
     }
+    Log.warn('Current distribution certificate is invalid. Creating a new one...');
     return await this.createNewDistCertAsync(ctx);
   }
 
