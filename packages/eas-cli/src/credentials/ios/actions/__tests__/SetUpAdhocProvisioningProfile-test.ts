@@ -23,24 +23,23 @@ import { ApplePlatform } from '../../appstore/constants';
 import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from '../BuildCredentialsUtils';
 import { chooseDevicesAsync } from '../DeviceUtils';
 import { SetUpAdhocProvisioningProfile, doUDIDsMatch } from '../SetUpAdhocProvisioningProfile';
+import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from '../AscApiKeyUtils';
 import { getAscApiKeyForAppSubmissionsAsync } from '../../api/GraphqlClient';
-import { AuthenticationMode, AppleTeamType } from '../../appstore/authenticateTypes';
+import { AppleTeamType } from '../../appstore/authenticateTypes';
 import { hasAscEnvVars } from '../../appstore/resolveCredentials';
-import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
 
 jest.mock('../BuildCredentialsUtils');
 jest.mock('../../../context');
+jest.mock('../AscApiKeyUtils', () => ({
+  ...jest.requireActual('../AscApiKeyUtils'),
+  tryAuthenticateAppStoreWithEasAscApiKeyAsync: jest.fn(),
+}));
 jest.mock('../../../ios/api/GraphqlClient', () => ({
   ...jest.requireActual('../../../ios/api/GraphqlClient'),
   getAscApiKeyForAppSubmissionsAsync: jest.fn(),
 }));
 jest.mock('../../appstore/resolveCredentials', () => ({
   hasAscEnvVars: jest.fn(),
-}));
-jest.mock('../../../../graphql/queries/AppStoreConnectApiKeyQuery', () => ({
-  AppStoreConnectApiKeyQuery: {
-    getByIdAsync: jest.fn(),
-  },
 }));
 jest.mock('../DeviceUtils', () => {
   return {
@@ -178,6 +177,7 @@ describe('runAsync', () => {
           runAsync: jest.fn().mockResolvedValue({} as AppleDistributionCertificateFragment),
         }) as any
     );
+    jest.mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync).mockResolvedValue(true);
   });
 
   const setUpAdhocProvisioningProfile = new SetUpAdhocProvisioningProfile({
@@ -192,12 +192,9 @@ describe('runAsync', () => {
     const areBuildCredentialsSetupAsyncSpy = jest
       .spyOn(SetUpAdhocProvisioningProfile.prototype as any, 'areBuildCredentialsSetupAsync')
       .mockResolvedValue(true);
-    const ensureAppStoreAuthenticatedForAdhocRefreshAsyncSpy = jest
-      .spyOn(
-        SetUpAdhocProvisioningProfile.prototype as any,
-        'ensureAppStoreAuthenticatedForAdhocRefreshAsync'
-      )
-      .mockResolvedValue(undefined);
+    const tryAuthenticateAppStoreWithEasAscApiKeyAsyncSpy = jest
+      .mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync)
+      .mockResolvedValue(true);
     jest
       .spyOn(SetUpAdhocProvisioningProfile.prototype, 'runWithDistributionCertificateAsync')
       .mockResolvedValue({} as IosAppBuildCredentialsFragment);
@@ -205,11 +202,15 @@ describe('runAsync', () => {
     await setUpAdhocProvisioningProfile.runAsync(ctx);
 
     expect(areBuildCredentialsSetupAsyncSpy).not.toHaveBeenCalled();
-    expect(ensureAppStoreAuthenticatedForAdhocRefreshAsyncSpy).toHaveBeenCalledWith(ctx, {
-      account: {} as Account,
-      projectName: 'projName',
-      bundleIdentifier: 'bundleId',
-    });
+    expect(tryAuthenticateAppStoreWithEasAscApiKeyAsyncSpy).toHaveBeenCalledWith(
+      ctx,
+      {
+        account: {} as Account,
+        projectName: 'projName',
+        bundleIdentifier: 'bundleId',
+      },
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
     expect(
       SetUpAdhocProvisioningProfile.prototype.runWithDistributionCertificateAsync
     ).toHaveBeenCalled();
@@ -320,54 +321,67 @@ describe('refresh ad-hoc provisioning profile', () => {
     );
   });
 
-  describe('ensureAppStoreAuthenticatedForAdhocRefreshAsync', () => {
+  describe('tryAuthenticateAppStoreWithEasAscApiKeyAsync', () => {
+    beforeEach(() => {
+      jest.mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync).mockReset();
+    });
+
     it('authenticates with ASC environment variables when present', async () => {
       const { ctx } = setUpRefreshTest();
       jest.mocked(hasAscEnvVars).mockReturnValue(true);
+      jest.mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync).mockImplementation(async ctx => {
+        ctx.appStore.authCtx = {} as any;
+        return true;
+      });
       jest
         .spyOn(SetUpAdhocProvisioningProfile.prototype, 'runWithDistributionCertificateAsync')
         .mockResolvedValue({} as IosAppBuildCredentialsFragment);
 
       await setUpAdhocProvisioningProfile.runAsync(ctx);
 
-      expect(ctx.appStore.ensureAuthenticatedAsync).toHaveBeenCalledWith({
-        mode: AuthenticationMode.API_KEY,
-      });
-      expect(getAscApiKeyForAppSubmissionsAsync).not.toHaveBeenCalled();
+      expect(tryAuthenticateAppStoreWithEasAscApiKeyAsync).toHaveBeenCalledWith(
+        ctx,
+        {
+          account: {} as Account,
+          projectName: 'projName',
+          bundleIdentifier: 'bundleId',
+        },
+        AppleTeamType.COMPANY_OR_ORGANIZATION
+      );
     });
 
     it('authenticates with the stored submissions ASC API key when env vars are absent', async () => {
       const { ctx } = setUpRefreshTest();
       jest.mocked(hasAscEnvVars).mockReturnValue(false);
-      jest.mocked(getAscApiKeyForAppSubmissionsAsync).mockResolvedValue({
-        id: 'asc-key-id',
-        appleTeam: {
-          appleTeamIdentifier: 'TEAM123',
-          appleTeamName: 'Team Name',
-        },
-      } as any);
-      jest.mocked(AppStoreConnectApiKeyQuery.getByIdAsync).mockResolvedValue({
-        keyP8: 'key-p8',
-        keyIdentifier: 'key-id',
-        issuerIdentifier: 'issuer-id',
-      } as any);
+      jest.mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync).mockResolvedValue(true);
       jest
         .spyOn(SetUpAdhocProvisioningProfile.prototype, 'runWithDistributionCertificateAsync')
         .mockResolvedValue({} as IosAppBuildCredentialsFragment);
 
       await setUpAdhocProvisioningProfile.runAsync(ctx);
 
-      expect(ctx.appStore.ensureAuthenticatedAsync).toHaveBeenCalledWith({
-        mode: AuthenticationMode.API_KEY,
-        ascApiKey: {
-          keyP8: 'key-p8',
-          keyId: 'key-id',
-          issuerId: 'issuer-id',
+      expect(tryAuthenticateAppStoreWithEasAscApiKeyAsync).toHaveBeenCalledWith(
+        ctx,
+        {
+          account: {} as Account,
+          projectName: 'projName',
+          bundleIdentifier: 'bundleId',
         },
-        teamId: 'TEAM123',
-        teamName: 'Team Name',
-        teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
-      });
+        AppleTeamType.COMPANY_OR_ORGANIZATION
+      );
+    });
+
+    it('skips re-authentication when already authenticated', async () => {
+      const { ctx } = setUpRefreshTest();
+      ctx.appStore.authCtx = {} as any;
+      jest.mocked(tryAuthenticateAppStoreWithEasAscApiKeyAsync).mockResolvedValue(true);
+      jest
+        .spyOn(SetUpAdhocProvisioningProfile.prototype, 'runWithDistributionCertificateAsync')
+        .mockResolvedValue({} as IosAppBuildCredentialsFragment);
+
+      await setUpAdhocProvisioningProfile.runAsync(ctx);
+
+      expect(tryAuthenticateAppStoreWithEasAscApiKeyAsync).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -26,6 +26,11 @@ export async function ensureIosCredentialsAsync(
       '--refresh-ad-hoc-provisioning-profile cannot be used with credentialsSource "local". Use remote credentials or omit the flag.'
     );
   }
+  if (buildCtx.credentialsCtx.refreshDistributionCertificate && credentialsSource === 'local') {
+    throw new Error(
+      '--refresh-distribution-certificate cannot be used with credentialsSource "local". Use remote credentials or omit the flag.'
+    );
+  }
 
   const provider = new IosCredentialsProvider(buildCtx.credentialsCtx, {
     app: await getAppFromContextAsync(buildCtx.credentialsCtx),

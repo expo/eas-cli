@@ -58,6 +58,17 @@ export class SetUpDistributionCertificate {
     ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
+    if (!ctx.refreshDistributionCertificate) {
+      Log.addNewLineIfNone();
+      Log.warn(
+        'Using the existing distribution certificate without validating it against Apple servers. Use --refresh-distribution-certificate to validate and refresh if needed.'
+      );
+      if (!currentCertificate) {
+        throw new MissingCredentialsNonInteractiveError();
+      }
+      return currentCertificate;
+    }
+
     if (!currentCertificate) {
       throw new MissingCredentialsNonInteractiveError();
     }
