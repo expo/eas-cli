@@ -92,17 +92,17 @@ In non-interactive mode, provide --variable-name and the fields to update. If --
       description: 'The type of variable. Requires --value in non-interactive mode.',
       options: ['string', 'file'] as const,
     })(),
-    visibility: extendFlagDescription(
-      EASVariableVisibilityFlag.visibility,
+    ...extendFlagDescription(
+      EASVariableVisibilityFlag,
       'Used as the new visibility when provided.'
     ),
     ...EASEnvironmentVariableScopeFlag,
-    environment: extendFlagDescription(
-      EASMultiEnvironmentFlag.environment,
+    ...extendFlagDescription(
+      EASMultiEnvironmentFlag,
       'New environment for the variable. May be specified multiple times.'
     ),
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires --variable-name. Also requires --value when --type is provided.'
     ),
   };

@@ -44,12 +44,12 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
   };
 
   static override flags = {
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires an environment via ENVIRONMENT or --environment.'
     ),
-    environment: extendFlagDescription(
-      EASEnvironmentFlag.environment,
+    ...extendFlagDescription(
+      EASEnvironmentFlag,
       'Required in non-interactive mode unless ENVIRONMENT is provided.'
     ),
     path: Flags.string({

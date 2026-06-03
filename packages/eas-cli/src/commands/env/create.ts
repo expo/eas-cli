@@ -93,17 +93,14 @@ Use --force in non-interactive mode when overwriting an existing variable.`;
       description: 'The type of variable',
       options: ['string', 'file'] as const,
     })(),
-    visibility: extendFlagDescription(
-      EASVariableVisibilityFlag.visibility,
-      'Required in non-interactive mode.'
-    ),
+    ...extendFlagDescription(EASVariableVisibilityFlag, 'Required in non-interactive mode.'),
     ...EASEnvironmentVariableScopeFlag,
-    environment: extendFlagDescription(
-      EASMultiEnvironmentFlag.environment,
+    ...extendFlagDescription(
+      EASMultiEnvironmentFlag,
       'Required in non-interactive mode unless ENVIRONMENT is provided.'
     ),
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires --name, --value, --visibility, and an environment via ENVIRONMENT or --environment.'
     ),
   };

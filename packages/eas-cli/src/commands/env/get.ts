@@ -72,8 +72,8 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
     }),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
-    'non-interactive': extendFlagDescription(
-      EASNonInteractiveFlag['non-interactive'],
+    ...extendFlagDescription(
+      EASNonInteractiveFlag,
       'Requires --variable-name and an environment via ENVIRONMENT or --variable-environment.'
     ),
   };
