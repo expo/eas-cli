@@ -4,7 +4,12 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
+import {
+  EASMultiEnvironmentFlag,
+  EASNonInteractiveFlag,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
+} from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
   EnvironmentVariableFragment,
@@ -18,8 +23,14 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvPush extends EasCommand {
-  static override description =
-    'push environment variables from .env file to the selected environment';
+  static override description = `push environment variables from .env file to the selected environment
+
+In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when overwriting existing variables.`;
+
+  static override examples = [
+    '$ eas env:push development --path .env.local --non-interactive',
+    '$ eas env:push --environment production --path .env.production --force --non-interactive',
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -27,15 +38,23 @@ export default class EnvPush extends EasCommand {
   };
 
   static override flags = {
-    ...EASMultiEnvironmentFlag,
+    environment: extendFlagDescription(
+      EASMultiEnvironmentFlag.environment,
+      'Required in non-interactive mode unless ENVIRONMENT is provided.'
+    ),
     path: Flags.string({
       description: 'Path to the input `.env` file',
       default: '.env.local',
     }),
     force: Flags.boolean({
-      description: 'Skip confirmation and automatically override existing variables',
+      description:
+        'Skip confirmation and automatically override existing variables. Required in non-interactive mode when overwriting.',
       default: false,
     }),
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires an environment via ENVIRONMENT or --environment.'
+    ),
   };
 
   static override args = {
@@ -49,18 +68,28 @@ export default class EnvPush extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvPush);
 
-    let { environment: environments, path: envPath, force } = this.parseFlagsAndArgs(flags, args);
+    let {
+      environment: environments,
+      path: envPath,
+      force,
+      'non-interactive': nonInteractive,
+    } = this.parseFlagsAndArgs(flags, args);
+    validateNonInteractiveRequiredInputs({
+      nonInteractive,
+      requiredInputs: [{ name: 'ENVIRONMENT or --environment', value: environments }],
+      helpCommand: 'eas env:push --help',
+    });
 
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvPush, {
-      nonInteractive: false,
+      nonInteractive,
     });
 
     if (!environments) {
       environments = await promptVariableEnvironmentAsync({
-        nonInteractive: false,
+        nonInteractive,
         multiple: true,
         canEnterCustomEnvironment: true,
         graphqlClient,
@@ -117,6 +146,11 @@ export default class EnvPush extends EasCommand {
       if (existingDifferentVariables.length > 0) {
         Log.warn(`Some variables already exist in the ${displayedEnvironment} environment.`);
         const variableNames = existingDifferentVariables.map(variable => variable.name);
+        validateNonInteractiveRequiredInputs({
+          nonInteractive,
+          requiredInputs: [{ name: '--force', value: force ? true : undefined }],
+          helpCommand: 'eas env:push --help',
+        });
 
         let variablesToOverwrite: string[] = [];
 
@@ -176,6 +210,11 @@ export default class EnvPush extends EasCommand {
       );
 
       if (existingSensitiveVariables.length > 0 && !force) {
+        validateNonInteractiveRequiredInputs({
+          nonInteractive,
+          requiredInputs: [{ name: '--force', value: force ? true : undefined }],
+          helpCommand: 'eas env:push --help',
+        });
         const existingSensitiveVariablesNames = existingSensitiveVariables.map(
           variable => `- ${variable.name}`
         );
@@ -212,9 +251,10 @@ export default class EnvPush extends EasCommand {
       path: string;
       environment: string[] | undefined;
       force: boolean;
+      'non-interactive': boolean;
     },
     { environment }: { environment?: string }
-  ): { environment?: string[]; path: string; force: boolean } {
+  ): { environment?: string[]; path: string; force: boolean; 'non-interactive': boolean } {
     const environments = flags.environment ?? (environment ? [environment] : undefined);
 
     return {

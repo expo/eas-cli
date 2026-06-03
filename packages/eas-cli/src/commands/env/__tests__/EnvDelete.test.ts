@@ -106,7 +106,7 @@ describe(EnvDelete, () => {
     );
   });
 
-  it('cancels deletion when user does not confirm', async () => {
+  it('reports missing variable name in non-interactive mode before loading command context', async () => {
     const mockVariables = [
       { id: variableId, name: 'TEST_VARIABLE', scope: EnvironmentVariableScope.Project },
     ];
@@ -117,9 +117,12 @@ describe(EnvDelete, () => {
     const command = new EnvDelete(['--non-interactive'], mockConfig);
 
     // @ts-expect-error
-    jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
-    await expect(command.runAsync()).rejects.toThrowErrorMatchingSnapshot();
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue(mockContext);
+    await expect(command.runAsync()).rejects.toThrow(
+      /Missing required inputs for non-interactive mode: --variable-name\.[\s\S]*eas env:delete --help/
+    );
 
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
     expect(EnvironmentVariableMutation.deleteAsync).not.toHaveBeenCalled();
   });
 

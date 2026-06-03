@@ -89,6 +89,18 @@ SECRET_KEY=super-secret-key`;
     });
   });
 
+  it('reports missing environment in non-interactive mode before loading command context', async () => {
+    const command = new EnvPush(['--non-interactive', '--path', testEnvPath], mockConfig);
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Missing required inputs for non-interactive mode: ENVIRONMENT or --environment\.[\s\S]*eas env:push --help/
+    );
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+  });
+
   describe('--force option', () => {
     it('automatically overrides existing variables without confirmation when --force is used', async () => {
       const existingVariable = {
@@ -274,6 +286,39 @@ SECRET_KEY=super-secret-key`;
       expect(Log.log).not.toHaveBeenCalledWith(
         'Using --force flag: automatically overriding sensitive variables.'
       );
+    });
+
+    it('requires --force when overwriting in non-interactive mode', async () => {
+      const existingVariable = {
+        id: 'var1',
+        name: 'VARIABLE_NAME',
+        value: 'old variable value',
+        environments: [DefaultEnvironment.Development],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Sensitive,
+        type: EnvironmentSecretType.String,
+      };
+
+      jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([existingVariable]);
+
+      const command = new EnvPush(
+        ['development', '--path', testEnvPath, '--non-interactive'],
+        mockConfig
+      );
+
+      // @ts-expect-error
+      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+        loggedIn: { graphqlClient },
+        projectId: testProjectId,
+        projectDir: testProjectDir,
+      });
+
+      await expect(command.runAsync()).rejects.toThrow(
+        /Missing required inputs for non-interactive mode: --force\.[\s\S]*eas env:push --help/
+      );
+      expect(confirmAsync).not.toHaveBeenCalled();
     });
   });
 });
