@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Improve `eas env:*` non-interactive required input help and error messages. ([4c793530](https://github.com/expo/eas-cli/commit/4c7935302124eb09ee27bb6ab47a2650fec46705) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
 ### 🧹 Chores
 
 ## [20.0.0](https://github.com/expo/eas-cli/releases/tag/v20.0.0) - 2026-05-29
