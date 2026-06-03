@@ -39,11 +39,6 @@ export function extendFlagDescription<T extends { description?: string }>(
   };
 }
 
-export function isFlagProvided(argv: string[], flagName: string): boolean {
-  const normalizedFlagName = flagName.startsWith('--') ? flagName : `--${flagName}`;
-  return argv.some(arg => arg === normalizedFlagName || arg.startsWith(`${normalizedFlagName}=`));
-}
-
 export function validateNonInteractiveRequiredInputs({
   nonInteractive,
   requiredInputs,
