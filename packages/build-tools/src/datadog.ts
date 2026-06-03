@@ -1,10 +1,14 @@
 import { Sentry } from './sentry';
 import { turtleFetch } from './utils/turtleFetch';
 
+type MetricsTarget =
+  | { kind: 'build'; turtleBuildId: string }
+  | { kind: 'jobRun'; turtleJobRunId: string };
+
 type DatadogSetupOptions = {
   expoApiV2BaseUrl: string;
-  turtleBuildId: string;
   robotAccessToken: string;
+  target: MetricsTarget;
 };
 
 let setupOptions: DatadogSetupOptions | null = null;
@@ -19,7 +23,7 @@ export const Datadog = {
     if (!setupOptions) {
       return;
     }
-    const { expoApiV2BaseUrl, turtleBuildId, robotAccessToken } = setupOptions;
+    const { expoApiV2BaseUrl, robotAccessToken, target } = setupOptions;
     const metrics = [
       {
         name,
@@ -29,18 +33,19 @@ export const Datadog = {
       },
     ];
 
-    const uploadPromise = turtleFetch(
-      new URL(`turtle-builds/${turtleBuildId}/metrics`, expoApiV2BaseUrl).toString(),
-      'POST',
-      {
-        json: { metrics },
-        headers: {
-          Authorization: `Bearer ${robotAccessToken}`,
-        },
-        retries: 2,
-      }
-    ).catch(err => {
-      Sentry.capture('Failed to report turtle build metric', err, {
+    const metricsPath =
+      target.kind === 'build'
+        ? `turtle-builds/${target.turtleBuildId}/metrics`
+        : `turtle-job-runs/${target.turtleJobRunId}/metrics`;
+
+    const uploadPromise = turtleFetch(new URL(metricsPath, expoApiV2BaseUrl).toString(), 'POST', {
+      json: { metrics },
+      headers: {
+        Authorization: `Bearer ${robotAccessToken}`,
+      },
+      retries: 2,
+    }).catch(err => {
+      Sentry.capture(`Failed to report turtle ${target.kind} metric`, err, {
         extras: { metrics },
       });
     });
@@ -52,25 +57,21 @@ export const Datadog = {
     if (!setupOptions) {
       return;
     }
-    const { expoApiV2BaseUrl, turtleBuildId, robotAccessToken } = setupOptions;
-    const log = {
-      buildId: turtleBuildId,
-      message,
-      tags,
-    };
+    const { expoApiV2BaseUrl, robotAccessToken, target } = setupOptions;
+    const log =
+      target.kind === 'build'
+        ? { buildId: target.turtleBuildId, message, tags }
+        : { jobRunId: target.turtleJobRunId, message, tags };
+    const logsPath = target.kind === 'build' ? 'turtle-builds/logs' : 'turtle-job-runs/logs';
 
-    const uploadPromise = turtleFetch(
-      new URL('turtle-builds/logs', expoApiV2BaseUrl).toString(),
-      'POST',
-      {
-        json: log,
-        headers: {
-          Authorization: `Bearer ${robotAccessToken}`,
-        },
-        shouldThrowOnNotOk: false,
-      }
-    ).catch(err => {
-      Sentry.capture('Failed to report turtle build log', err, {
+    const uploadPromise = turtleFetch(new URL(logsPath, expoApiV2BaseUrl).toString(), 'POST', {
+      json: log,
+      headers: {
+        Authorization: `Bearer ${robotAccessToken}`,
+      },
+      shouldThrowOnNotOk: false,
+    }).catch(err => {
+      Sentry.capture(`Failed to report turtle ${target.kind} log`, err, {
         extras: { log },
       });
     });
@@ -79,6 +80,10 @@ export const Datadog = {
   },
 
   async flushAsync(): Promise<void> {
-    await Promise.allSettled(pendingUploads);
+    // Rotate so each flush only awaits its own batch; uploads enqueued during the
+    // await land in the fresh array for a later flush.
+    const uploads = pendingUploads;
+    pendingUploads = [];
+    await Promise.allSettled(uploads);
   },
 };

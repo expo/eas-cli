@@ -22,13 +22,13 @@ describe('Datadog singleton', () => {
     Datadog.setup(null);
   });
 
-  it('POSTs distribution metrics to the turtle build metrics endpoint', () => {
+  it('POSTs distribution metrics to the turtle build metrics endpoint for build targets', () => {
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     Datadog.distribution('eas.build.phase_duration', 1234, {
@@ -61,13 +61,48 @@ describe('Datadog singleton', () => {
     );
   });
 
-  it('POSTs logs to the turtle build logs endpoint', () => {
+  it('POSTs distribution metrics to the turtle job run metrics endpoint for jobRun targets', () => {
     turtleFetchMock.mockResolvedValueOnce({} as Response);
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
+    });
+
+    Datadog.distribution('eas.workflow.maestro_cli_version', 1, {
+      maestro_version: '2.1.0',
+    });
+
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/turtle-job-runs/job-run-id/metrics',
+      'POST',
+      {
+        json: {
+          metrics: [
+            {
+              name: 'eas.workflow.maestro_cli_version',
+              type: 'distribution',
+              value: 1,
+              tags: {
+                maestro_version: '2.1.0',
+              },
+            },
+          ],
+        },
+        headers: { Authorization: 'Bearer token-abc' },
+        retries: 2,
+      }
+    );
+  });
+
+  it('POSTs logs to the turtle build logs endpoint with buildId for build targets', () => {
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     Datadog.log('artifact dry-run matched', {
@@ -93,6 +128,36 @@ describe('Datadog singleton', () => {
     );
   });
 
+  it('POSTs logs to the turtle job run logs endpoint with jobRunId for jobRun targets', () => {
+    turtleFetchMock.mockResolvedValueOnce({} as Response);
+
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      robotAccessToken: 'token-abc',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
+    });
+
+    Datadog.log('Gradle cache restored (hit)', {
+      cache_type: 'gradle',
+    });
+
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/turtle-job-runs/logs',
+      'POST',
+      {
+        json: {
+          jobRunId: 'job-run-id',
+          message: 'Gradle cache restored (hit)',
+          tags: {
+            cache_type: 'gradle',
+          },
+        },
+        headers: { Authorization: 'Bearer token-abc' },
+        shouldThrowOnNotOk: false,
+      }
+    );
+  });
+
   it('is a no-op when setup is null', () => {
     Datadog.setup(null);
 
@@ -102,12 +167,12 @@ describe('Datadog singleton', () => {
     expect(turtleFetchMock).not.toHaveBeenCalled();
   });
 
-  it('swallows upload failures', async () => {
+  it('swallows metric upload failures for build targets', async () => {
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     Datadog.distribution('eas.build.phase_duration', 1);
@@ -125,12 +190,36 @@ describe('Datadog singleton', () => {
     );
   });
 
-  it('swallows log upload failures', async () => {
+  it('labels metric upload failures for jobRun targets with the jobRun kind', async () => {
     turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
+    });
+
+    Datadog.distribution('eas.workflow.maestro_cli_version', 1);
+    await flushPromises();
+
+    expect(sentryCaptureMock).toHaveBeenCalledWith(
+      'Failed to report turtle jobRun metric',
+      expect.any(Error),
+      expect.objectContaining({
+        extras: {
+          metrics: [
+            { name: 'eas.workflow.maestro_cli_version', type: 'distribution', value: 1, tags: {} },
+          ],
+        },
+      })
+    );
+  });
+
+  it('swallows log upload failures for build targets', async () => {
+    turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     Datadog.log('artifact dry-run matched');
@@ -148,18 +237,40 @@ describe('Datadog singleton', () => {
     );
   });
 
+  it('labels log upload failures for jobRun targets with the jobRun kind', async () => {
+    turtleFetchMock.mockRejectedValueOnce(new Error('network down'));
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      robotAccessToken: 'token-abc',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
+    });
+
+    Datadog.log('Gradle cache restored (hit)');
+    await flushPromises();
+
+    expect(sentryCaptureMock).toHaveBeenCalledWith(
+      'Failed to report turtle jobRun log',
+      expect.any(Error),
+      expect.objectContaining({
+        extras: {
+          log: { jobRunId: 'job-run-id', message: 'Gradle cache restored (hit)', tags: {} },
+        },
+      })
+    );
+  });
+
   it('uses the latest setup options', () => {
     turtleFetchMock.mockResolvedValue({} as Response);
 
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'first-build-id',
       robotAccessToken: 'first-token',
+      target: { kind: 'build', turtleBuildId: 'first-build-id' },
     });
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'second-build-id',
       robotAccessToken: 'second-token',
+      target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
     });
 
     Datadog.distribution('eas.build.phase_duration', 1);
@@ -167,7 +278,7 @@ describe('Datadog singleton', () => {
 
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
       1,
-      'https://api.expo.test/v2/turtle-builds/second-build-id/metrics',
+      'https://api.expo.test/v2/turtle-job-runs/job-run-id/metrics',
       'POST',
       expect.objectContaining({
         headers: { Authorization: 'Bearer second-token' },
@@ -175,7 +286,7 @@ describe('Datadog singleton', () => {
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://api.expo.test/v2/turtle-builds/logs',
+      'https://api.expo.test/v2/turtle-job-runs/logs',
       'POST',
       expect.objectContaining({
         headers: { Authorization: 'Bearer second-token' },
@@ -192,8 +303,8 @@ describe('Datadog singleton', () => {
     );
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     let flushed = false;
@@ -219,8 +330,8 @@ describe('Datadog singleton', () => {
     );
     Datadog.setup({
       expoApiV2BaseUrl: 'https://api.expo.test/v2/',
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
 
     let flushed = false;
@@ -232,6 +343,35 @@ describe('Datadog singleton', () => {
     expect(flushed).toBe(false);
 
     resolveUpload({} as Response);
+    await flushPromise;
+
+    expect(flushed).toBe(true);
+  });
+
+  it('only awaits uploads enqueued since the previous flush', async () => {
+    let resolveSecondUpload!: (response: Response) => void;
+    turtleFetchMock.mockReturnValueOnce(new Promise<Response>(() => {})).mockReturnValueOnce(
+      new Promise<Response>(resolve => {
+        resolveSecondUpload = resolve;
+      })
+    );
+    Datadog.setup({
+      expoApiV2BaseUrl: 'https://api.expo.test/v2/',
+      robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
+    });
+
+    // The first upload never settles; the first flush rotates it out of the queue.
+    Datadog.distribution('eas.build.phase_duration', 1);
+    void Datadog.flushAsync();
+
+    Datadog.distribution('eas.build.phase_duration', 2);
+    let flushed = false;
+    const flushPromise = Datadog.flushAsync().then(() => {
+      flushed = true;
+    });
+
+    resolveSecondUpload({} as Response);
     await flushPromise;
 
     expect(flushed).toBe(true);
