@@ -6,11 +6,14 @@ import fg from 'fast-glob';
 import fs from 'fs-extra';
 import path from 'path';
 
+import { Sentry } from '../../../sentry';
+
 const CHECK_FILE_INTERVAL_MS = 1000;
 
 export class XcodeBuildLogger {
   private loggerError?: Error;
   private flushing: boolean = false;
+  private reportedFormatterError: boolean = false;
   private logReaderPromise?: SpawnPromise<SpawnResult>;
   private logsPath?: string;
 
@@ -60,9 +63,22 @@ export class XcodeBuildLogger {
       this.logReaderPromise = spawnAsync('tail', ['-n', '+0', '-f', logsPath], { stdio: 'pipe' });
       assert(this.logReaderPromise.child.stdout, 'stdout is not available');
       this.logReaderPromise.child.stdout.on('data', (data: string) => {
-        const lines = formatter.pipe(data.toString());
-        for (const line of lines) {
-          this.logger.info(line);
+        try {
+          const lines = formatter.pipe(data.toString());
+          for (const line of lines) {
+            this.logger.info(line);
+          }
+        } catch (err: any) {
+          // The formatter can throw on unexpected xcodebuild output. Fall back to
+          // raw logs instead of crashing the process with an uncaught exception.
+          this.logger.debug({ err }, 'xcpretty formatter failed, falling back to raw logs');
+          if (!this.reportedFormatterError) {
+            this.reportedFormatterError = true;
+            Sentry.capture('xcpretty formatter failed to parse xcodebuild logs', err, {
+              extras: { data: data.toString().slice(-2000) },
+            });
+          }
+          this.logger.info(data.toString());
         }
       });
       await this.logReaderPromise;
