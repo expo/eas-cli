@@ -10,6 +10,7 @@ import {
   EASVariableFormatFlag,
   EasEnvironmentFlagParameters,
   extendFlagDescription,
+  isFlagProvided,
   validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
@@ -41,11 +42,11 @@ interface GetFlags {
 export default class EnvGet extends EasCommand {
   static override description = `view an environment variable for the current project or account
 
-In non-interactive mode, provide --variable-name and an environment with ENVIRONMENT or --variable-environment.`;
+In non-interactive mode, provide --scope, --variable-name, and an environment with ENVIRONMENT or --variable-environment.`;
 
   static override examples = [
-    '$ eas env:get production --variable-name API_URL --non-interactive',
-    '$ eas env:get --variable-environment production --variable-name API_TOKEN --format long --non-interactive',
+    '$ eas env:get production --scope project --variable-name API_URL --non-interactive',
+    '$ eas env:get --variable-environment production --scope account --variable-name API_TOKEN --format long --non-interactive',
   ];
 
   static override contextDefinition = {
@@ -71,10 +72,13 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
         'Current environment of the variable. Required in non-interactive mode unless ENVIRONMENT is provided.',
     }),
     ...EASVariableFormatFlag,
-    ...EASEnvironmentVariableScopeFlag,
+    scope: extendFlagDescription(
+      EASEnvironmentVariableScopeFlag.scope,
+      'Required in non-interactive mode.'
+    ),
     'non-interactive': extendFlagDescription(
       EASNonInteractiveFlag['non-interactive'],
-      'Requires --variable-name and an environment via ENVIRONMENT or --variable-environment.'
+      'Requires --scope, --variable-name, and an environment via ENVIRONMENT or --variable-environment.'
     ),
   };
 
@@ -87,7 +91,9 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
       'non-interactive': nonInteractive,
       format,
       scope,
-    } = this.sanitizeInputs(flags, args);
+    } = this.sanitizeInputs(flags, args, {
+      scopeProvided: isFlagProvided(this.argv, '--scope'),
+    });
 
     const {
       projectId,
@@ -146,10 +152,15 @@ In non-interactive mode, provide --variable-name and an environment with ENVIRON
     }
   }
 
-  private sanitizeInputs(flags: RawGetFlags, { environment }: { environment?: string }): GetFlags {
+  private sanitizeInputs(
+    flags: RawGetFlags,
+    { environment }: { environment?: string },
+    { scopeProvided }: { scopeProvided: boolean }
+  ): GetFlags {
     validateNonInteractiveRequiredInputs({
       nonInteractive: flags['non-interactive'],
       requiredInputs: [
+        { name: '--scope', value: scopeProvided ? flags.scope : undefined },
         { name: '--variable-name', value: flags['variable-name'] },
         {
           name: 'ENVIRONMENT or --variable-environment',

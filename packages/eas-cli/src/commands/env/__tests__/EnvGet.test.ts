@@ -111,6 +111,21 @@ describe(EnvGet, () => {
     expect(promptVariableNameAsync).toHaveBeenCalled();
   });
 
+  it('requires scope in non-interactive mode', async () => {
+    const command = new EnvGet(
+      ['development', '--variable-name', 'TEST_VAR_1', '--non-interactive'],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Missing required inputs for non-interactive mode: --scope\.[\s\S]*eas env:get --help/
+    );
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+  });
+
   it('accepts development environment when using positional argument', async () => {
     jest
       .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
