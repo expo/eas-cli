@@ -288,9 +288,9 @@ describe(EnvPull, () => {
       });
 
       await expect(command.runAsync()).rejects.toThrow(
-        /Missing required inputs for non-interactive mode: ENVIRONMENT or --environment\.[\s\S]*eas env:pull --help/
+        'The `--environment` flag must be set when running in `--non-interactive` mode.'
       );
-      expect(getContextAsyncSpy).not.toHaveBeenCalled();
+      expect(getContextAsyncSpy).toHaveBeenCalled();
     });
   });
 

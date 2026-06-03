@@ -372,7 +372,7 @@ describe(EnvCreate, () => {
       const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
 
       await expect(command.runAsync()).rejects.toThrow(
-        /Missing required inputs for non-interactive mode: --name, --value, --visibility, ENVIRONMENT or --environment\.[\s\S]*eas env:create --help/
+        /Missing required inputs for non-interactive mode: --name, --value, --visibility, --environment\.[\s\S]*eas env:create --help/
       );
       expect(getContextAsyncSpy).not.toHaveBeenCalled();
     });

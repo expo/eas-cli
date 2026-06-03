@@ -7,8 +7,7 @@ import EasCommand from '../../commandUtils/EasCommand';
 import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
-  extendFlagDescription,
-  validateNonInteractiveRequiredInputs,
+  markRequired,
 } from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
@@ -23,13 +22,11 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvPush extends EasCommand {
-  static override description = `push environment variables from .env file to the selected environment
-
-In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when overwriting existing variables.`;
+  static override description =
+    'push environment variables from .env file to the selected environment';
 
   static override examples = [
-    '$ eas env:push development --path .env.local --non-interactive',
-    '$ eas env:push --environment production --path .env.production --force --non-interactive',
+    '$ eas env:push --environment production --path .env.production --force',
   ];
 
   static override contextDefinition = {
@@ -38,23 +35,16 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
   };
 
   static override flags = {
-    ...extendFlagDescription(
-      EASMultiEnvironmentFlag,
-      'Required in non-interactive mode unless ENVIRONMENT is provided.'
-    ),
+    ...markRequired(EASMultiEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the input `.env` file',
       default: '.env.local',
     }),
     force: Flags.boolean({
-      description:
-        'Skip confirmation and automatically override existing variables. Required in non-interactive mode when overwriting.',
+      description: 'Skip confirmation and automatically override existing variables',
       default: false,
     }),
-    ...extendFlagDescription(
-      EASNonInteractiveFlag,
-      'Requires an environment via ENVIRONMENT or --environment.'
-    ),
+    ...EASNonInteractiveFlag,
   };
 
   static override args = {
@@ -74,11 +64,6 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
       force,
       'non-interactive': nonInteractive,
     } = this.parseFlagsAndArgs(flags, args);
-    validateNonInteractiveRequiredInputs({
-      nonInteractive,
-      requiredInputs: [{ name: 'ENVIRONMENT or --environment', value: environments }],
-      helpCommand: 'eas env:push --help',
-    });
 
     const {
       projectId,
@@ -146,11 +131,6 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
       if (existingDifferentVariables.length > 0) {
         Log.warn(`Some variables already exist in the ${displayedEnvironment} environment.`);
         const variableNames = existingDifferentVariables.map(variable => variable.name);
-        validateNonInteractiveRequiredInputs({
-          nonInteractive,
-          requiredInputs: [{ name: '--force', value: force ? true : undefined }],
-          helpCommand: 'eas env:push --help',
-        });
 
         let variablesToOverwrite: string[] = [];
 
@@ -165,6 +145,12 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
                   ', '
                 )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
               : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
+
+          if (nonInteractive) {
+            throw new Error(
+              'Cannot confirm overwriting existing variables in non-interactive mode. Use --force to overwrite them.'
+            );
+          }
 
           const confirm = await confirmAsync({
             message: confirmationMessage,
@@ -210,14 +196,15 @@ In non-interactive mode, provide ENVIRONMENT or --environment. Use --force when 
       );
 
       if (existingSensitiveVariables.length > 0 && !force) {
-        validateNonInteractiveRequiredInputs({
-          nonInteractive,
-          requiredInputs: [{ name: '--force', value: force ? true : undefined }],
-          helpCommand: 'eas env:push --help',
-        });
         const existingSensitiveVariablesNames = existingSensitiveVariables.map(
           variable => `- ${variable.name}`
         );
+        if (nonInteractive) {
+          throw new Error(
+            'Cannot confirm overwriting sensitive variables in non-interactive mode. Use --force to overwrite them.'
+          );
+        }
+
         const confirm = await confirmAsync({
           message: `You are about to overwrite sensitive variables.\n${existingSensitiveVariablesNames.join(
             '\n'

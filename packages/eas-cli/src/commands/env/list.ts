@@ -9,8 +9,7 @@ import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
-  extendFlagDescription,
-  validateNonInteractiveRequiredInputs,
+  markRequired,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
@@ -88,14 +87,9 @@ interface ListFlags {
 }
 
 export default class EnvList extends EasCommand {
-  static override description = `list environment variables for the current project or account
+  static override description = 'list environment variables for the current project or account';
 
-In non-interactive mode, provide ENVIRONMENT or --environment.`;
-
-  static override examples = [
-    '$ eas env:list production --non-interactive',
-    '$ eas env:list --environment production --environment preview --scope account --format long --non-interactive',
-  ];
+  static override examples = ['$ eas env:list --environment production'];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -111,16 +105,10 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
       description: 'Display files content in the output',
       default: false,
     }),
-    ...extendFlagDescription(
-      EASMultiEnvironmentFlag,
-      'Required in non-interactive mode unless ENVIRONMENT is provided.'
-    ),
+    ...markRequired(EASMultiEnvironmentFlag),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
-    ...extendFlagDescription(
-      EASNonInteractiveFlag,
-      'Requires an environment via ENVIRONMENT or --environment.'
-    ),
+    ...EASNonInteractiveFlag,
   };
 
   static override args = {
@@ -142,11 +130,6 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
       'include-file-content': includeFileContent,
       'non-interactive': nonInteractive,
     } = this.sanitizeInputs(flags, args);
-    validateNonInteractiveRequiredInputs({
-      nonInteractive,
-      requiredInputs: [{ name: 'ENVIRONMENT or --environment', value: environments }],
-      helpCommand: 'eas env:list --help',
-    });
 
     const {
       projectId,

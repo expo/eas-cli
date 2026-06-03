@@ -4,12 +4,7 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import {
-  EASEnvironmentFlag,
-  EASNonInteractiveFlag,
-  extendFlagDescription,
-  validateNonInteractiveRequiredInputs,
-} from '../../commandUtils/flags';
+import { EASEnvironmentFlag, EASNonInteractiveFlag, markRequired } from '../../commandUtils/flags';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
@@ -20,13 +15,12 @@ import { confirmAsync } from '../../prompts';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvPull extends EasCommand {
-  static override description = `pull environment variables for the selected environment to .env file
-
-In non-interactive mode, provide ENVIRONMENT or --environment.`;
+  static override description =
+    'pull environment variables for the selected environment to .env file';
 
   static override examples = [
-    '$ eas env:pull development --non-interactive',
-    '$ eas env:pull --environment production --path .env.production --non-interactive',
+    '$ eas env:pull --environment development',
+    '$ eas env:pull --environment production --path .env.production',
   ];
 
   static override contextDefinition = {
@@ -44,14 +38,8 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
   };
 
   static override flags = {
-    ...extendFlagDescription(
-      EASNonInteractiveFlag,
-      'Requires an environment via ENVIRONMENT or --environment.'
-    ),
-    ...extendFlagDescription(
-      EASEnvironmentFlag,
-      'Required in non-interactive mode unless ENVIRONMENT is provided.'
-    ),
+    ...EASNonInteractiveFlag,
+    ...markRequired(EASEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the result `.env` file',
       default: '.env.local',
@@ -65,11 +53,6 @@ In non-interactive mode, provide ENVIRONMENT or --environment.`;
     } = await this.parse(EnvPull);
 
     let environment = flagEnvironment?.toLowerCase() ?? argEnvironment?.toLowerCase();
-    validateNonInteractiveRequiredInputs({
-      nonInteractive,
-      requiredInputs: [{ name: 'ENVIRONMENT or --environment', value: environment }],
-      helpCommand: 'eas env:pull --help',
-    });
 
     const {
       projectId,

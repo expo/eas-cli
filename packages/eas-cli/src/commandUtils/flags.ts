@@ -27,25 +27,26 @@ export function resolveNonInteractiveAndJsonFlags(flags: {
   return { json, nonInteractive };
 }
 
-export function extendFlagDescription<T extends Record<string, { description?: string }>>(
+export function prependFlagDescription<T extends Record<string, { description?: string }>>(
   flags: T,
   extraDescription: string
 ): T {
   return Object.fromEntries(
     Object.entries(flags).map(([name, flag]) => {
       const description = flag.description ?? '';
-      const separator = !description || description.match(/[.!?]$/) ? ' ' : '. ';
       return [
         name,
         {
           ...flag,
-          description: description
-            ? `${description}${separator}${extraDescription}`
-            : extraDescription,
+          description: description ? `${extraDescription} ${description}` : extraDescription,
         },
       ];
     })
   ) as T;
+}
+
+export function markRequired<T extends Record<string, { description?: string }>>(flags: T): T {
+  return prependFlagDescription(flags, '(required)');
 }
 
 export function validateNonInteractiveRequiredInputs({
@@ -54,7 +55,7 @@ export function validateNonInteractiveRequiredInputs({
   helpCommand,
 }: {
   nonInteractive: boolean;
-  requiredInputs: { name: string; value: unknown }[];
+  requiredInputs: { if?: boolean; name: string; value: unknown }[];
   helpCommand: string;
 }): void {
   if (!nonInteractive) {
@@ -62,7 +63,10 @@ export function validateNonInteractiveRequiredInputs({
   }
 
   const missingInputs = requiredInputs
-    .filter(({ value }) => {
+    .filter(({ if: condition = true, value }) => {
+      if (!condition) {
+        return false;
+      }
       if (Array.isArray(value)) {
         return value.length === 0;
       }

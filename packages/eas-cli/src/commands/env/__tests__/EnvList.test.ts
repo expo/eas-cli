@@ -66,16 +66,19 @@ describe(EnvList, () => {
     );
   });
 
-  it('reports missing environment in non-interactive mode before loading command context', async () => {
+  it('reports missing environment in non-interactive mode', async () => {
     const command = new EnvList(['--non-interactive'], mockConfig);
 
     // @ts-expect-error
-    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
 
     await expect(command.runAsync()).rejects.toThrow(
-      /Missing required inputs for non-interactive mode: ENVIRONMENT or --environment\.[\s\S]*eas env:list --help/
+      'The `--environment` flag must be set when running in `--non-interactive` mode.'
     );
-    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+    expect(getContextAsyncSpy).toHaveBeenCalled();
   });
 
   it('lists project environment variables in specified environments', async () => {
