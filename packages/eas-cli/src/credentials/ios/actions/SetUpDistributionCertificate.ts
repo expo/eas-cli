@@ -1,5 +1,3 @@
-import assert from 'assert';
-
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
 import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from './AscApiKeyUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
@@ -70,8 +68,10 @@ export class SetUpDistributionCertificate {
       AppleTeamType.COMPANY_OR_ORGANIZATION
     );
 
-    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-      assert(currentCertificate, 'currentCertificate is defined here');
+    if (
+      currentCertificate &&
+      (await this.isCurrentCertificateValidAsync(ctx, currentCertificate))
+    ) {
       Log.log('Using existing valid distribution certificate.');
       return currentCertificate;
     }
@@ -104,8 +104,10 @@ export class SetUpDistributionCertificate {
     ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-      assert(currentCertificate, 'currentCertificate is defined here');
+    if (
+      currentCertificate &&
+      (await this.isCurrentCertificateValidAsync(ctx, currentCertificate))
+    ) {
       return currentCertificate;
     }
 
