@@ -61,7 +61,7 @@ interface CreateFlags {
 export default class EnvCreate extends EasCommand {
   static override description = `create an environment variable for the current project or account
 
-In non-interactive mode, provide --name, --value, --visibility, and --environment.
+In non-interactive mode, provide --name, --value, --visibility, and an environment via ENVIRONMENT or --environment.
 Use --force in non-interactive mode when overwriting an existing variable.`;
 
   static override examples = [

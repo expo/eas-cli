@@ -7,7 +7,10 @@ import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
+  EASNonInteractiveFlag,
   EASVariableFormatFlag,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
@@ -72,7 +75,7 @@ interface RawListFlags {
   environment: string[] | undefined;
   'include-sensitive': boolean;
   'include-file-content': boolean;
-  'non-interactive'?: boolean;
+  'non-interactive': boolean;
 }
 
 interface ListFlags {
@@ -85,7 +88,14 @@ interface ListFlags {
 }
 
 export default class EnvList extends EasCommand {
-  static override description = 'list environment variables for the current project or account';
+  static override description = `list environment variables for the current project or account
+
+In non-interactive mode, provide ENVIRONMENT or --environment.`;
+
+  static override examples = [
+    '$ eas env:list production --non-interactive',
+    '$ eas env:list --environment production --environment preview --scope account --format long --non-interactive',
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -101,9 +111,16 @@ export default class EnvList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
-    ...EASMultiEnvironmentFlag,
+    environment: extendFlagDescription(
+      EASMultiEnvironmentFlag.environment,
+      'Required in non-interactive mode unless ENVIRONMENT is provided.'
+    ),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires an environment via ENVIRONMENT or --environment.'
+    ),
   };
 
   static override args = {
@@ -125,6 +142,11 @@ export default class EnvList extends EasCommand {
       'include-file-content': includeFileContent,
       'non-interactive': nonInteractive,
     } = this.sanitizeInputs(flags, args);
+    validateNonInteractiveRequiredInputs({
+      nonInteractive,
+      requiredInputs: [{ name: 'ENVIRONMENT or --environment', value: environments }],
+      helpCommand: 'eas env:list --help',
+    });
 
     const {
       projectId,
@@ -186,7 +208,6 @@ export default class EnvList extends EasCommand {
 
     return {
       ...flags,
-      'non-interactive': flags['non-interactive'] ?? false,
       environment: environments,
       scope:
         flags.scope === 'account'

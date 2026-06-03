@@ -13,6 +13,8 @@ import {
   EASNonInteractiveFlag,
   EASVariableVisibilityFlag,
   EasEnvironmentFlagParameters,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
@@ -63,30 +65,46 @@ interface UpdateFlags {
 }
 
 export default class EnvUpdate extends EasCommand {
-  static override description = 'update an environment variable on the current project or account';
+  static override description = `update an environment variable on the current project or account
+
+In non-interactive mode, provide --variable-name and the fields to update. If --type is provided, --value is also required.`;
+
+  static override examples = [
+    '$ eas env:update production --variable-name API_URL --value https://api.example.com --non-interactive',
+    '$ eas env:update --variable-name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production --non-interactive',
+  ];
 
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Current name of the variable',
+      description: 'Current name of the variable. Required in non-interactive mode.',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: 'Current environment of the variable to update',
+      description: 'Current environment of the variable to update. Helps disambiguate variables.',
     }),
     name: Flags.string({
       description: 'New name of the variable',
     }),
     value: Flags.string({
-      description: 'New value or the variable',
+      description: 'New value for the variable, or a file path when --type=file',
     }),
     type: Flags.option({
-      description: 'The type of variable',
+      description: 'The type of variable. Requires --value in non-interactive mode.',
       options: ['string', 'file'] as const,
     })(),
-    ...EASVariableVisibilityFlag,
+    visibility: extendFlagDescription(
+      EASVariableVisibilityFlag.visibility,
+      'Used as the new visibility when provided.'
+    ),
     ...EASEnvironmentVariableScopeFlag,
-    ...EASMultiEnvironmentFlag,
-    ...EASNonInteractiveFlag,
+    environment: extendFlagDescription(
+      EASMultiEnvironmentFlag.environment,
+      'New environment for the variable. May be specified multiple times.'
+    ),
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires --variable-name. Also requires --value when --type is provided.'
+    ),
   };
 
   static override args = {
@@ -212,16 +230,16 @@ export default class EnvUpdate extends EasCommand {
     flags: RawUpdateFlags,
     { environment }: { environment?: string }
   ): UpdateFlags {
-    if (flags['non-interactive']) {
-      if (!flags['variable-name']) {
-        throw new Error(
-          'Current name is required in non-interactive mode. Run the command with --variable-name flag.'
-        );
-      }
-      if (flags['type'] && !flags['value']) {
-        throw new Error('Value is required when type is set. Run the command with --value flag.');
-      }
-    }
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: flags['non-interactive'],
+      requiredInputs: [{ name: '--variable-name', value: flags['variable-name'] }],
+      helpCommand: 'eas env:update --help',
+    });
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: flags['non-interactive'] && !!flags.type,
+      requiredInputs: [{ name: '--value', value: flags.value }],
+      helpCommand: 'eas env:update --help',
+    });
 
     const scope =
       flags.scope === 'account'

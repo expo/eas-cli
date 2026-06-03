@@ -9,6 +9,8 @@ import {
   EASNonInteractiveFlag,
   EASVariableFormatFlag,
   EasEnvironmentFlagParameters,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
   EnvironmentVariableFragment,
@@ -37,7 +39,14 @@ interface GetFlags {
 }
 
 export default class EnvGet extends EasCommand {
-  static override description = 'view an environment variable for the current project or account';
+  static override description = `view an environment variable for the current project or account
+
+In non-interactive mode, provide --variable-name and an environment with ENVIRONMENT or --variable-environment.`;
+
+  static override examples = [
+    '$ eas env:get production --variable-name API_URL --non-interactive',
+    '$ eas env:get --variable-environment production --variable-name API_TOKEN --format long --non-interactive',
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -54,15 +63,19 @@ export default class EnvGet extends EasCommand {
 
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Name of the variable',
+      description: 'Name of the variable. Required in non-interactive mode.',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: 'Current environment of the variable',
+      description:
+        'Current environment of the variable. Required in non-interactive mode unless ENVIRONMENT is provided.',
     }),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
-    ...EASNonInteractiveFlag,
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires --variable-name and an environment via ENVIRONMENT or --variable-environment.'
+    ),
   };
 
   async runAsync(): Promise<void> {
@@ -134,17 +147,17 @@ export default class EnvGet extends EasCommand {
   }
 
   private sanitizeInputs(flags: RawGetFlags, { environment }: { environment?: string }): GetFlags {
-    if (flags['non-interactive']) {
-      if (!flags['variable-name']) {
-        throw new Error('Variable name is required. Run the command with --variable-name flag.');
-      }
-      if (!flags.scope) {
-        throw new Error('Scope is required. Run the command with --scope flag.');
-      }
-      if (!(flags['variable-environment'] ?? environment)) {
-        throw new Error('Environment is required.');
-      }
-    }
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: flags['non-interactive'],
+      requiredInputs: [
+        { name: '--variable-name', value: flags['variable-name'] },
+        {
+          name: 'ENVIRONMENT or --variable-environment',
+          value: environment ?? flags['variable-environment'],
+        },
+      ],
+      helpCommand: 'eas env:get --help',
+    });
     if (environment && flags['variable-environment']) {
       throw new Error(
         "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:get --help` for more information."

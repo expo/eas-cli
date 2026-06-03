@@ -66,6 +66,18 @@ describe(EnvList, () => {
     );
   });
 
+  it('reports missing environment in non-interactive mode before loading command context', async () => {
+    const command = new EnvList(['--non-interactive'], mockConfig);
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync');
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /Missing required inputs for non-interactive mode: ENVIRONMENT or --environment\.[\s\S]*eas env:list --help/
+    );
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+  });
+
   it('lists project environment variables in specified environments', async () => {
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce(mockVariables);
 

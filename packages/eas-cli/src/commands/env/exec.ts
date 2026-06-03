@@ -4,7 +4,11 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
+import {
+  EASNonInteractiveFlag,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
+} from '../../commandUtils/flags';
 import { EnvironmentVariablesQuery } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
@@ -26,8 +30,14 @@ interface RawFlags {
 }
 
 export default class EnvExec extends EasCommand {
-  static override description =
-    'execute a command with environment variables from the selected environment';
+  static override description = `execute a command with environment variables from the selected environment
+
+In non-interactive mode, provide ENVIRONMENT and bash_command.`;
+
+  static override examples = [
+    "$ eas env:exec development 'echo $EXPO_PUBLIC_API_URL' --non-interactive",
+    "$ eas env:exec production 'npm run build' --non-interactive",
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -35,7 +45,10 @@ export default class EnvExec extends EasCommand {
   };
 
   static override flags = {
-    ...EASNonInteractiveFlag,
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires ENVIRONMENT and bash_command.'
+    ),
   };
 
   static override args = {
@@ -96,11 +109,14 @@ export default class EnvExec extends EasCommand {
     rawFlags: RawFlags,
     { bash_command, environment }: Record<string, string>
   ): ParsedFlags {
-    if (rawFlags['non-interactive'] && (!bash_command || !environment)) {
-      throw new Error(
-        "You must specify both environment and bash command when running in non-interactive mode. Run command as `eas env:exec ENVIRONMENT 'bash command'`."
-      );
-    }
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: rawFlags['non-interactive'],
+      requiredInputs: [
+        { name: 'ENVIRONMENT', value: environment },
+        { name: 'bash_command', value: bash_command },
+      ],
+      helpCommand: 'eas env:exec --help',
+    });
 
     const firstChar = bash_command[0];
     const lastChar = bash_command[bash_command.length - 1];

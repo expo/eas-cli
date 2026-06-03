@@ -1,6 +1,5 @@
 import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
-import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -8,6 +7,8 @@ import {
   EASEnvironmentVariableScopeFlagValue,
   EASNonInteractiveFlag,
   EasEnvironmentFlagParameters,
+  extendFlagDescription,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
@@ -31,18 +32,28 @@ interface RawDeleteFlags {
 }
 
 export default class EnvDelete extends EasCommand {
-  static override description = 'delete an environment variable for the current project or account';
+  static override description = `delete an environment variable for the current project or account
+
+In non-interactive mode, provide --variable-name. Use ENVIRONMENT or --variable-environment to disambiguate variables that share a name.`;
+
+  static override examples = [
+    '$ eas env:delete production --variable-name API_TOKEN --non-interactive',
+    '$ eas env:delete --scope account --variable-name SHARED_TOKEN --non-interactive',
+  ];
 
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Name of the variable to delete',
+      description: 'Name of the variable to delete. Required in non-interactive mode.',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
-      description: 'Current environment of the variable to delete',
+      description: 'Current environment of the variable to delete. Helps disambiguate variables.',
     }),
     ...EASEnvironmentVariableScopeFlag,
-    ...EASNonInteractiveFlag,
+    'non-interactive': extendFlagDescription(
+      EASNonInteractiveFlag['non-interactive'],
+      'Requires --variable-name.'
+    ),
   };
 
   static override args = {
@@ -148,15 +159,11 @@ export default class EnvDelete extends EasCommand {
     flags: RawDeleteFlags,
     { environment }: { environment?: string }
   ): DeleteFlags {
-    if (flags['non-interactive']) {
-      if (!flags['variable-name']) {
-        throw new Error(
-          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
-            '--variable-name VARIABLE_NAME'
-          )} flag to fix the issue`
-        );
-      }
-    }
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: flags['non-interactive'],
+      requiredInputs: [{ name: '--variable-name', value: flags['variable-name'] }],
+      helpCommand: 'eas env:delete --help',
+    });
 
     const scope =
       flags.scope === 'account'
