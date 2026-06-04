@@ -115,10 +115,9 @@ This would cause any updates published on the local machine to not be compatible
 `
     );
     await logDiffFingerprints({ resolvedRuntime, ctx });
-    ctx.logger.warn(
+    throw new Error(
       'Runtime version calculated on local machine not equal to runtime version calculated during build.'
     );
-    ctx.markBuildPhaseHasWarnings();
   }
 
   if (await isEASUpdateConfigured(ctx)) {
