@@ -225,10 +225,6 @@ If --type is provided, --value is also required.`;
       nonInteractive: flags['non-interactive'],
       requiredInputs: [
         { name: '--variable-name', value: flags['variable-name'] },
-        {
-          name: '--variable-environment',
-          value: environment ?? flags['variable-environment'],
-        },
         { if: !!flags.type, name: '--value', value: flags.value },
       ],
       helpCommand: 'eas env:update --help',
