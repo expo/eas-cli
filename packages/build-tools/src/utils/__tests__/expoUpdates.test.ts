@@ -104,4 +104,53 @@ describe(expoUpdates.configureExpoUpdatesIfInstalledAsync, () => {
     expect(iosSetChannelNativelyAsync).toBeCalledTimes(1);
     expect(getExpoUpdatesPackageVersionIfInstalledAsync).toBeCalledTimes(1);
   });
+
+  it('warns instead of failing when local and build runtime versions differ', async () => {
+    jest.mocked(getExpoUpdatesPackageVersionIfInstalledAsync).mockResolvedValue('0.18.0');
+
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+    };
+    const markBuildPhaseHasWarnings = jest.fn();
+    const toPromise = jest.fn().mockResolvedValue({
+      data: {
+        builds: {
+          byId: {
+            fingerprint: null,
+          },
+        },
+      },
+    });
+    const managedCtx: BuildContext<BuildJob> = {
+      appConfig: {},
+      env: {
+        EAS_BUILD_ID: 'build-id',
+      },
+      graphqlClient: {
+        query: jest.fn(() => ({ toPromise })),
+      },
+      job: {
+        platform: Platform.IOS,
+      },
+      logger,
+      markBuildPhaseHasWarnings,
+      metadata: {
+        runtimeVersion: 'local-runtime-version',
+      },
+      getReactNativeProjectDirectory: () => '/app',
+    } as any;
+
+    await expect(
+      expoUpdates.configureExpoUpdatesIfInstalledAsync(managedCtx, {
+        resolvedRuntimeVersion: 'build-runtime-version',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Runtime version mismatch'));
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Runtime version calculated on local machine not equal to runtime version calculated during build.'
+    );
+    expect(markBuildPhaseHasWarnings).toHaveBeenCalledTimes(1);
+  });
 });

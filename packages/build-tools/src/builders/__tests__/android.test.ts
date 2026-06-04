@@ -1,11 +1,13 @@
-import { Android, BuildPhase, BuildPhaseResult } from '@expo/eas-build-job';
+import { Android, BuildPhase, BuildPhaseResult, Workflow } from '@expo/eas-build-job';
 import { vol } from 'memfs';
 
 import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
+import { prebuildAsync } from '../../common/prebuild';
 import { BuildContext } from '../../context';
 import { Datadog } from '../../datadog';
 import { restoreCredentials } from '../../android/credentials';
+import { resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync } from '../../utils/expoUpdates';
 import { uploadEmbeddedBundleAsync } from '../../utils/expoUpdatesEmbedded';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
@@ -272,6 +274,39 @@ describe(androidBuilder, () => {
     await androidBuilder(ctx);
 
     expect(runBuilderWithHooksAsync).toHaveBeenCalledWith(ctx, expect.any(Function));
+  });
+
+  it('resolves the Expo Updates runtime version before prebuild', async () => {
+    const order: string[] = [];
+    jest
+      .mocked(resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync)
+      .mockImplementationOnce(async () => {
+        order.push('resolve-runtime-version');
+        return null;
+      });
+    jest.mocked(prebuildAsync).mockImplementationOnce(async () => {
+      order.push('prebuild');
+    });
+
+    const ctx = new BuildContext(
+      {
+        ...createTestAndroidJob(),
+        type: Workflow.MANAGED,
+      },
+      {
+        workingdir: '/workingdir',
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        logger: createMockLogger(),
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+        },
+        uploadArtifact: jest.fn(),
+      }
+    );
+
+    await androidBuilder(ctx);
+
+    expect(order).toEqual(['resolve-runtime-version', 'prebuild']);
   });
 
   it('runs the embedded bundle upload phase when EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE is set', async () => {
