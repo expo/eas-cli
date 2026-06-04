@@ -158,6 +158,11 @@ export default class EnvDelete extends EasCommand {
       requiredInputs: [{ name: '--variable-name', value: flags['variable-name'] }],
       helpCommand: 'eas env:delete --help',
     });
+    if (environment && flags['variable-environment']) {
+      throw new Error(
+        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:delete --help` for more information."
+      );
+    }
 
     const scope =
       flags.scope === 'account'

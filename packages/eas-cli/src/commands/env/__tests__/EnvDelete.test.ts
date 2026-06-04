@@ -161,4 +161,46 @@ describe(EnvDelete, () => {
       environment: DefaultEnvironment.Development,
     });
   });
+
+  it('rejects positional environment and --variable-environment used together', async () => {
+    const mockVariable = {
+      id: 'var1',
+      name: 'TEST_VAR_1',
+      value: 'value1',
+      environments: [DefaultEnvironment.Development],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    };
+
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce([mockVariable]);
+    jest.mocked(EnvironmentVariableMutation.deleteAsync).mockResolvedValueOnce({ id: 'var1' });
+
+    const command = new EnvDelete(
+      [
+        'development',
+        '--variable-name',
+        'TEST_VAR_1',
+        '--variable-environment',
+        'production',
+        '--scope',
+        'project',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId,
+    });
+
+    await expect(command.runAsync()).rejects.toThrow(
+      "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:delete --help` for more information."
+    );
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+  });
 });

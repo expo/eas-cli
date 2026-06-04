@@ -229,6 +229,11 @@ If --type is provided, --value is also required.`;
       ],
       helpCommand: 'eas env:update --help',
     });
+    if (environment && flags['variable-environment']) {
+      throw new Error(
+        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:update --help` for more information."
+      );
+    }
 
     const scope =
       flags.scope === 'account'
