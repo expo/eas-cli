@@ -8,14 +8,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
+
+### 🎉 New features
+
 - [eas-cli] Add `eas update:embedded:view` command. ([#3810](https://github.com/expo/eas-cli/pull/3810) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas update:embedded:list` command. ([#3811](https://github.com/expo/eas-cli/pull/3811) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas update:embedded:delete` command. ([#3809](https://github.com/expo/eas-cli/pull/3809) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Auto-upload embedded bundle after build when `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE` is set. ([#3767](https://github.com/expo/eas-cli/pull/3767) by [@gwdp](https://github.com/gwdp))
-
-### 🐛 Bug fixes
-
-### 🧹 Chores
 
 ## [20.0.0](https://github.com/expo/eas-cli/releases/tag/v20.0.0) - 2026-05-29
 
