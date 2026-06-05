@@ -5,7 +5,73 @@ on:
 
 jobs:
   worker-build:
-    uses: ./.github/workflows/build-and-deploy-worker.yml
-    secrets: inherit
-    with:
-      environment: ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - uses: ./.github/actions/setup-mise
+
+      - name: Start EAS worker build
+        id: eas_workflow
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
+            --ref ${{ github.sha }} \
+            --input upload_artifact=false \
+            --non-interactive \
+            --no-wait \
+            --json)
+
+          WORKFLOW_RUN_ID=$(echo "$WORKFLOW_OUTPUT" | jq -r '.id')
+          if [ -z "$WORKFLOW_RUN_ID" ] || [ "$WORKFLOW_RUN_ID" = "null" ]; then
+            echo "Error: Could not determine workflow run ID"
+            echo "$WORKFLOW_OUTPUT" | jq .
+            exit 1
+          fi
+
+          echo "workflow_run_id=$WORKFLOW_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for EAS worker build
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+
+          while true; do
+            VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
+              --non-interactive \
+              --json)
+            STATUS=$(echo "$VIEW_OUTPUT" | jq -r '.status')
+
+            case "$STATUS" in
+              SUCCESS) break ;;
+              FAILURE|CANCELED|ACTION_REQUIRED)
+                echo "EAS workflow $STATUS"
+                echo "$VIEW_OUTPUT" | jq .
+                exit 1
+                ;;
+              NEW|IN_PROGRESS) sleep 7 ;;
+              *)
+                echo "Unexpected status: $STATUS"
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Cancel EAS workflow on GitHub cancellation
+        if: cancelled()
+        working-directory: packages/worker
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_DEV_EXPO_GITHUB_ROBOT_ACCESS_TOKEN }}
+        run: |
+          WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
+          if [ -n "$WORKFLOW_RUN_ID" ]; then
+            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
+          fi
