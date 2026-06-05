@@ -1,0 +1,11 @@
+name: Manually trigger a worker build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  worker-build:
+    uses: ./.github/workflows/build-and-deploy-worker.yml
+    secrets: inherit
+    with:
+      environment: ''
