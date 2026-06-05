@@ -51,6 +51,7 @@ describe('Datadog singleton', () => {
                 build_phase: 'install_dependencies',
                 platform: 'ios',
                 result: 'success',
+                target: 'build',
               },
             },
           ],
@@ -70,7 +71,7 @@ describe('Datadog singleton', () => {
       target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
     });
 
-    Datadog.distribution('eas.workflow.maestro_cli_version', 1, {
+    Datadog.distribution('eas.maestro.install', 1, {
       maestro_version: '2.1.0',
     });
 
@@ -81,11 +82,12 @@ describe('Datadog singleton', () => {
         json: {
           metrics: [
             {
-              name: 'eas.workflow.maestro_cli_version',
+              name: 'eas.maestro.install',
               type: 'distribution',
               value: 1,
               tags: {
                 maestro_version: '2.1.0',
+                target: 'job_run',
               },
             },
           ],
@@ -120,6 +122,7 @@ describe('Datadog singleton', () => {
           tags: {
             event: 'find_artifacts_absolute_path_dry_run',
             status: 'match',
+            target: 'build',
           },
         },
         headers: { Authorization: 'Bearer token-abc' },
@@ -150,6 +153,7 @@ describe('Datadog singleton', () => {
           message: 'Gradle cache restored (hit)',
           tags: {
             cache_type: 'gradle',
+            target: 'job_run',
           },
         },
         headers: { Authorization: 'Bearer token-abc' },
@@ -184,7 +188,14 @@ describe('Datadog singleton', () => {
       expect.any(Error),
       expect.objectContaining({
         extras: {
-          metrics: [{ name: 'eas.build.phase_duration', type: 'distribution', value: 1, tags: {} }],
+          metrics: [
+            {
+              name: 'eas.build.phase_duration',
+              type: 'distribution',
+              value: 1,
+              tags: { target: 'build' },
+            },
+          ],
         },
       })
     );
@@ -198,7 +209,7 @@ describe('Datadog singleton', () => {
       target: { kind: 'jobRun', turtleJobRunId: 'job-run-id' },
     });
 
-    Datadog.distribution('eas.workflow.maestro_cli_version', 1);
+    Datadog.distribution('eas.maestro.install', 1);
     await flushPromises();
 
     expect(sentryCaptureMock).toHaveBeenCalledWith(
@@ -207,7 +218,12 @@ describe('Datadog singleton', () => {
       expect.objectContaining({
         extras: {
           metrics: [
-            { name: 'eas.workflow.maestro_cli_version', type: 'distribution', value: 1, tags: {} },
+            {
+              name: 'eas.maestro.install',
+              type: 'distribution',
+              value: 1,
+              tags: { target: 'job_run' },
+            },
           ],
         },
       })
@@ -231,7 +247,11 @@ describe('Datadog singleton', () => {
       expect.any(Error),
       expect.objectContaining({
         extras: {
-          log: { buildId: 'build-id', message: 'artifact dry-run matched', tags: {} },
+          log: {
+            buildId: 'build-id',
+            message: 'artifact dry-run matched',
+            tags: { target: 'build' },
+          },
         },
       })
     );
@@ -253,7 +273,11 @@ describe('Datadog singleton', () => {
       expect.any(Error),
       expect.objectContaining({
         extras: {
-          log: { jobRunId: 'job-run-id', message: 'Gradle cache restored (hit)', tags: {} },
+          log: {
+            jobRunId: 'job-run-id',
+            message: 'Gradle cache restored (hit)',
+            tags: { target: 'job_run' },
+          },
         },
       })
     );
