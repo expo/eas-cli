@@ -263,7 +263,7 @@ describe(UpdateEmbeddedList, () => {
     expect(mockLogLog.mock.calls.some(c => /ago/.test(String(c[0])))).toBe(true);
   });
 
-  it('builds the prompt choices in channel-order then "All channels"', async () => {
+  it('puts "All channels" first in the prompt, then channels in order', async () => {
     mockViewChannels.mockResolvedValue([
       { id: 'ch1', name: 'production' } as any,
       { id: 'ch2', name: 'preview' } as any,
@@ -275,6 +275,6 @@ describe(UpdateEmbeddedList, () => {
 
     const [, choices] = mockSelectAsync.mock.calls[0];
     const titles = (choices as any[]).map(c => c.title);
-    expect(titles).toEqual(['production', 'preview', 'All channels']);
+    expect(titles).toEqual(['All channels', 'production', 'preview']);
   });
 });

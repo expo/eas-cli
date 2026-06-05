@@ -154,8 +154,8 @@ async function promptForChannelAsync(
   }
 
   const selected = await selectAsync<string>('Filter embedded updates by which channel?', [
-    ...channels.map(c => ({ title: c.name, value: c.name })),
     { title: 'All channels', value: ALL_CHANNELS },
+    ...channels.map(c => ({ title: c.name, value: c.name })),
   ]);
   return selected === ALL_CHANNELS ? undefined : selected;
 }
