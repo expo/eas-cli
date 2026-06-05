@@ -57,7 +57,11 @@ jobs:
             STATUS=$(echo "$VIEW_OUTPUT" | jq -r '.status')
 
             case "$STATUS" in
-              SUCCESS) break ;;
+              SUCCESS)
+                echo "EAS workflow succeeded."
+                echo "$VIEW_OUTPUT" | jq -r '.jobs[] | "  \(.name): \(.status)"'
+                break
+                ;;
               FAILURE|CANCELED|ACTION_REQUIRED)
                 echo "EAS workflow $STATUS"
                 echo "$VIEW_OUTPUT" | jq .
