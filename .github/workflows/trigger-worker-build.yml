@@ -2,6 +2,8 @@ name: Manually trigger a worker build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [gwdp/fix-cocoapods-proxy-bundler]
 
 jobs:
   worker-build:
