@@ -2406,6 +2406,7 @@ export type AppObserveCustomEvent = {
   eventName: Scalars['String']['output'];
   expoSdkVersion?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
   properties: Array<AppObserveEventProperty>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   sessionId?: Maybe<Scalars['String']['output']>;
@@ -2503,6 +2504,7 @@ export type AppObserveCustomEventPropertyFilter = {
 export type AppObserveEvent = {
   __typename?: 'AppObserveEvent';
   appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
   appIdentifier: Scalars['String']['output'];
   appName: Scalars['String']['output'];
   appUpdateId?: Maybe<Scalars['String']['output']>;
@@ -5103,6 +5105,11 @@ export type DeleteDiscordUserResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteEmbeddedUpdateResult = {
+  __typename?: 'DeleteEmbeddedUpdateResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
   id: Scalars['ID']['output'];
@@ -6225,11 +6232,22 @@ export type EmbeddedUpdateFilterInput = {
 export type EmbeddedUpdateMutation = {
   __typename?: 'EmbeddedUpdateMutation';
   /**
+   * Delete an embedded update by id. Best-effort: deleting an unknown id succeeds
+   * (mirrors background deletion jobs). The linked asset row and underlying GCS
+   * object are cleaned up via the entity's afterDelete trigger chain.
+   */
+  deleteEmbeddedUpdate: DeleteEmbeddedUpdateResult;
+  /**
    * Register an embedded bundle as the launch asset for a given app/platform/channel.
    * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,
    * or EMBEDDED_UPDATE_ALREADY_EXISTS if an embedded update with this id is already registered.
    */
   uploadEmbeddedUpdate: EmbeddedUpdate;
+};
+
+
+export type EmbeddedUpdateMutationDeleteEmbeddedUpdateArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -8839,7 +8857,7 @@ export type SsoUser = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
@@ -10125,7 +10143,7 @@ export type User = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Get all certified second factor authentication methods */
@@ -10229,7 +10247,7 @@ export type UserActor = {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
@@ -10284,6 +10302,8 @@ export type UserActorPublicData = {
   firstName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   lastName?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
