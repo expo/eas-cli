@@ -2,8 +2,15 @@ import { CombinedError } from '@urql/core';
 import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { Connection } from '../../utils/relay';
+import {
+  EmbeddedUpdateFilterInput,
+  ViewEmbeddedUpdateByIdQuery,
+  ViewEmbeddedUpdateByIdQueryVariables,
+  ViewEmbeddedUpdatesPaginatedQuery,
+  ViewEmbeddedUpdatesPaginatedQueryVariables,
+} from '../generated';
 import { withErrorHandlingAsync } from '../client';
-import { ViewEmbeddedUpdateByIdQuery, ViewEmbeddedUpdateByIdQueryVariables } from '../generated';
 
 export function isEmbeddedUpdateNotFoundError(error: unknown): boolean {
   return (
@@ -13,6 +20,8 @@ export function isEmbeddedUpdateNotFoundError(error: unknown): boolean {
 }
 
 export type EmbeddedUpdateFragment = ViewEmbeddedUpdateByIdQuery['embeddedUpdates']['byId'];
+
+export type EmbeddedUpdateFilter = EmbeddedUpdateFilterInput;
 
 export const EmbeddedUpdateQuery = {
   async viewByIdAsync(
@@ -47,5 +56,63 @@ export const EmbeddedUpdateQuery = {
         .toPromise()
     );
     return data.embeddedUpdates.byId;
+  },
+
+  async viewPaginatedAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      filter,
+      first,
+      after,
+    }: { appId: string; filter?: EmbeddedUpdateFilter; first: number; after?: string }
+  ): Promise<Connection<EmbeddedUpdateFragment>> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<ViewEmbeddedUpdatesPaginatedQuery, ViewEmbeddedUpdatesPaginatedQueryVariables>(
+          gql`
+            query ViewEmbeddedUpdatesPaginated(
+              $appId: String!
+              $first: Int!
+              $after: String
+              $filter: EmbeddedUpdateFilterInput
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  embeddedUpdatesPaginated(first: $first, after: $after, filter: $filter) {
+                    edges {
+                      cursor
+                      node {
+                        id
+                        platform
+                        runtimeVersion
+                        channel
+                        createdAt
+                        launchAsset {
+                          id
+                          fileSize
+                          finalFileSize
+                          fileSHA256
+                        }
+                      }
+                    }
+                    pageInfo {
+                      hasNextPage
+                      hasPreviousPage
+                      startCursor
+                      endCursor
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          { appId, first, after, filter },
+          { additionalTypenames: ['EmbeddedUpdate'] }
+        )
+        .toPromise()
+    );
+    return data.app.byId.embeddedUpdatesPaginated;
   },
 };
