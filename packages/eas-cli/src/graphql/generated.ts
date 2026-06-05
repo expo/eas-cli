@@ -12855,6 +12855,13 @@ export type UploadEmbeddedUpdateMutationVariables = Exact<{
 
 export type UploadEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', uploadEmbeddedUpdate: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any } } };
 
+export type DeleteEmbeddedUpdateMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', deleteEmbeddedUpdate: { __typename?: 'DeleteEmbeddedUpdateResult', id: string } } };
+
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
   accountId: Scalars['String']['input'];
