@@ -137,7 +137,7 @@ export class SetUpProvisioningProfile {
 
     if (ctx.nonInteractive && !ctx.appStore.authCtx) {
       throw new InsufficientAuthenticationNonInteractiveError(
-        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. Either set the EXPO_ASC_API_KEY_PATH/EXPO_ASC_KEY_ID/EXPO_ASC_ISSUER_ID environment variables, or configure an App Store Connect API Key for this app on EAS. ${learnMore(
+        `In order to configure your Provisioning Profile, authentication with an ASC API key is required in non-interactive mode. Either set the EXPO_ASC_API_KEY_PATH/EXPO_ASC_KEY_ID/EXPO_ASC_ISSUER_ID environment variables, or configure an App Store Connect API Key for submissions for bundle identifier ${this.app.bundleIdentifier} on EAS. ${learnMore(
           'https://docs.expo.dev/build/building-on-ci/#optional-provide-an-asc-api-token-for-your-apple-team'
         )}`
       );
