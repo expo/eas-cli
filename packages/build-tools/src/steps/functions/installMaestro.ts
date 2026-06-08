@@ -15,6 +15,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+import { Datadog } from '../../datadog';
+
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -123,6 +125,10 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
 
       logger.info(`Maestro ${maestroVersionResult.value} is ready.`);
       outputs.maestro_version.set(maestroVersionResult.value);
+
+      Datadog.distribution('eas.maestro.install', 1, {
+        maestro_version: maestroVersionResult.value,
+      });
     },
   });
 }

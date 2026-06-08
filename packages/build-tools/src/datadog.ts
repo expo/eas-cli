@@ -14,6 +14,13 @@ type DatadogSetupOptions = {
 let setupOptions: DatadogSetupOptions | null = null;
 let pendingUploads: Promise<unknown>[] = [];
 
+function withTargetTag(
+  tags: Record<string, string>,
+  target: MetricsTarget
+): Record<string, string> {
+  return { ...tags, target: target.kind === 'build' ? 'build' : 'job_run' };
+}
+
 export const Datadog = {
   setup(opts: DatadogSetupOptions | null): void {
     setupOptions = opts;
@@ -29,7 +36,7 @@ export const Datadog = {
         name,
         type: 'distribution' as const,
         value,
-        tags,
+        tags: withTargetTag(tags, target),
       },
     ];
 
@@ -58,10 +65,11 @@ export const Datadog = {
       return;
     }
     const { expoApiV2BaseUrl, robotAccessToken, target } = setupOptions;
+    const tagsWithTarget = withTargetTag(tags, target);
     const log =
       target.kind === 'build'
-        ? { buildId: target.turtleBuildId, message, tags }
-        : { jobRunId: target.turtleJobRunId, message, tags };
+        ? { buildId: target.turtleBuildId, message, tags: tagsWithTarget }
+        : { jobRunId: target.turtleJobRunId, message, tags: tagsWithTarget };
     const logsPath = target.kind === 'build' ? 'turtle-builds/logs' : 'turtle-job-runs/logs';
 
     const uploadPromise = turtleFetch(new URL(logsPath, expoApiV2BaseUrl).toString(), 'POST', {
