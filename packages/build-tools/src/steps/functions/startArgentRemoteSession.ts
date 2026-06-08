@@ -101,7 +101,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       // serve-sim is iOS-only — Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const serveSim = await startServeSimWithTunnelAsync({
+        const serveSim = await startServeSimWithTunnelAsync(ctx, {
           baseDomain: ngrokTunnelDomain,
           env,
           logger,

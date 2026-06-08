@@ -108,7 +108,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // on Darwin. Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const { previewUrl } = await startServeSimWithTunnelAsync({
+        const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
           baseDomain: ngrokTunnelDomain,
           env,
           logger,
