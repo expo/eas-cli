@@ -120,14 +120,14 @@ export function getAccountChoices(actor: Actor, permissionsMap?: Map<string, boo
   const sortedAccounts = [...actor.accounts].sort((a, _b) => (a.ownerUserActor ? 1 : -1));
 
   return sortedAccounts.map(account => {
-    const isPersonalAccount = !!account.ownerUserActor && account.ownerUserActor.id === actor.id;
-    const isTeamAccount = !!account.ownerUserActor && account.ownerUserActor.id !== actor.id;
-
-    const accountDisplayName = isPersonalAccount
-      ? `${account.name} (Limited - Personal Account)`
-      : isTeamAccount
-        ? `${account.name} (Limited - Team Account)`
-        : account.name;
+    // Team accounts are a legacy setup - a personal (user-owned) account with
+    // additional collaborators. New multi-user setups use Organizations instead.
+    const accountKindSuffix = !account.ownerUserActor
+      ? '(Organization)'
+      : account.ownerUserActor.id === actor.id
+        ? '(Personal)'
+        : '(Team)';
+    const accountDisplayName = `${account.name} ${accountKindSuffix}`;
 
     const disabled = !permissions.get(account.name);
 
