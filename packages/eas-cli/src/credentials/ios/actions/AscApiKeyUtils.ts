@@ -312,8 +312,9 @@ export async function resolveAscApiKeyForAppCredentialsAsync({
 }
 
 /**
- * Best-effort, side-effecting helper that ensures `ctx.appStore` is authenticated
- * with an App Store Connect API key when running in non-interactive mode.
+ * Best-effort helper that populates `ctx.appStore.authCtx` in non-interactive mode
+ * by loading an App Store Connect API key (from env vars, or by fetching the app's
+ * stored key from the www GraphQL API).
  *
  * Returns true if `ctx.appStore.authCtx` is set after the call, false otherwise.
  * Never throws.
