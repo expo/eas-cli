@@ -71,7 +71,6 @@ export class XcodeBuildLogger {
         } catch (err: any) {
           // The formatter can throw on unexpected xcodebuild output. Fall back to
           // raw logs instead of crashing the process with an uncaught exception.
-          this.logger.debug({ err }, 'xcpretty formatter failed, falling back to raw logs');
           if (!this.reportedFormatterError) {
             this.reportedFormatterError = true;
             Sentry.capture('xcpretty formatter failed to parse xcodebuild logs', err, {
