@@ -10,8 +10,8 @@ import type { Credentials } from './credentials/manager';
 import { createFastfileForResigningBuild } from './fastfile';
 import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from './gymfile';
 import { isTVOS } from './tvos';
-import { XcodeBuildLogger } from './xcpretty';
 import { COMMON_FASTLANE_ENV } from '../common/fastlane';
+import { XcodeBuildLogger } from '../common/xcpretty';
 import { BuildContext, SkipNativeBuildError } from '../context';
 
 export async function runFastlaneGym<TJob extends Ios.Job>(
