@@ -13,11 +13,10 @@ describe('runtimeSettings', () => {
     warn: jest.fn(),
   };
   const originalCacheUrls = {
-    EAS_BUILD_NPM_CACHE_URL: process.env.EAS_BUILD_NPM_CACHE_URL,
-    NPM_CACHE_URL: process.env.NPM_CACHE_URL,
-    NVM_NODEJS_ORG_MIRROR: process.env.NVM_NODEJS_ORG_MIRROR,
-    EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
-    EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+    EAS_NPM_CACHE_URL: process.env.EAS_NPM_CACHE_URL,
+    EAS_NODEJS_CACHE_URL: process.env.EAS_NODEJS_CACHE_URL,
+    EAS_MAVEN_CACHE_URL: process.env.EAS_MAVEN_CACHE_URL,
+    EAS_COCOAPODS_CACHE_URL: process.env.EAS_COCOAPODS_CACHE_URL,
   };
   const originalPlatform = process.platform;
 
@@ -26,11 +25,10 @@ describe('runtimeSettings', () => {
     jest.restoreAllMocks();
     logger.info.mockReset();
     logger.warn.mockReset();
-    restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
-    restoreEnv('NPM_CACHE_URL', originalCacheUrls.NPM_CACHE_URL);
-    restoreEnv('NVM_NODEJS_ORG_MIRROR', originalCacheUrls.NVM_NODEJS_ORG_MIRROR);
-    restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
-    restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
+    restoreEnv('EAS_NPM_CACHE_URL', originalCacheUrls.EAS_NPM_CACHE_URL);
+    restoreEnv('EAS_NODEJS_CACHE_URL', originalCacheUrls.EAS_NODEJS_CACHE_URL);
+    restoreEnv('EAS_MAVEN_CACHE_URL', originalCacheUrls.EAS_MAVEN_CACHE_URL);
+    restoreEnv('EAS_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_COCOAPODS_CACHE_URL);
     mockProcessPlatform(originalPlatform);
   });
 
@@ -67,7 +65,7 @@ describe('runtimeSettings', () => {
   });
 
   it('does not use caches by default when remote settings are unavailable', async () => {
-    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
     jest.mocked(fetch).mockResolvedValue(response({}, 404));
 
     await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
@@ -79,7 +77,7 @@ describe('runtimeSettings', () => {
   });
 
   it('does not override existing settings when remote settings are invalid', async () => {
-    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
     jest
       .mocked(fetch)
       .mockResolvedValueOnce(response({ caches: { linux: { npm: true } } }))
@@ -95,10 +93,10 @@ describe('runtimeSettings', () => {
   });
 
   it('accepts partial runtime settings and ignores unknown fields', async () => {
-    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
-    process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
-    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
-    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    process.env.EAS_NODEJS_CACHE_URL = 'https://node.example';
+    process.env.EAS_MAVEN_CACHE_URL = 'https://maven.example';
+    process.env.EAS_COCOAPODS_CACHE_URL = 'https://pods.example';
     jest.mocked(fetch).mockResolvedValue(
       response({
         caches: {
@@ -124,8 +122,8 @@ describe('runtimeSettings', () => {
   });
 
   it('uses Maven and CocoaPods caches when enabled for the current platform and their environment variables exist', async () => {
-    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
-    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
+    process.env.EAS_MAVEN_CACHE_URL = 'https://maven.example';
+    process.env.EAS_COCOAPODS_CACHE_URL = 'https://pods.example';
     jest.mocked(fetch).mockResolvedValue(
       response({
         caches: {
@@ -145,7 +143,7 @@ describe('runtimeSettings', () => {
   });
 
   it('does not use caches when runtime settings are not loaded', () => {
-    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
 
     jest.isolateModules(() => {
       const { RuntimeSettings } = require('../runtimeSettings');

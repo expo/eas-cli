@@ -155,11 +155,10 @@ function shouldUsePrecompiledModules(job: Job): boolean {
 function getFilteredEnv(): Env {
   const envToFilter = [
     ...getAccessedEnvs(),
-    'EAS_BUILD_NPM_CACHE_URL',
-    'NPM_CACHE_URL',
-    'NVM_NODEJS_ORG_MIRROR',
-    'EAS_BUILD_MAVEN_CACHE_URL',
-    'EAS_BUILD_COCOAPODS_CACHE_URL',
+    'EAS_NPM_CACHE_URL',
+    'EAS_NODEJS_CACHE_URL',
+    'EAS_MAVEN_CACHE_URL',
+    'EAS_COCOAPODS_CACHE_URL',
     'KUBERNETES_*',
   ];
   const envToReturn = micromatch(

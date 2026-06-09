@@ -65,25 +65,25 @@ export namespace RuntimeSettings {
 
   export function getNpmCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.npm
-      ? process.env.EAS_BUILD_NPM_CACHE_URL || process.env.NPM_CACHE_URL || null
+      ? process.env.EAS_NPM_CACHE_URL || null
       : null;
   }
 
   export function getNodeJsCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.nodejs
-      ? process.env.NVM_NODEJS_ORG_MIRROR || null
+      ? process.env.EAS_NODEJS_CACHE_URL || null
       : null;
   }
 
   export function getMavenCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.maven
-      ? process.env.EAS_BUILD_MAVEN_CACHE_URL || null
+      ? process.env.EAS_MAVEN_CACHE_URL || null
       : null;
   }
 
   export function getCocoapodsCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.cocoapods
-      ? process.env.EAS_BUILD_COCOAPODS_CACHE_URL || null
+      ? process.env.EAS_COCOAPODS_CACHE_URL || null
       : null;
   }
 }
