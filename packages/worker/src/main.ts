@@ -9,7 +9,7 @@ import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
-  await RuntimeSettings.loadAsync(config.env, logger);
+  await RuntimeSettings.loadAsync({ environment: config.env, logger });
   await prepareRuntimeEnvironmentConfigFiles();
   await prepareWorkingdir();
   startWsServer();

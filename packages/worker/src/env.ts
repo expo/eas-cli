@@ -36,10 +36,10 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
   setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
-  const npmCacheUrl = RuntimeSettings.getCacheUrl('npm');
-  const nodeJsCacheUrl = RuntimeSettings.getCacheUrl('nodejs');
-  const mavenCacheUrl = RuntimeSettings.getCacheUrl('maven');
-  const cocoapodsCacheUrl = RuntimeSettings.getCacheUrl('cocoapods');
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const nodeJsCacheUrl = RuntimeSettings.getNodeJsCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
+  const cocoapodsCacheUrl = RuntimeSettings.getCocoapodsCacheUrl();
 
   setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
@@ -149,13 +149,17 @@ function shouldUsePrecompiledModules(job: Job): boolean {
     return false;
   }
 
-  return RuntimeSettings.get().iosPrecompiledModules;
+  return RuntimeSettings.isUsingIosPrecompiledModulesEnabled();
 }
 
 function getFilteredEnv(): Env {
   const envToFilter = [
     ...getAccessedEnvs(),
-    ...RuntimeSettings.getCacheUrlEnvVars(),
+    'EAS_BUILD_NPM_CACHE_URL',
+    'NPM_CACHE_URL',
+    'NVM_NODEJS_ORG_MIRROR',
+    'EAS_BUILD_MAVEN_CACHE_URL',
+    'EAS_BUILD_COCOAPODS_CACHE_URL',
     'KUBERNETES_*',
   ];
   const envToReturn = micromatch(

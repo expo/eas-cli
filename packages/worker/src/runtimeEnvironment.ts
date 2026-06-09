@@ -23,8 +23,8 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  const npmCacheUrl = RuntimeSettings.getCacheUrl('npm');
-  const mavenCacheUrl = RuntimeSettings.getCacheUrl('maven');
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
 
   if (npmCacheUrl) {
     // create ~/.npmrc

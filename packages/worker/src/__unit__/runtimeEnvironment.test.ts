@@ -55,7 +55,6 @@ describe('prepareRuntimeEnvironment', () => {
     restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     mockProcessPlatform(originalPlatform);
-    RuntimeSettings.reset();
     jest.restoreAllMocks();
   });
 
@@ -68,13 +67,8 @@ describe('prepareRuntimeEnvironment', () => {
 
     it('does not prepare disabled Linux cache config files', async () => {
       mockProcessPlatform('linux');
-      RuntimeSettings.apply({
-        caches: {
-          linux: { npm: false, nodejs: true, maven: false },
-          darwin: { npm: true, nodejs: true, cocoapods: true },
-        },
-        iosPrecompiledModules: false,
-      });
+      jest.spyOn(RuntimeSettings, 'getNpmCacheUrl').mockReturnValue(null);
+      jest.spyOn(RuntimeSettings, 'getMavenCacheUrl').mockReturnValue(null);
 
       await prepareRuntimeEnvironmentConfigFiles();
 
@@ -90,13 +84,8 @@ describe('prepareRuntimeEnvironment', () => {
 
     it('prepares enabled Linux cache config files', async () => {
       mockProcessPlatform('linux');
-      RuntimeSettings.apply({
-        caches: {
-          linux: { npm: true, nodejs: true, maven: true },
-          darwin: { npm: true, nodejs: true, cocoapods: true },
-        },
-        iosPrecompiledModules: false,
-      });
+      jest.spyOn(RuntimeSettings, 'getNpmCacheUrl').mockReturnValue('https://npm.example');
+      jest.spyOn(RuntimeSettings, 'getMavenCacheUrl').mockReturnValue('https://maven.example');
 
       await prepareRuntimeEnvironmentConfigFiles();
 

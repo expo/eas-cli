@@ -1,16 +1,11 @@
-import { Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
 import { RuntimeSettings } from '../runtimeSettings';
 
-jest.mock('node-fetch', () => {
-  const actual = jest.requireActual('node-fetch');
-  return {
-    __esModule: true,
-    ...actual,
-    default: jest.fn(),
-  };
-});
+jest.mock('node-fetch', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 describe('runtimeSettings', () => {
   const logger = {
@@ -24,135 +19,140 @@ describe('runtimeSettings', () => {
     EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
     EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
   };
+  const originalPlatform = process.platform;
 
   afterEach(() => {
-    RuntimeSettings.reset();
     jest.mocked(fetch).mockReset();
     jest.restoreAllMocks();
+    logger.info.mockReset();
+    logger.warn.mockReset();
     restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
     restoreEnv('NPM_CACHE_URL', originalCacheUrls.NPM_CACHE_URL);
     restoreEnv('NVM_NODEJS_ORG_MIRROR', originalCacheUrls.NVM_NODEJS_ORG_MIRROR);
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
+    mockProcessPlatform(originalPlatform);
   });
 
-  it('resolves hardcoded GCS URLs for staging and production only', () => {
-    expect(RuntimeSettings.getUrl('staging')).toBe(
-      'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json'
-    );
-    expect(RuntimeSettings.getUrl('production')).toBe(
-      'https://storage.googleapis.com/eas-workflows-production/runtime-settings.json'
-    );
-    expect(RuntimeSettings.getUrl('development')).toBeNull();
-    expect(RuntimeSettings.getUrl('test')).toBeNull();
+  beforeEach(async () => {
+    jest.mocked(fetch).mockResolvedValue(response({}));
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    jest.mocked(fetch).mockReset();
+    logger.info.mockReset();
+    logger.warn.mockReset();
   });
 
-  it('uses defaults when remote settings are unavailable', async () => {
-    jest.mocked(fetch).mockResolvedValue(new Response('missing', { status: 404 }));
+  it('fetches runtime settings from the staging and production buckets', async () => {
+    jest.mocked(fetch).mockResolvedValue(response({}));
 
-    await expect(RuntimeSettings.loadAsync('staging', logger)).resolves.toEqual(
-      RuntimeSettings.defaultSettings
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'production', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'test', logger: logger as any });
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json',
+      {
+        signal: expect.anything(),
+      }
     );
-    expect(RuntimeSettings.get()).toEqual(RuntimeSettings.defaultSettings);
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://storage.googleapis.com/eas-workflows-production/runtime-settings.json',
+      {
+        signal: expect.anything(),
+      }
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not use caches by default when remote settings are unavailable', async () => {
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({}, 404));
+
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+    expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  it('uses defaults when remote settings are invalid', async () => {
-    jest.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          caches: {
-            linux: { npm: true, nodejs: true, maven: true, extra: true },
-            darwin: { npm: true, nodejs: true, cocoapods: true },
-          },
-          iosPrecompiledModules: false,
-        }),
-        { status: 200 }
-      )
-    );
+  it('does not override existing settings when remote settings are invalid', async () => {
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(response({ caches: { linux: { npm: true } } }))
+      .mockResolvedValueOnce(response({ iosPrecompiledModules: 'enabled' }));
 
-    await expect(RuntimeSettings.loadAsync('staging', logger)).resolves.toEqual(
-      RuntimeSettings.defaultSettings
-    );
-    expect(RuntimeSettings.get()).toEqual(RuntimeSettings.defaultSettings);
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
+    expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  it('validates accepted and rejected runtime settings JSON', () => {
-    expect(
-      RuntimeSettings.parse({
-        caches: {
-          linux: { npm: true, nodejs: false, maven: true },
-          darwin: { npm: true, nodejs: true, cocoapods: false },
-        },
-        iosPrecompiledModules: true,
-      })
-    ).toEqual({
-      caches: {
-        linux: { npm: true, nodejs: false, maven: true },
-        darwin: { npm: true, nodejs: true, cocoapods: false },
-      },
-      iosPrecompiledModules: true,
-    });
-
-    expect(() =>
-      RuntimeSettings.parse({
-        caches: {
-          linux: { npm: true, nodejs: true, maven: true },
-          darwin: { npm: true, nodejs: true, cocoapods: true },
-        },
-        iosPrecompiledModules: 'enabled',
-      })
-    ).toThrow();
-  });
-
-  it('gates caches per worker platform', () => {
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: false, nodejs: true, maven: false },
-        darwin: { npm: true, nodejs: false, cocoapods: false },
-      },
-      iosPrecompiledModules: false,
-    });
-
-    expect(RuntimeSettings.shouldUseCache('npm', 'linux')).toBe(false);
-    expect(RuntimeSettings.shouldUseCache('maven', 'linux')).toBe(false);
-    expect(RuntimeSettings.shouldUseCache('nodejs', 'linux')).toBe(true);
-
-    expect(RuntimeSettings.shouldUseCache('nodejs', 'darwin')).toBe(false);
-    expect(RuntimeSettings.shouldUseCache('cocoapods', 'darwin')).toBe(false);
-    expect(RuntimeSettings.shouldUseCache('npm', 'darwin')).toBe(true);
-    expect(RuntimeSettings.shouldUseCache('maven', 'darwin')).toBe(false);
-    expect(RuntimeSettings.shouldUseCache('cocoapods', 'linux')).toBe(false);
-  });
-
-  it('requires runtime settings to be loaded before use', () => {
-    RuntimeSettings.reset();
-
-    expect(() => RuntimeSettings.get()).toThrow('Runtime settings must be loaded before use');
-    expect(() => RuntimeSettings.shouldUseCache('npm')).toThrow(
-      'Runtime settings must be loaded before use'
-    );
-  });
-
-  it('infers enabled cache URLs from environment variables', () => {
+  it('accepts partial runtime settings and ignores unknown fields', async () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
     process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: true, nodejs: true, maven: false },
-        darwin: { npm: false, nodejs: true, cocoapods: true },
-      },
-      iosPrecompiledModules: false,
-    });
+    jest.mocked(fetch).mockResolvedValue(
+      response({
+        caches: {
+          linux: { npm: false, nodejs: true, maven: true },
+          darwin: { npm: true, maven: true, cocoapods: false },
+        },
+        iosPrecompiledModules: true,
+        unknownFutureSetting: true,
+      })
+    );
 
-    expect(RuntimeSettings.getCacheUrl('npm', 'linux')).toBe('https://npm.example');
-    expect(RuntimeSettings.getCacheUrl('nodejs', 'linux')).toBe('https://node.example');
-    expect(RuntimeSettings.getCacheUrl('maven', 'linux')).toBeNull();
-    expect(RuntimeSettings.getCacheUrl('cocoapods', 'darwin')).toBe('https://pods.example');
-    expect(RuntimeSettings.getCacheUrl('npm', 'darwin')).toBeNull();
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+    expect(RuntimeSettings.getNodeJsCacheUrl()).toBe('https://node.example');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
+    mockProcessPlatform('darwin');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
+    expect(RuntimeSettings.getCocoapodsCacheUrl()).toBeNull();
+    expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
+    expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(true);
+  });
+
+  it('uses Maven and CocoaPods caches when enabled for the current platform and their environment variables exist', async () => {
+    process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
+    process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
+    jest.mocked(fetch).mockResolvedValue(
+      response({
+        caches: {
+          linux: { maven: true },
+          darwin: { maven: true, cocoapods: true },
+        },
+      })
+    );
+
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
+    mockProcessPlatform('darwin');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
+    expect(RuntimeSettings.getCocoapodsCacheUrl()).toBe('https://pods.example');
+  });
+
+  it('does not use caches when runtime settings are not loaded', () => {
+    process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
+
+    jest.isolateModules(() => {
+      const { RuntimeSettings } = require('../runtimeSettings');
+
+      expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+      expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
+    });
   });
 });
 
@@ -162,4 +162,18 @@ function restoreEnv(key: string, value: string | undefined): void {
   } else {
     process.env[key] = value;
   }
+}
+
+function mockProcessPlatform(platform: NodeJS.Platform): void {
+  Object.defineProperty(process, 'platform', {
+    value: platform,
+  });
+}
+
+function response(body: unknown, status = 200): any {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  };
 }

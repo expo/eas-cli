@@ -16,7 +16,11 @@ describe(getBuildEnv.name, () => {
   };
 
   beforeEach(() => {
-    RuntimeSettings.apply(RuntimeSettings.defaultSettings);
+    jest.spyOn(RuntimeSettings, 'getNpmCacheUrl').mockReturnValue(null);
+    jest.spyOn(RuntimeSettings, 'getNodeJsCacheUrl').mockReturnValue(null);
+    jest.spyOn(RuntimeSettings, 'getMavenCacheUrl').mockReturnValue(null);
+    jest.spyOn(RuntimeSettings, 'getCocoapodsCacheUrl').mockReturnValue(null);
+    jest.spyOn(RuntimeSettings, 'isUsingIosPrecompiledModulesEnabled').mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -26,7 +30,6 @@ describe(getBuildEnv.name, () => {
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
     mockProcessPlatform(originalPlatform);
-    RuntimeSettings.reset();
     jest.restoreAllMocks();
   });
 
@@ -81,13 +84,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('adds precompiled modules env vars for iOS jobs when enabled', () => {
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: true, nodejs: true, maven: true },
-        darwin: { npm: true, nodejs: true, cocoapods: true },
-      },
-      iosPrecompiledModules: true,
-    });
+    jest.mocked(RuntimeSettings.isUsingIosPrecompiledModulesEnabled).mockReturnValue(true);
 
     const env = getBuildEnv({
       job: {
@@ -110,13 +107,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('does not add precompiled modules env vars for Android jobs when enabled', () => {
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: true, nodejs: true, maven: true },
-        darwin: { npm: true, nodejs: true, cocoapods: true },
-      },
-      iosPrecompiledModules: true,
-    });
+    jest.mocked(RuntimeSettings.isUsingIosPrecompiledModulesEnabled).mockReturnValue(true);
 
     const env = getBuildEnv({
       job: {
@@ -140,13 +131,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('leaves job-provided precompiled modules env vars in override position', () => {
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: true, nodejs: true, maven: true },
-        darwin: { npm: true, nodejs: true, cocoapods: true },
-      },
-      iosPrecompiledModules: true,
-    });
+    jest.mocked(RuntimeSettings.isUsingIosPrecompiledModulesEnabled).mockReturnValue(true);
 
     const job = {
       platform: Platform.IOS,
@@ -176,13 +161,6 @@ describe(getBuildEnv.name, () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: false, nodejs: false, maven: false },
-        darwin: { npm: true, nodejs: true, cocoapods: true },
-      },
-      iosPrecompiledModules: false,
-    });
 
     const env = getBuildEnv({
       job: {
@@ -213,13 +191,6 @@ describe(getBuildEnv.name, () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
-    RuntimeSettings.apply({
-      caches: {
-        linux: { npm: true, nodejs: true, maven: true },
-        darwin: { npm: false, nodejs: false, cocoapods: false },
-      },
-      iosPrecompiledModules: false,
-    });
 
     const env = getBuildEnv({
       job: {
@@ -249,6 +220,9 @@ describe(getBuildEnv.name, () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
+    jest.mocked(RuntimeSettings.getNpmCacheUrl).mockReturnValue('https://npm.example');
+    jest.mocked(RuntimeSettings.getNodeJsCacheUrl).mockReturnValue('https://node.example');
+    jest.mocked(RuntimeSettings.getMavenCacheUrl).mockReturnValue('https://maven.example');
 
     const env = getBuildEnv({
       job: {
