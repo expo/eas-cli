@@ -12,7 +12,7 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
-for tool in gsutil jq; do
+for tool in gcloud jq; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "$tool is required. Run \`mise install\` from the repository root and try again." >&2
     exit 1
@@ -31,7 +31,7 @@ downloaded_tmpfile="$(mktemp)"
 trap 'rm -f "$tmpfile" "$minified_tmpfile" "$downloaded_tmpfile"' EXIT
 
 echo "Remote URL: $object_url"
-gsutil cat "$object_uri" | jq . >"$tmpfile"
+curl -fsSL "$object_url" | jq . >"$tmpfile"
 echo "Edit and verify the pretty-formatted JSON file before saving."
 
 while true; do
@@ -40,7 +40,8 @@ while true; do
     break
   fi
 
-  echo "JSON is invalid. Reopening editor." >&2
+  read -r -n 1 -s -p "JSON is invalid. Press any key to reopen editor." _
+  echo >&2
 done
 
 jq -c . "$tmpfile" >"$minified_tmpfile"
@@ -58,11 +59,12 @@ if [[ "$env" == "production" ]]; then
   fi
 fi
 
-gsutil \
-  -h "Cache-Control:${cache_control}" \
-  -h "Content-Type:application/json" \
-  cp "$minified_tmpfile" "$object_uri"
-gsutil acl ch -u AllUsers:R "$object_uri"
+gcloud storage cp \
+  --cache-control="$cache_control" \
+  --content-type=application/json \
+  --predefined-acl=publicRead \
+  "$minified_tmpfile" \
+  "$object_uri"
 
 curl -fsSL "$object_url" >"$downloaded_tmpfile"
 if ! cmp -s "$minified_tmpfile" "$downloaded_tmpfile"; then
