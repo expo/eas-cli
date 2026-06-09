@@ -1,14 +1,15 @@
+import { RuntimeSettings } from '@expo/build-tools';
+
 import config from './config';
 import logger from './logger';
 import { startServer } from './metricsServer';
 import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
-import { loadRuntimeSettingsAsync } from './runtimeSettings';
 import sentry from './sentry';
 import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
-  await loadRuntimeSettingsAsync(config.env, logger);
+  await RuntimeSettings.loadAsync(config.env, logger);
   await prepareRuntimeEnvironmentConfigFiles();
   await prepareWorkingdir();
   startWsServer();

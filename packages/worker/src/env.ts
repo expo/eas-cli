@@ -1,3 +1,4 @@
+import { RuntimeSettings } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -7,11 +8,6 @@ import path from 'path';
 import config from './config';
 import { Environment } from './constants';
 import { androidImagesWithJavaVersionLowerThen11 } from './external/turtle';
-import {
-  getRuntimeSettings,
-  getRuntimeSettingsCacheUrl,
-  getRuntimeSettingsCacheUrlEnvVars,
-} from './runtimeSettings';
 import { getAccessedEnvs } from './utils/env';
 
 // keep in sync with local-build-plugin env vars
@@ -40,10 +36,10 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
   setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
-  const npmCacheUrl = getRuntimeSettingsCacheUrl('npm');
-  const nodeJsCacheUrl = getRuntimeSettingsCacheUrl('nodejs');
-  const mavenCacheUrl = getRuntimeSettingsCacheUrl('maven');
-  const cocoapodsCacheUrl = getRuntimeSettingsCacheUrl('cocoapods');
+  const npmCacheUrl = RuntimeSettings.getCacheUrl('npm');
+  const nodeJsCacheUrl = RuntimeSettings.getCacheUrl('nodejs');
+  const mavenCacheUrl = RuntimeSettings.getCacheUrl('maven');
+  const cocoapodsCacheUrl = RuntimeSettings.getCacheUrl('cocoapods');
 
   setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
@@ -153,13 +149,13 @@ function shouldUsePrecompiledModules(job: Job): boolean {
     return false;
   }
 
-  return getRuntimeSettings().iosPrecompiledModules;
+  return RuntimeSettings.get().iosPrecompiledModules;
 }
 
 function getFilteredEnv(): Env {
   const envToFilter = [
     ...getAccessedEnvs(),
-    ...getRuntimeSettingsCacheUrlEnvVars(),
+    ...RuntimeSettings.getCacheUrlEnvVars(),
     'KUBERNETES_*',
   ];
   const envToReturn = micromatch(

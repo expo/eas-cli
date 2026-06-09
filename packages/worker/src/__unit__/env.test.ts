@@ -1,13 +1,9 @@
+import { RuntimeSettings } from '@expo/build-tools';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import os from 'os';
 
 import config from '../config';
 import { getBuildEnv, getGradleMemoryOptions } from '../env';
-import {
-  DEFAULT_RUNTIME_SETTINGS,
-  applyRuntimeSettings,
-  resetRuntimeSettings,
-} from '../runtimeSettings';
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
@@ -20,7 +16,7 @@ describe(getBuildEnv.name, () => {
   };
 
   beforeEach(() => {
-    applyRuntimeSettings(DEFAULT_RUNTIME_SETTINGS);
+    RuntimeSettings.apply(RuntimeSettings.defaultSettings);
   });
 
   afterEach(() => {
@@ -30,7 +26,7 @@ describe(getBuildEnv.name, () => {
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
     mockProcessPlatform(originalPlatform);
-    resetRuntimeSettings();
+    RuntimeSettings.reset();
     jest.restoreAllMocks();
   });
 
@@ -85,7 +81,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('adds precompiled modules env vars for iOS jobs when enabled', () => {
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: true, nodejs: true, maven: true },
         darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -114,7 +110,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('does not add precompiled modules env vars for Android jobs when enabled', () => {
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: true, nodejs: true, maven: true },
         darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -144,7 +140,7 @@ describe(getBuildEnv.name, () => {
   });
 
   it('leaves job-provided precompiled modules env vars in override position', () => {
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: true, nodejs: true, maven: true },
         darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -180,7 +176,7 @@ describe(getBuildEnv.name, () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: false, nodejs: false, maven: false },
         darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -217,7 +213,7 @@ describe(getBuildEnv.name, () => {
     process.env.EAS_BUILD_NPM_CACHE_URL = 'https://npm.example';
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: true, nodejs: true, maven: true },
         darwin: { npm: false, nodejs: false, cocoapods: false },

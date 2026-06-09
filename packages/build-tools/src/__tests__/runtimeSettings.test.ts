@@ -1,18 +1,7 @@
 import { Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
-import { Environment } from '../constants';
-import {
-  DEFAULT_RUNTIME_SETTINGS,
-  applyRuntimeSettings,
-  getRuntimeSettings,
-  getRuntimeSettingsCacheUrl,
-  getRuntimeSettingsUrl,
-  loadRuntimeSettingsAsync,
-  parseRuntimeSettings,
-  resetRuntimeSettings,
-  shouldUseCache,
-} from '../runtimeSettings';
+import { RuntimeSettings } from '../runtimeSettings';
 
 jest.mock('node-fetch', () => {
   const actual = jest.requireActual('node-fetch');
@@ -37,7 +26,7 @@ describe('runtimeSettings', () => {
   };
 
   afterEach(() => {
-    resetRuntimeSettings();
+    RuntimeSettings.reset();
     jest.mocked(fetch).mockReset();
     jest.restoreAllMocks();
     restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
@@ -48,23 +37,23 @@ describe('runtimeSettings', () => {
   });
 
   it('resolves hardcoded GCS URLs for staging and production only', () => {
-    expect(getRuntimeSettingsUrl(Environment.STAGING)).toBe(
+    expect(RuntimeSettings.getUrl('staging')).toBe(
       'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json'
     );
-    expect(getRuntimeSettingsUrl(Environment.PRODUCTION)).toBe(
+    expect(RuntimeSettings.getUrl('production')).toBe(
       'https://storage.googleapis.com/eas-workflows-production/runtime-settings.json'
     );
-    expect(getRuntimeSettingsUrl(Environment.DEVELOPMENT)).toBeNull();
-    expect(getRuntimeSettingsUrl(Environment.TEST)).toBeNull();
+    expect(RuntimeSettings.getUrl('development')).toBeNull();
+    expect(RuntimeSettings.getUrl('test')).toBeNull();
   });
 
   it('uses defaults when remote settings are unavailable', async () => {
     jest.mocked(fetch).mockResolvedValue(new Response('missing', { status: 404 }));
 
-    await expect(loadRuntimeSettingsAsync(Environment.STAGING, logger)).resolves.toEqual(
-      DEFAULT_RUNTIME_SETTINGS
+    await expect(RuntimeSettings.loadAsync('staging', logger)).resolves.toEqual(
+      RuntimeSettings.defaultSettings
     );
-    expect(getRuntimeSettings()).toEqual(DEFAULT_RUNTIME_SETTINGS);
+    expect(RuntimeSettings.get()).toEqual(RuntimeSettings.defaultSettings);
     expect(logger.warn).toHaveBeenCalled();
   });
 
@@ -82,16 +71,16 @@ describe('runtimeSettings', () => {
       )
     );
 
-    await expect(loadRuntimeSettingsAsync(Environment.STAGING, logger)).resolves.toEqual(
-      DEFAULT_RUNTIME_SETTINGS
+    await expect(RuntimeSettings.loadAsync('staging', logger)).resolves.toEqual(
+      RuntimeSettings.defaultSettings
     );
-    expect(getRuntimeSettings()).toEqual(DEFAULT_RUNTIME_SETTINGS);
+    expect(RuntimeSettings.get()).toEqual(RuntimeSettings.defaultSettings);
     expect(logger.warn).toHaveBeenCalled();
   });
 
   it('validates accepted and rejected runtime settings JSON', () => {
     expect(
-      parseRuntimeSettings({
+      RuntimeSettings.parse({
         caches: {
           linux: { npm: true, nodejs: false, maven: true },
           darwin: { npm: true, nodejs: true, cocoapods: false },
@@ -107,7 +96,7 @@ describe('runtimeSettings', () => {
     });
 
     expect(() =>
-      parseRuntimeSettings({
+      RuntimeSettings.parse({
         caches: {
           linux: { npm: true, nodejs: true, maven: true },
           darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -118,7 +107,7 @@ describe('runtimeSettings', () => {
   });
 
   it('gates caches per worker platform', () => {
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: false, nodejs: true, maven: false },
         darwin: { npm: true, nodejs: false, cocoapods: false },
@@ -126,22 +115,24 @@ describe('runtimeSettings', () => {
       iosPrecompiledModules: false,
     });
 
-    expect(shouldUseCache('npm', 'linux')).toBe(false);
-    expect(shouldUseCache('maven', 'linux')).toBe(false);
-    expect(shouldUseCache('nodejs', 'linux')).toBe(true);
+    expect(RuntimeSettings.shouldUseCache('npm', 'linux')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('maven', 'linux')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('nodejs', 'linux')).toBe(true);
 
-    expect(shouldUseCache('nodejs', 'darwin')).toBe(false);
-    expect(shouldUseCache('cocoapods', 'darwin')).toBe(false);
-    expect(shouldUseCache('npm', 'darwin')).toBe(true);
-    expect(shouldUseCache('maven', 'darwin')).toBe(false);
-    expect(shouldUseCache('cocoapods', 'linux')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('nodejs', 'darwin')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('cocoapods', 'darwin')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('npm', 'darwin')).toBe(true);
+    expect(RuntimeSettings.shouldUseCache('maven', 'darwin')).toBe(false);
+    expect(RuntimeSettings.shouldUseCache('cocoapods', 'linux')).toBe(false);
   });
 
   it('requires runtime settings to be loaded before use', () => {
-    resetRuntimeSettings();
+    RuntimeSettings.reset();
 
-    expect(() => getRuntimeSettings()).toThrow('Runtime settings must be loaded before use');
-    expect(() => shouldUseCache('npm')).toThrow('Runtime settings must be loaded before use');
+    expect(() => RuntimeSettings.get()).toThrow('Runtime settings must be loaded before use');
+    expect(() => RuntimeSettings.shouldUseCache('npm')).toThrow(
+      'Runtime settings must be loaded before use'
+    );
   });
 
   it('infers enabled cache URLs from environment variables', () => {
@@ -149,7 +140,7 @@ describe('runtimeSettings', () => {
     process.env.NVM_NODEJS_ORG_MIRROR = 'https://node.example';
     process.env.EAS_BUILD_MAVEN_CACHE_URL = 'https://maven.example';
     process.env.EAS_BUILD_COCOAPODS_CACHE_URL = 'https://pods.example';
-    applyRuntimeSettings({
+    RuntimeSettings.apply({
       caches: {
         linux: { npm: true, nodejs: true, maven: false },
         darwin: { npm: false, nodejs: true, cocoapods: true },
@@ -157,11 +148,11 @@ describe('runtimeSettings', () => {
       iosPrecompiledModules: false,
     });
 
-    expect(getRuntimeSettingsCacheUrl('npm', 'linux')).toBe('https://npm.example');
-    expect(getRuntimeSettingsCacheUrl('nodejs', 'linux')).toBe('https://node.example');
-    expect(getRuntimeSettingsCacheUrl('maven', 'linux')).toBeNull();
-    expect(getRuntimeSettingsCacheUrl('cocoapods', 'darwin')).toBe('https://pods.example');
-    expect(getRuntimeSettingsCacheUrl('npm', 'darwin')).toBeNull();
+    expect(RuntimeSettings.getCacheUrl('npm', 'linux')).toBe('https://npm.example');
+    expect(RuntimeSettings.getCacheUrl('nodejs', 'linux')).toBe('https://node.example');
+    expect(RuntimeSettings.getCacheUrl('maven', 'linux')).toBeNull();
+    expect(RuntimeSettings.getCacheUrl('cocoapods', 'darwin')).toBe('https://pods.example');
+    expect(RuntimeSettings.getCacheUrl('npm', 'darwin')).toBeNull();
   });
 });
 

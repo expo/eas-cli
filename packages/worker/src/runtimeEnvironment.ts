@@ -1,4 +1,4 @@
-import { BuildContext } from '@expo/build-tools';
+import { BuildContext, RuntimeSettings } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
@@ -8,7 +8,6 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import config from './config';
-import { getRuntimeSettingsCacheUrl } from './runtimeSettings';
 
 class SystemDepsInstallError extends errors.UserError {
   constructor(dependency: string) {
@@ -24,8 +23,8 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  const npmCacheUrl = getRuntimeSettingsCacheUrl('npm');
-  const mavenCacheUrl = getRuntimeSettingsCacheUrl('maven');
+  const npmCacheUrl = RuntimeSettings.getCacheUrl('npm');
+  const mavenCacheUrl = RuntimeSettings.getCacheUrl('maven');
 
   if (npmCacheUrl) {
     // create ~/.npmrc

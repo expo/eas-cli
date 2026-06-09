@@ -1,9 +1,8 @@
 import fetch from 'node-fetch';
 import { z } from 'zod';
 
-import { Environment } from './constants';
-
 const RUNTIME_SETTINGS_FILENAME = 'runtime-settings.json';
+const RUNTIME_SETTINGS_ENVIRONMENTS = ['staging', 'production'] as const;
 
 const CACHE_URL_ENV_VARS = {
   npm: ['EAS_BUILD_NPM_CACHE_URL', 'NPM_CACHE_URL'],
@@ -12,7 +11,7 @@ const CACHE_URL_ENV_VARS = {
   cocoapods: ['EAS_BUILD_COCOAPODS_CACHE_URL'],
 } as const satisfies Record<RuntimeSettingsCacheName, readonly string[]>;
 
-export const RuntimeSettingsSchema = z
+const RuntimeSettingsSchema = z
   .object({
     caches: z
       .object({
@@ -37,11 +36,12 @@ export const RuntimeSettingsSchema = z
   .strict();
 
 export type RuntimeSettings = z.infer<typeof RuntimeSettingsSchema>;
+type RuntimeSettingsEnvironment = (typeof RUNTIME_SETTINGS_ENVIRONMENTS)[number];
 export type RuntimeSettingsCacheName = 'npm' | 'nodejs' | 'maven' | 'cocoapods';
 export type RuntimeSettingsCacheUrlEnvVar =
   (typeof CACHE_URL_ENV_VARS)[RuntimeSettingsCacheName][number];
 
-export const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
+const DEFAULT_RUNTIME_SETTINGS: RuntimeSettings = {
   caches: {
     linux: {
       npm: true,
@@ -64,22 +64,19 @@ type Logger = {
   warn: (obj: object, msg?: string) => void;
 };
 
-export function getRuntimeSettingsUrl(environment: Environment): string | null {
-  if (environment !== Environment.STAGING && environment !== Environment.PRODUCTION) {
+function getUrl(environment: string): string | null {
+  if (!RUNTIME_SETTINGS_ENVIRONMENTS.includes(environment as RuntimeSettingsEnvironment)) {
     return null;
   }
 
   return `https://storage.googleapis.com/eas-workflows-${environment}/${RUNTIME_SETTINGS_FILENAME}`;
 }
 
-export async function loadRuntimeSettingsAsync(
-  environment: Environment,
-  logger: Logger
-): Promise<RuntimeSettings> {
-  const url = getRuntimeSettingsUrl(environment);
+async function loadAsync(environment: string, logger: Logger): Promise<RuntimeSettings> {
+  const url = getUrl(environment);
   if (!url) {
-    applyRuntimeSettings(DEFAULT_RUNTIME_SETTINGS);
-    return getRuntimeSettings();
+    apply(DEFAULT_RUNTIME_SETTINGS);
+    return get();
   }
 
   try {
@@ -92,45 +89,45 @@ export async function loadRuntimeSettingsAsync(
         { url, status: response.status },
         'Failed to fetch worker runtime settings, using defaults'
       );
-      applyRuntimeSettings(DEFAULT_RUNTIME_SETTINGS);
-      return getRuntimeSettings();
+      apply(DEFAULT_RUNTIME_SETTINGS);
+      return get();
     }
 
-    const settings = parseRuntimeSettings(await response.json());
-    applyRuntimeSettings(settings);
+    const settings = parse(await response.json());
+    apply(settings);
     logger.info({ url, settings }, 'Loaded worker runtime settings');
-    return getRuntimeSettings();
+    return get();
   } catch (err) {
     logger.warn({ err, url }, 'Failed to load worker runtime settings, using defaults');
-    applyRuntimeSettings(DEFAULT_RUNTIME_SETTINGS);
-    return getRuntimeSettings();
+    apply(DEFAULT_RUNTIME_SETTINGS);
+    return get();
   }
 }
 
-export function parseRuntimeSettings(value: unknown): RuntimeSettings {
+function parse(value: unknown): RuntimeSettings {
   return RuntimeSettingsSchema.parse(value);
 }
 
-export function applyRuntimeSettings(settings: RuntimeSettings): void {
+function apply(settings: RuntimeSettings): void {
   runtimeSettings = settings;
 }
 
-export function resetRuntimeSettings(): void {
+function reset(): void {
   runtimeSettings = null;
 }
 
-export function getRuntimeSettings(): RuntimeSettings {
+function get(): RuntimeSettings {
   if (!runtimeSettings) {
     throw new Error('Runtime settings must be loaded before use');
   }
   return runtimeSettings;
 }
 
-export function shouldUseCache(
+function shouldUseCache(
   cacheName: RuntimeSettingsCacheName,
   platform: NodeJS.Platform = process.platform
 ): boolean {
-  const settings = getRuntimeSettings();
+  const settings = get();
   if (platform === 'darwin') {
     if (cacheName === 'maven') {
       return false;
@@ -144,7 +141,7 @@ export function shouldUseCache(
   return settings.caches.linux[cacheName];
 }
 
-export function getRuntimeSettingsCacheUrl(
+function getCacheUrl(
   cacheName: RuntimeSettingsCacheName,
   platform: NodeJS.Platform = process.platform
 ): string | null {
@@ -162,6 +159,20 @@ export function getRuntimeSettingsCacheUrl(
   return null;
 }
 
-export function getRuntimeSettingsCacheUrlEnvVars(): RuntimeSettingsCacheUrlEnvVar[] {
+function getCacheUrlEnvVars(): RuntimeSettingsCacheUrlEnvVar[] {
   return Object.values(CACHE_URL_ENV_VARS).flat();
 }
+
+export const RuntimeSettings = {
+  schema: RuntimeSettingsSchema,
+  defaultSettings: DEFAULT_RUNTIME_SETTINGS,
+  getUrl,
+  loadAsync,
+  parse,
+  apply,
+  reset,
+  get,
+  shouldUseCache,
+  getCacheUrl,
+  getCacheUrlEnvVars,
+};

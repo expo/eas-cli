@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { RuntimeSettings } from '@expo/build-tools';
 import { Android, Ios, Job } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
@@ -9,7 +10,6 @@ import {
   prepareRuntimeEnvironment,
   prepareRuntimeEnvironmentConfigFiles,
 } from '../runtimeEnvironment';
-import { applyRuntimeSettings, resetRuntimeSettings } from '../runtimeSettings';
 
 jest.mock('fs-extra');
 jest.mock('@expo/template-file');
@@ -55,7 +55,7 @@ describe('prepareRuntimeEnvironment', () => {
     restoreEnv('EAS_BUILD_NPM_CACHE_URL', originalCacheUrls.EAS_BUILD_NPM_CACHE_URL);
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     mockProcessPlatform(originalPlatform);
-    resetRuntimeSettings();
+    RuntimeSettings.reset();
     jest.restoreAllMocks();
   });
 
@@ -68,7 +68,7 @@ describe('prepareRuntimeEnvironment', () => {
 
     it('does not prepare disabled Linux cache config files', async () => {
       mockProcessPlatform('linux');
-      applyRuntimeSettings({
+      RuntimeSettings.apply({
         caches: {
           linux: { npm: false, nodejs: true, maven: false },
           darwin: { npm: true, nodejs: true, cocoapods: true },
@@ -90,7 +90,7 @@ describe('prepareRuntimeEnvironment', () => {
 
     it('prepares enabled Linux cache config files', async () => {
       mockProcessPlatform('linux');
-      applyRuntimeSettings({
+      RuntimeSettings.apply({
         caches: {
           linux: { npm: true, nodejs: true, maven: true },
           darwin: { npm: true, nodejs: true, cocoapods: true },
