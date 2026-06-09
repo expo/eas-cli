@@ -8,6 +8,7 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -22,12 +23,17 @@ import {
   uploadRemoteSessionConfigAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
+import { sleepAsync } from '../../utils/retry';
 
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
+
+const IDLE_HOOK_PATH = path.join(os.tmpdir(), 'agent-device-idle-hook.mjs');
+const IDLE_STATE_PATH = path.join(os.tmpdir(), 'agent-device-last-activity');
+const IDLE_POLL_INTERVAL_MS = 30_000;
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -43,6 +49,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_idle_minutes',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async ({ logger, global }, { inputs, env }) => {
       // Fail fast before any expensive setup if the injected env
@@ -54,9 +65,16 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      const rawMaxIdleMinutes = inputs.max_idle_minutes.value as number | undefined;
+      const maxIdleMinutes =
+        typeof rawMaxIdleMinutes === 'number' && rawMaxIdleMinutes > 0
+          ? rawMaxIdleMinutes
+          : undefined;
       const { runtimePlatform } = global;
       logger.info(
-        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
+        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}${
+          maxIdleMinutes != null ? `, max idle: ${maxIdleMinutes}m` : ''
+        }).`
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
@@ -78,12 +96,18 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
+      const idleEnv: Record<string, string> = {};
+      if (maxIdleMinutes != null) {
+        await writeIdleAuthHookAsync(logger);
+        idleEnv.AGENT_DEVICE_HTTP_AUTH_HOOK = IDLE_HOOK_PATH;
+      }
+
       logger.info('Launching agent-device daemon.');
       spawnDetached({
         command: 'bun',
         args: ['run', 'src/daemon.ts'],
         cwd: SRC_DIR,
-        env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+        env: { ...env, ...idleEnv, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
       });
 
       logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
@@ -129,10 +153,17 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the daemon and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
+      if (maxIdleMinutes != null) {
+        logger.info(
+          `Remote session is live. Watching for >= ${maxIdleMinutes}m of inactivity; otherwise keeping the job alive until the session is stopped.`
+        );
+        await waitForIdleTimeoutAsync({ maxIdleMs: maxIdleMinutes * 60_000, logger });
+      } else {
+        logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
+        // Keep the turtle job alive so the daemon and tunnel stay reachable
+        // until stopDeviceRunSession cancels the run.
+        await new Promise<never>(() => {});
+      }
     },
   });
 }
@@ -167,4 +198,60 @@ function parseDaemonInfo(raw: string): { port: number; token: string } {
   }
   const { httpPort, token } = parsed as { httpPort: number; token: string };
   return { port: httpPort, token };
+}
+
+async function writeIdleAuthHookAsync(logger: bunyan): Promise<void> {
+  // Pre-seed so the first poll has a baseline; otherwise it would compute an
+  // unbounded idle window and false-positive the timeout.
+  await fs.promises.writeFile(IDLE_STATE_PATH, String(Date.now()), 'utf8');
+
+  // Loaded by agent-device's daemon http-server `loadHttpAuthHook`. Must not
+  // throw — a failing hook 401s every request.
+  const hookSource = `import { writeFileSync } from 'node:fs';
+const STATE_PATH = ${JSON.stringify(IDLE_STATE_PATH)};
+export default function recordActivityHook() {
+  try {
+    writeFileSync(STATE_PATH, String(Date.now()), 'utf8');
+  } catch {}
+  return true;
+}
+`;
+  await fs.promises.writeFile(IDLE_HOOK_PATH, hookSource, 'utf8');
+  logger.info(`Installed idle-activity auth hook at ${IDLE_HOOK_PATH}.`);
+}
+
+async function waitForIdleTimeoutAsync({
+  maxIdleMs,
+  logger,
+}: {
+  maxIdleMs: number;
+  logger: bunyan;
+}): Promise<never> {
+  while (true) {
+    await sleepAsync(IDLE_POLL_INTERVAL_MS);
+
+    let lastActivityAt: number;
+    try {
+      const raw = await fs.promises.readFile(IDLE_STATE_PATH, 'utf8');
+      lastActivityAt = Number(raw);
+    } catch {
+      // Skip this tick — the hook will re-write the file on the next request.
+      continue;
+    }
+    if (!Number.isFinite(lastActivityAt)) {
+      continue;
+    }
+
+    const idleMs = Date.now() - lastActivityAt;
+    if (idleMs >= maxIdleMs) {
+      const idleMinutes = Math.floor(idleMs / 60_000);
+      const maxIdleMinutes = Math.floor(maxIdleMs / 60_000);
+      logger.error(
+        `agent-device remote session was idle for ${idleMinutes} minute(s); the limit is ${maxIdleMinutes} minute(s). Failing the step to release the worker.`
+      );
+      throw new SystemError(
+        `agent-device remote session exceeded the max idle window (${idleMinutes} >= ${maxIdleMinutes} minute(s)). Start a new session and reconnect, or raise the maxIdleMinutes when creating the session.`
+      );
+    }
+  }
 }
