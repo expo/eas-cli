@@ -51,4 +51,40 @@ describe('createInstallMaestroBuildFunction', () => {
 
     expect(Datadog.distribution).not.toHaveBeenCalled();
   });
+
+  it('extracts the version when `maestro --version` prints an analytics notice', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => ({
+      stdout:
+        command === 'maestro'
+          ? 'Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS environment variable to any value before running Maestro.\n2.0.10\n'
+          : '',
+    })) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock();
+    globalCtx.updateEnv({ EAS_BUILD_RUNNER: 'eas-build' });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, { callInputs: {} });
+
+    await step.executeAsync();
+
+    expect(step.getOutputValueByName('maestro_version')).toBe('2.0.10');
+    expect(Datadog.distribution).toHaveBeenCalledWith('eas.maestro.install', 1, {
+      maestro_version: '2.0.10',
+    });
+  });
+
+  it('uses the trailing version when the notice itself contains an earlier version-like string', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => ({
+      stdout: command === 'maestro' ? 'Analytics schema v2.0.0 enabled.\n2.0.10\n' : '',
+    })) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock();
+    globalCtx.updateEnv({ EAS_BUILD_RUNNER: 'eas-build' });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, { callInputs: {} });
+
+    await step.executeAsync();
+
+    expect(step.getOutputValueByName('maestro_version')).toBe('2.0.10');
+  });
 });
