@@ -9,10 +9,10 @@ describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
   const originalPlatform = process.platform;
   const originalCacheUrls = {
-    EAS_NPM_CACHE_URL: process.env.__EAS_NPM_CACHE_URL,
-    EAS_NODEJS_CACHE_URL: process.env.__EAS_NODEJS_CACHE_URL,
-    EAS_MAVEN_CACHE_URL: process.env.__EAS_MAVEN_CACHE_URL,
-    EAS_COCOAPODS_CACHE_URL: process.env.__EAS_COCOAPODS_CACHE_URL,
+    EAS_NPM_CACHE_URL: process.env.EAS_NPM_CACHE_URL,
+    EAS_NODEJS_CACHE_URL: process.env.EAS_NODEJS_CACHE_URL,
+    EAS_MAVEN_CACHE_URL: process.env.EAS_MAVEN_CACHE_URL,
+    EAS_COCOAPODS_CACHE_URL: process.env.EAS_COCOAPODS_CACHE_URL,
     EAS_BUILD_NPM_CACHE_URL: process.env.EAS_BUILD_NPM_CACHE_URL,
     NPM_CACHE_URL: process.env.NPM_CACHE_URL,
     NVM_NODEJS_ORG_MIRROR: process.env.NVM_NODEJS_ORG_MIRROR,
@@ -199,9 +199,9 @@ describe(getBuildEnv.name, () => {
     expect(env.NVM_NODEJS_ORG_MIRROR).toBeUndefined();
     expect(env.EAS_BUILD_NPM_CACHE_URL).toBeUndefined();
     expect(env.EAS_BUILD_MAVEN_CACHE_URL).toBeUndefined();
-    expect(env.__EAS_NPM_CACHE_URL).toBeUndefined();
-    expect(env.__EAS_NODEJS_CACHE_URL).toBeUndefined();
-    expect(env.__EAS_MAVEN_CACHE_URL).toBeUndefined();
+    expect(env.EAS_NPM_CACHE_URL).toBeUndefined();
+    expect(env.EAS_NODEJS_CACHE_URL).toBeUndefined();
+    expect(env.EAS_MAVEN_CACHE_URL).toBeUndefined();
   });
 
   it('does not expose disabled Darwin cache URLs in build env', () => {

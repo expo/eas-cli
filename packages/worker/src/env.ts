@@ -55,7 +55,7 @@ export function getBuildEnv({
   if (runnerPlatform === Platform.IOS) {
     setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
-    if (shouldUsePrecompiledModules(job)) {
+    if (RuntimeSettings.isUsingIosPrecompiledModulesEnabled()) {
       setEnv(env, 'EAS_USE_PRECOMPILED_MODULES', '1');
     }
 
@@ -142,14 +142,6 @@ export function getBuildEnv({
   }
 
   return env;
-}
-
-function shouldUsePrecompiledModules(job: Job): boolean {
-  if (job.platform !== Platform.IOS) {
-    return false;
-  }
-
-  return RuntimeSettings.isUsingIosPrecompiledModulesEnabled();
 }
 
 function getFilteredEnv(): Env {

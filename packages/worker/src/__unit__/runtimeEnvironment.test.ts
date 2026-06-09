@@ -42,8 +42,8 @@ describe('prepareRuntimeEnvironment', () => {
   const originalEnvironment = config.env;
   const originalPlatform = process.platform;
   const originalCacheUrls = {
-    __EAS_NPM_CACHE_URL: process.env.__EAS_NPM_CACHE_URL,
-    __EAS_MAVEN_CACHE_URL: process.env.__EAS_MAVEN_CACHE_URL,
+    EAS_NPM_CACHE_URL: process.env.EAS_NPM_CACHE_URL,
+    EAS_MAVEN_CACHE_URL: process.env.EAS_MAVEN_CACHE_URL,
   };
 
   beforeEach(() => {
@@ -52,8 +52,8 @@ describe('prepareRuntimeEnvironment', () => {
 
   afterEach(() => {
     config.env = originalEnvironment;
-    restoreEnv('__EAS_NPM_CACHE_URL', originalCacheUrls.__EAS_NPM_CACHE_URL);
-    restoreEnv('__EAS_MAVEN_CACHE_URL', originalCacheUrls.__EAS_MAVEN_CACHE_URL);
+    restoreEnv('EAS_NPM_CACHE_URL', originalCacheUrls.EAS_NPM_CACHE_URL);
+    restoreEnv('EAS_MAVEN_CACHE_URL', originalCacheUrls.EAS_MAVEN_CACHE_URL);
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
@@ -61,8 +61,8 @@ describe('prepareRuntimeEnvironment', () => {
   describe(prepareRuntimeEnvironmentConfigFiles.name, () => {
     beforeEach(() => {
       config.env = 'production';
-      process.env.__EAS_NPM_CACHE_URL = 'https://npm.example';
-      process.env.__EAS_MAVEN_CACHE_URL = 'https://maven.example';
+      process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+      process.env.EAS_MAVEN_CACHE_URL = 'https://maven.example';
     });
 
     it('does not prepare disabled Linux cache config files', async () => {

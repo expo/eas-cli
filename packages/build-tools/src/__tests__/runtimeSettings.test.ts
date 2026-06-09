@@ -1,10 +1,16 @@
 import fetch from 'node-fetch';
 
 import { RuntimeSettings } from '../runtimeSettings';
+import { Sentry } from '../sentry';
 
 jest.mock('node-fetch', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+jest.mock('../sentry', () => ({
+  Sentry: {
+    capture: jest.fn(),
+  },
 }));
 
 describe('runtimeSettings', () => {
@@ -23,6 +29,7 @@ describe('runtimeSettings', () => {
   afterEach(() => {
     jest.mocked(fetch).mockReset();
     jest.restoreAllMocks();
+    jest.mocked(Sentry.capture).mockReset();
     logger.info.mockReset();
     logger.warn.mockReset();
     restoreEnv('EAS_NPM_CACHE_URL', originalCacheUrls.EAS_NPM_CACHE_URL);
@@ -74,6 +81,13 @@ describe('runtimeSettings', () => {
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
     expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
     expect(logger.warn).toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith('Failed to fetch worker runtime settings', {
+      extras: {
+        status: 404,
+        url: 'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json',
+      },
+      level: 'warning',
+    });
   });
 
   it('does not override existing settings when remote settings are invalid', async () => {
@@ -90,6 +104,16 @@ describe('runtimeSettings', () => {
     expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
     expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
     expect(logger.warn).toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Failed to load worker runtime settings',
+      expect.any(Error),
+      {
+        extras: {
+          url: 'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json',
+        },
+        level: 'warning',
+      }
+    );
   });
 
   it('accepts partial runtime settings and ignores unknown fields', async () => {
@@ -152,6 +176,27 @@ describe('runtimeSettings', () => {
       expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
     });
   });
+
+  it('reports when loaded runtime settings omit the current platform cache settings', async () => {
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
+    mockProcessPlatform('darwin');
+
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Runtime settings are missing cache settings for platform "darwin"',
+      }),
+      {
+        extras: {
+          configuredPlatforms: ['linux'],
+          platform: 'darwin',
+        },
+        level: 'error',
+      }
+    );
+  });
 });
 
 function restoreEnv(key: string, value: string | undefined): void {
@@ -164,6 +209,7 @@ function restoreEnv(key: string, value: string | undefined): void {
 
 function mockProcessPlatform(platform: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', {
+    configurable: true,
     value: platform,
   });
 }

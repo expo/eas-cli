@@ -2,6 +2,8 @@ import { type bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
 import { z } from 'zod';
 
+import { Sentry } from './sentry';
+
 const ENVIRONMENT_TO_RUNTIME_SETTINGS_URL: Record<string, string | undefined> = {
   staging: 'https://storage.googleapis.com/eas-workflows-staging/runtime-settings.json',
   production: 'https://storage.googleapis.com/eas-workflows-production/runtime-settings.json',
@@ -49,13 +51,39 @@ export namespace RuntimeSettings {
           { url, status: response.status },
           'Failed to fetch worker runtime settings, using defaults'
         );
+        Sentry.capture('Failed to fetch worker runtime settings', {
+          extras: { url, status: response.status },
+          level: 'warning',
+        });
         return;
       }
 
       runtimeSettings = RuntimeSettingsSchema.parse(await response.json());
+      if (runtimeSettings.caches && !runtimeSettings.caches[process.platform]) {
+        Sentry.capture(
+          new Error(
+            `Runtime settings are missing cache settings for platform "${process.platform}"`
+          ),
+          {
+            extras: {
+              configuredPlatforms: Object.keys(runtimeSettings.caches),
+              platform: process.platform,
+            },
+            level: 'error',
+          }
+        );
+      }
       logger.info({ url, settings: runtimeSettings }, 'Loaded worker runtime settings');
     } catch (err) {
       logger.warn({ err, url }, 'Failed to load worker runtime settings, using defaults');
+      Sentry.capture(
+        'Failed to load worker runtime settings',
+        err instanceof Error ? err : new Error(String(err)),
+        {
+          extras: { url },
+          level: 'warning',
+        }
+      );
     }
   }
 

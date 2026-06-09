@@ -51,7 +51,7 @@ async function resolvePrecompiledModulesPodInstallEnvAsync<TJob extends Ios.Job>
     return {};
   }
 
-  if (ctx.job.builderEnvironment?.env?.EAS_USE_PRECOMPILED_MODULES !== '1') {
+  if (ctx.env.EAS_USE_PRECOMPILED_MODULES !== '1') {
     return {};
   }
 
