@@ -9,7 +9,16 @@ import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
-  await RuntimeSettings.loadAsync({ environment: config.env, logger });
+  await RuntimeSettings.loadAsync({
+    environment: config.env,
+    logger,
+    cacheUrlFallbacks: {
+      npm: config.npmCacheUrl,
+      nodejs: config.nodeJsCacheUrl,
+      maven: config.mavenCacheUrl,
+      cocoapods: config.cocoapodsCacheUrl,
+    },
+  });
   await prepareRuntimeEnvironmentConfigFiles();
   await prepareWorkingdir();
   startWsServer();

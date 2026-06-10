@@ -24,6 +24,10 @@ export namespace Worker {
   type JobRunWorkerRuntimeConfig = {
     gcsSignedUploadUrlForLogs: GCS.SignedUrl;
 
+    nodeJsCacheUrl: string | undefined;
+    npmCacheUrl: string | undefined;
+    mavenCacheUrl: string | undefined;
+    cocoapodsCacheUrl: string | undefined;
     runMetricsServer: boolean;
 
     type: 'jobRun';
@@ -38,6 +42,10 @@ export namespace Worker {
     gcsSignedUploadUrlForBuildCache?: GCS.SignedUrl;
     gcsSignedBuildCacheDownloadUrl?: string;
 
+    nodeJsCacheUrl: string | undefined;
+    npmCacheUrl: string | undefined;
+    mavenCacheUrl: string | undefined;
+    cocoapodsCacheUrl: string | undefined;
     runMetricsServer: boolean;
 
     type?: never;

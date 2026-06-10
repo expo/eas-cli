@@ -50,7 +50,13 @@ describe('runtimeSettings', () => {
   it('fetches runtime settings from the staging and production buckets', async () => {
     jest.mocked(fetch).mockResolvedValue(response({}));
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      logger: logger as any,
+      cacheUrlFallbacks: {
+        npm: 'https://fallback-npm.example',
+      },
+    });
     await RuntimeSettings.loadAsync({ environment: 'production', logger: logger as any });
     await RuntimeSettings.loadAsync({ environment: 'test', logger: logger as any });
 
@@ -164,6 +170,94 @@ describe('runtimeSettings', () => {
     mockProcessPlatform('darwin');
     expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
     expect(RuntimeSettings.getCocoapodsCacheUrl()).toBe('https://pods.example');
+  });
+
+  it('uses cache URL fallbacks when enabled cache environment variables are not set', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      response({
+        caches: {
+          linux: { npm: true, nodejs: true, maven: true },
+          darwin: { cocoapods: true },
+        },
+      })
+    );
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      logger: logger as any,
+      cacheUrlFallbacks: {
+        npm: 'https://fallback-npm.example',
+        nodejs: 'https://fallback-node.example',
+        maven: 'https://fallback-maven.example',
+        cocoapods: 'https://fallback-pods.example',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://fallback-npm.example');
+    expect(RuntimeSettings.getNodeJsCacheUrl()).toBe('https://fallback-node.example');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://fallback-maven.example');
+    mockProcessPlatform('darwin');
+    expect(RuntimeSettings.getCocoapodsCacheUrl()).toBe('https://fallback-pods.example');
+  });
+
+  it('prefers cache URL environment variables over fallbacks', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(
+      response({
+        caches: {
+          linux: { npm: true },
+        },
+      })
+    );
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      logger: logger as any,
+      cacheUrlFallbacks: {
+        npm: 'https://fallback-npm.example',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
+  });
+
+  it('does not use cache URL fallbacks when runtime settings disable caches', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      response({
+        caches: {
+          linux: { npm: false },
+        },
+      })
+    );
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      logger: logger as any,
+      cacheUrlFallbacks: {
+        npm: 'https://fallback-npm.example',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('clears cache URL fallbacks when loading without them', async () => {
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      logger: logger as any,
+      cacheUrlFallbacks: {
+        npm: 'https://fallback-npm.example',
+      },
+    });
+    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
   });
 
   it('does not use caches when runtime settings are not loaded', () => {
