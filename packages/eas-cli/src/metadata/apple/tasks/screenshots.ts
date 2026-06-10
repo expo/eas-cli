@@ -11,6 +11,7 @@ import path from 'path';
 import fetch from '../../../fetch';
 import Log from '../../../log';
 import { logAsync } from '../../utils/log';
+import { isPngEquivalent } from '../../utils/png';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 import { AppleScreenshots } from '../types';
 
@@ -315,6 +316,19 @@ async function downloadScreenshotAsync(
     }
 
     const buffer = await response.buffer();
+
+    // App Store Connect stamps a unique asset resource ID into the image's
+    // metadata chunks on every download, so the bytes differ between pulls of
+    // the same screenshot. Skip the write when the local file only differs in
+    // those volatile chunks to keep repeated pulls idempotent.
+    if (fs.existsSync(outputPath)) {
+      const existing = await fs.promises.readFile(outputPath);
+      if (isPngEquivalent(existing, buffer)) {
+        Log.log(chalk`{dim Screenshot unchanged: ${relativePath}}`);
+        return relativePath;
+      }
+    }
+
     await fs.promises.writeFile(outputPath, buffer);
 
     Log.log(chalk`{dim Downloaded screenshot: ${relativePath}}`);
