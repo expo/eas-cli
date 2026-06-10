@@ -3,4 +3,6 @@ _.path = "./tools/bin"
 MISE_NODE_COREPACK = "true"
 
 [tools]
+gcloud = "570.0.0"
+jq = "1.8.1"
 node = "20.19.4"

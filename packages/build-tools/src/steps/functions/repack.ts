@@ -58,6 +58,16 @@ export function createRepackBuildFunction(): BuildFunction {
         required: false,
       }),
       BuildStepInput.createProvider({
+        id: 'ios_signing_use_source_app_entitlements',
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
+        id: 'ios_signing_app_entitlements_path',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        required: false,
+      }),
+      BuildStepInput.createProvider({
         id: 'repack_version',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
         required: false,
@@ -138,6 +148,12 @@ export function createRepackBuildFunction(): BuildFunction {
             iosSigningOptions: await resolveIosSigningOptionsAsync({
               job: stepsCtx.global.staticContext.job,
               logger: stepsCtx.logger,
+              useAppEntitlements: inputs.ios_signing_use_source_app_entitlements.value as
+                | boolean
+                | undefined,
+              entitlementsPath: inputs.ios_signing_app_entitlements_path.value as
+                | string
+                | undefined,
             }),
             logger: stepsCtx.logger,
             spawnAsync: repackSpawnAsync,
@@ -275,9 +291,13 @@ export async function resolveAndroidSigningOptionsAsync({
 export async function resolveIosSigningOptionsAsync({
   job,
   logger,
+  useAppEntitlements,
+  entitlementsPath,
 }: {
   job: Job;
   logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
 }): Promise<IosSigningOptions | undefined> {
   const iosJob = job as Ios.Job;
   const buildCredentials = iosJob.secrets?.buildCredentials;
@@ -295,5 +315,7 @@ export async function resolveIosSigningOptionsAsync({
     provisioningProfile,
     keychainPath: credentials.keychainPath,
     signingIdentity: credentials.applicationTargetProvisioningProfile.data.certificateCommonName,
+    useAppEntitlements,
+    entitlementsPath,
   };
 }

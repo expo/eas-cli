@@ -283,8 +283,12 @@ export default class BuildService {
       if (robotAccessToken) {
         Datadog.setup({
           expoApiV2BaseUrl: config.wwwApiV2BaseUrl,
-          turtleBuildId: this.buildId,
           robotAccessToken,
+          // job.platform is set only for build jobs; for a jobRun, this.buildId is the
+          // turtle-job-run id (verified by the jobType === 'jobRun' guard in startBuild()).
+          target: job.platform
+            ? { kind: 'build', turtleBuildId: this.buildId }
+            : { kind: 'jobRun', turtleJobRunId: this.buildId },
         });
       }
 

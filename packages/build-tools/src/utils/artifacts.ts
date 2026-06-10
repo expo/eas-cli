@@ -6,7 +6,6 @@ import path from 'path';
 import promiseLimit from 'promise-limit';
 
 import { BuildContext } from '../context';
-import { Datadog } from '../datadog';
 
 export class FindArtifactsError extends Error {}
 
@@ -20,16 +19,12 @@ export async function findArtifacts({
   /** If provided, will log error suggesting possible files to upload. */
   logger: bunyan | null;
 }): Promise<string[]> {
-  const files = path.isAbsolute(patternOrPath)
-    ? (await fs.pathExists(patternOrPath))
-      ? [patternOrPath]
-      : []
-    : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
-  await maybeLogAbsoluteGlobDryRunAsync({
-    rootDir,
-    patternOrPath,
-    files,
-  });
+  const files =
+    path.isAbsolute(patternOrPath) && !fg.isDynamicPattern(patternOrPath)
+      ? (await fs.pathExists(patternOrPath))
+        ? [patternOrPath]
+        : []
+      : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
   if (files.length === 0) {
     if (fg.isDynamicPattern(patternOrPath)) {
       throw new FindArtifactsError(`There are no files matching pattern "${patternOrPath}"`);
@@ -52,82 +47,6 @@ export async function findArtifacts({
     // fg will return a path relative to rootDir.
     return path.join(rootDir, filePath);
   });
-}
-
-async function findArtifactsWithAbsoluteGlobSupportDryRunAsync(
-  rootDir: string,
-  patternOrPath: string
-): Promise<string[]> {
-  return path.isAbsolute(patternOrPath) && !fg.isDynamicPattern(patternOrPath)
-    ? (await fs.pathExists(patternOrPath))
-      ? [patternOrPath]
-      : []
-    : await fg(patternOrPath, { cwd: rootDir, onlyFiles: false });
-}
-
-async function maybeLogAbsoluteGlobDryRunAsync({
-  rootDir,
-  patternOrPath,
-  files,
-}: {
-  rootDir: string;
-  patternOrPath: string;
-  files: string[];
-}): Promise<void> {
-  if (!path.isAbsolute(patternOrPath)) {
-    return;
-  }
-
-  try {
-    const filesWithAbsoluteGlobSupport = await findArtifactsWithAbsoluteGlobSupportDryRunAsync(
-      rootDir,
-      patternOrPath
-    );
-    const status = areArtifactListsEqual(files, filesWithAbsoluteGlobSupport)
-      ? 'match'
-      : 'mismatch';
-    Datadog.log(
-      `findArtifacts absolute path dry-run ${status}: ${patternOrPath} (current: ${files.length}, dry-run: ${filesWithAbsoluteGlobSupport.length}, samples: ${formatArtifactSamples(
-        {
-          current: files,
-          dryRun: filesWithAbsoluteGlobSupport,
-        }
-      )})`,
-      {
-        event: 'find_artifacts_absolute_path_dry_run',
-        status,
-        dynamic_pattern: `${fg.isDynamicPattern(patternOrPath)}`,
-      }
-    );
-  } catch {
-    Datadog.log(`findArtifacts absolute path dry-run error: ${patternOrPath}`, {
-      event: 'find_artifacts_absolute_path_dry_run',
-      status: 'error',
-      dynamic_pattern: `${fg.isDynamicPattern(patternOrPath)}`,
-    });
-  }
-}
-
-function formatArtifactSamples({
-  current,
-  dryRun,
-}: {
-  current: string[];
-  dryRun: string[];
-}): string {
-  return JSON.stringify({
-    current: current.slice(0, 20),
-    dryRun: dryRun.slice(0, 20),
-  });
-}
-
-function areArtifactListsEqual(first: string[], second: string[]): boolean {
-  if (first.length !== second.length) {
-    return false;
-  }
-  const sortedFirst = [...first].sort();
-  const sortedSecond = [...second].sort();
-  return sortedFirst.every((artifactPath, index) => artifactPath === sortedSecond[index]);
 }
 
 async function logMissingFileError(artifactPath: string, buildLogger: bunyan): Promise<void> {

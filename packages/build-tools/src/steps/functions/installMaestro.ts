@@ -15,6 +15,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+import { Datadog } from '../../datadog';
+
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -123,13 +125,24 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
 
       logger.info(`Maestro ${maestroVersionResult.value} is ready.`);
       outputs.maestro_version.set(maestroVersionResult.value);
+
+      Datadog.distribution('eas.maestro.install', 1, {
+        maestro_version: maestroVersionResult.value,
+      });
     },
   });
 }
 
 async function getMaestroVersion({ env }: { env: BuildStepEnv }): Promise<string> {
-  const maestroVersion = await spawn('maestro', ['--version'], { stdio: 'pipe', env });
-  return maestroVersion.stdout.trim();
+  const { stdout } = await spawn('maestro', ['--version'], { stdio: 'pipe', env });
+  // `maestro --version` can print an analytics notice to stdout before the version,
+  // e.g. "Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS...\n2.0.10".
+  // Take the last version-looking token: the real version is printed after the notice, so
+  // this stays correct even if the notice itself contains a version-like string. Keeps the
+  // step output and the eas.maestro.install metric tag clean. Best-effort only: fall back to
+  // the raw output if none is found, so we never fail the build over a version string.
+  const versions = stdout.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g);
+  return versions?.at(-1) ?? stdout.trim();
 }
 
 async function installMaestro({

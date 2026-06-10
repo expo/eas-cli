@@ -14,7 +14,6 @@ import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ObserveVersions extends EasCommand {
-  static override hidden = true;
   static override description = 'display app versions with build and update details';
 
   static override flags = {
@@ -46,8 +45,6 @@ export default class ObserveVersions extends EasCommand {
 
     if (flags.json) {
       enableJsonOutput();
-    } else {
-      Log.warn('EAS Observe is in preview and subject to breaking changes.');
     }
 
     const { startTime, endTime } = resolveTimeRange(flags);

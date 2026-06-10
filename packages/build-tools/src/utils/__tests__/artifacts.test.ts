@@ -1,20 +1,13 @@
 import fs from 'fs-extra';
 import { vol } from 'memfs';
 
-import { Datadog } from '../../datadog';
 import { findArtifacts } from '../artifacts';
 
 jest.mock('fs');
-jest.mock('../../datadog', () => ({
-  Datadog: {
-    log: jest.fn(),
-  },
-}));
 
 describe(findArtifacts, () => {
   beforeEach(async () => {
     vol.reset();
-    jest.clearAllMocks();
   });
 
   test('with correct path', async () => {
@@ -53,14 +46,6 @@ describe(findArtifacts, () => {
     expect(loggerMock.error).toHaveBeenCalledTimes(0);
     expect(paths.length).toBe(1);
     expect(paths[0]).toBe('/Users/expo/.maestro/tests');
-    expect(Datadog.log).toHaveBeenCalledWith(
-      'findArtifacts absolute path dry-run match: /Users/expo/.maestro/tests (current: 1, dry-run: 1, samples: {"current":["/Users/expo/.maestro/tests"],"dryRun":["/Users/expo/.maestro/tests"]})',
-      {
-        event: 'find_artifacts_absolute_path_dry_run',
-        status: 'match',
-        dynamic_pattern: 'false',
-      }
-    );
   });
 
   test('with glob pattern', async () => {
@@ -84,7 +69,6 @@ describe(findArtifacts, () => {
     });
     expect(loggerMock.error).toHaveBeenCalledTimes(0);
     expect(paths.length).toBe(2);
-    expect(Datadog.log).not.toHaveBeenCalled();
   });
 
   test('with absolute glob pattern', async () => {
@@ -95,24 +79,16 @@ describe(findArtifacts, () => {
       info: jest.fn(),
       error: jest.fn(),
     };
-    await expect(
-      findArtifacts({
-        rootDir: '/Users/expo/build',
-        patternOrPath: '/tmp/maestro_xctestrunner_xcodebuild_output*',
-        logger: loggerMock as any,
-      })
-    ).rejects.toThrow(
-      'There are no files matching pattern "/tmp/maestro_xctestrunner_xcodebuild_output*"'
-    );
+    const paths = await findArtifacts({
+      rootDir: '/Users/expo/build',
+      patternOrPath: '/tmp/maestro_xctestrunner_xcodebuild_output*',
+      logger: loggerMock as any,
+    });
     expect(loggerMock.error).toHaveBeenCalledTimes(0);
-    expect(Datadog.log).toHaveBeenCalledWith(
-      'findArtifacts absolute path dry-run mismatch: /tmp/maestro_xctestrunner_xcodebuild_output* (current: 0, dry-run: 2, samples: {"current":[],"dryRun":["/tmp/maestro_xctestrunner_xcodebuild_output123","/tmp/maestro_xctestrunner_xcodebuild_output456"]})',
-      {
-        event: 'find_artifacts_absolute_path_dry_run',
-        status: 'mismatch',
-        dynamic_pattern: 'true',
-      }
-    );
+    expect(paths).toEqual([
+      '/tmp/maestro_xctestrunner_xcodebuild_output123',
+      '/tmp/maestro_xctestrunner_xcodebuild_output456',
+    ]);
   });
 
   test('with missing file in empty directory', async () => {

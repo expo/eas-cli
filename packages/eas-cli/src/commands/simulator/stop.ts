@@ -7,6 +7,11 @@ import {
 } from '../../commandUtils/flags';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { ora } from '../../ora';
+import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+} from '../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorStop extends EasCommand {
@@ -16,14 +21,14 @@ export default class SimulatorStop extends EasCommand {
 
   static override flags = {
     id: Flags.string({
-      description: 'Device run session ID',
-      required: true,
+      description: `Device run session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.ProjectDir,
   };
 
   async runAsync(): Promise<void> {
@@ -35,25 +40,35 @@ export default class SimulatorStop extends EasCommand {
     }
 
     const {
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStop, {
       nonInteractive,
     });
 
-    const stopSpinner = ora(`🛑 Stopping device run session ${flags.id}`).start();
+    await loadSimulatorEnvAsync(projectDir);
+    const flagId = flags.id || process.env[EAS_SIMULATOR_SESSION_ID];
+    if (!flagId) {
+      throw new Error(
+        `No simulator session ID provided. Pass --id, or run \`eas simulator:start\` first to write ${SIMULATOR_DOTENV_FILE_NAME}.`
+      );
+    }
+
+    const stopSpinner = ora(`🛑 Stopping device run session ${flagId}`).start();
+    let session;
     try {
-      const session = await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
+      session = await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
         graphqlClient,
-        flags.id
+        flagId
       );
       stopSpinner.succeed(`🎉 Device run session ${session.id} is ${session.status.toLowerCase()}`);
-
-      if (jsonFlag) {
-        printJsonOnlyOutput({ id: session.id, status: session.status });
-      }
     } catch (err) {
-      stopSpinner.fail(`Failed to stop device run session ${flags.id}`);
+      stopSpinner.fail(`Failed to stop device run session ${flagId}`);
       throw err;
+    }
+
+    if (jsonFlag) {
+      printJsonOnlyOutput({ id: session.id, status: session.status });
     }
   }
 }

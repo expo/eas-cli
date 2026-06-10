@@ -1459,6 +1459,7 @@ export type App = Project & {
   description: Scalars['String']['output'];
   devDomainName?: Maybe<AppDevDomainName>;
   deviceRunSessionsPaginated: AppDeviceRunSessionsConnection;
+  embeddedUpdatesPaginated: AppEmbeddedUpdatesConnection;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
@@ -1607,6 +1608,8 @@ export type App = Project & {
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsRequest: WorkerDeploymentRequestEdge;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
+  workflowDeviceTestCaseHistory: WorkflowDeviceTestCaseHistory;
+  workflowDeviceTestCaseInsights: WorkflowDeviceTestCaseInsights;
   workflowRunGitBranchesPaginated: AppWorkflowRunGitBranchesConnection;
   workflowRunsPaginated: AppWorkflowRunsConnection;
   workflows: Array<Workflow>;
@@ -1692,6 +1695,16 @@ export type AppDeviceRunSessionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEmbeddedUpdatesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -1922,6 +1935,21 @@ export type AppWorkerDeploymentsRequestsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkflowDeviceTestCaseHistoryArgs = {
+  filters?: InputMaybe<WorkflowDeviceTestCaseHistoryFiltersInput>;
+  path: Scalars['String']['input'];
+  timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkflowDeviceTestCaseInsightsArgs = {
+  filters?: InputMaybe<WorkflowDeviceTestCaseInsightsFiltersInput>;
+  timespan: WorkflowDeviceTestCaseInsightsTimespanInput;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkflowRunGitBranchesPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
@@ -2024,6 +2052,18 @@ export type AppDeviceRunSessionEdge = {
 export type AppDeviceRunSessionsConnection = {
   __typename?: 'AppDeviceRunSessionsConnection';
   edges: Array<AppDeviceRunSessionEdge>;
+  pageInfo: PageInfo;
+};
+
+export type AppEmbeddedUpdateEdge = {
+  __typename?: 'AppEmbeddedUpdateEdge';
+  cursor: Scalars['String']['output'];
+  node: EmbeddedUpdate;
+};
+
+export type AppEmbeddedUpdatesConnection = {
+  __typename?: 'AppEmbeddedUpdatesConnection';
+  edges: Array<AppEmbeddedUpdateEdge>;
   pageInfo: PageInfo;
 };
 
@@ -2366,6 +2406,7 @@ export type AppObserveCustomEvent = {
   eventName: Scalars['String']['output'];
   expoSdkVersion?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
   properties: Array<AppObserveEventProperty>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   sessionId?: Maybe<Scalars['String']['output']>;
@@ -2463,6 +2504,7 @@ export type AppObserveCustomEventPropertyFilter = {
 export type AppObserveEvent = {
   __typename?: 'AppObserveEvent';
   appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
   appIdentifier: Scalars['String']['output'];
   appName: Scalars['String']['output'];
   appUpdateId?: Maybe<Scalars['String']['output']>;
@@ -5063,6 +5105,11 @@ export type DeleteDiscordUserResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteEmbeddedUpdateResult = {
+  __typename?: 'DeleteEmbeddedUpdateResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
   id: Scalars['ID']['output'];
@@ -6176,8 +6223,20 @@ export type EmbeddedUpdateAssetUploadSpec = {
   storageKey: Scalars['String']['output'];
 };
 
+export type EmbeddedUpdateFilterInput = {
+  channel?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppPlatform>;
+  runtimeVersion?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type EmbeddedUpdateMutation = {
   __typename?: 'EmbeddedUpdateMutation';
+  /**
+   * Delete an embedded update by id. Best-effort: deleting an unknown id succeeds
+   * (mirrors background deletion jobs). The linked asset row and underlying GCS
+   * object are cleaned up via the entity's afterDelete trigger chain.
+   */
+  deleteEmbeddedUpdate: DeleteEmbeddedUpdateResult;
   /**
    * Register an embedded bundle as the launch asset for a given app/platform/channel.
    * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,
@@ -6187,8 +6246,29 @@ export type EmbeddedUpdateMutation = {
 };
 
 
+export type EmbeddedUpdateMutationDeleteEmbeddedUpdateArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type EmbeddedUpdateMutationUploadEmbeddedUpdateArgs = {
   input: UploadEmbeddedUpdateInput;
+};
+
+export type EmbeddedUpdateQuery = {
+  __typename?: 'EmbeddedUpdateQuery';
+  /**
+   * Look up an embedded update by its id and the owning app's id.
+   * Throws EMBEDDED_UPDATE_NOT_FOUND when no embedded update with this id exists on
+   * the given app within the caller's account.
+   */
+  byId: EmbeddedUpdate;
+};
+
+
+export type EmbeddedUpdateQueryByIdArgs = {
+  appId: Scalars['ID']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
 };
 
 export enum EntityTypeName {
@@ -7476,7 +7556,7 @@ export type JobRun = {
   isWaived: Scalars['Boolean']['output'];
   logFileUrls: Array<Scalars['String']['output']>;
   /** Max run time in seconds for this job run. */
-  maxRunTimeSeconds?: Maybe<Scalars['Int']['output']>;
+  maxRunTimeSeconds: Scalars['Int']['output'];
   name: Scalars['String']['output'];
   priority: JobRunPriority;
   /** String describing the worker profile used to run this job run. */
@@ -8520,6 +8600,7 @@ export type RootQuery = {
   echoProject: EchoProjectQuery;
   /** Top-level query object for querying Echo versions. */
   echoVersion: EchoVersionQuery;
+  embeddedUpdates: EmbeddedUpdateQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   expoGoBuild: ExpoGoBuildQuery;
@@ -8776,7 +8857,7 @@ export type SsoUser = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
@@ -10062,7 +10143,7 @@ export type User = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Get all certified second factor authentication methods */
@@ -10166,7 +10247,7 @@ export type UserActor = {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
@@ -10221,6 +10302,8 @@ export type UserActorPublicData = {
   firstName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   lastName?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
@@ -11367,6 +11450,187 @@ export enum WorkflowArtifactStorageType {
   R2 = 'R2'
 }
 
+/**
+ * Grouping key from the [shard N] prefix-stripped error_message. `count` is
+ * computed with uniqExact(test_case_result_id) so RMT pre-merge duplicates do
+ * not inflate it. Scope: scans ALL status='failed' rows (NOT just
+ * is_final_attempt=1) so failures from runs that ultimately passed on retry
+ * still surface.
+ */
+export type WorkflowDeviceTestCaseErrorPattern = {
+  __typename?: 'WorkflowDeviceTestCaseErrorPattern';
+  count: Scalars['Int']['output'];
+  lastSeenAt: Scalars['DateTime']['output'];
+  patternKey: Scalars['String']['output'];
+  sampleMessage: Scalars['String']['output'];
+};
+
+export type WorkflowDeviceTestCaseHistory = {
+  __typename?: 'WorkflowDeviceTestCaseHistory';
+  errorPatterns: Array<WorkflowDeviceTestCaseErrorPattern>;
+  recentRuns: WorkflowDeviceTestCaseRecentRunConnection;
+  timeSeries: Array<WorkflowDeviceTestCaseInsightsBucket>;
+  totals: WorkflowDeviceTestCaseInsightsTotals;
+};
+
+
+export type WorkflowDeviceTestCaseHistoryErrorPatternsArgs = {
+  first: Scalars['Int']['input'];
+};
+
+
+export type WorkflowDeviceTestCaseHistoryRecentRunsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+};
+
+
+export type WorkflowDeviceTestCaseHistoryTimeSeriesArgs = {
+  granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
+};
+
+export type WorkflowDeviceTestCaseHistoryFiltersInput = {
+  gitRefs?: InputMaybe<Array<Scalars['String']['input']>>;
+  workflowIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+export type WorkflowDeviceTestCaseInsights = {
+  __typename?: 'WorkflowDeviceTestCaseInsights';
+  facets: WorkflowDeviceTestCaseInsightsFacets;
+  tests: WorkflowDeviceTestCaseStatConnection;
+  timeSeries: Array<WorkflowDeviceTestCaseInsightsBucket>;
+  totals: WorkflowDeviceTestCaseInsightsTotals;
+};
+
+
+export type WorkflowDeviceTestCaseInsightsTestsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+  search?: InputMaybe<Scalars['String']['input']>;
+  sortDirection?: InputMaybe<WorkflowDeviceTestCaseSortDirection>;
+  sortField?: InputMaybe<WorkflowDeviceTestCaseStatSortField>;
+};
+
+
+export type WorkflowDeviceTestCaseInsightsTimeSeriesArgs = {
+  granularity: WorkflowDeviceTestCaseInsightsTimeSeriesGranularity;
+};
+
+/**
+ * Mutually exclusive bucket counts (passedClean + flaky + failed = totalRuns for the bucket).
+ * Buckets are aligned to the UTC start of the requested granularity interval
+ * (minute / hour / day).
+ */
+export type WorkflowDeviceTestCaseInsightsBucket = {
+  __typename?: 'WorkflowDeviceTestCaseInsightsBucket';
+  bucketStartAt: Scalars['DateTime']['output'];
+  failed: Scalars['Int']['output'];
+  flaky: Scalars['Int']['output'];
+  passedClean: Scalars['Int']['output'];
+};
+
+export type WorkflowDeviceTestCaseInsightsFacets = {
+  __typename?: 'WorkflowDeviceTestCaseInsightsFacets';
+  gitRefs: Array<Scalars['String']['output']>;
+  tags: Array<Scalars['String']['output']>;
+  workflows: Array<WorkflowDeviceTestCaseWorkflowFacet>;
+};
+
+export type WorkflowDeviceTestCaseInsightsFiltersInput = {
+  gitRefs?: InputMaybe<Array<Scalars['String']['input']>>;
+  statuses?: InputMaybe<Array<WorkflowDeviceTestCaseStatusFilter>>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  workflowIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+/**
+ * A count metric returned for the current window AND the equivalent prior window
+ * (start − duration → start). The frontend uses (current, previous) to compute
+ * trend deltas. Trend ratios are NOT pre-computed server-side — see
+ * WorkflowsInsightsMetric for the equivalent convention.
+ *
+ * Float (not Int) to match WorkflowsInsightsMetric and avoid the GraphQL Int32
+ * ceiling: 90-day uniqExact counts on a high-volume project can plausibly
+ * exceed 2.1B. Values are integer-valued; the frontend reads them as JS numbers.
+ */
+export type WorkflowDeviceTestCaseInsightsMetric = {
+  __typename?: 'WorkflowDeviceTestCaseInsightsMetric';
+  currentValue: Scalars['Float']['output'];
+  previousValue: Scalars['Float']['output'];
+};
+
+/**
+ * Same shape as WorkflowDeviceTestCaseInsightsMetric but nullable on both sides —
+ * used for metrics like avgDurationMs / p90DurationMs where "no data in the
+ * window" is meaningful and must not collapse to 0.
+ */
+export type WorkflowDeviceTestCaseInsightsNullableMetric = {
+  __typename?: 'WorkflowDeviceTestCaseInsightsNullableMetric';
+  currentValue?: Maybe<Scalars['Float']['output']>;
+  previousValue?: Maybe<Scalars['Float']['output']>;
+};
+
+export enum WorkflowDeviceTestCaseInsightsTimeSeriesGranularity {
+  Day = 'DAY',
+  Hour = 'HOUR',
+  Minute = 'MINUTE'
+}
+
+export type WorkflowDeviceTestCaseInsightsTimespanInput = {
+  end: Scalars['DateTime']['input'];
+  start: Scalars['DateTime']['input'];
+};
+
+/**
+ * Raw counts only (paired with previous-window values). Pass rate, flake rate,
+ * and trends are computed in the frontend from the (currentValue, previousValue)
+ * pair on each metric.
+ *
+ * totalRuns = passedCleanCount + flakyCount + failedCount (over is_final_attempt=1 rows).
+ * distinctFlakyTestCount cannot be derived in the frontend from per-test rows
+ * because pagination means the frontend doesn't see all test paths.
+ */
+export type WorkflowDeviceTestCaseInsightsTotals = {
+  __typename?: 'WorkflowDeviceTestCaseInsightsTotals';
+  avgDurationMs: WorkflowDeviceTestCaseInsightsNullableMetric;
+  distinctFlakyTestCount: WorkflowDeviceTestCaseInsightsMetric;
+  failedCount: WorkflowDeviceTestCaseInsightsMetric;
+  flakyCount: WorkflowDeviceTestCaseInsightsMetric;
+  p90DurationMs: WorkflowDeviceTestCaseInsightsNullableMetric;
+  passedCleanCount: WorkflowDeviceTestCaseInsightsMetric;
+  totalRuns: WorkflowDeviceTestCaseInsightsMetric;
+};
+
+/**
+ * One row per execution (is_final_attempt=1). The is_flaky boolean drives the
+ * FLAKY pill — no per-attempt timeline is exposed in v1.
+ */
+export type WorkflowDeviceTestCaseRecentRun = {
+  __typename?: 'WorkflowDeviceTestCaseRecentRun';
+  commitSha?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  durationMs?: Maybe<Scalars['Int']['output']>;
+  gitRef?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isFlaky: Scalars['Boolean']['output'];
+  status: WorkflowDeviceTestCaseStatus;
+  workflowRunId: Scalars['ID']['output'];
+  workflowRunName: Scalars['String']['output'];
+};
+
+export type WorkflowDeviceTestCaseRecentRunConnection = {
+  __typename?: 'WorkflowDeviceTestCaseRecentRunConnection';
+  edges: Array<WorkflowDeviceTestCaseRecentRunEdge>;
+  pageInfo: PageInfo;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type WorkflowDeviceTestCaseRecentRunEdge = {
+  __typename?: 'WorkflowDeviceTestCaseRecentRunEdge';
+  cursor: Scalars['String']['output'];
+  node: WorkflowDeviceTestCaseRecentRun;
+};
+
 /** A device test case result from a Maestro test execution. */
 export type WorkflowDeviceTestCaseResult = {
   __typename?: 'WorkflowDeviceTestCaseResult';
@@ -11420,11 +11684,72 @@ export type WorkflowDeviceTestCaseResultMutationCreateWorkflowDeviceTestCaseResu
   input: CreateWorkflowDeviceTestCaseResultsInput;
 };
 
+export enum WorkflowDeviceTestCaseSortDirection {
+  Asc = 'ASC',
+  Desc = 'DESC'
+}
+
+export type WorkflowDeviceTestCaseStat = {
+  __typename?: 'WorkflowDeviceTestCaseStat';
+  avgDurationMs?: Maybe<Scalars['Int']['output']>;
+  failedCount: Scalars['Int']['output'];
+  flakyCount: Scalars['Int']['output'];
+  lastRunAt: Scalars['DateTime']['output'];
+  lastRunIsFlaky: Scalars['Boolean']['output'];
+  lastRunStatus: WorkflowDeviceTestCaseStatus;
+  name: Scalars['String']['output'];
+  p90DurationMs?: Maybe<Scalars['Int']['output']>;
+  passedCleanCount: Scalars['Int']['output'];
+  path: Scalars['String']['output'];
+  totalRuns: Scalars['Int']['output'];
+};
+
+export type WorkflowDeviceTestCaseStatConnection = {
+  __typename?: 'WorkflowDeviceTestCaseStatConnection';
+  edges: Array<WorkflowDeviceTestCaseStatEdge>;
+  pageInfo: PageInfo;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type WorkflowDeviceTestCaseStatEdge = {
+  __typename?: 'WorkflowDeviceTestCaseStatEdge';
+  cursor: Scalars['String']['output'];
+  node: WorkflowDeviceTestCaseStat;
+};
+
+export enum WorkflowDeviceTestCaseStatSortField {
+  Fails = 'FAILS',
+  Flakes = 'FLAKES',
+  FlakeRate = 'FLAKE_RATE',
+  LastRun = 'LAST_RUN',
+  P90Duration = 'P90_DURATION',
+  PassRate = 'PASS_RATE',
+  Runs = 'RUNS'
+}
+
 /** Status of a device test case execution. */
 export enum WorkflowDeviceTestCaseStatus {
   Failed = 'FAILED',
   Passed = 'PASSED'
 }
+
+/**
+ * Mutually exclusive — matches the chart bucket semantics (passedClean / flaky / failed).
+ * PASSED_CLEAN  = is_final_attempt=1 AND status=passed AND is_flaky=0
+ * FLAKY         = is_final_attempt=1 AND is_flaky=1 (still a pass, just with retries)
+ * FAILED        = is_final_attempt=1 AND status=failed
+ */
+export enum WorkflowDeviceTestCaseStatusFilter {
+  Failed = 'FAILED',
+  Flaky = 'FLAKY',
+  PassedClean = 'PASSED_CLEAN'
+}
+
+export type WorkflowDeviceTestCaseWorkflowFacet = {
+  __typename?: 'WorkflowDeviceTestCaseWorkflowFacet';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+};
 
 export type WorkflowJob = {
   __typename?: 'WorkflowJob';
@@ -12514,6 +12839,29 @@ export type EnsureDeviceRunSessionStoppedMutationVariables = Exact<{
 
 export type EnsureDeviceRunSessionStoppedMutation = { __typename?: 'RootMutation', deviceRunSession: { __typename?: 'DeviceRunSessionMutation', ensureDeviceRunSessionStopped: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus } } };
 
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
+  contentType: Scalars['String']['input'];
+}>;
+
+
+export type GetSignedEmbeddedUpdateAssetUploadSpecMutation = { __typename?: 'RootMutation', embeddedUpdateAsset: { __typename?: 'EmbeddedUpdateAssetMutation', getSignedEmbeddedUpdateAssetUploadSpecifications: { __typename?: 'EmbeddedUpdateAssetUploadSpec', storageKey: string, presignedUrl: string, fields: any } } };
+
+export type UploadEmbeddedUpdateMutationVariables = Exact<{
+  input: UploadEmbeddedUpdateInput;
+}>;
+
+
+export type UploadEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', uploadEmbeddedUpdate: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any } } };
+
+export type DeleteEmbeddedUpdateMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', deleteEmbeddedUpdate: { __typename?: 'DeleteEmbeddedUpdateResult', id: string } } };
+
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
   accountId: Scalars['String']['input'];
@@ -13012,6 +13360,24 @@ export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
+export type ViewEmbeddedUpdateByIdQueryVariables = Exact<{
+  embeddedUpdateId: Scalars['ID']['input'];
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type ViewEmbeddedUpdateByIdQuery = { __typename?: 'RootQuery', embeddedUpdates: { __typename?: 'EmbeddedUpdateQuery', byId: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } } };
+
+export type ViewEmbeddedUpdatesPaginatedQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  first: Scalars['Int']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
+}>;
+
+
+export type ViewEmbeddedUpdatesPaginatedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, embeddedUpdatesPaginated: { __typename?: 'AppEmbeddedUpdatesConnection', edges: Array<{ __typename?: 'AppEmbeddedUpdateEdge', cursor: string, node: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
