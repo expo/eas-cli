@@ -4,10 +4,14 @@ import { vol } from 'memfs';
 
 import {
   copyLatestAttemptXml,
+  isFileAttrRun,
+  junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
   parseJUnitTestCases,
   parseMaestroResults,
+  parseMaestroResultsFromFileAttrs,
 } from '../maestroResultParser';
 
 describe(parseMaestroResults, () => {
@@ -298,7 +302,169 @@ describe(parseMaestroResults, () => {
   });
 });
 
+describe(parseMaestroResultsFromFileAttrs, () => {
+  it('uses file= as the path', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file=".maestro/login.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseMaestroResultsFromFileAttrs('/junit');
+    expect(results[0]).toEqual(
+      expect.objectContaining({ name: 'login', path: '.maestro/login.yaml' })
+    );
+  });
+
+  it('keeps two same-named flows separate by their file= path', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="a/login.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="login" file="b/login.yaml" status="ERROR" time="1.0"><failure>x</failure></testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseMaestroResultsFromFileAttrs('/junit');
+    expect(results.map(r => r.path).sort()).toEqual(['a/login.yaml', 'b/login.yaml']);
+  });
+
+  it('returns per-attempt results keyed by file= across attempt files', async () => {
+    vol.fromJSON({
+      '/junit/android-maestro-junit-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="flows/login.yaml" time="1.0"><failure>x</failure></testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+      '/junit/android-maestro-junit-attempt-1.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file="flows/login.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseMaestroResultsFromFileAttrs('/junit');
+    expect(results).toEqual([
+      expect.objectContaining({ path: 'flows/login.yaml', status: 'failed', retryCount: 0 }),
+      expect.objectContaining({ path: 'flows/login.yaml', status: 'passed', retryCount: 1 }),
+    ]);
+  });
+
+  it('returns empty array when the directory does not exist', async () => {
+    const results = await parseMaestroResultsFromFileAttrs('/nope');
+    expect(results).toEqual([]);
+  });
+
+  it('skips testcases without file= instead of emitting an undefined path (contract guard)', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" file="a.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="b" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseMaestroResultsFromFileAttrs('/junit');
+    expect(results).toEqual([expect.objectContaining({ name: 'a', path: 'a.yaml' })]);
+  });
+});
+
+describe('junitFileHasFileAttrs', () => {
+  it('returns true when every testcase has a non-empty file= attribute', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" file="a.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="b" file="b.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(true);
+  });
+
+  it('returns false when any testcase lacks file= (mixed report)', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" file="a.yaml" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="b" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(false);
+  });
+
+  it('returns false when file= is an empty string', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" file="" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(false);
+  });
+
+  it('returns false for a legacy report with no file= attributes', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(false);
+  });
+
+  it('returns false when the file cannot be read', async () => {
+    expect(await junitFileHasFileAttrs('/missing.xml')).toBe(false);
+  });
+});
+
+describe('isFileAttrRun', () => {
+  it('returns false for an empty list (an empty report is not a file-attr run)', () => {
+    expect(isFileAttrRun([])).toBe(false);
+  });
+});
+
 describe(parseJUnitTestCases, () => {
+  it('extracts the file= attribute when present', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" file=".maestro/login.yaml" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseJUnitTestCases('/junit');
+    expect(results[0].file).toBe('.maestro/login.yaml');
+  });
+
+  it('treats a missing or empty file= attribute as undefined', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" status="SUCCESS" time="1.0"/>',
+        '  <testcase name="b" file="" status="SUCCESS" time="1.0"/>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    const results = await parseJUnitTestCases('/junit');
+    expect(results.find(r => r.name === 'a')!.file).toBeUndefined();
+    expect(results.find(r => r.name === 'b')!.file).toBeUndefined();
+  });
+
   it('parses a single testcase with SUCCESS status', async () => {
     vol.fromJSON({
       '/junit/report.xml': [
@@ -582,6 +748,100 @@ describe(parseJUnitTestCases, () => {
   });
 });
 
+describe(parseFailedFlowsFromFileAttrs, () => {
+  it('returns the failing flows by file= (duplicate names retry correctly)', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="login" file="a/login.yaml" status="SUCCESS" time="1.0"/>
+  <testcase name="login" file="b/login.yaml" time="1.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+      '/proj/b/login.yaml': '',
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toEqual(['b/login.yaml']);
+  });
+
+  it('returns null when a file= path does not exist on disk (dumb retry, never legacy)', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="gone" file="missing/flow.yaml" time="1.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the report lacks file= attributes (callers must pre-check)', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" file="a.yaml" time="1.0"><failure>x</failure></testcase>
+  <testcase name="B" time="1.0"><failure>y</failure></testcase>
+</testsuite></testsuites>`,
+      '/proj/a.yaml': '',
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('dedupes repeated failing file= paths (same flow failed twice in one attempt)', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="login" file="flows/login.yaml" time="1.0"><failure>x</failure></testcase>
+  <testcase name="login" file="flows/login.yaml" time="1.0"><failure>y</failure></testcase>
+</testsuite></testsuites>`,
+      '/proj/flows/login.yaml': '',
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toEqual(['flows/login.yaml']);
+  });
+
+  it('resolves and existence-checks an absolute file= path', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="ext" file="/outside/flow.yaml" time="1.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+      '/outside/flow.yaml': '',
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toEqual(['/outside/flow.yaml']);
+  });
+
+  it('returns null when junit XML is truncated mid-tag (partial parse risk)', async () => {
+    vol.fromJSON({
+      '/tmp/jr/attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="A" file="a.yaml" time="1.0"><failure>x</failure></testcase>
+  <testcase name="B" file="b.yaml"`, // intentionally truncated mid-tag
+      '/proj/a.yaml': '',
+    });
+    const result = await parseFailedFlowsFromFileAttrs({
+      junitFile: '/tmp/jr/attempt-0.xml',
+      workingDirectory: '/proj',
+    });
+    expect(result).toBeNull();
+  });
+});
+
 describe('parseFailedFlowsFromJUnit', () => {
   it('returns the subset of input flow paths whose testcases failed', async () => {
     vol.fromJSON({
@@ -763,6 +1023,28 @@ describe('mergeJUnitReports', () => {
     expect(a['@_status']).toBe('SUCCESS'); // from attempt 0
     expect(b['@_status']).toBe('SUCCESS'); // from attempt 1 (latest)
     expect(b.failure).toBeUndefined();
+  });
+
+  it('keeps a same-named flow from an earlier attempt when keyed by file=', async () => {
+    vol.fromJSON({
+      '/tmp/r/android-maestro-junit-attempt-0.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="login" file="a/login.yaml" status="SUCCESS" time="1.0"/>
+  <testcase name="login" file="b/login.yaml" time="1.0"><failure>x</failure></testcase>
+</testsuite></testsuites>`,
+      '/tmp/r/android-maestro-junit-attempt-1.xml': `<?xml version="1.0"?>
+<testsuites><testsuite>
+  <testcase name="login" file="b/login.yaml" status="SUCCESS" time="1.0"/>
+</testsuite></testsuites>`,
+    });
+
+    await mergeJUnitReports({ sourceDir: '/tmp/r', outputPath: '/tmp/final.xml' });
+
+    const out = await fs.readFile('/tmp/final.xml', 'utf-8');
+    const parsed = new XMLParser({ ignoreAttributes: false }).parse(out);
+    const testcases = parsed.testsuites.testsuite.testcase;
+    const files = testcases.map((t: any) => t['@_file']).sort();
+    expect(files).toEqual(['a/login.yaml', 'b/login.yaml']);
   });
 
   it('throws when source directory contains no *.xml files', async () => {
