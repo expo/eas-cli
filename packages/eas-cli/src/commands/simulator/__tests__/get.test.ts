@@ -64,6 +64,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     turtleJobRun: {
       id: 'job-123',
       status: JobRunStatus.InProgress,
+      artifacts: [],
     },
     ...overrides,
   };

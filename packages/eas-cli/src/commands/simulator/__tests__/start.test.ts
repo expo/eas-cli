@@ -14,6 +14,7 @@ import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSe
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
+import { maybeWaitForSessionArtifactsAndPrintSummaryAsync } from '../../../simulator/artifacts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -26,6 +27,7 @@ import SimulatorStart from '../start';
 jest.mock('fs-extra');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
+jest.mock('../../../simulator/artifacts');
 jest.mock('../../../log', () => ({
   __esModule: true,
   default: {
@@ -69,6 +71,9 @@ const mockCreateDeviceRunSessionAsync = jest.mocked(
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
+const mockMaybeWaitForSessionArtifactsAndPrintSummaryAsync = jest.mocked(
+  maybeWaitForSessionArtifactsAndPrintSummaryAsync
+);
 const mockOra = jest.mocked(ora);
 
 function makeCreatedDeviceRunSession(
@@ -114,6 +119,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     turtleJobRun: {
       id: 'job-123',
       status: JobRunStatus.InProgress,
+      artifacts: [],
     },
     ...overrides,
   };
@@ -313,5 +319,20 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+  });
+
+  it('waits for the session artifacts after the session ends', async () => {
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand(['--platform', 'ios']);
+    await command.runAsync();
+
+    expect(mockMaybeWaitForSessionArtifactsAndPrintSummaryAsync).toHaveBeenCalledWith({
+      graphqlClient,
+      deviceRunSessionId: 'session-123',
+      nonInteractive: false,
+    });
   });
 });

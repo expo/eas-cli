@@ -285,8 +285,9 @@ async function createUploadSessionAsync(
 }> {
   const workflowJobId = ctx.env.__WORKFLOW_JOB_ID;
   const buildId = ctx.env.EAS_BUILD_ID;
+  const deviceRunSessionId = ctx.env.DEVICE_RUN_SESSION_ID;
 
-  if (!workflowJobId && !buildId) {
+  if (!workflowJobId && !buildId && !deviceRunSessionId) {
     throw new Error('Failed to create upload session - the env variables are not set.');
   }
 
@@ -295,37 +296,36 @@ async function createUploadSessionAsync(
     throw new Error('Failed to create upload session - the robot access token is not set');
   }
 
-  let responseResult;
+  let uploadSessionUrl: string;
   if (ctx.job.platform) {
-    responseResult = await asyncResult(
-      turtleFetch(
-        new URL(`turtle-builds/${buildId}/upload-sessions/`, config.wwwApiV2BaseUrl).toString(),
-        'POST',
-        // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
-        {
-          json: { filename, name, size },
-          headers: {
-            Authorization: `Bearer ${robotAccessToken}`,
-          },
-          shouldThrowOnNotOk: false,
-        }
-      )
-    );
+    uploadSessionUrl = new URL(
+      `turtle-builds/${buildId}/upload-sessions/`,
+      config.wwwApiV2BaseUrl
+    ).toString();
+  } else if (workflowJobId) {
+    uploadSessionUrl = new URL(
+      `workflows/${workflowJobId}/upload-sessions/`,
+      config.wwwApiV2BaseUrl
+    ).toString();
+  } else if (deviceRunSessionId) {
+    uploadSessionUrl = new URL(
+      `device-run-sessions/${deviceRunSessionId}/upload-sessions/`,
+      config.wwwApiV2BaseUrl
+    ).toString();
   } else {
-    responseResult = await asyncResult(
-      turtleFetch(
-        new URL(`workflows/${workflowJobId}/upload-sessions/`, config.wwwApiV2BaseUrl).toString(),
-        'POST',
-        {
-          json: { filename, name, size },
-          headers: {
-            Authorization: `Bearer ${robotAccessToken}`,
-          },
-          shouldThrowOnNotOk: false,
-        }
-      )
-    );
+    throw new Error('Failed to create upload session - the env variables are not set.');
   }
+
+  const responseResult = await asyncResult(
+    turtleFetch(uploadSessionUrl, 'POST', {
+      // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
+      json: { filename, name, size },
+      headers: {
+        Authorization: `Bearer ${robotAccessToken}`,
+      },
+      shouldThrowOnNotOk: false,
+    })
+  );
 
   if (!responseResult.ok) {
     if (!(responseResult.reason instanceof TurtleFetchError)) {

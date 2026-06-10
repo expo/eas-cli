@@ -18,6 +18,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { maybeWaitForSessionArtifactsAndPrintSummaryAsync } from '../../simulator/artifacts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -229,12 +230,22 @@ export default class SimulatorStart extends EasCommand {
       return;
     }
 
-    await waitForSessionEndOrInterruptAsync({
+    const sessionEnded = await waitForSessionEndOrInterruptAsync({
       graphqlClient,
       deviceRunSessionId,
       jobRunUrl,
       projectDir,
     });
+    if (sessionEnded) {
+      // Run after waitForSessionEndOrInterruptAsync removed its SIGINT
+      // handler, so another Ctrl+C skips the artifact wait instead of
+      // force-exiting the process.
+      await maybeWaitForSessionArtifactsAndPrintSummaryAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        nonInteractive,
+      });
+    }
   }
 }
 
@@ -255,6 +266,10 @@ async function writeSimulatorEnvSafelyAsync(
   }
 }
 
+/**
+ * Returns true when the session ended (stopped by us or finished on its own),
+ * false when we could not confirm it was stopped.
+ */
 async function waitForSessionEndOrInterruptAsync({
   graphqlClient,
   deviceRunSessionId,
@@ -265,7 +280,7 @@ async function waitForSessionEndOrInterruptAsync({
   deviceRunSessionId: string;
   jobRunUrl: string;
   projectDir: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const spinner = ora(
     `Device run session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
   ).start();
@@ -322,7 +337,7 @@ async function waitForSessionEndOrInterruptAsync({
       ) {
         spinner.succeed(`Device run session ended. ${link(jobRunUrl)}`);
         await resetSimulatorEnvVerboseAsync(projectDir);
-        return;
+        return true;
       }
 
       await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
@@ -336,10 +351,12 @@ async function waitForSessionEndOrInterruptAsync({
     if (stopped) {
       spinner.succeed('Device run session stopped');
       await resetSimulatorEnvVerboseAsync(projectDir);
+      return true;
     } else {
       spinner.fail(
         `Could not confirm the device run session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
+      return false;
     }
   } finally {
     process.removeListener('SIGINT', sigintHandler);

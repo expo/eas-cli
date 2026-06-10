@@ -7,6 +7,7 @@ import {
 } from '../../commandUtils/flags';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
 import { ora } from '../../ora';
+import { maybeWaitForSessionArtifactsAndPrintSummaryAsync } from '../../simulator/artifacts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -69,6 +70,13 @@ export default class SimulatorStop extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput({ id: session.id, status: session.status });
+      return;
     }
+
+    await maybeWaitForSessionArtifactsAndPrintSummaryAsync({
+      graphqlClient,
+      deviceRunSessionId: session.id,
+      nonInteractive,
+    });
   }
 }

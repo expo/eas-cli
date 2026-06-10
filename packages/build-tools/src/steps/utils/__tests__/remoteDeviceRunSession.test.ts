@@ -1,16 +1,22 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
+import { Client } from '@urql/core';
 
+import { createMockLogger } from '../../../__tests__/utils/logger';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   fetchServeSimTurnArgsAsync,
+  isDeviceRunSessionFinalAsync,
   turnIceServersToServeSimArgs,
 } from '../remoteDeviceRunSession';
 
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../sentry');
+// The module under test imports the ngrok SDK (a native addon) at the top
+// level - mock it so the unit tests don't load the native binary.
+jest.mock('@ngrok/ngrok', () => ({ forward: jest.fn() }));
 
 function createLoggerMock(): bunyan {
   return {
@@ -150,5 +156,94 @@ describe(fetchServeSimTurnArgsAsync, () => {
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+});
+
+const DEVICE_RUN_SESSION_ID = 'device-run-session-id';
+
+describe(isDeviceRunSessionFinalAsync, () => {
+  let mockQueryFn: jest.Mock;
+  let ctx: CustomBuildContext;
+
+  beforeEach(() => {
+    mockQueryFn = jest.fn();
+    ctx = {
+      graphqlClient: {
+        query: jest.fn().mockReturnValue({ toPromise: mockQueryFn }),
+      } as unknown as Client,
+    } as CustomBuildContext;
+  });
+
+  function mockStatusResponse(status: string): void {
+    mockQueryFn.mockResolvedValue({
+      data: { deviceRunSessions: { byId: { id: DEVICE_RUN_SESSION_ID, status } } },
+    });
+  }
+
+  it.each(['STOPPED', 'ERRORED'])('returns true for final status %s', async status => {
+    mockStatusResponse(status);
+
+    await expect(
+      isDeviceRunSessionFinalAsync({
+        ctx,
+        deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+        logger: createMockLogger(),
+      })
+    ).resolves.toBe(true);
+    expect(ctx.graphqlClient.query).toHaveBeenCalledWith(expect.anything(), {
+      deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+    });
+  });
+
+  it.each(['NEW', 'IN_PROGRESS'])('returns false for non-final status %s', async status => {
+    mockStatusResponse(status);
+
+    await expect(
+      isDeviceRunSessionFinalAsync({
+        ctx,
+        deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+        logger: createMockLogger(),
+      })
+    ).resolves.toBe(false);
+  });
+
+  it('returns false and logs a warning when the query reports an error', async () => {
+    mockQueryFn.mockResolvedValue({ error: { message: 'transient API error' } });
+    const logger = createMockLogger();
+
+    await expect(
+      isDeviceRunSessionFinalAsync({
+        ctx,
+        deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+        logger,
+      })
+    ).resolves.toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('transient API error'));
+  });
+
+  it('returns false and logs a warning when the query throws', async () => {
+    mockQueryFn.mockRejectedValue(new Error('network down'));
+    const logger = createMockLogger();
+
+    await expect(
+      isDeviceRunSessionFinalAsync({
+        ctx,
+        deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+        logger,
+      })
+    ).resolves.toBe(false);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('returns false when the response is missing the session', async () => {
+    mockQueryFn.mockResolvedValue({ data: { deviceRunSessions: { byId: null } } });
+
+    await expect(
+      isDeviceRunSessionFinalAsync({
+        ctx,
+        deviceRunSessionId: DEVICE_RUN_SESSION_ID,
+        logger: createMockLogger(),
+      })
+    ).resolves.toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import {
   EnsureDeviceRunSessionStoppedMutation,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
+import { maybeWaitForSessionArtifactsAndPrintSummaryAsync } from '../../../simulator/artifacts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -15,6 +16,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorStop from '../stop';
 
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
+jest.mock('../../../simulator/artifacts');
 jest.mock('../../../simulator/env', () => ({
   ...jest.requireActual('../../../simulator/env'),
   loadSimulatorEnvAsync: jest.fn(),
@@ -40,6 +42,9 @@ const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
 );
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockLoadSimulatorEnvironmentVariablesAsync = jest.mocked(loadSimulatorEnvAsync);
+const mockMaybeWaitForSessionArtifactsAndPrintSummaryAsync = jest.mocked(
+  maybeWaitForSessionArtifactsAndPrintSummaryAsync
+);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 function makeStoppedDeviceRunSession(
@@ -101,6 +106,22 @@ describe(SimulatorStop, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
       status: DeviceRunSessionStatus.Stopped,
+    });
+    expect(mockMaybeWaitForSessionArtifactsAndPrintSummaryAsync).not.toHaveBeenCalled();
+  });
+
+  it('waits for the session artifacts after a non-JSON stop', async () => {
+    const { command } = createCommand(['--id', 'session-123']);
+    await command.runAsync();
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockMaybeWaitForSessionArtifactsAndPrintSummaryAsync).toHaveBeenCalledWith({
+      graphqlClient,
+      deviceRunSessionId: 'session-123',
+      nonInteractive: false,
     });
   });
 

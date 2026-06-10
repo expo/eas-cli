@@ -550,6 +550,141 @@ describe('with signed upload url provided via www', () => {
 });
 
 describe(uploadWorkflowArtifactAsync.name, () => {
+  it('should upload a device run session artifact when only DEVICE_RUN_SESSION_ID is set', async () => {
+    vol.fromJSON({
+      './recording.mp4': JSON.stringify(randomBytes(20)),
+    });
+    const deviceRunSessionId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        DEVICE_RUN_SESSION_ID: deviceRunSessionId,
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+    const bucketKey = `test/${randomUUID()}/recording.mp4`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const testSignedUploadAuthorization = randomUUID();
+    const expectedArtifactId = randomUUID();
+    turtleFetchMock.mockImplementation(async url => {
+      if (
+        url ===
+        `https://api.expo.test/v2/device-run-sessions/${deviceRunSessionId}/upload-sessions/`
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              id: expectedArtifactId,
+              bucketKey,
+              url: uploadUrl,
+              headers: {
+                authorization: testSignedUploadAuthorization,
+              },
+              storageType: 'R2',
+            },
+          }),
+        } as Response;
+      } else {
+        return {
+          ok: false,
+          status: 404,
+        } as Response;
+      }
+    });
+    const { artifactId } = await uploadWorkflowArtifactAsync(ctx, {
+      artifactPaths: ['./recording.mp4'],
+      name: 'agent-device/recording.mp4',
+      logger: ctx.logger,
+    });
+    expect(artifactId).toBe(expectedArtifactId);
+    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledTimes(1);
+    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedUrl: {
+          url: uploadUrl,
+          headers: {
+            authorization: testSignedUploadAuthorization,
+          },
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenCalledTimes(1);
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      1,
+      `https://api.expo.test/v2/device-run-sessions/${deviceRunSessionId}/upload-sessions/`,
+      'POST',
+      expect.objectContaining({
+        json: {
+          filename: 'recording.mp4',
+          name: 'agent-device/recording.mp4',
+          size: expect.any(Number),
+        },
+        headers: {
+          Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
+        },
+      })
+    );
+  });
+
+  it('should prefer the workflows endpoint when both __WORKFLOW_JOB_ID and DEVICE_RUN_SESSION_ID are set', async () => {
+    vol.fromJSON({
+      './recording.mp4': JSON.stringify(randomBytes(20)),
+    });
+    const workflowJobId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        __WORKFLOW_JOB_ID: workflowJobId,
+        DEVICE_RUN_SESSION_ID: randomUUID(),
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    turtleFetchMock.mockImplementation(async url => {
+      if (url === `https://api.expo.test/v2/workflows/${workflowJobId}/upload-sessions/`) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              bucketKey: 'test/bucketKey',
+              url: uploadUrl,
+              headers: {},
+              storageType: 'GCS',
+            },
+          }),
+        } as Response;
+      } else {
+        return {
+          ok: false,
+          status: 404,
+        } as Response;
+      }
+    });
+    await uploadWorkflowArtifactAsync(ctx, {
+      artifactPaths: ['./recording.mp4'],
+      name: 'agent-device/recording.mp4',
+      logger: ctx.logger,
+    });
+    expect(turtleFetchMock).toHaveBeenCalledWith(
+      `https://api.expo.test/v2/workflows/${workflowJobId}/upload-sessions/`,
+      'POST',
+      expect.anything()
+    );
+  });
+
   it('should upload a workflow artifact', async () => {
     vol.fromJSON({
       './video.mp4': JSON.stringify(randomBytes(20)),

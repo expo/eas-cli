@@ -52,6 +52,14 @@ export const DeviceRunSessionQuery = {
                   turtleJobRun {
                     id
                     status
+                    artifacts {
+                      id
+                      name
+                      filename
+                      downloadUrl
+                      contentType
+                      fileSizeBytes
+                    }
                   }
                 }
               }
