@@ -1,3 +1,5 @@
+import { RuntimeSettings } from '@expo/build-tools';
+
 import config from './config';
 import logger from './logger';
 import { startServer } from './metricsServer';
@@ -7,6 +9,16 @@ import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
+  await RuntimeSettings.loadAsync({
+    environment: config.env,
+    logger,
+    cacheUrlFallbacks: {
+      npm: config.npmCacheUrl,
+      nodejs: config.nodeJsCacheUrl,
+      maven: config.mavenCacheUrl,
+      cocoapods: config.cocoapodsCacheUrl,
+    },
+  });
   await prepareRuntimeEnvironmentConfigFiles();
   await prepareWorkingdir();
   startWsServer();

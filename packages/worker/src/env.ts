@@ -1,3 +1,4 @@
+import { RuntimeSettings } from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -35,9 +36,14 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
   setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
   // NPM_CACHE_URL is deprecated
-  setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
-  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);
-  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', config.npmCacheUrl);
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const nodeJsCacheUrl = RuntimeSettings.getNodeJsCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
+  const cocoapodsCacheUrl = RuntimeSettings.getCocoapodsCacheUrl();
+
+  setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
+  setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
+  setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
   setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
@@ -47,8 +53,11 @@ export function getBuildEnv({
 
   const runnerPlatform = job.platform;
   if (runnerPlatform === Platform.IOS) {
-    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', config.cocoapodsCacheUrl);
+    setEnv(env, 'EAS_BUILD_COCOAPODS_CACHE_URL', cocoapodsCacheUrl);
     setEnv(env, 'COMPILER_INDEX_STORE_ENABLE', 'NO');
+    if (RuntimeSettings.isUsingIosPrecompiledModulesEnabled()) {
+      setEnv(env, 'EAS_USE_PRECOMPILED_MODULES', '1');
+    }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
       setEnv(env, 'USE_CCACHE', '1');
@@ -69,7 +78,7 @@ export function getBuildEnv({
         setEnv(env, 'ANDROID_CCACHE', binPath);
       }
     }
-    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', config.mavenCacheUrl);
+    setEnv(env, 'EAS_BUILD_MAVEN_CACHE_URL', mavenCacheUrl);
   }
 
   if (config.env !== Environment.TEST) {
@@ -136,7 +145,14 @@ export function getBuildEnv({
 }
 
 function getFilteredEnv(): Env {
-  const envToFilter = [...getAccessedEnvs(), 'KUBERNETES_*'];
+  const envToFilter = [
+    ...getAccessedEnvs(),
+    'EAS_NPM_CACHE_URL',
+    'EAS_NODEJS_CACHE_URL',
+    'EAS_MAVEN_CACHE_URL',
+    'EAS_COCOAPODS_CACHE_URL',
+    'KUBERNETES_*',
+  ];
   const envToReturn = micromatch(
     Object.keys(process.env),
     envToFilter.map(env => `!${env}`)
