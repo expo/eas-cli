@@ -235,7 +235,7 @@ export async function uploadPublicCacheAsync({
   logger.info(`Uploaded cache archive to ${archivePath} (${formatBytes(size)}).`);
 }
 
-function extractValidationErrorMessage(body: string): string | undefined {
+function extractValidationErrorMessage(body: string | undefined): string | undefined {
   try {
     const { errors } = JSON.parse(body);
     if (errors?.[0]?.code === 'VALIDATION_ERROR') {
