@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--skip-screenshots` and `--skip-previews` flags to `eas metadata:pull` and `eas metadata:push` to skip downloading or uploading screenshots and video previews. ([#3843](https://github.com/expo/eas-cli/pull/3843) by [@TimBroddin](https://github.com/TimBroddin))
+
 ### 🐛 Bug fixes
 
 - [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
