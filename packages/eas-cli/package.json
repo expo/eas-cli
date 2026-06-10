@@ -20,6 +20,7 @@
     "eas": "./bin/run"
   },
   "files": [
+    "/.github/resources/eas.png",
     "/bin",
     "/build",
     "/oclif.manifest.json",
