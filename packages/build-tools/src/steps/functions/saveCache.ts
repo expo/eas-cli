@@ -141,6 +141,10 @@ export async function uploadCacheAsync({
       return;
     }
     const textResult = await asyncResult(response.text());
+    const errorMessage = extractValidationErrorMessage(textResult.value);
+    if (errorMessage) {
+      throw new Error(errorMessage);
+    }
     throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
   }
 
@@ -229,6 +233,16 @@ export async function uploadPublicCacheAsync({
     );
   }
   logger.info(`Uploaded cache archive to ${archivePath} (${formatBytes(size)}).`);
+}
+
+function extractValidationErrorMessage(body: string): string | undefined {
+  try {
+    const { errors } = JSON.parse(body);
+    if (errors?.[0]?.code === 'VALIDATION_ERROR') {
+      return errors[0].message;
+    }
+  } catch {}
+  return undefined;
 }
 
 export async function compressCacheAsync({
