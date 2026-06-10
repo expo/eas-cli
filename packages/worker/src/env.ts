@@ -38,6 +38,10 @@ export function getBuildEnv({
   setEnv(env, 'NPM_CACHE_URL', config.npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', config.nodeJsCacheUrl);
   setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', config.npmCacheUrl);
+  // Force npm/pnpm/bun to use cache registry (overrides .npmrc files)
+  setEnv(env, 'NPM_CONFIG_REGISTRY', config.npmCacheUrl);
+  // Force Yarn Berry to use cache registry (overrides .yarnrc.yml files)
+  setEnv(env, 'YARN_NPM_REGISTRY_SERVER', config.npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
   setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
