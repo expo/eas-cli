@@ -236,6 +236,9 @@ export async function uploadPublicCacheAsync({
 }
 
 function extractValidationErrorMessage(body: string | undefined): string | undefined {
+  if (!body) {
+    return undefined;
+  }
   try {
     const { errors } = JSON.parse(body);
     if (errors?.[0]?.code === 'VALIDATION_ERROR') {
