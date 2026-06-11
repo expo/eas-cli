@@ -46,15 +46,11 @@ export async function uploadApplicationArchiveAsync(
 
   try {
     // Try to upload to the upload session first.
-    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(
-      ctx,
-      {
-        filename,
-        name: 'Application Archive',
-        size,
-      },
-      logger
-    );
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Application Archive',
+      size,
+    });
 
     uploadSession = signedUrl;
 
@@ -66,7 +62,7 @@ export async function uploadApplicationArchiveAsync(
     });
 
     // If the upload succeeded, we save the artifact to the database.
-    await saveArtifactAsync(ctx, { bucketKey, type: 'applicationArchive', storageType }, logger);
+    await saveArtifactAsync(ctx, { bucketKey, type: 'applicationArchive', storageType });
 
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
@@ -115,15 +111,11 @@ export async function uploadBuildArtifactsAsync(
 
   try {
     // Try to upload to the upload session first.
-    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(
-      ctx,
-      {
-        filename,
-        name: 'Build Artifacts',
-        size,
-      },
-      logger
-    );
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Build Artifacts',
+      size,
+    });
 
     uploadSession = signedUrl;
 
@@ -135,7 +127,7 @@ export async function uploadBuildArtifactsAsync(
     });
 
     // If the upload succeeded, we save the artifact to the database.
-    await saveArtifactAsync(ctx, { bucketKey, type: 'buildArtifacts', storageType }, logger);
+    await saveArtifactAsync(ctx, { bucketKey, type: 'buildArtifacts', storageType });
 
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
@@ -178,15 +170,11 @@ export async function uploadWorkflowArtifactAsync(
   const name = _name || filename;
 
   try {
-    const { signedUrl: uploadSession, artifactId } = await createUploadSessionAsync(
-      ctx,
-      {
-        filename,
-        name,
-        size,
-      },
-      logger
-    );
+    const { signedUrl: uploadSession, artifactId } = await createUploadSessionAsync(ctx, {
+      filename,
+      name,
+      size,
+    });
 
     await GCS.uploadWithSignedUrl({
       signedUrl: uploadSession,
@@ -267,8 +255,7 @@ function getCommonParentDir(path1: string, path2: string): string {
 
 async function createUploadSessionAsync(
   ctx: BuildContext,
-  { filename, name, size }: { filename: string; name: string; size: number },
-  logger: bunyan
+  { filename, name, size }: { filename: string; name: string; size: number }
 ): Promise<{
   bucketKey: string;
   signedUrl: GCS.SignedUrl;
@@ -302,7 +289,7 @@ async function createUploadSessionAsync(
           shouldThrowOnNotOk: false,
           retries: UPLOAD_API_REQUEST_RETRIES,
           retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
-          logger,
+          logger: ctx.logger,
         }
       )
     );
@@ -319,7 +306,7 @@ async function createUploadSessionAsync(
           shouldThrowOnNotOk: false,
           retries: UPLOAD_API_REQUEST_RETRIES,
           retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
-          logger,
+          logger: ctx.logger,
         }
       )
     );
@@ -401,8 +388,7 @@ async function saveArtifactAsync(
     bucketKey: string;
     type: 'applicationArchive' | 'buildArtifacts';
     storageType: ArchiveSourceType | null;
-  },
-  logger: bunyan
+  }
 ): Promise<void> {
   nullthrows(storageType, 'Missing storage type for build artifacts');
   const workflowJobId = ctx.env.__WORKFLOW_JOB_ID;
@@ -430,7 +416,7 @@ async function saveArtifactAsync(
           },
           retries: UPLOAD_API_REQUEST_RETRIES,
           retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
-          logger,
+          logger: ctx.logger,
         }
       )
     );
@@ -446,7 +432,7 @@ async function saveArtifactAsync(
           },
           retries: UPLOAD_API_REQUEST_RETRIES,
           retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
-          logger,
+          logger: ctx.logger,
         }
       )
     );
