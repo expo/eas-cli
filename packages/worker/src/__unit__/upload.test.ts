@@ -1,5 +1,5 @@
 import { BuildContext, GCS } from '@expo/build-tools';
-import { Job } from '@expo/eas-build-job';
+import { Job, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
@@ -58,7 +58,14 @@ describe(uploadApplicationArchiveAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('env variables are not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('env variables are not set'),
+      }),
+    });
 
     ctx.env.__WORKFLOW_JOB_ID = randomUUID();
 
@@ -68,7 +75,14 @@ describe(uploadApplicationArchiveAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('robot access token is not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('robot access token is not set'),
+      }),
+    });
   });
 
   it('should upload the application archive', async () => {
@@ -164,6 +178,77 @@ describe(uploadApplicationArchiveAsync.name, () => {
       })
     );
   });
+
+  it('should throw a system error if the application archive upload fails', async () => {
+    vol.fromJSON({
+      './artifact.ipa': JSON.stringify(randomBytes(20)),
+    });
+    const workflowJobId = randomUUID();
+
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        __WORKFLOW_JOB_ID: workflowJobId,
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+
+    const bucketKey = `test/${randomUUID()}/artifact.ipa`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const testSignedUploadAuthorization = randomUUID();
+    const uploadError = new Error('upload failed');
+
+    turtleFetchMock.mockImplementation(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            bucketKey,
+            url: uploadUrl,
+            headers: {
+              authorization: testSignedUploadAuthorization,
+            },
+            storageType: 'GCS',
+          },
+        }),
+      } as Response;
+    });
+    jest.mocked(GCS.uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
+
+    let thrownError: unknown;
+    try {
+      await uploadApplicationArchiveAsync(ctx, {
+        artifactPaths: ['./artifact.ipa'],
+        buildId: randomUUID(),
+        logger: ctx.logger,
+      });
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).toBeInstanceOf(errors.SystemError);
+    expect(thrownError).toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      message: 'Failed to upload application archive.',
+      buildPhase: undefined,
+      metadata: expect.objectContaining({
+        filename: expect.stringMatching(/^application-.*\.ipa$/),
+        size: expect.any(Number),
+        url: uploadUrl,
+        headers: {
+          authorization: testSignedUploadAuthorization,
+        },
+      }),
+      cause: uploadError,
+    });
+  });
 });
 
 describe(uploadBuildArtifactsAsync.name, () => {
@@ -185,7 +270,14 @@ describe(uploadBuildArtifactsAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('env variables are not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('env variables are not set'),
+      }),
+    });
     ctx.env.__WORKFLOW_JOB_ID = randomUUID();
     await expect(
       uploadBuildArtifactsAsync(ctx, {
@@ -193,7 +285,14 @@ describe(uploadBuildArtifactsAsync.name, () => {
         buildId: 'buildId',
         logger: ctx.logger,
       })
-    ).rejects.toThrow('robot access token is not set');
+    ).rejects.toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      cause: expect.objectContaining({
+        message: expect.stringContaining('robot access token is not set'),
+      }),
+    });
   });
 
   it('should upload the build artifacts', async () => {
@@ -283,6 +382,74 @@ describe(uploadBuildArtifactsAsync.name, () => {
         },
       })
     );
+  });
+
+  it('should throw a system error if the build artifacts upload fails', async () => {
+    vol.fromJSON({
+      './video.mp4': JSON.stringify(randomBytes(20)),
+    });
+    const workflowJobId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        __WORKFLOW_JOB_ID: workflowJobId,
+      },
+      job: {
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+    const bucketKey = `test/${randomUUID()}/artifact.ipa`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const testSignedUploadAuthorization = randomUUID();
+    const uploadError = new Error('upload failed');
+    turtleFetchMock.mockImplementation(async () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: {
+            bucketKey,
+            url: uploadUrl,
+            headers: {
+              authorization: testSignedUploadAuthorization,
+            },
+            storageType: 'GCS',
+          },
+        }),
+      } as Response;
+    });
+    jest.mocked(GCS.uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
+
+    let thrownError: unknown;
+    try {
+      await uploadBuildArtifactsAsync(ctx, {
+        artifactPaths: ['./video.mp4'],
+        buildId: randomUUID(),
+        logger: ctx.logger,
+      });
+    } catch (err) {
+      thrownError = err;
+    }
+
+    expect(thrownError).toBeInstanceOf(errors.SystemError);
+    expect(thrownError).toMatchObject({
+      errorCode: errors.ErrorCode.SERVER_ERROR,
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      message: 'Failed to upload build artifacts.',
+      buildPhase: undefined,
+      metadata: expect.objectContaining({
+        filename: expect.stringMatching(/^artifacts-.*\.mp4$/),
+        size: expect.any(Number),
+        url: uploadUrl,
+        headers: {
+          authorization: testSignedUploadAuthorization,
+        },
+      }),
+      cause: uploadError,
+    });
   });
 });
 

@@ -1,5 +1,5 @@
 import { BuildContext, GCS } from '@expo/build-tools';
-import { ArchiveSourceType } from '@expo/eas-build-job';
+import { ArchiveSourceType, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import fs from 'fs-extra';
@@ -76,7 +76,14 @@ export async function uploadApplicationArchiveAsync(
       },
     });
 
-    throw new Error(`Failed to upload application archive: ${err?.message}\n${err?.stack}`, {
+    throw new errors.SystemError('Failed to upload application archive.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
       cause: err,
     });
   }
@@ -132,7 +139,13 @@ export async function uploadBuildArtifactsAsync(
       },
     });
 
-    throw new Error(`Failed to upload build artifact: ${err?.message}\n${err?.stack}`, {
+    throw new errors.SystemError('Failed to upload build artifacts.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+      },
       cause: err,
     });
   }
