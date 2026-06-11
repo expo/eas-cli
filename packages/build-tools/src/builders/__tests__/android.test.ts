@@ -13,6 +13,10 @@ import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
 } from '../../steps/utils/android/gradleConfig';
+import {
+  logGradleCacheEnv,
+  restoreGradleCacheAsync,
+} from '../../steps/functions/restoreBuildCache';
 
 jest.mock('../common', () => ({
   runBuilderWithHooksAsync: jest.fn(async (ctx, buildFn) => {
@@ -41,10 +45,13 @@ jest.mock('../../common/setup', () => ({
 }));
 jest.mock('../../steps/functions/restoreBuildCache', () => ({
   cacheStatsAsync: jest.fn(),
+  logGradleCacheEnv: jest.fn(),
   restoreCcacheAsync: jest.fn(),
+  restoreGradleCacheAsync: jest.fn(async () => ({ env: {} })),
 }));
 jest.mock('../../steps/functions/saveBuildCache', () => ({
   saveCcacheAsync: jest.fn(),
+  saveGradleCacheAsync: jest.fn(),
 }));
 jest.mock('../../steps/utils/android/gradleConfig', () => ({
   ...jest.requireActual('../../steps/utils/android/gradleConfig'),
@@ -130,6 +137,7 @@ describe(androidBuilder, () => {
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
       logger: createMockLogger(),
       env: {
+        EAS_BUILD_RUNNER: 'eas-build',
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),
@@ -143,6 +151,30 @@ describe(androidBuilder, () => {
     );
     expect(restoreCredentials).toHaveBeenCalledWith(ctx);
     expect(injectConfigureVersionGradleConfig).not.toHaveBeenCalled();
+  });
+
+  it('logs Gradle cache environment variables returned by restoreGradleCacheAsync', async () => {
+    jest.mocked(restoreGradleCacheAsync).mockResolvedValueOnce({
+      env: {
+        'ORG_GRADLE_PROJECT_org.gradle.caching': 'true',
+      },
+    });
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        EAS_BUILD_RUNNER: 'eas-build',
+        __API_SERVER_URL: 'http://api.expo.test',
+      },
+      uploadArtifact: jest.fn(),
+    });
+
+    await androidBuilder(ctx);
+
+    expect(logGradleCacheEnv).toHaveBeenCalledWith(expect.anything(), {
+      'ORG_GRADLE_PROJECT_org.gradle.caching': 'true',
+    });
   });
 
   it('marks the configure Android version phase as warning for legacy eas-build.gradle', async () => {

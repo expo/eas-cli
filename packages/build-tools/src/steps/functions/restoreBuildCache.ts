@@ -57,12 +57,19 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
       });
 
       if (platform === Platform.ANDROID) {
-        await restoreGradleCacheAsync({
+        const { env: gradleCacheEnv } = await restoreGradleCacheAsync({
           logger,
           workingDirectory,
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
         });
+        if (Object.keys(gradleCacheEnv).length > 0) {
+          stepCtx.global.updateEnv({
+            ...stepCtx.global.env,
+            ...gradleCacheEnv,
+          });
+          logGradleCacheEnv(logger, gradleCacheEnv);
+        }
       }
     },
   });
@@ -200,19 +207,16 @@ export async function restoreGradleCacheAsync({
   workingDirectory: string;
   env: Record<string, string | undefined>;
   secrets?: { robotAccessToken?: string };
-}): Promise<void> {
+}): Promise<{ env: Record<string, string> }> {
   if (env.EAS_GRADLE_CACHE !== '1') {
-    return;
+    return { env: {} };
   }
 
-  try {
-    const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
-    const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
-    await fs.promises.writeFile(
-      gradlePropertiesPath,
-      `${gradlePropertiesContent}\n\norg.gradle.caching=true\n`
-    );
+  const gradleCacheEnv = {
+    'ORG_GRADLE_PROJECT_org.gradle.caching': 'true',
+  };
 
+  try {
     // Configure cache cleanup via init script (works with both Gradle 8 and 9,
     // org.gradle.cache.cleanup property was removed in Gradle 9)
     const initScriptDir = path.join(os.homedir(), '.gradle', 'init.d');
@@ -294,6 +298,18 @@ export async function restoreGradleCacheAsync({
       logger.warn('Failed to restore Gradle cache: ', err);
     }
   }
+
+  return { env: gradleCacheEnv };
+}
+
+export function logGradleCacheEnv(logger: bunyan, env: Record<string, string>): void {
+  logger.info(
+    `Enabling Gradle cache. Running Gradle with additional environment variables.\n${Object.entries(
+      env
+    )
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n')}`
+  );
 }
 
 export async function cacheStatsAsync({

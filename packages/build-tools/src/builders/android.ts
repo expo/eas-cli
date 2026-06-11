@@ -1,4 +1,4 @@
-import { Android, BuildMode, BuildPhase, Workflow } from '@expo/eas-build-job';
+import { Android, BuildMode, BuildPhase, BuildTrigger, Workflow } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
@@ -18,6 +18,7 @@ import { setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import {
   cacheStatsAsync,
+  logGradleCacheEnv,
   restoreCcacheAsync,
   restoreGradleCacheAsync,
 } from '../steps/functions/restoreBuildCache';
@@ -88,12 +89,18 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
-    await restoreGradleCacheAsync({
+    const { env } = await restoreGradleCacheAsync({
       logger: ctx.logger,
       workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
+    if (Object.keys(env).length > 0) {
+      if (ctx.job.triggeredBy === BuildTrigger.GIT_BASED_INTEGRATION) {
+        ctx.updateEnv(env);
+      }
+      logGradleCacheEnv(ctx.logger, env);
+    }
   });
 
   await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
