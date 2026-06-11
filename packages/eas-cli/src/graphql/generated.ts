@@ -1459,6 +1459,7 @@ export type App = Project & {
   description: Scalars['String']['output'];
   devDomainName?: Maybe<AppDevDomainName>;
   deviceRunSessionsPaginated: AppDeviceRunSessionsConnection;
+  embeddedUpdatesPaginated: AppEmbeddedUpdatesConnection;
   /** Environment secrets for an app */
   environmentSecrets: Array<EnvironmentSecret>;
   environmentVariableEnvironments: Array<Scalars['EnvironmentVariableEnvironment']['output']>;
@@ -1694,6 +1695,16 @@ export type AppDeviceRunSessionsPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<DeviceRunSessionFilterInput>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
+export type AppEmbeddedUpdatesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -2044,6 +2055,18 @@ export type AppDeviceRunSessionsConnection = {
   pageInfo: PageInfo;
 };
 
+export type AppEmbeddedUpdateEdge = {
+  __typename?: 'AppEmbeddedUpdateEdge';
+  cursor: Scalars['String']['output'];
+  node: EmbeddedUpdate;
+};
+
+export type AppEmbeddedUpdatesConnection = {
+  __typename?: 'AppEmbeddedUpdatesConnection';
+  edges: Array<AppEmbeddedUpdateEdge>;
+  pageInfo: PageInfo;
+};
+
 export type AppFingerprintEdge = {
   __typename?: 'AppFingerprintEdge';
   cursor: Scalars['String']['output'];
@@ -2383,6 +2406,7 @@ export type AppObserveCustomEvent = {
   eventName: Scalars['String']['output'];
   expoSdkVersion?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  ingestedAt?: Maybe<Scalars['DateTime']['output']>;
   properties: Array<AppObserveEventProperty>;
   reactNativeVersion?: Maybe<Scalars['String']['output']>;
   sessionId?: Maybe<Scalars['String']['output']>;
@@ -2480,6 +2504,7 @@ export type AppObserveCustomEventPropertyFilter = {
 export type AppObserveEvent = {
   __typename?: 'AppObserveEvent';
   appBuildNumber: Scalars['String']['output'];
+  appEasBuildId?: Maybe<Scalars['String']['output']>;
   appIdentifier: Scalars['String']['output'];
   appName: Scalars['String']['output'];
   appUpdateId?: Maybe<Scalars['String']['output']>;
@@ -5080,6 +5105,11 @@ export type DeleteDiscordUserResult = {
   id: Scalars['ID']['output'];
 };
 
+export type DeleteEmbeddedUpdateResult = {
+  __typename?: 'DeleteEmbeddedUpdateResult';
+  id: Scalars['ID']['output'];
+};
+
 export type DeleteEnvironmentSecretResult = {
   __typename?: 'DeleteEnvironmentSecretResult';
   id: Scalars['ID']['output'];
@@ -6193,8 +6223,20 @@ export type EmbeddedUpdateAssetUploadSpec = {
   storageKey: Scalars['String']['output'];
 };
 
+export type EmbeddedUpdateFilterInput = {
+  channel?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppPlatform>;
+  runtimeVersion?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type EmbeddedUpdateMutation = {
   __typename?: 'EmbeddedUpdateMutation';
+  /**
+   * Delete an embedded update by id. Best-effort: deleting an unknown id succeeds
+   * (mirrors background deletion jobs). The linked asset row and underlying GCS
+   * object are cleaned up via the entity's afterDelete trigger chain.
+   */
+  deleteEmbeddedUpdate: DeleteEmbeddedUpdateResult;
   /**
    * Register an embedded bundle as the launch asset for a given app/platform/channel.
    * Returns EMBEDDED_UPDATE_ASSET_NOT_AVAILABLE if the asset has not been finalized yet,
@@ -6204,8 +6246,29 @@ export type EmbeddedUpdateMutation = {
 };
 
 
+export type EmbeddedUpdateMutationDeleteEmbeddedUpdateArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type EmbeddedUpdateMutationUploadEmbeddedUpdateArgs = {
   input: UploadEmbeddedUpdateInput;
+};
+
+export type EmbeddedUpdateQuery = {
+  __typename?: 'EmbeddedUpdateQuery';
+  /**
+   * Look up an embedded update by its id and the owning app's id.
+   * Throws EMBEDDED_UPDATE_NOT_FOUND when no embedded update with this id exists on
+   * the given app within the caller's account.
+   */
+  byId: EmbeddedUpdate;
+};
+
+
+export type EmbeddedUpdateQueryByIdArgs = {
+  appId: Scalars['ID']['input'];
+  embeddedUpdateId: Scalars['ID']['input'];
 };
 
 export enum EntityTypeName {
@@ -8537,6 +8600,7 @@ export type RootQuery = {
   echoProject: EchoProjectQuery;
   /** Top-level query object for querying Echo versions. */
   echoVersion: EchoVersionQuery;
+  embeddedUpdates: EmbeddedUpdateQuery;
   /** Top-level query object for querying Experimentation configuration. */
   experimentation: ExperimentationQuery;
   expoGoBuild: ExpoGoBuildQuery;
@@ -8793,7 +8857,7 @@ export type SsoUser = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
@@ -10079,7 +10143,7 @@ export type User = Actor & UserActor & {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Get all certified second factor authentication methods */
@@ -10183,7 +10247,7 @@ export type UserActor = {
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
-  primaryAccountProfileImageUrl?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
   /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
@@ -10238,6 +10302,8 @@ export type UserActorPublicData = {
   firstName?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   lastName?: Maybe<Scalars['String']['output']>;
+  primaryAccountProfileImageUrl: Scalars['String']['output'];
+  /** @deprecated Use primaryAccountProfileImageUrl instead */
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
@@ -12789,6 +12855,13 @@ export type UploadEmbeddedUpdateMutationVariables = Exact<{
 
 export type UploadEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', uploadEmbeddedUpdate: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any } } };
 
+export type DeleteEmbeddedUpdateMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteEmbeddedUpdateMutation = { __typename?: 'RootMutation', embeddedUpdate: { __typename?: 'EmbeddedUpdateMutation', deleteEmbeddedUpdate: { __typename?: 'DeleteEmbeddedUpdateResult', id: string } } };
+
 export type CreateEnvironmentSecretForAccountMutationVariables = Exact<{
   input: CreateEnvironmentSecretInput;
   accountId: Scalars['String']['input'];
@@ -13287,6 +13360,24 @@ export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
 
 
 export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
+export type ViewEmbeddedUpdateByIdQueryVariables = Exact<{
+  embeddedUpdateId: Scalars['ID']['input'];
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type ViewEmbeddedUpdateByIdQuery = { __typename?: 'RootQuery', embeddedUpdates: { __typename?: 'EmbeddedUpdateQuery', byId: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } } };
+
+export type ViewEmbeddedUpdatesPaginatedQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  first: Scalars['Int']['input'];
+  after?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<EmbeddedUpdateFilterInput>;
+}>;
+
+
+export type ViewEmbeddedUpdatesPaginatedQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, embeddedUpdatesPaginated: { __typename?: 'AppEmbeddedUpdatesConnection', edges: Array<{ __typename?: 'AppEmbeddedUpdateEdge', cursor: string, node: { __typename?: 'EmbeddedUpdate', id: string, platform: AppPlatform, runtimeVersion: string, channel: string, createdAt: any, launchAsset: { __typename?: 'EmbeddedUpdateAsset', id: string, fileSize: number, finalFileSize?: number | null, fileSHA256: string } } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type EnvironmentSecretsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

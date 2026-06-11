@@ -97,3 +97,27 @@ describe('EmbeddedUpdateMutation.uploadEmbeddedUpdateAsync', () => {
     expect(result).toEqual(expected);
   });
 });
+
+describe('EmbeddedUpdateMutation.deleteEmbeddedUpdateAsync', () => {
+  it('returns the deleted id from the GraphQL response', async () => {
+    const client = makeGraphqlClient({
+      embeddedUpdate: { deleteEmbeddedUpdate: { id: 'update-1' } },
+    });
+
+    const result = await EmbeddedUpdateMutation.deleteEmbeddedUpdateAsync(client, {
+      id: 'update-1',
+    });
+
+    expect(result).toEqual({ id: 'update-1' });
+  });
+
+  it('passes the id through to the mutation variables', async () => {
+    const client = makeGraphqlClient({
+      embeddedUpdate: { deleteEmbeddedUpdate: { id: 'update-2' } },
+    });
+
+    await EmbeddedUpdateMutation.deleteEmbeddedUpdateAsync(client, { id: 'update-2' });
+
+    expect(client.mutation).toHaveBeenCalledWith(expect.anything(), { id: 'update-2' });
+  });
+});

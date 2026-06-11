@@ -27,3 +27,4 @@ export * from './generic';
 
 export { Datadog } from './datadog';
 export { Sentry } from './sentry';
+export * from './runtimeSettings';

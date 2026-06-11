@@ -136,14 +136,14 @@ describe('BuildService Datadog setup', () => {
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
       expoApiV2BaseUrl: expect.any(String),
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'build', turtleBuildId: 'build-id' },
     });
     expect(createBuildContextMock).toHaveBeenCalled();
     expect(datadogFlushAsyncMock).toHaveBeenCalled();
   });
 
-  it('configures Datadog for non-platform jobs with the turtle build id', async () => {
+  it('configures Datadog for jobRun jobs with the turtle job run id', async () => {
     const service = new BuildService();
     service.checkForHangingWorker = jest.fn(async () => {});
 
@@ -158,8 +158,8 @@ describe('BuildService Datadog setup', () => {
 
     expect(datadogSetupMock).toHaveBeenCalledWith({
       expoApiV2BaseUrl: expect.any(String),
-      turtleBuildId: 'build-id',
       robotAccessToken: 'token-abc',
+      target: { kind: 'jobRun', turtleJobRunId: 'build-id' },
     });
     expect(createBuildContextMock).toHaveBeenCalled();
   });

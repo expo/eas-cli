@@ -4,11 +4,15 @@ import { BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
+import nullthrows from 'nullthrows';
+import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
+import { turtleFetch } from '../../utils/turtleFetch';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -58,6 +62,105 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
     );
   }
   return authtoken;
+}
+
+const TurnIceServersSchema = z.array(
+  z.object({
+    urls: z.array(z.string()),
+    username: z.string().optional(),
+    credential: z.string().optional(),
+  })
+);
+
+export type TurnIceServers = z.infer<typeof TurnIceServersSchema>;
+
+const TurnIceServersResponseSchema = z.object({
+  data: z.object({
+    iceServers: TurnIceServersSchema,
+  }),
+});
+
+/**
+ * Translate Cloudflare ICE servers into serve-sim CLI flags: `--stun-url` (the
+ * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
+ * (the entry carrying the short-lived credentials).
+ */
+export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string[] {
+  const stunUrls = iceServers
+    .filter(server => !server.username && !server.credential)
+    .flatMap(server => server.urls);
+  const turnServer = iceServers.find(server => server.username && server.credential);
+
+  const args: string[] = [];
+  if (stunUrls.length > 0) {
+    args.push('--stun-url', stunUrls.join(','));
+  }
+  if (turnServer?.username && turnServer.credential && turnServer.urls.length > 0) {
+    args.push(
+      '--turn-url',
+      turnServer.urls.join(','),
+      '--turn-username',
+      turnServer.username,
+      '--turn-credential',
+      turnServer.credential
+    );
+  }
+  return args;
+}
+
+/**
+ * Fetch short-lived Cloudflare TURN ICE servers for this job run from www
+ * (minted on demand, mirroring how the worker fetches project clone URLs) and
+ * translate them into serve-sim CLI flags.
+ *
+ * Best-effort: on any failure we log and return [] so serve-sim falls back to
+ * its built-in P2P/STUN behavior. The credential is passed to serve-sim as a
+ * process arg and deliberately not logged (turtle-spawn never logs argv and the
+ * worker is single-tenant).
+ */
+export async function fetchServeSimTurnArgsAsync(
+  ctx: CustomBuildContext,
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<string[]> {
+  try {
+    const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+    const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const robotAccessToken = nullthrows(
+      ctx.job.secrets?.robotAccessToken,
+      'robot access token is not set'
+    );
+
+    const response = await turtleFetch(
+      new URL(
+        `/v2/device-run-sessions/${deviceRunSessionId}/turn-ice-servers`,
+        expoApiServerUrl
+      ).toString(),
+      'POST',
+      {
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+        },
+        timeout: 5000,
+        retries: 1,
+        logger,
+      }
+    );
+
+    const { data } = TurnIceServersResponseSchema.parse(await response.json());
+    const args = turnIceServersToServeSimArgs(data.iceServers);
+    if (args.length > 0) {
+      logger.info('Configured serve-sim with Cloudflare TURN ICE servers.');
+    }
+    return args;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
+    logger.warn(
+      { err: error },
+      'Could not fetch Cloudflare TURN ICE servers; serve-sim will fall back to P2P/STUN.'
+    );
+    return [];
+  }
 }
 
 export async function uploadRemoteSessionConfigAsync({
@@ -120,18 +223,22 @@ export function spawnDetached({
   return { getOutput: () => output };
 }
 
-export async function startServeSimWithTunnelAsync({
-  baseDomain,
-  env,
-  logger,
-  timeoutMs,
-}: {
-  baseDomain: string;
-  env: BuildStepEnv;
-  logger: bunyan;
-  timeoutMs: number;
-}): Promise<{ previewUrl: string; streamUrl: string }> {
+export async function startServeSimWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+  }: {
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+  }
+): Promise<{ previewUrl: string; streamUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
+  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
     args: [
@@ -146,7 +253,8 @@ export async function startServeSimWithTunnelAsync({
       '--stream-quality',
       '0.55',
       '--codec',
-      'h264',
+      'webrtc',
+      ...turnArgs,
     ],
     env,
   });

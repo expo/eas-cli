@@ -4,6 +4,8 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppPlatform,
+  DeleteEmbeddedUpdateMutation,
+  DeleteEmbeddedUpdateMutationVariables,
   UploadEmbeddedUpdateInput,
   UploadEmbeddedUpdateMutation,
   UploadEmbeddedUpdateMutationVariables,
@@ -60,5 +62,28 @@ export const EmbeddedUpdateMutation = {
         .toPromise()
     );
     return data.embeddedUpdate.uploadEmbeddedUpdate;
+  },
+
+  async deleteEmbeddedUpdateAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { id }: { id: string }
+  ): Promise<{ id: string }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<DeleteEmbeddedUpdateMutation, DeleteEmbeddedUpdateMutationVariables>(
+          gql`
+            mutation DeleteEmbeddedUpdate($id: ID!) {
+              embeddedUpdate {
+                deleteEmbeddedUpdate(id: $id) {
+                  id
+                }
+              }
+            }
+          `,
+          { id }
+        )
+        .toPromise()
+    );
+    return data.embeddedUpdate.deleteEmbeddedUpdate;
   },
 };

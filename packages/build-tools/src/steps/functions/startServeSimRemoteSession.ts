@@ -30,7 +30,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
       logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
       await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
 
-      const { previewUrl, streamUrl } = await startServeSimWithTunnelAsync({
+      const { previewUrl, streamUrl } = await startServeSimWithTunnelAsync(ctx, {
         baseDomain: ngrokTunnelDomain,
         env,
         logger,

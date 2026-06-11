@@ -157,6 +157,25 @@ export namespace IosSimulatorUtils {
     );
   }
 
+  export async function disableApsdAsync({
+    udid,
+    env,
+  }: {
+    udid: IosSimulatorUuid;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    await spawn(
+      'xcrun',
+      ['simctl', 'spawn', udid, 'launchctl', 'disable', 'system/com.apple.apsd'],
+      { env }
+    );
+    await spawn(
+      'xcrun',
+      ['simctl', 'spawn', udid, 'launchctl', 'bootout', 'system/com.apple.apsd'],
+      { env }
+    );
+  }
+
   export async function collectLogsAsync({
     deviceIdentifier,
     env,

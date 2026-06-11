@@ -10,7 +10,18 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
+
+## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
+
+### 🎉 New features
+
+- [eas-cli] Add `eas update:embedded:view` command. ([#3810](https://github.com/expo/eas-cli/pull/3810) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas update:embedded:list` command. ([#3811](https://github.com/expo/eas-cli/pull/3811) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas update:embedded:delete` command. ([#3809](https://github.com/expo/eas-cli/pull/3809) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Auto-upload embedded bundle after build when `EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE` is set. ([#3767](https://github.com/expo/eas-cli/pull/3767) by [@gwdp](https://github.com/gwdp))
 
 ## [20.0.0](https://github.com/expo/eas-cli/releases/tag/v20.0.0) - 2026-05-29
 
@@ -26,6 +37,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Fix `eas/start_ios_simulator` hanging on Xcode 26.4 by writing the readiness screenshot to a temp file instead of `/dev/null`. ([#3794](https://github.com/expo/eas-cli/pull/3794) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Disable `apsd` in the iOS Simulator after boot to stop a push-registration log storm that pegs `diagnosticd` CPU for the lifetime of the Simulator. ([#3795](https://github.com/expo/eas-cli/pull/3795) by [@gwdp](https://github.com/gwdp))
 
 ## [19.1.0](https://github.com/expo/eas-cli/releases/tag/v19.1.0) - 2026-05-25
 

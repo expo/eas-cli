@@ -41,4 +41,24 @@ describe('IosSimulatorUtils', () => {
       );
     });
   });
+
+  describe(IosSimulatorUtils.disableApsdAsync, () => {
+    it('disables and boots out apsd in the simulator', async () => {
+      await IosSimulatorUtils.disableApsdAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'disable', 'system/com.apple.apsd'],
+        { env: process.env }
+      );
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'bootout', 'system/com.apple.apsd'],
+        { env: process.env }
+      );
+    });
+  });
 });

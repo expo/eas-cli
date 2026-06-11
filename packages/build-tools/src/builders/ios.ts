@@ -25,6 +25,7 @@ import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
 } from '../utils/expoUpdates';
+import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
@@ -208,6 +209,12 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       logger: ctx.logger,
     });
   });
+
+  if (ctx.env.EAS_UPDATE_EXPERIMENTAL_UPLOAD_EMBEDDED_BUNDLE) {
+    await ctx.runBuildPhase(BuildPhase.UPLOAD_EMBEDDED_BUNDLE, async () => {
+      await uploadEmbeddedBundleAsync(ctx);
+    });
+  }
 
   await ctx.runBuildPhase(BuildPhase.SAVE_CACHE, async () => {
     if (ctx.isLocal) {

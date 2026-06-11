@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import nullthrows from 'nullthrows';
 
 import { getBareJobRunUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
@@ -18,17 +19,28 @@ import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQue
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import {
+  EAS_SIMULATOR_SESSION_ID,
+  SIMULATOR_DOTENV_FILE_NAME,
+  loadSimulatorEnvAsync,
+  resetSimulatorEnvAsync,
+  writeSimulatorEnvAsync,
+} from '../../simulator/env';
+import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
+  getRemoteSessionEnvironmentVariables,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
-import nullthrows from 'nullthrows';
 
 const POLL_INTERVAL_MS = 5_000; // 5 seconds
 const POLL_TIMEOUT_MS = 15 * 60 * 1_000; // 15 minutes
+const OUT_CONFIG_TYPE_VALUES = {
+  Env: 'env',
+  Dotenv: 'dotenv',
+} as const;
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
@@ -55,11 +67,23 @@ export default class SimulatorStart extends EasCommand {
         'Maximum duration of the device run session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
       min: 0,
     }),
+    force: Flags.boolean({
+      description:
+        '[default: true] Create a new device session even when an existing simulator session is present in the environment.',
+      default: true,
+      allowNo: true,
+    }),
+    'out-config-type': Flags.option({
+      description: `How to output simulator connection configuration. Use "env" to print shell exports, or "dotenv" to write ${SIMULATOR_DOTENV_FILE_NAME}.`,
+      options: Object.values(OUT_CONFIG_TYPE_VALUES),
+      default: OUT_CONFIG_TYPE_VALUES.Dotenv,
+    })(),
     ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
+    ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
   };
 
@@ -73,10 +97,27 @@ export default class SimulatorStart extends EasCommand {
 
     const {
       projectId,
+      projectDir,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStart, {
       nonInteractive,
     });
+
+    await loadSimulatorEnvAsync(projectDir);
+    const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
+    if (existingDeviceRunSessionId && !flags.force) {
+      throw new Error(
+        `Existing simulator session in environment. Use --force to create a new device session.`
+      );
+    }
+    if (existingDeviceRunSessionId) {
+      Log.warn(
+        `  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}). ` +
+          `The previous remote session will continue running until stopped. ` +
+          `To stop it, run: eas simulator:stop --id ${existingDeviceRunSessionId}`
+      );
+      Log.newLine();
+    }
 
     const platform = flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
 
@@ -94,8 +135,16 @@ export default class SimulatorStart extends EasCommand {
       deviceRunSessionId = session.id;
       const jobRunId = nullthrows(session.turtleJobRun?.id, 'Expected device run session to start');
       jobRunUrl = getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, jobRunId);
+      const simulatorEnvWritten =
+        !jsonFlag && flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
+          ? await writeSimulatorEnvSafelyAsync(projectDir, {
+              [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+            })
+          : false;
       createSpinner.succeed(
-        `Device run session created (id: ${deviceRunSessionId}) ${link(jobRunUrl)}`
+        `Device run session created (id: ${deviceRunSessionId}${
+          simulatorEnvWritten ? `, saved to ${SIMULATOR_DOTENV_FILE_NAME}` : ''
+        }) ${link(jobRunUrl)}`
       );
     } catch (err) {
       createSpinner.fail('Failed to create device run session');
@@ -152,6 +201,13 @@ export default class SimulatorStart extends EasCommand {
       );
     }
 
+    if (flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv) {
+      await writeSimulatorEnvSafelyAsync(projectDir, {
+        ...getRemoteSessionEnvironmentVariables(remoteConfig),
+        [EAS_SIMULATOR_SESSION_ID]: deviceRunSessionId,
+      });
+    }
+
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: deviceRunSessionId,
@@ -163,7 +219,7 @@ export default class SimulatorStart extends EasCommand {
     }
 
     Log.newLine();
-    Log.log(formatRemoteSessionInstructions(remoteConfig));
+    Log.log(formatRemoteSessionInstructions(remoteConfig, flags['out-config-type']));
     Log.newLine();
 
     if (nonInteractive) {
@@ -177,7 +233,25 @@ export default class SimulatorStart extends EasCommand {
       graphqlClient,
       deviceRunSessionId,
       jobRunUrl,
+      projectDir,
     });
+  }
+}
+
+async function writeSimulatorEnvSafelyAsync(
+  projectDir: string,
+  environmentVariables: Record<string, string>
+): Promise<boolean> {
+  try {
+    await writeSimulatorEnvAsync(projectDir, environmentVariables);
+    return true;
+  } catch (err) {
+    Log.warn(
+      `Failed to write simulator environment variables to ${SIMULATOR_DOTENV_FILE_NAME}: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    return false;
   }
 }
 
@@ -185,10 +259,12 @@ async function waitForSessionEndOrInterruptAsync({
   graphqlClient,
   deviceRunSessionId,
   jobRunUrl,
+  projectDir,
 }: {
   graphqlClient: ExpoGraphqlClient;
   deviceRunSessionId: string;
   jobRunUrl: string;
+  projectDir: string;
 }): Promise<void> {
   const spinner = ora(
     `Device run session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
@@ -245,6 +321,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Device run session ended. ${link(jobRunUrl)}`);
+        await resetSimulatorEnvVerboseAsync(projectDir);
         return;
       }
 
@@ -258,6 +335,7 @@ async function waitForSessionEndOrInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Device run session stopped');
+      await resetSimulatorEnvVerboseAsync(projectDir);
     } else {
       spinner.fail(
         `Could not confirm the device run session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -265,6 +343,15 @@ async function waitForSessionEndOrInterruptAsync({
     }
   } finally {
     process.removeListener('SIGINT', sigintHandler);
+  }
+}
+
+async function resetSimulatorEnvVerboseAsync(projectDir: string): Promise<void> {
+  try {
+    await resetSimulatorEnvAsync(projectDir);
+  } catch (err) {
+    Log.error(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}`);
+    throw err;
   }
 }
 
