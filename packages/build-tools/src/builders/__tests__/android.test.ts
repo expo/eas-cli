@@ -137,7 +137,6 @@ describe(androidBuilder, () => {
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
       logger: createMockLogger(),
       env: {
-        EAS_BUILD_RUNNER: 'eas-build',
         __API_SERVER_URL: 'http://api.expo.test',
       },
       uploadArtifact: jest.fn(),

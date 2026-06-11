@@ -1,4 +1,4 @@
-import { Android, BuildMode, BuildPhase, BuildTrigger, Workflow } from '@expo/eas-build-job';
+import { Android, BuildMode, BuildPhase, Workflow } from '@expo/eas-build-job';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
@@ -96,9 +96,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
       secrets: ctx.job.secrets,
     });
     if (Object.keys(env).length > 0) {
-      if (ctx.job.triggeredBy === BuildTrigger.GIT_BASED_INTEGRATION) {
-        ctx.updateEnv(env);
-      }
+      Object.assign(ctx.env, env);
       logGradleCacheEnv(ctx.logger, env);
     }
   });
