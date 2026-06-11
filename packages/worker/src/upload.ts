@@ -13,6 +13,9 @@ import { Analytics, Event } from './external/analytics';
 import sentry from './sentry';
 import { TurtleFetchError, turtleFetch } from './utils/turtleFetch';
 
+const UPLOAD_API_REQUEST_RETRIES = 2;
+const UPLOAD_API_REQUEST_RETRY_INTERVAL_MS = 1000;
+
 class ErrorWithMetadata extends Error {
   constructor(
     message: string,
@@ -43,11 +46,15 @@ export async function uploadApplicationArchiveAsync(
 
   try {
     // Try to upload to the upload session first.
-    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
-      filename,
-      name: 'Application Archive',
-      size,
-    });
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(
+      ctx,
+      {
+        filename,
+        name: 'Application Archive',
+        size,
+      },
+      logger
+    );
 
     uploadSession = signedUrl;
 
@@ -59,7 +66,7 @@ export async function uploadApplicationArchiveAsync(
     });
 
     // If the upload succeeded, we save the artifact to the database.
-    await saveArtifactAsync(ctx, { bucketKey, type: 'applicationArchive', storageType });
+    await saveArtifactAsync(ctx, { bucketKey, type: 'applicationArchive', storageType }, logger);
 
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
@@ -108,11 +115,15 @@ export async function uploadBuildArtifactsAsync(
 
   try {
     // Try to upload to the upload session first.
-    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
-      filename,
-      name: 'Build Artifacts',
-      size,
-    });
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(
+      ctx,
+      {
+        filename,
+        name: 'Build Artifacts',
+        size,
+      },
+      logger
+    );
 
     uploadSession = signedUrl;
 
@@ -124,7 +135,7 @@ export async function uploadBuildArtifactsAsync(
     });
 
     // If the upload succeeded, we save the artifact to the database.
-    await saveArtifactAsync(ctx, { bucketKey, type: 'buildArtifacts', storageType });
+    await saveArtifactAsync(ctx, { bucketKey, type: 'buildArtifacts', storageType }, logger);
 
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
@@ -167,11 +178,15 @@ export async function uploadWorkflowArtifactAsync(
   const name = _name || filename;
 
   try {
-    const { signedUrl: uploadSession, artifactId } = await createUploadSessionAsync(ctx, {
-      filename,
-      name,
-      size,
-    });
+    const { signedUrl: uploadSession, artifactId } = await createUploadSessionAsync(
+      ctx,
+      {
+        filename,
+        name,
+        size,
+      },
+      logger
+    );
 
     await GCS.uploadWithSignedUrl({
       signedUrl: uploadSession,
@@ -252,7 +267,8 @@ function getCommonParentDir(path1: string, path2: string): string {
 
 async function createUploadSessionAsync(
   ctx: BuildContext,
-  { filename, name, size }: { filename: string; name: string; size: number }
+  { filename, name, size }: { filename: string; name: string; size: number },
+  logger: bunyan
 ): Promise<{
   bucketKey: string;
   signedUrl: GCS.SignedUrl;
@@ -284,6 +300,9 @@ async function createUploadSessionAsync(
             Authorization: `Bearer ${robotAccessToken}`,
           },
           shouldThrowOnNotOk: false,
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger,
         }
       )
     );
@@ -298,6 +317,9 @@ async function createUploadSessionAsync(
             Authorization: `Bearer ${robotAccessToken}`,
           },
           shouldThrowOnNotOk: false,
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger,
         }
       )
     );
@@ -379,7 +401,8 @@ async function saveArtifactAsync(
     bucketKey: string;
     type: 'applicationArchive' | 'buildArtifacts';
     storageType: ArchiveSourceType | null;
-  }
+  },
+  logger: bunyan
 ): Promise<void> {
   nullthrows(storageType, 'Missing storage type for build artifacts');
   const workflowJobId = ctx.env.__WORKFLOW_JOB_ID;
@@ -405,6 +428,9 @@ async function saveArtifactAsync(
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger,
         }
       )
     );
@@ -418,6 +444,9 @@ async function saveArtifactAsync(
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
+          retries: UPLOAD_API_REQUEST_RETRIES,
+          retryIntervalMs: UPLOAD_API_REQUEST_RETRY_INTERVAL_MS,
+          logger,
         }
       )
     );

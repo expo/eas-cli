@@ -164,6 +164,9 @@ describe(uploadApplicationArchiveAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -175,6 +178,9 @@ describe(uploadApplicationArchiveAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
@@ -369,6 +375,9 @@ describe(uploadBuildArtifactsAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -380,6 +389,9 @@ describe(uploadBuildArtifactsAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
@@ -538,6 +550,9 @@ describe('with signed upload url provided via www', () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
     expect(turtleFetchMock).toHaveBeenNthCalledWith(
@@ -549,6 +564,9 @@ describe('with signed upload url provided via www', () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
@@ -627,6 +645,9 @@ describe(uploadWorkflowArtifactAsync.name, () => {
         headers: {
           Authorization: `Bearer ${ctx.job.secrets!.robotAccessToken}`,
         },
+        retries: 2,
+        retryIntervalMs: 1000,
+        logger: ctx.logger,
       })
     );
   });
