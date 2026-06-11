@@ -1,5 +1,6 @@
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
-import { Client } from '@urql/core';
+import { Client, CombinedError } from '@urql/core';
 import fetch, { Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -105,7 +106,7 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
-  it('throws when the build has no application archive url', async () => {
+  it('throws UserError when the build has no application archive url', async () => {
     const graphqlClient = createMockGraphqlClient({ applicationArchiveUrl: null });
 
     await expect(
@@ -116,26 +117,83 @@ describe('downloadBuild', () => {
         robotAccessToken: null,
         extensions: ['app'],
       })
-    ).rejects.toThrow('Build does not have an application archive url');
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_NO_APPLICATION_ARCHIVE',
+      message: 'Build does not have an application archive url',
+    });
 
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });
 
-  it('throws when GraphQL request fails', async () => {
+  it('throws SystemError when GraphQL request fails with a network error', async () => {
     const buildId = randomUUID();
     const graphqlClient = createMockGraphqlClient({
-      error: new Error('GraphQL request failed'),
+      error: new CombinedError({
+        networkError: new Error('Network request failed'),
+      }),
     });
 
-    await expect(
-      downloadBuildAsync({
-        logger: createLogger({ name: 'test' }),
-        buildId,
-        graphqlClient,
-        robotAccessToken: null,
-        extensions: ['app'],
-      })
-    ).rejects.toThrow(`Could not fetch build ${buildId}: GraphQL request failed`);
+    const promise = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(SystemError);
+    await expect(promise).rejects.toMatchObject({
+      message: `Could not fetch build ${buildId}: [Network] Network request failed`,
+    });
+
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('throws SystemError when GraphQL request returns 5xx', async () => {
+    const buildId = randomUUID();
+    const graphqlClient = createMockGraphqlClient({
+      error: Object.assign(new Error('Internal Server Error'), {
+        response: { status: 500 },
+      }),
+    });
+
+    const promise = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(SystemError);
+    await expect(promise).rejects.toMatchObject({
+      message: `Could not fetch build ${buildId}: Internal Server Error`,
+    });
+
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('throws UserError when GraphQL returns a client error', async () => {
+    const buildId = randomUUID();
+    const graphqlClient = createMockGraphqlClient({
+      error: new CombinedError({
+        graphQLErrors: [{ message: 'Build not found' }],
+      }),
+    });
+
+    const promise = downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      buildId,
+      graphqlClient,
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(UserError);
+    await expect(promise).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_FETCH_FAILED',
+      message: `Could not fetch build ${buildId}: [GraphQL] Build not found`,
+    });
 
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });

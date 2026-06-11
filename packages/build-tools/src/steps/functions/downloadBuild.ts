@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -96,12 +96,20 @@ async function fetchApplicationArchiveUrlAsync({
   const result = await graphqlClient.query(BUILD_BY_ID_QUERY, { buildId }).toPromise();
 
   if (result.error) {
-    throw new Error(`Could not fetch build ${buildId}: ${result.error.message}`);
+    const { error } = result;
+    const message = `Could not fetch build ${buildId}: ${error.message}`;
+
+    throw error.networkError || result.error.response?.status >= 500
+      ? new SystemError(message, { cause: error })
+      : new UserError('EAS_DOWNLOAD_BUILD_FETCH_FAILED', message, { cause: error });
   }
 
   const applicationArchiveUrl = result.data?.builds.byId?.artifacts?.applicationArchiveUrl;
   if (!applicationArchiveUrl) {
-    throw new Error('Build does not have an application archive url');
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_NO_APPLICATION_ARCHIVE',
+      'Build does not have an application archive url'
+    );
   }
 
   return applicationArchiveUrl;
