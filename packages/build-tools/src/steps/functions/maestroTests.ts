@@ -14,7 +14,9 @@ import { z } from 'zod';
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   copyLatestAttemptXml,
+  junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
 } from './maestroResultParser';
 import { sleepAsync } from '../../utils/retry';
@@ -200,13 +202,10 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         throw new SystemError('Failed to create JUnit report directory', { cause: err });
       }
 
-      // null → duplicate flow names; retry-failed-only disabled, fall through to
-      // dumb retry (re-run everything) on failure.
-      const nameToPath = await buildFlowNameToPathMap({
-        inputFlowPaths: flowPaths,
-        projectRoot: stepCtx.workingDirectory,
-        logger,
-      });
+      // Legacy-only (Maestro < 2.6.0 reports carry no `file=` attribute): the
+      // flow scan is built lazily in the retry branch below and memoized so
+      // retries share one scan. Never runs when the report has `file=`.
+      let nameToPathPromise: Promise<Map<string, string> | null> | undefined;
 
       // Retry loop. spawn-async error shapes:
       //   ENOENT/EACCES → infra (binary missing/not executable) → SystemError.
@@ -214,7 +213,7 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       //   else (signal-only, OOM kill, unknown) → infra → SystemError, never
       //     downgraded to "tests failed".
       // Retry-failed-only (junit mode): after a failed attempt, subset to the failing
-      // flows. parseFailedFlowsFromJUnit returns null when the JUnit cannot be
+      // flows. The failed-flow parsers return null when the JUnit cannot be
       // trusted; we then fall through to dumb retry (re-run everything).
       let flowsToRun: string[] = flowPaths;
       let lastAttemptExitCode: number | null = null;
@@ -263,11 +262,26 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           break;
         }
 
-        if (retryFailedOnly && outputFormat === 'junit' && outputPath && nameToPath) {
-          const failed = await parseFailedFlowsFromJUnit({
-            junitFile: outputPath,
-            nameToPath,
-          });
+        if (retryFailedOnly && outputFormat === 'junit' && outputPath) {
+          let failed: string[] | null;
+          if (await junitFileHasFileAttrs(outputPath)) {
+            failed = await parseFailedFlowsFromFileAttrs({
+              junitFile: outputPath,
+              workingDirectory: stepCtx.workingDirectory,
+            });
+          } else {
+            // Legacy (Maestro < 2.6.0): map failed testcase names back to flow
+            // paths via the flow-file scan. DELETE this arm once the fleet is
+            // on >= 2.6.0.
+            const nameToPath = await (nameToPathPromise ??= buildFlowNameToPathMap({
+              inputFlowPaths: flowPaths,
+              projectRoot: stepCtx.workingDirectory,
+              logger,
+            }));
+            failed = nameToPath
+              ? await parseFailedFlowsFromJUnit({ junitFile: outputPath, nameToPath })
+              : null;
+          }
           if (failed !== null && failed.length > 0) {
             flowsToRun = failed;
             logger.info(

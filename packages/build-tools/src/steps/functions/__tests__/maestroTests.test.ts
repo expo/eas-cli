@@ -273,6 +273,33 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
+  it('uses the file= path on reports that carry it, without scanning flow files', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(parser, 'junitFileHasFileAttrs').mockResolvedValue(true);
+    const discoverySpy = jest.spyOn(discovery, 'buildFlowNameToPathMap');
+    const legacyParseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+    const newParseSpy = jest
+      .spyOn(parser, 'parseFailedFlowsFromFileAttrs')
+      .mockResolvedValue(['flows/b.yaml']);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      retry_failed_only: true,
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    expect(newParseSpy).toHaveBeenCalledTimes(1);
+    // The new branch needs no name→path map: no scan, no legacy parser.
+    expect(discoverySpy).not.toHaveBeenCalled();
+    expect(legacyParseSpy).not.toHaveBeenCalled();
+    const a1 = mockedSpawn.mock.calls[1][1]!;
+    expect(a1).toContain('flows/b.yaml');
+    expect(a1).not.toContain('flows/a.yaml');
+  });
+
   it('falls back to all-flows retry when nameToPath is null (duplicate flow names)', async () => {
     mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
     jest.spyOn(discovery, 'buildFlowNameToPathMap').mockResolvedValue(null);
@@ -291,6 +318,44 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn.mock.calls[1][1]).toEqual(
       expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
     );
+  });
+
+  it('never scans flow files when all attempts succeed', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const discoverySpy = jest.spyOn(discovery, 'buildFlowNameToPathMap');
+
+    const step = createStep({ flow_path: ['flows/a.yaml'], platform: 'android' });
+    await step.executeAsync();
+
+    expect(discoverySpy).not.toHaveBeenCalled();
+  });
+
+  it('memoizes the flow scan across retries (legacy reports)', async () => {
+    // Routing note: the step lands in the legacy arm because the real
+    // junitFileHasFileAttrs returns false — the attempt XML does not exist on
+    // the mock fs. Creating that file with file= attrs would flip the branch.
+    mockedSpawn
+      .mockRejectedValueOnce(rejectExit1())
+      .mockRejectedValueOnce(rejectExit1())
+      .mockResolvedValueOnce(SPAWN_SUCCESS);
+    const discoverySpy = jest
+      .spyOn(discovery, 'buildFlowNameToPathMap')
+      .mockResolvedValue(new Map([['a', 'flows/a.yaml']]));
+    const parseSpy = jest
+      .spyOn(parser, 'parseFailedFlowsFromJUnit')
+      .mockResolvedValue(['flows/a.yaml']);
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      retries: 2,
+      output_format: 'junit',
+      platform: 'android',
+    });
+    await step.executeAsync();
+
+    // Two failed attempts hit the legacy branch twice; the scan runs once.
+    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(discoverySpy).toHaveBeenCalledTimes(1);
   });
 
   it('defaults retry_failed_only to true when omitted from inputs', async () => {
