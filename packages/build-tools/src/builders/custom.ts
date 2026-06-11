@@ -1,5 +1,11 @@
 import { BuildJob, BuildPhase, BuildTrigger, Ios, Platform } from '@expo/eas-build-job';
-import { BuildConfigParser, BuildStepGlobalContext, StepsConfigParser, errors } from '@expo/steps';
+import {
+  BuildConfigParser,
+  BuildStepGlobalContext,
+  BuildWorkflow,
+  StepsConfigParser,
+  errors,
+} from '@expo/steps';
 import assert from 'assert';
 import fs from 'fs/promises';
 import nullthrows from 'nullthrows';
@@ -9,6 +15,7 @@ import { resolveEnvFromBuildProfileAsync } from '../common/easBuildInternal';
 import { prepareProjectSourcesAsync } from '../common/projectSources';
 import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
+import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
@@ -81,6 +88,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
       throw parseError;
     }
   });
+  logUserProvidedCustomFunctions(workflow);
   try {
     try {
       await workflow.executeAsync();
@@ -102,4 +110,27 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
   }
 
   return ctx.artifacts;
+}
+
+function logUserProvidedCustomFunctions(workflow: BuildWorkflow): void {
+  for (const buildFunction of Object.values(workflow.buildFunctions)) {
+    if (!buildFunction.customFunctionModulePath) {
+      continue;
+    }
+    Datadog.log('Custom build saw user-provided function', {
+      event: 'custom_build_user_provided_function',
+      custom_function_id: buildFunction.getFullId(),
+      custom_function_module_path: buildFunction.customFunctionModulePath,
+      custom_function_input_count: String(buildFunction.inputProviders?.length ?? 0),
+      custom_function_output_count: String(buildFunction.outputProviders?.length ?? 0),
+      ...(buildFunction.name ? { custom_function_name: buildFunction.name } : {}),
+      ...(buildFunction.shell ? { custom_function_shell: buildFunction.shell } : {}),
+      ...(buildFunction.supportedRuntimePlatforms
+        ? {
+            custom_function_supported_runtime_platforms:
+              buildFunction.supportedRuntimePlatforms.join(','),
+          }
+        : {}),
+    });
+  }
 }
