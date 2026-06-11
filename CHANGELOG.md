@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Non-interactive iOS App Store and Enterprise builds can now use the App Store Connect API key stored in EAS credentials as a submission key to validate and repair provisioning profiles on Apple servers, without requiring `EXPO_ASC_*` environment variables or an interactive Apple login. ([#3805](https://github.com/expo/eas-cli/pull/3805) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
