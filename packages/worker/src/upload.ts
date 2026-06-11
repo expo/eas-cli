@@ -70,14 +70,6 @@ export async function uploadApplicationArchiveAsync(
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
     const msg = 'Upload to upload session failed';
     logger.error({ err, filename, size }, msg);
-    sentry.capture(msg, err, {
-      extras: {
-        filename,
-        size,
-        ...uploadSession,
-        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
-      },
-    });
 
     throw new errors.SystemError('Failed to upload application archive.', {
       trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
@@ -134,13 +126,6 @@ export async function uploadBuildArtifactsAsync(
   } catch (err: any) {
     const msg = 'Upload to upload session failed';
     logger.error({ err, filename, size }, msg);
-    sentry.capture(msg, err, {
-      extras: {
-        filename,
-        size,
-        ...uploadSession,
-      },
-    });
 
     throw new errors.SystemError('Failed to upload build artifacts.', {
       trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
