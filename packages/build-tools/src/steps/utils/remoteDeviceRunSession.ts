@@ -28,6 +28,21 @@ const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   }
 `);
 
+const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
+  query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
+    deviceRunSessions {
+      byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+// Statuses (of NEW / IN_PROGRESS / STOPPED / ERRORED) after which the session
+// will never become active again.
+const FINAL_DEVICE_RUN_SESSION_STATUSES: readonly string[] = ['STOPPED', 'ERRORED'];
+
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
   if (!deviceRunSessionId) {
@@ -184,6 +199,42 @@ export async function uploadRemoteSessionConfigAsync({
     throw new SystemError(
       `Failed to start device run session ${deviceRunSessionId}: ${result.error.message}`
     );
+  }
+}
+
+/**
+ * Checks whether the device run session has reached a final status (STOPPED
+ * or ERRORED) in www. Failures to check (network problems, transient API
+ * errors) are logged as warnings and reported as "not final" so callers can
+ * simply keep polling.
+ */
+export async function isDeviceRunSessionFinalAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<boolean> {
+  try {
+    const result = await ctx.graphqlClient
+      .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+      .toPromise();
+    if (result.error) {
+      logger.warn(
+        `Failed to check the status of device run session ${deviceRunSessionId}: ${result.error.message} - will retry.`
+      );
+      return false;
+    }
+    const status: unknown = result.data?.deviceRunSessions?.byId?.status;
+    return typeof status === 'string' && FINAL_DEVICE_RUN_SESSION_STATUSES.includes(status);
+  } catch (err) {
+    logger.warn(
+      { err },
+      `Failed to check the status of device run session ${deviceRunSessionId} - will retry.`
+    );
+    return false;
   }
 }
 
