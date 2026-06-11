@@ -76,28 +76,10 @@ export async function uploadApplicationArchiveAsync(
       },
     });
 
-    // Lack of `gcsSignedUploadUrlForApplicationArchive` means we're being run by workflow-orchestration.
-    if (!config.gcsSignedUploadUrlForApplicationArchive) {
-      throw new Error(`Failed to upload application archive: ${err?.message}\n${err?.stack}`, {
-        cause: err,
-      });
-    }
-  }
-
-  try {
-    await GCS.uploadWithSignedUrl({
-      signedUrl: config.gcsSignedUploadUrlForApplicationArchive,
-      srcGeneratorAsync: async () => {
-        return fs.createReadStream(localPath);
-      },
-    });
-  } catch (err: any) {
     throw new Error(`Failed to upload application archive: ${err?.message}\n${err?.stack}`, {
       cause: err,
     });
   }
-
-  return { filename };
 }
 
 export async function uploadBuildArtifactsAsync(
@@ -140,14 +122,6 @@ export async function uploadBuildArtifactsAsync(
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
   } catch (err: any) {
-    // Lack of `gcsSignedUploadUrlForBuildArtifacts` means we're being run by workflow-orchestration.
-    if (!config.gcsSignedUploadUrlForBuildArtifacts) {
-      throw new Error(`Failed to upload build artifact: ${err?.message}\n${err?.stack}`, {
-        cause: err,
-      });
-    }
-
-    // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
     const msg = 'Upload to upload session failed';
     logger.error({ err, filename, size }, msg);
     sentry.capture(msg, err, {
@@ -157,22 +131,11 @@ export async function uploadBuildArtifactsAsync(
         ...uploadSession,
       },
     });
-  }
 
-  try {
-    await GCS.uploadWithSignedUrl({
-      signedUrl: config.gcsSignedUploadUrlForBuildArtifacts,
-      srcGeneratorAsync: async () => {
-        return fs.createReadStream(localPath);
-      },
-    });
-  } catch (err: any) {
     throw new Error(`Failed to upload build artifact: ${err?.message}\n${err?.stack}`, {
       cause: err,
     });
   }
-
-  return { filename };
 }
 
 export async function uploadWorkflowArtifactAsync(

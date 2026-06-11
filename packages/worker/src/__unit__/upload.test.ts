@@ -5,7 +5,6 @@ import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import { Response } from 'node-fetch';
 
-import config from '../config';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
@@ -165,83 +164,6 @@ describe(uploadApplicationArchiveAsync.name, () => {
       })
     );
   });
-
-  describe('with signed upload url provided via config', () => {
-    beforeAll(() => {
-      config.gcsSignedUploadUrlForApplicationArchive = {
-        url: 'https://upload.url/from-config',
-        headers: {
-          authorization: 'test-signed-upload-authorization',
-        },
-      };
-    });
-    afterAll(() => {
-      config.gcsSignedUploadUrlForApplicationArchive = null;
-    });
-
-    it('should fall back to signed upload URL if upload session fails', async () => {
-      vol.fromJSON({
-        './artifact.ipa': JSON.stringify(randomBytes(20)),
-      });
-      const workflowJobId = randomUUID();
-
-      // @ts-expect-error
-      const ctx: BuildContext<Job> = {
-        env: {
-          __WORKFLOW_JOB_ID: workflowJobId,
-        },
-        job: {
-          secrets: {
-            robotAccessToken: 'fake-token',
-          },
-        } as Job,
-        logger: mockLogger,
-      };
-
-      turtleFetchMock.mockImplementation(async () => {
-        return {
-          json: async () => ({
-            data: {
-              bucketKey: 'test/bucketKey',
-              url: 'https://upload.url/from-www',
-              headers: {
-                authorization: 'test-signed-upload-authorization',
-              },
-              storageType: 'GCS',
-            },
-          }),
-          ok: true,
-        } as unknown as Response;
-      });
-
-      // GCS fails to upload to upload session from www.
-      jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ signedUrl }) => {
-        if (signedUrl.url === 'https://upload.url/from-www') {
-          throw new Error('upload failed');
-        }
-        return signedUrl.url;
-      });
-
-      await uploadApplicationArchiveAsync(ctx, {
-        artifactPaths: ['./artifact.ipa'],
-        buildId: randomUUID(),
-        logger: ctx.logger,
-      });
-
-      expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
-        expect.objectContaining({
-          signedUrl: {
-            url: 'https://upload.url/from-config',
-            headers: {
-              authorization: 'test-signed-upload-authorization',
-            },
-          },
-        })
-      );
-
-      expect(turtleFetchMock).toHaveBeenCalledTimes(1);
-    });
-  });
 });
 
 describe(uploadBuildArtifactsAsync.name, () => {
@@ -362,93 +284,9 @@ describe(uploadBuildArtifactsAsync.name, () => {
       })
     );
   });
-
-  describe('with signed upload url provided via config', () => {
-    beforeAll(() => {
-      config.gcsSignedUploadUrlForBuildArtifacts = {
-        url: 'https://upload.url/from-config',
-        headers: {
-          authorization: 'test-signed-upload-authorization',
-        },
-      };
-    });
-    afterAll(() => {
-      config.gcsSignedUploadUrlForBuildArtifacts = null;
-    });
-
-    it('should fall back to signed upload URL if upload session fails', async () => {
-      vol.fromJSON({
-        './video.mp4': JSON.stringify(randomBytes(20)),
-      });
-      const workflowJobId = randomUUID();
-
-      // @ts-expect-error
-      const ctx: BuildContext<Job> = {
-        env: {
-          __WORKFLOW_JOB_ID: workflowJobId,
-        },
-        job: {
-          secrets: {
-            robotAccessToken: 'fake-token',
-          },
-        } as Job,
-        logger: mockLogger,
-      };
-
-      turtleFetchMock.mockImplementation(async () => {
-        return {
-          json: async () => ({
-            data: {
-              bucketKey: 'test/bucketKey',
-              url: 'https://upload.url/from-www',
-              headers: {
-                authorization: 'test-signed-upload-authorization',
-              },
-              storageType: 'GCS',
-            },
-          }),
-          ok: true,
-        } as unknown as Response;
-      });
-
-      // GCS fails to upload to upload session from www.
-      jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ signedUrl }) => {
-        if (signedUrl.url === 'https://upload.url/from-www') {
-          throw new Error('upload failed');
-        }
-        return signedUrl.url;
-      });
-
-      await uploadBuildArtifactsAsync(ctx, {
-        artifactPaths: ['./video.mp4'],
-        buildId: randomUUID(),
-        logger: ctx.logger,
-      });
-
-      expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
-        expect.objectContaining({
-          signedUrl: {
-            url: 'https://upload.url/from-config',
-            headers: {
-              authorization: 'test-signed-upload-authorization',
-            },
-          },
-        })
-      );
-
-      expect(turtleFetchMock).toHaveBeenCalledTimes(1);
-    });
-  });
 });
 
 describe('with signed upload url provided via www', () => {
-  beforeAll(() => {
-    config.gcsSignedUploadUrlForBuildArtifacts = null;
-  });
-  afterAll(() => {
-    config.gcsSignedUploadUrlForBuildArtifacts = null;
-  });
-
   it('should use www signed upload url', async () => {
     vol.fromJSON({
       './video.mp4': JSON.stringify(randomBytes(20)),

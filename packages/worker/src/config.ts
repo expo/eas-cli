@@ -63,17 +63,6 @@ export default {
       defaultValue: null,
     }),
   },
-  gcsSignedUploadUrlForApplicationArchive: env<GCS.SignedUrl | null>(
-    'WORKER_RUNTIME_CONFIG_BASE64',
-    {
-      transform: createBase64EnvTransformer('gcsSignedUploadUrlForApplicationArchive'),
-      defaultValue: null,
-    }
-  ),
-  gcsSignedUploadUrlForBuildArtifacts: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('gcsSignedUploadUrlForBuildArtifacts'),
-    defaultValue: null,
-  }),
   workingdir: env('WORKINGDIR', { defaultValue: path.join(__dirname, '../workingdir') }),
   sentry: {
     dsn: env('SENTRY_DSN', { defaultValue: '' }),
