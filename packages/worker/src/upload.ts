@@ -68,8 +68,7 @@ export async function uploadApplicationArchiveAsync(
     return { filename: null };
   } catch (err: any) {
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
-    const msg = 'Upload to upload session failed';
-    logger.error({ err, filename, size }, msg);
+    logger.error({ err, filename, size }, 'Upload to upload session failed');
 
     throw new errors.SystemError('Failed to upload application archive.', {
       trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
@@ -124,8 +123,7 @@ export async function uploadBuildArtifactsAsync(
     // The saved artifact has the right filename, we don't need Launcher to rename or store it.
     return { filename: null };
   } catch (err: any) {
-    const msg = 'Upload to upload session failed';
-    logger.error({ err, filename, size }, msg);
+    logger.error({ err, filename, size }, 'Upload to upload session failed');
 
     throw new errors.SystemError('Failed to upload build artifacts.', {
       trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
