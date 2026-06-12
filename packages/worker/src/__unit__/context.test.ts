@@ -61,12 +61,6 @@ describe(createBuildContext.name, () => {
       environment: config.env,
       logger: childLogger,
       env,
-      cacheUrlFallbacks: {
-        npm: config.npmCacheUrl,
-        nodejs: config.nodeJsCacheUrl,
-        maven: config.mavenCacheUrl,
-        cocoapods: config.cocoapodsCacheUrl,
-      },
     });
     expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalled();
     expect(jest.mocked(RuntimeSettings.loadAsync).mock.invocationCallOrder[0]).toBeLessThan(
