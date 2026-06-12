@@ -128,7 +128,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         }
       } catch (error) {
         if (inputs.ignore_error.value) {
-          logger.error(`Failed to upload ${artifact.type}. Ignoring error.`, error);
+          logger.error({ err: error }, `Failed to upload ${artifact.type}. Ignoring error.`);
           // Ignoring error.
           return;
         }
