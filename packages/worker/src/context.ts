@@ -37,7 +37,6 @@ export async function createBuildContext<TJob extends Job>({
   const childLogger = buildLogger.child({ buildId });
   await RuntimeSettings.loadAsync({
     environment: config.env,
-    logger: childLogger,
     env: job.builderEnvironment?.env,
   });
   await prepareRuntimeEnvironmentConfigFiles();
