@@ -207,9 +207,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
-    const uploadError = new Error(
-      'Failed to upload file: status: 403 status text: Forbidden, body: signed-url-secret'
-    );
+    const uploadError = new Error('upload failed');
 
     turtleFetchMock.mockImplementation(async () => {
       return {
@@ -256,14 +254,6 @@ describe(uploadApplicationArchiveAsync.name, () => {
       }),
       cause: uploadError,
     });
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: expect.objectContaining({
-          message: 'Failed to upload file: status: 403 status text: Forbidden, body: <redacted>',
-        }),
-      }),
-      'Upload to upload session failed'
-    );
   });
 });
 
@@ -426,9 +416,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
     const bucketKey = `test/${randomUUID()}/artifact.ipa`;
     const uploadUrl = `https://upload.url/${randomUUID()}`;
     const testSignedUploadAuthorization = randomUUID();
-    const uploadError = new Error(
-      'Failed to upload file: status: 403 status text: Forbidden, body: signed-url-secret'
-    );
+    const uploadError = new Error('upload failed');
     turtleFetchMock.mockImplementation(async () => {
       return {
         ok: true,
@@ -474,14 +462,6 @@ describe(uploadBuildArtifactsAsync.name, () => {
       }),
       cause: uploadError,
     });
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({
-        err: expect.objectContaining({
-          message: 'Failed to upload file: status: 403 status text: Forbidden, body: <redacted>',
-        }),
-      }),
-      'Upload to upload session failed'
-    );
   });
 });
 

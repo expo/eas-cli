@@ -319,9 +319,8 @@ export default class BuildService {
             : new errors.UnknownBuildError();
       const maybeRawError =
         error instanceof errors.ExpoError && error.cause instanceof Error ? error.cause : error;
-      const logError = error instanceof errors.SystemError ? err : maybeRawError;
 
-      logger.error({ err: logError }, err.message);
+      logger.error({ err: maybeRawError }, err.message);
       sentry.capture(err.message, maybeRawError, {
         tags: {
           ...(err.buildPhase ? { buildPhase: err.buildPhase } : {}),
