@@ -27,6 +27,22 @@ class ErrorWithMetadata extends Error {
   }
 }
 
+function sanitizeUploadErrorForLogs(err: unknown): Error {
+  if (!(err instanceof Error)) {
+    return new Error(String(err));
+  }
+
+  const safeMessage = err.message
+    .replace(/^(Unexpected response from server \(\d+\)): [\S\s]*$/u, '$1: <redacted>')
+    .replace(/^(Failed to upload file: status: .*), body: [\S\s]*$/u, '$1, body: <redacted>');
+  const safeError = new Error(safeMessage);
+  safeError.name = err.name;
+  safeError.stack = err.stack
+    ? `${safeError.name}: ${safeMessage}\n${err.stack.split('\n').slice(1).join('\n')}`
+    : undefined;
+  return safeError;
+}
+
 export async function uploadApplicationArchiveAsync(
   ctx: BuildContext,
   {
@@ -69,7 +85,7 @@ export async function uploadApplicationArchiveAsync(
   } catch (err: any) {
     // Otherwise, we log the error and proceed to upload to Launcher's upload URL.
     const msg = 'Upload to upload session failed';
-    logger.error({ err, filename, size }, msg);
+    logger.error({ err: sanitizeUploadErrorForLogs(err), filename, size }, msg);
 
     throw new errors.SystemError('Failed to upload application archive.', {
       trackingCode: 'EAS_BUILD_UPLOAD_APPLICATION_ARCHIVE_FAILED',
@@ -125,7 +141,7 @@ export async function uploadBuildArtifactsAsync(
     return { filename: null };
   } catch (err: any) {
     const msg = 'Upload to upload session failed';
-    logger.error({ err, filename, size }, msg);
+    logger.error({ err: sanitizeUploadErrorForLogs(err), filename, size }, msg);
 
     throw new errors.SystemError('Failed to upload build artifacts.', {
       trackingCode: 'EAS_BUILD_UPLOAD_BUILD_ARTIFACTS_FAILED',
