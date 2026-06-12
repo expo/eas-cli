@@ -94,7 +94,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
   useFrozenLockfile: boolean;
 }): Promise<void> {
   const npmCacheUrl = env.NPM_CONFIG_REGISTRY;
-  const npmCacheErrorTracker = createNpmCacheRegistryErrorTracker(npmCacheUrl);
+  const npmCacheErrorTracker = createNpmCacheRegistryErrorTracker({ env, npmCacheUrl });
   try {
     await (
       await installDependenciesAsync({
@@ -109,7 +109,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     ).spawnPromise;
     npmCacheErrorTracker.reportNonFatalError({ packageManager, cwd, useFrozenLockfile });
   } catch (err: unknown) {
-    if (!isNpmCacheInstallFailure(err, npmCacheUrl)) {
+    if (!isNpmCacheInstallFailure(err, { env, npmCacheUrl })) {
       throw err;
     }
 
@@ -161,15 +161,24 @@ export function resolvePackagerDir(ctx: BuildContext<Job>): string {
   return packagerRunDir;
 }
 
-function isNpmCacheInstallFailure(err: unknown, npmCacheUrl: string | undefined): boolean {
-  if (!isNpmCacheRegistryEnabled(npmCacheUrl)) {
+function isNpmCacheInstallFailure(
+  err: unknown,
+  { env, npmCacheUrl }: { env: Record<string, string | undefined>; npmCacheUrl: string | undefined }
+): boolean {
+  if (!isNpmCacheRegistryEnabled(env, npmCacheUrl)) {
     return false;
   }
   const errorOutput = getErrorOutput(err);
   return errorOutput.includes(npmCacheUrl);
 }
 
-function createNpmCacheRegistryErrorTracker(npmCacheUrl: string | undefined): {
+function createNpmCacheRegistryErrorTracker({
+  env,
+  npmCacheUrl,
+}: {
+  env: Record<string, string | undefined>;
+  npmCacheUrl: string | undefined;
+}): {
   inspectLine: NonNullable<SpawnOptions['lineTransformer']>;
   reportNonFatalError({
     packageManager,
@@ -186,7 +195,7 @@ function createNpmCacheRegistryErrorTracker(npmCacheUrl: string | undefined): {
 
   return {
     inspectLine(line: string): string {
-      if (isNpmCacheRegistryErrorLine(line, npmCacheUrl)) {
+      if (isNpmCacheRegistryErrorLine(line, { env, npmCacheUrl })) {
         firstErrorLine ??= line;
         errorLineCount += 1;
       }
@@ -223,16 +232,22 @@ function createNpmCacheRegistryErrorTracker(npmCacheUrl: string | undefined): {
   };
 }
 
-function isNpmCacheRegistryErrorLine(line: string, npmCacheUrl: string | undefined): boolean {
+function isNpmCacheRegistryErrorLine(
+  line: string,
+  { env, npmCacheUrl }: { env: Record<string, string | undefined>; npmCacheUrl: string | undefined }
+): boolean {
   return (
-    isNpmCacheRegistryEnabled(npmCacheUrl) &&
+    isNpmCacheRegistryEnabled(env, npmCacheUrl) &&
     line.includes(npmCacheUrl) &&
     /(?:error|failed|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|FetchError)/i.test(line)
   );
 }
 
-function isNpmCacheRegistryEnabled(npmCacheUrl: string | undefined): npmCacheUrl is string {
-  return process.env.EAS_USE_NPM_CACHE === '1' && !!npmCacheUrl;
+function isNpmCacheRegistryEnabled(
+  env: Record<string, string | undefined>,
+  npmCacheUrl: string | undefined
+): npmCacheUrl is string {
+  return env.EAS_USE_NPM_CACHE === '1' && !!npmCacheUrl;
 }
 
 function getErrorOutput(err: unknown): string {

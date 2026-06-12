@@ -13,15 +13,8 @@ jest.mock('../../sentry', () => ({
 }));
 
 describe(installDependenciesWithNpmCacheFallbackAsync, () => {
-  const originalEasUseNpmCache = process.env.EAS_USE_NPM_CACHE;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.EAS_USE_NPM_CACHE = '1';
-  });
-
-  afterEach(() => {
-    restoreEnv('EAS_USE_NPM_CACHE', originalEasUseNpmCache);
   });
 
   it('retries without NPM_CONFIG_REGISTRY when npm cache install fails', async () => {
@@ -46,6 +39,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       packageManager: PackageManager.NPM,
       env: {
         EAS_VERBOSE: '1',
+        EAS_USE_NPM_CACHE: '1',
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
       logger,
@@ -61,6 +55,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       lineTransformer: expect.any(Function),
       env: {
         EAS_VERBOSE: '1',
+        EAS_USE_NPM_CACHE: '1',
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
     });
@@ -70,6 +65,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       infoCallbackFn: undefined,
       env: {
         EAS_VERBOSE: '1',
+        EAS_USE_NPM_CACHE: '1',
       },
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -113,6 +109,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     await installDependenciesWithNpmCacheFallbackAsync({
       packageManager: PackageManager.NPM,
       env: {
+        EAS_USE_NPM_CACHE: '1',
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
       logger,
@@ -160,6 +157,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       installDependenciesWithNpmCacheFallbackAsync({
         packageManager: PackageManager.NPM,
         env: {
+          EAS_USE_NPM_CACHE: '1',
           NPM_CONFIG_REGISTRY: 'http://npm.staging.caches.eas-build.internal',
         },
         logger,
@@ -185,7 +183,6 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       }
     );
 
-    delete process.env.EAS_USE_NPM_CACHE;
     jest.mocked(spawn).mockReturnValueOnce(createSpawnPromise(Promise.reject(error)));
 
     await expect(
@@ -222,12 +219,4 @@ function createSpawnResult(): SpawnResult {
     status: 0,
     signal: null,
   };
-}
-
-function restoreEnv(key: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[key];
-  } else {
-    process.env[key] = value;
-  }
 }
