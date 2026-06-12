@@ -27,8 +27,6 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
   const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
 
   if (npmCacheUrl) {
-    // create ~/.npmrc
-    await spawn('npm', ['config', 'set', 'registry', npmCacheUrl]);
     // create ~/.yarnrc.yml
     await templateFile(
       path.join(__dirname, '../src/templates/yarnrc.yml'),

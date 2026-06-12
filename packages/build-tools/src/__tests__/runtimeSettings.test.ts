@@ -197,6 +197,21 @@ describe('runtimeSettings', () => {
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
   });
 
+  it('does not enable cache when runtime settings explicitly disable it, even with job env flag', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: false } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
   it('allows job environment flags to disable remotely enabled cache URLs', async () => {
     process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
     jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));

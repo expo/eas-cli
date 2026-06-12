@@ -88,34 +88,42 @@ export namespace RuntimeSettings {
   }
 
   export function getNpmCacheUrl(): string | null {
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.npm;
+    if (runtimeEnabled === false) {
+      return null;
+    }
     const envOverride = runtimeEnvironment['EAS_USE_NPM_CACHE'];
-    const enabled =
-      envOverride === '1' ||
-      (envOverride !== '0' && runtimeSettings.caches?.[process.platform]?.npm);
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
     return enabled ? process.env.EAS_NPM_CACHE_URL || null : null;
   }
 
   export function getNodeJsCacheUrl(): string | null {
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.nodejs;
+    if (runtimeEnabled === false) {
+      return null;
+    }
     const envOverride = runtimeEnvironment['EAS_USE_NODEJS_CACHE'];
-    const enabled =
-      envOverride === '1' ||
-      (envOverride !== '0' && runtimeSettings.caches?.[process.platform]?.nodejs);
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
     return enabled ? process.env.EAS_NODEJS_CACHE_URL || null : null;
   }
 
   export function getMavenCacheUrl(): string | null {
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.maven;
+    if (runtimeEnabled === false) {
+      return null;
+    }
     const envOverride = runtimeEnvironment['EAS_USE_MAVEN_CACHE'];
-    const enabled =
-      envOverride === '1' ||
-      (envOverride !== '0' && runtimeSettings.caches?.[process.platform]?.maven);
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
     return enabled ? process.env.EAS_MAVEN_CACHE_URL || null : null;
   }
 
   export function getCocoapodsCacheUrl(): string | null {
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.cocoapods;
+    if (runtimeEnabled === false) {
+      return null;
+    }
     const envOverride = runtimeEnvironment['EAS_USE_COCOAPODS_CACHE'];
-    const enabled =
-      envOverride === '1' ||
-      (envOverride !== '0' && runtimeSettings.caches?.[process.platform]?.cocoapods);
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
     return enabled ? process.env.EAS_COCOAPODS_CACHE_URL || null : null;
   }
 }
