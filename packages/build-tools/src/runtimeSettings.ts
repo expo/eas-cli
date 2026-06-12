@@ -26,27 +26,16 @@ const RuntimeSettingsSchema = z
   })
   .partial();
 
-type CacheUrlFallbacks = {
-  npm?: string | null;
-  nodejs?: string | null;
-  maven?: string | null;
-  cocoapods?: string | null;
-};
-
 let runtimeSettings: z.infer<typeof RuntimeSettingsSchema> = {};
-let cacheUrlFallbacks: CacheUrlFallbacks = {};
 
 export namespace RuntimeSettings {
   export async function loadAsync({
     environment,
     logger,
-    cacheUrlFallbacks: nextCacheUrlFallbacks = {},
   }: {
     environment: string;
     logger: bunyan;
-    cacheUrlFallbacks?: CacheUrlFallbacks;
   }): Promise<void> {
-    cacheUrlFallbacks = nextCacheUrlFallbacks;
     const url = ENVIRONMENT_TO_RUNTIME_SETTINGS_URL[environment];
     if (!url) {
       return;
@@ -104,25 +93,25 @@ export namespace RuntimeSettings {
 
   export function getNpmCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.npm
-      ? process.env.EAS_NPM_CACHE_URL || cacheUrlFallbacks.npm || null
+      ? process.env.EAS_NPM_CACHE_URL || null
       : null;
   }
 
   export function getNodeJsCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.nodejs
-      ? process.env.EAS_NODEJS_CACHE_URL || cacheUrlFallbacks.nodejs || null
+      ? process.env.EAS_NODEJS_CACHE_URL || null
       : null;
   }
 
   export function getMavenCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.maven
-      ? process.env.EAS_MAVEN_CACHE_URL || cacheUrlFallbacks.maven || null
+      ? process.env.EAS_MAVEN_CACHE_URL || null
       : null;
   }
 
   export function getCocoapodsCacheUrl(): string | null {
     return runtimeSettings.caches?.[process.platform]?.cocoapods
-      ? process.env.EAS_COCOAPODS_CACHE_URL || cacheUrlFallbacks.cocoapods || null
+      ? process.env.EAS_COCOAPODS_CACHE_URL || null
       : null;
   }
 }
