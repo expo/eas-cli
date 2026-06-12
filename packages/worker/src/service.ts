@@ -292,7 +292,7 @@ export default class BuildService {
         });
       }
 
-      const ctx = createBuildContext({
+      const ctx = await createBuildContext({
         job,
         logBuffer,
         analytics,

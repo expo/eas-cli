@@ -33,20 +33,26 @@ type CacheUrlFallbacks = {
   cocoapods?: string | null;
 };
 
+type RuntimeEnvironment = Record<string, string | undefined>;
+
 let runtimeSettings: z.infer<typeof RuntimeSettingsSchema> = {};
 let cacheUrlFallbacks: CacheUrlFallbacks = {};
+let runtimeEnvironment: RuntimeEnvironment = {};
 
 export namespace RuntimeSettings {
   export async function loadAsync({
     environment,
     logger,
     cacheUrlFallbacks: nextCacheUrlFallbacks = {},
+    env: nextRuntimeEnvironment = {},
   }: {
     environment: string;
     logger: bunyan;
     cacheUrlFallbacks?: CacheUrlFallbacks;
+    env?: RuntimeEnvironment;
   }): Promise<void> {
     cacheUrlFallbacks = nextCacheUrlFallbacks;
+    runtimeEnvironment = nextRuntimeEnvironment;
     const url = ENVIRONMENT_TO_RUNTIME_SETTINGS_URL[environment];
     if (!url) {
       return;
@@ -103,26 +109,50 @@ export namespace RuntimeSettings {
   }
 
   export function getNpmCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.npm
-      ? process.env.EAS_NPM_CACHE_URL || cacheUrlFallbacks.npm || null
-      : null;
+    return getCacheUrl('npm', 'EAS_NPM_CACHE_URL', 'EAS_USE_NPM_CACHE', cacheUrlFallbacks.npm);
   }
 
   export function getNodeJsCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.nodejs
-      ? process.env.EAS_NODEJS_CACHE_URL || cacheUrlFallbacks.nodejs || null
-      : null;
+    return getCacheUrl(
+      'nodejs',
+      'EAS_NODEJS_CACHE_URL',
+      'EAS_USE_NODEJS_CACHE',
+      cacheUrlFallbacks.nodejs
+    );
   }
 
   export function getMavenCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.maven
-      ? process.env.EAS_MAVEN_CACHE_URL || cacheUrlFallbacks.maven || null
-      : null;
+    return getCacheUrl(
+      'maven',
+      'EAS_MAVEN_CACHE_URL',
+      'EAS_USE_MAVEN_CACHE',
+      cacheUrlFallbacks.maven
+    );
   }
 
   export function getCocoapodsCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.cocoapods
-      ? process.env.EAS_COCOAPODS_CACHE_URL || cacheUrlFallbacks.cocoapods || null
-      : null;
+    return getCacheUrl(
+      'cocoapods',
+      'EAS_COCOAPODS_CACHE_URL',
+      'EAS_USE_COCOAPODS_CACHE',
+      cacheUrlFallbacks.cocoapods
+    );
   }
+}
+
+function getCacheUrl(
+  cacheName: keyof NonNullable<z.infer<typeof RuntimeSettingsSchema>['caches']>[string],
+  urlEnvName: string,
+  enabledEnvName: string,
+  fallbackUrl: string | null | undefined
+): string | null {
+  const envOverride = runtimeEnvironment[enabledEnvName];
+  const enabled =
+    envOverride === '1' ||
+    (envOverride !== '0' && runtimeSettings.caches?.[process.platform]?.[cacheName]);
+
+  if (!enabled) {
+    return null;
+  }
+  return process.env[urlEnvName] || fallbackUrl || null;
 }

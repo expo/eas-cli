@@ -1,4 +1,4 @@
-import { BuildContext, BuildContextOptions, LogBuffer } from '@expo/build-tools';
+import { BuildContext, BuildContextOptions, LogBuffer, RuntimeSettings } from '@expo/build-tools';
 import { Job, ManagedArtifactType, Metadata, Platform } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import assert from 'assert';
@@ -8,6 +8,7 @@ import config from './config';
 import { getBuildEnv } from './env';
 import { Analytics } from './external/analytics';
 import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
+import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
 import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
@@ -16,7 +17,7 @@ import {
   uploadWorkflowArtifactAsync,
 } from './upload';
 
-export function createBuildContext<TJob extends Job>({
+export async function createBuildContext<TJob extends Job>({
   job,
   logBuffer,
   analytics,
@@ -32,9 +33,21 @@ export function createBuildContext<TJob extends Job>({
   projectId: string;
   buildId: string;
   buildLogger: bunyan;
-}): BuildContext<TJob> {
-  const env = getBuildEnv({ job, projectId, metadata, buildId });
+}): Promise<BuildContext<TJob>> {
   const childLogger = buildLogger.child({ buildId });
+  await RuntimeSettings.loadAsync({
+    environment: config.env,
+    logger: childLogger,
+    env: job.builderEnvironment?.env,
+    cacheUrlFallbacks: {
+      npm: config.npmCacheUrl,
+      nodejs: config.nodeJsCacheUrl,
+      maven: config.mavenCacheUrl,
+      cocoapods: config.cocoapodsCacheUrl,
+    },
+  });
+  await prepareRuntimeEnvironmentConfigFiles();
+  const env = getBuildEnv({ job, projectId, metadata, buildId });
 
   const uploadArtifact: BuildContextOptions['uploadArtifact'] = async ({ artifact, logger }) => {
     const { paths, type } = artifact;
