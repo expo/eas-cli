@@ -1,4 +1,4 @@
-import { Job } from '@expo/eas-build-job';
+import { Job, SystemError } from '@expo/eas-build-job';
 import spawn, { SpawnOptions, SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import path from 'path';
 
@@ -256,14 +256,14 @@ function getErrorOutput(err: unknown): string {
   return [stdout, stderr].filter(Boolean).join('\n');
 }
 
-class NpmCacheRegistryNonFatalError extends Error {
+class NpmCacheRegistryNonFatalError extends SystemError {
   override name = 'NpmCacheRegistryNonFatalError';
   constructor() {
     super('Non-fatal npm cache registry error during dependency install');
   }
 }
 
-class NpmCacheRegistryInstallError extends Error {
+class NpmCacheRegistryInstallError extends SystemError {
   override name = 'NpmCacheRegistryInstallError';
   constructor(cause: unknown) {
     super('Failed to install dependencies using npm cache registry', { cause });
