@@ -39,12 +39,6 @@ export async function createBuildContext<TJob extends Job>({
     environment: config.env,
     logger: childLogger,
     env: job.builderEnvironment?.env,
-    cacheUrlFallbacks: {
-      npm: config.npmCacheUrl,
-      nodejs: config.nodeJsCacheUrl,
-      maven: config.mavenCacheUrl,
-      cocoapods: config.cocoapodsCacheUrl,
-    },
   });
   await prepareRuntimeEnvironmentConfigFiles();
   const env = getBuildEnv({ job, projectId, metadata, buildId });
