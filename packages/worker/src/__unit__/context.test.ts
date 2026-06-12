@@ -59,7 +59,6 @@ describe(createBuildContext.name, () => {
 
     expect(RuntimeSettings.loadAsync).toHaveBeenCalledWith({
       environment: config.env,
-      logger: childLogger,
       env,
     });
     expect(prepareRuntimeEnvironmentConfigFiles).toHaveBeenCalled();

@@ -116,7 +116,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     logger.warn(
       `Failed to install dependencies using the npm cache registry (${npmCacheUrl}). Retrying without the npm cache registry.`
     );
-    const sentryError = createNpmCacheRegistryInstallError(err);
+    const sentryError = new NpmCacheRegistryInstallError(err);
     Sentry.capture(sentryError, {
       level: 'warning',
       tags: {
@@ -126,14 +126,13 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
         cwd,
         npmCacheUrl,
         useFrozenLockfile,
-        originalErrorMessage: getErrorMessage(err),
-        status: getErrorField(err, 'status'),
-        signal: getErrorField(err, 'signal'),
+        originalErrorMessage: err instanceof Error ? err.message : String(err),
+        status: err instanceof Error ? (err as any).status : undefined,
+        signal: err instanceof Error ? (err as any).signal : undefined,
       },
     });
 
-    const fallbackEnv = { ...env };
-    delete fallbackEnv.NPM_CONFIG_REGISTRY;
+    const { NPM_CONFIG_REGISTRY: _NPM_CONFIG_REGISTRY, ...fallbackEnv } = env;
     await (
       await installDependenciesAsync({
         packageManager,
@@ -213,8 +212,7 @@ function createNpmCacheRegistryErrorTracker({
       if (!firstErrorLine) {
         return;
       }
-      const sentryError = new Error('Non-fatal npm cache registry error during dependency install');
-      sentryError.name = 'NpmCacheRegistryNonFatalError';
+      const sentryError = new NpmCacheRegistryNonFatalError();
       Sentry.capture(sentryError, {
         level: 'warning',
         tags: {
@@ -251,28 +249,21 @@ function isNpmCacheRegistryEnabled(
 }
 
 function getErrorOutput(err: unknown): string {
-  if (!err || typeof err !== 'object') {
+  if (!(err instanceof Error)) {
     return '';
   }
-  const { stdout, stderr } = err as { stdout?: unknown; stderr?: unknown };
-  return [stdout, stderr]
-    .filter((output): output is string => typeof output === 'string')
-    .join('\n');
+  const { stdout, stderr } = err as Error & { stdout?: string; stderr?: string };
+  return [stdout, stderr].filter(Boolean).join('\n');
 }
 
-function getErrorField(err: unknown, field: 'status' | 'signal'): unknown {
-  return err && typeof err === 'object' ? (err as Record<string, unknown>)[field] : undefined;
-}
-
-function createNpmCacheRegistryInstallError(err: unknown): Error {
-  const error = new Error('Failed to install dependencies using npm cache registry');
-  error.name = 'NpmCacheRegistryInstallError';
-  if (err instanceof Error) {
-    error.stack = err.stack;
+class NpmCacheRegistryNonFatalError extends Error {
+  constructor() {
+    super('Non-fatal npm cache registry error during dependency install');
   }
-  return error;
 }
 
-function getErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+class NpmCacheRegistryInstallError extends Error {
+  constructor(cause: unknown) {
+    super('Failed to install dependencies using npm cache registry', { cause });
+  }
 }
