@@ -257,12 +257,14 @@ function getErrorOutput(err: unknown): string {
 }
 
 class NpmCacheRegistryNonFatalError extends Error {
+  override name = 'NpmCacheRegistryNonFatalError';
   constructor() {
     super('Non-fatal npm cache registry error during dependency install');
   }
 }
 
 class NpmCacheRegistryInstallError extends Error {
+  override name = 'NpmCacheRegistryInstallError';
   constructor(cause: unknown) {
     super('Failed to install dependencies using npm cache registry', { cause });
   }
