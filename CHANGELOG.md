@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `eas account:audit [ACCOUNT_NAME]` command to view an account's audit logs. ([#3863](https://github.com/expo/eas-cli/pull/3863) by [@keith-kurak](https://github.com/keith-kurak))
 - [eas-cli] `eas update:view [GROUP_ID]` now also accepts a platform-specific update ID, resolving it to and displaying its update group. ([#3864](https://github.com/expo/eas-cli/pull/3864) by [@keith-kurak](https://github.com/keith-kurak))
+- [eas-cli] Add `eas integrations:posthog:connect` command. ([#3836](https://github.com/expo/eas-cli/pull/3836) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
@@ -23,7 +24,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Non-interactive iOS App Store and Enterprise builds can now use the App Store Connect API key stored in EAS credentials as a submission key to validate and repair provisioning profiles on Apple servers, without requiring `EXPO_ASC_*` environment variables or an interactive Apple login. ([#3805](https://github.com/expo/eas-cli/pull/3805) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Add support for non-interactive `eas update:rollback [GROUP_ID]`. The given update group must be the latest for its branch and runtime version; the previous update group is republished, or a roll back to the embedded update is published if there is none. ([#3825](https://github.com/expo/eas-cli/pull/3825) by [@quinlanj](https://github.com/quinlanj))
-- [eas-cli] Add `eas integrations:posthog:connect` command. ([#3836](https://github.com/expo/eas-cli/pull/3836) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 

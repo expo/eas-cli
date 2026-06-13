@@ -31,16 +31,6 @@ type SetupPostHogProjectMutationVariables = {
   input: SetupPostHogProjectInput;
 };
 
-type DeletePostHogProjectMutation = {
-  posthogProject: {
-    deletePostHogProject: string;
-  };
-};
-
-type DeletePostHogProjectMutationVariables = {
-  id: string;
-};
-
 export const PostHogMutation = {
   async createPostHogAccountRequestAsync(
     graphqlClient: ExpoGraphqlClient,
@@ -94,24 +84,5 @@ export const PostHogMutation = {
         .toPromise()
     );
     return data.posthogProject.setupPostHogProject;
-  },
-
-  async deletePostHogProjectAsync(graphqlClient: ExpoGraphqlClient, id: string): Promise<string> {
-    const data = await withErrorHandlingAsync(
-      graphqlClient
-        .mutation<DeletePostHogProjectMutation, DeletePostHogProjectMutationVariables>(
-          gql`
-            mutation DeletePostHogProject($id: ID!) {
-              posthogProject {
-                deletePostHogProject(id: $id)
-              }
-            }
-          `,
-          { id },
-          { additionalTypenames: ['App', 'PostHogProject'] }
-        )
-        .toPromise()
-    );
-    return data.posthogProject.deletePostHogProject;
   },
 };
