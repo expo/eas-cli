@@ -158,7 +158,7 @@ eas --help COMMAND
 * [`eas update:republish`](#eas-updaterepublish)
 * [`eas update:revert-update-rollout`](#eas-updaterevert-update-rollout)
 * [`eas update:roll-back-to-embedded`](#eas-updateroll-back-to-embedded)
-* [`eas update:rollback`](#eas-updaterollback)
+* [`eas update:rollback [GROUPID]`](#eas-updaterollback-groupid)
 * [`eas update:view GROUPID`](#eas-updateview-groupid)
 * [`eas upload`](#eas-upload)
 * [`eas webhook:create`](#eas-webhookcreate)
@@ -2391,6 +2391,53 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/update/embedded/list.ts](https://github.com/expo/eas-cli/blob/v20.1.0/packages/eas-cli/src/commands/update/embedded/list.ts)_
 
+## `eas update:embedded:delete ID`
+
+delete an embedded update registered with EAS Update
+
+```
+USAGE
+  $ eas update:embedded:delete ID [--json] [--non-interactive]
+
+ARGUMENTS
+  ID  The ID of the embedded update (manifest UUID from app.manifest).
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  delete an embedded update registered with EAS Update
+```
+
+_See code: [packages/eas-cli/src/commands/update/embedded/delete.ts](https://github.com/expo/eas-cli/blob/v20.0.0/packages/eas-cli/src/commands/update/embedded/delete.ts)_
+
+## `eas update:embedded:list`
+
+list embedded updates registered with EAS Update for this project
+
+```
+USAGE
+  $ eas update:embedded:list [-p ios|android] [--runtime-version <value>] [--channel <value>] [--limit <value>]
+    [--after-cursor <value>] [--json] [--non-interactive]
+
+FLAGS
+  -p, --platform=<option>        Filter by platform
+                                 <options: ios|android>
+      --after-cursor=<value>     Return items after this cursor (for pagination)
+      --channel=<value>          Filter by channel name (pass "all" to skip the channel prompt)
+      --json                     Enable JSON output, non-JSON messages will be printed to stderr. Implies
+                                 --non-interactive.
+      --limit=<value>            The number of items to fetch each query. Defaults to 25 and is capped at 50.
+      --non-interactive          Run the command in non-interactive mode.
+      --runtime-version=<value>  Filter by runtime version
+
+DESCRIPTION
+  list embedded updates registered with EAS Update for this project
+```
+
+_See code: [packages/eas-cli/src/commands/update/embedded/list.ts](https://github.com/expo/eas-cli/blob/v20.0.0/packages/eas-cli/src/commands/update/embedded/list.ts)_
+
 ## `eas update:embedded:upload`
 
 upload the JS bundle embedded in a native build so EAS Update can generate bsdiff patches against it
@@ -2440,6 +2487,26 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/update/embedded/view.ts](https://github.com/expo/eas-cli/blob/v20.1.0/packages/eas-cli/src/commands/update/embedded/view.ts)_
+
+## `eas update:embedded:view ID`
+
+view details of an embedded update registered with EAS Update
+
+```
+USAGE
+  $ eas update:embedded:view ID [--json]
+
+ARGUMENTS
+  ID  The ID of the embedded update (manifest UUID from app.manifest).
+
+FLAGS
+  --json  Enable JSON output, non-JSON messages will be printed to stderr.
+
+DESCRIPTION
+  view details of an embedded update registered with EAS Update
+```
+
+_See code: [packages/eas-cli/src/commands/update/embedded/view.ts](https://github.com/expo/eas-cli/blob/v20.0.0/packages/eas-cli/src/commands/update/embedded/view.ts)_
 
 ## `eas update:insights GROUPID`
 
@@ -2591,23 +2658,34 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/update/roll-back-to-embedded.ts](https://github.com/expo/eas-cli/blob/v20.1.0/packages/eas-cli/src/commands/update/roll-back-to-embedded.ts)_
 
-## `eas update:rollback`
+## `eas update:rollback [GROUPID]`
 
-Roll back to an embedded update or an existing update. Users wishing to run this command non-interactively should instead execute "eas update:republish" or "eas update:roll-back-to-embedded".
+roll back to an embedded update or an existing update
 
 ```
 USAGE
-  $ eas update:rollback [--private-key-path <value>]
+  $ eas update:rollback [GROUPID] [-m <value>] [-p android|ios|all] [--private-key-path <value>] [--json]
+    [--non-interactive]
+
+ARGUMENTS
+  [GROUPID]  The ID of the update group to roll back. Must be the latest update for its branch and runtime version. The
+             update group published before it is republished; if there is none, a roll back to the embedded update is
+             published. Required in non-interactive mode.
 
 FLAGS
-  --private-key-path=<value>  File containing the PEM-encoded private key corresponding to the certificate in
-                              expo-updates' configuration. Defaults to a file named "private-key.pem" in the
-                              certificate's directory. Only relevant if you are using code signing:
-                              https://docs.expo.dev/eas-update/code-signing/
+  -m, --message=<value>           Short message describing the rollback update
+  -p, --platform=<option>         [default: all]
+                                  <options: android|ios|all>
+      --json                      Enable JSON output, non-JSON messages will be printed to stderr. Implies
+                                  --non-interactive.
+      --non-interactive           Run the command in non-interactive mode.
+      --private-key-path=<value>  File containing the PEM-encoded private key corresponding to the certificate in
+                                  expo-updates' configuration. Defaults to a file named "private-key.pem" in the
+                                  certificate's directory. Only relevant if you are using code signing:
+                                  https://docs.expo.dev/eas-update/code-signing/
 
 DESCRIPTION
-  Roll back to an embedded update or an existing update. Users wishing to run this command non-interactively should
-  instead execute "eas update:republish" or "eas update:roll-back-to-embedded".
+  roll back to an embedded update or an existing update
 ```
 
 _See code: [packages/eas-cli/src/commands/update/rollback.ts](https://github.com/expo/eas-cli/blob/v20.1.0/packages/eas-cli/src/commands/update/rollback.ts)_
