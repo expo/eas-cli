@@ -31,8 +31,6 @@ export namespace Worker {
   };
 
   type BuildWorkerRuntimeConfig = {
-    gcsSignedUploadUrlForApplicationArchive: GCS.SignedUrl | null;
-    gcsSignedUploadUrlForBuildArtifacts: GCS.SignedUrl | null;
     gcsSignedUploadUrlForLogs: GCS.SignedUrl;
     gcsSignedUploadUrlForXcodeBuildLogs?: GCS.SignedUrl;
     gcsSignedUploadUrlForBuildCache?: GCS.SignedUrl;
