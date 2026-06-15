@@ -18,6 +18,7 @@ describe(getBuildEnv.name, () => {
     NVM_NODEJS_ORG_MIRROR: process.env.NVM_NODEJS_ORG_MIRROR,
     EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
     EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
+    NPM_CONFIG_REGISTRY: process.env.NPM_CONFIG_REGISTRY,
   };
 
   beforeEach(() => {
@@ -26,6 +27,7 @@ describe(getBuildEnv.name, () => {
     delete process.env.NVM_NODEJS_ORG_MIRROR;
     delete process.env.EAS_BUILD_MAVEN_CACHE_URL;
     delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
+    delete process.env.NPM_CONFIG_REGISTRY;
     jest.spyOn(RuntimeSettings, 'getNpmCacheUrl').mockReturnValue(null);
     jest.spyOn(RuntimeSettings, 'getNodeJsCacheUrl').mockReturnValue(null);
     jest.spyOn(RuntimeSettings, 'getMavenCacheUrl').mockReturnValue(null);
@@ -44,6 +46,7 @@ describe(getBuildEnv.name, () => {
     restoreEnv('NVM_NODEJS_ORG_MIRROR', originalCacheUrls.NVM_NODEJS_ORG_MIRROR);
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
+    restoreEnv('NPM_CONFIG_REGISTRY', originalCacheUrls.NPM_CONFIG_REGISTRY);
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
@@ -196,6 +199,7 @@ describe(getBuildEnv.name, () => {
     });
 
     expect(env.NPM_CACHE_URL).toBeUndefined();
+    expect(env.NPM_CONFIG_REGISTRY).toBeUndefined();
     expect(env.NVM_NODEJS_ORG_MIRROR).toBeUndefined();
     expect(env.EAS_BUILD_NPM_CACHE_URL).toBeUndefined();
     expect(env.EAS_BUILD_MAVEN_CACHE_URL).toBeUndefined();
@@ -228,6 +232,7 @@ describe(getBuildEnv.name, () => {
     });
 
     expect(env.NPM_CACHE_URL).toBeUndefined();
+    expect(env.NPM_CONFIG_REGISTRY).toBeUndefined();
     expect(env.NVM_NODEJS_ORG_MIRROR).toBeUndefined();
     expect(env.EAS_BUILD_NPM_CACHE_URL).toBeUndefined();
     expect(env.EAS_BUILD_COCOAPODS_CACHE_URL).toBeUndefined();
@@ -264,6 +269,7 @@ describe(getBuildEnv.name, () => {
     });
 
     expect(env.NPM_CACHE_URL).toBe('https://npm.example');
+    expect(env.NPM_CONFIG_REGISTRY).toBe('https://npm.example');
     expect(env.EAS_BUILD_NPM_CACHE_URL).toBe('https://npm.example');
     expect(env.NVM_NODEJS_ORG_MIRROR).toBe('https://node.example');
     expect(env.EAS_BUILD_MAVEN_CACHE_URL).toBe('https://maven.example');

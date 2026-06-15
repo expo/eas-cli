@@ -14,10 +14,6 @@ jest.mock('../sentry', () => ({
 }));
 
 describe('runtimeSettings', () => {
-  const logger = {
-    info: jest.fn(),
-    warn: jest.fn(),
-  };
   const originalCacheUrls = {
     EAS_NPM_CACHE_URL: process.env.EAS_NPM_CACHE_URL,
     EAS_NODEJS_CACHE_URL: process.env.EAS_NODEJS_CACHE_URL,
@@ -30,8 +26,6 @@ describe('runtimeSettings', () => {
     jest.mocked(fetch).mockReset();
     jest.restoreAllMocks();
     jest.mocked(Sentry.capture).mockReset();
-    logger.info.mockReset();
-    logger.warn.mockReset();
     restoreEnv('EAS_NPM_CACHE_URL', originalCacheUrls.EAS_NPM_CACHE_URL);
     restoreEnv('EAS_NODEJS_CACHE_URL', originalCacheUrls.EAS_NODEJS_CACHE_URL);
     restoreEnv('EAS_MAVEN_CACHE_URL', originalCacheUrls.EAS_MAVEN_CACHE_URL);
@@ -41,18 +35,16 @@ describe('runtimeSettings', () => {
 
   beforeEach(async () => {
     jest.mocked(fetch).mockResolvedValue(response({}));
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
     jest.mocked(fetch).mockReset();
-    logger.info.mockReset();
-    logger.warn.mockReset();
   });
 
   it('fetches runtime settings from the staging and production buckets', async () => {
     jest.mocked(fetch).mockResolvedValue(response({}));
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
-    await RuntimeSettings.loadAsync({ environment: 'production', logger: logger as any });
-    await RuntimeSettings.loadAsync({ environment: 'test', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
+    await RuntimeSettings.loadAsync({ environment: 'production' });
+    await RuntimeSettings.loadAsync({ environment: 'test' });
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
@@ -75,12 +67,11 @@ describe('runtimeSettings', () => {
     process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
     jest.mocked(fetch).mockResolvedValue(response({}, 404));
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
 
     mockProcessPlatform('linux');
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
     expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
-    expect(logger.warn).toHaveBeenCalled();
     expect(Sentry.capture).toHaveBeenCalledWith('Failed to fetch worker runtime settings', {
       extras: {
         status: 404,
@@ -97,13 +88,12 @@ describe('runtimeSettings', () => {
       .mockResolvedValueOnce(response({ caches: { linux: { npm: true } } }))
       .mockResolvedValueOnce(response({ iosPrecompiledModules: 'enabled' }));
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
 
     mockProcessPlatform('linux');
     expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
     expect(RuntimeSettings.isUsingIosPrecompiledModulesEnabled()).toBe(false);
-    expect(logger.warn).toHaveBeenCalled();
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Failed to load worker runtime settings',
       expect.any(Error),
@@ -132,7 +122,7 @@ describe('runtimeSettings', () => {
       })
     );
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
 
     mockProcessPlatform('linux');
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
@@ -157,13 +147,129 @@ describe('runtimeSettings', () => {
       })
     );
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
 
     mockProcessPlatform('linux');
     expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
     mockProcessPlatform('darwin');
     expect(RuntimeSettings.getMavenCacheUrl()).toBe('https://maven.example');
     expect(RuntimeSettings.getCocoapodsCacheUrl()).toBe('https://pods.example');
+  });
+
+  it('uses job environment flags to enable cache URLs from worker environment variables', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+
+    await RuntimeSettings.loadAsync({
+      environment: 'test',
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBe('https://npm.example');
+  });
+
+  it('returns null when job env enables cache but worker env var is empty', async () => {
+    process.env.EAS_NPM_CACHE_URL = '';
+
+    await RuntimeSettings.loadAsync({
+      environment: 'test',
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('does not use cache URLs from the job environment', async () => {
+    await RuntimeSettings.loadAsync({
+      environment: 'test',
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_NPM_CACHE_URL: 'https://job-npm.example',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('does not enable cache when runtime settings explicitly disable it, even with job env flag', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: false } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('disables cache when EAS_BUILD_DISABLE_NPM_CACHE is set', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('disables cache when EAS_BUILD_DISABLE_MAVEN_CACHE is set', async () => {
+    process.env.EAS_MAVEN_CACHE_URL = 'https://maven.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { maven: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_MAVEN_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBeNull();
+  });
+
+  it('disables cache when EAS_BUILD_DISABLE_COCOAPODS_CACHE is set', async () => {
+    process.env.EAS_COCOAPODS_CACHE_URL = 'https://pods.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { darwin: { cocoapods: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_COCOAPODS_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('darwin');
+    expect(RuntimeSettings.getCocoapodsCacheUrl()).toBeNull();
+  });
+
+  it('allows job environment flags to disable remotely enabled cache URLs', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_USE_NPM_CACHE: '0',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
   });
 
   it('does not use caches when runtime settings are not loaded', () => {
@@ -181,7 +287,7 @@ describe('runtimeSettings', () => {
     jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
     mockProcessPlatform('darwin');
 
-    await RuntimeSettings.loadAsync({ environment: 'staging', logger: logger as any });
+    await RuntimeSettings.loadAsync({ environment: 'staging' });
 
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
     expect(Sentry.capture).toHaveBeenCalledWith(

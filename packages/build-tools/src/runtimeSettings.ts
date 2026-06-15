@@ -1,4 +1,4 @@
-import { type bunyan } from '@expo/logger';
+import { Env } from '@expo/eas-build-job';
 import fetch from 'node-fetch';
 import { z } from 'zod';
 
@@ -27,15 +27,17 @@ const RuntimeSettingsSchema = z
   .partial();
 
 let runtimeSettings: z.infer<typeof RuntimeSettingsSchema> = {};
+let runtimeEnvironment: Env = {};
 
 export namespace RuntimeSettings {
   export async function loadAsync({
     environment,
-    logger,
+    env: nextRuntimeEnvironment = {},
   }: {
     environment: string;
-    logger: bunyan;
+    env?: Env;
   }): Promise<void> {
+    runtimeEnvironment = nextRuntimeEnvironment;
     const url = ENVIRONMENT_TO_RUNTIME_SETTINGS_URL[environment];
     if (!url) {
       return;
@@ -47,10 +49,6 @@ export namespace RuntimeSettings {
       });
 
       if (!response.ok) {
-        logger.warn(
-          { url, status: response.status },
-          'Failed to fetch worker runtime settings, using defaults'
-        );
         Sentry.capture('Failed to fetch worker runtime settings', {
           extras: { url, status: response.status },
           level: 'warning',
@@ -73,9 +71,7 @@ export namespace RuntimeSettings {
           }
         );
       }
-      logger.info({ url, settings: runtimeSettings }, 'Loaded worker runtime settings');
     } catch (err) {
-      logger.warn({ err, url }, 'Failed to load worker runtime settings, using defaults');
       Sentry.capture(
         'Failed to load worker runtime settings',
         err instanceof Error ? err : new Error(String(err)),
@@ -92,26 +88,51 @@ export namespace RuntimeSettings {
   }
 
   export function getNpmCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.npm
-      ? process.env.EAS_NPM_CACHE_URL || null
-      : null;
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_NPM_CACHE'] === '1') {
+      return null;
+    }
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.npm;
+    if (runtimeEnabled === false) {
+      return null;
+    }
+    const envOverride = runtimeEnvironment['EAS_USE_NPM_CACHE'];
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
+    return enabled ? process.env.EAS_NPM_CACHE_URL || null : null;
   }
 
   export function getNodeJsCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.nodejs
-      ? process.env.EAS_NODEJS_CACHE_URL || null
-      : null;
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.nodejs;
+    if (runtimeEnabled === false) {
+      return null;
+    }
+    const envOverride = runtimeEnvironment['EAS_USE_NODEJS_CACHE'];
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
+    return enabled ? process.env.EAS_NODEJS_CACHE_URL || null : null;
   }
 
   export function getMavenCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.maven
-      ? process.env.EAS_MAVEN_CACHE_URL || null
-      : null;
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_MAVEN_CACHE'] === '1') {
+      return null;
+    }
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.maven;
+    if (runtimeEnabled === false) {
+      return null;
+    }
+    const envOverride = runtimeEnvironment['EAS_USE_MAVEN_CACHE'];
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
+    return enabled ? process.env.EAS_MAVEN_CACHE_URL || null : null;
   }
 
   export function getCocoapodsCacheUrl(): string | null {
-    return runtimeSettings.caches?.[process.platform]?.cocoapods
-      ? process.env.EAS_COCOAPODS_CACHE_URL || null
-      : null;
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_COCOAPODS_CACHE'] === '1') {
+      return null;
+    }
+    const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.cocoapods;
+    if (runtimeEnabled === false) {
+      return null;
+    }
+    const envOverride = runtimeEnvironment['EAS_USE_COCOAPODS_CACHE'];
+    const enabled = envOverride === '1' || (envOverride !== '0' && runtimeEnabled);
+    return enabled ? process.env.EAS_COCOAPODS_CACHE_URL || null : null;
   }
 }
