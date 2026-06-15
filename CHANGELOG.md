@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Drop confusing `Limited` prefix and add `(Organization)` label in the account picker shown by `eas new`. ([#3829](https://github.com/expo/eas-cli/pull/3829) by [@davidmokos](https://github.com/davidmokos))
+
 ## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
 
 ### 🎉 New features
