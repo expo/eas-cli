@@ -88,6 +88,9 @@ export namespace RuntimeSettings {
   }
 
   export function getNpmCacheUrl(): string | null {
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_NPM_CACHE'] === '1') {
+      return null;
+    }
     const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.npm;
     if (runtimeEnabled === false) {
       return null;
@@ -108,6 +111,9 @@ export namespace RuntimeSettings {
   }
 
   export function getMavenCacheUrl(): string | null {
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_MAVEN_CACHE'] === '1') {
+      return null;
+    }
     const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.maven;
     if (runtimeEnabled === false) {
       return null;
@@ -118,6 +124,9 @@ export namespace RuntimeSettings {
   }
 
   export function getCocoapodsCacheUrl(): string | null {
+    if (runtimeEnvironment['EAS_BUILD_DISABLE_COCOAPODS_CACHE'] === '1') {
+      return null;
+    }
     const runtimeEnabled = runtimeSettings.caches?.[process.platform]?.cocoapods;
     if (runtimeEnabled === false) {
       return null;

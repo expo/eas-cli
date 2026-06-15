@@ -94,7 +94,9 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
   useFrozenLockfile: boolean;
 }): Promise<void> {
   const npmCacheUrl = env.NPM_CONFIG_REGISTRY;
-  const npmCacheErrorTracker = createNpmCacheRegistryErrorTracker({ env, npmCacheUrl });
+  let firstErrorLine: string | undefined;
+  let errorLineCount = 0;
+
   try {
     await (
       await installDependenciesAsync({
@@ -102,12 +104,25 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
         env,
         logger,
         infoCallbackFn,
-        lineTransformer: npmCacheErrorTracker.inspectLine,
+        lineTransformer: (line: string) => {
+          if (isNpmCacheRegistryErrorLine(line, { env, npmCacheUrl })) {
+            firstErrorLine ??= line;
+            errorLineCount += 1;
+          }
+          return line;
+        },
         cwd,
         useFrozenLockfile,
       })
     ).spawnPromise;
-    npmCacheErrorTracker.reportNonFatalError({ packageManager, cwd, useFrozenLockfile });
+
+    if (firstErrorLine) {
+      Sentry.capture(new NpmCacheRegistryNonFatalError(), {
+        level: 'warning',
+        tags: { packageManager },
+        extras: { cwd, npmCacheUrl, useFrozenLockfile, firstErrorLine, errorLineCount },
+      });
+    }
   } catch (err: unknown) {
     if (!isNpmCacheInstallFailure(err, { env, npmCacheUrl })) {
       throw err;
@@ -116,12 +131,9 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     logger.warn(
       `Failed to install dependencies using the npm cache registry (${npmCacheUrl}). Retrying without the npm cache registry.`
     );
-    const sentryError = new NpmCacheRegistryInstallError(err);
-    Sentry.capture(sentryError, {
+    Sentry.capture(new NpmCacheRegistryInstallError(err), {
       level: 'warning',
-      tags: {
-        packageManager,
-      },
+      tags: { packageManager },
       extras: {
         cwd,
         npmCacheUrl,
@@ -169,65 +181,6 @@ function isNpmCacheInstallFailure(
   }
   const errorOutput = getErrorOutput(err);
   return errorOutput.includes(npmCacheUrl);
-}
-
-function createNpmCacheRegistryErrorTracker({
-  env,
-  npmCacheUrl,
-}: {
-  env: Record<string, string | undefined>;
-  npmCacheUrl: string | undefined;
-}): {
-  inspectLine: NonNullable<SpawnOptions['lineTransformer']>;
-  reportNonFatalError({
-    packageManager,
-    cwd,
-    useFrozenLockfile,
-  }: {
-    packageManager: PackageManager;
-    cwd: string;
-    useFrozenLockfile: boolean;
-  }): void;
-} {
-  let firstErrorLine: string | undefined;
-  let errorLineCount = 0;
-
-  return {
-    inspectLine(line: string): string {
-      if (isNpmCacheRegistryErrorLine(line, { env, npmCacheUrl })) {
-        firstErrorLine ??= line;
-        errorLineCount += 1;
-      }
-      return line;
-    },
-    reportNonFatalError({
-      packageManager,
-      cwd,
-      useFrozenLockfile,
-    }: {
-      packageManager: PackageManager;
-      cwd: string;
-      useFrozenLockfile: boolean;
-    }): void {
-      if (!firstErrorLine) {
-        return;
-      }
-      const sentryError = new NpmCacheRegistryNonFatalError();
-      Sentry.capture(sentryError, {
-        level: 'warning',
-        tags: {
-          packageManager,
-        },
-        extras: {
-          cwd,
-          npmCacheUrl,
-          useFrozenLockfile,
-          firstErrorLine,
-          errorLineCount,
-        },
-      });
-    },
-  };
 }
 
 function isNpmCacheRegistryErrorLine(

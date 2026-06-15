@@ -212,6 +212,51 @@ describe('runtimeSettings', () => {
     expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
   });
 
+  it('disables cache when EAS_BUILD_DISABLE_NPM_CACHE is set', async () => {
+    process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_NPM_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getNpmCacheUrl()).toBeNull();
+  });
+
+  it('disables cache when EAS_BUILD_DISABLE_MAVEN_CACHE is set', async () => {
+    process.env.EAS_MAVEN_CACHE_URL = 'https://maven.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { maven: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_MAVEN_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('linux');
+    expect(RuntimeSettings.getMavenCacheUrl()).toBeNull();
+  });
+
+  it('disables cache when EAS_BUILD_DISABLE_COCOAPODS_CACHE is set', async () => {
+    process.env.EAS_COCOAPODS_CACHE_URL = 'https://pods.example';
+    jest.mocked(fetch).mockResolvedValue(response({ caches: { darwin: { cocoapods: true } } }));
+
+    await RuntimeSettings.loadAsync({
+      environment: 'staging',
+      env: {
+        EAS_BUILD_DISABLE_COCOAPODS_CACHE: '1',
+      },
+    });
+
+    mockProcessPlatform('darwin');
+    expect(RuntimeSettings.getCocoapodsCacheUrl()).toBeNull();
+  });
+
   it('allows job environment flags to disable remotely enabled cache URLs', async () => {
     process.env.EAS_NPM_CACHE_URL = 'https://npm.example';
     jest.mocked(fetch).mockResolvedValue(response({ caches: { linux: { npm: true } } }));
