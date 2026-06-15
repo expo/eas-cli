@@ -168,6 +168,8 @@ export type Account = {
   /** Owning UserActor of this account if personal account */
   ownerUserActor?: Maybe<UserActor>;
   pendingSentryInstallation?: Maybe<PendingSentryInstallation>;
+  /** PostHog organization connection for this account */
+  posthogOrganizationConnection?: Maybe<PostHogOrganizationConnection>;
   profileImageUrl: Scalars['String']['output'];
   pushSecurityEnabled: Scalars['Boolean']['output'];
   requireTwoFactor: Scalars['Boolean']['output'];
@@ -1530,6 +1532,7 @@ export type App = Project & {
    * @deprecated Classic updates have been deprecated.
    */
   playStoreUrl?: Maybe<Scalars['String']['output']>;
+  posthogProject?: Maybe<PostHogProject>;
   /** @deprecated No longer supported */
   privacy: Scalars['String']['output'];
   /** @deprecated No longer supported */
@@ -4893,6 +4896,11 @@ export type CreateIosSubmissionInput = {
   submittedBuildId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+export type CreatePostHogAccountRequestInput = {
+  accountId: Scalars['ID']['input'];
+  region: PostHogRegion;
+};
+
 export type CreateSentryProjectInput = {
   appId: Scalars['ID']['input'];
   sentryProjectId: Scalars['String']['input'];
@@ -6295,6 +6303,8 @@ export enum EntityTypeName {
   IosAppCredentialsEntity = 'IosAppCredentialsEntity',
   LogRocketOrganizationEntity = 'LogRocketOrganizationEntity',
   LogRocketProjectEntity = 'LogRocketProjectEntity',
+  PostHogOrganizationConnectionEntity = 'PostHogOrganizationConnectionEntity',
+  PostHogProjectEntity = 'PostHogProjectEntity',
   UserInvitationEntity = 'UserInvitationEntity',
   UserPermissionEntity = 'UserPermissionEntity',
   VexoAccountConnectionEntity = 'VexoAccountConnectionEntity',
@@ -6533,6 +6543,121 @@ export type EstimatedUsagePlatformDetail = {
   __typename?: 'EstimatedUsagePlatformDetail';
   limit: Scalars['Float']['output'];
   value: Scalars['Float']['output'];
+};
+
+export type ExitInterviewBeginChatTurnInput = {
+  accountId: Scalars['ID']['input'];
+};
+
+export type ExitInterviewBeginChatTurnResult = {
+  __typename?: 'ExitInterviewBeginChatTurnResult';
+  ok: Scalars['Boolean']['output'];
+};
+
+export type ExitInterviewCompleteInput = {
+  accountId: Scalars['ID']['input'];
+  conversationId: Scalars['ID']['input'];
+  messages: Array<ExitInterviewMessageInput>;
+  outcome: ExitInterviewOutcome;
+  /**
+   * Optional classification tags. Present when the website's tagging call
+   * succeeded; omitted when it failed or when the user dismissed without
+   * engaging. When present, drives the conversation-tagged event and the
+   * tagged Slack notification.
+   */
+  tags?: InputMaybe<ExitInterviewTagsInput>;
+};
+
+export type ExitInterviewCompleteResult = {
+  __typename?: 'ExitInterviewCompleteResult';
+  success: Scalars['Boolean']['output'];
+};
+
+export type ExitInterviewFeedbackInput = {
+  accountId: Scalars['ID']['input'];
+  conversationId: Scalars['ID']['input'];
+  feedback: Scalars['String']['input'];
+  outcome: ExitInterviewOutcome;
+};
+
+export type ExitInterviewFeedbackResult = {
+  __typename?: 'ExitInterviewFeedbackResult';
+  success: Scalars['Boolean']['output'];
+};
+
+export type ExitInterviewMessageInput = {
+  content: Scalars['String']['input'];
+  role: ExitInterviewMessageRole;
+};
+
+export enum ExitInterviewMessageRole {
+  Assistant = 'ASSISTANT',
+  User = 'USER'
+}
+
+export type ExitInterviewMutation = {
+  __typename?: 'ExitInterviewMutation';
+  /**
+   * Gate a chat turn before the website route calls OpenAI. Enforces
+   * authorization (account admin), eligibility (active paid subscription,
+   * not cancelling), and a per-user rate limit (30 turns/hour). The
+   * website's /api/exit-interview/chat route calls this server-to-server
+   * on every turn; failures map to HTTP 4xx and abort the stream before
+   * any OpenAI tokens are spent.
+   */
+  beginChatTurn: ExitInterviewBeginChatTurnResult;
+  /**
+   * Mark a treatment-variant exit-interview chat conversation complete. Emits
+   * the conversation-completed event to RudderStack with the full transcript.
+   * If the transcript carries at least one server-signed assistant turn (i.e.
+   * the user actually engaged the bot), fans out the raw transcript to Slack.
+   * If the client also provides tags, emits a separate conversation-tagged
+   * event and a tagged Slack notification. Control-variant one-shot feedback
+   * goes through submitFeedback.
+   */
+  complete: ExitInterviewCompleteResult;
+  /**
+   * Record a control-variant one-shot feedback submission. Emits the
+   * feedback-submitted event to RudderStack. No Slack notification, no
+   * tagging — those pipelines are scoped to the treatment chat flow via
+   * complete.
+   */
+  submitFeedback: ExitInterviewFeedbackResult;
+};
+
+
+export type ExitInterviewMutationBeginChatTurnArgs = {
+  input: ExitInterviewBeginChatTurnInput;
+};
+
+
+export type ExitInterviewMutationCompleteArgs = {
+  input: ExitInterviewCompleteInput;
+};
+
+
+export type ExitInterviewMutationSubmitFeedbackArgs = {
+  input: ExitInterviewFeedbackInput;
+};
+
+export enum ExitInterviewOutcome {
+  CancelledImmediately = 'CANCELLED_IMMEDIATELY',
+  ContinuedToStripe = 'CONTINUED_TO_STRIPE',
+  Dismissed = 'DISMISSED',
+  KeptPlan = 'KEPT_PLAN'
+}
+
+/**
+ * Tags produced by the website's churn-classification step. The website runs
+ * this synchronously before calling complete, then forwards the structured
+ * result. Allowed category / sentiment values are enforced by the resolver.
+ */
+export type ExitInterviewTagsInput = {
+  actionableInsight: Scalars['Boolean']['input'];
+  category: Scalars['String']['input'];
+  competitorMention?: InputMaybe<Scalars['String']['input']>;
+  productArea?: InputMaybe<Scalars['String']['input']>;
+  sentiment: Scalars['String']['input'];
 };
 
 export enum Experiment {
@@ -8127,6 +8252,58 @@ export type PinnedDashboardView = {
 
 export type PlanEnablement = Concurrencies | EasTotalPlanEnablement;
 
+export type PostHogIntegrationQuery = {
+  __typename?: 'PostHogIntegrationQuery';
+  clientIdentifier: Scalars['String']['output'];
+};
+
+export type PostHogOrganizationConnection = {
+  __typename?: 'PostHogOrganizationConnection';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  posthogOrganizationIdentifier: Scalars['String']['output'];
+  posthogOrganizationName: Scalars['String']['output'];
+  posthogProjects: Array<PostHogProject>;
+  posthogRegion: PostHogRegion;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type PostHogOrganizationConnectionMutation = {
+  __typename?: 'PostHogOrganizationConnectionMutation';
+  createPostHogAccountRequest: PostHogOrganizationConnection;
+  /** Removes the Expo-side connection only; the PostHog organization is preserved. */
+  deletePostHogOrganizationConnection: Scalars['ID']['output'];
+};
+
+
+export type PostHogOrganizationConnectionMutationCreatePostHogAccountRequestArgs = {
+  input: CreatePostHogAccountRequestInput;
+};
+
+
+export type PostHogOrganizationConnectionMutationDeletePostHogOrganizationConnectionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+export type PostHogProject = {
+  __typename?: 'PostHogProject';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  posthogHost: Scalars['String']['output'];
+  posthogOrganizationConnection: PostHogOrganizationConnection;
+  posthogProjectIdentifier: Scalars['String']['output'];
+  posthogProjectName: Scalars['String']['output'];
+  posthogProjectToken: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export enum PostHogRegion {
+  Eu = 'EU',
+  Us = 'US'
+}
+
 export type Project = {
   description: Scalars['String']['output'];
   fullName: Scalars['String']['output'];
@@ -8448,6 +8625,8 @@ export type RootMutation = {
   environmentSecret: EnvironmentSecretMutation;
   /** Mutations that create and delete EnvironmentVariables */
   environmentVariable: EnvironmentVariableMutation;
+  /** Mutations for the exit-interview chat shown when a user cancels their plan. */
+  exitInterview: ExitInterviewMutation;
   /** Mutations that modify App fingerprints */
   fingerprint: FingerprintMutation;
   /** Mutations that utilize services facilitated by the GitHub App */
@@ -8480,6 +8659,7 @@ export type RootMutation = {
   me: MeMutation;
   /** Notification preference management */
   notificationPreference: NotificationPreferenceMutation;
+  posthogOrganizationConnection: PostHogOrganizationConnectionMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
   /** Mutations for Sentry installations */
@@ -8488,6 +8668,7 @@ export type RootMutation = {
   sentryProject: SentryProjectMutation;
   /** Mutations that modify an EAS Submit submission */
   submission: SubmissionMutation;
+  tunnels: TunnelsMutation;
   turtleBrownfieldArtifacts: TurtleBrownfieldArtifactMutation;
   update: UpdateMutation;
   updateBranch: UpdateBranchMutation;
@@ -8626,6 +8807,8 @@ export type RootQuery = {
    * this is the appropriate top-level query object
    */
   meUserActor?: Maybe<UserActor>;
+  /** Top-level query object for querying PostHog Integration information. */
+  posthogIntegration: PostHogIntegrationQuery;
   /** @deprecated Snacks and apps should be queried separately */
   project: ProjectQuery;
   /** Top-level query object for querying Runtimes. */
@@ -8920,7 +9103,6 @@ export type SecondFactorDeviceConfiguration = {
   isPrimary: Scalars['Boolean']['input'];
   method: SecondFactorMethod;
   name: Scalars['String']['input'];
-  smsPhoneNumber?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type SecondFactorDeviceConfigurationResult = {
@@ -8939,7 +9121,10 @@ export type SecondFactorInitiationResult = {
 export enum SecondFactorMethod {
   /** Google Authenticator (TOTP) */
   Authenticator = 'AUTHENTICATOR',
-  /** SMS */
+  /**
+   * SMS
+   * @deprecated No longer supported
+   */
   Sms = 'SMS'
 }
 
@@ -9408,6 +9593,23 @@ export type TimelineActivityFilterInput = {
   platforms?: InputMaybe<Array<AppPlatform>>;
   releaseChannels?: InputMaybe<Array<Scalars['String']['input']>>;
   types?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
+};
+
+export type TunnelSignedUrlResult = {
+  __typename?: 'TunnelSignedUrlResult';
+  label: Scalars['ID']['output'];
+  url: Scalars['String']['output'];
+};
+
+export type TunnelsMutation = {
+  __typename?: 'TunnelsMutation';
+  /** Create a signed tunnel URL for an account */
+  createSignedTunnelUrl: TunnelSignedUrlResult;
+};
+
+
+export type TunnelsMutationCreateSignedTunnelUrlArgs = {
+  accountId: Scalars['ID']['input'];
 };
 
 export type TurtleBrownfieldArtifactMutation = {
@@ -10136,6 +10338,8 @@ export type User = Actor & UserActor & {
   location?: Maybe<Scalars['String']['output']>;
   newEmailPendingVerification?: Maybe<Scalars['String']['output']>;
   oAuthIdentities: Array<OAuthIdentity>;
+  /** Registered passkey credentials */
+  passkeyCredentials: Array<UserPasskeyCredential>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
   pendingUserInvitations: Array<UserInvitation>;
   pinnedApps: Array<App>;
@@ -10516,6 +10720,7 @@ export enum UserEntityTypeName {
   PasswordEntity = 'PasswordEntity',
   SsoUserEntity = 'SSOUserEntity',
   UserEntity = 'UserEntity',
+  UserPasskeyCredentialEntity = 'UserPasskeyCredentialEntity',
   UserPermissionEntity = 'UserPermissionEntity',
   UserSecondFactorBackupCodesEntity = 'UserSecondFactorBackupCodesEntity',
   UserSecondFactorDeviceEntity = 'UserSecondFactorDeviceEntity'
@@ -10643,6 +10848,21 @@ export type UserLogNameTypeMapping = {
   __typename?: 'UserLogNameTypeMapping';
   publicName: Scalars['String']['output'];
   typeName: UserEntityTypeName;
+};
+
+/** A passkey credential belonging to a User */
+export type UserPasskeyCredential = {
+  __typename?: 'UserPasskeyCredential';
+  /**
+   * Authenticator Attestation Globally Unique Identifier — identifies the authenticator model
+   * (e.g., 1Password, iCloud Keychain). See https://passkeydeveloper.github.io/passkey-authenticator-aaguids/explorer/
+   */
+  aaguid?: Maybe<Scalars['ID']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  credentialDeviceType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  lastUsedAt?: Maybe<Scalars['DateTime']['output']>;
+  name: Scalars['String']['output'];
 };
 
 export type UserPermission = {
@@ -11757,6 +11977,14 @@ export type WorkflowJob = {
   approvals: Array<WorkflowJobApproval>;
   createdAt: Scalars['DateTime']['output'];
   credentialsAppleDeviceRegistrationRequest?: Maybe<AppleDeviceRegistrationRequest>;
+  /**
+   * All test case attempt rows produced by this job's own execution (turtle job
+   * run), ordered by path then retryCount. Unlike deviceTestCaseResults and
+   * allDeviceTestCaseResults, this never includes rows from other jobs in the
+   * workflow retry chain.
+   */
+  deviceTestCaseResultAttempts: Array<WorkflowDeviceTestCaseResult>;
+  /** @deprecated Use deviceTestCaseResultAttempts instead */
   deviceTestCaseResults: Array<WorkflowDeviceTestCaseResult>;
   environment?: Maybe<Scalars['String']['output']>;
   errors: Array<WorkflowJobError>;
@@ -12095,6 +12323,7 @@ export enum WorkflowRunTriggerEventType {
   GithubPullRequestReopened = 'GITHUB_PULL_REQUEST_REOPENED',
   GithubPullRequestSynchronize = 'GITHUB_PULL_REQUEST_SYNCHRONIZE',
   GithubPush = 'GITHUB_PUSH',
+  GithubRefDelete = 'GITHUB_REF_DELETE',
   Manual = 'MANUAL',
   RepackExpoGo = 'REPACK_EXPO_GO',
   Schedule = 'SCHEDULE'
