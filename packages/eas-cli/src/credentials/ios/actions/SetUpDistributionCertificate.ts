@@ -1,6 +1,5 @@
-import assert from 'assert';
-
 import { resolveAppleTeamIfAuthenticatedAsync } from './AppleTeamUtils';
+import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from './AscApiKeyUtils';
 import { CreateDistributionCertificate } from './CreateDistributionCertificate';
 import { formatDistributionCertificate } from './DistributionCertificateUtils';
 import {
@@ -12,10 +11,15 @@ import Log from '../../../log';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import sortBy from '../../../utils/expodash/sortBy';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import {
+  ForbidCredentialModificationError,
+  InsufficientAuthenticationNonInteractiveError,
+  MissingCredentialsNonInteractiveError,
+} from '../../errors';
 import { AppleDistributionCertificateMutationResult } from '../api/graphql/mutations/AppleDistributionCertificateMutation';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
 import { getValidCertSerialNumbers } from '../appstore/CredentialsUtils';
+import { AppleTeamType } from '../appstore/authenticateTypes';
 import { AppleTeamMissingError } from '../errors';
 
 export class SetUpDistributionCertificate {
@@ -51,24 +55,70 @@ export class SetUpDistributionCertificate {
   }
 
   private async runNonInteractiveAsync(
-    _ctx: CredentialsContext,
+    ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    // TODO: implement validation
-    Log.addNewLineIfNone();
-    Log.warn('Distribution Certificate is not validated for non-interactive builds.');
+    if (!ctx.refreshDistributionCertificate) {
+      Log.addNewLineIfNone();
+      Log.warn(
+        'Using the existing distribution certificate without validating it against Apple servers. Use --refresh-distribution-certificate to validate and refresh if needed.'
+      );
+      if (!currentCertificate) {
+        throw new MissingCredentialsNonInteractiveError();
+      }
+      return currentCertificate;
+    }
+
     if (!currentCertificate) {
       throw new MissingCredentialsNonInteractiveError();
     }
-    return currentCertificate;
+
+    await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+      ctx,
+      this.app,
+      AppleTeamType.COMPANY_OR_ORGANIZATION
+    );
+
+    if (
+      currentCertificate &&
+      (await this.isCurrentCertificateValidAsync(ctx, currentCertificate))
+    ) {
+      Log.log('Using existing valid distribution certificate.');
+      return currentCertificate;
+    }
+
+    if (ctx.freezeCredentials) {
+      throw new ForbidCredentialModificationError(
+        'Distribution certificate is not configured correctly. Remove the --freeze-credentials flag to configure it.'
+      );
+    }
+
+    if (!ctx.appStore.authCtx) {
+      throw new InsufficientAuthenticationNonInteractiveError(
+        'Authentication with an ASC API key is required to validate and refresh a distribution certificate in non-interactive mode. Provide one via:\n' +
+          '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
+          '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
+      );
+    }
+
+    const validDistCerts = await this.getValidDistCertsAsync(ctx);
+    if (validDistCerts.length > 0) {
+      const cert = validDistCerts[0];
+      Log.log(`Reusing distribution certificate with serial number ${cert.serialNumber}`);
+      return cert;
+    }
+    Log.warn('Current distribution certificate is invalid. Creating a new one...');
+    return await this.createNewDistCertAsync(ctx);
   }
 
   private async runInteractiveAsync(
     ctx: CredentialsContext,
     currentCertificate: AppleDistributionCertificateFragment | null
   ): Promise<AppleDistributionCertificateFragment> {
-    if (await this.isCurrentCertificateValidAsync(ctx, currentCertificate)) {
-      assert(currentCertificate, 'currentCertificate is defined here');
+    if (
+      currentCertificate &&
+      (await this.isCurrentCertificateValidAsync(ctx, currentCertificate))
+    ) {
       return currentCertificate;
     }
 

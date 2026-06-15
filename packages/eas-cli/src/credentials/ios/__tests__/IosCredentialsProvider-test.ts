@@ -86,11 +86,17 @@ describe(IosCredentialsProvider, () => {
             getIosAppCredentialsWithBuildCredentialsAsync: jest.fn(
               () => testCommonIosAppCredentialsFragment
             ),
-            getDistributionCertificateForAppAsync: jest.fn(
-              () =>
+            getDistributionCertificateForAppAsync: jest.fn(() => {
+              const distributionCertificate =
                 testCommonIosAppCredentialsFragment.iosAppBuildCredentialsList[0]
-                  .distributionCertificate
-            ),
+                  .distributionCertificate;
+              const now = Date.now();
+              return {
+                ...distributionCertificate,
+                validityNotBefore: new Date(now - 86_400_000),
+                validityNotAfter: new Date(now + 86_400_000 * 365),
+              };
+            }),
           },
         });
         const appLookupParams = await getAppLookupParamsFromContextAsync(

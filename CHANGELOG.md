@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Non-interactive iOS App Store and Enterprise builds can now use the App Store Connect API key stored in EAS credentials as a submission key to validate and repair provisioning profiles on Apple servers, without requiring `EXPO_ASC_*` environment variables or an interactive Apple login. ([#3805](https://github.com/expo/eas-cli/pull/3805) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `--refresh-distribution-certificate` flag to validate and refresh the distribution certificate from App Store Connect before gathering build credentials in non-interactive mode. ([#3739](https://github.com/expo/eas-cli/pull/3739) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 

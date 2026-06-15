@@ -11,7 +11,7 @@ import {
   filterDevicesForApplePlatform,
   formatDeviceLabel,
 } from './DeviceUtils';
-import { resolveAscApiKeyForAppCredentialsAsync } from './AscApiKeyUtils';
+import { tryAuthenticateAppStoreWithEasAscApiKeyAsync } from './AscApiKeyUtils';
 import { SetUpDistributionCertificate } from './SetUpDistributionCertificate';
 import DeviceCreateAction, { RegistrationMethod } from '../../../devices/actions/create/action';
 import {
@@ -33,12 +33,14 @@ import {
 } from '../../../prompts';
 import differenceBy from '../../../utils/expodash/differenceBy';
 import { CredentialsContext } from '../../context';
-import { MissingCredentialsNonInteractiveError } from '../../errors';
+import {
+  InsufficientAuthenticationNonInteractiveError,
+  MissingCredentialsNonInteractiveError,
+} from '../../errors';
 import { AppLookupParams } from '../api/graphql/types/AppLookupParams';
-import { AppleTeamType, AuthenticationMode } from '../appstore/authenticateTypes';
+import { AppleTeamType } from '../appstore/authenticateTypes';
 import { ProvisioningProfile } from '../appstore/Credentials.types';
 import { ApplePlatform } from '../appstore/constants';
-import { hasAscEnvVars } from '../appstore/resolveCredentials';
 import { Target } from '../types';
 import { validateProvisioningProfileAsync } from '../validators/validateProvisioningProfile';
 
@@ -71,7 +73,18 @@ export class SetUpAdhocProvisioningProfile {
     ).runAsync(ctx);
 
     if (ctx.nonInteractive && ctx.refreshAdHocProvisioningProfile) {
-      await this.ensureAppStoreAuthenticatedForAdhocRefreshAsync(ctx, app);
+      const authenticated = await tryAuthenticateAppStoreWithEasAscApiKeyAsync(
+        ctx,
+        app,
+        AppleTeamType.COMPANY_OR_ORGANIZATION
+      );
+      if (!authenticated) {
+        throw new InsufficientAuthenticationNonInteractiveError(
+          'No App Store Connect API Key found for ad-hoc provisioning profile refresh. In non-interactive mode, provide one via:\n' +
+            '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
+            '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
+        );
+      }
       return await this.runWithDistributionCertificateAsync(ctx, distCert);
     }
 
@@ -398,39 +411,6 @@ export class SetUpAdhocProvisioningProfile {
         return devices;
       }
     }
-  }
-
-  private async ensureAppStoreAuthenticatedForAdhocRefreshAsync(
-    ctx: CredentialsContext,
-    app: AppLookupParams
-  ): Promise<void> {
-    if (hasAscEnvVars()) {
-      await ctx.appStore.ensureAuthenticatedAsync({ mode: AuthenticationMode.API_KEY });
-      return;
-    }
-
-    const resolvedKey = await resolveAscApiKeyForAppCredentialsAsync({
-      graphqlClient: ctx.graphqlClient,
-      app,
-    });
-    if (!resolvedKey) {
-      throw new Error(
-        'No App Store Connect API Key found for ad-hoc provisioning profile refresh. In non-interactive mode, provide one via:\n' +
-          '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
-          '  - EAS credentials service: configure an App Store Connect API Key for submissions on this app'
-      );
-    }
-
-    Log.log('Using App Store Connect API Key from EAS credentials service.');
-    await ctx.appStore.ensureAuthenticatedAsync({
-      mode: AuthenticationMode.API_KEY,
-      ascApiKey: resolvedKey.ascApiKey,
-      teamId: resolvedKey.teamId,
-      teamName: resolvedKey.teamName,
-      // Provide a non-enterprise team type to avoid interactive team-type resolution.
-      // Ad-hoc profile handling below uses explicit ProfileType and does not branch on team.inHouse.
-      teamType: AppleTeamType.COMPANY_OR_ORGANIZATION,
-    });
   }
 }
 
