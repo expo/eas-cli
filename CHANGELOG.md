@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Simplify 2FA now that SMS is no longer supported. ([#3859](https://github.com/expo/eas-cli/pull/3859) by [@wschurman](https://github.com/wschurman))
+
 ## [20.2.0](https://github.com/expo/eas-cli/releases/tag/v20.2.0) - 2026-06-15
 
 ### 🎉 New features
