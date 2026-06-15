@@ -22,3 +22,17 @@ jest.mock('@expo/build-tools', () => {
     },
   };
 });
+
+jest.mock('@expo/build-tools/dist/steps/functions/restoreCache', () => {
+  return {
+    ...jest.requireActual('@expo/build-tools/dist/steps/functions/restoreCache'),
+    downloadCacheAsync: jest.fn(),
+  };
+});
+
+jest.mock('@expo/build-tools/dist/steps/functions/saveCache', () => {
+  return {
+    ...jest.requireActual('@expo/build-tools/dist/steps/functions/saveCache'),
+    uploadCacheAsync: jest.fn(),
+  };
+});
