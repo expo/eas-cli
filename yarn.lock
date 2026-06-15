@@ -3572,7 +3572,6 @@ __metadata:
     "@hapi/boom": "npm:10.0.1"
     "@types/babel__core": "npm:7.20.5"
     "@types/fs-extra": "npm:11.0.4"
-    "@types/json-stable-stringify": "npm:1.2.0"
     "@types/koa": "npm:3.0.1"
     "@types/koa-router": "npm:7.4.9"
     "@types/lodash": "npm:4.17.4"
@@ -7832,15 +7831,6 @@ __metadata:
   version: 4.0.5
   resolution: "@types/js-yaml@npm:4.0.5"
   checksum: 10c0/37eb783b16f1704d26bbf83b35cf5d12f6018c18f2c9232515468ac60a4c5b71b6344a7b872545eeca3dfd66bb17e2bb1e611646cc727d7c6a001165a4ec0a32
-  languageName: node
-  linkType: hard
-
-"@types/json-stable-stringify@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@types/json-stable-stringify@npm:1.2.0"
-  dependencies:
-    json-stable-stringify: "npm:*"
-  checksum: 10c0/0ef08aaa468aeac8d632cb6cf0985ae1b091d0a0d662511a5830548704d50523b9246a5b353e31efe1a3b9d72f3b7317b38e0fd3e935ef84e2608b254642a73f
   languageName: node
   linkType: hard
 
@@ -14948,7 +14938,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json-stable-stringify@npm:*, json-stable-stringify@npm:1.3.0":
+"json-stable-stringify@npm:1.3.0":
   version: 1.3.0
   resolution: "json-stable-stringify@npm:1.3.0"
   dependencies:

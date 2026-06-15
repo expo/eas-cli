@@ -55,7 +55,6 @@
   "devDependencies": {
     "@types/babel__core": "7.20.5",
     "@types/fs-extra": "11.0.4",
-    "@types/json-stable-stringify": "1.2.0",
     "@types/koa": "3.0.1",
     "@types/koa-router": "7.4.9",
     "@types/lodash": "4.17.4",
