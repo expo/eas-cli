@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Fix `metadata:pull` rewriting unchanged screenshots on every pull. App Store Connect stamps a unique asset ID into each download's PNG metadata chunks; pulls now skip writing when the local file only differs in those volatile chunks. ([#3804](https://github.com/expo/eas-cli/issues/3804) by [@ahmdshrif](https://github.com/ahmdshrif))
 
 ### 🧹 Chores
 
