@@ -2632,7 +2632,7 @@ USAGE
   $ eas update:view GROUPID [--insights] [--days <value> | --start <value> | --end <value>] [--json]
 
 ARGUMENTS
-  GROUPID  The ID of an update group.
+  GROUPID  The ID of an update group, or the ID of a platform-specific update.
 
 FLAGS
   --days=<value>   Show insights from the last N days (default 7). Only used with --insights.
