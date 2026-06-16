@@ -224,6 +224,9 @@
       "update": {
         "description": "manage individual updates"
       },
+      "update:embedded": {
+        "description": "manage embedded updates registered with EAS Update"
+      },
       "webhook": {
         "description": "manage webhooks"
       },
