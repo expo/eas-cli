@@ -45,7 +45,7 @@ export function resolveOrderBy(input: string): AppObserveEventsOrderBy {
 }
 
 interface FetchObserveEventsOptions {
-  metricName: string;
+  metricName?: string;
   orderBy: AppObserveEventsOrderBy;
   limit: number;
   after?: string;
@@ -54,6 +54,7 @@ interface FetchObserveEventsOptions {
   platform?: AppObservePlatform;
   appVersion?: string;
   updateId?: string;
+  sessionId?: string;
 }
 
 interface FetchObserveEventsResult {
@@ -67,12 +68,13 @@ export async function fetchObserveEventsAsync(
   options: FetchObserveEventsOptions
 ): Promise<FetchObserveEventsResult> {
   const filter: AppObserveEventsFilter = {
-    metricName: options.metricName,
     startTime: options.startTime,
     endTime: options.endTime,
+    ...(options.metricName && { metricName: options.metricName }),
     ...(options.platform && { platform: options.platform }),
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
+    ...(options.sessionId && { sessionId: options.sessionId }),
   };
 
   return await ObserveQuery.eventsAsync(graphqlClient, {
