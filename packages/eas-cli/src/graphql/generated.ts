@@ -13195,6 +13195,17 @@ export type GetAssetSignedUrlsQueryVariables = Exact<{
 
 export type GetAssetSignedUrlsQuery = { __typename?: 'RootQuery', asset: { __typename?: 'AssetQuery', signedUrls: Array<{ __typename?: 'AssetSignedUrlResult', storageKey: string, url: string, headers?: any | null }> } };
 
+export type AuditLogsByAccountQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+  first?: InputMaybe<Scalars['Int']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type AuditLogsByAccountQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, auditLogsPaginated: { __typename?: 'AuditLogConnection', edges: Array<{ __typename?: 'AuditLogEdge', cursor: string, node: { __typename?: 'AuditLog', id: string, createdAt: any, websiteMessage: string, targetEntityTypePublicName: string, targetEntityMutationType: TargetEntityMutationType, actor?: { __typename?: 'PartnerActor', id: string, displayName: string } | { __typename?: 'Robot', id: string, displayName: string } | { __typename?: 'SSOUser', id: string, displayName: string } | { __typename?: 'User', id: string, displayName: string } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+
 export type BackgroundJobReceiptByIdQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -13707,6 +13718,8 @@ export type UsageMetricTotalFragment = { __typename?: 'UsageMetricTotal', id: st
 export type AccountUsageMetricFragment = { __typename?: 'AccountUsageMetric', id: string, serviceMetric: EasServiceMetric, metricType: UsageMetricType, value: number };
 
 export type AppFragment = { __typename?: 'App', id: string, name: string, fullName: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, githubRepository?: { __typename?: 'GitHubRepository', id: string, metadata: { __typename?: 'GitHubRepositoryMetadata', id: string, githubRepoOwnerName: string, githubRepoName: string } } | null };
+
+export type AuditLogFragment = { __typename?: 'AuditLog', id: string, createdAt: any, websiteMessage: string, targetEntityTypePublicName: string, targetEntityMutationType: TargetEntityMutationType, actor?: { __typename?: 'PartnerActor', id: string, displayName: string } | { __typename?: 'Robot', id: string, displayName: string } | { __typename?: 'SSOUser', id: string, displayName: string } | { __typename?: 'User', id: string, displayName: string } | null };
 
 export type BackgroundJobReceiptDataFragment = { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any };
 

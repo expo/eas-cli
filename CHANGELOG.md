@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas account:audit [ACCOUNT_NAME]` command to view an account's audit logs. ([#3863](https://github.com/expo/eas-cli/pull/3863) by [@keith-kurak](https://github.com/keith-kurak))
 - [eas-cli] `eas update:view [GROUP_ID]` now also accepts a platform-specific update ID, resolving it to and displaying its update group. ([#3864](https://github.com/expo/eas-cli/pull/3864) by [@keith-kurak](https://github.com/keith-kurak))
 
 ### 🐛 Bug fixes
