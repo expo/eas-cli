@@ -51,6 +51,7 @@
     "@expo/eas-json": "20.1.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
+    "@expo/llm-configs": "https://github.com/expo/llm-configs/archive/9a98ae0b454e7e8dfcefb827cb3391989f53e935.tar.gz",
     "@expo/logger": "20.0.0",
     "@expo/multipart-body-parser": "2.0.0",
     "@expo/osascript": "2.1.4",

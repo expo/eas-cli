@@ -125,6 +125,12 @@ export async function updatePackageJsonAsync(projectDir: string): Promise<void> 
   await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
 }
 
+const AGENT_TEMPLATE_FILE_NAMES = ['AGENTS.md', 'CLAUDE.md'] as const;
+
+function resolveAgentTemplatePath(fileName: (typeof AGENT_TEMPLATE_FILE_NAMES)[number]): string {
+  return require.resolve(`@expo/llm-configs/expo-app/${fileName}`);
+}
+
 export async function copyProjectTemplatesAsync(projectDir: string): Promise<void> {
   const templatesSourceDir = path.join(__dirname, 'templates');
 
@@ -136,6 +142,15 @@ export async function copyProjectTemplatesAsync(projectDir: string): Promise<voi
       return !src.endsWith('readme-additions.md');
     },
   });
+
+  await Promise.all(
+    AGENT_TEMPLATE_FILE_NAMES.map(async fileName => {
+      await fs.copy(resolveAgentTemplatePath(fileName), path.join(projectDir, fileName), {
+        overwrite: true,
+        errorOnExist: false,
+      });
+    })
+  );
 }
 
 export async function updateReadmeAsync(
