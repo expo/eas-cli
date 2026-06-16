@@ -18,7 +18,8 @@ import {
 } from '../graphql/generated';
 import { AssetQuery } from '../graphql/queries/AssetQuery';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
-import { learnMore } from '../log';
+import { EmbeddedUpdateQuery } from '../graphql/queries/EmbeddedUpdateQuery';
+import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
 import { getActorDisplayName } from '../user/User';
 import groupBy from '../utils/expodash/groupBy';
@@ -287,26 +288,140 @@ export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
   return (exp.updates as any)?.enableBsdiffPatchSupport === true;
 }
 
+// Pre-warm bsdiff patches from a set of base updates to a single newly published update by making
+// authenticated HEAD requests to its launch asset url with diffing headers. Best-effort: any
+// failure is logged and swallowed so it never blocks a publish.
+async function prewarmUpdateDiffsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][number],
+  launchAssetKey: string
+): Promise<void> {
+  try {
+    // Sentinel embedded update id used when a project has no registered embedded bundle to diff
+    // against. Mirrors the "empty default" the server falls back to.
+    const DUMMY_EMBEDDED_UPDATE_ID = '00000000-0000-0000-0000-000000000000';
+
+    // Number of most recent updates on the branch to pre-warm bsdiff patches against. Clients running
+    // any of these can be served a precomputed patch instead of an on-demand diff.
+    const PREWARM_RECENT_UPDATES_LIMIT = 5;
+
+    // Number of registered embedded bundles (roughly one per native binary in the field) to pre-warm
+    // patches against. Each represents a fresh-install scenario.
+    const PREWARM_EMBEDDED_UPDATES_LIMIT = 2;
+
+    const updatePublishPlatform = update.platform as UpdatePublishPlatform;
+    const platform = updatePublishPlatformToAppPlatform[updatePublishPlatform];
+
+    // Baseline: pre-warm patches against the most recent updates on the branch so that clients
+    // currently running any of them can be served a precomputed bsdiff patch.
+    const recentUpdateIds = await BranchQuery.getUpdateIdsOnBranchAsync(graphqlClient, {
+      appId,
+      branchName: update.branch.name,
+      platform,
+      runtimeVersion: update.runtimeVersion,
+      limit: PREWARM_RECENT_UPDATES_LIMIT,
+      offset: 1, // skip the current update
+    });
+    Log.debug(
+      `Found ${recentUpdateIds.length} recent update(s) on branch ${update.branch.name} to diff update ${update.id} against: ${recentUpdateIds.join(', ')}`
+    );
+
+    if (recentUpdateIds.length === 0) {
+      Log.debug(`No recent updates to pre-warm for update ${update.id}, skipping`);
+      return;
+    }
+
+    const signed = await AssetQuery.getSignedUrlsAsync(graphqlClient, update.id, [launchAssetKey]);
+    const first = signed?.[0];
+    if (!first) {
+      Log.debug(`No signed launch asset URL for update ${update.id}, skipping pre-warming`);
+      return;
+    }
+
+    // Pre-warm the patch from the bundle embedded in the native binary to the new update.
+    // This is what fresh installs request, so generating it ahead of time avoids an
+    // expensive on-demand diff. Falls back to the empty/default embedded id when the project has no
+    // registered embedded bundle.
+    const embeddedUpdateQuery = await EmbeddedUpdateQuery.viewPaginatedAsync(graphqlClient, {
+      appId,
+      filter: { platform, runtimeVersion: update.runtimeVersion },
+      first: PREWARM_EMBEDDED_UPDATES_LIMIT,
+    });
+    const embeddedUpdateIds = embeddedUpdateQuery.edges.map(edge => edge.node.id);
+    Log.debug(
+      `Found ${embeddedUpdateIds.length} embedded bundle(s) for update ${update.id}: ${embeddedUpdateIds.join(', ')}`
+    );
+
+    const warmupRequests: { updateId: string; embeddedUpdateId: string }[] = [];
+
+    // pre-warm update from embedded bundle(s) to the new update
+    if (embeddedUpdateIds.length > 0) {
+      for (const embeddedUpdateId of embeddedUpdateIds) {
+        warmupRequests.push({ updateId: embeddedUpdateId, embeddedUpdateId });
+      }
+    }
+
+    // pre-warm top-K of recent updates
+    for (const updateId of recentUpdateIds) {
+      if (!embeddedUpdateIds.includes(updateId)) {
+        const embeddedUpdateId =
+          embeddedUpdateIds.length > 0 ? embeddedUpdateIds[0] : DUMMY_EMBEDDED_UPDATE_ID;
+        warmupRequests.push({ updateId, embeddedUpdateId });
+      }
+    }
+
+    Log.debug(`Pre-warming ${warmupRequests.length} patch(es) for update ${update.id}`);
+    await Promise.allSettled(
+      warmupRequests.map(async ({ updateId, embeddedUpdateId }) => {
+        const headers: Record<string, string> = {
+          ...(first.headers as Record<string, string> | undefined),
+          'expo-current-update-id': updateId,
+          'expo-requested-update-id': update.id,
+          'expo-embedded-update-id': embeddedUpdateId,
+          'a-im': 'bsdiff',
+        };
+
+        Log.debug(
+          `Pre-warming patch for update ${update.id} from current update ${updateId} (embedded update ${embeddedUpdateId})`
+        );
+        await fetch(first.url, {
+          method: 'HEAD',
+          headers,
+          signal: AbortSignal.timeout(2500),
+        });
+      })
+    );
+  } catch (e) {
+    // ignore errors, best-effort optimization
+    Log.debug(`Pre-warming diffing failed for update ${update.id}:`, e);
+  }
+}
+
 // Make authenticated requests to the launch asset URL with diffing headers
 export async function prewarmDiffingAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups']
 ): Promise<void> {
-  const DUMMY_EMBEDDED_UPDATE_ID = '00000000-0000-0000-0000-000000000000';
-
   const toPrewarm = [] as {
-    update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][0];
+    update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][number];
     launchAssetKey: string;
   }[];
+
+  Log.debug(`Considering ${newUpdates.length} update(s) for bsdiff pre-warming`);
 
   for (const update of newUpdates) {
     const manifest = JSON.parse(update.manifestFragment);
     const launchAssetKey: string | undefined = manifest.launchAsset?.storageKey;
     const requestedUpdateId: string = update.id;
     if (!launchAssetKey || !requestedUpdateId) {
+      Log.debug(`Skipping update ${update.id} for pre-warming: no launch asset key`);
       continue;
     }
+    Log.debug(
+      `Queued update ${update.id} for pre-warming (platform: ${update.platform}, runtime version: ${update.runtimeVersion}, launch asset: ${launchAssetKey})`
+    );
     toPrewarm.push({
       update,
       launchAssetKey,
@@ -314,47 +429,9 @@ export async function prewarmDiffingAsync(
   }
 
   await Promise.allSettled(
-    toPrewarm.map(async ({ update, launchAssetKey }) => {
-      try {
-        // Check to see if there's a second most recent update so we can pre-emptively generate a patch for it
-        const updatePublishPlatform = update.platform as UpdatePublishPlatform;
-        const updateIds = await BranchQuery.getUpdateIdsOnBranchAsync(graphqlClient, {
-          appId,
-          branchName: update.branch.name,
-          platform: updatePublishPlatformToAppPlatform[updatePublishPlatform],
-          runtimeVersion: update.runtimeVersion,
-          limit: 2,
-        });
-        if (updateIds.length !== 2) {
-          return;
-        }
-        const nextMostRecentUpdateId = updateIds[1];
-
-        const signed = await AssetQuery.getSignedUrlsAsync(graphqlClient, update.id, [
-          launchAssetKey,
-        ]);
-        const first = signed?.[0];
-        if (!first) {
-          return;
-        }
-
-        const headers: Record<string, string> = {
-          ...(first.headers as Record<string, string> | undefined),
-          'expo-current-update-id': nextMostRecentUpdateId,
-          'expo-requested-update-id': update.id,
-          'expo-embedded-update-id': DUMMY_EMBEDDED_UPDATE_ID,
-          'a-im': 'bsdiff',
-        };
-
-        await fetch(first.url, {
-          method: 'HEAD',
-          headers,
-          signal: AbortSignal.timeout(2500),
-        });
-      } catch {
-        // ignore errors, best-effort optimization
-      }
-    })
+    toPrewarm.map(({ update, launchAssetKey }) =>
+      prewarmUpdateDiffsAsync(graphqlClient, appId, update, launchAssetKey)
+    )
   );
 }
 
