@@ -40,6 +40,7 @@ export const AuditLogQuery = {
                     edges {
                       cursor
                       node {
+                        id
                         ...AuditLogFragment
                       }
                     }
