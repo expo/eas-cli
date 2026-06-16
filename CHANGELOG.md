@@ -10,9 +10,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
-
 ### 🧹 Chores
+
+- [eas-cli] Simplify 2FA now that SMS is no longer supported. ([#3859](https://github.com/expo/eas-cli/pull/3859) by [@wschurman](https://github.com/wschurman))
+
+## [20.2.0](https://github.com/expo/eas-cli/releases/tag/v20.2.0) - 2026-06-15
+
+### 🎉 New features
+
+- [eas-cli] Non-interactive iOS App Store and Enterprise builds can now use the App Store Connect API key stored in EAS credentials as a submission key to validate and repair provisioning profiles on Apple servers, without requiring `EXPO_ASC_*` environment variables or an interactive Apple login. ([#3805](https://github.com/expo/eas-cli/pull/3805) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add support for non-interactive `eas update:rollback [GROUP_ID]`. The given update group must be the latest for its branch and runtime version; the previous update group is republished, or a roll back to the embedded update is published if there is none. ([#3825](https://github.com/expo/eas-cli/pull/3825) by [@quinlanj](https://github.com/quinlanj))
+
+### 🐛 Bug fixes
+
+- [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
 
 ## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
 

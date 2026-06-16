@@ -1,18 +1,21 @@
 import { SystemError } from '@expo/eas-build-job';
-import { bunyan } from '@expo/logger';
+import { type bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
-  BuildStepEnv,
+  type BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CustomBuildContext } from '../../customBuildContext';
+import { type CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import {
+  type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -23,6 +26,7 @@ import {
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
+const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
@@ -64,34 +68,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
       }
 
-      logger.info(
-        packageVersion
-          ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
-          : `Cloning agent-device (latest) into ${SRC_DIR}.`
-      );
-      await cloneAgentDeviceAsync({ packageVersion, env, logger });
-
-      logger.info('Installing agent-device dependencies.');
-      await spawn('bun', ['install', '--production'], {
-        cwd: SRC_DIR,
-        env,
-        logger,
-      });
-
       logger.info('Launching agent-device daemon.');
-      spawnDetached({
-        command: 'bun',
-        args: ['run', 'src/daemon.ts'],
-        cwd: SRC_DIR,
-        env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
-      });
+      const daemonProcess = await startAgentDeviceDaemonAsync({ packageVersion, env, logger });
 
       logger.info(`Waiting for daemon credentials at ${DAEMON_JSON_PATH}.`);
-      const { port: daemonPort, token: daemonToken } = await waitForFileAsync({
-        filePath: DAEMON_JSON_PATH,
-        timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'agent-device daemon credentials',
-        parse: parseDaemonInfo,
+      const { port: daemonPort, token: daemonToken } = await waitForDaemonInfoAsync({
+        daemonProcess,
       });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
@@ -108,7 +90,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       // on Darwin. Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const { previewUrl } = await startServeSimWithTunnelAsync({
+        const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
           baseDomain: ngrokTunnelDomain,
           env,
           logger,
@@ -137,6 +119,93 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
   });
 }
 
+async function startAgentDeviceDaemonAsync({
+  packageVersion,
+  env,
+  logger,
+}: {
+  packageVersion: string | undefined;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<DetachedProcessHandle> {
+  const packageSpec = createAgentDevicePackageSpec(packageVersion);
+  try {
+    logger.info(`Installing ${packageSpec} globally with Bun.`);
+    await spawn('bun', ['add', '--global', packageSpec], {
+      env,
+      logger,
+    });
+
+    const daemonPath = getGlobalAgentDeviceDaemonPath(env);
+    if (!fs.existsSync(daemonPath)) {
+      throw new SystemError(`Expected agent-device daemon entry at ${daemonPath}.`);
+    }
+
+    logger.info(`Launching daemon from ${daemonPath}.`);
+    return spawnDetached({
+      command: 'node',
+      args: [daemonPath],
+      env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    const bunVersion = await getBunVersionForDiagnosticsAsync(env);
+    Sentry.capture(
+      'Failed to start agent-device daemon from global Bun package; falling back to git clone',
+      error,
+      {
+        level: 'warning',
+        tags: {
+          phase: 'agent-device-daemon-start',
+          fallback: 'git-clone',
+        },
+        extras: {
+          packageSpec,
+          packageVersion: packageVersion ?? 'latest',
+          bunVersion,
+          bunInstallConfigured: Boolean(env.BUN_INSTALL?.trim()),
+        },
+      }
+    );
+    logger.warn(
+      `Failed to start daemon from global ${packageSpec}; falling back to git clone: ${error.message}`
+    );
+    return await startAgentDeviceDaemonFromGitAsync({ packageVersion, env, logger });
+  }
+}
+
+async function startAgentDeviceDaemonFromGitAsync({
+  packageVersion,
+  env,
+  logger,
+}: {
+  packageVersion: string | undefined;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<DetachedProcessHandle> {
+  logger.info(
+    packageVersion
+      ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
+      : `Cloning agent-device (latest) into ${SRC_DIR}.`
+  );
+  await cloneAgentDeviceAsync({ packageVersion, env, logger });
+
+  logger.info('Installing agent-device dependencies.');
+  await spawn('bun', ['install', '--production'], {
+    cwd: SRC_DIR,
+    env,
+    logger,
+  });
+
+  logger.info('Launching daemon from cloned agent-device source.');
+  return spawnDetached({
+    command: 'bun',
+    args: ['run', 'src/daemon.ts'],
+    cwd: SRC_DIR,
+    env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+  });
+}
+
 async function cloneAgentDeviceAsync({
   packageVersion,
   env,
@@ -151,6 +220,63 @@ async function cloneAgentDeviceAsync({
     env,
     logger,
   });
+}
+
+async function waitForDaemonInfoAsync({
+  daemonProcess,
+}: {
+  daemonProcess: DetachedProcessHandle;
+}): Promise<{ port: number; token: string }> {
+  try {
+    return await waitForFileAsync({
+      filePath: DAEMON_JSON_PATH,
+      timeoutMs: STARTUP_TIMEOUT_MS,
+      description: 'agent-device daemon credentials',
+      parse: parseDaemonInfo,
+    });
+  } catch (err) {
+    const output = daemonProcess.getOutput();
+    throw new SystemError(
+      `${
+        err instanceof Error
+          ? err.message
+          : `Timed out waiting for agent-device daemon credentials.`
+      }${output ? `\nagent-device daemon output:\n${output}` : ''}`
+    );
+  }
+}
+
+async function getBunVersionForDiagnosticsAsync(env: BuildStepEnv): Promise<string> {
+  try {
+    const result = await spawn('bun', ['--version'], { stdio: 'pipe', env, cwd: os.tmpdir() });
+    return result.stdout.trim() || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function createAgentDevicePackageSpec(packageVersion: string | undefined): string {
+  const versionSpec = packageVersion ? packageVersion.replace(/^v(?=\d)/, '') : 'latest';
+  return `${AGENT_DEVICE_PACKAGE_NAME}@${versionSpec}`;
+}
+
+function getGlobalAgentDeviceDaemonPath(env: BuildStepEnv): string {
+  return path.join(
+    getBunInstallDirectory(env),
+    'install',
+    'global',
+    'node_modules',
+    AGENT_DEVICE_PACKAGE_NAME,
+    'dist',
+    'src',
+    'internal',
+    'daemon.js'
+  );
+}
+
+function getBunInstallDirectory(env: BuildStepEnv): string {
+  const bunInstall = env.BUN_INSTALL?.trim();
+  return bunInstall ? bunInstall : path.join(os.homedir(), '.bun');
 }
 
 function parseDaemonInfo(raw: string): { port: number; token: string } {

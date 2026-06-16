@@ -1,13 +1,11 @@
 import config from './config';
 import logger from './logger';
 import { startServer } from './metricsServer';
-import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
 import sentry from './sentry';
 import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
-  await prepareRuntimeEnvironmentConfigFiles();
   await prepareWorkingdir();
   startWsServer();
   if (config.runMetricsServer) {

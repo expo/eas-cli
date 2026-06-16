@@ -61,7 +61,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createInstallNodeModulesBuildFunction(),
     createPrebuildBuildFunction(),
     createReadIpaInfoBuildFunction(),
-    createDownloadBuildFunction(),
+    createDownloadBuildFunction(ctx),
     createEasExportBuildFunction(),
     createEasDeployBuildFunction(),
     createRepackBuildFunction(),

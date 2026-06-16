@@ -1,4 +1,4 @@
-import { BuildContext } from '@expo/build-tools';
+import { BuildContext, RuntimeSettings } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
 import templateFile from '@expo/template-file';
 import spawn from '@expo/turtle-spawn';
@@ -23,25 +23,26 @@ export async function prepareRuntimeEnvironmentConfigFiles(): Promise<void> {
     return;
   }
 
-  if (config.npmCacheUrl) {
-    // create ~/.npmrc
-    await spawn('npm', ['config', 'set', 'registry', config.npmCacheUrl]);
+  const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
+  const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
+
+  if (npmCacheUrl) {
     // create ~/.yarnrc.yml
     await templateFile(
       path.join(__dirname, '../src/templates/yarnrc.yml'),
       {
-        URL: config.npmCacheUrl,
+        URL: npmCacheUrl,
       },
       path.join(os.homedir(), '.yarnrc.yml')
     );
   }
 
-  if (config.mavenCacheUrl) {
+  if (mavenCacheUrl) {
     await fs.mkdirp(path.join(os.homedir(), '.gradle'));
     await templateFile(
       path.join(__dirname, '../src/templates/init.gradle'),
       {
-        URL: config.mavenCacheUrl,
+        URL: mavenCacheUrl,
       },
       path.join(os.homedir(), '.gradle/init.gradle')
     );
