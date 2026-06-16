@@ -1,4 +1,4 @@
-import { Args } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag, EasJsonOnlyFlag } from '../../commandUtils/flags';
@@ -25,6 +25,10 @@ export default class AccountAudit extends EasCommand {
 
   static override flags = {
     limit: getLimitFlagWithCustomValues({ defaultTo: AUDIT_LOGS_LIMIT, limit: 100 }),
+    after: Flags.string({
+      description:
+        'Cursor for pagination. Use the endCursor from a previous query to fetch the next page.',
+    }),
     ...EasJsonOnlyFlag,
     ...EASNonInteractiveFlag,
   };
@@ -36,7 +40,7 @@ export default class AccountAudit extends EasCommand {
   async runAsync(): Promise<void> {
     const {
       args: { ACCOUNT_NAME: accountName },
-      flags: { limit, json: jsonFlag, 'non-interactive': nonInteractive },
+      flags: { limit, after, json: jsonFlag, 'non-interactive': nonInteractive },
     } = await this.parse(AccountAudit);
 
     const json = jsonFlag || nonInteractive;
@@ -84,10 +88,14 @@ export default class AccountAudit extends EasCommand {
           targetAccount.id,
           {
             first: pageSize,
+            after,
           }
         );
         spinner.stop();
-        printJsonOnlyOutput(connection.edges.map(edge => edge.node));
+        printJsonOnlyOutput({
+          auditLogs: connection.edges.map(edge => edge.node),
+          pageInfo: connection.pageInfo,
+        });
       } catch (error) {
         spinner.fail(`Failed to fetch audit logs for account ${targetAccount.name}`);
         throw error;
@@ -95,7 +103,7 @@ export default class AccountAudit extends EasCommand {
       return;
     }
 
-    let after: string | undefined;
+    let cursor = after;
     do {
       const spinner = ora(`Fetching audit logs for account ${targetAccount.name}`).start();
       const connection = await AuditLogQuery.getAllForAccountAsync(
@@ -103,7 +111,7 @@ export default class AccountAudit extends EasCommand {
         targetAccount.id,
         {
           first: pageSize,
-          after,
+          after: cursor,
         }
       );
       spinner.stop();
@@ -114,8 +122,8 @@ export default class AccountAudit extends EasCommand {
       if (!connection.pageInfo.hasNextPage) {
         break;
       }
-      after = connection.pageInfo.endCursor ?? undefined;
-    } while (after && (await confirmAsync({ message: 'Load more audit logs?' })));
+      cursor = connection.pageInfo.endCursor ?? undefined;
+    } while (cursor && (await confirmAsync({ message: 'Load more audit logs?' })));
   }
 }
 
