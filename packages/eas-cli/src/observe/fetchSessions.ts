@@ -1,177 +1,12 @@
-import semver from 'semver';
-
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppObserveCustomEvent,
   AppObserveEvent,
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
-  AppObservePlatform,
 } from '../graphql/generated';
 import { fetchObserveCustomEventsAsync } from './fetchCustomEvents';
 import { fetchObserveEventsAsync } from './fetchEvents';
-
-function compareAppVersionsDesc(a: string, b: string): number {
-  const av = semver.coerce(a);
-  const bv = semver.coerce(b);
-  if (av && bv) {
-    return semver.rcompare(av, bv);
-  }
-  return b.localeCompare(a);
-}
-
-function compareSessionsForListing(a: SessionSummary, b: SessionSummary): number {
-  if (a.deviceOs !== b.deviceOs) {
-    return a.deviceOs.localeCompare(b.deviceOs);
-  }
-  const versionCmp = compareAppVersionsDesc(a.appVersion, b.appVersion);
-  if (versionCmp !== 0) {
-    return versionCmp;
-  }
-  if (a.firstSeenAt > b.firstSeenAt) {
-    return -1;
-  }
-  if (a.firstSeenAt < b.firstSeenAt) {
-    return 1;
-  }
-  return 0;
-}
-
-export interface FetchSessionsOptions {
-  startTime: string;
-  endTime: string;
-  platform?: AppObservePlatform;
-  appVersion?: string;
-  updateId?: string;
-  eventName?: string;
-  limit: number;
-}
-
-export interface SessionSummary {
-  sessionId: string;
-  firstSeenAt: string;
-  lastSeenAt: string;
-  appVersion: string;
-  appBuildNumber: string;
-  deviceOs: string;
-  deviceOsVersion: string;
-  deviceModel: string;
-}
-
-export interface FetchSessionListResult {
-  sessions: SessionSummary[];
-  /** Total metric-event samples scanned to derive the session list. */
-  scannedMetricEventCount: number;
-  /** Total log-event samples scanned to derive the session list. */
-  scannedLogEventCount: number;
-  /** True when either underlying query reported more pages — the list may
-   *  miss older sessions in the window. */
-  isTruncated: boolean;
-}
-
-function recordSession(
-  sessions: Map<string, SessionSummary>,
-  sessionId: string | null | undefined,
-  timestamp: string,
-  context: {
-    appVersion: string;
-    appBuildNumber: string;
-    deviceOs: string;
-    deviceOsVersion: string;
-    deviceModel: string;
-  }
-): void {
-  if (!sessionId) {
-    return;
-  }
-  const existing = sessions.get(sessionId);
-  if (!existing) {
-    sessions.set(sessionId, {
-      sessionId,
-      firstSeenAt: timestamp,
-      lastSeenAt: timestamp,
-      ...context,
-    });
-    return;
-  }
-  if (timestamp < existing.firstSeenAt) {
-    existing.firstSeenAt = timestamp;
-  }
-  if (timestamp > existing.lastSeenAt) {
-    existing.lastSeenAt = timestamp;
-  }
-}
-
-export async function fetchObserveSessionListAsync(
-  graphqlClient: ExpoGraphqlClient,
-  appId: string,
-  options: FetchSessionsOptions
-): Promise<FetchSessionListResult> {
-  const [metricResult, logResult] = await Promise.all([
-    fetchObserveEventsAsync(graphqlClient, appId, {
-      orderBy: {
-        field: AppObserveEventsOrderByField.Timestamp,
-        direction: AppObserveEventsOrderByDirection.Desc,
-      },
-      limit: options.limit,
-      startTime: options.startTime,
-      endTime: options.endTime,
-      platform: options.platform,
-      appVersion: options.appVersion,
-      updateId: options.updateId,
-    }),
-    fetchObserveCustomEventsAsync(graphqlClient, appId, {
-      limit: options.limit,
-      startTime: options.startTime,
-      endTime: options.endTime,
-      platform: options.platform,
-      appVersion: options.appVersion,
-      updateId: options.updateId,
-      eventName: options.eventName,
-    }),
-  ]);
-
-  const sessions = new Map<string, SessionSummary>();
-
-  for (const event of metricResult.events) {
-    recordSession(sessions, event.sessionId, event.timestamp, {
-      appVersion: event.appVersion,
-      appBuildNumber: event.appBuildNumber,
-      deviceOs: event.deviceOs,
-      deviceOsVersion: event.deviceOsVersion,
-      deviceModel: event.deviceModel,
-    });
-  }
-  for (const event of logResult.events) {
-    recordSession(sessions, event.sessionId, event.timestamp, {
-      appVersion: event.appVersion,
-      appBuildNumber: event.appBuildNumber,
-      deviceOs: event.deviceOs,
-      deviceOsVersion: event.deviceOsVersion,
-      deviceModel: event.deviceModel,
-    });
-  }
-
-  if (options.eventName) {
-    const eligibleSessionIds = new Set(
-      logResult.events.map(e => e.sessionId).filter((id): id is string => id != null && id !== '')
-    );
-    for (const id of [...sessions.keys()]) {
-      if (!eligibleSessionIds.has(id)) {
-        sessions.delete(id);
-      }
-    }
-  }
-
-  const sortedSessions = Array.from(sessions.values()).sort(compareSessionsForListing);
-
-  return {
-    sessions: sortedSessions,
-    scannedMetricEventCount: metricResult.events.length,
-    scannedLogEventCount: logResult.events.length,
-    isTruncated: metricResult.pageInfo.hasNextPage || logResult.pageInfo.hasNextPage,
-  };
-}
 
 export interface SessionEventEntry {
   source: 'metric' | 'log';
@@ -237,16 +72,6 @@ function customEventToEntry(event: AppObserveCustomEvent): SessionEventEntry {
   };
 }
 
-export interface FetchSessionEventsOptions {
-  startTime: string;
-  endTime: string;
-  sessionId: string;
-  platform?: AppObservePlatform;
-  appVersion?: string;
-  updateId?: string;
-  limit: number;
-}
-
 export interface SessionMetadata {
   appVersion: string;
   appBuildNumber: string;
@@ -257,6 +82,11 @@ export interface SessionMetadata {
   countryCode: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
+}
+
+export interface FetchSessionEventsOptions {
+  sessionId: string;
+  limit: number;
 }
 
 export interface FetchSessionEventsResult {
@@ -278,20 +108,10 @@ export async function fetchObserveSessionEventsAsync(
         direction: AppObserveEventsOrderByDirection.Asc,
       },
       limit: options.limit,
-      startTime: options.startTime,
-      endTime: options.endTime,
-      platform: options.platform,
-      appVersion: options.appVersion,
-      updateId: options.updateId,
       sessionId: options.sessionId,
     }),
     fetchObserveCustomEventsAsync(graphqlClient, appId, {
       limit: options.limit,
-      startTime: options.startTime,
-      endTime: options.endTime,
-      platform: options.platform,
-      appVersion: options.appVersion,
-      updateId: options.updateId,
       sessionId: options.sessionId,
     }),
   ]);

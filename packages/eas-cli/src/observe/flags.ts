@@ -49,9 +49,3 @@ export const ObserveUpdateIdFlag = {
     description: 'Filter by EAS update ID',
   }),
 };
-
-export const ObserveEventNameFlag = {
-  'event-name': Flags.string({
-    description: 'Filter by event name',
-  }),
-};

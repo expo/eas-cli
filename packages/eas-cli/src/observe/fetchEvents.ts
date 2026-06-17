@@ -49,8 +49,8 @@ interface FetchObserveEventsOptions {
   orderBy: AppObserveEventsOrderBy;
   limit: number;
   after?: string;
-  startTime: string;
-  endTime: string;
+  startTime?: string;
+  endTime?: string;
   platform?: AppObservePlatform;
   appVersion?: string;
   updateId?: string;
@@ -68,8 +68,8 @@ export async function fetchObserveEventsAsync(
   options: FetchObserveEventsOptions
 ): Promise<FetchObserveEventsResult> {
   const filter: AppObserveEventsFilter = {
-    startTime: options.startTime,
-    endTime: options.endTime,
+    ...(options.startTime && { startTime: options.startTime }),
+    ...(options.endTime && { endTime: options.endTime }),
     ...(options.metricName && { metricName: options.metricName }),
     ...(options.platform && { platform: options.platform }),
     ...(options.appVersion && { appVersion: options.appVersion }),
