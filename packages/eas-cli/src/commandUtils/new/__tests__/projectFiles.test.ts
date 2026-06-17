@@ -279,23 +279,6 @@ describe('projectFiles', () => {
         })
       );
     });
-
-    it('should copy agent templates from @expo/llm-configs', async () => {
-      const projectDir = '/test/project-dir';
-
-      await copyProjectTemplatesAsync(projectDir);
-
-      expect(fs.copy).toHaveBeenCalledWith(
-        expect.stringContaining('@expo/llm-configs'),
-        `${projectDir}/AGENTS.md`,
-        { errorOnExist: false, overwrite: true }
-      );
-      expect(fs.copy).toHaveBeenCalledWith(
-        expect.stringContaining('@expo/llm-configs'),
-        `${projectDir}/CLAUDE.md`,
-        { errorOnExist: false, overwrite: true }
-      );
-    });
   });
 
   describe('updateReadmeAsync', () => {

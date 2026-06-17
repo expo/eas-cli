@@ -12,7 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- [eas-cli] Share new app agent templates from `@expo/llm-configs`. ([#3865](https://github.com/expo/eas-cli/pull/3865) by [@davidmokos](https://github.com/davidmokos))
+- [eas-cli] Sync new app agent templates from `expo/llm-configs` before publishing. ([#3865](https://github.com/expo/eas-cli/pull/3865) by [@davidmokos](https://github.com/davidmokos))
 - [eas-cli] Simplify 2FA now that SMS is no longer supported. ([#3859](https://github.com/expo/eas-cli/pull/3859) by [@wschurman](https://github.com/wschurman))
 
 ## [20.2.0](https://github.com/expo/eas-cli/releases/tag/v20.2.0) - 2026-06-15

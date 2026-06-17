@@ -3274,13 +3274,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/llm-configs@https://github.com/expo/llm-configs/archive/9a98ae0b454e7e8dfcefb827cb3391989f53e935.tar.gz":
-  version: 1.0.0
-  resolution: "@expo/llm-configs@https://github.com/expo/llm-configs/archive/9a98ae0b454e7e8dfcefb827cb3391989f53e935.tar.gz"
-  checksum: 10c0/d3a38db57c22308e66ed50620ba42c795cb49709666860714f025e523072518242812d2c179ea27b4e19c1e8e2e83831cbf36b4a7b83ec0224ab0eace9d3fa17
-  languageName: node
-  linkType: hard
-
 "@expo/logger@npm:20.0.0, @expo/logger@workspace:packages/logger":
   version: 0.0.0-use.local
   resolution: "@expo/logger@workspace:packages/logger"
@@ -11169,7 +11162,6 @@ __metadata:
     "@expo/eas-json": "npm:20.1.0"
     "@expo/env": "npm:^1.0.0"
     "@expo/json-file": "npm:8.3.3"
-    "@expo/llm-configs": "https://github.com/expo/llm-configs/archive/9a98ae0b454e7e8dfcefb827cb3391989f53e935.tar.gz"
     "@expo/logger": "npm:20.0.0"
     "@expo/multipart-body-parser": "npm:2.0.0"
     "@expo/osascript": "npm:2.1.4"
