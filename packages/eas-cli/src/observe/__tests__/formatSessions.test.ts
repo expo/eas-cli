@@ -61,6 +61,18 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).toContain('log');
   });
 
+  it('appends the routeName to navigation metric rows', () => {
+    const entries = [
+      makeMetricEntry({
+        metricName: 'expo.navigation.tti',
+        metricValue: 0.32,
+        routeName: '/home',
+      }),
+    ];
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    expect(output).toContain('Nav TTI · /home');
+  });
+
   it('shows event times as offsets in seconds from the first event', () => {
     const entries: SessionEventEntry[] = [
       makeMetricEntry({ timestamp: '2025-01-15T10:00:00.000Z' }),

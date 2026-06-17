@@ -24,6 +24,7 @@ export interface SessionEventEntry {
   metricName?: string;
   metricValue?: number;
   customParams?: { [key: string]: any } | null;
+  routeName?: string | null;
   // log-only fields
   eventName?: string;
   severityText?: string | null;
@@ -48,6 +49,7 @@ function metricEventToEntry(event: AppObserveEvent): SessionEventEntry {
     metricName: event.metricName,
     metricValue: event.metricValue,
     customParams: event.customParams ?? null,
+    routeName: event.routeName ?? null,
   };
 }
 

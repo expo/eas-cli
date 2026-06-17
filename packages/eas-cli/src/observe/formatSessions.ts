@@ -13,7 +13,8 @@ export interface BuildSessionEventsOptions {
 
 function formatEntryName(entry: SessionEventEntry): string {
   if (entry.source === 'metric' && entry.metricName) {
-    return getMetricDisplayName(entry.metricName);
+    const name = getMetricDisplayName(entry.metricName);
+    return entry.routeName ? `${name} · ${entry.routeName}` : name;
   }
   return entry.eventName ?? '-';
 }
