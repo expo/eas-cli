@@ -119,6 +119,13 @@ export default class FingerprintCompare extends EasCommand {
     const [buildId1, buildId2] = buildIds ?? [];
     const [updateId1, updateId2] = updateIds ?? [];
 
+    // Enable JSON output before resolving context so that any logs emitted while
+    // loading server-side environment variables are redirected to stderr instead
+    // of polluting the JSON written to stdout.
+    if (json) {
+      enableJsonOutput();
+    }
+
     const {
       projectId,
       privateProjectConfig: { projectDir },
@@ -129,9 +136,6 @@ export default class FingerprintCompare extends EasCommand {
       nonInteractive,
       withServerSideEnvironment: environment ?? null,
     });
-    if (json) {
-      enableJsonOutput();
-    }
 
     const firstFingerprintInfo = await getFingerprintInfoAsync(
       graphqlClient,
