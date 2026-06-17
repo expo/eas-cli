@@ -86,5 +86,30 @@ describe('update utility functions', () => {
 
       await expect(prewarmDiffingAsync(graphqlClient, 'app-id', [updateStub])).resolves.toEqual([]);
     });
+
+    it('returns empty when there are no recent updates on the branch', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(BranchQuery.getUpdateIdsOnBranchAsync).mockResolvedValue([]);
+
+      await expect(prewarmDiffingAsync(graphqlClient, 'app-id', [updateStub])).resolves.toEqual([]);
+    });
+
+    it('returns empty when there is no signed launch asset URL', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(BranchQuery.getUpdateIdsOnBranchAsync).mockResolvedValue(['r1']);
+      jest.mocked(AssetQuery.getSignedUrlsAsync).mockResolvedValue([]);
+
+      await expect(prewarmDiffingAsync(graphqlClient, 'app-id', [updateStub])).resolves.toEqual([]);
+    });
+
+    it('skips updates with no launch asset in the manifest', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+      await expect(
+        prewarmDiffingAsync(graphqlClient, 'app-id', [
+          { ...updateStub, manifestFragment: JSON.stringify({}) },
+        ])
+      ).resolves.toEqual([]);
+    });
   });
 });
