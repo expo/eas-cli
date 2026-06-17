@@ -143,10 +143,12 @@ export async function uploadWorkflowArtifactAsync(
     name: _name,
     logger,
     artifactPaths,
+    metadata,
   }: {
     name: string;
     logger: bunyan;
     artifactPaths: string[];
+    metadata?: Record<string, unknown>;
   }
 ): Promise<{ artifactId: string | null }> {
   const { localPath, filename, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
@@ -157,6 +159,7 @@ export async function uploadWorkflowArtifactAsync(
       filename,
       name,
       size,
+      metadata,
     });
 
     await GCS.uploadWithSignedUrl({
@@ -238,7 +241,12 @@ function getCommonParentDir(path1: string, path2: string): string {
 
 async function createUploadSessionAsync(
   ctx: BuildContext,
-  { filename, name, size }: { filename: string; name: string; size: number }
+  {
+    filename,
+    name,
+    size,
+    metadata,
+  }: { filename: string; name: string; size: number; metadata?: Record<string, unknown> }
 ): Promise<{
   bucketKey: string;
   signedUrl: GCS.SignedUrl;
@@ -265,7 +273,7 @@ async function createUploadSessionAsync(
         'POST',
         // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
         {
-          json: { filename, name, size },
+          json: { filename, name, size, metadata },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
@@ -282,7 +290,7 @@ async function createUploadSessionAsync(
         new URL(`workflows/${workflowJobId}/upload-sessions/`, config.wwwApiV2BaseUrl).toString(),
         'POST',
         {
-          json: { filename, name, size },
+          json: { filename, name, size, metadata },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },

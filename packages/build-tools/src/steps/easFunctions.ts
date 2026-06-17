@@ -98,7 +98,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createUploadToAscBuildFunction(),
 
     createReportMaestroTestResultsFunction(ctx),
-    createMaestroTestsBuildFunction(),
+    createMaestroTestsBuildFunction(ctx),
   ];
 
   if (ctx.hasBuildJob()) {
