@@ -7252,18 +7252,6 @@
             "description": "Create a GoogleServiceAccountKeyEntity to store credential and\nconnect it with an edge from AndroidAppCredential",
             "args": [
               {
-                "name": "accountId",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": true,
-                "deprecationReason": "Derived from androidAppCredentialsId"
-              },
-              {
                 "name": "androidAppCredentialsId",
                 "description": null,
                 "type": {
@@ -8581,18 +8569,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "robotAccessToken",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Robot access token is no longer needed as it's generated server-side and injected into the builder environment automatically."
           }
         ],
         "interfaces": null,
@@ -8878,18 +8854,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "type",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "AndroidKeystoreType",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Type will be automatically inferred from keystore content."
           }
         ],
         "interfaces": null,
@@ -9292,26 +9256,6 @@
                 "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
-              },
-              {
-                "name": "filterReleaseChannels",
-                "description": null,
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "SCALAR",
-                      "name": "String",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": true,
-                "deprecationReason": "Classic updates are no longer supported"
               },
               {
                 "name": "filterTypes",
@@ -13700,18 +13644,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "privacy",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "AppPrivacy",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "projectName",
@@ -21748,18 +21680,6 @@
             "deprecationReason": null
           },
           {
-            "name": "privacy",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "AppPrivacy",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "projectName",
             "description": null,
             "type": {
@@ -28888,18 +28808,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "cacheDefaultPaths",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "We don't cache anything by default anymore"
-          },
-          {
             "name": "clear",
             "description": null,
             "type": {
@@ -28910,22 +28818,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "customPaths",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "We use paths now since there is no default caching anymore"
           },
           {
             "name": "disabled",
@@ -29576,18 +29468,6 @@
             "deprecationReason": null
           },
           {
-            "name": "buildMode",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "BuildMode",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Use job.mode instead."
-          },
-          {
             "name": "buildProfile",
             "description": null,
             "type": {
@@ -29886,18 +29766,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "selectedImage",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Unused."
           },
           {
             "name": "simulator",
@@ -33367,6 +33235,104 @@
       },
       {
         "kind": "INPUT_OBJECT",
+        "name": "CreateDeviceRunSessionArtifactUploadSessionInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "filename",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "metadata",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "JSONObject",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "size",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "CreateDeviceRunSessionArtifactUploadSessionResult",
+        "description": null,
+        "fields": [
+          {
+            "name": "uploadSession",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "DeviceRunSessionArtifactUploadSession",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
         "name": "CreateDeviceRunSessionInput",
         "description": null,
         "fields": null,
@@ -35109,18 +35075,6 @@
             "deprecationReason": null
           },
           {
-            "name": "isGlobal",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Whether the variable is global is now governed by its scope - account / app."
-          },
-          {
             "name": "name",
             "description": null,
             "type": {
@@ -36168,7 +36122,7 @@
       {
         "kind": "SCALAR",
         "name": "DateTime",
-        "description": null,
+        "description": "Date custom scalar type",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -38024,7 +37978,7 @@
       {
         "kind": "SCALAR",
         "name": "DevDomainName",
-        "description": null,
+        "description": "A DevDomainName for a deployed serverless app",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -38227,6 +38181,49 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "DeviceRunSessionArtifactUploadSession",
+        "description": null,
+        "fields": [
+          {
+            "name": "headers",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "DeviceRunSessionFilterInput",
         "description": null,
@@ -38302,6 +38299,55 @@
         "name": "DeviceRunSessionMutation",
         "description": null,
         "fields": [
+          {
+            "name": "createArtifactUploadSession",
+            "description": "Create an upload session for an artifact produced by an active device run session",
+            "args": [
+              {
+                "name": "deviceRunSessionId",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "CreateDeviceRunSessionArtifactUploadSessionInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "CreateDeviceRunSessionArtifactUploadSessionResult",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "createDeviceRunSession",
             "description": "Create a device run session",
@@ -44755,7 +44801,7 @@
       {
         "kind": "SCALAR",
         "name": "EnvironmentVariableEnvironment",
-        "description": null,
+        "description": "A name of an environment variable environment",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -53683,18 +53729,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "robotAccessToken",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Robot access token is no longer needed as it's generated server-side and injected into the builder environment automatically."
           }
         ],
         "interfaces": null,
@@ -54006,7 +54040,7 @@
       {
         "kind": "SCALAR",
         "name": "JSON",
-        "description": null,
+        "description": "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -54016,7 +54050,7 @@
       {
         "kind": "SCALAR",
         "name": "JSONObject",
-        "description": null,
+        "description": "The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -59294,18 +59328,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "runtimeFingerprintSource",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "FingerprintSourceInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Use fingerprintInfoGroup instead"
           },
           {
             "name": "runtimeVersion",
@@ -64655,30 +64677,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
-            "name": "industry",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "lastName",
             "description": null,
             "type": {
@@ -64689,30 +64687,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "location",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
-            "name": "twitterUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           }
         ],
         "interfaces": null,
@@ -71375,18 +71349,6 @@
             "deprecationReason": null
           },
           {
-            "name": "isGlobal",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "You cannot change whether the variable is global."
-          },
-          {
             "name": "name",
             "description": null,
             "type": {
@@ -72493,26 +72455,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "sdkVersions",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "Use runtimeVersions instead."
           }
         ],
         "interfaces": null,
@@ -76239,18 +76181,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "appetizeCode",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "email",
             "description": null,
             "type": {
@@ -76287,18 +76217,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "id",
             "description": null,
             "type": {
@@ -76309,18 +76227,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "industry",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "lastName",
@@ -76335,18 +76241,6 @@
             "deprecationReason": null
           },
           {
-            "name": "location",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "profilePhoto",
             "description": null,
             "type": {
@@ -76357,18 +76251,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "twitterUsername",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "username",
@@ -80754,7 +80636,7 @@
       {
         "kind": "SCALAR",
         "name": "WorkerDeploymentIdentifier",
-        "description": null,
+        "description": "A alias name for a serverless deployment",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -81024,7 +80906,7 @@
       {
         "kind": "SCALAR",
         "name": "WorkerDeploymentRequestID",
-        "description": null,
+        "description": "A Worker Deployment Request ID (also known as the CF Ray ID)",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -90506,6 +90388,15 @@
             "deprecationReason": null
           }
         ]
+      },
+      {
+        "name": "oneOf",
+        "description": "Indicates exactly one field must be supplied and this field must not be `null`.",
+        "isRepeatable": false,
+        "locations": [
+          "INPUT_OBJECT"
+        ],
+        "args": []
       },
       {
         "name": "skip",
