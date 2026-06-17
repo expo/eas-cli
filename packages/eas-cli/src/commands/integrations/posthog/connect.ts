@@ -65,6 +65,11 @@ const ERROR_TRACKING_NEEDS_KEY_MESSAGE = `Error tracking needs a PostHog persona
 type Features = { analytics: boolean; sessionReplay: boolean; errorTracking: boolean };
 type EnvVar = { name: string; value: string; visibility: EnvironmentVariableVisibility };
 
+function getSpawnErrorOutput(error: unknown): string {
+  const { stdout, stderr } = (error ?? {}) as { stdout?: string; stderr?: string };
+  return `${stdout ?? ''}${stderr ?? ''}`;
+}
+
 export default class IntegrationsPostHogConnect extends EasCommand {
   static override description = 'connect PostHog to your Expo project';
 
@@ -208,11 +213,22 @@ export default class IntegrationsPostHogConnect extends EasCommand {
       );
     }
 
-    if (!anyFeatureSelected) {
-      Log.warn('No PostHog features selected — skipping SDK install and config changes.');
-    } else {
-      await this.installSdkPackagesAsync(projectDir, features, jsonFlag);
-      await this.addConfigPluginAsync(projectDir, exp);
+    const manualSteps: string[] = [];
+    if (anyFeatureSelected) {
+      const packages = [...SDK_PACKAGES];
+      if (features.sessionReplay) {
+        packages.push(SESSION_REPLAY_PACKAGE);
+      }
+      const installResult = await this.installSdkPackagesAsync(projectDir, packages, jsonFlag);
+      if (installResult === 'failed') {
+        manualSteps.push(
+          `The PostHog SDK packages didn't install. Run npx expo install ${packages.join(' ')} from your project directory.`
+        );
+      }
+      const pluginManualStep = await this.addConfigPluginAsync(projectDir, exp);
+      if (pluginManualStep) {
+        manualSteps.push(pluginManualStep);
+      }
     }
 
     await this.writeEnvLocalAsync(projectDir, envVars, nonInteractive, overwrite);
@@ -238,11 +254,26 @@ export default class IntegrationsPostHogConnect extends EasCommand {
         features,
         dashboardUrl: getPostHogProjectDashboardUrl(project),
         environmentVariables: envVars.map(v => v.name),
+        manualSteps,
       });
       return;
     }
 
-    this.printNextSteps(project, features);
+    if (!anyFeatureSelected) {
+      Log.addNewLineIfNone();
+      Log.log(chalk.green('PostHog project created.'));
+      Log.newLine();
+      Log.log(
+        `${chalk.bold('Dashboard')}: ${link(getPostHogProjectDashboardUrl(project), { dim: false })}`
+      );
+      Log.newLine();
+      Log.warn(
+        'No PostHog features selected, so no SDK, config plugin, or environment variables were set up. Re-run to add analytics, session replay, or error tracking.'
+      );
+      return;
+    }
+
+    this.printNextSteps(project, features, manualSteps);
   }
 
   private async resolveFeaturesAsync(
@@ -331,38 +362,32 @@ export default class IntegrationsPostHogConnect extends EasCommand {
 
   private async installSdkPackagesAsync(
     projectDir: string,
-    features: Features,
+    packages: string[],
     jsonFlag: boolean
-  ): Promise<void> {
-    const packages = [...SDK_PACKAGES];
-    if (features.sessionReplay) {
-      packages.push(SESSION_REPLAY_PACKAGE);
-    }
-    Log.newLine();
-    Log.log(`Running ${chalk.bold(`npx expo install ${packages.join(' ')}`)}`);
-    Log.newLine();
+  ): Promise<'installed' | 'failed'> {
+    const spinner = jsonFlag ? null : ora('Installing the PostHog SDK packages').start();
     try {
-      await spawnAsync('npx', ['expo', 'install', ...packages], {
-        cwd: projectDir,
-        stdio: jsonFlag ? ['ignore', 2, 2] : 'inherit',
-      });
-      Log.withTick('Installed the PostHog SDK packages');
+      await spawnAsync('npx', ['expo', 'install', ...packages], { cwd: projectDir });
+      spinner?.succeed('Installed the PostHog SDK packages');
+      return 'installed';
     } catch (error) {
-      Log.warn(
-        `Failed to install the PostHog SDK packages. Run ${chalk.cyan(
-          `npx expo install ${packages.join(' ')}`
-        )} from your project directory.`
-      );
-      throw error;
+      const output = getSpawnErrorOutput(error);
+      Log.debug(output || error);
+      if (output.includes('Cannot automatically write to dynamic config')) {
+        spinner?.succeed('Installed the PostHog SDK packages');
+        return 'installed';
+      }
+      spinner?.fail('Failed to install the PostHog SDK packages');
+      return 'failed';
     }
   }
 
-  private async addConfigPluginAsync(projectDir: string, exp: ExpoConfig): Promise<void> {
+  private async addConfigPluginAsync(projectDir: string, exp: ExpoConfig): Promise<string | null> {
     const plugins = exp.plugins ?? [];
     const alreadyAdded = plugins.some(p => (Array.isArray(p) ? p[0] : p) === CONFIG_PLUGIN);
     if (alreadyAdded) {
       Log.withTick(`Config plugin ${chalk.bold(CONFIG_PLUGIN)} is already configured`);
-      return;
+      return null;
     }
 
     const modification = await createOrModifyExpoConfigAsync(
@@ -370,15 +395,14 @@ export default class IntegrationsPostHogConnect extends EasCommand {
       { plugins: [...plugins, CONFIG_PLUGIN] },
       { skipSDKVersionRequirement: true }
     );
-    if (modification.type !== 'success') {
-      if (modification.type === 'warn') {
-        Log.warn(modification.message);
-      }
-      Log.log(chalk.cyan('Add the PostHog config plugin to your app config:'));
-      Log.log(`  "plugins": [..., ${JSON.stringify(CONFIG_PLUGIN)}]`);
-      return;
+    if (modification.type === 'success') {
+      Log.withTick(`Added the ${chalk.bold(CONFIG_PLUGIN)} config plugin`);
+      return null;
     }
-    Log.withTick(`Added the ${chalk.bold(CONFIG_PLUGIN)} config plugin`);
+    if (modification.type === 'warn') {
+      return `${modification.message} Add ${JSON.stringify(CONFIG_PLUGIN)} to the "plugins" array in your app config.`;
+    }
+    return `Add ${JSON.stringify(CONFIG_PLUGIN)} to the "plugins" array in your app config.`;
   }
 
   private async writeEnvLocalAsync(
@@ -503,7 +527,11 @@ export default class IntegrationsPostHogConnect extends EasCommand {
     Log.withTick(`Created EAS environment variable ${chalk.bold(envVar.name)} for builds`);
   }
 
-  private printNextSteps(project: PostHogProjectData, features: Features): void {
+  private printNextSteps(
+    project: PostHogProjectData,
+    features: Features,
+    manualSteps: string[]
+  ): void {
     Log.addNewLineIfNone();
     Log.log(chalk.green('PostHog is connected!'));
     Log.newLine();
@@ -522,11 +550,19 @@ export default class IntegrationsPostHogConnect extends EasCommand {
     }
     if (features.errorTracking) {
       steps.push(
-        `Error-tracking source maps: your ${chalk.bold('POSTHOG_CLI_*')} env vars are set in ${chalk.bold('.env.local')} and EAS — see the guide above to enable source-map uploads on your builds.`
+        `Error-tracking source maps: your ${chalk.bold('POSTHOG_CLI_*')} env vars are set. Wrap ${chalk.bold('metro.config.js')} with ${chalk.cyan('getPostHogExpoConfig')} (see ${chalk.cyan('https://docs.expo.dev/guides/using-posthog#source-maps')}); uploads then run automatically on EAS Build, and via ${chalk.cyan('posthog-cli hermes upload')} for EAS Update.`
       );
     }
     steps.forEach((step, index) => {
       Log.log(`  ${index + 1}. ${step}`);
     });
+
+    if (manualSteps.length > 0) {
+      Log.newLine();
+      Log.warn('Finish setup manually:');
+      manualSteps.forEach(step => {
+        Log.warn(`  • ${step}`);
+      });
+    }
   }
 }
