@@ -33,6 +33,11 @@ function formatEntryValue(entry: SessionEventEntry): string {
   return '-';
 }
 
+function formatOffsetSeconds(startIso: string, currentIso: string): string {
+  const offsetMs = new Date(currentIso).getTime() - new Date(startIso).getTime();
+  return `${(offsetMs / 1000).toFixed(2)}s`;
+}
+
 export function buildObserveSessionEventsTable(
   entries: SessionEventEntry[],
   sessionId: string,
@@ -57,9 +62,10 @@ export function buildObserveSessionEventsTable(
     return lines.join('\n');
   }
 
-  const headers = ['Timestamp', 'Type', 'Name', 'Value / Severity'];
+  const startIso = entries[0].timestamp;
+  const headers = ['Offset', 'Type', 'Name', 'Value / Severity'];
   const rows: string[][] = entries.map(entry => [
-    formatLogTimestamp(entry.timestamp),
+    formatOffsetSeconds(startIso, entry.timestamp),
     entry.source === 'metric' ? 'metric' : 'log',
     formatEntryName(entry),
     formatEntryValue(entry),
@@ -78,7 +84,7 @@ export function buildObserveSessionEventsTable(
     lines.push(
       '',
       chalk.yellow(
-        `More ${sources.join(' and ')} are available for this session — use --limit to fetch more per source.`
+        `More ${sources.join(' and ')} are available for this session; only the first 100 of each are shown.`
       )
     );
   }

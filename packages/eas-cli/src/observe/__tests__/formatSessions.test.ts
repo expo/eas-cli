@@ -61,6 +61,23 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).toContain('log');
   });
 
+  it('shows event times as offsets in seconds from the first event', () => {
+    const entries: SessionEventEntry[] = [
+      makeMetricEntry({ timestamp: '2025-01-15T10:00:00.000Z' }),
+      makeLogEntry({ timestamp: '2025-01-15T10:00:01.234Z' }),
+      makeLogEntry({ timestamp: '2025-01-15T10:00:12.500Z' }),
+    ];
+
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+
+    expect(output).toContain('Offset');
+    expect(output).toContain('0.00s');
+    expect(output).toContain('1.23s');
+    expect(output).toContain('12.50s');
+    // The absolute-time column header is gone now.
+    expect(output).not.toContain('Timestamp');
+  });
+
   it('shows severity text when present on a log entry', () => {
     const entries = [makeLogEntry({ severityText: 'WARN' })];
     const output = buildObserveSessionEventsTable(entries, 'session-1');
@@ -84,6 +101,7 @@ describe(buildObserveSessionEventsTable, () => {
       hasMoreLogEvents: true,
     });
     expect(output).toContain('More metric events and log events are available');
+    expect(output).toContain('only the first 100 of each are shown');
   });
 
   it('renders metadata (app version, device, first/last seen) in the header when provided', () => {
