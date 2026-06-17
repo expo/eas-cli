@@ -5,6 +5,7 @@ import dateFormat from 'dateformat';
 import semver from 'semver';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import fetch from '../fetch';
 import {
   AppPlatform,
   PartnerActor,
@@ -288,15 +289,24 @@ export function isBundleDiffingEnabled(exp: ExpoConfig): boolean {
   return (exp.updates as any)?.enableBsdiffPatchSupport === true;
 }
 
+// A bsdiff patch that was successfully pre-warmed: from a base update (and its embedded bundle) to
+// the newly published `requestedUpdateId`.
+interface PrewarmedDiff {
+  requestedUpdateId: string;
+  currentUpdateId: string;
+  embeddedUpdateId: string;
+}
+
 // Pre-warm bsdiff patches from a set of base updates to a single newly published update by making
 // authenticated HEAD requests to its launch asset url with diffing headers. Best-effort: any
-// failure is logged and swallowed so it never blocks a publish.
+// failure is logged and swallowed so it never blocks a publish. Returns the patches that were
+// successfully warmed.
 async function prewarmUpdateDiffsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][number],
   launchAssetKey: string
-): Promise<void> {
+): Promise<PrewarmedDiff[]> {
   try {
     // Sentinel embedded update id used when a project has no registered embedded bundle to diff
     // against. Mirrors the "empty default" the server falls back to.
@@ -329,14 +339,14 @@ async function prewarmUpdateDiffsAsync(
 
     if (recentUpdateIds.length === 0) {
       Log.debug(`No recent updates to pre-warm for update ${update.id}, skipping`);
-      return;
+      return [];
     }
 
     const signed = await AssetQuery.getSignedUrlsAsync(graphqlClient, update.id, [launchAssetKey]);
     const first = signed?.[0];
     if (!first) {
       Log.debug(`No signed launch asset URL for update ${update.id}, skipping pre-warming`);
-      return;
+      return [];
     }
 
     // Pre-warm the patch from the bundle embedded in the native binary to the new update.
@@ -372,8 +382,8 @@ async function prewarmUpdateDiffsAsync(
     }
 
     Log.debug(`Pre-warming ${warmupRequests.length} patch(es) for update ${update.id}`);
-    await Promise.allSettled(
-      warmupRequests.map(async ({ updateId, embeddedUpdateId }) => {
+    const settled = await Promise.allSettled(
+      warmupRequests.map(async ({ updateId, embeddedUpdateId }): Promise<PrewarmedDiff> => {
         const headers: Record<string, string> = {
           ...(first.headers as Record<string, string> | undefined),
           'expo-current-update-id': updateId,
@@ -390,20 +400,32 @@ async function prewarmUpdateDiffsAsync(
           headers,
           signal: AbortSignal.timeout(2500),
         });
+        return {
+          requestedUpdateId: update.id,
+          currentUpdateId: updateId,
+          embeddedUpdateId,
+        };
       })
     );
+    return settled
+      .filter(
+        (result): result is PromiseFulfilledResult<PrewarmedDiff> => result.status === 'fulfilled'
+      )
+      .map(result => result.value);
   } catch (e) {
     // ignore errors, best-effort optimization
     Log.debug(`Pre-warming diffing failed for update ${update.id}:`, e);
+    return [];
   }
 }
 
-// Make authenticated requests to the launch asset URL with diffing headers
+// Make authenticated requests to the launch asset URL with diffing headers. Returns the bsdiff
+// patches that were successfully pre-warmed across all of the given updates.
 export async function prewarmDiffingAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
   newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups']
-): Promise<void> {
+): Promise<PrewarmedDiff[]> {
   const toPrewarm = [] as {
     update: UpdatePublishMutation['updateBranch']['publishUpdateGroups'][number];
     launchAssetKey: string;
@@ -428,11 +450,12 @@ export async function prewarmDiffingAsync(
     });
   }
 
-  await Promise.allSettled(
+  const warmedDiffsPerUpdate = await Promise.all(
     toPrewarm.map(({ update, launchAssetKey }) =>
       prewarmUpdateDiffsAsync(graphqlClient, appId, update, launchAssetKey)
     )
   );
+  return warmedDiffsPerUpdate.flat();
 }
 
 // update publish does not currently support web
