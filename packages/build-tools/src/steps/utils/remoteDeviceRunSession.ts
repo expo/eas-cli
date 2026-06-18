@@ -296,19 +296,26 @@ export async function startNgrokTunnelAsync({
   subdomainPrefix,
   baseDomain,
   authtoken,
+  rewriteHostHeader,
   logger,
 }: {
   port: number;
   subdomainPrefix: string;
   baseDomain: string;
   authtoken: string;
+  rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<string> {
   const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
-  const listener = await ngrok.forward({ addr: port, authtoken, domain });
+  const listener = await ngrok.forward({
+    addr: port,
+    authtoken,
+    domain,
+    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
+  });
   const url = listener.url();
   if (!url) {
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);

@@ -42,6 +42,7 @@ export const DeviceRunSessionQuery = {
                     }
                     ... on ArgentRunSessionRemoteConfig {
                       toolsUrl
+                      toolsAuthToken
                       webPreviewUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {

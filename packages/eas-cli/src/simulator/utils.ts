@@ -31,6 +31,10 @@ export function getRemoteSessionEnvironmentVariables(
         AGENT_DEVICE_DAEMON_AUTH_TOKEN: remoteConfig.agentDeviceRemoteSessionToken,
       };
     case 'ArgentRunSessionRemoteConfig':
+      return {
+        ARGENT_TOOLS_URL: remoteConfig.toolsUrl,
+        ...(remoteConfig.toolsAuthToken ? { ARGENT_AUTH_TOKEN: remoteConfig.toolsAuthToken } : {}),
+      };
     case 'ServeSimRunSessionRemoteConfig':
       return {};
   }
@@ -70,11 +74,31 @@ export function formatRemoteSessionInstructions(
       return lines.join('\n');
     }
     case 'ArgentRunSessionRemoteConfig': {
-      const lines = [
-        '🔑 Open the following URL to access the Argent tools for this session:',
-        '',
-        remoteConfig.toolsUrl,
-      ];
+      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const lines =
+        configType === 'dotenv'
+          ? [
+              '🔑 Run the following to link your local Argent client to this simulator session:',
+              '',
+              [
+                'argent',
+                'link',
+                `'${remoteConfig.toolsUrl}'`,
+                remoteConfig.toolsAuthToken ? `--token '${remoteConfig.toolsAuthToken}'` : undefined,
+                '--yes',
+              ]
+                .filter(Boolean)
+                .join(' '),
+              '',
+              'Restart your editor after linking so its Argent MCP process uses the remote session.',
+            ]
+          : [
+              '🔑 Run the following in your shell to attach Argent to this simulator session:',
+              '',
+              ...Object.entries(environmentVariables).map(
+                ([key, value]) => `export ${key}='${value}'`
+              ),
+            ];
       if (remoteConfig.webPreviewUrl) {
         lines.push(
           '',
