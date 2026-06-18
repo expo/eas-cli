@@ -5,13 +5,23 @@ import fetch from '../../fetch';
 import { UpdatePublishMutation } from '../../graphql/generated';
 import { AssetQuery } from '../../graphql/queries/AssetQuery';
 import { BranchQuery } from '../../graphql/queries/BranchQuery';
+import { ChannelQuery } from '../../graphql/queries/ChannelQuery';
 import { EmbeddedUpdateQuery } from '../../graphql/queries/EmbeddedUpdateQuery';
 import { getPlatformsForGroup, prewarmDiffingAsync, truncateString } from '../utils';
 
 jest.mock('../../fetch');
 jest.mock('../../graphql/queries/AssetQuery');
 jest.mock('../../graphql/queries/BranchQuery');
+jest.mock('../../graphql/queries/ChannelQuery');
 jest.mock('../../graphql/queries/EmbeddedUpdateQuery');
+
+// A standard "always true" branch mapping that routes the channel to the given branch.
+function branchMappingForBranch(branchId: string): string {
+  return JSON.stringify({
+    version: 0,
+    data: [{ branchId, branchMappingLogic: 'true' }],
+  });
+}
 
 describe('update utility functions', () => {
   describe(truncateString, () => {
@@ -66,6 +76,17 @@ describe('update utility functions', () => {
       jest
         .mocked(AssetQuery.getSignedUrlsAsync)
         .mockResolvedValue([{ storageKey: 'launch-key', url: 'https://cdn/asset', headers: {} }]);
+      jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({
+        edges: [
+          {
+            node: {
+              id: 'channel-1',
+              name: 'production',
+              branchMapping: branchMappingForBranch('branch-1234'),
+            },
+          },
+        ],
+      } as any);
       jest
         .mocked(EmbeddedUpdateQuery.viewPaginatedAsync)
         .mockResolvedValue({ edges: [{ cursor: 'c0', node: { id: 'e1' } }] } as any);
@@ -78,6 +99,48 @@ describe('update utility functions', () => {
         { requestedUpdateId: 'new-update-id', currentUpdateId: 'r1', embeddedUpdateId: 'e1' },
         { requestedUpdateId: 'new-update-id', currentUpdateId: 'r2', embeddedUpdateId: 'e1' },
       ]);
+      // Embedded bundles are restricted server-side to the channel that routes to the branch.
+      expect(
+        jest.mocked(EmbeddedUpdateQuery.viewPaginatedAsync).mock.calls.map(call => call[1].filter)
+      ).toContainEqual(expect.objectContaining({ channel: 'production' }));
+    });
+
+    it('only pre-warms embedded bundles for channels whose branch mapping routes to the published branch', async () => {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      jest.mocked(BranchQuery.getUpdateIdsOnBranchAsync).mockResolvedValue(['r1']);
+      jest
+        .mocked(AssetQuery.getSignedUrlsAsync)
+        .mockResolvedValue([{ storageKey: 'launch-key', url: 'https://cdn/asset', headers: {} }]);
+      // 'production' routes to the published branch (branch-1234); 'staging' routes elsewhere.
+      jest.mocked(ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync).mockResolvedValue({
+        edges: [
+          {
+            node: {
+              id: 'channel-prod',
+              name: 'production',
+              branchMapping: branchMappingForBranch('branch-1234'),
+            },
+          },
+          {
+            node: {
+              id: 'channel-staging',
+              name: 'staging',
+              branchMapping: branchMappingForBranch('other-branch'),
+            },
+          },
+        ],
+      } as any);
+      jest
+        .mocked(EmbeddedUpdateQuery.viewPaginatedAsync)
+        .mockResolvedValue({ edges: [{ cursor: 'c0', node: { id: 'e1' } }] } as any);
+
+      await prewarmDiffingAsync(graphqlClient, 'app-id', [updateStub]);
+
+      // Only the eligible 'production' channel is queried — never 'staging'.
+      expect(EmbeddedUpdateQuery.viewPaginatedAsync).toHaveBeenCalledTimes(1);
+      expect(
+        jest.mocked(EmbeddedUpdateQuery.viewPaginatedAsync).mock.calls.map(call => call[1].filter)
+      ).toEqual([expect.objectContaining({ channel: 'production' })]);
     });
 
     it('is best-effort: swallows errors and resolves to an empty list', async () => {

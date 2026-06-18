@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import dateFormat from 'dateformat';
 import semver from 'semver';
 
+import { getBranchIds, getBranchMapping } from '../channel/branch-mapping';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from '../fetch';
 import {
@@ -19,6 +20,7 @@ import {
 } from '../graphql/generated';
 import { AssetQuery } from '../graphql/queries/AssetQuery';
 import { BranchQuery } from '../graphql/queries/BranchQuery';
+import { ChannelQuery } from '../graphql/queries/ChannelQuery';
 import { EmbeddedUpdateQuery } from '../graphql/queries/EmbeddedUpdateQuery';
 import Log, { learnMore } from '../log';
 import { RequestedPlatform } from '../platform';
@@ -297,6 +299,32 @@ interface PrewarmedDiff {
   embeddedUpdateId: string;
 }
 
+// Upper bound on the number of channels we inspect when resolving which channels route to a
+// published update's branch. Apps rarely have more than a handful; this just bounds pathological
+// cases for what is a best-effort optimization.
+const PREWARM_CHANNELS_LIMIT = 100;
+
+// Resolve the names of channels whose branch mapping routes to the given branch. The GraphQL API
+// has no branch->channels lookup (the mapping lives on the channel), so — as elsewhere in eas-cli
+// and on the website — we fetch the channels once and evaluate their branchMapping locally.
+async function getChannelNamesForBranchAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  branchId: string
+): Promise<string[]> {
+  const channels = await ChannelQuery.viewUpdateChannelsBasicInfoPaginatedOnAppAsync(
+    graphqlClient,
+    {
+      appId,
+      first: PREWARM_CHANNELS_LIMIT,
+    }
+  );
+  return channels.edges
+    .map(edge => edge.node)
+    .filter(channel => getBranchIds(getBranchMapping(channel.branchMapping)).includes(branchId))
+    .map(channel => channel.name);
+}
+
 // Pre-warm bsdiff patches from a set of base updates to a single newly published update by making
 // authenticated HEAD requests to its launch asset url with diffing headers. Best-effort: any
 // failure is logged and swallowed so it never blocks a publish. Returns the patches that were
@@ -353,12 +381,34 @@ async function prewarmUpdateDiffsAsync(
     // This is what fresh installs request, so generating it ahead of time avoids an
     // expensive on-demand diff. Falls back to the empty/default embedded id when the project has no
     // registered embedded bundle.
-    const embeddedUpdateQuery = await EmbeddedUpdateQuery.viewPaginatedAsync(graphqlClient, {
+    //
+    // Embedded bundles are channel-scoped, so only builds whose channel routes (via branch mapping)
+    // to this update's branch can ever request it. Resolve those channels and let the server filter
+    // embedded updates down to them — pre-warming any other channel's bundle would be wasted work.
+    const channelNames = await getChannelNamesForBranchAsync(
+      graphqlClient,
       appId,
-      filter: { platform, runtimeVersion: update.runtimeVersion },
-      first: PREWARM_EMBEDDED_UPDATES_LIMIT,
-    });
-    const embeddedUpdateIds = embeddedUpdateQuery.edges.map(edge => edge.node.id);
+      update.branch.id
+    );
+    Log.debug(
+      `Found ${channelNames.length} channel(s) routing to branch ${update.branch.name} for update ${update.id}: ${channelNames.join(', ')}`
+    );
+
+    const embeddedUpdateIdSet = new Set<string>();
+    for (const channel of channelNames) {
+      if (embeddedUpdateIdSet.size >= PREWARM_EMBEDDED_UPDATES_LIMIT) {
+        break;
+      }
+      const embeddedUpdateQuery = await EmbeddedUpdateQuery.viewPaginatedAsync(graphqlClient, {
+        appId,
+        filter: { platform, runtimeVersion: update.runtimeVersion, channel },
+        first: PREWARM_EMBEDDED_UPDATES_LIMIT,
+      });
+      for (const edge of embeddedUpdateQuery.edges) {
+        embeddedUpdateIdSet.add(edge.node.id);
+      }
+    }
+    const embeddedUpdateIds = [...embeddedUpdateIdSet].slice(0, PREWARM_EMBEDDED_UPDATES_LIMIT);
     Log.debug(
       `Found ${embeddedUpdateIds.length} embedded bundle(s) for update ${update.id}: ${embeddedUpdateIds.join(', ')}`
     );
