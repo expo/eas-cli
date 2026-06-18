@@ -1,11 +1,9 @@
-import { GCS } from '@expo/build-tools';
-import downloadFile from '@expo/downloader';
-import { Cache, Platform } from '@expo/eas-build-job';
-import { randomUUID } from 'crypto';
+import { downloadCacheAsync } from '@expo/build-tools/dist/steps/functions/restoreCache';
+import { uploadCacheAsync } from '@expo/build-tools/dist/steps/functions/saveCache';
+import { Cache, Platform, Workflow } from '@expo/eas-build-job';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { Readable } from 'stream';
 
 // These tests use real fs and directories in os.tmpdir().
 // Something about tar v7 makes mocking fs with memfs problematic.
@@ -15,15 +13,6 @@ import { Readable } from 'stream';
 jest.unmock('fs');
 jest.unmock('node:fs');
 
-jest.mock('@expo/downloader', () => {
-  return jest.fn();
-});
-jest.mock('../config', () => ({
-  buildCache: {
-    gcsSignedUploadUrlForBuildCache: 'fakeurl',
-    gcsSignedBuildCacheDownloadUrl: 'fakeUrl',
-  },
-}));
 jest.mock('../sentry', () => ({
   capture: jest.fn(),
 }));
@@ -41,9 +30,33 @@ describe(GCSCacheManager, () => {
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
     await fs.rm(outsideDir, { recursive: true, force: true });
-    jest.mocked(GCS.uploadWithSignedUrl).mockReset();
-    jest.mocked(downloadFile).mockReset();
+    jest.mocked(uploadCacheAsync).mockReset();
+    jest.mocked(downloadCacheAsync).mockReset();
   });
+
+  function createMockCtx(cacheConfig: Partial<Cache>) {
+    return {
+      logger: { info: jest.fn(), error: jest.fn() },
+      workingdir: tmpDir,
+      buildDirectory: `${tmpDir}/build`,
+      env: {
+        EAS_BUILD_ID: 'build-id',
+        __API_SERVER_URL: 'https://api.expo.test',
+      },
+      metadata: {
+        sdkVersion: '55.0.0',
+      },
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.GENERIC,
+        projectRootDirectory: '.',
+        cache: cacheConfig,
+        secrets: {
+          robotAccessToken: 'robot-token',
+        },
+      },
+    } as any;
+  }
 
   async function saveAndRestoreCacheAsync(
     setupBeforeSave: () => Promise<void> | void,
@@ -52,35 +65,26 @@ describe(GCSCacheManager, () => {
   ): Promise<void> {
     await setupBeforeSave();
     const manager = new GCSCacheManager();
-    const mockCtx = {
-      logger: { info: jest.fn(), error: console.error },
-      workingdir: tmpDir,
-      buildDirectory: `${tmpDir}/build`,
-      job: {
-        platform: Platform.ANDROID,
-        projectRootDirectory: '.',
-        cache: cacheConfig,
-      },
-    } as any;
-    let tarReadStream: Readable;
-    jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
-      const result = await srcGeneratorAsync();
-      tarReadStream = result;
-      return randomUUID();
+    const mockCtx = createMockCtx(cacheConfig);
+    let tarContent: Buffer | undefined;
+    jest.mocked(uploadCacheAsync).mockImplementation(async ({ archivePath }) => {
+      tarContent = await fs.readFile(archivePath);
     });
 
     await manager.saveCache(mockCtx);
-    const chunks = [];
-    for await (const chunk of tarReadStream!) {
-      chunks.push(chunk);
+    if (!tarContent) {
+      throw new Error('Expected cache archive to be uploaded');
     }
-    const tarContent = Buffer.concat(chunks);
+    const uploadedTarContent = tarContent;
+
     await fs.rm(tmpDir, { recursive: true, force: true });
     await fs.rm(outsideDir, { recursive: true, force: true });
     await setupBeforeRestore();
-    jest.mocked(downloadFile).mockImplementation(async (_url, archivePath: string) => {
-      await fs.mkdirp(mockCtx.workingdir);
-      await fs.writeFile(archivePath, tarContent);
+    jest.mocked(downloadCacheAsync).mockImplementation(async () => {
+      const downloadDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cache-download-'));
+      const archivePath = path.join(downloadDir, 'cache.tar.gz');
+      await fs.writeFile(archivePath, uploadedTarContent);
+      return { archivePath, matchedKey: 'matched-cache-key' };
     });
     await manager.restoreCache(mockCtx);
   }
@@ -188,5 +192,92 @@ describe(GCSCacheManager, () => {
       fs.readFile(path.join(outsideDir, 'build', 'src', 'index.ts'), 'utf8')
     ).resolves.toBe('index.ts');
     await expect(fs.pathExists(path.join(tmpDir, 'cache-restore.tar.gz'))).resolves.toBe(true);
+  });
+
+  test('does not save or restore when cache is disabled', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ disabled: true, paths: ['index.ts'] });
+    await fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
+
+    await manager.restoreCache(mockCtx);
+    await manager.saveCache(mockCtx);
+
+    expect(downloadCacheAsync).not.toHaveBeenCalled();
+    expect(uploadCacheAsync).not.toHaveBeenCalled();
+  });
+
+  test('does not save or restore when cache paths are empty', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ paths: [] });
+
+    await manager.restoreCache(mockCtx);
+    await manager.saveCache(mockCtx);
+
+    expect(downloadCacheAsync).not.toHaveBeenCalled();
+    expect(uploadCacheAsync).not.toHaveBeenCalled();
+  });
+
+  test('skips restore but saves cache when clear is set', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ clear: true, paths: ['index.ts'] });
+    await fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
+    jest.mocked(uploadCacheAsync).mockResolvedValue();
+
+    await manager.restoreCache(mockCtx);
+    await manager.saveCache(mockCtx);
+
+    expect(downloadCacheAsync).not.toHaveBeenCalled();
+    expect(uploadCacheAsync).toHaveBeenCalledTimes(1);
+    expect(uploadCacheAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        force: true,
+      })
+    );
+  });
+
+  test('does not save when restore fails', async () => {
+    const manager = new GCSCacheManager();
+    const mockCtx = createMockCtx({ paths: ['index.ts'] });
+    await fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
+    jest.mocked(downloadCacheAsync).mockRejectedValue({ response: { status: 404 } });
+
+    await manager.restoreCache(mockCtx);
+    await manager.saveCache(mockCtx);
+
+    expect(mockCtx.logger.info).toHaveBeenCalledWith('No cache found for this key');
+    expect(uploadCacheAsync).not.toHaveBeenCalled();
+  });
+
+  test('cache key is stable when clear changes and job cache is not mutated', async () => {
+    const manager = new GCSCacheManager();
+    const cacheConfig = {
+      clear: true,
+      disabled: false,
+      key: 'custom-cache-key',
+      paths: ['index.ts'],
+    };
+    const mockCtx = createMockCtx(cacheConfig);
+    await fs.outputFile(path.join(tmpDir, 'build', 'index.ts'), 'index.ts');
+    jest.mocked(uploadCacheAsync).mockResolvedValue();
+
+    await manager.saveCache(mockCtx);
+    const keyWithClear = jest.mocked(uploadCacheAsync).mock.calls[0][0].key;
+    const forceWithClear = jest.mocked(uploadCacheAsync).mock.calls[0][0].force;
+
+    mockCtx.job.cache = { ...cacheConfig, clear: false };
+    await manager.saveCache(mockCtx);
+    const keyWithoutClear = jest.mocked(uploadCacheAsync).mock.calls[1][0].key;
+    const forceWithoutClear = jest.mocked(uploadCacheAsync).mock.calls[1][0].force;
+
+    expect(keyWithClear).toBe(keyWithoutClear);
+    expect(keyWithClear).toMatch(/^eas-build-cache-[a-f0-9]{64}$/);
+    expect(forceWithClear).toBe(true);
+    expect(forceWithoutClear).toBe(false);
+    expect(cacheConfig).toEqual({
+      clear: true,
+      disabled: false,
+      key: 'custom-cache-key',
+      paths: ['index.ts'],
+    });
   });
 });

@@ -29,6 +29,8 @@ This is the log of notable changes to EAS CLI and related packages.
 - [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Fix `update:embedded` topic showing the `update:embedded:delete` subcommand description in the command listing. ([#3866](https://github.com/expo/eas-cli/pull/3866) by [@jc-expo](https://github.com/jc-expo))
 
+- [worker] Use turtle cache upload and download URLs for eas.json build cache restore and save. ([#3860](https://github.com/expo/eas-cli/pull/3860) by [@sjchmiela](https://github.com/sjchmiela))
+
 ## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
 
 ### 🎉 New features
