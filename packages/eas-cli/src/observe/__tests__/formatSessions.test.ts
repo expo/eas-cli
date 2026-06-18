@@ -90,10 +90,11 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).not.toContain('Timestamp');
   });
 
-  it('renders separate Value and Severity columns', () => {
+  it('renders separate Value, Properties, and Severity columns', () => {
     const output = buildObserveSessionEventsTable([makeLogEntry()], 'session-1');
     const headerLine = output.split('\n').find(line => line.includes('Offset'));
     expect(headerLine).toContain('Value');
+    expect(headerLine).toContain('Properties');
     expect(headerLine).toContain('Severity');
     expect(headerLine).not.toContain('Value / Severity');
   });
@@ -110,7 +111,7 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).toContain('13');
   });
 
-  it('shows primitive properties in the Value column, one row per property', () => {
+  it('shows primitive properties in the Properties column, one row per property', () => {
     const entries = [
       makeLogEntry({
         properties: [
@@ -126,7 +127,7 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).toContain('level=7');
   });
 
-  it('omits non-primitive (JSON) properties from the Value column', () => {
+  it('omits non-primitive (JSON) properties from the Properties column', () => {
     const entries = [
       makeLogEntry({
         properties: [
@@ -140,7 +141,20 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).not.toContain('context=');
   });
 
-  it('shows "-" in the Value column when a log entry has no primitive properties', () => {
+  it('leaves the Value column as "-" for log entries (metric rows keep their value)', () => {
+    const entries = [
+      makeMetricEntry({ metricValue: 0.8 }),
+      makeLogEntry({
+        properties: [{ key: 'user_id', value: 'abc', type: 'STRING' }],
+      }),
+    ];
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    expect(output).toContain('0.80s');
+    // The log row's Value cell is '-'; the property goes into Properties.
+    expect(output).toContain('user_id=abc');
+  });
+
+  it('shows "-" in the Properties column when a log entry has no primitive properties', () => {
     const entries = [
       makeLogEntry({
         properties: [{ key: 'context', value: '{}', type: 'JSON' }],

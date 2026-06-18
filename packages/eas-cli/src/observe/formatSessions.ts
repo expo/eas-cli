@@ -78,7 +78,7 @@ export function buildObserveSessionEventsTable(
   }
 
   const startIso = entries[0].timestamp;
-  const headers = ['Offset', 'Type', 'Name', 'Value', 'Severity'];
+  const headers = ['Offset', 'Type', 'Name', 'Value', 'Properties', 'Severity'];
   const rows: string[][] = [];
   for (const entry of entries) {
     const offset = formatOffsetSeconds(startIso, entry.timestamp);
@@ -86,17 +86,17 @@ export function buildObserveSessionEventsTable(
     const name = formatEntryName(entry);
     const severity = formatEntrySeverity(entry);
     if (entry.source === 'metric') {
-      rows.push([offset, type, name, formatMetricEntryValue(entry), severity]);
+      rows.push([offset, type, name, formatMetricEntryValue(entry), '-', severity]);
       continue;
     }
     const propLines = primitivePropertyLines(entry);
     if (propLines.length === 0) {
-      rows.push([offset, type, name, '-', severity]);
+      rows.push([offset, type, name, '-', '-', severity]);
       continue;
     }
-    rows.push([offset, type, name, propLines[0], severity]);
+    rows.push([offset, type, name, '-', propLines[0], severity]);
     for (let i = 1; i < propLines.length; i++) {
-      rows.push(['', '', '', propLines[i], '']);
+      rows.push(['', '', '', '', propLines[i], '']);
     }
   }
 
