@@ -18,6 +18,7 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  spawnDetached,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
@@ -76,9 +77,9 @@ export function createStartArgentRemoteSessionBuildFunction(
       await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
-      await spawn(
-        'bunx',
-        [
+      const argentServer = spawnDetached({
+        command: 'bunx',
+        args: [
           `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
           'server',
           'start',
@@ -88,16 +89,29 @@ export function createStartArgentRemoteSessionBuildFunction(
           '0',
           '--detach',
         ],
-        { env, logger }
-      );
+        env,
+      });
 
       logger.info(`Waiting for argent tool-server state at ${ARGENT_STATE_FILE}.`);
-      const { port: toolServerPort, token: toolServerToken } = await waitForFileAsync({
-        filePath: ARGENT_STATE_FILE,
-        timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'argent tool-server state',
-        parse: parseArgentToolServerState,
-      });
+      let toolServerPort: number;
+      let toolServerToken: string | undefined;
+      try {
+        const toolServerState = await waitForFileAsync({
+          filePath: ARGENT_STATE_FILE,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+          description: 'argent tool-server state',
+          parse: parseArgentToolServerState,
+        });
+        toolServerPort = toolServerState.port;
+        toolServerToken = toolServerState.token;
+      } catch (err) {
+        const output = argentServer.getOutput();
+        throw new SystemError(
+          `${
+            err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
+          }${output ? `\nArgent tool-server output:\n${output}` : ''}`
+        );
+      }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
 
       const publicToolsUrl = await startNgrokTunnelAsync({
