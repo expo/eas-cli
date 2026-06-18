@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] `eas integrations:posthog:connect` no longer aborts when `npx expo install` reports an error (for example, on a dynamic app config); it finishes writing the environment variables and prints any remaining manual steps. ([#3877](https://github.com/expo/eas-cli/pull/3877) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 - [eas-cli] Simplify 2FA now that SMS is no longer supported. ([#3859](https://github.com/expo/eas-cli/pull/3859) by [@wschurman](https://github.com/wschurman))

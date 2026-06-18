@@ -231,13 +231,10 @@ describe(IntegrationsPostHogConnect, () => {
     expect(createdNames).toEqual(['EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_HOST']);
   });
 
-  it('routes the install child off stdout in --json mode', async () => {
+  it('captures the install child output so --json stdout stays clean', async () => {
     await createCommand(['--json', '--posthog-cli-api-key', 'phx_x']).runAsync();
 
-    // stdout must carry only the JSON document, so the child writes to fd 2 (stderr).
-    expect(jest.mocked(spawnAsync).mock.calls[0][2]).toEqual(
-      expect.objectContaining({ stdio: ['ignore', 2, 2] })
-    );
+    expect(jest.mocked(spawnAsync).mock.calls[0][2]).not.toHaveProperty('stdio');
   });
 
   it('non-interactive defaults: analytics + replay, error tracking auto-skipped', async () => {
@@ -293,7 +290,7 @@ describe(IntegrationsPostHogConnect, () => {
     ).rejects.toThrow(/personal API key in non-interactive/);
   });
 
-  it('warns and prints manual edit when the app config is dynamic', async () => {
+  it('surfaces a manual plugin step and still writes env vars when the app config is dynamic', async () => {
     mockFeatureSelection(['analytics']);
     jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({
       type: 'warn',
@@ -303,12 +300,22 @@ describe(IntegrationsPostHogConnect, () => {
     await createCommand([]).runAsync();
 
     expect(Log.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Cannot automatically write to dynamic config')
+      expect.stringContaining('Add "posthog-react-native/expo" to the "plugins"')
     );
-    // Falls back to actionable manual-edit instructions.
-    expect(Log.log).toHaveBeenCalledWith(
-      expect.stringContaining('Add the PostHog config plugin to your app config')
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
+    expect(fs.writeFile).toHaveBeenCalled();
+  });
+
+  it('surfaces the plugin manual step (without a cause) when the config write fails', async () => {
+    mockFeatureSelection(['analytics']);
+    jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({ type: 'fail' } as any);
+
+    await createCommand([]).runAsync();
+
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Add "posthog-react-native/expo" to the "plugins"')
     );
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
   });
 
   it('reuses an existing connection + project without provisioning', async () => {
@@ -434,12 +441,38 @@ describe(IntegrationsPostHogConnect, () => {
     expect(apiKeyPrompt.validate('phx_real')).toBe(true);
   });
 
-  it('rethrows and warns when SDK installation fails', async () => {
+  it('continues (does not abort) and still writes env vars when SDK installation fails', async () => {
     mockFeatureSelection(['analytics']);
     jest.mocked(spawnAsync).mockRejectedValue(new Error('npm exploded'));
 
-    await expect(createCommand([]).runAsync()).rejects.toThrow('npm exploded');
-    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to install'));
+    await createCommand([]).runAsync();
+
+    // Install failure is non-fatal: provisioning + env vars still happen, with a manual follow-up.
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
+    expect(fs.writeFile).toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('npx expo install'));
+  });
+
+  it('on a dynamic config, surfaces only the plugin step (not a reinstall step) when expo install reports the dynamic-config error', async () => {
+    mockFeatureSelection(['analytics']);
+    jest.mocked(spawnAsync).mockRejectedValue(
+      Object.assign(new Error('Process exited with non-zero code: 1'), {
+        stdout: 'Cannot automatically write to dynamic config at: app.config.js\n',
+        stderr: '',
+      })
+    );
+    jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({
+      type: 'warn',
+      message: 'Cannot automatically write to dynamic config at: app.config.js',
+    } as any);
+
+    await createCommand([]).runAsync();
+
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Add "posthog-react-native/expo" to the "plugins"')
+    );
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining("didn't install"));
   });
 
   it('skips the config plugin when it is already configured', async () => {
@@ -469,6 +502,9 @@ describe(IntegrationsPostHogConnect, () => {
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('No PostHog features selected'));
+    // Doesn't falsely claim the SDK is wired up when nothing was configured.
+    expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('PostHog is connected!'));
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Re-run to add'));
   });
 
   it('merges into an existing .env.local, replacing matching keys and appending new ones', async () => {
