@@ -19,19 +19,33 @@ function formatEntryName(entry: SessionEventEntry): string {
   return entry.eventName ?? '-';
 }
 
-function formatEntryValue(entry: SessionEventEntry): string {
-  if (entry.source === 'metric' && typeof entry.metricValue === 'number') {
+function formatMetricEntryValue(entry: SessionEventEntry): string {
+  if (typeof entry.metricValue === 'number') {
     return `${entry.metricValue.toFixed(2)}s`;
   }
-  if (entry.source === 'log') {
-    if (entry.severityText) {
-      return entry.severityText;
-    }
-    if (entry.severityNumber != null) {
-      return String(entry.severityNumber);
-    }
+  return '-';
+}
+
+function formatEntrySeverity(entry: SessionEventEntry): string {
+  if (entry.source !== 'log') {
+    return '-';
+  }
+  if (entry.severityText) {
+    return entry.severityText;
+  }
+  if (entry.severityNumber != null) {
+    return String(entry.severityNumber);
   }
   return '-';
+}
+
+function primitivePropertyLines(entry: SessionEventEntry): string[] {
+  if (entry.source !== 'log' || !entry.properties) {
+    return [];
+  }
+  return entry.properties
+    .filter(p => p.type === 'STRING' || p.type === 'NUMBER' || p.type === 'BOOLEAN')
+    .map(p => `${p.key}=${p.value}`);
 }
 
 function formatOffsetSeconds(startIso: string, currentIso: string): string {
@@ -64,13 +78,27 @@ export function buildObserveSessionEventsTable(
   }
 
   const startIso = entries[0].timestamp;
-  const headers = ['Offset', 'Type', 'Name', 'Value / Severity'];
-  const rows: string[][] = entries.map(entry => [
-    formatOffsetSeconds(startIso, entry.timestamp),
-    entry.source === 'metric' ? 'metric' : 'log',
-    formatEntryName(entry),
-    formatEntryValue(entry),
-  ]);
+  const headers = ['Offset', 'Type', 'Name', 'Value', 'Severity'];
+  const rows: string[][] = [];
+  for (const entry of entries) {
+    const offset = formatOffsetSeconds(startIso, entry.timestamp);
+    const type = entry.source === 'metric' ? 'metric' : 'log';
+    const name = formatEntryName(entry);
+    const severity = formatEntrySeverity(entry);
+    if (entry.source === 'metric') {
+      rows.push([offset, type, name, formatMetricEntryValue(entry), severity]);
+      continue;
+    }
+    const propLines = primitivePropertyLines(entry);
+    if (propLines.length === 0) {
+      rows.push([offset, type, name, '-', severity]);
+      continue;
+    }
+    rows.push([offset, type, name, propLines[0], severity]);
+    for (let i = 1; i < propLines.length; i++) {
+      rows.push(['', '', '', propLines[i], '']);
+    }
+  }
 
   lines.push(renderTextTable(headers, rows));
 

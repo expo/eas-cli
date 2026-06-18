@@ -90,16 +90,65 @@ describe(buildObserveSessionEventsTable, () => {
     expect(output).not.toContain('Timestamp');
   });
 
-  it('shows severity text when present on a log entry', () => {
+  it('renders separate Value and Severity columns', () => {
+    const output = buildObserveSessionEventsTable([makeLogEntry()], 'session-1');
+    const headerLine = output.split('\n').find(line => line.includes('Offset'));
+    expect(headerLine).toContain('Value');
+    expect(headerLine).toContain('Severity');
+    expect(headerLine).not.toContain('Value / Severity');
+  });
+
+  it('shows severity text in the Severity column for log entries', () => {
     const entries = [makeLogEntry({ severityText: 'WARN' })];
     const output = buildObserveSessionEventsTable(entries, 'session-1');
     expect(output).toContain('WARN');
   });
 
-  it('falls back to severity number when only a number is set', () => {
+  it('falls back to severity number in the Severity column when only a number is set', () => {
     const entries = [makeLogEntry({ severityNumber: 13 })];
     const output = buildObserveSessionEventsTable(entries, 'session-1');
     expect(output).toContain('13');
+  });
+
+  it('shows primitive properties in the Value column, one row per property', () => {
+    const entries = [
+      makeLogEntry({
+        properties: [
+          { key: 'user_id', value: 'abc', type: 'STRING' },
+          { key: 'is_premium', value: 'true', type: 'BOOLEAN' },
+          { key: 'level', value: '7', type: 'NUMBER' },
+        ],
+      }),
+    ];
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    expect(output).toContain('user_id=abc');
+    expect(output).toContain('is_premium=true');
+    expect(output).toContain('level=7');
+  });
+
+  it('omits non-primitive (JSON) properties from the Value column', () => {
+    const entries = [
+      makeLogEntry({
+        properties: [
+          { key: 'user_id', value: 'abc', type: 'STRING' },
+          { key: 'context', value: '{"foo":"bar"}', type: 'JSON' },
+        ],
+      }),
+    ];
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    expect(output).toContain('user_id=abc');
+    expect(output).not.toContain('context=');
+  });
+
+  it('shows "-" in the Value column when a log entry has no primitive properties', () => {
+    const entries = [
+      makeLogEntry({
+        properties: [{ key: 'context', value: '{}', type: 'JSON' }],
+      }),
+    ];
+    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const dataLines = output.split('\n').filter(line => line.includes('log'));
+    expect(dataLines.some(line => line.includes('-'))).toBe(true);
   });
 
   it('shows an empty-state message when entries are empty', () => {
