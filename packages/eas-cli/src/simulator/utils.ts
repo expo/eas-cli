@@ -84,7 +84,9 @@ export function formatRemoteSessionInstructions(
                 'argent',
                 'link',
                 `'${remoteConfig.toolsUrl}'`,
-                remoteConfig.toolsAuthToken ? `--token '${remoteConfig.toolsAuthToken}'` : undefined,
+                remoteConfig.toolsAuthToken
+                  ? `--token '${remoteConfig.toolsAuthToken}'`
+                  : undefined,
                 '--yes',
               ]
                 .filter(Boolean)
