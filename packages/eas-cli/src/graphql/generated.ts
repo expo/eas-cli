@@ -1194,7 +1194,6 @@ export type AndroidAppCredentialsMutationCreateAndroidAppCredentialsArgs = {
 
 
 export type AndroidAppCredentialsMutationCreateFcmV1CredentialArgs = {
-  accountId?: InputMaybe<Scalars['ID']['input']>;
   androidAppCredentialsId: Scalars['String']['input'];
   credential: Scalars['String']['input'];
 };
@@ -1350,8 +1349,6 @@ export type AndroidJobOverridesInput = {
 
 export type AndroidJobSecretsInput = {
   buildCredentials?: InputMaybe<AndroidJobBuildCredentialsInput>;
-  /** @deprecated Robot access token is no longer needed as it's generated server-side and injected into the builder environment automatically. */
-  robotAccessToken?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type AndroidJobVersionInput = {
@@ -1379,8 +1376,6 @@ export type AndroidKeystoreInput = {
   keyAlias: Scalars['String']['input'];
   keyPassword?: InputMaybe<Scalars['String']['input']>;
   keystorePassword: Scalars['String']['input'];
-  /** @deprecated Type will be automatically inferred from keystore content. */
-  type?: InputMaybe<AndroidKeystoreType>;
 };
 
 export type AndroidKeystoreMutation = {
@@ -1490,7 +1485,7 @@ export type App = Project & {
    * @deprecated Classic updates have been deprecated.
    */
   icon?: Maybe<AppIcon>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   /** App query field for querying EAS Insights about this app */
@@ -1508,7 +1503,7 @@ export type App = Project & {
   /** @deprecated 'likes' have been deprecated. */
   isLikedByMe: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   lastPublishedTime: Scalars['DateTime']['output'];
   /** Time of the last user activity (update, branch, submission). */
   latestActivity: Scalars['DateTime']['output'];
@@ -1528,9 +1523,9 @@ export type App = Project & {
   name: Scalars['String']['output'];
   observe: AppObserve;
   ownerAccount: Account;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   packageName: Scalars['String']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   packageUsername: Scalars['String']['output'];
   /**
    * android.playStoreUrl field from most recent classic update manifest
@@ -1540,7 +1535,7 @@ export type App = Project & {
   posthogProject?: Maybe<PostHogProject>;
   /** @deprecated No longer supported */
   privacy: Scalars['String']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   privacySetting: AppPrivacy;
   profileImageUrl?: Maybe<Scalars['String']['output']>;
   /**
@@ -1600,7 +1595,7 @@ export type App = Project & {
   usageMetrics: AppUsageMetrics;
   /** @deprecated Use ownerAccount.name instead */
   username: Scalars['String']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   users?: Maybe<Array<Maybe<User>>>;
   vexoApp?: Maybe<VexoApp>;
   /** Notification preferences of the viewer for this app */
@@ -1630,7 +1625,6 @@ export type AppActivityTimelineProjectActivitiesArgs = {
   createdBefore?: InputMaybe<Scalars['DateTime']['input']>;
   filterChannels?: InputMaybe<Array<Scalars['String']['input']>>;
   filterPlatforms?: InputMaybe<Array<AppPlatform>>;
-  filterReleaseChannels?: InputMaybe<Array<Scalars['String']['input']>>;
   filterTypes?: InputMaybe<Array<ActivityTimelineProjectActivityType>>;
   limit: Scalars['Int']['input'];
 };
@@ -2090,7 +2084,7 @@ export type AppFingerprintsConnection = {
 
 export type AppIcon = {
   __typename?: 'AppIcon';
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   colorPalette?: Maybe<Scalars['JSON']['output']>;
   originalUrl: Scalars['String']['output'];
   primaryColor?: Maybe<Scalars['String']['output']>;
@@ -2104,8 +2098,6 @@ export type AppInfoInput = {
 export type AppInput = {
   accountId: Scalars['ID']['input'];
   appInfo?: InputMaybe<AppInfoInput>;
-  /** @deprecated Field no longer supported */
-  privacy?: InputMaybe<AppPrivacy>;
   projectName: Scalars['String']['input'];
 };
 
@@ -2141,7 +2133,7 @@ export type AppMutation = {
   __typename?: 'AppMutation';
   /** Create an app */
   createApp: App;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   grantAccess?: Maybe<App>;
   /** Remove profile image (icon) for the app. Do nothing if there's no profile image associated. */
   removeProfileImage: App;
@@ -3148,8 +3140,6 @@ export type AppWithGithubRepositoryInput = {
   accountId: Scalars['ID']['input'];
   appInfo?: InputMaybe<AppInfoInput>;
   installationIdentifier?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  privacy?: InputMaybe<AppPrivacy>;
   projectName: Scalars['String']['input'];
 };
 
@@ -4116,11 +4106,7 @@ export type BuildArtifacts = {
 };
 
 export type BuildCacheInput = {
-  /** @deprecated We don't cache anything by default anymore */
-  cacheDefaultPaths?: InputMaybe<Scalars['Boolean']['input']>;
   clear?: InputMaybe<Scalars['Boolean']['input']>;
-  /** @deprecated We use paths now since there is no default caching anymore */
-  customPaths?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   disabled?: InputMaybe<Scalars['Boolean']['input']>;
   key?: InputMaybe<Scalars['String']['input']>;
   paths?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -4192,8 +4178,6 @@ export type BuildMetadataInput = {
   appIdentifier?: InputMaybe<Scalars['String']['input']>;
   appName?: InputMaybe<Scalars['String']['input']>;
   appVersion?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Use job.mode instead. */
-  buildMode?: InputMaybe<BuildMode>;
   buildProfile?: InputMaybe<Scalars['String']['input']>;
   channel?: InputMaybe<Scalars['String']['input']>;
   cliVersion?: InputMaybe<Scalars['String']['input']>;
@@ -4219,8 +4203,6 @@ export type BuildMetadataInput = {
   runWithNoWaitFlag?: InputMaybe<Scalars['Boolean']['input']>;
   runtimeVersion?: InputMaybe<Scalars['String']['input']>;
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Unused. */
-  selectedImage?: InputMaybe<Scalars['String']['input']>;
   simulator?: InputMaybe<Scalars['Boolean']['input']>;
   trackingContext?: InputMaybe<Scalars['JSONObject']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
@@ -4386,7 +4368,7 @@ export enum BuildPhase {
   StartBuild = 'START_BUILD',
   Unknown = 'UNKNOWN',
   UploadApplicationArchive = 'UPLOAD_APPLICATION_ARCHIVE',
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   UploadArtifacts = 'UPLOAD_ARTIFACTS',
   UploadBuildArtifacts = 'UPLOAD_BUILD_ARTIFACTS'
 }
@@ -4741,6 +4723,18 @@ export type CreateConvexTeamConnectionInput = {
   deploymentRegion: Scalars['String']['input'];
 };
 
+export type CreateDeviceRunSessionArtifactUploadSessionInput = {
+  filename: Scalars['String']['input'];
+  metadata?: InputMaybe<Scalars['JSONObject']['input']>;
+  name: Scalars['String']['input'];
+  size: Scalars['Int']['input'];
+};
+
+export type CreateDeviceRunSessionArtifactUploadSessionResult = {
+  __typename?: 'CreateDeviceRunSessionArtifactUploadSessionResult';
+  uploadSession: DeviceRunSessionArtifactUploadSession;
+};
+
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
@@ -4929,8 +4923,6 @@ export type CreateSentryProjectInput = {
 export type CreateSharedEnvironmentVariableInput = {
   environments?: InputMaybe<Array<Scalars['EnvironmentVariableEnvironment']['input']>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Whether the variable is global is now governed by its scope - account / app. */
-  isGlobal?: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
   overwrite?: InputMaybe<Scalars['Boolean']['input']>;
   type?: InputMaybe<EnvironmentSecretType>;
@@ -5388,6 +5380,12 @@ export type DeviceRunSession = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+export type DeviceRunSessionArtifactUploadSession = {
+  __typename?: 'DeviceRunSessionArtifactUploadSession';
+  headers: Scalars['JSONObject']['output'];
+  url: Scalars['String']['output'];
+};
+
 export type DeviceRunSessionFilterInput = {
   platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
@@ -5396,6 +5394,8 @@ export type DeviceRunSessionFilterInput = {
 
 export type DeviceRunSessionMutation = {
   __typename?: 'DeviceRunSessionMutation';
+  /** Create an upload session for an artifact produced by an active device run session */
+  createArtifactUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
   /**
@@ -5406,6 +5406,12 @@ export type DeviceRunSessionMutation = {
   ensureDeviceRunSessionStopped: DeviceRunSession;
   /** Mark a device run session as started and persist remote connection details */
   startDeviceRunSession: DeviceRunSession;
+};
+
+
+export type DeviceRunSessionMutationCreateArtifactUploadSessionArgs = {
+  deviceRunSessionId: Scalars['ID']['input'];
+  input: CreateDeviceRunSessionArtifactUploadSessionInput;
 };
 
 
@@ -7642,8 +7648,6 @@ export type IosJobOverridesInput = {
 
 export type IosJobSecretsInput = {
   buildCredentials?: InputMaybe<Array<InputMaybe<IosJobTargetCredentialsInput>>>;
-  /** @deprecated Robot access token is no longer needed as it's generated server-side and injected into the builder environment automatically. */
-  robotAccessToken?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type IosJobTargetCredentialsInput = {
@@ -7690,7 +7694,7 @@ export type JobRun = {
   __typename?: 'JobRun';
   app: App;
   artifacts: Array<WorkflowArtifact>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   childJobRun?: Maybe<JobRun>;
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
@@ -8350,7 +8354,7 @@ export enum PostHogRegion {
 export type Project = {
   description: Scalars['String']['output'];
   fullName: Scalars['String']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
@@ -8421,8 +8425,6 @@ export type PublishUpdateGroupInput = {
   message?: InputMaybe<Scalars['String']['input']>;
   rollBackToEmbeddedInfoGroup?: InputMaybe<UpdateRollBackToEmbeddedGroup>;
   rolloutInfoGroup?: InputMaybe<UpdateRolloutInfoGroup>;
-  /** @deprecated Use fingerprintInfoGroup instead */
-  runtimeFingerprintSource?: InputMaybe<FingerprintSourceInput>;
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
@@ -9047,7 +9049,7 @@ export type SsoUser = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published. If this user is the viewer, this field returns the apps the user has access to.
@@ -9070,16 +9072,16 @@ export type SsoUser = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
   pinnedDashboardViews: Array<PinnedDashboardView>;
@@ -9091,7 +9093,7 @@ export type SsoUser = Actor & UserActor & {
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
   snacks: Array<Snack>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
@@ -9137,15 +9139,7 @@ export type SsoUserWebsiteNotificationsPaginatedArgs = {
 
 export type SsoUserDataInput = {
   firstName?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  githubUsername?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  industry?: InputMaybe<Scalars['String']['input']>;
   lastName?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  location?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  twitterUsername?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type SecondFactorBooleanResult = {
@@ -9303,7 +9297,7 @@ export type Snack = Project & {
   /** Has the Snack been run without errors */
   hasBeenRunSuccessfully?: Maybe<Scalars['Boolean']['output']>;
   hashId: Scalars['String']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   iconUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   /** Draft status, which is true when the Snack was not saved explicitly, but auto-saved */
@@ -10090,8 +10084,6 @@ export type UpdateEnvironmentVariableInput = {
   environments?: InputMaybe<Array<Scalars['EnvironmentVariableEnvironment']['input']>>;
   fileName?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
-  /** @deprecated You cannot change whether the variable is global. */
-  isGlobal?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   type?: InputMaybe<EnvironmentSecretType>;
   value?: InputMaybe<Scalars['String']['input']>;
@@ -10241,8 +10233,6 @@ export type UpdateVexoAppInput = {
 export type UpdatesFilter = {
   platform?: InputMaybe<AppPlatform>;
   runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
-  /** @deprecated Use runtimeVersions instead. */
-  sdkVersions?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdatesFilterV2 = {
@@ -10357,7 +10347,7 @@ export type User = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published
@@ -10382,22 +10372,22 @@ export type User = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']['output']>;
   hasPassword: Scalars['Boolean']['output'];
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   isLegacy: Scalars['Boolean']['output'];
   isSecondFactorAuthenticationEnabled: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
   newEmailPendingVerification?: Maybe<Scalars['String']['output']>;
   oAuthIdentities: Array<OAuthIdentity>;
@@ -10417,7 +10407,7 @@ export type User = Actor & UserActor & {
   secondFactorDevices: Array<UserSecondFactorDevice>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
@@ -10472,7 +10462,7 @@ export type UserActor = {
    */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published
@@ -10499,16 +10489,16 @@ export type UserActor = {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   githubUsername?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   location?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
   preferences: UserPreferences;
@@ -10519,7 +10509,7 @@ export type UserActor = {
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
-  /** @deprecated Field no longer supported */
+  /** @deprecated No longer supported */
   twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
@@ -10765,22 +10755,12 @@ export type UserDashboardViewPinMutationUnpinDashboardViewArgs = {
 };
 
 export type UserDataInput = {
-  /** @deprecated Field no longer supported */
-  appetizeCode?: InputMaybe<Scalars['String']['input']>;
   email?: InputMaybe<Scalars['String']['input']>;
   firstName?: InputMaybe<Scalars['String']['input']>;
   fullName?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  githubUsername?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['ID']['input']>;
-  /** @deprecated Field no longer supported */
-  industry?: InputMaybe<Scalars['String']['input']>;
   lastName?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  location?: InputMaybe<Scalars['String']['input']>;
   profilePhoto?: InputMaybe<Scalars['String']['input']>;
-  /** @deprecated Field no longer supported */
-  twitterUsername?: InputMaybe<Scalars['String']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -13816,7 +13796,7 @@ export type AppObserveEventsQueryVariables = Exact<{
 }>;
 
 
-export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null } }> } } } } };
+export type AppObserveEventsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, observe: { __typename?: 'AppObserve', events: { __typename?: 'AppObserveEventsConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, endCursor?: string | null }, edges: Array<{ __typename?: 'AppObserveEventEdge', cursor: string, node: { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null } }> } } } } };
 
 export type AppObserveCustomEventListQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -14089,7 +14069,7 @@ export type AppObserveTimeSeriesFragment = { __typename?: 'AppObserveTimeSeries'
 
 export type AppObserveCustomEventFragment = { __typename?: 'AppObserveCustomEvent', id: string, eventName: string, timestamp: any, sessionId?: string | null, severityNumber?: number | null, severityText?: string | null, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, appEasBuildId?: string | null, deviceOs: string, deviceOsVersion: string, deviceModel: string, environment?: string | null, easClientId: string, countryCode?: string | null, properties: Array<{ __typename?: 'AppObserveEventProperty', key: string, value: string, type: AppObservePropertyType }> };
 
-export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null };
+export type AppObserveEventFragment = { __typename?: 'AppObserveEvent', id: string, metricName: string, metricValue: number, timestamp: any, appVersion: string, appBuildNumber: string, appUpdateId?: string | null, deviceModel: string, deviceOs: string, deviceOsVersion: string, countryCode?: string | null, sessionId?: string | null, easClientId: string, customParams?: any | null, routeName?: string | null };
 
 export type AppObserveAppVersionFragment = { __typename?: 'AppObserveAppVersion', appVersion: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, buildNumbers: Array<{ __typename?: 'AppObserveAppBuildNumber', appBuildNumber: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, updates: Array<{ __typename?: 'AppObserveAppUpdate', appUpdateId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number, easBuilds: Array<{ __typename?: 'AppObserveAppEasBuild', easBuildId: string, firstSeenAt: any, eventCount: number, uniqueUserCount: number }> }>, metrics: Array<{ __typename?: 'AppObserveAppVersionMetric', metricName: string, eventCount: number, statistics: { __typename?: 'AppObserveVersionMarkerStatistics', min?: number | null, max?: number | null, median?: number | null, average?: number | null, p80?: number | null, p90?: number | null, p99?: number | null } }> };
 

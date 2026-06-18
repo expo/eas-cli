@@ -11,8 +11,8 @@ interface FetchCustomEventsOptions {
   eventName?: string;
   limit: number;
   after?: string;
-  startTime: string;
-  endTime: string;
+  startTime?: string;
+  endTime?: string;
   platform?: AppObservePlatform;
   appVersion?: string;
   updateId?: string;
@@ -30,8 +30,8 @@ export async function fetchObserveCustomEventsAsync(
   options: FetchCustomEventsOptions
 ): Promise<FetchCustomEventsResult> {
   const filter: AppObserveCustomEventListFilter = {
-    startTime: options.startTime,
-    endTime: options.endTime,
+    ...(options.startTime && { startTime: options.startTime }),
+    ...(options.endTime && { endTime: options.endTime }),
     ...(options.eventName && { eventName: options.eventName }),
     ...(options.platform && { platform: options.platform }),
     ...(options.appVersion && { appVersion: options.appVersion }),
