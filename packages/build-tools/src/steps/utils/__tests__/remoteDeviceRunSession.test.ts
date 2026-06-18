@@ -1,22 +1,16 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
-import fetch from 'node-fetch';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   fetchServeSimTurnArgsAsync,
-  listArgentArtifactsAsync,
   turnIceServersToServeSimArgs,
-  uploadArgentArtifactAsync,
 } from '../remoteDeviceRunSession';
 
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../sentry');
-jest.mock('node-fetch');
-
-const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
 function createLoggerMock(): bunyan {
   return {
@@ -156,126 +150,5 @@ describe(fetchServeSimTurnArgsAsync, () => {
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
-  });
-});
-
-describe(listArgentArtifactsAsync, () => {
-  beforeEach(() => {
-    jest.mocked(fetch).mockReset();
-  });
-
-  it('lists Argent artifacts with bearer auth', async () => {
-    jest.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          artifacts: [
-            {
-              id: 'artifact-id',
-              filename: 'report.json',
-              mimeType: 'application/json',
-              size: 12,
-              isDirectory: false,
-            },
-          ],
-        })
-      )
-    );
-
-    const artifacts = await listArgentArtifactsAsync({
-      toolsUrl: 'http://127.0.0.1:1234',
-      toolsAuthToken: 'tools-token',
-    });
-
-    expect(artifacts).toEqual([
-      {
-        id: 'artifact-id',
-        filename: 'report.json',
-        mimeType: 'application/json',
-        size: 12,
-        isDirectory: false,
-      },
-    ]);
-    expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts', {
-      headers: { Authorization: 'Bearer tools-token' },
-    });
-  });
-});
-
-describe(uploadArgentArtifactAsync, () => {
-  beforeEach(() => {
-    jest.mocked(fetch).mockReset();
-  });
-
-  it('streams an Argent artifact through a signed upload URL', async () => {
-    const data = Buffer.from('artifact-data');
-    const reportedSize = 1024;
-    const mutation = jest.fn().mockReturnValue({
-      toPromise: async () => ({
-        data: {
-          deviceRunSession: {
-            createArtifactUploadSession: {
-              uploadSession: {
-                url: 'https://uploads.expo.test/artifact',
-                headers: {
-                  'Content-Length': String(reportedSize),
-                  'Content-Type': 'application/octet-stream',
-                },
-              },
-            },
-          },
-        },
-      }),
-    });
-    const ctx = {
-      graphqlClient: {
-        mutation,
-      },
-    } as unknown as CustomBuildContext;
-
-    jest
-      .mocked(fetch)
-      .mockResolvedValueOnce(new Response(data))
-      .mockResolvedValueOnce(new Response('', { status: 200 }));
-
-    await uploadArgentArtifactAsync({
-      ctx,
-      deviceRunSessionId: 'drs-id',
-      toolsUrl: 'http://127.0.0.1:1234',
-      toolsAuthToken: 'tools-token',
-      artifact: {
-        id: 'artifact-id',
-        filename: 'report.json',
-        mimeType: 'application/json',
-        size: reportedSize,
-      },
-      logger: createLoggerMock(),
-    });
-
-    expect(jest.mocked(fetch)).toHaveBeenNthCalledWith(
-      1,
-      'http://127.0.0.1:1234/artifacts/artifact-id',
-      {
-        headers: { Authorization: 'Bearer tools-token' },
-      }
-    );
-    expect(mutation).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        deviceRunSessionId: 'drs-id',
-        input: {
-          name: 'Argent artifact report.json (artifact-id)',
-          filename: 'report.json',
-          size: reportedSize,
-        },
-      })
-    );
-    expect(jest.mocked(fetch)).toHaveBeenNthCalledWith(
-      2,
-      'https://uploads.expo.test/artifact',
-      expect.objectContaining({
-        method: 'PUT',
-        body: expect.anything(),
-      })
-    );
   });
 });

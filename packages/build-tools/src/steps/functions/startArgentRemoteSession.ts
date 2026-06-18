@@ -14,13 +14,12 @@ import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
-  enableArgentArtifactsListEndpointAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   spawnDetached,
-  startArgentArtifactUploadPollingAsync,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
@@ -28,7 +27,8 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
-const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 const ARGENT_STATE_FILE = path.join(os.homedir(), '.argent', 'tool-server.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -77,7 +77,12 @@ export function createStartArgentRemoteSessionBuildFunction(
 
       // Stale state from a previous run would mask the new server's port.
       await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
-      await enableArgentArtifactsListEndpointAsync();
+      logger.info('Enabling the Argent artifacts list endpoint flag.');
+      await spawn(
+        'bunx',
+        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        { env, logger }
+      );
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
       const argentServer = spawnDetached({
@@ -116,12 +121,10 @@ export function createStartArgentRemoteSessionBuildFunction(
         );
       }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
-      startArgentArtifactUploadPollingAsync({
-        ctx,
+      void pollArgentArtifactsForUploadAsync(ctx, {
         deviceRunSessionId,
         toolsUrl: `http://127.0.0.1:${toolServerPort}`,
         toolsAuthToken: toolServerToken,
-        logger,
       });
 
       const publicToolsUrl = await startNgrokTunnelAsync({
