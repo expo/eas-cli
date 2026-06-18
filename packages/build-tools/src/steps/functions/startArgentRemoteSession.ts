@@ -15,10 +15,12 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
+  enableArgentArtifactsListEndpointAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   spawnDetached,
+  startArgentArtifactUploadPollingAsync,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
@@ -26,7 +28,7 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
-const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.11.0';
+const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
 const ARGENT_STATE_FILE = path.join(os.homedir(), '.argent', 'tool-server.json');
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -75,6 +77,7 @@ export function createStartArgentRemoteSessionBuildFunction(
 
       // Stale state from a previous run would mask the new server's port.
       await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
+      await enableArgentArtifactsListEndpointAsync();
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
       const argentServer = spawnDetached({
@@ -113,6 +116,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         );
       }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
+      startArgentArtifactUploadPollingAsync({
+        ctx,
+        deviceRunSessionId,
+        toolsUrl: `http://127.0.0.1:${toolServerPort}`,
+        toolsAuthToken: toolServerToken,
+        logger,
+      });
 
       const publicToolsUrl = await startNgrokTunnelAsync({
         port: toolServerPort,
