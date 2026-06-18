@@ -55,11 +55,9 @@ function formatOffsetSeconds(startIso: string, currentIso: string): string {
 
 export function buildObserveSessionEventsTable(
   entries: SessionEventEntry[],
-  sessionId: string,
   options?: BuildSessionEventsOptions
 ): string {
   const lines: string[] = [];
-  lines.push(chalk.bold(`Session ${sessionId}`));
 
   if (options?.metadata) {
     const { metadata } = options;
@@ -67,10 +65,10 @@ export function buildObserveSessionEventsTable(
       `App version: ${metadata.appVersion} (${metadata.appBuildNumber})`,
       `Device:      ${metadata.deviceModel} · ${metadata.deviceOs} ${metadata.deviceOsVersion}`,
       `First seen:  ${formatLogTimestamp(metadata.firstSeenAt)}`,
-      `Last seen:   ${formatLogTimestamp(metadata.lastSeenAt)}`
+      `Last seen:   ${formatLogTimestamp(metadata.lastSeenAt)}`,
+      ''
     );
   }
-  lines.push('');
 
   if (entries.length === 0) {
     lines.push(chalk.yellow('No events found for this session.'));

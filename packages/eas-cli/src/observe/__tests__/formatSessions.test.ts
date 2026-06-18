@@ -50,9 +50,9 @@ describe(buildObserveSessionEventsTable, () => {
       makeLogEntry({ timestamp: '2025-01-15T10:02:00.000Z' }),
     ];
 
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
 
-    expect(output).toContain('Session session-1');
+    expect(output).not.toContain('Session session-1');
     expect(output).not.toContain('for the last');
     expect(output).toContain('TTI');
     expect(output).toContain('0.80s');
@@ -69,7 +69,7 @@ describe(buildObserveSessionEventsTable, () => {
         routeName: '/home',
       }),
     ];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('Nav TTI · /home');
   });
 
@@ -80,7 +80,7 @@ describe(buildObserveSessionEventsTable, () => {
       makeLogEntry({ timestamp: '2025-01-15T10:00:12.500Z' }),
     ];
 
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
 
     expect(output).toContain('Offset');
     expect(output).toContain('0.00s');
@@ -91,7 +91,7 @@ describe(buildObserveSessionEventsTable, () => {
   });
 
   it('renders separate Value, Properties, and Severity columns', () => {
-    const output = buildObserveSessionEventsTable([makeLogEntry()], 'session-1');
+    const output = buildObserveSessionEventsTable([makeLogEntry()]);
     const headerLine = output.split('\n').find(line => line.includes('Offset'));
     expect(headerLine).toContain('Value');
     expect(headerLine).toContain('Properties');
@@ -101,13 +101,13 @@ describe(buildObserveSessionEventsTable, () => {
 
   it('shows severity text in the Severity column for log entries', () => {
     const entries = [makeLogEntry({ severityText: 'WARN' })];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('WARN');
   });
 
   it('falls back to severity number in the Severity column when only a number is set', () => {
     const entries = [makeLogEntry({ severityNumber: 13 })];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('13');
   });
 
@@ -121,7 +121,7 @@ describe(buildObserveSessionEventsTable, () => {
         ],
       }),
     ];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('user_id=abc');
     expect(output).toContain('is_premium=true');
     expect(output).toContain('level=7');
@@ -136,7 +136,7 @@ describe(buildObserveSessionEventsTable, () => {
         ],
       }),
     ];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('user_id=abc');
     expect(output).not.toContain('context=');
   });
@@ -148,7 +148,7 @@ describe(buildObserveSessionEventsTable, () => {
         properties: [{ key: 'user_id', value: 'abc', type: 'STRING' }],
       }),
     ];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     expect(output).toContain('0.80s');
     // The log row's Value cell is '-'; the property goes into Properties.
     expect(output).toContain('user_id=abc');
@@ -160,18 +160,18 @@ describe(buildObserveSessionEventsTable, () => {
         properties: [{ key: 'context', value: '{}', type: 'JSON' }],
       }),
     ];
-    const output = buildObserveSessionEventsTable(entries, 'session-1');
+    const output = buildObserveSessionEventsTable(entries);
     const dataLines = output.split('\n').filter(line => line.includes('log'));
     expect(dataLines.some(line => line.includes('-'))).toBe(true);
   });
 
   it('shows an empty-state message when entries are empty', () => {
-    const output = buildObserveSessionEventsTable([], 'session-1');
+    const output = buildObserveSessionEventsTable([]);
     expect(output).toContain('No events found for this session.');
   });
 
   it('warns when more events are available from either source', () => {
-    const output = buildObserveSessionEventsTable([makeMetricEntry()], 'session-1', {
+    const output = buildObserveSessionEventsTable([makeMetricEntry()], {
       hasMoreMetricEvents: true,
       hasMoreLogEvents: true,
     });
@@ -191,7 +191,7 @@ describe(buildObserveSessionEventsTable, () => {
       firstSeenAt: '2025-01-15T10:00:00.000Z',
       lastSeenAt: '2025-01-15T10:05:00.000Z',
     };
-    const output = buildObserveSessionEventsTable([makeMetricEntry()], 'session-1', { metadata });
+    const output = buildObserveSessionEventsTable([makeMetricEntry()], { metadata });
 
     expect(output).toContain('App version: 1.2.0 (99)');
     expect(output).toContain('Device:');
@@ -202,7 +202,7 @@ describe(buildObserveSessionEventsTable, () => {
   });
 
   it('omits the metadata block when metadata is null', () => {
-    const output = buildObserveSessionEventsTable([makeMetricEntry()], 'session-1', {
+    const output = buildObserveSessionEventsTable([makeMetricEntry()], {
       metadata: null,
     });
     expect(output).not.toContain('App version:');

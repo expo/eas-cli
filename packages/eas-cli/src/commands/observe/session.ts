@@ -76,7 +76,7 @@ export default class ObserveSession extends EasCommand {
     } else {
       Log.addNewLineIfNone();
       Log.log(
-        buildObserveSessionEventsTable(entries, args.sessionId, {
+        buildObserveSessionEventsTable(entries, {
           metadata,
           hasMoreMetricEvents,
           hasMoreLogEvents,
