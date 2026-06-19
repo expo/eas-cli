@@ -1,5 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import fetch from 'node-fetch';
+import os from 'node:os';
+import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -112,31 +117,43 @@ export async function uploadArgentArtifactAsync(
   }
 ): Promise<void> {
   const filename = artifact.isDirectory ? `${artifact.filename}.tar.gz` : artifact.filename;
-  ctx.logger.info(`Uploading artifact ${filename} (${formatBytes(artifact.size)}).`);
-  const stream = await createArgentArtifactDownloadStreamAsync({
-    artifact,
-    toolsUrl,
-    toolsAuthToken,
-  });
-  await uploadDeviceRunSessionArtifactAsync(ctx, {
-    deviceRunSessionId,
-    artifactId: artifact.id,
-    name: `${filename} (${artifact.id})`,
-    filename,
-    size: artifact.size,
-    stream,
-  });
+  const { logger } = ctx;
+  logger.info(`Downloading artifact ${filename}.`);
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'argent-artifact-'));
+  try {
+    const temporaryArtifactPath = path.join(temporaryDirectory, path.basename(filename));
+    await downloadArgentArtifactToFileAsync({
+      artifact,
+      toolsUrl,
+      toolsAuthToken,
+      destinationPath: temporaryArtifactPath,
+    });
+    const { size } = await stat(temporaryArtifactPath);
+    logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
+    await uploadDeviceRunSessionArtifactAsync(ctx, {
+      deviceRunSessionId,
+      artifactId: artifact.id,
+      name: `${filename} (${artifact.id})`,
+      filename,
+      size,
+      stream: createReadStream(temporaryArtifactPath),
+    });
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
 }
 
-async function createArgentArtifactDownloadStreamAsync({
+async function downloadArgentArtifactToFileAsync({
   artifact,
   toolsUrl,
   toolsAuthToken,
+  destinationPath,
 }: {
   artifact: ArgentArtifact;
   toolsUrl: string;
   toolsAuthToken?: string;
-}): Promise<NodeJS.ReadableStream> {
+  destinationPath: string;
+}): Promise<void> {
   const response = await fetch(new URL(`/artifacts/${artifact.id}`, toolsUrl).toString(), {
     headers: toolsAuthToken ? { Authorization: `Bearer ${toolsAuthToken}` } : {},
   });
@@ -150,5 +167,5 @@ async function createArgentArtifactDownloadStreamAsync({
       `Argent artifact ${artifact.id} response did not include a readable body.`
     );
   }
-  return response.body;
+  await pipeline(response.body, createWriteStream(destinationPath));
 }
