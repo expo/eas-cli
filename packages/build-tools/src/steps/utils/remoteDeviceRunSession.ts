@@ -267,9 +267,10 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
+  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimTunnelArgs({ baseDomain }),
+    args: createServeSimTunnelArgs({ baseDomain, turnArgs }),
     env,
   });
 
@@ -288,7 +289,13 @@ export async function startServeSimWithTunnelAsync(
   );
 }
 
-export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string }): string[] {
+export function createServeSimTunnelArgs({
+  baseDomain,
+  turnArgs = [],
+}: {
+  baseDomain: string;
+  turnArgs?: string[];
+}): string[] {
   return [
     SERVE_SIM_PACKAGE_SPEC,
     '--tunnel',
@@ -296,6 +303,10 @@ export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string })
     'ngrok',
     '--tunnel-domain',
     baseDomain,
+    '--codec',
+    'webrtc',
+    '--webrtc-codec',
+    'h264',
     // MJPEG remains the browser fallback when AVCC/H.264 is unavailable.
     '--stream-max-dimension',
     SERVE_SIM_MJPEG_FALLBACK_MAX_DIMENSION,
@@ -308,6 +319,7 @@ export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string })
     SERVE_SIM_H264_BITRATE,
     '--h264-max-fps',
     SERVE_SIM_H264_MAX_FPS,
+    ...turnArgs,
   ];
 }
 
