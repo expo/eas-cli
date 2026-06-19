@@ -19,6 +19,7 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
@@ -30,7 +31,6 @@ const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 const ARGENT_STATE_FILE = path.join(os.homedir(), '.argent', 'tool-server.json');
-const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
 
 const ArgentToolServerStateSchema = z.object({
@@ -71,8 +71,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
-        await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
       // Stale state from a previous run would mask the new server's port.
