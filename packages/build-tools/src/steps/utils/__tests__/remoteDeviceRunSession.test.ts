@@ -38,22 +38,8 @@ function createEnvMock(): BuildStepEnv {
 }
 
 describe(createServeSimTunnelArgs, () => {
-  it('builds ngrok/H264 serve-sim args and passes through TURN flags', () => {
-    expect(
-      createServeSimTunnelArgs({
-        baseDomain: 'expo-simulator.ngrok.dev',
-        turnArgs: [
-          '--stun-url',
-          'stun:stun.cloudflare.com:3478',
-          '--turn-url',
-          'turns:turn.cloudflare.com:443?transport=tcp',
-          '--turn-username',
-          'u',
-          '--turn-credential',
-          'c',
-        ],
-      })
-    ).toEqual([
+  it('builds ngrok/H264 serve-sim args', () => {
+    expect(createServeSimTunnelArgs({ baseDomain: 'expo-simulator.ngrok.dev' })).toEqual([
       'serve-sim-sjchmiela@latest',
       '--tunnel',
       '--tunnel-provider',
@@ -70,14 +56,6 @@ describe(createServeSimTunnelArgs, () => {
       '3000000',
       '--h264-max-fps',
       '30',
-      '--stun-url',
-      'stun:stun.cloudflare.com:3478',
-      '--turn-url',
-      'turns:turn.cloudflare.com:443?transport=tcp',
-      '--turn-username',
-      'u',
-      '--turn-credential',
-      'c',
     ]);
   });
 });

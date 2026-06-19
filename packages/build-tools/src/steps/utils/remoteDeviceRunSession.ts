@@ -267,10 +267,9 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
-  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimTunnelArgs({ baseDomain, turnArgs }),
+    args: createServeSimTunnelArgs({ baseDomain }),
     env,
   });
 
@@ -289,13 +288,7 @@ export async function startServeSimWithTunnelAsync(
   );
 }
 
-export function createServeSimTunnelArgs({
-  baseDomain,
-  turnArgs = [],
-}: {
-  baseDomain: string;
-  turnArgs?: string[];
-}): string[] {
+export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string }): string[] {
   return [
     SERVE_SIM_PACKAGE_SPEC,
     '--tunnel',
@@ -315,7 +308,6 @@ export function createServeSimTunnelArgs({
     SERVE_SIM_H264_BITRATE,
     '--h264-max-fps',
     SERVE_SIM_H264_MAX_FPS,
-    ...turnArgs,
   ];
 }
 
