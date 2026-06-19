@@ -5,6 +5,7 @@ import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
+  createServeSimTunnelArgs,
   fetchServeSimTurnArgsAsync,
   turnIceServersToServeSimArgs,
 } from '../remoteDeviceRunSession';
@@ -35,6 +36,51 @@ function createCtxMock(): CustomBuildContext {
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(createServeSimTunnelArgs, () => {
+  it('builds ngrok/H264 serve-sim args and passes through TURN flags', () => {
+    expect(
+      createServeSimTunnelArgs({
+        baseDomain: 'expo-simulator.ngrok.dev',
+        turnArgs: [
+          '--stun-url',
+          'stun:stun.cloudflare.com:3478',
+          '--turn-url',
+          'turns:turn.cloudflare.com:443?transport=tcp',
+          '--turn-username',
+          'u',
+          '--turn-credential',
+          'c',
+        ],
+      })
+    ).toEqual([
+      'serve-sim-sjchmiela@latest',
+      '--tunnel',
+      '--tunnel-provider',
+      'ngrok',
+      '--tunnel-domain',
+      'expo-simulator.ngrok.dev',
+      '--stream-max-dimension',
+      '1280',
+      '--stream-quality',
+      '0.55',
+      '--stream-fps',
+      '10',
+      '--h264-bitrate',
+      '3000000',
+      '--h264-max-fps',
+      '30',
+      '--stun-url',
+      'stun:stun.cloudflare.com:3478',
+      '--turn-url',
+      'turns:turn.cloudflare.com:443?transport=tcp',
+      '--turn-username',
+      'u',
+      '--turn-credential',
+      'c',
+    ]);
+  });
+});
 
 describe(turnIceServersToServeSimArgs, () => {
   it('returns no args for an empty ICE server list', () => {
