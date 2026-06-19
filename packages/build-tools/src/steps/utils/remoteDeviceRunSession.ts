@@ -258,7 +258,7 @@ export async function startServeSimWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
   }
-): Promise<{ previewUrl: string; streamUrl: string }> {
+): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
@@ -281,19 +281,18 @@ export async function startServeSimWithTunnelAsync(
     env,
   });
 
-  logger.info('Waiting for serve-sim to report tunnel and stream URLs.');
+  logger.info('Waiting for serve-sim to report tunnel URL.');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const output = serveSim.getOutput();
     const previewUrl = matchLabeledUrl({ output, label: 'Tunnel', baseDomain });
-    const streamUrl = matchLabeledUrl({ output, label: 'Stream', baseDomain });
-    if (previewUrl && streamUrl) {
-      return { previewUrl, streamUrl };
+    if (previewUrl) {
+      return { previewUrl };
     }
     await sleepAsync(1_000);
   }
   throw new SystemError(
-    `Timed out waiting for serve-sim to report Tunnel and Stream URLs. Last output:\n${serveSim.getOutput() || '<empty>'}`
+    `Timed out waiting for serve-sim to report Tunnel URL. Last output:\n${serveSim.getOutput() || '<empty>'}`
   );
 }
 
