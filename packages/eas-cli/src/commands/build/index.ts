@@ -9,6 +9,7 @@ import path from 'path';
 
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
+import { assertExplicitRefreshAdHocProvisioningProfileFlagValid } from '../../build/utils/refreshAdHocProvisioningProfile';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -40,7 +41,7 @@ interface RawBuildFlags {
   message?: string;
   'build-logger-level'?: LoggerLevel;
   'freeze-credentials': boolean;
-  'refresh-ad-hoc-provisioning-profile': boolean;
+  'refresh-ad-hoc-provisioning-profile'?: boolean;
   'verbose-logs'?: boolean;
   'what-to-test'?: string;
 }
@@ -123,7 +124,7 @@ export default class Build extends EasCommand {
       description: 'Prevent the build from updating credentials in non-interactive mode',
     }),
     'refresh-ad-hoc-provisioning-profile': Flags.boolean({
-      default: false,
+      allowNo: true,
       description:
         'Refresh managed ad-hoc provisioning profiles from App Store Connect before gathering build credentials',
     }),
@@ -194,19 +195,14 @@ export default class Build extends EasCommand {
     flags: RawBuildFlags
   ): Omit<BuildFlags, 'requestedPlatform'> & { requestedPlatform?: RequestedPlatform } {
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-    if (flags['refresh-ad-hoc-provisioning-profile']) {
-      if (!nonInteractive) {
-        Errors.error(
-          '--refresh-ad-hoc-provisioning-profile can only be used in non-interactive mode.',
-          { exit: 1 }
-        );
-      }
-      if (flags['freeze-credentials']) {
-        Errors.error(
-          'Cannot use --refresh-ad-hoc-provisioning-profile with --freeze-credentials.',
-          { exit: 1 }
-        );
-      }
+    try {
+      assertExplicitRefreshAdHocProvisioningProfileFlagValid({
+        refreshAdHocProvisioningProfileFlag: flags['refresh-ad-hoc-provisioning-profile'],
+        nonInteractive,
+        freezeCredentials: flags['freeze-credentials'],
+      });
+    } catch (error) {
+      Errors.error(error instanceof Error ? error.message : String(error), { exit: 1 });
     }
     if (!flags.local && flags.output) {
       Errors.error('--output is allowed only for local builds', { exit: 1 });

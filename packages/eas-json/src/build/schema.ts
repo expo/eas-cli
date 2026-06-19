@@ -133,6 +133,7 @@ const IosBuildProfileSchema = PlatformBuildProfileSchema.concat(
 
     // credentials
     enterpriseProvisioning: Joi.string().valid('adhoc', 'universal'),
+    refreshAdHocProvisioningProfile: Joi.boolean(),
 
     // build configuration
     simulator: Joi.boolean(),

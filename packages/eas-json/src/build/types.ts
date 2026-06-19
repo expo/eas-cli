@@ -107,6 +107,7 @@ export interface IosBuildProfile extends PlatformBuildProfile {
 
   // credentials
   enterpriseProvisioning?: IosEnterpriseProvisioning;
+  refreshAdHocProvisioningProfile?: boolean;
 
   // build configuration
   simulator?: boolean;

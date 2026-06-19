@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add optional `ios.refreshAdHocProvisioningProfile` eas.json setting to enable ad-hoc profile refresh in CI without passing `--refresh-ad-hoc-provisioning-profile` on every run. ([#3886](https://github.com/expo/eas-cli/pull/3886) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] New command `observe:session` for inspecting events by session ID. ([#3868](https://github.com/expo/eas-cli/pull/3868) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
