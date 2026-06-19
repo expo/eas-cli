@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import fetch from 'node-fetch';
@@ -34,13 +35,14 @@ export async function pollArgentArtifactsForUploadAsync(
     deviceRunSessionId,
     toolsUrl,
     toolsAuthToken,
+    logger,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
+    logger: bunyan;
   }
 ): Promise<never> {
-  const { logger } = ctx;
   logger.info('Started polling Argent tool-server for artifacts.');
   const seenArtifactIds = new Set<string>();
   let listArtifactsErrorCount = 0;
@@ -59,6 +61,7 @@ export async function pollArgentArtifactsForUploadAsync(
           toolsUrl,
           toolsAuthToken,
           artifact,
+          logger,
         }).catch(err => {
           const error = err instanceof Error ? err : new Error(String(err));
           Sentry.capture('Could not upload Argent remote session artifact', error);
@@ -109,15 +112,16 @@ export async function uploadArgentArtifactAsync(
     toolsUrl,
     toolsAuthToken,
     artifact,
+    logger,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     artifact: ArgentArtifact;
+    logger: bunyan;
   }
 ): Promise<void> {
   const filename = artifact.isDirectory ? `${artifact.filename}.tar.gz` : artifact.filename;
-  const { logger } = ctx;
   logger.info(`Downloading artifact ${filename}.`);
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'argent-artifact-'));
   try {
