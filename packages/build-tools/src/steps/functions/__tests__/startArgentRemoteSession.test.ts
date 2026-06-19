@@ -1,11 +1,16 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 
-import { warnIfArgentPackageVersionCannotBeVerified } from '../startArgentRemoteSession';
+import {
+  MIN_ARGENT_REMOTE_SESSION_VERSION,
+  warnIfArgentPackageVersionCannotBeVerified,
+} from '../startArgentRemoteSession';
 
 describe(warnIfArgentPackageVersionCannotBeVerified, () => {
   const warn = jest.fn();
   const logger = { warn } as unknown as bunyan;
+  const supportedVersion = '999.0.0';
+  const oldVersion = '0.0.0';
 
   beforeEach(() => {
     warn.mockClear();
@@ -23,24 +28,30 @@ describe(warnIfArgentPackageVersionCannotBeVerified, () => {
 
   it('allows exact supported semver versions', () => {
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: '0.11.0', logger })
+      warnIfArgentPackageVersionCannotBeVerified({
+        packageVersion: MIN_ARGENT_REMOTE_SESSION_VERSION,
+        logger,
+      })
     ).not.toThrow();
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: '0.11.1', logger })
+      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: supportedVersion, logger })
     ).not.toThrow();
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: 'v0.11.1', logger })
+      warnIfArgentPackageVersionCannotBeVerified({
+        packageVersion: `v${supportedVersion}`,
+        logger,
+      })
     ).not.toThrow();
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('rejects exact semver versions that are too old', () => {
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: '0.10.9', logger })
+      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: oldVersion, logger })
     ).toThrow(SystemError);
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: '0.10.9', logger })
-    ).toThrow(/Use "latest" or pass an exact version >= 0\.11\.0/);
+      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: oldVersion, logger })
+    ).toThrow(`Use "latest" or pass an exact version >= ${MIN_ARGENT_REMOTE_SESSION_VERSION}`);
   });
 
   it('warns for package tags or ranges that cannot be verified', () => {
@@ -48,7 +59,10 @@ describe(warnIfArgentPackageVersionCannotBeVerified, () => {
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion: 'next', logger })
     ).not.toThrow();
     expect(() =>
-      warnIfArgentPackageVersionCannotBeVerified({ packageVersion: '^0.11.0', logger })
+      warnIfArgentPackageVersionCannotBeVerified({
+        packageVersion: `^${MIN_ARGENT_REMOTE_SESSION_VERSION}`,
+        logger,
+      })
     ).not.toThrow();
     expect(warn).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith(
