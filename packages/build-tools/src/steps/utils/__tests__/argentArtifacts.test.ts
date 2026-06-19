@@ -40,7 +40,6 @@ describe(listArgentArtifactsAsync, () => {
               id: 'artifact-id',
               filename: 'report.json',
               mimeType: 'application/json',
-              size: 12,
               isDirectory: false,
             },
           ],
@@ -58,7 +57,6 @@ describe(listArgentArtifactsAsync, () => {
         id: 'artifact-id',
         filename: 'report.json',
         mimeType: 'application/json',
-        size: 12,
         isDirectory: false,
       },
     ]);
@@ -76,10 +74,8 @@ describe(uploadArgentArtifactAsync, () => {
 
   it('downloads an Argent artifact and uploads it as a device run session artifact', async () => {
     const data = Buffer.from('artifact-data');
-    const reportedSize = 1024;
-    const ctx = {
-      logger: createLoggerMock(),
-    } as unknown as CustomBuildContext;
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
 
     jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
     jest
@@ -92,11 +88,11 @@ describe(uploadArgentArtifactAsync, () => {
       deviceRunSessionId: 'drs-id',
       toolsUrl: 'http://127.0.0.1:1234',
       toolsAuthToken: 'tools-token',
+      logger,
       artifact: {
         id: 'artifact-id',
         filename: 'report.json',
         mimeType: 'application/json',
-        size: reportedSize,
       },
     });
 

@@ -125,6 +125,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         deviceRunSessionId,
         toolsUrl: `http://127.0.0.1:${toolServerPort}`,
         toolsAuthToken: toolServerToken,
+        logger,
       });
 
       const publicToolsUrl = await startNgrokTunnelAsync({
