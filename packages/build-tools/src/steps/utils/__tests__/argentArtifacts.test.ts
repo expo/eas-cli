@@ -1,5 +1,6 @@
 import { bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
+import { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
@@ -9,6 +10,12 @@ jest.mock('../deviceRunSessionArtifacts');
 jest.mock('node-fetch');
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+
+async function readStreamAsync(stream: NodeJS.ReadableStream): Promise<void> {
+  for await (const chunk of stream as Readable) {
+    void chunk;
+  }
+}
 
 function createLoggerMock(): bunyan {
   return {
@@ -33,7 +40,6 @@ describe(listArgentArtifactsAsync, () => {
               id: 'artifact-id',
               filename: 'report.json',
               mimeType: 'application/json',
-              size: 12,
               isDirectory: false,
             },
           ],
@@ -51,7 +57,6 @@ describe(listArgentArtifactsAsync, () => {
         id: 'artifact-id',
         filename: 'report.json',
         mimeType: 'application/json',
-        size: 12,
         isDirectory: false,
       },
     ]);
@@ -69,22 +74,25 @@ describe(uploadArgentArtifactAsync, () => {
 
   it('downloads an Argent artifact and uploads it as a device run session artifact', async () => {
     const data = Buffer.from('artifact-data');
-    const reportedSize = 1024;
-    const ctx = {
-      logger: createLoggerMock(),
-    } as unknown as CustomBuildContext;
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
 
-    jest.mocked(fetch).mockResolvedValueOnce(new Response(data));
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
 
     await uploadArgentArtifactAsync(ctx, {
       deviceRunSessionId: 'drs-id',
       toolsUrl: 'http://127.0.0.1:1234',
       toolsAuthToken: 'tools-token',
+      logger,
       artifact: {
         id: 'artifact-id',
         filename: 'report.json',
         mimeType: 'application/json',
-        size: reportedSize,
       },
     });
 
@@ -96,7 +104,7 @@ describe(uploadArgentArtifactAsync, () => {
       artifactId: 'artifact-id',
       name: 'report.json (artifact-id)',
       filename: 'report.json',
-      size: reportedSize,
+      size: data.length,
       stream: expect.anything(),
     });
   });

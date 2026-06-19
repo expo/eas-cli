@@ -1,5 +1,11 @@
 import { SystemError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import fetch from 'node-fetch';
+import os from 'node:os';
+import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -14,7 +20,6 @@ const ArgentArtifactSchema = z.object({
   id: z.string(),
   filename: z.string(),
   mimeType: z.string(),
-  size: z.number(),
   isDirectory: z.boolean().optional(),
 });
 const ArgentArtifactsListResponseSchema = z.object({
@@ -29,13 +34,14 @@ export async function pollArgentArtifactsForUploadAsync(
     deviceRunSessionId,
     toolsUrl,
     toolsAuthToken,
+    logger,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
+    logger: bunyan;
   }
 ): Promise<never> {
-  const { logger } = ctx;
   logger.info('Started polling Argent tool-server for artifacts.');
   const seenArtifactIds = new Set<string>();
   let listArtifactsErrorCount = 0;
@@ -54,6 +60,7 @@ export async function pollArgentArtifactsForUploadAsync(
           toolsUrl,
           toolsAuthToken,
           artifact,
+          logger,
         }).catch(err => {
           const error = err instanceof Error ? err : new Error(String(err));
           Sentry.capture('Could not upload Argent remote session artifact', error);
@@ -104,39 +111,52 @@ export async function uploadArgentArtifactAsync(
     toolsUrl,
     toolsAuthToken,
     artifact,
+    logger,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     artifact: ArgentArtifact;
+    logger: bunyan;
   }
 ): Promise<void> {
   const filename = artifact.isDirectory ? `${artifact.filename}.tar.gz` : artifact.filename;
-  ctx.logger.info(`Uploading artifact ${filename} (${formatBytes(artifact.size)}).`);
-  const stream = await createArgentArtifactDownloadStreamAsync({
-    artifact,
-    toolsUrl,
-    toolsAuthToken,
-  });
-  await uploadDeviceRunSessionArtifactAsync(ctx, {
-    deviceRunSessionId,
-    artifactId: artifact.id,
-    name: `${filename} (${artifact.id})`,
-    filename,
-    size: artifact.size,
-    stream,
-  });
+  logger.info(`Downloading artifact ${filename}.`);
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'argent-artifact-'));
+  try {
+    const temporaryArtifactPath = path.join(temporaryDirectory, path.basename(filename));
+    await downloadArgentArtifactToFileAsync({
+      artifact,
+      toolsUrl,
+      toolsAuthToken,
+      destinationPath: temporaryArtifactPath,
+    });
+    const { size } = await stat(temporaryArtifactPath);
+    logger.info(`Uploading artifact ${filename} (${formatBytes(size)}).`);
+    await uploadDeviceRunSessionArtifactAsync(ctx, {
+      deviceRunSessionId,
+      artifactId: artifact.id,
+      name: `${filename} (${artifact.id})`,
+      filename,
+      size,
+      stream: createReadStream(temporaryArtifactPath),
+    });
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
 }
 
-async function createArgentArtifactDownloadStreamAsync({
+async function downloadArgentArtifactToFileAsync({
   artifact,
   toolsUrl,
   toolsAuthToken,
+  destinationPath,
 }: {
   artifact: ArgentArtifact;
   toolsUrl: string;
   toolsAuthToken?: string;
-}): Promise<NodeJS.ReadableStream> {
+  destinationPath: string;
+}): Promise<void> {
   const response = await fetch(new URL(`/artifacts/${artifact.id}`, toolsUrl).toString(), {
     headers: toolsAuthToken ? { Authorization: `Bearer ${toolsAuthToken}` } : {},
   });
@@ -150,5 +170,5 @@ async function createArgentArtifactDownloadStreamAsync({
       `Argent artifact ${artifact.id} response did not include a readable body.`
     );
   }
-  return response.body;
+  await pipeline(response.body, createWriteStream(destinationPath));
 }
