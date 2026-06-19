@@ -19,6 +19,7 @@ import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
@@ -30,7 +31,6 @@ const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
-const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
@@ -64,8 +64,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
-        await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
       logger.info('Launching agent-device daemon.');

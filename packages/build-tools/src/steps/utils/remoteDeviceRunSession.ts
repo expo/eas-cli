@@ -1,6 +1,6 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv } from '@expo/steps';
+import { BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
@@ -13,6 +13,8 @@ import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
+
+const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -73,6 +75,26 @@ const TurnIceServersSchema = z.array(
 );
 
 export type TurnIceServers = z.infer<typeof TurnIceServersSchema>;
+
+export async function selectXcodeDeveloperDirectoryAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (process.env.ENVIRONMENT === 'development') {
+    logger.info('Job running outside of EAS, not selecting Xcode developer directory.');
+    return;
+  }
+
+  logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
+  await spawnAsync('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], {
+    env,
+    logger,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
 
 const TurnIceServersResponseSchema = z.object({
   data: z.object({
