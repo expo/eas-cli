@@ -944,7 +944,7 @@ USAGE
   $ eas channel:pause [NAME] [--branch <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [NAME]  Name of the channel to edit
+  [NAME]  Name of the channel to pause
 
 FLAGS
   --branch=<value>   Name of the branch to point to
@@ -966,7 +966,7 @@ USAGE
   $ eas channel:resume [NAME] [--branch <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [NAME]  Name of the channel to edit
+  [NAME]  Name of the channel to resume
 
 FLAGS
   --branch=<value>   Name of the branch to point to
