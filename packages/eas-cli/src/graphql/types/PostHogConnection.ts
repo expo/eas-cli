@@ -12,6 +12,15 @@ export type PostHogOrganizationConnectionData = Pick<
   | 'updatedAt'
 >;
 
+// `state` is the website callback's correlator; the CLI only needs `url`, so it omits it.
+export type PostHogPendingConnectionData = {
+  url: string;
+};
+
+export type StartPostHogConnectionResult =
+  | ({ __typename: 'PostHogOrganizationConnection' } & PostHogOrganizationConnectionData)
+  | ({ __typename: 'PostHogPendingConnection' } & PostHogPendingConnectionData);
+
 export type PostHogProjectData = Pick<
   PostHogProject,
   | 'id'

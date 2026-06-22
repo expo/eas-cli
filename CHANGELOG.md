@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] `eas integrations:posthog:connect` now supports existing PostHog user connection. ([#3895](https://github.com/expo/eas-cli/pull/3895) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
