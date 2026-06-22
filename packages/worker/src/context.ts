@@ -74,6 +74,7 @@ export async function createBuildContext<TJob extends Job>({
               artifactPaths: paths,
               logger,
               name: artifact.name,
+              metadata: artifact.metadata,
             }),
           analytics
         );

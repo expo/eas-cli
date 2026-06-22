@@ -45,6 +45,7 @@ export type ArtifactToUpload =
       type: GenericArtifactType;
       name: string;
       paths: string[];
+      metadata?: Record<string, unknown>;
     };
 
 export interface BuildContextOptions {
