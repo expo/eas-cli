@@ -253,7 +253,7 @@ export function spawnDetached({
 }
 
 export async function startServeSimWithTunnelAsync(
-  _ctx: CustomBuildContext,
+  ctx: CustomBuildContext,
   {
     baseDomain,
     env,
@@ -267,9 +267,10 @@ export async function startServeSimWithTunnelAsync(
   }
 ): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
+  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimTunnelArgs({ baseDomain }),
+    args: createServeSimTunnelArgs({ baseDomain, turnArgs }),
     env,
   });
 
@@ -288,7 +289,13 @@ export async function startServeSimWithTunnelAsync(
   );
 }
 
-export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string }): string[] {
+export function createServeSimTunnelArgs({
+  baseDomain,
+  turnArgs = [],
+}: {
+  baseDomain: string;
+  turnArgs?: string[];
+}): string[] {
   return [
     SERVE_SIM_PACKAGE_SPEC,
     '--tunnel',
@@ -303,11 +310,17 @@ export function createServeSimTunnelArgs({ baseDomain }: { baseDomain: string })
     SERVE_SIM_MJPEG_FALLBACK_QUALITY,
     '--stream-fps',
     SERVE_SIM_MJPEG_FALLBACK_FPS,
-    // The tunneled helper advertises /stream.avcc, so keep H.264 network usage bounded.
+    // Prefer WebRTC for tunneled live sessions. Keep the HTTP stream tuning below
+    // as bounded fallback settings when the browser/helper drops back to MJPEG/AVCC.
+    '--transport',
+    'webrtc',
+    '--webrtc-codec',
+    'h264',
     '--h264-bitrate',
     SERVE_SIM_H264_BITRATE,
     '--h264-max-fps',
     SERVE_SIM_H264_MAX_FPS,
+    ...turnArgs,
   ];
 }
 
