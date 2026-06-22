@@ -120,4 +120,44 @@ describe(createUploadArtifactBuildFunction, () => {
     const typeInput = buildStep.inputs?.find(input => input.id === 'type')!;
     expect(typeInput.isRawValueOneOfAllowedValues()).toBe(false);
   });
+
+  it('passes the metadata input through to runtimeApi.uploadArtifact', async () => {
+    contextUploadArtifact.mockClear();
+    const metadata = { kind: 'screen-recording', startedAtMs: '123', device: 'emulator-5554' };
+    const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: {
+        // Generic ('other') artifact: only generic artifacts persist metadata in the worker
+        // (the managed-type upload paths drop it), so that's the type metadata is meant for.
+        type: 'other',
+        key: 'Screen Recording',
+        path: '/',
+        metadata,
+      },
+    });
+
+    await buildStep.executeAsync();
+
+    expect(contextUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ artifact: expect.objectContaining({ metadata }) })
+    );
+  });
+
+  it('does not attach metadata to managed artifact types (the worker drops it)', async () => {
+    contextUploadArtifact.mockClear();
+    const buildStep = uploadArtifact.createBuildStepFromFunctionCall(createGlobalContextMock({}), {
+      callInputs: {
+        type: 'build-artifact',
+        path: '/',
+        metadata: { kind: 'screen-recording' },
+      },
+    });
+
+    await buildStep.executeAsync();
+
+    expect(contextUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact: expect.not.objectContaining({ metadata: expect.anything() }),
+      })
+    );
+  });
 });
