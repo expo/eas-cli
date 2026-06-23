@@ -31,6 +31,7 @@ import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
   resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync,
+  updateBuildRuntimeVersionInDatabaseAsync,
 } from '../utils/expoUpdates';
 import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
@@ -103,7 +104,7 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
   const resolvedExpoUpdatesRuntimeVersion = await ctx.runBuildPhase(
     BuildPhase.CALCULATE_EXPO_UPDATES_RUNTIME_VERSION,
     async () => {
-      return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
+      const resolved = await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
         cwd: ctx.getReactNativeProjectDirectory(),
         logger: ctx.logger,
         appConfig: await ctx.appConfig,
@@ -111,6 +112,10 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
         workflow: ctx.job.type,
         env: ctx.env,
       });
+      if (resolved?.runtimeVersion) {
+        await updateBuildRuntimeVersionInDatabaseAsync(ctx, resolved.runtimeVersion, resolved.fingerprintSources);
+      }
+      return resolved;
     }
   );
 
