@@ -48,6 +48,47 @@ describe(createRepackBuildFunction, () => {
     expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app');
   });
 
+  it('should rename explicit aab output path to apk', async () => {
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(
+      createGlobalContextMock({
+        staticContextContent: {
+          job: createTestAndroidJob(),
+        },
+      }),
+      {
+        callInputs: {
+          platform: 'android',
+          source_app_path: '/path/to/source_app.aab',
+          output_path: '/path/to/output_app.aab',
+        },
+      }
+    );
+
+    await repackStep.executeAsync();
+    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app.apk');
+  });
+
+  it('should rename generated aab output path to apk', async () => {
+    const repack = createRepackBuildFunction();
+    const repackStep = repack.createBuildStepFromFunctionCall(
+      createGlobalContextMock({
+        staticContextContent: {
+          job: createTestAndroidJob(),
+        },
+      }),
+      {
+        callInputs: {
+          platform: 'android',
+          source_app_path: '/path/to/source_app.aab',
+        },
+      }
+    );
+
+    await repackStep.executeAsync();
+    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.apk$/);
+  });
+
   it('should throw for unsupported platforms', async () => {
     const repack = createRepackBuildFunction();
     const repackStep = repack.createBuildStepFromFunctionCall(

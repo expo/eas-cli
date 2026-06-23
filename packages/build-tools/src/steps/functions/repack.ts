@@ -109,9 +109,11 @@ export function createRepackBuildFunction(): BuildFunction {
       stepsCtx.logger.info(`Created temporary working directory: ${workingDirectory}`);
 
       const sourceAppPath = inputs.source_app_path.value as string;
-      const outputPath =
-        (inputs.output_path.value as string) ??
-        path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
+      const outputPath = createOutputPath({
+        requestedOutputPath: inputs.output_path.value as string | undefined,
+        sourceAppPath,
+        tmpDir,
+      });
       const exportEmbedOptions = inputs.embed_bundle_assets.value
         ? {
             sourcemapOutput: undefined,
@@ -200,6 +202,25 @@ export function createRepackBuildFunction(): BuildFunction {
       outputs.output_path.set(outputPath);
     },
   });
+}
+
+function createOutputPath({
+  requestedOutputPath,
+  sourceAppPath,
+  tmpDir,
+}: {
+  requestedOutputPath?: string;
+  sourceAppPath: string;
+  tmpDir: string;
+}): string {
+  const outputPath =
+    requestedOutputPath ??
+    path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
+  const extension = path.extname(outputPath);
+  if (extension.toLowerCase() !== '.aab') {
+    return outputPath;
+  }
+  return `${outputPath.slice(0, -extension.length)}.apk`;
 }
 
 /**
