@@ -45,19 +45,11 @@ async function createAndLinkBranchToChannelAsync(
     appId: projectId,
     branchName: channelName,
   });
-  const {
-    updateChannel: { createUpdateChannelForApp: newChannel },
-  } = await createChannelOnAppAsync(graphqlClient, {
+  await createChannelOnAppAsync(graphqlClient, {
     appId: projectId,
     channelName,
     branchId: branch.id,
   });
-
-  if (!newChannel) {
-    throw new Error(
-      `Could not create channel with name ${channelName} on project with id ${projectId}`
-    );
-  }
 
   return { branchId: branch.id, branchName: channelName };
 }

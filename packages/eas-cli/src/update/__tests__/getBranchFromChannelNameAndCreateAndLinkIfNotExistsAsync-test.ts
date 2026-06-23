@@ -99,6 +99,21 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
     );
   });
 
+  test('rethrows unexpected errors from the channel lookup', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(async () => {
+      throw new Error('Network request failed');
+    });
+
+    await expect(
+      getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+        graphqlClient,
+        'test-project-id',
+        'test-channel-name'
+      )
+    ).rejects.toThrow('Network request failed');
+  });
+
   test('creates channel and branch when channel does not exist, and returns branch name', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(async () => {
