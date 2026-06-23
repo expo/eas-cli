@@ -310,8 +310,6 @@ Refer to "Xcode Logs" below for additional, more detailed logs.`);
     );
   });
 
-  // --- Tests for new build error handlers (tracking codes) ---
-
   it('detects NPM_ERESOLVE tracking code', async () => {
     const err = await resolveBuildPhaseErrorAsync(
       new Error(),
