@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas update --channel` failing with "Channel has no branches associated with it" when the channel was auto-created by a build. A branch with the channel's name is now created and linked, matching the behavior for a channel that doesn't exist yet. ([#3891](https://github.com/expo/eas-cli/pull/3891) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [20.3.0](https://github.com/expo/eas-cli/releases/tag/v20.3.0) - 2026-06-18
