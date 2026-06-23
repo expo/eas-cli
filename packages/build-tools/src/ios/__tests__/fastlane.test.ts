@@ -23,13 +23,19 @@ const WORKING_DIR = '/workingdir';
 // BuildContext.getReactNativeProjectDirectory() nests the RN project under `${workingdir}/build`.
 const IOS_DIR = path.join(WORKING_DIR, 'build', 'ios');
 
-function makeIosBuildContext({ simulator }: { simulator: boolean }): BuildContext<Ios.Job> {
+function makeIosBuildContext({
+  simulator,
+  env = {},
+}: {
+  simulator: boolean;
+  env?: Record<string, string>;
+}): BuildContext<Ios.Job> {
   const job: Ios.Job = { ...createTestIosJob(), simulator };
   return new BuildContext(job, {
     workingdir: WORKING_DIR,
     logger: createMockLogger(),
     logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
-    env: { __API_SERVER_URL: 'http://api.expo.test' },
+    env: { __API_SERVER_URL: 'http://api.expo.test', ...env },
     uploadArtifact: jest.fn(),
   });
 }
@@ -124,5 +130,28 @@ describe(runFastlaneGym, () => {
       derivedDataPath: path.join(IOS_DIR, 'build'),
       workspacePath: IOS_DIR,
     });
+  });
+
+  it('allows Sentry upload failures by default', async () => {
+    const ctx = makeIosBuildContext({
+      simulator: false,
+      env: { EAS_BUILD_RUNNER: 'eas-build' },
+    });
+
+    await runFastlaneGym(ctx, {
+      scheme: 'App',
+      credentials: ARCHIVE_CREDENTIALS,
+      entitlements: null,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'fastlane',
+      ['gym'],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          SENTRY_ALLOW_FAILURE: 'true',
+        }),
+      })
+    );
   });
 });

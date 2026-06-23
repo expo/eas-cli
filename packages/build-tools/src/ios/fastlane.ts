@@ -13,6 +13,7 @@ import { isTVOS } from './tvos';
 import { COMMON_FASTLANE_ENV } from '../common/fastlane';
 import { XcodeBuildLogger } from '../common/xcpretty';
 import { BuildContext, SkipNativeBuildError } from '../context';
+import { resolveSentryUploadEnv } from '../utils/buildEnv';
 
 export async function runFastlaneGym<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
@@ -48,11 +49,12 @@ export async function runFastlaneGym<TJob extends Ios.Job>(
   }
   const buildLogger = new XcodeBuildLogger(ctx.logger, ctx.getReactNativeProjectDirectory());
   void buildLogger.watchLogFiles(ctx.buildLogsDirectory);
+  const env = { ...ctx.env, ...extraEnv };
   try {
     await runFastlane(['gym'], {
       cwd: workspacePath,
       logger: ctx.logger,
-      env: { ...ctx.env, ...extraEnv },
+      env: { ...resolveSentryUploadEnv(env), ...env },
     });
   } finally {
     await buildLogger.flush();

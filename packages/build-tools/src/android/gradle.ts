@@ -7,6 +7,7 @@ import path from 'path';
 
 import { BuildContext } from '../context';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { resolveSentryUploadEnv } from '../utils/buildEnv';
 
 export async function ensureLFLineEndingsInGradlewScript<TJob extends Job>(
   ctx: BuildContext<TJob>
@@ -31,6 +32,7 @@ export async function runGradleCommand(
   logger.info(`Running 'gradlew ${gradleCommand}' in ${androidDir}`);
   await fs.chmod(path.join(androidDir, 'gradlew'), 0o755);
   const verboseFlag = ctx.env['EAS_VERBOSE'] === '1' ? '--info' : '';
+  const env = { ...ctx.env, ...extraEnv };
 
   const spawnPromise = spawn(
     'bash',
@@ -46,8 +48,8 @@ export async function runGradleCommand(
         }
       },
       env: {
-        ...ctx.env,
-        ...extraEnv,
+        ...resolveSentryUploadEnv(env),
+        ...env,
         ...resolveVersionOverridesEnvs(ctx),
         LC_ALL: 'C.UTF-8',
       },
