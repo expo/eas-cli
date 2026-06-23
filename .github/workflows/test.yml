@@ -21,7 +21,7 @@ jobs:
             coverage: true
     name: Test with Node ${{ matrix.node }}
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Setup tools
         uses: ./.github/actions/setup-mise
         env:
@@ -66,7 +66,7 @@ jobs:
         working-directory: ./scripts
         env:
           YARN_ENABLE_HARDENED_MODE: ${{ matrix.coverage == true && '1' || '0' }}
-      - uses: codecov/codecov-action@29386c70ef20e286228c72b668a06fd0e8399192 # v1
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         if: ${{ matrix.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -79,7 +79,7 @@ jobs:
     name: Notify Slack
     if: ${{ github.ref == 'refs/heads/main' && always() }}
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Notify Slack
         uses: ./.github/internal-actions/notify-slack-on-fail-or-recover
         with:
