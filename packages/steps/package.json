@@ -31,6 +31,7 @@
     "@expo/logger": "20.0.0",
     "@expo/spawn-async": "^1.7.2",
     "arg": "^5.0.2",
+    "fast-glob": "^3.3.2",
     "fs-extra": "^11.2.0",
     "joi": "^17.13.1",
     "jsep": "^1.3.8",
