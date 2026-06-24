@@ -1,5 +1,8 @@
 import { instance, mock } from 'ts-mockito';
 
+import { ensureBranchExistsAsync } from '../../branch/queries';
+import { ChannelNotFoundError } from '../../channel/errors';
+import { createChannelOnAppAsync } from '../../channel/queries';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   App,
@@ -14,6 +17,8 @@ import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../get
 
 jest.mock('../../graphql/queries/ChannelQuery');
 jest.mock('../../graphql/queries/BranchQuery');
+jest.mock('../../branch/queries');
+jest.mock('../../channel/queries');
 
 describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
   beforeEach(() => {
@@ -40,7 +45,7 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
     expect(result.branchName).toBe('test-branch-name');
   });
 
-  test('errors when no branch is connected to channel', async () => {
+  test('creates and links a branch when channel exists but has no branches (e.g. auto-created by a build)', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
     jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(
       async () =>
@@ -48,16 +53,29 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
           channelName: 'test-channel-name',
         }) as any
     );
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: { __typename: 'UpdateBranch', id: 'test-branch-id', name: 'test-channel-name' },
+      createdBranch: true,
+    });
+    jest.mocked(createChannelOnAppAsync).mockResolvedValue({
+      updateChannel: {
+        createUpdateChannelForApp: {
+          id: 'test-channel-id',
+          name: 'test-channel-name',
+          branchMapping:
+            '{"data":[{"branchId":"test-branch-id","branchMappingLogic":"true"}],"version":0}',
+        },
+      },
+    });
 
-    await expect(
-      getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
-        graphqlClient,
-        'test-project-id',
-        'test-channel-name'
-      )
-    ).rejects.toThrow(
-      "Channel has no branches associated with it. Run 'eas channel:edit' to map a branch"
+    const result = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+      graphqlClient,
+      'test-project-id',
+      'test-channel-name'
     );
+
+    expect(result.branchId).toBe('test-branch-id');
+    expect(result.branchName).toBe('test-channel-name');
   });
 
   test('errors when more than one branch is connected to channel', async () => {
@@ -81,15 +99,40 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
     );
   });
 
+  test('rethrows unexpected errors from the channel lookup', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(async () => {
+      throw new Error('Network request failed');
+    });
+
+    await expect(
+      getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
+        graphqlClient,
+        'test-project-id',
+        'test-channel-name'
+      )
+    ).rejects.toThrow('Network request failed');
+  });
+
   test('creates channel and branch when channel does not exist, and returns branch name', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
-    jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(
-      async () =>
-        mockUpdateChannel({
-          channelName: 'test-channel-name',
-          branchNames: ['test-branch-name'],
-        }) as any
-    );
+    jest.mocked(ChannelQuery.viewUpdateChannelAsync).mockImplementationOnce(async () => {
+      throw new ChannelNotFoundError('Could not find channel with the name test-channel-name');
+    });
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: { __typename: 'UpdateBranch', id: 'test-branch-id', name: 'test-channel-name' },
+      createdBranch: true,
+    });
+    jest.mocked(createChannelOnAppAsync).mockResolvedValue({
+      updateChannel: {
+        createUpdateChannelForApp: {
+          id: 'test-channel-id',
+          name: 'test-channel-name',
+          branchMapping:
+            '{"data":[{"branchId":"test-branch-id","branchMappingLogic":"true"}],"version":0}',
+        },
+      },
+    });
 
     const result = await getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync(
       graphqlClient,
@@ -97,7 +140,8 @@ describe(getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync, () => {
       'test-channel-name'
     );
 
-    expect(result.branchName).toBe('test-branch-name');
+    expect(result.branchId).toBe('test-branch-id');
+    expect(result.branchName).toBe('test-channel-name');
   });
 });
 
