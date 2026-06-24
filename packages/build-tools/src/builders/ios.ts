@@ -114,7 +114,11 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
           env: ctx.env,
         });
         if (resolved?.runtimeVersion) {
-          await updateBuildRuntimeVersionInDatabaseAsync(ctx, resolved.runtimeVersion, resolved.fingerprintSources);
+          await updateBuildRuntimeVersionInDatabaseAsync(
+            ctx,
+            resolved.runtimeVersion,
+            resolved.fingerprintSources
+          );
         }
         return resolved;
       }
