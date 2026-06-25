@@ -14,7 +14,7 @@ import { Client } from '@urql/core';
 import assert from 'assert';
 import path from 'path';
 
-import { ArtifactToUpload, BuildContext } from './context';
+import { ArtifactToUpload, BuildContext, getResolvedJobInformationEnv } from './context';
 import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
@@ -145,6 +145,10 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       ...(this.job.platform ? { expoBuildUrl: this.job.expoBuildUrl } : null),
     };
     this.metadata = metadata;
+    this.updateEnv({
+      ...this._env,
+      ...getResolvedJobInformationEnv(this.job, this.metadata),
+    });
   }
 
   public reportStepMetric(metric: StepMetric): void {

@@ -1,5 +1,5 @@
-import { RuntimeSettings } from '@expo/build-tools';
-import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
+import { RuntimeSettings, getResolvedJobInformationEnv } from '@expo/build-tools';
+import { Env, Job, Metadata, Platform } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
 import os from 'os';
@@ -45,8 +45,6 @@ export function getBuildEnv({
   setEnv(env, 'NPM_CONFIG_REGISTRY', npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
   setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
-  setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
-  setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
   setEnv(env, 'LANG', 'en_US.UTF-8');
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
@@ -109,27 +107,9 @@ export function getBuildEnv({
     );
   }
 
-  if (job.platform === Platform.ANDROID) {
-    if (job.version?.versionCode) {
-      setEnv(env, 'EAS_BUILD_ANDROID_VERSION_CODE', job.version.versionCode);
-    }
-    if (job.version?.versionName) {
-      setEnv(env, 'EAS_BUILD_ANDROID_VERSION_NAME', job.version.versionName);
-    }
-  } else if (job.platform === Platform.IOS) {
-    if (job.version?.buildNumber) {
-      setEnv(env, 'EAS_BUILD_IOS_BUILD_NUMBER', job.version.buildNumber);
-    }
-    if (job.version?.appVersion) {
-      setEnv(env, 'EAS_BUILD_IOS_APP_VERSION', job.version.appVersion);
-    }
+  for (const [key, value] of Object.entries(getResolvedJobInformationEnv(job, metadata))) {
+    setEnv(env, key, value);
   }
-
-  let username = metadata.username;
-  if (!username && 'type' in job && job.type === Workflow.MANAGED) {
-    username = job.username;
-  }
-  setEnv(env, 'EAS_BUILD_USERNAME', username);
 
   if (config.env === Environment.DEVELOPMENT) {
     setEnv(env, 'EXPO_LOCAL', '1');

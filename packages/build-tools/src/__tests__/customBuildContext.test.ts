@@ -40,6 +40,48 @@ describe(CustomBuildContext, () => {
     });
   });
 
+  it('updates environment variables from resolved job information', () => {
+    const ctx = new BuildContext(
+      createTestIosJob({
+        triggeredBy: BuildTrigger.GIT_BASED_INTEGRATION,
+      }),
+      {
+        env: {
+          __API_SERVER_URL: 'http://api.expo.test',
+        },
+        logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+        logger: createMockLogger(),
+        uploadArtifact: jest.fn(),
+        workingdir: '',
+      }
+    );
+    const customContext = new CustomBuildContext(ctx);
+
+    customContext.updateJobInformation(
+      {
+        version: {
+          buildNumber: '123',
+          appVersion: '1.2.3',
+        },
+      } as Ios.Job,
+      {
+        buildProfile: 'preview',
+        gitCommitHash: 'abc123',
+        username: 'metadata-username',
+      } as Metadata
+    );
+
+    expect(customContext.env).toEqual(
+      expect.objectContaining({
+        EAS_BUILD_PROFILE: 'preview',
+        EAS_BUILD_GIT_COMMIT_HASH: 'abc123',
+        EAS_BUILD_USERNAME: 'metadata-username',
+        EAS_BUILD_IOS_BUILD_NUMBER: '123',
+        EAS_BUILD_IOS_APP_VERSION: '1.2.3',
+      })
+    );
+  });
+
   describe('reportStepMetric', () => {
     const expoApiV2BaseUrl = 'http://exp.test/--/api/v2/';
     const workflowJobId = 'test-workflow-job-id';
