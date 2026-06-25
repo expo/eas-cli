@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] New command `observe:session` for inspecting events by session ID. ([#3868](https://github.com/expo/eas-cli/pull/3868) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add tiered build-credit usage warnings (approaching/at/over) before each build, lowering the warning threshold to 80% to match email notifications. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
 
 ### 🐛 Bug fixes
 
