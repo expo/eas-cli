@@ -13,6 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import stream from 'stream';
 import { promisify } from 'util';
+import nullthrows from 'nullthrows';
 import { z } from 'zod';
 
 import { formatBytes } from '../../utils/artifacts';
@@ -82,7 +83,10 @@ export function createDownloadArtifactFunction(): BuildFunction {
       const { artifactPath } = await downloadArtifactAsync({
         logger,
         workflowRunId,
-        expoApiServerURL: stepsCtx.global.staticContext.expoApiServerURL,
+        expoApiServerURL: nullthrows(
+          stepsCtx.global.staticContext.expoApiServerURL,
+          'expoApiServerURL is not set'
+        ),
         robotAccessToken,
         params,
       });

@@ -63,7 +63,7 @@ export interface BuildContextOptions {
   reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
@@ -80,7 +80,7 @@ export class BuildContext<TJob extends Job = Job> {
   public readonly reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   public readonly skipNativeBuild?: boolean;
   public readonly expoApiV2BaseUrl?: string;

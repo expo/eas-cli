@@ -76,19 +76,24 @@ function printEnvs(ctx: BuildContext<Job>): void {
   // skip development and testing to avoid leaking local credentials from envs to bucket
   if (config.env !== Environment.DEVELOPMENT && config.env !== Environment.TEST) {
     Object.entries(ctx.env).forEach(([key, value]) => {
-      instanceEnv[key] = value;
+      if (value !== undefined) {
+        instanceEnv[key] = value;
+      }
     });
   }
-  Object.entries(job.builderEnvironment?.env ?? ({} as Record<string, string>)).forEach(
-    ([key, value]) => {
+  Object.entries(job.builderEnvironment?.env ?? {}).forEach(([key, value]) => {
+    if (value !== undefined) {
       publicEnv[key] = value;
       delete instanceEnv[key];
     }
-  );
+  });
 
   job.secrets?.environmentSecrets?.forEach(({ name, type }) => {
     if (type === EnvironmentSecretType.FILE) {
-      secretEnv[name] = ctx.env[name];
+      // File secrets are displayed as the generated file path, which only exists after materialization.
+      if (ctx.env[name] !== undefined) {
+        secretEnv[name] = ctx.env[name];
+      }
     } else {
       secretEnv[name] = '********';
     }

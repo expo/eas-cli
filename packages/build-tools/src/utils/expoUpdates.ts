@@ -6,6 +6,7 @@ import assert from 'assert';
 import fs from 'fs-extra';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
+import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -257,7 +258,7 @@ async function logDiffFingerprints({
           }
         }
       `),
-      { id: ctx.env.EAS_BUILD_ID }
+      { id: nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set') }
     )
     .toPromise();
 
