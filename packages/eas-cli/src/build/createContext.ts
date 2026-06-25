@@ -12,6 +12,10 @@ import { BuildContext, CommonContext } from './context';
 import { createIosContextAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { resolveBuildResourceClass } from './utils/resourceClass';
+import {
+  assertRefreshAdHocProvisioningProfileCompatibleWithFreezeCredentials,
+  resolveRefreshAdHocProvisioningProfile,
+} from './utils/refreshAdHocProvisioningProfile';
 import { Analytics, AnalyticsEventProperties, BuildEvent } from '../analytics/AnalyticsManager';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -92,7 +96,15 @@ export async function createBuildContextAsync<T extends Platform>({
 
   const requiredPackageManager = resolvePackageManager(projectDir);
 
-  const refreshAdHocProvisioningProfile = refreshAdHocProvisioningProfileFlag ?? false;
+  const refreshAdHocProvisioningProfile = resolveRefreshAdHocProvisioningProfile({
+    platform,
+    buildProfile,
+    refreshAdHocProvisioningProfileFlag,
+  });
+  assertRefreshAdHocProvisioningProfileCompatibleWithFreezeCredentials(
+    refreshAdHocProvisioningProfile,
+    freezeCredentials
+  );
 
   const credentialsCtx = new CredentialsContext({
     projectInfo: { exp, projectId },

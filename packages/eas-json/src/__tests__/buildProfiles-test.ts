@@ -981,3 +981,90 @@ test('invalid build profile with caching with both paths and customPaths - error
     await EasJsonUtils.getBuildProfileAsync(accessor, Platform.ANDROID, 'production');
   }).rejects.toThrow(expectedError);
 });
+
+test('valid eas.json with ios.refreshAdHocProvisioningProfile', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      preview: {
+        distribution: 'internal',
+        ios: {
+          refreshAdHocProvisioningProfile: true,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const iosProfile = await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'preview');
+
+  expect(iosProfile).toEqual(
+    expect.objectContaining({
+      distribution: 'internal',
+      refreshAdHocProvisioningProfile: true,
+    })
+  );
+});
+
+test('invalid eas.json with non-boolean ios.refreshAdHocProvisioningProfile', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      preview: {
+        ios: {
+          refreshAdHocProvisioningProfile: 'yes',
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+
+  await expect(async () => {
+    await EasJsonUtils.getBuildProfileAsync(accessor, Platform.IOS, 'preview');
+  }).rejects.toThrow(InvalidEasJsonError);
+});
+
+test('valid profile extending other profile with ios.refreshAdHocProvisioningProfile', async () => {
+  await fs.writeJson('/project/eas.json', {
+    build: {
+      base: {
+        ios: {
+          refreshAdHocProvisioningProfile: true,
+        },
+      },
+      extension: {
+        extends: 'base',
+        distribution: 'internal',
+      },
+      override: {
+        extends: 'base',
+        distribution: 'internal',
+        ios: {
+          refreshAdHocProvisioningProfile: false,
+        },
+      },
+    },
+  });
+
+  const accessor = EasJsonAccessor.fromProjectPath('/project');
+  const extendedIosProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.IOS,
+    'extension'
+  );
+  const overrideIosProfile = await EasJsonUtils.getBuildProfileAsync(
+    accessor,
+    Platform.IOS,
+    'override'
+  );
+
+  expect(extendedIosProfile).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    refreshAdHocProvisioningProfile: true,
+  });
+  expect(overrideIosProfile).toEqual({
+    distribution: 'internal',
+    credentialsSource: 'remote',
+    refreshAdHocProvisioningProfile: false,
+  });
+});
