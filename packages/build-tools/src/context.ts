@@ -248,8 +248,8 @@ export class BuildContext<TJob extends Job = Job> {
       );
     }
     this._env = {
-      ...env,
       ...this._env,
+      ...env,
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
     this._env.PATH = this._env.PATH
