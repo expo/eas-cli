@@ -48,7 +48,7 @@ describe(createRepackBuildFunction, () => {
     expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app');
   });
 
-  it('should rename explicit aab output path to apk', async () => {
+  it('should preserve explicit aab output path', async () => {
     const repack = createRepackBuildFunction();
     const repackStep = repack.createBuildStepFromFunctionCall(
       createGlobalContextMock({
@@ -66,7 +66,7 @@ describe(createRepackBuildFunction, () => {
     );
 
     await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app.apk');
+    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app.aab');
   });
 
   it('should rename generated aab output path to apk', async () => {

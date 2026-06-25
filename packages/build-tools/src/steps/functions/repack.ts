@@ -213,9 +213,11 @@ function createOutputPath({
   sourceAppPath: string;
   tmpDir: string;
 }): string {
-  const outputPath =
-    requestedOutputPath ??
-    path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
+  if (requestedOutputPath) {
+    return requestedOutputPath;
+  }
+
+  const outputPath = path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
   const extension = path.extname(outputPath);
   if (extension.toLowerCase() !== '.aab') {
     return outputPath;
