@@ -1,4 +1,4 @@
-import { Android, Env, Job, Platform } from '@expo/eas-build-job';
+import { Android, Env, Job } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
@@ -48,7 +48,6 @@ export async function runGradleCommand(
       env: {
         ...ctx.env,
         ...extraEnv,
-        ...resolveVersionOverridesEnvs(ctx),
         LC_ALL: 'C.UTF-8',
       },
     }
@@ -89,27 +88,6 @@ function adjustOOMScore(spawnPromise: SpawnPromise<SpawnResult>, logger: bunyan)
     // Wait 20 seconds to make sure all child processes are started
     20000
   );
-}
-
-// Version envs should be set at the beginning of the build, but when building
-// from github those values are resolved later.
-function resolveVersionOverridesEnvs(ctx: BuildContext<Job>): Env {
-  const extraEnvs: Env = {};
-  if (
-    ctx.job.platform === Platform.ANDROID &&
-    ctx.job.version?.versionCode &&
-    !ctx.env.EAS_BUILD_ANDROID_VERSION_CODE
-  ) {
-    extraEnvs.EAS_BUILD_ANDROID_VERSION_CODE = ctx.job.version.versionCode;
-  }
-  if (
-    ctx.job.platform === Platform.ANDROID &&
-    ctx.job.version?.versionName &&
-    !ctx.env.EAS_BUILD_ANDROID_VERSION_NAME
-  ) {
-    extraEnvs.EAS_BUILD_ANDROID_VERSION_NAME = ctx.job.version.versionName;
-  }
-  return extraEnvs;
 }
 
 export function resolveGradleCommand(job: Android.Job): string {

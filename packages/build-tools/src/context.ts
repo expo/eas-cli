@@ -11,6 +11,8 @@ import {
   Metadata,
   errors,
   isGenericArtifact,
+  Platform,
+  Workflow,
 } from '@expo/eas-build-job';
 import { BuildTrigger } from '@expo/eas-build-job/dist/common';
 import { bunyan } from '@expo/logger';
@@ -71,6 +73,33 @@ export interface BuildContextOptions {
 }
 
 export class SkipNativeBuildError extends Error {}
+
+export function getResolvedJobInformationEnv(job: Job, metadata: Metadata): Env {
+  let username = metadata.username;
+  if (!username && 'type' in job && job.type === Workflow.MANAGED) {
+    username = job.username;
+  }
+
+  const env: Env = {
+    EAS_BUILD_PROFILE: metadata.buildProfile,
+    EAS_BUILD_GIT_COMMIT_HASH: metadata.gitCommitHash,
+    EAS_BUILD_USERNAME: username,
+    EAS_BUILD_ANDROID_VERSION_CODE: undefined,
+    EAS_BUILD_ANDROID_VERSION_NAME: undefined,
+    EAS_BUILD_IOS_BUILD_NUMBER: undefined,
+    EAS_BUILD_IOS_APP_VERSION: undefined,
+  };
+
+  if (job.platform === Platform.ANDROID) {
+    env.EAS_BUILD_ANDROID_VERSION_CODE = job.version?.versionCode;
+    env.EAS_BUILD_ANDROID_VERSION_NAME = job.version?.versionName;
+  } else if (job.platform === Platform.IOS) {
+    env.EAS_BUILD_IOS_BUILD_NUMBER = job.version?.buildNumber;
+    env.EAS_BUILD_IOS_APP_VERSION = job.version?.appVersion;
+  }
+
+  return env;
+}
 
 export class BuildContext<TJob extends Job = Job> {
   public readonly workingdir: string;
@@ -282,6 +311,7 @@ export class BuildContext<TJob extends Job = Job> {
       ...(this._job.platform ? { expoBuildUrl: this._job.expoBuildUrl } : null),
     };
     this._metadata = metadata;
+    this.updateEnv(getResolvedJobInformationEnv(this._job, this._metadata));
   }
 
   private async handleBuildPhaseErrorAsync(
