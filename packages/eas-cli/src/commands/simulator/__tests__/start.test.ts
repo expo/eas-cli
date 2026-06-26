@@ -61,7 +61,8 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 const graphqlClient = {} as ExpoGraphqlClient;
 const projectDir = '/test/project';
 const simulatorDotenvPath = `${projectDir}/.env.eas-simulator`;
-const jobRunUrl = 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123';
+const deviceRunSessionUrl =
+  'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
 
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
@@ -185,7 +186,7 @@ describe(SimulatorStart, () => {
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
-      `Device run session created (id: session-123) ${jobRunUrl}`
+      `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
     );
     expect(Log.log).toHaveBeenCalledWith(
       expect.stringContaining("export AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'")
@@ -214,7 +215,7 @@ describe(SimulatorStart, () => {
       mockByIdAsync.mock.invocationCallOrder[0]
     );
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
-      `Device run session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${jobRunUrl}`
+      `Simulator session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${deviceRunSessionUrl}`
     );
     expect(Log.withTick).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith(
@@ -298,7 +299,7 @@ describe(SimulatorStart, () => {
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--no-force']);
     await expect(command.runAsync()).rejects.toThrow(
-      'Existing simulator session in environment. Use --force to create a new device session.'
+      'Existing simulator session in environment. Use --force to create a new simulator session.'
     );
 
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();

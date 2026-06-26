@@ -135,7 +135,8 @@ describe(SimulatorList, () => {
           createdAt: '2025-01-01T00:00:00.000Z',
           startedAt: '2025-01-01T00:00:05.000Z',
           finishedAt: undefined,
-          jobRunUrl: 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123',
+          deviceRunSessionUrl:
+            'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
         },
       ],
       pageInfo: {
