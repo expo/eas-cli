@@ -1,4 +1,4 @@
-import { UserError } from '@expo/eas-build-job';
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -13,7 +13,6 @@ import os from 'node:os';
 import path from 'node:path';
 import stream from 'stream';
 import { promisify } from 'util';
-import nullthrows from 'nullthrows';
 import { z } from 'zod';
 
 import { formatBytes } from '../../utils/artifacts';
@@ -57,18 +56,23 @@ export function createDownloadArtifactFunction(): BuildFunction {
       const interpolationContext = stepsCtx.global.getInterpolationContext();
 
       if (!('workflow' in interpolationContext)) {
-        throw new UserError(
-          'EAS_DOWNLOAD_ARTIFACT_NO_WORKFLOW',
-          'No workflow found in the interpolation context.'
-        );
+        throw new SystemError('No workflow found in the interpolation context.', {
+          trackingCode: 'EAS_DOWNLOAD_ARTIFACT_NO_WORKFLOW',
+        });
       }
 
       const robotAccessToken = stepsCtx.global.staticContext.job.secrets?.robotAccessToken;
       if (!robotAccessToken) {
-        throw new UserError(
-          'EAS_DOWNLOAD_ARTIFACT_NO_ROBOT_ACCESS_TOKEN',
-          'No robot access token found in the job secrets.'
-        );
+        throw new SystemError('No robot access token found in the job secrets.', {
+          trackingCode: 'EAS_DOWNLOAD_ARTIFACT_NO_ROBOT_ACCESS_TOKEN',
+        });
+      }
+
+      const expoApiServerURL = stepsCtx.global.staticContext.expoApiServerURL;
+      if (!expoApiServerURL) {
+        throw new SystemError('Missing Expo API server URL.', {
+          trackingCode: 'EAS_DOWNLOAD_ARTIFACT_NO_EXPO_API_SERVER_URL',
+        });
       }
 
       const workflowRunId = interpolationContext.workflow.id;
@@ -83,10 +87,7 @@ export function createDownloadArtifactFunction(): BuildFunction {
       const { artifactPath } = await downloadArtifactAsync({
         logger,
         workflowRunId,
-        expoApiServerURL: nullthrows(
-          stepsCtx.global.staticContext.expoApiServerURL,
-          'expoApiServerURL is not set'
-        ),
+        expoApiServerURL,
         robotAccessToken,
         params,
       });
