@@ -43,11 +43,6 @@ export function createRepackBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'output_path',
-        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
-        required: false,
-      }),
-      BuildStepInput.createProvider({
         id: 'embed_bundle_assets',
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
         required: false,
@@ -110,7 +105,6 @@ export function createRepackBuildFunction(): BuildFunction {
 
       const sourceAppPath = inputs.source_app_path.value as string;
       const outputPath = createOutputPath({
-        requestedOutputPath: inputs.output_path.value as string | undefined,
         sourceAppPath,
         tmpDir,
       });
@@ -205,18 +199,12 @@ export function createRepackBuildFunction(): BuildFunction {
 }
 
 function createOutputPath({
-  requestedOutputPath,
   sourceAppPath,
   tmpDir,
 }: {
-  requestedOutputPath?: string;
   sourceAppPath: string;
   tmpDir: string;
 }): string {
-  if (requestedOutputPath) {
-    return requestedOutputPath;
-  }
-
   const outputPath = path.join(tmpDir, `repacked-${randomUUID()}${path.extname(sourceAppPath)}`);
   const extension = path.extname(outputPath);
   if (extension.toLowerCase() !== '.aab') {

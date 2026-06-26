@@ -27,7 +27,7 @@ describe(createRepackBuildFunction, () => {
     vol.reset();
   });
 
-  it('should set the output path for successful repack', async () => {
+  it('should set generated output path for successful repack', async () => {
     const repack = createRepackBuildFunction();
     const repackStep = repack.createBuildStepFromFunctionCall(
       createGlobalContextMock({
@@ -38,35 +38,13 @@ describe(createRepackBuildFunction, () => {
       {
         callInputs: {
           platform: 'ios',
-          source_app_path: '/path/to/source_app',
-          output_path: '/path/to/output_app',
+          source_app_path: '/path/to/source_app.ipa',
         },
       }
     );
 
     await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app');
-  });
-
-  it('should preserve explicit aab output path', async () => {
-    const repack = createRepackBuildFunction();
-    const repackStep = repack.createBuildStepFromFunctionCall(
-      createGlobalContextMock({
-        staticContextContent: {
-          job: createTestAndroidJob(),
-        },
-      }),
-      {
-        callInputs: {
-          platform: 'android',
-          source_app_path: '/path/to/source_app.aab',
-          output_path: '/path/to/output_app.aab',
-        },
-      }
-    );
-
-    await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toBe('/path/to/output_app.aab');
+    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.ipa$/);
   });
 
   it('should rename generated aab output path to apk', async () => {
