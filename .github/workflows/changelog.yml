@@ -18,19 +18,19 @@ jobs:
     name: Check CHANGELOG.md updated
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Check if CHANGELOG.md was updated
         id: changelog-updated
-        uses: tj-actions/changed-files@b1ba699b304f2083b602164e06a89b868c84f076
+        uses: tj-actions/changed-files@934b2d2c7e653bb8c968afed5a0428617f09aa24
         with:
           files: CHANGELOG.md
       - name: Fail if CHANGELOG.md was not updated and the "no changelog" label is absent
         if: steps.changelog-updated.outputs.any_changed == 'false' && !contains(github.event.pull_request.labels.*.name, 'no changelog')
-        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             core.setFailed('Please add a changelog entry!')
-      - uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
+      - uses: mshick/add-pr-comment@ec328af66588ab8f77cdeb2c264f14aba45bbf59 # v3.12.0
         if: always()
         with:
           message-id: changelog-entry-check

@@ -29,7 +29,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: ./.github/actions/setup-mise
       - name: Install dependencies
         run: yarn install --immutable
@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           token: ${{ secrets.EXPO_BOT_PAT }}
       - uses: ./.github/actions/setup-mise
@@ -91,7 +91,7 @@ jobs:
           cat /tmp/changelog.slack.md >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
       - name: Slack Notification
-        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2
         env:
           SLACK_CHANNEL: eas-cli
           SLACK_COLOR: ${{ job.status }}
