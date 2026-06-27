@@ -180,15 +180,13 @@ describe(WorkflowLogView, () => {
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
       isForIosSimulator: false,
-      project: {
+      app: {
         id: mockProjectId,
-        __typename: 'App',
         name: 'App',
         slug: 'app',
         ownerAccount: {
           id: 'account-id',
           name: 'account-name',
-          __typename: 'Account',
         },
       },
       platform: AppPlatform.Android,
