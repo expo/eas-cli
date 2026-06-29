@@ -6,7 +6,6 @@ import assert from 'assert';
 import fs from 'fs-extra';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
-import nullthrows from 'nullthrows';
 import os from 'os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -244,6 +243,12 @@ async function logDiffFingerprints({
   ctx: BuildContext<BuildJob>;
 }): Promise<void> {
   const { resolvedRuntimeVersion, resolvedFingerprintSources } = resolvedRuntime;
+  const buildId = ctx.env.EAS_BUILD_ID;
+
+  if (!buildId) {
+    ctx.logger.warn('Skipping fingerprint diff because EAS_BUILD_ID is not set');
+    return;
+  }
 
   const fingerprintInfo = await ctx.graphqlClient
     .query(
@@ -258,7 +263,7 @@ async function logDiffFingerprints({
           }
         }
       `),
-      { id: nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set') }
+      { id: buildId }
     )
     .toPromise();
 

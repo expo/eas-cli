@@ -1,4 +1,18 @@
-import { StaticWorkflowInterpolationContextZ } from '../common';
+import { EnvSchema, StaticWorkflowInterpolationContextZ } from '../common';
+
+describe('EnvSchema', () => {
+  it('accepts explicit undefined values', () => {
+    const env = {
+      DEFINED_ENV: 'value',
+      UNDEFINED_ENV: undefined,
+    };
+
+    const { value, error } = EnvSchema.validate(env);
+
+    expect(error).toBeUndefined();
+    expect(value).toEqual(env);
+  });
+});
 
 describe('StaticWorkflowInterpolationContextZ', () => {
   it('accepts app and account context', () => {
