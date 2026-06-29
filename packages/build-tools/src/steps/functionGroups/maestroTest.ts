@@ -40,10 +40,11 @@ export function createEasMaestroTestFunctionGroup(
         createInstallMaestroBuildFunction().createBuildStepFromFunctionCall(globalCtx),
       ];
 
+      let startIosSimulatorStep: BuildStep | undefined;
       if (buildToolsContext.job.platform === Platform.IOS) {
-        steps.push(
-          createStartIosSimulatorBuildFunction().createBuildStepFromFunctionCall(globalCtx)
-        );
+        startIosSimulatorStep =
+          createStartIosSimulatorBuildFunction().createBuildStepFromFunctionCall(globalCtx);
+        steps.push(startIosSimulatorStep);
         const searchPath =
           inputs.app_path.getValue({
             interpolationContext: globalCtx.getInterpolationContext(),
@@ -134,7 +135,12 @@ export function createEasMaestroTestFunctionGroup(
             id: BuildStep.getNewId(),
             ifCondition: '${ always() }',
             displayName: `maestro test ${flowPath}`,
-            command: `maestro test ${flowPath}`,
+            command: startIosSimulatorStep
+              ? `
+                    DEVICE_UDID="\${ steps.${startIosSimulatorStep.id}.device_udid }"
+                    maestro test \${DEVICE_UDID:+--udid="$DEVICE_UDID" }${flowPath}
+                  `
+              : `maestro test ${flowPath}`,
           })
         );
       }
