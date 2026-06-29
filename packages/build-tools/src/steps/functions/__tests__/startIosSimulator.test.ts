@@ -15,6 +15,7 @@ jest.mock('../../../utils/IosSimulatorUtils', () => ({
     getAvailableDevicesAsync: jest.fn(),
     getDeviceAsync: jest.fn(),
     cloneAsync: jest.fn(),
+    enableAccessibilitySettingsAsync: jest.fn(),
     startAsync: jest.fn(),
     waitForReadyAsync: jest.fn(),
     disableApsdAsync: jest.fn(),
@@ -34,13 +35,57 @@ function createStep(callInputs?: Record<string, unknown>) {
 
 describe(createStartIosSimulatorBuildFunction, () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedUtils.getDeviceAsync.mockResolvedValue(null);
     mockedUtils.cloneAsync.mockResolvedValue(undefined);
+    mockedUtils.enableAccessibilitySettingsAsync.mockResolvedValue(undefined);
     mockedUtils.startAsync.mockResolvedValue({ udid: 'test-udid' as any });
     mockedUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedUtils.disableApsdAsync.mockResolvedValue(undefined);
+  });
+
+  it('does not enable accessibility settings by default', async () => {
+    await createStep({ device_identifier: 'iPhone 15' }).executeAsync();
+
+    expect(mockedUtils.enableAccessibilitySettingsAsync).not.toHaveBeenCalled();
+    expect(mockedUtils.startAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'iPhone 15',
+      env: expect.any(Object),
+    });
+  });
+
+  it('enables accessibility settings before starting the main device and every clone when requested', async () => {
+    mockedUtils.startAsync
+      .mockResolvedValueOnce({ udid: 'base' as any })
+      .mockResolvedValueOnce({ udid: 'clone-1' as any })
+      .mockResolvedValueOnce({ udid: 'clone-2' as any });
+
+    await createStep({
+      device_identifier: 'iPhone 15',
+      count: 2,
+      enable_accessibility_settings: true,
+    }).executeAsync();
+
+    expect(mockedUtils.enableAccessibilitySettingsAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'iPhone 15',
+      env: expect.any(Object),
+    });
+    expect(mockedUtils.enableAccessibilitySettingsAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'eas-simulator-1',
+      env: expect.any(Object),
+    });
+    expect(mockedUtils.enableAccessibilitySettingsAsync).toHaveBeenCalledWith({
+      deviceIdentifier: 'eas-simulator-2',
+      env: expect.any(Object),
+    });
+    for (const [callIndex] of mockedUtils.startAsync.mock.calls.entries()) {
+      const enableCallOrder =
+        mockedUtils.enableAccessibilitySettingsAsync.mock.invocationCallOrder[callIndex];
+      const startCallOrder = mockedUtils.startAsync.mock.invocationCallOrder[callIndex];
+      expect(enableCallOrder).toBeLessThan(startCallOrder);
+    }
   });
 
   it('disables apsd on the main device and every clone', async () => {
