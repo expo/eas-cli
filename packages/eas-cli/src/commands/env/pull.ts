@@ -4,7 +4,7 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASEnvironmentFlag, EASNonInteractiveFlag } from '../../commandUtils/flags';
+import { EASEnvironmentFlag, EASNonInteractiveFlag, markRequired } from '../../commandUtils/flags';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../../graphql/generated';
 import {
   EnvironmentVariableWithFileContent,
@@ -17,6 +17,11 @@ import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 export default class EnvPull extends EasCommand {
   static override description =
     'pull environment variables for the selected environment to .env file';
+
+  static override examples = [
+    '$ eas env:pull --environment development',
+    '$ eas env:pull --environment production --path .env.production',
+  ];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -34,7 +39,7 @@ export default class EnvPull extends EasCommand {
 
   static override flags = {
     ...EASNonInteractiveFlag,
-    ...EASEnvironmentFlag,
+    ...markRequired(EASEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the result `.env` file',
       default: '.env.local',

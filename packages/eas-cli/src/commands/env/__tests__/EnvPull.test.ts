@@ -281,7 +281,7 @@ describe(EnvPull, () => {
       const command = new EnvPull(['--non-interactive'], mockConfig);
 
       // @ts-expect-error
-      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue({
         loggedIn: { graphqlClient },
         projectId: testProjectId,
         projectDir: testProjectDir,
@@ -290,6 +290,7 @@ describe(EnvPull, () => {
       await expect(command.runAsync()).rejects.toThrow(
         'The `--environment` flag must be set when running in `--non-interactive` mode.'
       );
+      expect(getContextAsyncSpy).toHaveBeenCalled();
     });
   });
 

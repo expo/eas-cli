@@ -4,7 +4,11 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASMultiEnvironmentFlag } from '../../commandUtils/flags';
+import {
+  EASMultiEnvironmentFlag,
+  EASNonInteractiveFlag,
+  markRequired,
+} from '../../commandUtils/flags';
 import {
   CreateEnvironmentVariableInput,
   EnvironmentVariableFragment,
@@ -21,13 +25,17 @@ export default class EnvPush extends EasCommand {
   static override description =
     'push environment variables from .env file to the selected environment';
 
+  static override examples = [
+    '$ eas env:push --environment production --path .env.production --force',
+  ];
+
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.LoggedIn,
   };
 
   static override flags = {
-    ...EASMultiEnvironmentFlag,
+    ...markRequired(EASMultiEnvironmentFlag),
     path: Flags.string({
       description: 'Path to the input `.env` file',
       default: '.env.local',
@@ -36,6 +44,7 @@ export default class EnvPush extends EasCommand {
       description: 'Skip confirmation and automatically override existing variables',
       default: false,
     }),
+    ...EASNonInteractiveFlag,
   };
 
   static override args = {
@@ -49,18 +58,23 @@ export default class EnvPush extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvPush);
 
-    let { environment: environments, path: envPath, force } = this.parseFlagsAndArgs(flags, args);
+    let {
+      environment: environments,
+      path: envPath,
+      force,
+      'non-interactive': nonInteractive,
+    } = this.parseFlagsAndArgs(flags, args);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvPush, {
-      nonInteractive: false,
+      nonInteractive,
     });
 
     if (!environments) {
       environments = await promptVariableEnvironmentAsync({
-        nonInteractive: false,
+        nonInteractive,
         multiple: true,
         canEnterCustomEnvironment: true,
         graphqlClient,
@@ -132,6 +146,12 @@ export default class EnvPush extends EasCommand {
                 )} environment variables already exist in ${displayedEnvironment} environment. Do you want to override them all?`
               : `The ${variableNames[0]} environment variable already exists in ${displayedEnvironment} environment. Do you want to override it?`;
 
+          if (nonInteractive) {
+            throw new Error(
+              'Cannot confirm overwriting existing variables in non-interactive mode. Use --force to overwrite them.'
+            );
+          }
+
           const confirm = await confirmAsync({
             message: confirmationMessage,
           });
@@ -179,6 +199,12 @@ export default class EnvPush extends EasCommand {
         const existingSensitiveVariablesNames = existingSensitiveVariables.map(
           variable => `- ${variable.name}`
         );
+        if (nonInteractive) {
+          throw new Error(
+            'Cannot confirm overwriting sensitive variables in non-interactive mode. Use --force to overwrite them.'
+          );
+        }
+
         const confirm = await confirmAsync({
           message: `You are about to overwrite sensitive variables.\n${existingSensitiveVariablesNames.join(
             '\n'
@@ -212,9 +238,10 @@ export default class EnvPush extends EasCommand {
       path: string;
       environment: string[] | undefined;
       force: boolean;
+      'non-interactive': boolean;
     },
     { environment }: { environment?: string }
-  ): { environment?: string[]; path: string; force: boolean } {
+  ): { environment?: string[]; path: string; force: boolean; 'non-interactive': boolean } {
     const environments = flags.environment ?? (environment ? [environment] : undefined);
 
     return {
