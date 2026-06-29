@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import { Flags } from '@oclif/core';
+import openBrowserAsync from 'better-opn';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
@@ -24,7 +25,11 @@ import { EnvironmentVariableMutation } from '../../../graphql/mutations/Environm
 import { PostHogMutation } from '../../../graphql/mutations/PostHogMutation';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
 import { PostHogQuery } from '../../../graphql/queries/PostHogQuery';
-import { PostHogProjectData } from '../../../graphql/types/PostHogConnection';
+import {
+  PostHogOrganizationConnectionData,
+  PostHogProjectData,
+  StartPostHogConnectionResult,
+} from '../../../graphql/types/PostHogConnection';
 import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
 import { createOrModifyExpoConfigAsync } from '../../../project/expoConfig';
@@ -58,6 +63,11 @@ const EAS_POSTHOG_HOST_ENV_VAR_NAME = 'EXPO_PUBLIC_POSTHOG_HOST';
 const POSTHOG_CLI_API_KEY_ENV_VAR_NAME = 'POSTHOG_CLI_API_KEY';
 const POSTHOG_CLI_PROJECT_ID_ENV_VAR_NAME = 'POSTHOG_CLI_PROJECT_ID';
 const POSTHOG_CLI_HOST_ENV_VAR_NAME = 'POSTHOG_CLI_HOST';
+
+// Match the server's 15-minute pending-row TTL — timing out sooner would strand an approval
+// the user completes within the window.
+const CONNECTION_POLL_INTERVAL_MS = 2_000;
+const CONNECTION_POLL_TIMEOUT_MS = 15 * 60 * 1_000;
 
 const PERSONAL_API_KEY_SETTINGS_PATH = '/settings/user-api-keys';
 const ERROR_TRACKING_NEEDS_KEY_MESSAGE = `Error tracking needs a PostHog personal API key in non-interactive mode. Pass --posthog-cli-api-key (create one in PostHog under Settings → Personal API keys (${PERSONAL_API_KEY_SETTINGS_PATH}) with the "Source map upload" preset), or drop --error-tracking.`;
@@ -141,19 +151,7 @@ export default class IntegrationsPostHogConnect extends EasCommand {
       );
     } else {
       const region = await this.resolveRegionAsync(regionFlag, nonInteractive);
-      const spinner = ora('Creating PostHog organization').start();
-      try {
-        connection = await PostHogMutation.createPostHogAccountRequestAsync(graphqlClient, {
-          accountId: account.id,
-          region,
-        });
-        spinner.succeed(
-          `Created PostHog organization ${chalk.bold(connection.posthogOrganizationName)}`
-        );
-      } catch (error) {
-        spinner.fail('Failed to create PostHog organization');
-        throw error;
-      }
+      connection = await this.startConnectionAsync(graphqlClient, account, region, nonInteractive);
     }
 
     let project = await PostHogQuery.getPostHogProjectByAppIdAsync(graphqlClient, projectId);
@@ -274,6 +272,97 @@ export default class IntegrationsPostHogConnect extends EasCommand {
     }
 
     this.printNextSteps(project, features, manualSteps);
+  }
+
+  private async startConnectionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    account: { id: string; name: string },
+    region: PostHogRegion,
+    nonInteractive: boolean
+  ): Promise<PostHogOrganizationConnectionData> {
+    const spinner = ora('Creating PostHog organization').start();
+    let result: StartPostHogConnectionResult;
+    try {
+      result = await PostHogMutation.startPostHogConnectionAsync(graphqlClient, {
+        accountId: account.id,
+        region,
+      });
+    } catch (error) {
+      spinner.fail('Failed to create PostHog organization');
+      throw error;
+    }
+
+    if (result.__typename === 'PostHogOrganizationConnection') {
+      spinner.succeed(`Created PostHog organization ${chalk.bold(result.posthogOrganizationName)}`);
+      return result;
+    }
+
+    spinner.stop();
+    if (nonInteractive) {
+      throw new Error(
+        `The email on the ${chalk.bold(account.name)} account already has a PostHog account, which must be connected by approving it in a browser. Re-run \`eas integrations:posthog:connect\` interactively to finish connecting.`
+      );
+    }
+    return await this.completePendingConnectionViaBrowserAsync(graphqlClient, account, result);
+  }
+
+  private async completePendingConnectionViaBrowserAsync(
+    graphqlClient: ExpoGraphqlClient,
+    account: { id: string; name: string },
+    pending: { url: string }
+  ): Promise<PostHogOrganizationConnectionData> {
+    Log.addNewLineIfNone();
+    Log.log(
+      `The email on the ${chalk.bold(account.name)} account already has a PostHog account. Approve connecting it to Expo in your browser.`
+    );
+    const opened = await openBrowserAsync(pending.url).catch(() => false);
+    Log.log(
+      opened
+        ? `Opened ${link(pending.url)}`
+        : `Open this URL to approve the connection: ${link(pending.url)}`
+    );
+
+    const spinner = ora(
+      'Waiting for you to approve the connection in PostHog (up to 15 minutes; press Ctrl-C to cancel)'
+    ).start();
+    try {
+      const connection = await this.pollForConnectionAsync(graphqlClient, account.id);
+      spinner.succeed(
+        `Connected PostHog organization ${chalk.bold(connection.posthogOrganizationName)}`
+      );
+      return connection;
+    } catch (error) {
+      spinner.fail("Couldn't confirm the PostHog connection");
+      throw error;
+    }
+  }
+
+  private async pollForConnectionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string
+  ): Promise<PostHogOrganizationConnectionData> {
+    const deadline = Date.now() + CONNECTION_POLL_TIMEOUT_MS;
+    while (true) {
+      let connection: PostHogOrganizationConnectionData | null = null;
+      try {
+        connection = await PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync(
+          graphqlClient,
+          accountId,
+          { useCache: false }
+        );
+      } catch (error) {
+        Log.debug(`Polling for the PostHog connection failed, will retry: ${error}`);
+      }
+      if (connection) {
+        return connection;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          'Timed out waiting for the PostHog connection. If you approved it in your browser, re-run `eas integrations:posthog:connect` — it will pick up the connection. If not, approve it and try again.'
+        );
+      }
+      await new Promise<void>(resolve => setTimeout(resolve, CONNECTION_POLL_INTERVAL_MS));
+    }
   }
 
   private async resolveFeaturesAsync(

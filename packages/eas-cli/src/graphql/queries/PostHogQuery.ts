@@ -39,7 +39,8 @@ type PostHogProjectByAppIdQueryVariables = {
 export const PostHogQuery = {
   async getPostHogOrganizationConnectionByAccountIdAsync(
     graphqlClient: ExpoGraphqlClient,
-    accountId: string
+    accountId: string,
+    { useCache = true }: { useCache?: boolean } = {}
   ): Promise<PostHogOrganizationConnectionData | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
@@ -62,7 +63,10 @@ export const PostHogQuery = {
             ${print(PostHogOrganizationConnectionFragmentNode)}
           `,
           { accountId },
-          { additionalTypenames: ['PostHogOrganizationConnection'] }
+          {
+            additionalTypenames: ['PostHogOrganizationConnection'],
+            requestPolicy: useCache ? 'cache-first' : 'network-only',
+          }
         )
         .toPromise()
     );
