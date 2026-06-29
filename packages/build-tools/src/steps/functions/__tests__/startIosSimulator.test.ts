@@ -73,4 +73,25 @@ describe(createStartIosSimulatorBuildFunction, () => {
     // Startup is not aborted: readiness is still awaited for each device.
     expect(mockedUtils.waitForReadyAsync).toHaveBeenCalled();
   });
+
+  it('outputs the booted device udid for a single-device run', async () => {
+    mockedUtils.startAsync.mockResolvedValue({ udid: 'booted-udid' as any });
+
+    const step = createStep({ device_identifier: 'iPhone 15' });
+    await step.executeAsync();
+
+    expect(step.outputById.device_udid.value).toBe('booted-udid');
+  });
+
+  it('does not set device_udid for a multi-device run', async () => {
+    mockedUtils.startAsync
+      .mockResolvedValueOnce({ udid: 'base' as any })
+      .mockResolvedValueOnce({ udid: 'clone-1' as any })
+      .mockResolvedValueOnce({ udid: 'clone-2' as any });
+
+    const step = createStep({ device_identifier: 'iPhone 15', count: 2 });
+    await step.executeAsync();
+
+    expect(step.outputById.device_udid.value).toBeUndefined();
+  });
 });

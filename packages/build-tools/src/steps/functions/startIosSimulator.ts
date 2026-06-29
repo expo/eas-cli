@@ -3,6 +3,7 @@ import {
   BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
+  BuildStepOutput,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import { minBy } from 'lodash';
@@ -32,7 +33,8 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    outputProviders: [BuildStepOutput.createProvider({ id: 'device_udid', required: false })],
+    fn: async ({ logger }, { inputs, outputs, env }) => {
       try {
         const availableDevices = await IosSimulatorUtils.getAvailableDevicesAsync({
           env,
@@ -116,6 +118,8 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
           logger.info(`${cloneDeviceName} is ready.`);
           logger.info('');
         }
+      } else {
+        outputs.device_udid.set(udid);
       }
     },
   });
