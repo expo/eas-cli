@@ -26,13 +26,9 @@ export async function discourageExpoGoForProdAsync(
     }
     Log.newLine();
     Log.warn(
-      `⚠️ Detected that your app uses Expo Go for development, this is not recommended when building production apps.`
+      `⚠️ Detected that this app uses Expo Go for development, which is not recommended when building production apps.`
     );
-    Log.warn(
-      learnMore('https://expo.fyi/why-not-build-expo-go-for-production', {
-        dim: false,
-      })
-    );
+    Log.warn(learnMore('https://expo.fyi/why-not-build-expo-go-for-production', { dim: false }));
     Log.warn(
       chalk.dim(`To suppress this warning, set ${chalk.bold(`${suppressionEnvVarName}=true`)}.`)
     );
