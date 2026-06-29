@@ -31,6 +31,7 @@ export function getBuildEnv({
   // https://github.com/mobile-dev-inc/maestro/issues/1257#issuecomment-1654803779
   setEnv(env, 'MAESTRO_DRIVER_STARTUP_TIMEOUT', '120000');
   setEnv(env, 'MAESTRO_CLI_NO_ANALYTICS', '1');
+  setEnv(env, 'HOMEBREW_NO_AUTO_UPDATE', '1');
   setEnv(env, 'EAS_BUILD', 'true');
   setEnv(env, 'EAS_BUILD_RUNNER', 'eas-build');
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
