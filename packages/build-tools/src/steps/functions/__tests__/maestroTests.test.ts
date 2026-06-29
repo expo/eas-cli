@@ -134,6 +134,46 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(args!.join(' ')).toMatch(/--output=.*android-maestro-junit-attempt-0\.xml/);
   });
 
+  it('passes --udid when device_udid is provided', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'ios',
+      device_udid: 'iphone-15-pro-udid',
+    });
+
+    await step.executeAsync();
+
+    const [, args] = mockedSpawn.mock.calls[0];
+    expect(args).toContain('--udid=iphone-15-pro-udid');
+  });
+
+  it('does not pass --udid when device_udid is empty (multi-device run)', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'ios',
+      device_udid: '',
+      shards: 2,
+    });
+
+    await step.executeAsync();
+
+    const [, args] = mockedSpawn.mock.calls[0];
+    expect(args?.join(' ')).not.toContain('--udid');
+    expect(args).toContain('--shard-split=2');
+  });
+
+  it('does not pass --udid when device_udid is omitted', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep({ flow_path: ['flows/a.yaml'], platform: 'ios' });
+
+    await step.executeAsync();
+
+    const [, args] = mockedSpawn.mock.calls[0];
+    expect(args?.join(' ')).not.toContain('--udid');
+  });
+
   it('throws SystemError when spawn fails with ENOENT (binary missing)', async () => {
     mockedSpawn.mockRejectedValue(Object.assign(new Error('not found'), { code: 'ENOENT' }));
     const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });

@@ -70,6 +70,7 @@ function buildMaestroArgs(args: {
   shards: number | undefined;
   include_tags: string | undefined;
   exclude_tags: string | undefined;
+  device_udid: string | undefined;
 }): string[] {
   const out: string[] = ['test'];
   if (args.output_format) {
@@ -86,6 +87,9 @@ function buildMaestroArgs(args: {
   }
   if (args.exclude_tags) {
     out.push(`--exclude-tags=${args.exclude_tags}`);
+  }
+  if (args.device_udid) {
+    out.push(`--udid=${args.device_udid}`);
   }
   out.push(...args.flow_path);
   return out;
@@ -138,6 +142,11 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }),
       BuildStepInput.createProvider({
         id: 'platform',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'device_udid',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
@@ -205,6 +214,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         'shards must be a positive integer.'
       );
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
+      const deviceUdid = inputs.device_udid.value as string | undefined;
 
       try {
         await fs.mkdir(junitReportDirectory, { recursive: true });
@@ -245,6 +255,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           shards,
           include_tags: includeTags,
           exclude_tags: excludeTags,
+          device_udid: deviceUdid,
         });
         logger.info(
           `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
