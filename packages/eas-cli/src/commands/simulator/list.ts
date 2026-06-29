@@ -1,7 +1,7 @@
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { getBareJobRunUrl } from '../../build/utils/url';
+import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -110,7 +110,7 @@ export default class SimulatorList extends EasCommand {
 
     const limit = flags.limit ?? DEFAULT_LIMIT;
 
-    const fetchSpinner = jsonFlag ? null : ora('Fetching device run sessions').start();
+    const fetchSpinner = jsonFlag ? null : ora('Fetching simulator sessions').start();
     let connection;
     try {
       connection = await DeviceRunSessionQuery.listByAppIdAsync(graphqlClient, {
@@ -119,9 +119,9 @@ export default class SimulatorList extends EasCommand {
         after: flags.after,
         filter: Object.keys(filter).length > 0 ? filter : undefined,
       });
-      fetchSpinner?.succeed(`Fetched ${connection.edges.length} device run session(s)`);
+      fetchSpinner?.succeed(`Fetched ${connection.edges.length} simulator session(s)`);
     } catch (err) {
-      fetchSpinner?.fail('Failed to fetch device run sessions');
+      fetchSpinner?.fail('Failed to fetch simulator sessions');
       throw err;
     }
 
@@ -137,13 +137,11 @@ export default class SimulatorList extends EasCommand {
           createdAt: session.createdAt,
           startedAt: session.startedAt ?? undefined,
           finishedAt: session.finishedAt ?? undefined,
-          jobRunUrl: session.turtleJobRun
-            ? getBareJobRunUrl(
-                session.app.ownerAccount.name,
-                session.app.slug,
-                session.turtleJobRun.id
-              )
-            : undefined,
+          deviceRunSessionUrl: getDeviceRunSessionUrl(
+            session.app.ownerAccount.name,
+            session.app.slug,
+            session.id
+          ),
         })),
         pageInfo: connection.pageInfo,
       });
@@ -152,25 +150,25 @@ export default class SimulatorList extends EasCommand {
 
     if (sessions.length === 0) {
       Log.newLine();
-      Log.log('No device run sessions found.');
+      Log.log('No simulator sessions found.');
       return;
     }
 
     Log.newLine();
     const formattedEntries = sessions.map(session => {
-      const jobRunUrl = session.turtleJobRun
-        ? getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, session.turtleJobRun.id)
-        : null;
+      const deviceRunSessionUrl = getDeviceRunSessionUrl(
+        session.app.ownerAccount.name,
+        session.app.slug,
+        session.id
+      );
       const lines = [
         `ID:       ${session.id}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,
         `Created:  ${fromNow(new Date(session.createdAt))} ago`,
+        `URL:      ${link(deviceRunSessionUrl)}`,
       ];
-      if (jobRunUrl) {
-        lines.push(`URL:      ${link(jobRunUrl)}`);
-      }
       return lines.join('\n');
     });
     Log.log(formattedEntries.join(`\n\n${chalk.dim('———')}\n\n`));

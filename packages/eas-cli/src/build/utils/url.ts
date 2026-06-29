@@ -64,6 +64,19 @@ export function getWorkflowRunUrl(
   ).toString();
 }
 
+export function getDeviceRunSessionUrl(
+  accountName: string,
+  projectName: string,
+  deviceRunSessionId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/simulator-sessions/${encodeURIComponent(deviceRunSessionId)}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
 /**
  * @deprecated Links to the raw job-run page; prefer a higher-level URL (e.g. the workflow run
  * or the feature-specific dashboard) that gives users more context. Use this only for internal
