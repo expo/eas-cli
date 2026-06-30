@@ -15,6 +15,6 @@ jobs:
       # Pinned to a commit SHA (not a tag or branch) because this runs under
       # pull_request_target with a write-scoped token — a re-pointed tag or
       # moving branch would allow unreviewed upstream code to run here.
-      - uses: tobyhs/codemention@ebac5877393ab8693fd73b42708c8552043e9a3b # post-v1.5.2
+      - uses: tobyhs/codemention@2cd6f0598401fc6fd22613f2f1fa143ab8818fda # post-v1.5.2
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
