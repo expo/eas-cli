@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Select correct tvOS build target for non-interactive Apple builds when EXPO_TV env variable is set. ([#3907](https://github.com/expo/eas-cli/pull/3907) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [20.5.0](https://github.com/expo/eas-cli/releases/tag/v20.5.0) - 2026-06-29
