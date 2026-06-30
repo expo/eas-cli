@@ -6,6 +6,7 @@ import FastGlob from 'fast-glob';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
@@ -23,6 +24,14 @@ export namespace AndroidEmulatorUtils {
   export const defaultSystemImagePackage = `system-images;android-30;default;${
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
   }`;
+
+  export function getLogcatStagingDirectoryPath({
+    buildLogsDirectory,
+  }: {
+    buildLogsDirectory: string;
+  }): string {
+    return path.join(buildLogsDirectory, 'android-emulator-logcat');
+  }
 
   export async function getAvailableDevicesAsync({
     env,
@@ -488,6 +497,59 @@ export namespace AndroidEmulatorUtils {
     });
 
     return { outputPath };
+  }
+
+  export async function startLogcatStreamingAsync({
+    serialId,
+    outputDir,
+    env,
+    logger,
+  }: {
+    serialId: AndroidDeviceSerialId;
+    outputDir: string;
+    env: NodeJS.ProcessEnv;
+    logger: bunyan;
+  }): Promise<{ outputPath: string } | null> {
+    try {
+      await fs.promises.mkdir(outputDir, { recursive: true });
+
+      const logcatPromise = spawn('adb', ['-s', serialId, 'logcat', '-v', 'threadtime'], {
+        env,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const { child } = logcatPromise;
+
+      if (!child.stdout) {
+        throw new Error('"adb logcat" did not start correctly.');
+      }
+      if (!child.pid) {
+        await logcatPromise;
+        throw new Error('"adb logcat" did not start correctly.');
+      }
+
+      const childStdout = child.stdout;
+      const safeSerialId = serialId.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const outputPath = path.join(outputDir, `${child.pid}-${safeSerialId}.log`);
+      const writeStream = fs.createWriteStream(outputPath);
+      void pipeline(childStdout, writeStream).catch(err => {
+        logger.warn({ err }, `Android emulator logcat stream for ${serialId} failed.`);
+      });
+      child.on('error', err => {
+        logger.warn({ err }, `Android emulator logcat process for ${serialId} failed.`);
+      });
+      child.unref();
+
+      void logcatPromise.catch(err => {
+        logger.warn({ err }, `Android emulator logcat stream for ${serialId} stopped.`);
+      });
+
+      logger.info(`Streaming Android emulator logcat for ${serialId} to ${outputPath}.`);
+
+      return { outputPath };
+    } catch (err) {
+      logger.warn({ err }, `Failed to start Android emulator logcat stream for ${serialId}.`);
+      return null;
+    }
   }
 
   export async function stopAsync({
