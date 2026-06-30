@@ -1,6 +1,7 @@
 import { asyncResult } from '@expo/results';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
+import { Sentry } from '../../sentry';
 import { retryOnDNSFailure } from '../../utils/retryOnDNSFailure';
 
 export function createSubmissionEntityFunction(): BuildFunction {
@@ -54,18 +55,42 @@ export function createSubmissionEntityFunction(): BuildFunction {
       const robotAccessToken = stepsCtx.global.staticContext.job.secrets?.robotAccessToken;
       if (!robotAccessToken) {
         stepsCtx.logger.error('Failed to create submission entity: no robot access token found');
+        Sentry.capture('Failed to create submission entity: missing robot access token');
         return;
       }
 
       const buildId = inputs.build_id.value;
       if (!buildId) {
         stepsCtx.logger.error('Failed to create submission entity: no build ID provided');
+        Sentry.capture('Failed to create submission entity: missing build ID', {
+          extras: {
+            buildId,
+          },
+        });
         return;
       }
 
       const workflowJobId = stepsCtx.global.env.__WORKFLOW_JOB_ID;
       if (!workflowJobId) {
         stepsCtx.logger.error('Failed to create submission entity: no workflow job ID found');
+        Sentry.capture('Failed to create submission entity: missing workflow job ID', {
+          extras: {
+            buildId,
+            workflowJobId,
+          },
+        });
+        return;
+      }
+
+      const expoApiServerURL = stepsCtx.global.staticContext.expoApiServerURL;
+      if (!expoApiServerURL) {
+        stepsCtx.logger.error('Failed to create submission entity: no Expo API server URL found');
+        Sentry.capture('Failed to create submission entity: missing Expo API server URL', {
+          extras: {
+            buildId,
+            workflowJobId,
+          },
+        });
         return;
       }
 
@@ -83,7 +108,7 @@ export function createSubmissionEntityFunction(): BuildFunction {
 
       try {
         const response = await retryOnDNSFailure(fetch)(
-          new URL('/v2/app-store-submissions/', stepsCtx.global.staticContext.expoApiServerURL),
+          new URL('/v2/app-store-submissions/', expoApiServerURL),
           {
             method: 'POST',
             headers: {

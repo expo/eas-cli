@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig, XcodeProject } from '@expo/config-plugins';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 import type { XCBuildConfiguration } from 'xcode';
@@ -26,7 +26,7 @@ interface UserDefinedTarget {
 interface ResolveTargetOptions {
   projectDir: string;
   exp: ExpoConfig;
-  env?: Record<string, string>;
+  env?: Env;
   xcodeBuildContext: XcodeBuildContext;
   vcsClient: Client;
 }
