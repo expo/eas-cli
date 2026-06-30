@@ -5,6 +5,7 @@ import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
+  createServeSimTunnelArgs,
   fetchServeSimTurnArgsAsync,
   turnIceServersToServeSimArgs,
 } from '../remoteDeviceRunSession';
@@ -35,6 +36,65 @@ function createCtxMock(): CustomBuildContext {
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(createServeSimTunnelArgs, () => {
+  it('builds ngrok WebRTC serve-sim args', () => {
+    expect(createServeSimTunnelArgs({ baseDomain: 'expo-simulator.ngrok.dev' })).toEqual([
+      'serve-sim-sjchmiela@latest',
+      '--tunnel',
+      '--tunnel-provider',
+      'ngrok',
+      '--tunnel-domain',
+      'expo-simulator.ngrok.dev',
+      '--stream-max-dimension',
+      '1280',
+      '--stream-quality',
+      '0.55',
+      '--stream-fps',
+      '10',
+      '--transport',
+      'webrtc',
+      '--webrtc-codec',
+      'h264',
+      '--h264-bitrate',
+      '3000000',
+      '--h264-max-fps',
+      '30',
+    ]);
+  });
+
+  it('appends TURN args after the stable serve-sim stream settings', () => {
+    expect(
+      createServeSimTunnelArgs({
+        baseDomain: 'expo-simulator.ngrok.dev',
+        turnArgs: ['--turn-url', 'turns:turn.cloudflare.com:443?transport=tcp'],
+      })
+    ).toEqual([
+      'serve-sim-sjchmiela@latest',
+      '--tunnel',
+      '--tunnel-provider',
+      'ngrok',
+      '--tunnel-domain',
+      'expo-simulator.ngrok.dev',
+      '--stream-max-dimension',
+      '1280',
+      '--stream-quality',
+      '0.55',
+      '--stream-fps',
+      '10',
+      '--transport',
+      'webrtc',
+      '--webrtc-codec',
+      'h264',
+      '--h264-bitrate',
+      '3000000',
+      '--h264-max-fps',
+      '30',
+      '--turn-url',
+      'turns:turn.cloudflare.com:443?transport=tcp',
+    ]);
+  });
+});
 
 describe(turnIceServersToServeSimArgs, () => {
   it('returns no args for an empty ICE server list', () => {

@@ -16,6 +16,13 @@ import { turtleFetch } from '../../utils/turtleFetch';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
+const SERVE_SIM_PACKAGE_SPEC = 'serve-sim-sjchmiela@latest';
+const SERVE_SIM_MJPEG_FALLBACK_MAX_DIMENSION = '1280';
+const SERVE_SIM_MJPEG_FALLBACK_QUALITY = '0.55';
+const SERVE_SIM_MJPEG_FALLBACK_FPS = '10';
+const SERVE_SIM_H264_BITRATE = '3000000';
+const SERVE_SIM_H264_MAX_FPS = '30';
+
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
     deviceRunSession {
@@ -258,43 +265,63 @@ export async function startServeSimWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
   }
-): Promise<{ previewUrl: string; streamUrl: string }> {
+): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
-    args: [
-      'serve-sim-szdziedzic@latest',
-      '--tunnel',
-      '--tunnel-provider',
-      'ngrok',
-      '--tunnel-domain',
-      baseDomain,
-      '--stream-max-dimension',
-      '1280',
-      '--stream-quality',
-      '0.55',
-      '--codec',
-      'webrtc',
-      ...turnArgs,
-    ],
+    args: createServeSimTunnelArgs({ baseDomain, turnArgs }),
     env,
   });
 
-  logger.info('Waiting for serve-sim to report tunnel and stream URLs.');
+  logger.info('Waiting for serve-sim to report tunnel URL.');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const output = serveSim.getOutput();
     const previewUrl = matchLabeledUrl({ output, label: 'Tunnel', baseDomain });
-    const streamUrl = matchLabeledUrl({ output, label: 'Stream', baseDomain });
-    if (previewUrl && streamUrl) {
-      return { previewUrl, streamUrl };
+    if (previewUrl) {
+      return { previewUrl };
     }
     await sleepAsync(1_000);
   }
   throw new SystemError(
-    `Timed out waiting for serve-sim to report Tunnel and Stream URLs. Last output:\n${serveSim.getOutput() || '<empty>'}`
+    `Timed out waiting for serve-sim to report Tunnel URL. Last output:\n${serveSim.getOutput() || '<empty>'}`
   );
+}
+
+export function createServeSimTunnelArgs({
+  baseDomain,
+  turnArgs = [],
+}: {
+  baseDomain: string;
+  turnArgs?: string[];
+}): string[] {
+  return [
+    SERVE_SIM_PACKAGE_SPEC,
+    '--tunnel',
+    '--tunnel-provider',
+    'ngrok',
+    '--tunnel-domain',
+    baseDomain,
+    // MJPEG remains the browser fallback when AVCC/H.264 is unavailable.
+    '--stream-max-dimension',
+    SERVE_SIM_MJPEG_FALLBACK_MAX_DIMENSION,
+    '--stream-quality',
+    SERVE_SIM_MJPEG_FALLBACK_QUALITY,
+    '--stream-fps',
+    SERVE_SIM_MJPEG_FALLBACK_FPS,
+    // Prefer WebRTC for tunneled live sessions. Keep the HTTP stream tuning below
+    // as bounded fallback settings when the browser/helper drops back to MJPEG/AVCC.
+    '--transport',
+    'webrtc',
+    '--webrtc-codec',
+    'h264',
+    '--h264-bitrate',
+    SERVE_SIM_H264_BITRATE,
+    '--h264-max-fps',
+    SERVE_SIM_H264_MAX_FPS,
+    ...turnArgs,
+  ];
 }
 
 function matchLabeledUrl({
