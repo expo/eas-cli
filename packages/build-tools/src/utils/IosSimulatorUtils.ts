@@ -1,3 +1,4 @@
+import { ExpoError, SystemError, UserError } from '@expo/eas-build-job';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -90,6 +91,67 @@ export namespace IosSimulatorUtils {
     await spawn('xcrun', ['simctl', 'clone', sourceDeviceIdentifier, destinationDeviceName], {
       env,
     });
+  }
+
+  export async function enableAccessibilitySettingsAsync({
+    deviceIdentifier,
+    env,
+  }: {
+    deviceIdentifier: IosSimulatorUuid | IosSimulatorName;
+    env: NodeJS.ProcessEnv;
+  }): Promise<void> {
+    try {
+      const devices = await getAvailableDevicesAsync({ env, filter: 'available' });
+      const device = devices.find(
+        device =>
+          device.isAvailable &&
+          (device.udid === deviceIdentifier || device.name === deviceIdentifier)
+      );
+      if (!device) {
+        throw new UserError(
+          'EAS_IOS_SIMULATOR_NOT_FOUND',
+          `Failed to find available iOS Simulator "${deviceIdentifier}" to update accessibility settings.`
+        );
+      }
+      if (device.state !== 'Shutdown') {
+        throw new UserError(
+          'EAS_IOS_SIMULATOR_NOT_SHUTDOWN',
+          `Expected iOS Simulator "${deviceIdentifier}" to be shutdown before updating accessibility settings, but it is ${device.state}.`
+        );
+      }
+
+      const plistPath = path.join(
+        device.dataPath,
+        'Library',
+        'Preferences',
+        'com.apple.Accessibility.plist'
+      );
+      await fs.promises.mkdir(path.dirname(plistPath), { recursive: true });
+
+      const plistExists = await fs.promises
+        .access(plistPath)
+        .then(() => true)
+        .catch(() => false);
+      if (!plistExists) {
+        await spawn('plutil', ['-create', 'binary1', plistPath], { env });
+      }
+
+      for (const key of [
+        'AutomationEnabled',
+        'IgnoreAXServerEntitlements',
+        'AccessibilityEnabled',
+        'ApplicationAccessibilityEnabled',
+      ]) {
+        await spawn('plutil', ['-replace', key, '-bool', 'true', plistPath], { env });
+      }
+    } catch (err) {
+      if (err instanceof ExpoError) {
+        throw err;
+      }
+      throw new SystemError('Failed to update iOS Simulator accessibility settings.', {
+        cause: err,
+      });
+    }
   }
 
   export async function startAsync({
