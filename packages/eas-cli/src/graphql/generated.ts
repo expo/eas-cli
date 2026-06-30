@@ -85,6 +85,7 @@ export type Account = {
   accountFeatureGates: Scalars['JSONObject']['output'];
   /** Coalesced project activity for all apps belonging to this account. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
+  aiChatEnabled: Scalars['Boolean']['output'];
   appCount: Scalars['Int']['output'];
   /** @deprecated Use appStoreConnectApiKeysPaginated */
   appStoreConnectApiKeys: Array<AppStoreConnectApiKey>;
@@ -691,6 +692,8 @@ export type AccountMutation = {
   requestRefund?: Maybe<Scalars['Boolean']['output']>;
   /** Revoke specified Permissions for Actor. Actor must already have at least one permission on the account. */
   revokeActorPermissions: Account;
+  /** Set whether the AI chat is enabled for this account. */
+  setAiChatEnabled: Account;
   /** Set the display name for the account. */
   setDisplayName: Account;
   /** Require authorization to send push notifications for experiences owned by this account */
@@ -766,6 +769,12 @@ export type AccountMutationRevokeActorPermissionsArgs = {
   accountID: Scalars['ID']['input'];
   actorID: Scalars['ID']['input'];
   permissions?: InputMaybe<Array<InputMaybe<Permission>>>;
+};
+
+
+export type AccountMutationSetAiChatEnabledArgs = {
+  accountID: Scalars['ID']['input'];
+  aiChatEnabled: Scalars['Boolean']['input'];
 };
 
 
@@ -2439,6 +2448,7 @@ export type AppObserveCustomEvent = {
   appUpdateId?: Maybe<Scalars['String']['output']>;
   appUpdateMessage?: Maybe<Scalars['String']['output']>;
   appVersion: Scalars['String']['output'];
+  body?: Maybe<Scalars['String']['output']>;
   clientVersion?: Maybe<Scalars['String']['output']>;
   countryCode?: Maybe<Scalars['String']['output']>;
   deviceLanguageTag?: Maybe<Scalars['String']['output']>;
@@ -3218,6 +3228,41 @@ export type AppStoreConnectAppMutationCreateAppStoreConnectAppArgs = {
 export type AppStoreConnectAppMutationDeleteAppStoreConnectAppArgs = {
   appStoreConnectAppId: Scalars['ID']['input'];
 };
+
+export type AppStoreConnectBuild = {
+  __typename?: 'AppStoreConnectBuild';
+  ascBuildIdentifier: Scalars['String']['output'];
+  buildNumber?: Maybe<Scalars['String']['output']>;
+  expirationDate?: Maybe<Scalars['DateTime']['output']>;
+  minOsVersion?: Maybe<Scalars['String']['output']>;
+  processingState: AppStoreConnectBuildProcessingState;
+  uploadedDate?: Maybe<Scalars['DateTime']['output']>;
+};
+
+export enum AppStoreConnectBuildProcessingState {
+  Failed = 'FAILED',
+  Invalid = 'INVALID',
+  Processing = 'PROCESSING',
+  Valid = 'VALID'
+}
+
+export type AppStoreConnectBuildUpload = {
+  __typename?: 'AppStoreConnectBuildUpload';
+  appStoreConnectBuild?: Maybe<AppStoreConnectBuild>;
+  ascBuildUploadIdentifier: Scalars['String']['output'];
+  buildNumber?: Maybe<Scalars['String']['output']>;
+  createdDate?: Maybe<Scalars['DateTime']['output']>;
+  uploadState: AppStoreConnectBuildUploadState;
+  uploadedDate?: Maybe<Scalars['DateTime']['output']>;
+  version?: Maybe<Scalars['String']['output']>;
+};
+
+export enum AppStoreConnectBuildUploadState {
+  AwaitingUpload = 'AWAITING_UPLOAD',
+  Complete = 'COMPLETE',
+  Failed = 'FAILED',
+  Processing = 'PROCESSING'
+}
 
 export enum AppStoreConnectUserRole {
   AccessToReports = 'ACCESS_TO_REPORTS',
@@ -9763,6 +9808,7 @@ export type Submission = ActivityTimelineProjectActivity & {
   actor?: Maybe<Actor>;
   androidConfig?: Maybe<AndroidSubmissionConfig>;
   app: App;
+  appStoreConnectBuildUpload?: Maybe<AppStoreConnectBuildUpload>;
   archiveUrl?: Maybe<Scalars['String']['output']>;
   canRetry: Scalars['Boolean']['output'];
   cancelingActor?: Maybe<Actor>;
@@ -12157,7 +12203,7 @@ export type WorkflowDeviceTestCaseInsightsFiltersInput = {
  * WorkflowsInsightsMetric for the equivalent convention.
  *
  * Float (not Int) to match WorkflowsInsightsMetric and avoid the GraphQL Int32
- * ceiling: 90-day uniqExact counts on a high-volume project can plausibly
+ * ceiling: year-long uniqExact counts on a high-volume project can plausibly
  * exceed 2.1B. Values are integer-valued; the frontend reads them as JS numbers.
  */
 export type WorkflowDeviceTestCaseInsightsMetric = {
@@ -14286,7 +14332,7 @@ export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

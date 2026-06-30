@@ -17,7 +17,7 @@ import { ora } from '../../ora';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { Choice, confirmAsync, promptAsync } from '../../prompts';
-import { Actor } from '../../user/User';
+import { Actor, getPersonalAccount } from '../../user/User';
 
 type InitializeMethodOptions = {
   force: boolean;
@@ -355,17 +355,8 @@ export default class ProjectInit extends EasCommand {
   ): Choice[] {
     const allAccounts = actor.accounts;
 
-    const sortedAccounts =
-      actor.__typename === 'Robot'
-        ? allAccounts
-        : [...allAccounts].sort((a, _b) =>
-            actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-          );
-
     if (actor.__typename !== 'Robot') {
-      const personalAccount = allAccounts?.find(
-        account => account?.ownerUserActor?.id === actor.id
-      );
+      const personalAccount = getPersonalAccount(actor);
 
       const personalAccountChoice = personalAccount
         ? {
@@ -378,7 +369,7 @@ export default class ProjectInit extends EasCommand {
         : undefined;
 
       const userAccounts = allAccounts
-        ?.filter(account => account.ownerUserActor && account.name !== actor.username)
+        ?.filter(account => account.ownerUserActor && account.id !== personalAccount?.id)
         .map(account => ({
           title: account.name,
           value: account,
@@ -388,7 +379,7 @@ export default class ProjectInit extends EasCommand {
         }));
 
       const organizationAccounts = allAccounts
-        ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
+        ?.filter(account => account.id !== personalAccount?.id && !account.ownerUserActor)
         .map(account => ({
           title: account.name,
           value: account,
@@ -403,11 +394,11 @@ export default class ProjectInit extends EasCommand {
       }
 
       return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
-        actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
+        a.value.id === personalAccount?.id ? -1 : 1
       );
     }
 
-    return sortedAccounts.map(account => ({
+    return allAccounts.map(account => ({
       title: account.name,
       value: account,
       description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
