@@ -1,4 +1,11 @@
-import { CurrentUserQuery, PartnerActor, Robot, SsoUser, User } from '../graphql/generated';
+import {
+  AccountFragment,
+  CurrentUserQuery,
+  PartnerActor,
+  Robot,
+  SsoUser,
+  User,
+} from '../graphql/generated';
 
 export type Actor = NonNullable<CurrentUserQuery['meActor']>;
 
@@ -35,6 +42,24 @@ export function getActorUsername(actor?: Actor): string | null {
     case 'SSOUser':
     case 'PartnerActor':
       return actor.username;
+    case 'Robot':
+    case undefined:
+      return null;
+  }
+}
+
+/**
+ * Resolve the personal account of an actor. Use this helper instead of
+ * assumming that a user's personal account name equals their username.
+ *
+ * Returns `null` for actors that don't have a personal account (e.g. robots).
+ */
+export function getPersonalAccount(actor?: Actor): AccountFragment | null {
+  switch (actor?.__typename) {
+    case 'User':
+    case 'SSOUser':
+    case 'PartnerActor':
+      return actor.primaryAccount;
     case 'Robot':
     case undefined:
       return null;

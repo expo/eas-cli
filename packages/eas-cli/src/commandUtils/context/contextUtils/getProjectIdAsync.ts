@@ -14,7 +14,7 @@ import {
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import SessionManager from '../../../user/SessionManager';
-import { Actor, getActorUsername } from '../../../user/User';
+import { Actor, getActorUsername, getPersonalAccount } from '../../../user/User';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
@@ -132,7 +132,8 @@ export async function validateOrSetProjectIdAsync({
     // SDK 53 and above no longer require owner field in app config
     if (sdkVersion && semver.satisfies(sdkVersion, '< 53.0.0')) {
       const actorUsername = getActorUsername(actor);
-      if (!exp.owner && appForProjectId.ownerAccount.name !== actorUsername) {
+      const personalAccount = getPersonalAccount(actor);
+      if (!exp.owner && appForProjectId.ownerAccount.id !== personalAccount?.id) {
         if (actorUsername) {
           throw new Error(
             `Project config: Owner of project identified by "extra.eas.projectId" (${
@@ -184,18 +185,18 @@ export async function validateOrSetProjectIdAsync({
     if (exp.owner) {
       return exp.owner;
     }
-    switch (user.__typename) {
-      case 'User':
-        return user.username;
-      case 'SSOUser':
-        return user.username;
-      case 'PartnerActor':
-        return user.username;
-      case 'Robot':
-        throw new Error(
-          'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
-        );
+    if (user.__typename === 'Robot') {
+      throw new Error(
+        'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
+      );
     }
+    const personalAccount = getPersonalAccount(user);
+    if (!personalAccount) {
+      throw new Error(
+        'Must configure EAS project by running "eas init" before managing the project.'
+      );
+    }
+    return personalAccount.name;
   };
 
   const projectId = await fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync(
