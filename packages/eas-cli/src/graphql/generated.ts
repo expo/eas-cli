@@ -16562,7 +16562,10 @@ export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
-    | { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?:
+          | { __typename?: 'SSOUser', id: string, username: string }
+          | { __typename?: 'User', id: string, username: string }
+         | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, viewerUserPermission: { __typename?: 'UserPermission', role: Role } }> }

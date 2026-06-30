@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import { Role } from '../../graphql/generated';
 import Log from '../../log';
-import { Actor, getActorDisplayName } from '../../user/User';
+import { Actor, getActorDisplayName, getPersonalAccount } from '../../user/User';
 
 export default class AccountView extends EasCommand {
   static override description = 'show the username you are logged in as';
@@ -29,8 +29,9 @@ export default class AccountView extends EasCommand {
 
       // personal account is included, only show if more accounts that personal account
       // but do show personal account in list if there are more
+      const personalAccount = getPersonalAccount(actor);
       const accountExcludingPersonalAccount = actor.accounts.filter(
-        account => !('username' in actor) || account.name !== actor.username
+        account => account.id !== personalAccount?.id
       );
       if (accountExcludingPersonalAccount.length > 0) {
         Log.newLine();
@@ -47,7 +48,8 @@ export default class AccountView extends EasCommand {
   }
 
   private static getRoleOnAccount(actor: Actor, account: Actor['accounts'][0]): Role {
-    if ('username' in actor && account.name === actor.username) {
+    const personalAccount = getPersonalAccount(actor);
+    if (personalAccount && account.id === personalAccount.id) {
       return Role.Owner;
     }
 
