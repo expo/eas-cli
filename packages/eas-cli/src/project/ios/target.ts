@@ -53,7 +53,7 @@ const AppExtensionsConfigSchema = Joi.array().items(
  * defaulting to IOS.
  */
 export function getManagedTvBuildSettings(
-  env: Record<string, string> | undefined
+  env: Env | undefined
 ): Target['buildSettings'] | undefined {
   const expoTv = (env?.EXPO_TV ?? process.env.EXPO_TV ?? '').toString().toLowerCase();
   if (expoTv === '1' || expoTv === 'true' || expoTv === 'yes') {
