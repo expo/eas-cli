@@ -2,7 +2,7 @@ import chalk from 'chalk';
 
 import { Permission, Role } from '../graphql/generated';
 import Log from '../log';
-import { Actor } from './User';
+import { Actor, getPersonalAccount } from './User';
 import { getRoleForPermissions } from './roles';
 
 /**
@@ -16,8 +16,9 @@ export function logAccountPermissions(actor: Actor): { hasLimitedAccount: boolea
   // personal account is included, only show if more accounts that personal account
   // but do show personal account in list if there are more, or if the credentials used for
   // this command limit the permissions on it
+  const personalAccount = getPersonalAccount(actor);
   const accountExcludingPersonalAccount = actor.accounts.filter(
-    account => !('username' in actor) || account.name !== actor.username
+    account => account.id !== personalAccount?.id
   );
   const hasLimitedAccount = actor.accounts.some(isLimitedByCredentials);
   if (accountExcludingPersonalAccount.length === 0 && !hasLimitedAccount) {

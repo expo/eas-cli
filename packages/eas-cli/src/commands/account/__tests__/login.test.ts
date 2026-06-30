@@ -202,6 +202,7 @@ describe('when already logged in', () => {
         {
           id: 'jane-id',
           name: 'jane',
+          ownerUserActor: { id: 'user-id', username: 'jane' },
           viewerUserPermission2: { permissions: ownerPermissions, effectivePermissions },
         },
       ],
