@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Pre-warm bsdiff update patches against the top recent updates and the embedded bundles on a branch, rather than only the second-most-recent update, so more devices are served a diffed patch instead of the full un-diffed update while the on-demand diff computes. ([#3869](https://github.com/expo/eas-cli/pull/3869) by [@jc-expo](https://github.com/jc-expo))
+
 ### 🧹 Chores
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
