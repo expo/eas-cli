@@ -26,6 +26,7 @@ export * from './context';
 export * from './generic';
 export * from './hooks';
 export * from './step';
+export * from './action';
 export * from './submission-config';
 export * from './projectPackage';
 
