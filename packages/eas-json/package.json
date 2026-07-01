@@ -37,7 +37,7 @@
     "env-string": "1.0.1",
     "fs-extra": "11.2.0",
     "golden-fleece": "1.0.9",
-    "joi": "17.11.0",
+    "joi": "18.2.1",
     "log-symbols": "4.1.0",
     "semver": "7.5.2",
     "terminal-link": "2.1.1",
