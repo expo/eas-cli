@@ -35,16 +35,18 @@ export async function maybeWarnAboutUsageOveragesAsync({
 
     const overageCount = buildMetrics.overageMetrics.reduce((sum, o) => sum + o.value, 0);
     const overageCostCents = buildMetrics.totalCost;
+    const hasFreePlan = subscription.name === 'Free';
     const tier = classifyUsageTier({
       planValue: planMetric.value,
       limit: planMetric.limit,
       overageCount,
+      overageCostCents,
+      hasFreePlan,
     });
     if (!tier) {
       return;
     }
 
-    const hasFreePlan = subscription.name === 'Free';
     displayOverageWarning({
       tier,
       name,
@@ -64,12 +66,22 @@ export function classifyUsageTier({
   planValue,
   limit,
   overageCount,
+  overageCostCents,
+  hasFreePlan,
 }: {
   planValue: number;
   limit: number;
   overageCount: number;
+  overageCostCents: number;
+  hasFreePlan: boolean;
 }): UsageTier | null {
-  if (overageCount > 0) {
+  // Only paid plans can incur pay-as-you-go overages, and only when there is an
+  // actual billable cost. Free plans are blocked at the limit and are never charged,
+  // so they can never be in an "over" state — a nonzero overage row (e.g. a usage
+  // rollup returned by the API) must not be treated as billable usage. Without this
+  // guard, free users well below their limit were shown a "you've reached your limit,
+  // upgrade to keep building" warning.
+  if (!hasFreePlan && overageCount > 0 && overageCostCents > 0) {
     return 'over';
   }
   if (limit > 0 && planValue >= limit) {

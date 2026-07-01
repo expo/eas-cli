@@ -242,6 +242,26 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
+  it('does not warn a Free plan below its limit even if the usage API reports an overage', async () => {
+    // Regression: free users with only a handful of builds were told they'd reached
+    // their limit because a nonzero overage row was treated as billable usage.
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Free',
+        buildPlanMetrics: [createMockPlanMetric({ value: 6, limit: 30 })],
+        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 5 }],
+        totalCost: 0,
+      })
+    );
+
+    await maybeWarnAboutUsageOveragesAsync({
+      graphqlClient: mockGraphqlClient,
+      accountId: 'account-id',
+    });
+
+    expect(mockWarn).not.toHaveBeenCalled();
+  });
+
   it('handles errors gracefully', async () => {
     mockGetUsageForOverageWarningAsync.mockRejectedValue(new Error('Network error'));
 
@@ -267,26 +287,74 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
 });
 
 describe('classifyUsageTier', () => {
+  const paid = { overageCostCents: 0, hasFreePlan: false };
+
   it('returns null when usage is below threshold', () => {
-    expect(classifyUsageTier({ planValue: 50, limit: 100, overageCount: 0 })).toBeNull();
-    expect(classifyUsageTier({ planValue: 79, limit: 100, overageCount: 0 })).toBeNull();
+    expect(classifyUsageTier({ planValue: 50, limit: 100, overageCount: 0, ...paid })).toBeNull();
+    expect(classifyUsageTier({ planValue: 79, limit: 100, overageCount: 0, ...paid })).toBeNull();
   });
 
   it('returns "approaching" at >= 80% but below limit', () => {
-    expect(classifyUsageTier({ planValue: 80, limit: 100, overageCount: 0 })).toBe('approaching');
-    expect(classifyUsageTier({ planValue: 99, limit: 100, overageCount: 0 })).toBe('approaching');
+    expect(classifyUsageTier({ planValue: 80, limit: 100, overageCount: 0, ...paid })).toBe(
+      'approaching'
+    );
+    expect(classifyUsageTier({ planValue: 99, limit: 100, overageCount: 0, ...paid })).toBe(
+      'approaching'
+    );
   });
 
   it('returns "at" when planValue >= limit and no overage', () => {
-    expect(classifyUsageTier({ planValue: 100, limit: 100, overageCount: 0 })).toBe('at');
+    expect(classifyUsageTier({ planValue: 100, limit: 100, overageCount: 0, ...paid })).toBe('at');
   });
 
-  it('returns "over" when any overage has been counted', () => {
-    expect(classifyUsageTier({ planValue: 105, limit: 100, overageCount: 5 })).toBe('over');
+  it('returns "over" for a paid plan with a counted, billable overage', () => {
+    expect(
+      classifyUsageTier({
+        planValue: 105,
+        limit: 100,
+        overageCount: 5,
+        overageCostCents: 750,
+        hasFreePlan: false,
+      })
+    ).toBe('over');
   });
 
-  it('prefers "over" if overage exists, regardless of planValue', () => {
-    expect(classifyUsageTier({ planValue: 50, limit: 100, overageCount: 1 })).toBe('over');
+  it('prefers "over" if a billable overage exists, regardless of planValue', () => {
+    expect(
+      classifyUsageTier({
+        planValue: 50,
+        limit: 100,
+        overageCount: 1,
+        overageCostCents: 150,
+        hasFreePlan: false,
+      })
+    ).toBe('over');
+  });
+
+  it('never returns "over" for a Free plan, even if an overage is reported', () => {
+    // Regression: free users below their limit were shown the "reached your limit" warning
+    // because a nonzero overage row was treated as billable usage.
+    expect(
+      classifyUsageTier({
+        planValue: 6,
+        limit: 30,
+        overageCount: 5,
+        overageCostCents: 0,
+        hasFreePlan: true,
+      })
+    ).toBeNull();
+  });
+
+  it('does not return "over" for a paid plan when the overage has no billable cost', () => {
+    expect(
+      classifyUsageTier({
+        planValue: 6,
+        limit: 30,
+        overageCount: 5,
+        overageCostCents: 0,
+        hasFreePlan: false,
+      })
+    ).toBeNull();
   });
 });
 
