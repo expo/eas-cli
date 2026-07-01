@@ -25,6 +25,7 @@ export * from './artifacts';
 export * from './context';
 export * from './generic';
 export * from './step';
+export * from './action';
 export * from './submission-config';
 export * from './projectPackage';
 
