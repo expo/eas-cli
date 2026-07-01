@@ -4,9 +4,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
 
-const APPROACHING_THRESHOLD_PERCENT = 80;
-
-export type UsageTier = 'approaching' | 'at' | 'over';
+const THRESHOLD_PERCENT = 85;
 
 export async function maybeWarnAboutUsageOveragesAsync({
   graphqlClient,
@@ -17,69 +15,26 @@ export async function maybeWarnAboutUsageOveragesAsync({
 }): Promise<void> {
   try {
     const currentDate = new Date();
-    const account = await AccountQuery.getUsageForOverageWarningAsync(
-      graphqlClient,
-      accountId,
-      currentDate
-    );
-    if (!account) {
-      return;
-    }
+    const {
+      name,
+      subscription,
+      usageMetrics: { EAS_BUILD },
+    } = await AccountQuery.getUsageForOverageWarningAsync(graphqlClient, accountId, currentDate);
 
-    const { name, subscription, usageMetrics } = account;
-    const buildMetrics = usageMetrics.EAS_BUILD;
-    const planMetric = buildMetrics?.planMetrics?.[0];
+    const planMetric = EAS_BUILD?.planMetrics?.[0];
     if (!planMetric || !subscription) {
       return;
     }
 
-    const overageCount = buildMetrics.overageMetrics.reduce((sum, o) => sum + o.value, 0);
-    const overageCostCents = buildMetrics.totalCost;
-    const tier = classifyUsageTier({
-      planValue: planMetric.value,
-      limit: planMetric.limit,
-      overageCount,
-    });
-    if (!tier) {
-      return;
+    const percentUsed = calculatePercentUsed(planMetric.value, planMetric.limit);
+    if (percentUsed >= THRESHOLD_PERCENT) {
+      const hasFreePlan = subscription.name === 'Free';
+      displayOverageWarning({ percentUsed, hasFreePlan, name });
     }
-
-    const hasFreePlan = subscription.name === 'Free';
-    displayOverageWarning({
-      tier,
-      name,
-      hasFreePlan,
-      planValue: planMetric.value,
-      limit: planMetric.limit,
-      overageCount,
-      overageCostCents,
-    });
   } catch (error) {
     // Silently fail if we can't fetch usage data - we don't want to block the user's workflow
     Log.debug(`Failed to fetch usage data: ${error}`);
   }
-}
-
-export function classifyUsageTier({
-  planValue,
-  limit,
-  overageCount,
-}: {
-  planValue: number;
-  limit: number;
-  overageCount: number;
-}): UsageTier | null {
-  if (overageCount > 0) {
-    return 'over';
-  }
-  if (limit > 0 && planValue >= limit) {
-    return 'at';
-  }
-  const percentUsed = calculatePercentUsed(planValue, limit);
-  if (percentUsed >= APPROACHING_THRESHOLD_PERCENT) {
-    return 'approaching';
-  }
-  return null;
 }
 
 export function calculatePercentUsed(value: number, limit: number): number {
@@ -97,70 +52,31 @@ export function createProgressBar(percentUsed: number, width: number = 30): stri
   return `${filled}${empty}`;
 }
 
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 export function displayOverageWarning({
-  tier,
-  name,
+  percentUsed,
   hasFreePlan,
-  planValue,
-  limit,
-  overageCount,
-  overageCostCents,
+  name,
 }: {
-  tier: UsageTier;
-  name: string;
+  percentUsed: number;
   hasFreePlan: boolean;
-  planValue: number;
-  limit: number;
-  overageCount: number;
-  overageCostCents: number;
+  name: string;
 }): void {
+  const message = chalk.bold(
+    `You've used ${percentUsed}% of your included build credits for this month.`
+  );
+  // Don't show progress bar at 100% - it's redundant when the limit is reached
+  const progressBar = percentUsed < 100 ? ' ' + createProgressBar(percentUsed) : '';
+  Log.warn(message + progressBar);
+
   const billingUrl = `https://expo.dev/accounts/${name}/settings/billing`;
+  const warning = hasFreePlan
+    ? "You won't be able to start new builds once you reach the limit. " +
+      link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false })
+    : 'Additional usage beyond your limit will be charged at pay-as-you-go rates. ' +
+      link(billingUrl, {
+        text: 'See usage in billing.',
+        dim: false,
+      });
 
-  if (tier === 'approaching') {
-    const percentUsed = calculatePercentUsed(planValue, limit);
-    Log.warn(
-      chalk.bold(
-        `You've used ${percentUsed}% of your included build credits this billing period.`
-      ) +
-        ' ' +
-        createProgressBar(percentUsed)
-    );
-    Log.warn(
-      hasFreePlan
-        ? "You won't be able to start new builds once you reach the limit. " +
-            link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false })
-        : 'Additional usage beyond your limit will be charged at pay-as-you-go rates. ' +
-            link(billingUrl, { text: 'See usage in billing.', dim: false })
-    );
-    return;
-  }
-
-  // Free users are blocked at the limit, so they can't reach an "over" state.
-  // If we ever see Free + over (data inconsistency, mid-flight plan change), treat it as "at".
-  if (tier === 'at' || (tier === 'over' && hasFreePlan)) {
-    Log.warn(chalk.bold("You've reached your included build credits this billing period."));
-    Log.warn(
-      hasFreePlan
-        ? 'New builds are blocked until your billing period resets. ' +
-            link(billingUrl, { text: 'Upgrade your plan to continue building.', dim: false })
-        : 'Additional builds will be charged at pay-as-you-go rates. ' +
-            link(billingUrl, { text: 'See usage in billing.', dim: false })
-    );
-    return;
-  }
-
-  // tier === 'over' && paid plan
-  Log.warn(
-    chalk.bold(
-      `You've used ${overageCount} build${overageCount === 1 ? '' : 's'} beyond your included credits this billing period (${formatCents(overageCostCents)} in overages so far).`
-    )
-  );
-  Log.warn(
-    'Additional builds continue at pay-as-you-go rates. ' +
-      link(billingUrl, { text: 'See usage in billing.', dim: false })
-  );
+  Log.warn(warning);
 }

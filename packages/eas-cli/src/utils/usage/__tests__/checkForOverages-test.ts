@@ -9,7 +9,6 @@ import {
 import { AccountQuery } from '../../../graphql/queries/AccountQuery';
 import Log, { link } from '../../../log';
 import {
-  classifyUsageTier,
   createProgressBar,
   displayOverageWarning,
   maybeWarnAboutUsageOveragesAsync,
@@ -45,15 +44,11 @@ function createMockAccountUsage({
   name = 'test-account',
   subscriptionName = 'Free',
   buildPlanMetrics = [],
-  overageMetrics = [],
-  totalCost = 0,
 }: {
   id?: string;
   name?: string;
   subscriptionName?: string;
   buildPlanMetrics?: EstimatedUsage[];
-  overageMetrics?: { __typename: 'EstimatedOverageAndCost'; id: string; value: number }[];
-  totalCost?: number;
 } = {}): AccountUsageForOverageWarningQuery['account']['byId'] {
   return {
     __typename: 'Account',
@@ -69,8 +64,6 @@ function createMockAccountUsage({
         __typename: 'UsageMetricTotal',
         id: 'metric-id',
         planMetrics: buildPlanMetrics,
-        overageMetrics,
-        totalCost,
       },
     },
   };
@@ -90,7 +83,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     mockDebug.mockClear();
   });
 
-  it('displays an approaching-tier warning for a Free plan at 80%+ usage', async () => {
+  it('displays a warning for a Free plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         buildPlanMetrics: [createMockPlanMetric({ value: 85 })],
@@ -109,14 +102,14 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     );
 
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 85% of your included build credits this billing period.")
+      expect.stringContaining("You've used 85% of your included build credits for this month.")
     );
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining("You won't be able to start new builds once you reach the limit.")
     );
   });
 
-  it('displays an approaching-tier warning for a paid plan at 80%+ usage', async () => {
+  it('displays a warning for a Starter plan with high build usage', async () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         subscriptionName: 'Starter',
@@ -130,100 +123,12 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     });
 
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 90% of your included build credits this billing period.")
+      expect.stringContaining("You've used 90% of your included build credits for this month.")
     );
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
         'Additional usage beyond your limit will be charged at pay-as-you-go rates.'
       )
-    );
-  });
-
-  it('displays an at-tier warning for a Free plan that has hit the limit', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        buildPlanMetrics: [createMockPlanMetric({ value: 100 })],
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('New builds are blocked until your billing period resets.')
-    );
-  });
-
-  it('displays an at-tier warning for a paid plan that has hit the limit with no overage', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        subscriptionName: 'Starter',
-        buildPlanMetrics: [createMockPlanMetric({ value: 100 })],
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Additional builds will be charged at pay-as-you-go rates.')
-    );
-  });
-
-  it('displays the at-tier message for a Free plan even if overage is reported (defensive fallback)', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        buildPlanMetrics: [createMockPlanMetric({ value: 105 })],
-        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 5 }],
-        totalCost: 0,
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('New builds are blocked until your billing period resets.')
-    );
-  });
-
-  it('displays an over-tier warning for a paid plan with overage and cost', async () => {
-    mockGetUsageForOverageWarningAsync.mockResolvedValue(
-      createMockAccountUsage({
-        subscriptionName: 'Starter',
-        buildPlanMetrics: [createMockPlanMetric({ value: 110 })],
-        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 10 }],
-        totalCost: 1500,
-      })
-    );
-
-    await maybeWarnAboutUsageOveragesAsync({
-      graphqlClient: mockGraphqlClient,
-      accountId: 'account-id',
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "You've used 10 builds beyond your included credits this billing period ($15.00 in overages so far)."
-      )
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Additional builds continue at pay-as-you-go rates.')
     );
   });
 
@@ -266,30 +171,6 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
   });
 });
 
-describe('classifyUsageTier', () => {
-  it('returns null when usage is below threshold', () => {
-    expect(classifyUsageTier({ planValue: 50, limit: 100, overageCount: 0 })).toBeNull();
-    expect(classifyUsageTier({ planValue: 79, limit: 100, overageCount: 0 })).toBeNull();
-  });
-
-  it('returns "approaching" at >= 80% but below limit', () => {
-    expect(classifyUsageTier({ planValue: 80, limit: 100, overageCount: 0 })).toBe('approaching');
-    expect(classifyUsageTier({ planValue: 99, limit: 100, overageCount: 0 })).toBe('approaching');
-  });
-
-  it('returns "at" when planValue >= limit and no overage', () => {
-    expect(classifyUsageTier({ planValue: 100, limit: 100, overageCount: 0 })).toBe('at');
-  });
-
-  it('returns "over" when any overage has been counted', () => {
-    expect(classifyUsageTier({ planValue: 105, limit: 100, overageCount: 5 })).toBe('over');
-  });
-
-  it('prefers "over" if overage exists, regardless of planValue', () => {
-    expect(classifyUsageTier({ planValue: 50, limit: 100, overageCount: 1 })).toBe('over');
-  });
-});
-
 describe('createProgressBar', () => {
   it('creates a progress bar with correct fill for a given percentage', () => {
     const bar = createProgressBar(85, 20);
@@ -321,20 +202,16 @@ describe('displayOverageWarning', () => {
     mockLink.mockClear();
   });
 
-  it('approaching tier: displays a warning for a Free plan with progress bar', () => {
+  it('displays a warning for a Free plan', () => {
     displayOverageWarning({
-      tier: 'approaching',
-      name: 'test-account',
+      percentUsed: 85,
       hasFreePlan: true,
-      planValue: 85,
-      limit: 100,
-      overageCount: 0,
-      overageCostCents: 0,
+      name: 'test-account',
     });
 
     expect(mockWarn).toHaveBeenCalledTimes(2);
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 85% of your included build credits this billing period.")
+      expect.stringContaining("You've used 85% of your included build credits for this month.")
     );
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining("You won't be able to start new builds once you reach the limit.")
@@ -342,23 +219,18 @@ describe('displayOverageWarning', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('Upgrade your plan to continue service.')
     );
-    expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
   });
 
-  it('approaching tier: displays a warning for a paid plan with progress bar', () => {
+  it('displays a warning for a paid plan', () => {
     displayOverageWarning({
-      tier: 'approaching',
-      name: 'test-account',
+      percentUsed: 85,
       hasFreePlan: false,
-      planValue: 85,
-      limit: 100,
-      overageCount: 0,
-      overageCostCents: 0,
+      name: 'test-account',
     });
 
     expect(mockWarn).toHaveBeenCalledTimes(2);
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've used 85% of your included build credits this billing period.")
+      expect.stringContaining("You've used 85% of your included build credits for this month.")
     );
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -366,118 +238,44 @@ describe('displayOverageWarning', () => {
       )
     );
     expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('See usage in billing.'));
-  });
-
-  it('at tier: displays a Free-plan limit-reached message with present-tense block wording', () => {
-    displayOverageWarning({
-      tier: 'at',
-      name: 'test-account',
-      hasFreePlan: true,
-      planValue: 100,
-      limit: 100,
-      overageCount: 0,
-      overageCostCents: 0,
-    });
-
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('New builds are blocked until your billing period resets.')
-    );
-  });
-
-  it('at tier: displays a paid-plan limit-reached message with pay-as-you-go warning', () => {
-    displayOverageWarning({
-      tier: 'at',
-      name: 'test-account',
-      hasFreePlan: false,
-      planValue: 100,
-      limit: 100,
-      overageCount: 0,
-      overageCostCents: 0,
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Additional builds will be charged at pay-as-you-go rates.')
-    );
-  });
-
-  it('over tier on Free plan: defensively falls back to the at-tier blocked message', () => {
-    displayOverageWarning({
-      tier: 'over',
-      name: 'test-account',
-      hasFreePlan: true,
-      planValue: 105,
-      limit: 100,
-      overageCount: 5,
-      overageCostCents: 0,
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining("You've reached your included build credits this billing period.")
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('New builds are blocked until your billing period resets.')
-    );
-  });
-
-  it('over tier: displays a paid-plan overage count and accrued cost', () => {
-    displayOverageWarning({
-      tier: 'over',
-      name: 'test-account',
-      hasFreePlan: false,
-      planValue: 110,
-      limit: 100,
-      overageCount: 10,
-      overageCostCents: 1500,
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "You've used 10 builds beyond your included credits this billing period ($15.00 in overages so far)."
-      )
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Additional builds continue at pay-as-you-go rates.')
-    );
-  });
-
-  it('over tier: paid plan with a single overage build uses singular wording', () => {
-    displayOverageWarning({
-      tier: 'over',
-      name: 'test-account',
-      hasFreePlan: false,
-      planValue: 101,
-      limit: 100,
-      overageCount: 1,
-      overageCostCents: 150,
-    });
-
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "You've used 1 build beyond your included credits this billing period ($1.50 in overages so far)."
-      )
+      expect.stringContaining('██████████████████████████░░░░')
     );
   });
 
   it('includes correct account name in billing URL', () => {
     displayOverageWarning({
-      tier: 'approaching',
-      name: 'my-custom-account',
+      percentUsed: 85,
       hasFreePlan: true,
-      planValue: 85,
-      limit: 100,
-      overageCount: 0,
-      overageCostCents: 0,
+      name: 'my-custom-account',
     });
 
     expect(mockLink).toHaveBeenCalledWith(
       'https://expo.dev/accounts/my-custom-account/settings/billing',
       expect.objectContaining({ text: 'Upgrade your plan to continue service.' })
     );
+  });
+
+  it('shows progress bar when usage is under 100%', () => {
+    displayOverageWarning({
+      percentUsed: 85,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
+  });
+
+  it('does not show progress bar when usage is at 100%', () => {
+    displayOverageWarning({
+      percentUsed: 100,
+      hasFreePlan: true,
+      name: 'test-account',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("You've used 100% of your included build credits for this month.")
+    );
+    expect(mockWarn).not.toHaveBeenCalledWith(expect.stringMatching(/[█░]/));
   });
 });

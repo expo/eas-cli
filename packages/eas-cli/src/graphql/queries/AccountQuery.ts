@@ -198,11 +198,6 @@ export const AccountQuery = {
                         value
                         limit
                       }
-                      overageMetrics {
-                        id
-                        value
-                      }
-                      totalCost
                     }
                   }
                 }
