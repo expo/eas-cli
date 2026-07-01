@@ -268,7 +268,7 @@ describe(getBuildEnv.name, () => {
       buildId: 'build-id',
     });
 
-    expect(env.NPM_CACHE_URL).toBe('https://npm.example');
+    expect(env.NPM_CACHE_URL).toBeUndefined();
     expect(env.NPM_CONFIG_REGISTRY).toBeUndefined();
     expect(env.EAS_BUILD_NPM_CACHE_URL).toBe('https://npm.example');
     expect(env.NVM_NODEJS_ORG_MIRROR).toBe('https://node.example');

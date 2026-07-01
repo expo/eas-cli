@@ -109,7 +109,6 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     return;
   }
 
-  const cacheEnv = { ...env, NPM_CONFIG_REGISTRY: npmCacheUrl };
   let firstErrorLine: string | undefined;
   let errorLineCount = 0;
 
@@ -117,7 +116,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     await (
       await installDependenciesAsync({
         packageManager,
-        env: cacheEnv,
+        env: { ...env, NPM_CONFIG_REGISTRY: npmCacheUrl },
         logger,
         infoCallbackFn,
         lineTransformer: (line: string) => {
