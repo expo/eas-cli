@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--skip-screenshots` and `--skip-previews` flags to `eas metadata:pull` and `eas metadata:push` to skip downloading or uploading screenshots and video previews. ([#3843](https://github.com/expo/eas-cli/pull/3843) by [@TimBroddin](https://github.com/TimBroddin))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix Free plan users being warned they had reached their build limit while still well below it. Overage warnings are now shown only for paid plans with an actual billable overage cost. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))

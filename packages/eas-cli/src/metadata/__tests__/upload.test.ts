@@ -36,6 +36,9 @@ const { loadConfigAsync } = require('../config/resolve') as jest.Mocked<
   typeof import('../config/resolve')
 >;
 const { confirmAsync } = require('../../prompts') as jest.Mocked<typeof import('../../prompts')>;
+const { createAppleTasks } = require('../apple/tasks') as jest.Mocked<
+  typeof import('../apple/tasks')
+>;
 
 function createArgs(overrides: Record<string, any> = {}) {
   return {
@@ -99,5 +102,27 @@ describe(uploadMetadataAsync, () => {
 
     expect(result).toHaveProperty('appleLink');
     expect(result.appleLink).toContain('appstoreconnect.apple.com');
+  });
+
+  it('does not skip screenshots or previews by default', async () => {
+    await uploadMetadataAsync(createArgs());
+
+    expect(createAppleTasks).toHaveBeenCalledWith(
+      expect.objectContaining({ skipScreenshots: false, skipPreviews: false })
+    );
+  });
+
+  it('skips screenshots when skipScreenshots is enabled', async () => {
+    await uploadMetadataAsync(createArgs({ skipScreenshots: true }));
+
+    expect(createAppleTasks).toHaveBeenCalledWith(
+      expect.objectContaining({ skipScreenshots: true })
+    );
+  });
+
+  it('skips previews when skipPreviews is enabled', async () => {
+    await uploadMetadataAsync(createArgs({ skipPreviews: true }));
+
+    expect(createAppleTasks).toHaveBeenCalledWith(expect.objectContaining({ skipPreviews: true }));
   });
 });
