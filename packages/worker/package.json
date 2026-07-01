@@ -18,7 +18,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@babel/core": "7.24.7",
+    "@babel/core": "7.29.6",
     "@expo/build-tools": "20.5.1",
     "@expo/config-plugins": "55.0.7",
     "@expo/config-types": "55.0.5",
