@@ -597,7 +597,7 @@ export async function downloadAndRunAsync(
   simulator?: SimulatorRunTarget
 ): Promise<void> {
   assert(build.artifacts?.applicationArchiveUrl);
-  const cachedAppPath = getEasBuildRunCachedAppPath(build.project.id, build.id, build.platform);
+  const cachedAppPath = getEasBuildRunCachedAppPath(build.app.id, build.id, build.platform);
 
   if (await pathExists(cachedAppPath)) {
     Log.newLine();
