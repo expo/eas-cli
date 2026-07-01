@@ -7,6 +7,7 @@ import nullthrows from 'nullthrows';
 import { prepareProjectSourcesAsync } from './common/projectSources';
 import { BuildContext } from './context';
 import { CustomBuildContext } from './customBuildContext';
+import { buildActionCatalogAsync } from './steps/actions';
 import { getEasFunctionGroups } from './steps/easFunctionGroups';
 import { getEasFunctions } from './steps/easFunctions';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
@@ -43,14 +44,20 @@ export async function runGenericJobAsync(
 
   const globalContext = new BuildStepGlobalContext(customBuildCtx, false);
 
-  const parser = new StepsConfigParser(globalContext, {
-    externalFunctions: getEasFunctions(customBuildCtx),
-    externalFunctionGroups: getEasFunctionGroups(customBuildCtx),
-    steps: ctx.job.steps,
-  });
-
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {
     try {
+      const actionCatalog = await buildActionCatalogAsync(
+        ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
+        { steps: ctx.job.steps, logger: ctx.logger }
+      );
+
+      const parser = new StepsConfigParser(globalContext, {
+        externalFunctions: getEasFunctions(customBuildCtx),
+        externalFunctionGroups: getEasFunctionGroups(customBuildCtx),
+        steps: ctx.job.steps,
+        actionCatalog,
+      });
+
       return await parser.parseAsync();
     } catch (parseError: any) {
       ctx.logger.error('Failed to parse the job definition file.');
