@@ -4,6 +4,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import * as YAML from 'yaml';
 
+import { validateWorkflowLocalActionsAsync } from './actions';
 import { buildProfileNamesFromProjectAsync } from './buildProfileUtils';
 import { getExpoApiWorkflowSchemaURL } from '../../api';
 import { WorkflowRevisionMutation } from '../../graphql/mutations/WorkflowRevisionMutation';
@@ -45,6 +46,9 @@ export async function validateWorkflowFileAsync(
   // Check that result passes validation against workflow schema
   Log.debug(`Validating workflow structure...`);
   validateWorkflowStructure(parsedYaml, workflowSchema);
+
+  Log.debug(`Validating workflow local actions...`);
+  await validateWorkflowLocalActionsAsync(parsedYaml, projectDir);
 
   // Check for other errors using the server-side validation
   Log.debug(`Validating workflow on server...`);
