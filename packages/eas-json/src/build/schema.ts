@@ -46,7 +46,7 @@ const CommonBuildProfileSchema = Joi.object({
 
   // credentials
   credentialsSource: Joi.string().valid('local', 'remote').default('remote'),
-  distribution: Joi.string().valid('store', 'internal').default('store'),
+  distribution: Joi.string().valid('store', 'internal', 'development').default('store'),
 
   // updates
   releaseChannel: Joi.string().regex(/^[a-z\d][a-z\d._-]*$/),
