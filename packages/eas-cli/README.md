@@ -2612,7 +2612,7 @@ _See code: [packages/eas-cli/src/commands/update/list.ts](https://github.com/exp
 
 ## `eas update:republish`
 
-roll back to an existing update
+republish an existing update to a branch
 
 ```
 USAGE
@@ -2643,7 +2643,7 @@ FLAGS
                                      1 and 100. When not specified, this defaults to 100.
 
 DESCRIPTION
-  roll back to an existing update
+  republish an existing update to a branch
 ```
 
 _See code: [packages/eas-cli/src/commands/update/republish.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/update/republish.ts)_
