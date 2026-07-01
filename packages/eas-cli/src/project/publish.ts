@@ -73,6 +73,8 @@ export type RawAsset = {
   originalPath?: string;
 };
 
+type AssetWithStorageKey = RawAsset & { storageKey: string };
+
 type CollectedAssets = {
   [platform in ExpoConfigPlatform]?: {
     launchAsset: RawAsset;
@@ -516,15 +518,19 @@ export async function uploadAssetsAsync(
       };
     })
   );
-  const uniqueAssets = uniqBy<
-    RawAsset & {
-      storageKey: string;
-    }
-  >(assetsWithStorageKey, asset => asset.storageKey);
+  const uniqueAssets = uniqBy<AssetWithStorageKey>(assetsWithStorageKey, asset => asset.storageKey);
 
-  onAssetUploadResultsChanged?.(uniqueAssets.map(asset => ({ asset, finished: false })));
-  let missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, uniqueAssets);
-  let missingAssetStorageKeys = new Set(missingAssets.map(a => a.storageKey));
+  // "finished" = no longer in the pending (still-missing) set.
+  const notifyProgress = (pendingAssets: AssetWithStorageKey[]): void => {
+    const pendingKeys = new Set(pendingAssets.map(a => a.storageKey));
+    onAssetUploadResultsChanged?.(
+      uniqueAssets.map(asset => ({ asset, finished: !pendingKeys.has(asset.storageKey) }))
+    );
+  };
+
+  notifyProgress(uniqueAssets);
+
+  const missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, uniqueAssets);
   const uniqueUploadedAssetCount = missingAssets.length;
   const uniqueUploadedAssetPaths = missingAssets.map(asset => asset.originalPath).filter(truthy);
 
@@ -532,63 +538,96 @@ export async function uploadAssetsAsync(
     throw Error('Canceled upload');
   }
 
-  const missingAssetChunks = chunk(missingAssets, 100);
-  const specifications: string[] = [];
-  for (const missingAssets of missingAssetChunks) {
-    const { specifications: chunkSpecifications } = await PublishMutation.getUploadURLsAsync(
-      graphqlClient,
-      missingAssets.map(ma => ma.contentType)
-    );
-    specifications.push(...chunkSpecifications);
-  }
+  notifyProgress(missingAssets);
 
-  onAssetUploadResultsChanged?.(
-    uniqueAssets.map(asset => ({ asset, finished: !missingAssetStorageKeys.has(asset.storageKey) }))
-  );
-
+  const FINALIZE_POLL_MS = 55_000;
+  const MAX_UPLOAD_ATTEMPTS = 3;
   const assetUploadPromiseLimit = promiseLimit(15);
 
-  const [assetLimitPerUpdateGroup] = await Promise.all([
-    PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
-    Promise.all(
-      missingAssets.map((missingAsset, i) => {
-        return assetUploadPromiseLimit(async () => {
+  // Sign URLs in chunks (endpoint caps at 100), then upload all from one pool so it stays saturated.
+  const uploadBatchAsync = async (
+    assetsToUpload: AssetWithStorageKey[],
+    onBegin: () => void
+  ): Promise<void> => {
+    const signedAssets: { asset: AssetWithStorageKey; specification: string }[] = [];
+    for (const assetChunk of chunk(assetsToUpload, 100)) {
+      if (cancelationToken.isCanceledOrFinished) {
+        throw Error('Canceled upload');
+      }
+      const { specifications } = await PublishMutation.getUploadURLsAsync(
+        graphqlClient,
+        assetChunk.map(a => a.contentType)
+      );
+      if (specifications.length !== assetChunk.length) {
+        throw new Error(
+          `Upload URL signing returned ${specifications.length} URLs for ${assetChunk.length} assets. ` +
+            `This is likely a transient server error; please retry, and contact support if it persists.`
+        );
+      }
+      assetChunk.forEach((asset, i) =>
+        signedAssets.push({ asset, specification: specifications[i] })
+      );
+    }
+    await Promise.all(
+      signedAssets.map(({ asset, specification }) =>
+        assetUploadPromiseLimit(async () => {
           if (cancelationToken.isCanceledOrFinished) {
             throw Error('Canceled upload');
           }
-          const presignedPost: PresignedPost = JSON.parse(specifications[i]);
-          await uploadWithPresignedPostWithRetryAsync(
-            missingAsset.path,
-            presignedPost,
-            onAssetUploadBegin
-          );
-        });
-      })
-    ),
-  ]);
-
-  let timeout = 1;
-  while (missingAssets.length > 0) {
-    if (cancelationToken.isCanceledOrFinished) {
-      throw Error('Canceled upload');
-    }
-
-    const timeoutPromise = new Promise(resolve =>
-      setTimeout(resolve, Math.min(timeout * 1000, 5000))
-    ); // linear backoff
-    missingAssets = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, missingAssets);
-    missingAssetStorageKeys = new Set(missingAssets.map(a => a.storageKey));
-    await timeoutPromise; // await after filterOutAssetsThatAlreadyExistAsync for easy mocking with jest.runAllTimers
-    timeout += 1;
-    onAssetUploadResultsChanged?.(
-      uniqueAssets.map(asset => ({
-        asset,
-        finished: !missingAssetStorageKeys.has(asset.storageKey),
-      }))
+          const presignedPost: PresignedPost = JSON.parse(specification);
+          await uploadWithPresignedPostWithRetryAsync(asset.path, presignedPost, onBegin);
+        })
+      )
     );
+  };
+
+  const pollForFinalizationAsync = async (
+    pendingAssets: AssetWithStorageKey[]
+  ): Promise<AssetWithStorageKey[]> => {
+    const deadline = Date.now() + FINALIZE_POLL_MS;
+    let pollDelay = 1;
+    while (pendingAssets.length > 0 && Date.now() < deadline) {
+      if (cancelationToken.isCanceledOrFinished) {
+        throw Error('Canceled upload');
+      }
+      const waitPromise = new Promise<void>(resolve =>
+        setTimeout(resolve, Math.min(pollDelay * 1000, 5000))
+      );
+      const remaining = await filterOutAssetsThatAlreadyExistAsync(graphqlClient, pendingAssets);
+      if (remaining.length < pendingAssets.length) {
+        notifyProgress(remaining);
+      }
+      pendingAssets = remaining;
+      pollDelay++;
+      await waitPromise; // awaited after the check so jest.runAllTimers can flush it in tests
+    }
+    return pendingAssets;
+  };
+
+  const assetLimitPromise = PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId);
+
+  // Re-upload assets that don't finalize in time to trigger a fresh finalize event and retry window.
+  let pendingAssets = missingAssets;
+  for (let attempt = 0; attempt < MAX_UPLOAD_ATTEMPTS && pendingAssets.length > 0; attempt++) {
+    await uploadBatchAsync(pendingAssets, onAssetUploadBegin);
+    pendingAssets = await pollForFinalizationAsync(pendingAssets);
   }
 
   cancelationToken.isCanceledOrFinished = true;
+
+  if (pendingAssets.length > 0) {
+    notifyProgress(pendingAssets);
+    const unfinalizedAssets = pendingAssets
+      .map(asset => `\n- ${asset.originalPath ?? asset.path}`)
+      .join('');
+    throw new Error(
+      `Update not published: ${pendingAssets.length} asset(s) uploaded but were not processed by the server after ${MAX_UPLOAD_ATTEMPTS} attempts:${unfinalizedAssets}\n\n` +
+        `The upload succeeded, but the server did not finish processing these assets in time. ` +
+        `This is usually temporary. Re-run \`eas update\` to try again, and contact support if it keeps happening.`
+    );
+  }
+
+  const assetLimitPerUpdateGroup = await assetLimitPromise;
 
   return {
     assetCount: assets.length,
