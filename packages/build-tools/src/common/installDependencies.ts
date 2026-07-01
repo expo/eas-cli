@@ -93,7 +93,7 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
   infoCallbackFn?: SpawnOptions['infoCallbackFn'];
   useFrozenLockfile: boolean;
 }): Promise<void> {
-  const npmCacheUrl = env.EAS_USE_NPM_CACHE === '1' ? env.EAS_BUILD_NPM_CACHE_URL : undefined;
+  const npmCacheUrl = env.EAS_BUILD_NPM_CACHE_URL;
 
   if (!npmCacheUrl) {
     await (
@@ -108,6 +108,8 @@ export async function installDependenciesWithNpmCacheFallbackAsync({
     ).spawnPromise;
     return;
   }
+
+  logger.info(`Installing dependencies using the npm cache registry (${npmCacheUrl}).`);
 
   let firstErrorLine: string | undefined;
   let errorLineCount = 0;

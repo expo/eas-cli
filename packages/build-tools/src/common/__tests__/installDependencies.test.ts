@@ -172,7 +172,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
-  it('does not retry when EAS_USE_NPM_CACHE is not enabled', async () => {
+  it('does not retry when the npm cache is not enabled', async () => {
     const logger = createMockLogger();
     const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
     const error = Object.assign(
@@ -190,9 +190,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     await expect(
       installDependenciesWithNpmCacheFallbackAsync({
         packageManager: PackageManager.NPM,
-        env: {
-          EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
-        },
+        env: {},
         logger,
         cwd: '/tmp/build',
         useFrozenLockfile: false,
