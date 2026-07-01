@@ -3,6 +3,7 @@ import { BuildConfigError, BuildStepRuntimeError } from '../../errors';
 import {
   findOutputPaths,
   getObjectValueForInterpolation,
+  interpolateStringWithInputs,
   interpolateWithGlobalContext,
   interpolateWithInputs,
   interpolateWithOutputs,
@@ -12,6 +13,13 @@ import {
 describe(interpolateWithInputs, () => {
   test('interpolation', () => {
     const result = interpolateWithInputs('foo${ inputs.foo }', { foo: 'bar' });
+    expect(result).toBe('foobar');
+  });
+});
+
+describe(interpolateStringWithInputs, () => {
+  test('interpolation', () => {
+    const result = interpolateStringWithInputs('foo${ inputs.foo }', () => 'bar');
     expect(result).toBe('foobar');
   });
 });

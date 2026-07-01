@@ -1,27 +1,28 @@
 import {
+  ActionCatalog,
   FunctionStep,
   ShellStep,
   Step,
+  isActionReference,
   isStepFunctionStep,
   isStepShellStep,
+  parseActionReference,
   validateSteps,
 } from '@expo/eas-build-job';
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
 import { BuildFunction, BuildFunctionById } from './BuildFunction';
-import {
-  BuildFunctionGroup,
-  BuildFunctionGroupById,
-  createBuildFunctionGroupByIdMapping,
-} from './BuildFunctionGroup';
+import { BuildFunctionGroup, createBuildFunctionGroupByIdMapping } from './BuildFunctionGroup';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepOutput } from './BuildStepOutput';
 import { BuildConfigError } from './errors';
+import { ActionExpander, FunctionMaps } from './ActionExpander';
+import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
+  private readonly actionExpander: ActionExpander;
 
   constructor(
     ctx: BuildStepGlobalContext,
@@ -29,10 +30,12 @@ export class StepsConfigParser extends AbstractConfigParser {
       steps,
       externalFunctions,
       externalFunctionGroups,
+      actionCatalog,
     }: {
       steps: Step[];
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
+      actionCatalog?: ActionCatalog;
     }
   ) {
     super(ctx, {
@@ -41,6 +44,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     });
 
     this.steps = steps;
+    this.actionExpander = new ActionExpander(ctx, actionCatalog ?? {});
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
@@ -90,13 +94,7 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepsFromStepConfig(
     stepConfig: Step,
-    {
-      buildFunctionById,
-      buildFunctionGroupById,
-    }: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    { buildFunctionById, buildFunctionGroupById }: FunctionMaps
   ): BuildStep[] {
     if (isStepShellStep(stepConfig)) {
       return [this.createBuildStepFromShellStepConfig(stepConfig)];
@@ -114,16 +112,9 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepFromShellStepConfig(step: ShellStep): BuildStep {
     const id = BuildStep.getNewId(step.id);
-    const displayName =
-      step.name ??
-      step.id ??
-      step.run
-        .split('\n')
-        .find(line => line.trim())
-        ?.trim() ??
-      step.run;
+    const displayName = getShellStepDisplayName(step);
     const outputs =
-      step.outputs && this.createBuildStepOutputsFromDefinition(step.outputs, displayName);
+      step.outputs && createBuildStepOutputsFromDefinition(this.ctx, step.outputs, displayName);
     return new BuildStep(this.ctx, {
       id,
       displayName,
@@ -139,14 +130,26 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepsFromFunctionStepConfig(
     step: FunctionStep,
-    {
-      buildFunctionById,
-      buildFunctionGroupById,
-    }: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    { buildFunctionById, buildFunctionGroupById }: FunctionMaps
   ): BuildStep[] {
+    if (isActionReference(step.uses)) {
+      const parsed = parseActionReference(step.uses);
+      if (!parsed) {
+        throw new BuildConfigError(`Invalid action reference "${step.uses}".`);
+      }
+      return this.actionExpander.expandActionCall(
+        {
+          ref: parsed.ref,
+          syntheticStepId: BuildStep.getNewId(step.id),
+          callWith: step.with,
+          inheritedEnv: step.env,
+          inheritedIf: step.if,
+          inheritedWorkingDirectory: step.working_directory,
+        },
+        { buildFunctionById, buildFunctionGroupById }
+      );
+    }
+
     const functionId = step.uses;
     const maybeFunctionGroup = buildFunctionGroupById[functionId];
     if (maybeFunctionGroup) {
@@ -172,20 +175,6 @@ export class StepsConfigParser extends AbstractConfigParser {
     ];
   }
 
-  private createBuildStepOutputsFromDefinition(
-    stepOutputs: Required<ShellStep>['outputs'],
-    stepDisplayName: string
-  ): BuildStepOutput[] {
-    return stepOutputs.map(
-      entry =>
-        new BuildStepOutput(this.ctx, {
-          id: entry.name,
-          stepDisplayName,
-          required: entry.required ?? true,
-        })
-    );
-  }
-
   private static validateAllFunctionsExist(
     steps: Step[],
     {
@@ -196,20 +185,21 @@ export class StepsConfigParser extends AbstractConfigParser {
       externalFunctionGroupIds: string[];
     }
   ): void {
+    const externalFunctionIdsSet = new Set(externalFunctionIds);
+    const externalFunctionGroupIdsSet = new Set(externalFunctionGroupIds);
+
     const calledFunctionsOrFunctionGroupsSet = new Set<string>();
     for (const step of steps) {
-      if (step.uses) {
+      if (step.uses && !isActionReference(step.uses)) {
         calledFunctionsOrFunctionGroupsSet.add(step.uses);
       }
     }
     const calledFunctionsOrFunctionGroup = Array.from(calledFunctionsOrFunctionGroupsSet);
-    const externalFunctionIdsSet = new Set(externalFunctionIds);
-    const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupIds);
     const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(
       calledFunctionOrFunctionGroup => {
         return (
           !externalFunctionIdsSet.has(calledFunctionOrFunctionGroup) &&
-          !externalFunctionGroupsIdsSet.has(calledFunctionOrFunctionGroup)
+          !externalFunctionGroupIdsSet.has(calledFunctionOrFunctionGroup)
         );
       }
     );
