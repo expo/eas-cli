@@ -24,6 +24,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -120,51 +121,59 @@ export function createStartArgentRemoteSessionBuildFunction(
         );
       }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
-      void pollArgentArtifactsForUploadAsync(ctx, {
+      const artifactPollAbortController = new AbortController();
+      const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
         deviceRunSessionId,
         toolsUrl: `http://127.0.0.1:${toolServerPort}`,
         toolsAuthToken: toolServerToken,
         logger,
+        signal: artifactPollAbortController.signal,
       });
 
-      const publicToolsUrl = await startNgrokTunnelAsync({
-        port: toolServerPort,
-        subdomainPrefix: 'argent',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
-        rewriteHostHeader: true,
-        logger,
-      });
-      logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
-
-      // serve-sim is iOS-only — Android sessions go without a preview URL.
-      let webPreviewUrl: string | undefined;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const serveSim = await startServeSimWithTunnelAsync(ctx, {
+      try {
+        const publicToolsUrl = await startNgrokTunnelAsync({
+          port: toolServerPort,
+          subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
-          env,
+          authtoken: ngrokAuthtoken,
+          rewriteHostHeader: true,
           logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        webPreviewUrl = serveSim.previewUrl;
-        logger.info(`Web preview URL: ${webPreviewUrl}`);
+        logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
+
+        // serve-sim is iOS-only — Android sessions go without a preview URL.
+        let webPreviewUrl: string | undefined;
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          const serveSim = await startServeSimWithTunnelAsync(ctx, {
+            baseDomain: ngrokTunnelDomain,
+            env,
+            logger,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+          });
+          webPreviewUrl = serveSim.previewUrl;
+          logger.info(`Web preview URL: ${webPreviewUrl}`);
+        }
+
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: {
+            toolsUrl: publicToolsUrl,
+            ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
+            ...(webPreviewUrl ? { webPreviewUrl } : {}),
+          },
+          logger,
+        });
+
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+        });
+      } finally {
+        artifactPollAbortController.abort();
+        await artifactPollingPromise;
       }
-
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: {
-          toolsUrl: publicToolsUrl,
-          ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
-          ...(webPreviewUrl ? { webPreviewUrl } : {}),
-        },
-        logger,
-      });
-
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the tool-server and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
     },
   });
 }

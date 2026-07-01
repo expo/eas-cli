@@ -25,6 +25,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -121,10 +122,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the daemon and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId,
+        logger,
+      });
     },
   });
 }

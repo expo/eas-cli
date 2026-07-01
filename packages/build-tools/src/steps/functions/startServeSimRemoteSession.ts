@@ -7,6 +7,7 @@ import {
   selectXcodeDeveloperDirectoryAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -44,10 +45,11 @@ export function createStartServeSimRemoteSessionBuildFunction(
         logger,
       });
 
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the serve-sim tunnel stays reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId,
+        logger,
+      });
     },
   });
 }

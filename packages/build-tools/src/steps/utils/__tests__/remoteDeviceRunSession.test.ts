@@ -4,12 +4,15 @@ import { BuildStepEnv } from '@expo/steps';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { sleepAsync } from '../../../utils/retry';
 import {
   fetchServeSimTurnArgsAsync,
   turnIceServersToServeSimArgs,
+  waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
 
 jest.mock('../../../utils/turtleFetch');
+jest.mock('../../../utils/retry');
 jest.mock('../../../sentry');
 
 function createLoggerMock(): bunyan {
@@ -28,6 +31,40 @@ function createCtxMock(): CustomBuildContext {
     },
     job: {
       secrets: { robotAccessToken: 'robot-token' },
+    },
+  } as unknown as CustomBuildContext;
+}
+
+function createStatusCtxMock(
+  results: ({ status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' } | { error: Error })[]
+): CustomBuildContext {
+  const query = jest.fn(() => {
+    const result = results.shift();
+    if (!result) {
+      throw new Error('No mocked status result available');
+    }
+    return {
+      toPromise: async () => {
+        if ('error' in result) {
+          throw result.error;
+        }
+        return {
+          data: {
+            deviceRunSessions: {
+              byId: {
+                id: 'drs-id',
+                status: result.status,
+              },
+            },
+          },
+        };
+      },
+    };
+  });
+
+  return {
+    graphqlClient: {
+      query,
     },
   } as unknown as CustomBuildContext;
 }
@@ -150,5 +187,61 @@ describe(fetchServeSimTurnArgsAsync, () => {
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+});
+
+describe(waitForDeviceRunSessionStoppedAsync, () => {
+  beforeEach(() => {
+    jest.mocked(Sentry).capture.mockReset();
+    jest.mocked(sleepAsync).mockReset();
+    jest.mocked(sleepAsync).mockResolvedValue(undefined);
+  });
+
+  it('continues polling until the device run session is stopped', async () => {
+    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }, { status: 'STOPPED' }]);
+    const logger = createLoggerMock();
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+    });
+
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
+  });
+
+  it('throws when the device run session errors', async () => {
+    const ctx = createStatusCtxMock([{ status: 'ERRORED' }]);
+
+    await expect(
+      waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger: createLoggerMock(),
+      })
+    ).rejects.toThrow('Device run session drs-id errored.');
+  });
+
+  it('logs and retries transient polling errors', async () => {
+    const ctx = createStatusCtxMock([{ error: new Error('network down') }, { status: 'STOPPED' }]);
+    const logger = createLoggerMock();
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+    });
+
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ failedStatusPollCount: 1 }),
+      'Could not poll device run session status; will retry.'
+    );
+    expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
+      'Could not poll device run session status',
+      expect.any(Error),
+      { level: 'warning' }
+    );
   });
 });
