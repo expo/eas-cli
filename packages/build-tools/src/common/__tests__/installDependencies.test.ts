@@ -202,6 +202,40 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
+
+  it('installs through the npm cache registry without retrying when the cache install succeeds', async () => {
+    const logger = createMockLogger();
+    const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
+
+    jest
+      .mocked(spawn)
+      .mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesWithNpmCacheFallbackAsync({
+      packageManager: PackageManager.NPM,
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+      },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: false,
+    });
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith('npm', ['install', '--include=dev'], {
+      cwd: '/tmp/build',
+      logger,
+      infoCallbackFn: undefined,
+      lineTransformer: expect.any(Function),
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+        NPM_CONFIG_REGISTRY: npmCacheUrl,
+      },
+    });
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  });
 });
 
 function createSpawnPromise(result: Promise<SpawnResult>): SpawnPromise<SpawnResult> {
