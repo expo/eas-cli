@@ -1,10 +1,19 @@
 import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
+import { spawnSync } from 'node:child_process';
 
 import {
   MIN_ARGENT_REMOTE_SESSION_VERSION,
+  resolveArgentInvocation,
+  resolveLocalArgentBin,
   warnIfArgentPackageVersionCannotBeVerified,
 } from '../startArgentRemoteSession';
+
+jest.mock('node:child_process', () => ({
+  spawnSync: jest.fn(),
+}));
+
+const mockedSpawnSync = jest.mocked(spawnSync);
 
 describe(warnIfArgentPackageVersionCannotBeVerified, () => {
   const warn = jest.fn();
@@ -68,5 +77,34 @@ describe(warnIfArgentPackageVersionCannotBeVerified, () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Continuing and letting bunx resolve it.')
     );
+  });
+});
+
+describe(resolveArgentInvocation, () => {
+  it('runs the local binary directly when one is provided', () => {
+    expect(
+      resolveArgentInvocation({ localArgentBin: '/usr/local/bin/argent', versionSpec: '1.2.3' })
+    ).toEqual({ command: '/usr/local/bin/argent', packageArgs: [] });
+  });
+
+  it('fetches the pinned package via bunx when there is no local binary', () => {
+    expect(resolveArgentInvocation({ localArgentBin: null, versionSpec: '1.2.3' })).toEqual({
+      command: 'bunx',
+      packageArgs: ['@swmansion/argent@1.2.3'],
+    });
+  });
+});
+
+describe(resolveLocalArgentBin, () => {
+  it('returns the resolved path when argent is on PATH', () => {
+    mockedSpawnSync.mockReturnValue({ status: 0, stdout: '/usr/local/bin/argent\n' } as ReturnType<
+      typeof spawnSync
+    >);
+    expect(resolveLocalArgentBin()).toBe('/usr/local/bin/argent');
+  });
+
+  it('returns null when argent is not on PATH', () => {
+    mockedSpawnSync.mockReturnValue({ status: 1, stdout: '' } as ReturnType<typeof spawnSync>);
+    expect(resolveLocalArgentBin()).toBeNull();
   });
 });

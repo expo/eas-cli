@@ -7,6 +7,7 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -70,6 +71,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         `Starting argent remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
 
+      // In local dev, run the argent already on PATH instead of fetching it via bunx.
+      const localArgentBin = env.EXPO_LOCAL === '1' ? resolveLocalArgentBin() : null;
+      const { command: argentCommand, packageArgs: argentPackageArgs } = resolveArgentInvocation({
+        localArgentBin,
+        versionSpec,
+      });
+
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
@@ -78,16 +86,23 @@ export function createStartArgentRemoteSessionBuildFunction(
       await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
-        'bunx',
-        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
-        { env, logger }
+        argentCommand,
+        [...argentPackageArgs, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        {
+          env,
+          logger,
+        }
       );
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
+      logger.info(
+        localArgentBin
+          ? `Launching local argent tool-server (${localArgentBin}).`
+          : `Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`
+      );
       const argentServer = spawnDetached({
-        command: 'bunx',
+        command: argentCommand,
         args: [
-          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          ...argentPackageArgs,
           'server',
           'start',
           '--port',
@@ -197,6 +212,23 @@ export function warnIfArgentPackageVersionCannotBeVerified({
         `Use "latest" or pass an exact version >= ${MIN_ARGENT_REMOTE_SESSION_VERSION}.`
     );
   }
+}
+
+export function resolveLocalArgentBin(): string | null {
+  const result = spawnSync('which', ['argent'], { encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+export function resolveArgentInvocation({
+  localArgentBin,
+  versionSpec,
+}: {
+  localArgentBin: string | null;
+  versionSpec: string;
+}): { command: string; packageArgs: string[] } {
+  return localArgentBin
+    ? { command: localArgentBin, packageArgs: [] }
+    : { command: 'bunx', packageArgs: [`${ARGENT_PACKAGE_NAME}@${versionSpec}`] };
 }
 
 function parseArgentToolServerState(raw: string): { port: number; token?: string } {
