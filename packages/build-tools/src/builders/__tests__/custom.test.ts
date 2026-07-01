@@ -203,7 +203,7 @@ describe(runCustomBuildAsync, () => {
             name: Hello
             runs:
               steps:
-                - run: echo "hello from action"
+                - run: echo "hello from composite function"
             `,
           },
           '/workingdir/temporary-custom-build'
