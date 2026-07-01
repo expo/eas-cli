@@ -163,4 +163,71 @@ describe(runCustomBuildAsync, () => {
     drainSpy.mockRestore();
     executeSpy.mockRestore();
   });
+
+  describe('with inline job steps (StepsConfigParser path)', () => {
+    let executeSpy: jest.SpyInstance;
+
+    function createStepsCtx(steps: unknown[]): BuildContext<BuildJob> {
+      const job = createTestIosJob();
+      return new BuildContext(
+        {
+          ...job,
+          steps,
+        } as unknown as BuildJob,
+        {
+          workingdir: '/workingdir',
+          logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+          logger: createMockLogger(),
+          env: {
+            __API_SERVER_URL: 'http://api.expo.test',
+          },
+          uploadArtifact: jest.fn(),
+        }
+      );
+    }
+
+    beforeEach(() => {
+      executeSpy = jest.spyOn(BuildWorkflow.prototype, 'executeAsync').mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      executeSpy.mockRestore();
+    });
+
+    it('builds the composite function catalog and resolves a local composite function referenced by a step', async () => {
+      jest.mocked(prepareProjectSourcesAsync).mockImplementation(async () => {
+        vol.mkdirSync('/workingdir/env', { recursive: true });
+        vol.fromJSON(
+          {
+            '.eas/functions/hello/function.yml': `
+            name: Hello
+            runs:
+              steps:
+                - run: echo "hello from action"
+            `,
+          },
+          '/workingdir/temporary-custom-build'
+        );
+        return { handled: true };
+      });
+
+      const stepsCtx = createStepsCtx([{ uses: './.eas/functions/hello', id: 'hello' }]);
+
+      await expect(runCustomBuildAsync(stepsCtx)).resolves.toBeDefined();
+      expect(executeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails to parse when a referenced local composite function does not exist', async () => {
+      jest.mocked(prepareProjectSourcesAsync).mockImplementation(async () => {
+        vol.mkdirSync('/workingdir/env', { recursive: true });
+        vol.mkdirSync('/workingdir/temporary-custom-build', { recursive: true });
+        return { handled: true };
+      });
+
+      const stepsCtx = createStepsCtx([{ uses: './.eas/functions/missing', id: 'missing' }]);
+
+      await expect(runCustomBuildAsync(stepsCtx)).rejects.toThrow();
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+  });
 });
