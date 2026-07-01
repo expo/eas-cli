@@ -1,3 +1,4 @@
+import { isActionReference } from '@expo/eas-build-job';
 import assert from 'assert';
 import fs from 'fs/promises';
 import Joi from 'joi';
@@ -438,6 +439,16 @@ export function validateAllFunctionsExist(
     }
   }
   const calledFunctionsOrFunctionGroup = Array.from(calledFunctionsOrFunctionGroupsSet);
+  const actionReferences = calledFunctionsOrFunctionGroup.filter(isActionReference);
+  if (actionReferences.length > 0) {
+    throw new BuildConfigError(
+      `Local actions (${actionReferences
+        .map(ref => `"${ref}"`)
+        .join(
+          ', '
+        )}) are not supported in ".eas/build.yml" custom builds. Local actions can only be used in EAS workflows (".eas/workflows/*.yml").`
+    );
+  }
   const externalFunctionIdsSet = new Set(externalFunctionIds);
   const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupsIds);
   const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(

@@ -17,6 +17,15 @@ export function interpolateWithInputs(
   return interpolate(templateString, BUILD_STEP_INPUT_EXPRESSION_REGEXP, inputs);
 }
 
+export function interpolateStringWithInputs(
+  templateString: string,
+  resolveInput: (inputName: string) => string
+): string {
+  return interpolate(templateString, BUILD_STEP_INPUT_EXPRESSION_REGEXP, path =>
+    resolveInput(path.split('.')[1])
+  );
+}
+
 export function interpolateWithOutputs<InterpolableType extends string | object>(
   interpolableValue: InterpolableType,
   fn: (path: string) => string
