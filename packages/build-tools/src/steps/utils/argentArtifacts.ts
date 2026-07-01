@@ -11,10 +11,10 @@ import { z } from 'zod';
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
-import { sleepAsync } from '../../utils/retry';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
+const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
 
 const ArgentArtifactSchema = z.object({
   id: z.string(),
@@ -35,37 +35,48 @@ export async function pollArgentArtifactsForUploadAsync(
     toolsUrl,
     toolsAuthToken,
     logger,
+    signal,
   }: {
     deviceRunSessionId: string;
     toolsUrl: string;
     toolsAuthToken?: string;
     logger: bunyan;
+    signal: AbortSignal;
   }
-): Promise<never> {
+): Promise<void> {
   logger.info('Started polling Argent tool-server for artifacts.');
   const seenArtifactIds = new Set<string>();
+  const pendingUploads = new Set<Promise<void>>();
   let listArtifactsErrorCount = 0;
 
-  for (;;) {
+  const queueArtifactUpload = (artifact: ArgentArtifact): void => {
+    if (seenArtifactIds.has(artifact.id)) {
+      return;
+    }
+    seenArtifactIds.add(artifact.id);
+    const uploadPromise = uploadArgentArtifactAsync(ctx, {
+      deviceRunSessionId,
+      toolsUrl,
+      toolsAuthToken,
+      artifact,
+      logger,
+    }).catch(err => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture('Could not upload Argent remote session artifact', error);
+      logger.warn({ err: error }, 'Could not upload Argent remote session artifact.');
+    });
+    pendingUploads.add(uploadPromise);
+    void uploadPromise.finally(() => {
+      pendingUploads.delete(uploadPromise);
+    });
+  };
+
+  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
     try {
       const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken });
       listArtifactsErrorCount = 0;
       for (const artifact of artifacts) {
-        if (seenArtifactIds.has(artifact.id)) {
-          continue;
-        }
-        seenArtifactIds.add(artifact.id);
-        void uploadArgentArtifactAsync(ctx, {
-          deviceRunSessionId,
-          toolsUrl,
-          toolsAuthToken,
-          artifact,
-          logger,
-        }).catch(err => {
-          const error = err instanceof Error ? err : new Error(String(err));
-          Sentry.capture('Could not upload Argent remote session artifact', error);
-          logger.warn({ err: error }, 'Could not upload Argent remote session artifact.');
-        });
+        queueArtifactUpload(artifact);
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -78,8 +89,20 @@ export async function pollArgentArtifactsForUploadAsync(
         );
       }
     }
-    await sleepAsync(ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS);
+  };
+
+  while (!signal.aborted) {
+    await listAndQueueArtifactUploadsAsync();
+    await sleepUntilAbortedAsync(ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS, signal);
   }
+
+  logger.info('Argent artifact polling stopped; draining remaining artifacts.');
+  await listAndQueueArtifactUploadsAsync();
+  await waitForPendingUploadsAsync({
+    pendingUploads,
+    timeoutMs: ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS,
+    logger,
+  });
 }
 
 export async function listArgentArtifactsAsync({
@@ -171,4 +194,52 @@ async function downloadArgentArtifactToFileAsync({
     );
   }
   await pipeline(response.body, createWriteStream(destinationPath));
+}
+
+async function sleepUntilAbortedAsync(timeoutMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return;
+  }
+  await new Promise<void>(resolve => {
+    const timeout = setTimeout(resolve, timeoutMs);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timeout);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+async function waitForPendingUploadsAsync({
+  pendingUploads,
+  timeoutMs,
+  logger,
+}: {
+  pendingUploads: Set<Promise<void>>;
+  timeoutMs: number;
+  logger: bunyan;
+}): Promise<void> {
+  if (pendingUploads.size === 0) {
+    return;
+  }
+
+  logger.info(`Waiting for ${pendingUploads.size} Argent artifact upload(s) to finish.`);
+  let timeout: NodeJS.Timeout | undefined;
+  const result = await Promise.race([
+    Promise.allSettled([...pendingUploads]).then(() => 'settled' as const),
+    new Promise<'timeout'>(resolve => {
+      timeout = setTimeout(() => resolve('timeout'), timeoutMs);
+    }),
+  ]);
+  if (timeout) {
+    clearTimeout(timeout);
+  }
+  if (result === 'timeout') {
+    logger.warn(
+      `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Argent artifact uploads; continuing shutdown.`
+    );
+  }
 }

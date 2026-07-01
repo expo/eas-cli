@@ -30,6 +30,19 @@ const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   }
 `);
 
+const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
+  query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
+    deviceRunSessions {
+      byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
+
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
   if (!deviceRunSessionId) {
@@ -94,6 +107,57 @@ export async function selectXcodeDeveloperDirectoryAsync({
     logger,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+}
+
+export async function waitForDeviceRunSessionStoppedAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  logger.info(
+    `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+  );
+  let pollErrorCount = 0;
+
+  for (;;) {
+    try {
+      const result = await ctx.graphqlClient
+        .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+        .toPromise();
+      if (result.error) {
+        throw result.error;
+      }
+
+      const status = result.data?.deviceRunSessions.byId.status;
+      pollErrorCount = 0;
+      if (status === 'STOPPED') {
+        logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+        return;
+      }
+      if (status === 'ERRORED') {
+        throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+      }
+    } catch (err) {
+      if (err instanceof SystemError) {
+        throw err;
+      }
+
+      const error = err instanceof Error ? err : new Error(String(err));
+      pollErrorCount += 1;
+      if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+        Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+        logger.warn(
+          { err: error, failedStatusPollCount: pollErrorCount },
+          'Could not poll device run session status; will retry.'
+        );
+      }
+    }
+    await sleepAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS);
+  }
 }
 
 const TurnIceServersResponseSchema = z.object({
