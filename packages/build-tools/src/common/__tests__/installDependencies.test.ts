@@ -40,7 +40,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -56,6 +56,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
     });
@@ -66,6 +67,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -110,7 +112,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       packageManager: PackageManager.NPM,
       env: {
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -158,7 +160,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
         packageManager: PackageManager.NPM,
         env: {
           EAS_USE_NPM_CACHE: '1',
-          NPM_CONFIG_REGISTRY: 'http://npm.staging.caches.eas-build.internal',
+          EAS_BUILD_NPM_CACHE_URL: 'http://npm.staging.caches.eas-build.internal',
         },
         logger,
         cwd: '/tmp/build',
@@ -189,7 +191,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       installDependenciesWithNpmCacheFallbackAsync({
         packageManager: PackageManager.NPM,
         env: {
-          NPM_CONFIG_REGISTRY: npmCacheUrl,
+          EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
         },
         logger,
         cwd: '/tmp/build',

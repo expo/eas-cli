@@ -43,7 +43,6 @@ export function getBuildEnv({
   const cocoapodsCacheUrl = RuntimeSettings.getCocoapodsCacheUrl();
 
   setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
-  setEnv(env, 'NPM_CONFIG_REGISTRY', npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
   setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
