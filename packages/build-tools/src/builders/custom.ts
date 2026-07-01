@@ -17,6 +17,7 @@ import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
 import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
+import { buildActionCatalogAsync } from '../steps/actions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 import { retryAsync } from '../utils/retry';
@@ -58,25 +59,29 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
   const globalContext = new BuildStepGlobalContext(customBuildCtx, false);
   const easFunctions = getEasFunctions(customBuildCtx);
   const easFunctionGroups = getEasFunctionGroups(customBuildCtx);
-  const parser = ctx.job.steps
-    ? new StepsConfigParser(globalContext, {
-        externalFunctions: easFunctions,
-        externalFunctionGroups: easFunctionGroups,
-        steps: ctx.job.steps,
-      })
-    : new BuildConfigParser(globalContext, {
-        externalFunctions: easFunctions,
-        externalFunctionGroups: easFunctionGroups,
-        configPath: path.join(
-          ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-          nullthrows(
-            ctx.job.customBuildConfig?.path,
-            'Steps or custom build config path are required in custom jobs'
-          )
-        ),
-      });
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {
     try {
+      const parser = ctx.job.steps
+        ? new StepsConfigParser(globalContext, {
+            externalFunctions: easFunctions,
+            externalFunctionGroups: easFunctionGroups,
+            steps: ctx.job.steps,
+            actionCatalog: await buildActionCatalogAsync(
+              ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
+              { steps: ctx.job.steps, logger: ctx.logger }
+            ),
+          })
+        : new BuildConfigParser(globalContext, {
+            externalFunctions: easFunctions,
+            externalFunctionGroups: easFunctionGroups,
+            configPath: path.join(
+              ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
+              nullthrows(
+                ctx.job.customBuildConfig?.path,
+                'Steps or custom build config path are required in custom jobs'
+              )
+            ),
+          });
       return await parser.parseAsync();
     } catch (parseError: any) {
       ctx.logger.error('Failed to parse the custom build config file.');
