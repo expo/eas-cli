@@ -32,6 +32,10 @@ const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-devic
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
+const AGENT_DEVICE_DAEMON_ENV = {
+  AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
+  AGENT_DEVICE_RETAIN_ARTIFACTS: '1',
+};
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -144,7 +148,7 @@ async function startAgentDeviceDaemonAsync({
     return spawnDetached({
       command: 'node',
       args: [daemonPath],
-      env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
     });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -201,7 +205,7 @@ async function startAgentDeviceDaemonFromGitAsync({
     command: 'bun',
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
-    env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+    env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
   });
 }
 
