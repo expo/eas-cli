@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -28,7 +29,7 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
-const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
+const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -111,6 +112,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           agentDeviceRemoteSessionToken: daemonToken,
           ...(webPreviewUrl ? { webPreviewUrl } : {}),
         },
+        logger,
+      });
+      void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+        deviceRunSessionId,
+        daemonUrl: `http://127.0.0.1:${daemonPort}`,
+        daemonToken,
         logger,
       });
 
