@@ -510,14 +510,17 @@ export async function uploadAssetsAsync(
     ];
   }
 
-  const assetsWithStorageKey = await Promise.all(
-    assets.map(async asset => {
-      return {
-        ...asset,
-        storageKey: await getStorageKeyForAssetAsync(asset),
-      };
-    })
-  );
+  const [assetLimitPerUpdateGroup, assetsWithStorageKey] = await Promise.all([
+    PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId),
+    Promise.all(
+      assets.map(async asset => {
+        return {
+          ...asset,
+          storageKey: await getStorageKeyForAssetAsync(asset),
+        };
+      })
+    ),
+  ]);
   const uniqueAssets = uniqBy<AssetWithStorageKey>(assetsWithStorageKey, asset => asset.storageKey);
 
   // "finished" = no longer in the pending (still-missing) set.
@@ -540,6 +543,8 @@ export async function uploadAssetsAsync(
 
   notifyProgress(missingAssets);
 
+  // Just past the finalize cloud function's event max age plus a startup buffer. Beyond this,
+  // waiting longer can't help, so we re-upload to generate a fresh event with a new retry window.
   const FINALIZE_POLL_MS = 55_000;
   const MAX_UPLOAD_ATTEMPTS = 3;
   const assetUploadPromiseLimit = promiseLimit(15);
@@ -604,8 +609,6 @@ export async function uploadAssetsAsync(
     return pendingAssets;
   };
 
-  const assetLimitPromise = PublishQuery.getAssetLimitPerUpdateGroupAsync(graphqlClient, projectId);
-
   // Re-upload assets that don't finalize in time to trigger a fresh finalize event and retry window.
   let pendingAssets = missingAssets;
   for (let attempt = 0; attempt < MAX_UPLOAD_ATTEMPTS && pendingAssets.length > 0; attempt++) {
@@ -626,8 +629,6 @@ export async function uploadAssetsAsync(
         `This is usually temporary. Re-run \`eas update\` to try again, and contact support if it keeps happening.`
     );
   }
-
-  const assetLimitPerUpdateGroup = await assetLimitPromise;
 
   return {
     assetCount: assets.length,
