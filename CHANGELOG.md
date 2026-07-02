@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Skip embedded bundle upload for development client builds instead of warning that the bundle is missing. ([#3940](https://github.com/expo/eas-cli/pull/3940) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores

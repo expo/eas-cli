@@ -32,6 +32,7 @@ function zipEntryMap(entries: Record<string, true>): Record<string, { name: stri
 function makeCtx(overrides: {
   platform: Platform;
   simulator?: boolean;
+  developmentClient?: boolean;
   channel?: string;
   env?: Record<string, string>;
 }): BuildContext<any> {
@@ -40,10 +41,12 @@ function makeCtx(overrides: {
       ? {
           platform: Platform.IOS,
           simulator: overrides.simulator ?? false,
+          developmentClient: overrides.developmentClient ?? false,
           updates: overrides.channel ? { channel: overrides.channel } : undefined,
         }
       : {
           platform: Platform.ANDROID,
+          developmentClient: overrides.developmentClient ?? false,
           updates: overrides.channel ? { channel: overrides.channel } : undefined,
         };
 
@@ -189,6 +192,20 @@ describe('uploadEmbeddedBundleAsync', () => {
     await uploadEmbeddedBundleAsync(ctx);
 
     expect(ctx.markBuildPhaseSkipped).toHaveBeenCalled();
+    expect(artifacts.findArtifacts).not.toHaveBeenCalled();
+  });
+
+  it('skips development client builds', async () => {
+    const ctx = makeCtx({
+      platform: Platform.ANDROID,
+      developmentClient: true,
+      channel: 'development',
+    });
+
+    await uploadEmbeddedBundleAsync(ctx);
+
+    expect(ctx.markBuildPhaseSkipped).toHaveBeenCalled();
+    expect(ctx.markBuildPhaseHasWarnings).not.toHaveBeenCalled();
     expect(artifacts.findArtifacts).not.toHaveBeenCalled();
   });
 
