@@ -87,13 +87,6 @@ function resolveVersionOverridesEnvs(ctx: BuildContext<Job>): Env {
   ) {
     extraEnvs.EAS_BUILD_ANDROID_VERSION_CODE = ctx.job.version.versionCode;
   }
-  if (
-    ctx.job.platform === Platform.ANDROID &&
-    ctx.job.version?.versionName &&
-    !ctx.env.EAS_BUILD_ANDROID_VERSION_NAME
-  ) {
-    extraEnvs.EAS_BUILD_ANDROID_VERSION_NAME = ctx.job.version.versionName;
-  }
   return extraEnvs;
 }
 

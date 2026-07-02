@@ -118,7 +118,6 @@ describe('gradleConfig', () => {
     it('should create version gradle file with all variables substituted', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '42',
-        versionName: '2.3.4',
       });
 
       const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
@@ -126,7 +125,7 @@ describe('gradleConfig', () => {
       expect(generatedContent).toMatchSnapshot();
     });
 
-    it('should handle only versionCode provided', async () => {
+    it('should handle versionCode provided', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '123',
       });
@@ -136,17 +135,7 @@ describe('gradleConfig', () => {
       expect(generatedContent).toMatchSnapshot();
     });
 
-    it('should handle only versionName provided', async () => {
-      await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
-        versionName: '1.2.3-beta',
-      });
-
-      const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
-      const generatedContent = vol.readFileSync(versionGradlePath, 'utf-8') as string;
-      expect(generatedContent).toMatchSnapshot();
-    });
-
-    it('should handle neither versionCode nor versionName provided', async () => {
+    it('should handle no versionCode provided', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {});
 
       const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
@@ -157,7 +146,6 @@ describe('gradleConfig', () => {
     it('should add apply statement to build.gradle', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '1',
-        versionName: '1.0.0',
       });
 
       const buildGradlePath = '/workingdir/android/app/build.gradle';
@@ -179,9 +167,7 @@ describe('gradleConfig', () => {
       ).length;
 
       // Call again
-      await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
-        versionName: '2.0.0',
-      });
+      await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {});
 
       const contentAfterSecond = vol.readFileSync(buildGradlePath, 'utf-8') as string;
       const secondOccurrences = (
@@ -199,7 +185,6 @@ describe('gradleConfig', () => {
 
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '999',
-        versionName: '9.9.9',
       });
 
       const generatedContent = vol.readFileSync(versionGradlePath, 'utf-8') as string;
@@ -209,7 +194,6 @@ describe('gradleConfig', () => {
     it('should log info messages with version details', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '42',
-        versionName: '2.3.4',
       });
 
       expect(mockLogger.info).toHaveBeenCalledWith('Injecting version config into build.gradle');
@@ -221,18 +205,6 @@ describe('gradleConfig', () => {
     it('should handle version code as string with leading zeros', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '0042',
-        versionName: '1.0.0',
-      });
-
-      const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
-      const generatedContent = vol.readFileSync(versionGradlePath, 'utf-8') as string;
-      expect(generatedContent).toMatchSnapshot();
-    });
-
-    it('should handle version name with special characters', async () => {
-      await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
-        versionCode: '1',
-        versionName: '1.0.0-rc.1+build.123',
       });
 
       const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
@@ -243,7 +215,6 @@ describe('gradleConfig', () => {
     it('should produce valid Gradle syntax', async () => {
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '100',
-        versionName: '3.0.0',
       });
 
       const versionGradlePath = '/workingdir/android/app/eas-build-configure-version.gradle';
@@ -257,7 +228,6 @@ describe('gradleConfig', () => {
       await injectCredentialsGradleConfig(mockLogger, '/workingdir');
       await injectConfigureVersionGradleConfig(mockLogger, '/workingdir', {
         versionCode: '50',
-        versionName: '5.0.0',
       });
 
       const buildGradlePath = '/workingdir/android/app/build.gradle';

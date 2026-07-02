@@ -26,7 +26,7 @@ async function configureXcodeProject(
   });
   const { version } = ctx.job;
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  if (version?.appVersion || version?.buildNumber) {
+  if (version?.buildNumber) {
     await updateVersionsAsync(ctx, {
       targetNames: Object.keys(credentials.targetProvisioningProfiles),
       buildConfiguration,
@@ -104,9 +104,6 @@ async function updateVersionsAsync(
     const infoPlist = plist.parse(infoPlistRaw) as IOSConfig.InfoPlist;
     if (ctx.job.version?.buildNumber) {
       infoPlist.CFBundleVersion = ctx.job.version?.buildNumber;
-    }
-    if (ctx.job.version?.appVersion) {
-      infoPlist.CFBundleShortVersionString = ctx.job.version?.appVersion;
     }
     await fs.writeFile(infoPlistPath, plist.build(infoPlist));
   }

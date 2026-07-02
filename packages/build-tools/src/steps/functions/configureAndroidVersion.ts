@@ -29,8 +29,7 @@ export function configureAndroidVersionFunction(): BuildFunction {
 
       const versionCode =
         (inputs.version_code.value as string | undefined) ?? job.version?.versionCode;
-      const versionName =
-        (inputs.version_name.value as string | undefined) ?? job.version?.versionName;
+      const versionName = inputs.version_name.value as string | undefined;
       if (versionName && !semver.valid(versionName)) {
         throw new Error(
           `Version name provided by the "version_name" input is not a valid semver version: ${versionName}`
@@ -38,7 +37,6 @@ export function configureAndroidVersionFunction(): BuildFunction {
       }
       await injectConfigureVersionGradleConfig(stepCtx.logger, stepCtx.workingDirectory, {
         versionCode,
-        versionName,
       });
     },
   });

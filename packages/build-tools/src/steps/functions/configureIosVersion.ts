@@ -49,8 +49,7 @@ export function configureIosVersionFunction(): BuildFunction {
 
       const buildNumber =
         (inputs.build_number.value as string | undefined) ?? job.version?.buildNumber;
-      const appVersion =
-        (inputs.app_version.value as string | undefined) ?? job.version?.appVersion;
+      const appVersion = inputs.app_version.value as string | undefined;
       if (appVersion && !semver.valid(appVersion)) {
         throw new UserError(
           'EAS_CONFIGURE_IOS_VERSION_INVALID_APP_VERSION',

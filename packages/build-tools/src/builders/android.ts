@@ -124,12 +124,11 @@ async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
     });
   }
 
-  if (ctx.job.version?.versionCode || ctx.job.version?.versionName) {
+  if (ctx.job.version?.versionCode) {
     await ctx.runBuildPhase(BuildPhase.CONFIGURE_ANDROID_VERSION, async () => {
       await warnIfLegacyEasBuildGradleExists(ctx);
       await injectConfigureVersionGradleConfig(ctx.logger, ctx.getReactNativeProjectDirectory(), {
         versionCode: ctx.job.version?.versionCode,
-        versionName: ctx.job.version?.versionName,
       });
     });
   }
