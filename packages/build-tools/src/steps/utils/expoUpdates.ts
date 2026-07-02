@@ -32,8 +32,7 @@ export async function configureEASUpdateAsync({
   appConfig: ExpoConfig;
   metadata: Metadata | null;
 }): Promise<void> {
-  const runtimeVersion =
-    inputs.runtimeVersion ?? job.version?.runtimeVersion ?? inputs.resolvedRuntimeVersion;
+  const runtimeVersion = inputs.runtimeVersion ?? inputs.resolvedRuntimeVersion;
 
   if (metadata?.runtimeVersion && metadata.runtimeVersion !== runtimeVersion) {
     logger.warn(
