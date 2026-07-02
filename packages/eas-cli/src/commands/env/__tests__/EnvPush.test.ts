@@ -89,6 +89,52 @@ SECRET_KEY=super-secret-key`;
     });
   });
 
+  it('reports missing environment in non-interactive mode', async () => {
+    const command = new EnvPush(['--non-interactive', '--path', testEnvPath], mockConfig);
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+      projectDir: testProjectDir,
+    });
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /The `--environment` flag must be set when running in `--non-interactive` mode/
+    );
+    expect(getContextAsyncSpy).toHaveBeenCalled();
+  });
+
+  it('allows non-interactive mode without --force when nothing needs confirmation', async () => {
+    const command = new EnvPush(
+      ['--environment', 'development', '--path', testEnvPath, '--non-interactive'],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+      projectDir: testProjectDir,
+    });
+
+    await command.runAsync();
+
+    expect(confirmAsync).not.toHaveBeenCalled();
+    expect(
+      EnvironmentVariableMutation.createBulkEnvironmentVariablesForAppAsync
+    ).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'VARIABLE_NAME',
+          environments: [DefaultEnvironment.Development],
+        }),
+      ]),
+      testProjectId
+    );
+  });
+
   describe('--force option', () => {
     it('automatically overrides existing variables without confirmation when --force is used', async () => {
       const existingVariable = {
@@ -274,6 +320,80 @@ SECRET_KEY=super-secret-key`;
       expect(Log.log).not.toHaveBeenCalledWith(
         'Using --force flag: automatically overriding sensitive variables.'
       );
+    });
+
+    it('throws before confirming overwrite in non-interactive mode when --force is not used', async () => {
+      const existingVariable = {
+        id: 'var1',
+        name: 'VARIABLE_NAME',
+        value: 'old variable value',
+        environments: [DefaultEnvironment.Development],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      };
+
+      jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([existingVariable]);
+
+      const command = new EnvPush(
+        ['--environment', 'development', '--path', testEnvPath, '--non-interactive'],
+        mockConfig
+      );
+
+      // @ts-expect-error
+      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+        loggedIn: { graphqlClient },
+        projectId: testProjectId,
+        projectDir: testProjectDir,
+      });
+
+      await expect(command.runAsync()).rejects.toThrow(
+        'Cannot confirm overwriting existing variables in non-interactive mode. Use --force to overwrite them.'
+      );
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(
+        EnvironmentVariableMutation.createBulkEnvironmentVariablesForAppAsync
+      ).not.toHaveBeenCalled();
+    });
+
+    it('throws before confirming sensitive overwrite in non-interactive mode when --force is not used', async () => {
+      const existingSensitiveVariable = {
+        id: 'var1',
+        name: 'SECRET_KEY',
+        value: 'super-secret-key',
+        environments: [DefaultEnvironment.Development],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        scope: EnvironmentVariableScope.Project,
+        visibility: EnvironmentVariableVisibility.Sensitive,
+        type: EnvironmentSecretType.String,
+      };
+
+      jest
+        .mocked(EnvironmentVariablesQuery.byAppIdAsync)
+        .mockResolvedValue([existingSensitiveVariable]);
+
+      const command = new EnvPush(
+        ['--environment', 'development', '--path', testEnvPath, '--non-interactive'],
+        mockConfig
+      );
+
+      // @ts-expect-error
+      jest.spyOn(command, 'getContextAsync').mockReturnValue({
+        loggedIn: { graphqlClient },
+        projectId: testProjectId,
+        projectDir: testProjectDir,
+      });
+
+      await expect(command.runAsync()).rejects.toThrow(
+        'Cannot confirm overwriting sensitive variables in non-interactive mode. Use --force to overwrite them.'
+      );
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(
+        EnvironmentVariableMutation.createBulkEnvironmentVariablesForAppAsync
+      ).not.toHaveBeenCalled();
     });
   });
 });

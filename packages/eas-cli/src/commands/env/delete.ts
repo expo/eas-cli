@@ -1,6 +1,5 @@
 import { Args, Flags } from '@oclif/core';
 import assert from 'assert';
-import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -8,6 +7,7 @@ import {
   EASEnvironmentVariableScopeFlagValue,
   EASNonInteractiveFlag,
   EasEnvironmentFlagParameters,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../graphql/mutations/EnvironmentVariableMutation';
@@ -33,9 +33,14 @@ interface RawDeleteFlags {
 export default class EnvDelete extends EasCommand {
   static override description = 'delete an environment variable for the current project or account';
 
+  static override examples = [
+    '$ eas env:delete --variable-environment production --variable-name API_TOKEN',
+    '$ eas env:delete --scope account --variable-name SHARED_TOKEN',
+  ];
+
   static override flags = {
     'variable-name': Flags.string({
-      description: 'Name of the variable to delete',
+      description: '(required) Name of the variable to delete',
     }),
     'variable-environment': Flags.string({
       ...EasEnvironmentFlagParameters,
@@ -148,14 +153,15 @@ export default class EnvDelete extends EasCommand {
     flags: RawDeleteFlags,
     { environment }: { environment?: string }
   ): DeleteFlags {
-    if (flags['non-interactive']) {
-      if (!flags['variable-name']) {
-        throw new Error(
-          `Environment variable needs 'name' to be specified when running in non-interactive mode. Run the command with ${chalk.bold(
-            '--variable-name VARIABLE_NAME'
-          )} flag to fix the issue`
-        );
-      }
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: flags['non-interactive'],
+      requiredInputs: [{ name: '--variable-name', value: flags['variable-name'] }],
+      helpCommand: 'eas env:delete --help',
+    });
+    if (environment && flags['variable-environment']) {
+      throw new Error(
+        "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:delete --help` for more information."
+      );
     }
 
     const scope =

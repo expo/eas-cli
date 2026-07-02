@@ -10,6 +10,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Improve `eas env:*` non-interactive required input help and error messages. ([#3820](https://github.com/expo/eas-cli/pull/3820) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+- [eas-cli] Reject conflicting positional `ENVIRONMENT` and `--variable-environment` inputs in `eas env:update` and `eas env:delete`. ([#3820](https://github.com/expo/eas-cli/pull/3820) by [@krystofwoldrich](https://github.com/krystofwoldrich))
+
 ### 🧹 Chores
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01

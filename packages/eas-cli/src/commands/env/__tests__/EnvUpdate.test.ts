@@ -253,6 +253,50 @@ describe(EnvUpdate, () => {
     });
   });
 
+  it('rejects positional environment and --variable-environment used together', async () => {
+    const mockVariable = {
+      id: 'var1',
+      name: 'TEST_VAR_1',
+      value: 'value1',
+      environments: [DefaultEnvironment.Development],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scope: EnvironmentVariableScope.Project,
+      visibility: EnvironmentVariableVisibility.Public,
+      type: EnvironmentSecretType.String,
+    };
+
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValueOnce([mockVariable]);
+    jest.mocked(EnvironmentVariableMutation.updateAsync).mockResolvedValueOnce(mockVariable);
+
+    const command = new EnvUpdate(
+      [
+        'development',
+        '--variable-name',
+        'TEST_VAR_1',
+        '--variable-environment',
+        'production',
+        '--value',
+        'new-value',
+        '--scope',
+        'project',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    const getContextAsyncSpy = jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId,
+    });
+
+    await expect(command.runAsync()).rejects.toThrow(
+      "You can't use both --variable-environment flag when environment is passed as an argument. Run `eas env:update --help` for more information."
+    );
+    expect(getContextAsyncSpy).not.toHaveBeenCalled();
+  });
+
   it('processes file type variable in non-interactive mode with --type file and --value', async () => {
     const testFilePath = '/path/to/test-file.json';
     const testFileBase64 = 'dGVzdCBmaWxlIGNvbnRlbnQ=';

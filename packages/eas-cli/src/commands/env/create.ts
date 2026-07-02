@@ -11,6 +11,8 @@ import {
   EASMultiEnvironmentFlag,
   EASNonInteractiveFlag,
   EASVariableVisibilityFlag,
+  markRequired,
+  validateNonInteractiveRequiredInputs,
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
@@ -59,6 +61,11 @@ interface CreateFlags {
 export default class EnvCreate extends EasCommand {
   static override description = 'create an environment variable for the current project or account';
 
+  static override examples = [
+    '$ eas env:create --environment production --environment preview --name API_TOKEN --value "$API_TOKEN" --visibility sensitive',
+    '$ eas env:create --environment production --scope account --name SHARED_TOKEN --value "$SHARED_TOKEN" --visibility secret',
+  ];
+
   static override args = {
     environment: Args.string({
       description:
@@ -69,22 +76,22 @@ export default class EnvCreate extends EasCommand {
 
   static override flags = {
     name: Flags.string({
-      description: 'Name of the variable',
+      description: '(required) Name of the variable',
     }),
     value: Flags.string({
-      description: 'Text value or the variable',
+      description: '(required) Text value of the variable, or a file path when --type=file',
     }),
     force: Flags.boolean({
-      description: 'Overwrite existing variable',
+      description: '(required when overwriting) Overwrite existing variable',
       default: false,
     }),
     type: Flags.option({
       description: 'The type of variable',
       options: ['string', 'file'] as const,
     })(),
-    ...EASVariableVisibilityFlag,
+    ...markRequired(EASVariableVisibilityFlag),
     ...EASEnvironmentVariableScopeFlag,
-    ...EASMultiEnvironmentFlag,
+    ...markRequired(EASMultiEnvironmentFlag),
     ...EASNonInteractiveFlag,
   };
 
@@ -98,6 +105,19 @@ export default class EnvCreate extends EasCommand {
     const { args, flags } = await this.parse(EnvCreate);
 
     const validatedFlags = this.sanitizeFlags(flags);
+    validateNonInteractiveRequiredInputs({
+      nonInteractive: validatedFlags['non-interactive'],
+      requiredInputs: [
+        { name: '--name', value: validatedFlags.name },
+        { name: '--value', value: validatedFlags.value },
+        { name: '--visibility', value: validatedFlags.visibility },
+        {
+          name: '--environment',
+          value: args.environment ?? validatedFlags.environment,
+        },
+      ],
+      helpCommand: 'eas env:create --help',
+    });
 
     const {
       projectId,

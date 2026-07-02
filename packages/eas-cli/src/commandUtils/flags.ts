@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 import { boolish } from 'getenv';
 
 export function isNonInteractiveByDefault(): boolean {
@@ -24,6 +25,63 @@ export function resolveNonInteractiveAndJsonFlags(flags: {
   const json = flags.json ?? false;
   const nonInteractive = flags['non-interactive'] || json;
   return { json, nonInteractive };
+}
+
+export function prependFlagDescription<T extends Record<string, { description?: string }>>(
+  flags: T,
+  extraDescription: string
+): T {
+  return Object.fromEntries(
+    Object.entries(flags).map(([name, flag]) => {
+      const description = flag.description ?? '';
+      return [
+        name,
+        {
+          ...flag,
+          description: description ? `${extraDescription} ${description}` : extraDescription,
+        },
+      ];
+    })
+  ) as T;
+}
+
+export function markRequired<T extends Record<string, { description?: string }>>(flags: T): T {
+  return prependFlagDescription(flags, '(required)');
+}
+
+export function validateNonInteractiveRequiredInputs({
+  nonInteractive,
+  requiredInputs,
+  helpCommand,
+}: {
+  nonInteractive: boolean;
+  requiredInputs: { if?: boolean; name: string; value: unknown }[];
+  helpCommand: string;
+}): void {
+  if (!nonInteractive) {
+    return;
+  }
+
+  const missingInputs = requiredInputs
+    .filter(({ if: condition = true, value }) => {
+      if (!condition) {
+        return false;
+      }
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+      return !value;
+    })
+    .map(({ name }) => name);
+
+  if (missingInputs.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `Missing required inputs for non-interactive mode: ${missingInputs.join(', ')}.\n` +
+      `Run ${chalk.bold(helpCommand)} for usage and examples.`
+  );
 }
 
 export const EasEnvironmentFlagParameters = {

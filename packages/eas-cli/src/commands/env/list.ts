@@ -7,7 +7,9 @@ import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
+  EASNonInteractiveFlag,
   EASVariableFormatFlag,
+  markRequired,
 } from '../../commandUtils/flags';
 import { EnvironmentVariableScope } from '../../graphql/generated';
 import {
@@ -72,7 +74,7 @@ interface RawListFlags {
   environment: string[] | undefined;
   'include-sensitive': boolean;
   'include-file-content': boolean;
-  'non-interactive'?: boolean;
+  'non-interactive': boolean;
 }
 
 interface ListFlags {
@@ -86,6 +88,8 @@ interface ListFlags {
 
 export default class EnvList extends EasCommand {
   static override description = 'list environment variables for the current project or account';
+
+  static override examples = ['$ eas env:list --environment production'];
 
   static override contextDefinition = {
     ...this.ContextOptions.ProjectId,
@@ -101,9 +105,10 @@ export default class EnvList extends EasCommand {
       description: 'Display files content in the output',
       default: false,
     }),
-    ...EASMultiEnvironmentFlag,
+    ...markRequired(EASMultiEnvironmentFlag),
     ...EASVariableFormatFlag,
     ...EASEnvironmentVariableScopeFlag,
+    ...EASNonInteractiveFlag,
   };
 
   static override args = {
@@ -186,7 +191,6 @@ export default class EnvList extends EasCommand {
 
     return {
       ...flags,
-      'non-interactive': flags['non-interactive'] ?? false,
       environment: environments,
       scope:
         flags.scope === 'account'
