@@ -36,14 +36,11 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_RUNNER', 'eas-build');
   setEnv(env, 'EAS_BUILD_PLATFORM', job.platform);
   setEnv(env, 'EAS_CLI_SENTRY_DSN', config.sentry.dsn);
-  // NPM_CACHE_URL is deprecated
   const npmCacheUrl = RuntimeSettings.getNpmCacheUrl();
   const nodeJsCacheUrl = RuntimeSettings.getNodeJsCacheUrl();
   const mavenCacheUrl = RuntimeSettings.getMavenCacheUrl();
   const cocoapodsCacheUrl = RuntimeSettings.getCocoapodsCacheUrl();
 
-  setEnv(env, 'NPM_CACHE_URL', npmCacheUrl);
-  setEnv(env, 'NPM_CONFIG_REGISTRY', npmCacheUrl);
   setEnv(env, 'NVM_NODEJS_ORG_MIRROR', nodeJsCacheUrl);
   setEnv(env, 'EAS_BUILD_NPM_CACHE_URL', npmCacheUrl);
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
