@@ -38,11 +38,9 @@ export async function buildAsync(job: BuildJob, metadata: Metadata): Promise<voi
       EAS_BUILD_USERNAME: username,
       ...(job.platform === Platform.ANDROID && {
         EAS_BUILD_ANDROID_VERSION_CODE: job.version?.versionCode,
-        EAS_BUILD_ANDROID_VERSION_NAME: job.version?.versionName,
       }),
       ...(job.platform === Platform.IOS && {
         EAS_BUILD_IOS_BUILD_NUMBER: job.version?.buildNumber,
-        EAS_BUILD_IOS_APP_VERSION: job.version?.appVersion,
       }),
     };
     const env = pickBy(unfilteredEnv, (val?: string): val is string => !!val);

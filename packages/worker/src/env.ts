@@ -111,15 +111,9 @@ export function getBuildEnv({
     if (job.version?.versionCode) {
       setEnv(env, 'EAS_BUILD_ANDROID_VERSION_CODE', job.version.versionCode);
     }
-    if (job.version?.versionName) {
-      setEnv(env, 'EAS_BUILD_ANDROID_VERSION_NAME', job.version.versionName);
-    }
   } else if (job.platform === Platform.IOS) {
     if (job.version?.buildNumber) {
       setEnv(env, 'EAS_BUILD_IOS_BUILD_NUMBER', job.version.buildNumber);
-    }
-    if (job.version?.appVersion) {
-      setEnv(env, 'EAS_BUILD_IOS_APP_VERSION', job.version.appVersion);
     }
   }
 

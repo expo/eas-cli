@@ -104,10 +104,6 @@ export interface Job {
   simulator?: boolean;
   version?: {
     buildNumber?: string;
-    /**
-     * support for this field is implemented, but specifying it is disabled on schema level
-     */
-    appVersion?: string;
   };
   buildArtifactPaths?: string[];
 

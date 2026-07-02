@@ -12,11 +12,9 @@ export async function buildIosAsync(
   { workingdir, env: baseEnv, metadata, logger }: BuildParams
 ): Promise<Artifacts> {
   const buildNumber = job.version?.buildNumber;
-  const appVersion = job.version?.appVersion;
   const env: Env = {
     ...baseEnv,
     ...(buildNumber && { EAS_BUILD_IOS_BUILD_NUMBER: buildNumber }),
-    ...(appVersion && { EAS_BUILD_IOS_APP_VERSION: appVersion }),
   };
   const ctx = new BuildContext<Ios.Job>(job, {
     workingdir,

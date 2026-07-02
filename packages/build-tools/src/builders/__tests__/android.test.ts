@@ -97,7 +97,6 @@ describe(androidBuilder, () => {
       },
       version: {
         versionCode: '42',
-        versionName: '1.2.3',
       },
     };
     const ctx = new BuildContext(job, {
@@ -153,7 +152,6 @@ describe(androidBuilder, () => {
       },
       version: {
         versionCode: '42',
-        versionName: '1.2.3',
       },
     };
     const ctx = new BuildContext(job, {
@@ -210,7 +208,6 @@ describe(androidBuilder, () => {
       ...createTestAndroidJob(),
       version: {
         versionCode: '42',
-        versionName: '1.2.3',
       },
     };
     const ctx = new BuildContext(job, {
