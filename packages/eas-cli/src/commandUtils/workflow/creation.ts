@@ -1,19 +1,23 @@
-import { ExpoConfig } from '@expo/config';
-import { Platform } from '@expo/eas-build-job';
+import { ExpoConfig, getPackageJson } from '@expo/config';
+import { Platform, Workflow } from '@expo/eas-build-job';
+import chalk from 'chalk';
 
 import {
-  addAndroidDevelopmentBuildProfileToEasJsonAsync,
-  addIosDevelopmentBuildProfileToEasJsonAsync,
+  DEVELOPMENT_BUILD_PROFILE_NAME,
+  DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME,
   addProductionBuildProfileToEasJsonIfNeededAsync,
-  buildProfilesFromProjectAsync,
+  ensureDevelopmentBuildProfilesExistAsync,
   hasBuildConfigureBeenRunAsync,
   hasUpdateConfigureBeenRunAsync,
-  isBuildProfileForDevelopment,
-  isIosBuildProfileForSimulator,
 } from './buildProfileUtils';
+import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 import Log, { link } from '../../log';
-import { confirmAsync } from '../../prompts';
+import { ensureApplicationIdIsDefinedForManagedProjectAsync } from '../../project/android/applicationId';
+import { ensureBundleIdentifierIsDefinedForManagedProjectAsync } from '../../project/ios/bundleIdentifier';
+import { resolveWorkflowAsync } from '../../project/workflow';
 import { easCliVersion } from '../../utils/easCli';
+import { expoCommandAsync } from '../../utils/expoCli';
+import { Client } from '../../vcs/vcs';
 
 export enum WorkflowStarterName {
   BUILD = 'build',
@@ -32,6 +36,17 @@ export type WorkflowStarter = {
 };
 
 const createdByEASCLI = `# Created by EAS CLI v${easCliVersion}`;
+
+/**
+ * Placeholder workflow written when a user runs `eas workflow:create <name>` with a file name
+ * but without picking a template.
+ */
+export const PLACEHOLDER_WORKFLOW_CONTENTS = `name: # Workflow name
+
+on: # Add triggers https://docs.expo.dev/eas/workflows/syntax/#on
+
+jobs: # Add pre-packaged jobs http://docs.expo.dev/eas/workflows/pre-packaged-jobs/. See all syntax https://docs.expo.dev/eas/workflows/syntax/#jobs.
+`;
 
 const CUSTOM_TEMPLATE = {
   name: 'Custom workflow',
@@ -58,86 +73,73 @@ const CUSTOM_TEMPLATE = {
 };
 
 const CUSTOM_TEMPLATE_HEADER = `
-# Custom job
+# Custom workflow
 #
-# This workflow shows how to write custom jobs.
-# It contains a predefined workflow step and a shell command to print "Hello, World!".
-#
-# Key features:
-# - Triggers on pushes to the main branch.
-#    (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
-# - Can be triggered manually with eas workflow:run custom.yml
-# - Runs eas/checkout then a custom "echo" command
-#
-# For detailed documentation on workflow syntax and available step types, visit:
-# https://docs.expo.dev/eas/workflows/syntax/#jobsjob_idstepsstepuses
+# Runs eas/checkout, then a custom shell command. Triggered on pushes to "main".
+# Learn more: https://docs.expo.dev/eas/workflows/syntax/
 #
 ${createdByEASCLI}
-#
 `;
 
 const BUILD_TEMPLATE = {
   name: 'Create development builds',
-  on: {
-    push: {
-      branches: ['main'],
+  jobs: {
+    android_development_build: {
+      name: 'Build Android',
+      type: 'build',
+      params: {
+        platform: 'android',
+        profile: DEVELOPMENT_BUILD_PROFILE_NAME,
+      },
+    },
+    ios_device_development_build: {
+      name: 'Build iOS device',
+      type: 'build',
+      params: {
+        platform: 'ios',
+        profile: DEVELOPMENT_BUILD_PROFILE_NAME,
+      },
+    },
+    ios_simulator_development_build: {
+      name: 'Build iOS simulator',
+      type: 'build',
+      params: {
+        platform: 'ios',
+        profile: DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME,
+      },
     },
   },
-  jobs: {},
 };
 
 const BUILD_TEMPLATE_HEADER = `
 # Create development builds
 #
-# This workflow shows how to create development builds.
-#
-# Key features:
-# - Can be triggered manually with eas workflow:run create-development-builds.yml
-# - Runs the pre-packaged build job to create Android and iOS development builds
-#     for Android emulators, Android and iOS devices, and iOS simulators
-#
-# For a detailed guide on using this workflow, visit:
-# https://docs.expo.dev/develop/development-builds/introduction/
+# Builds Android and iOS development builds for devices and simulators.
+# Learn more: https://docs.expo.dev/develop/development-builds/introduction/
 #
 ${createdByEASCLI}
-#
 `;
 
 const PUBLISH_UPDATE_TEMPLATE = {
-  name: 'Publish preview update',
-  on: {
-    push: {
-      branches: ['*'],
-    },
-  },
+  name: 'Publish update',
   jobs: {
-    publish_preview_update: {
-      name: 'Publish preview update',
+    publish_update: {
+      name: 'Publish update',
       type: 'update',
       params: {
-        branch: '${{ github.ref_name || "test" }}',
+        branch: '${{ github.ref_name || "main" }}',
       },
     },
   },
 };
 
 const PUBLISH_UPDATE_TEMPLATE_HEADER = `
-# Publish preview update
+# Publish update
 #
-# This workflow shows how to publish preview updates.
-# Learn more: https://docs.expo.dev/review/share-previews-with-your-team/
-#
-# Key features:
-# - Triggers on pushes to all branches
-#    (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
-# - Can be triggered manually with eas workflow:run publish-preview-update.yml
-# - Runs the pre-packaged update job
-#
-# For a detailed guide on using this workflow, visit:
-# https://docs.expo.dev/eas/workflows/examples/publish-preview-update/
+# Publishes an EAS Update to the current branch.
+# Learn more: https://docs.expo.dev/eas/workflows/examples/publish-preview-update/
 #
 ${createdByEASCLI}
-#
 `;
 
 const DEPLOY_TEMPLATE = {
@@ -232,63 +234,41 @@ const DEPLOY_TEMPLATE = {
 const DEPLOY_TEMPLATE_HEADER = `
 # Deploy to production
 #
-# This workflow shows how to build and submit to app stores.
+# Builds and submits to the app stores, or sends an over-the-air update when there are no native changes.
+# Triggered on pushes to "main".
+# Learn more: https://docs.expo.dev/eas/workflows/examples/deploy-to-production/
 #
-# Key features:
-# - Triggers on pushes to "main" (Requires linked GitHub account: https://expo.dev/accounts/[account]/settings/github)
-# - Can be triggered manually with eas workflow:run deploy-to-production.yml
-# - Creates builds and submits them to app stores when native changes are detected, otherwise sends an over-the-air update.
-#
-# For a detailed guide on using this workflow, visit:
-# https://docs.expo.dev/eas/workflows/examples/deploy-to-production/
+${createdByEASCLI}
 `;
 
 function nextStepForDeviceBuildProfile(buildProfileName: string): string {
-  return `A build job in this workflow uses the build profile "${buildProfileName}"
-    to build your app for real devices, and may require credentials.
-    You can configure your credentials with the command "eas credentials".
-    For more information, please see ${link('https://docs.expo.dev/app-signing/app-credentials/')}.
-`
-    .trim()
-    .trimStart();
+  return `Building for real devices with the "${buildProfileName}" profile may require credentials. Set them up with ${chalk.bold(
+    'eas credentials'
+  )}. Learn more: ${link('https://docs.expo.dev/app-signing/app-credentials/')}`;
 }
 
 function nextStepForAppSubmission(): string {
-  return `This workflow includes a job to submit your app to app stores.
-    You will need to configure your App Store/Play Store credentials 
-    before you can run this workflow.
-    Please see ${link('https://docs.expo.dev/deploy/submit-to-app-stores/')}.
-  `
-    .trim()
-    .trimStart();
+  return `Submitting to the app stores requires App Store and Play Store credentials. Learn more: ${link(
+    'https://docs.expo.dev/deploy/submit-to-app-stores/'
+  )}`;
 }
 
 export function howToRunWorkflow(
   workflowFileName: string,
   workflowStarter: WorkflowStarter
 ): string {
-  const lines = [
-    `To run this workflow manually, use the command "eas workflow:run .eas/workflows/${workflowFileName}".`,
-  ];
-  if (workflowStarter.template?.on?.push?.branches?.length > 0) {
-    const branches = workflowStarter.template.on.push.branches;
+  let line = `Run this workflow with ${chalk.bold(`eas workflow:run ${workflowFileName}`)}.`;
+  const branches = workflowStarter.template?.on?.push?.branches;
+  if (Array.isArray(branches) && branches.length > 0) {
     if (branches.length === 1 && branches[0] === '*') {
-      lines.push(
-        'This workflow is also configured to run automatically when code is pushed to any branch.'
-      );
+      line += ' It also runs automatically when code is pushed to any branch.';
     } else if (branches.length === 1) {
-      lines.push(
-        `This workflow is also configured to run automatically when code is pushed to the "${branches[0]}" branch.`
-      );
+      line += ` It also runs automatically when code is pushed to the "${branches[0]}" branch.`;
     } else {
-      lines.push(
-        `This workflow is also configured to run automatically when code is pushed to the following branches: ${branches.join(
-          ', '
-        )}.`
-      );
+      line += ` It also runs automatically when code is pushed to: ${branches.join(', ')}.`;
     }
   }
-  return lines.join('\n');
+  return line;
 }
 
 export const workflowStarters: WorkflowStarter[] = [
@@ -302,181 +282,110 @@ export const workflowStarters: WorkflowStarter[] = [
   {
     displayName: 'Create development builds',
     name: WorkflowStarterName.BUILD,
-    defaultFileName: 'create-development-builds.yml',
+    defaultFileName: 'build.yml',
     template: BUILD_TEMPLATE,
     header: BUILD_TEMPLATE_HEADER,
   },
   {
     displayName: 'Publish updates',
     name: WorkflowStarterName.UPDATE,
-    defaultFileName: 'publish-updates.yml',
+    defaultFileName: 'update.yml',
     template: PUBLISH_UPDATE_TEMPLATE,
     header: PUBLISH_UPDATE_TEMPLATE_HEADER,
   },
   {
     displayName: 'Deploy to production',
     name: WorkflowStarterName.DEPLOY,
-    defaultFileName: 'deploy-to-production.yml',
+    defaultFileName: 'deploy.yml',
     template: DEPLOY_TEMPLATE,
     header: DEPLOY_TEMPLATE_HEADER,
   },
 ];
 
-export async function addBuildJobsToDevelopmentBuildTemplateAsync(
-  projectDir: string,
-  workflowStarter: WorkflowStarter
-): Promise<WorkflowStarter> {
-  const buildProfiles = await buildProfilesFromProjectAsync(projectDir);
-  // android_development_build
-
-  const nextSteps: Set<string> = new Set();
-
-  let androidDevelopmentBuildProfileName: string | null = null;
-  for (const profileName of buildProfiles.keys()) {
-    const profile = buildProfiles.get(profileName)?.android;
-    if (!profile) {
-      continue;
-    }
-    if (isBuildProfileForDevelopment(profile, Platform.ANDROID)) {
-      androidDevelopmentBuildProfileName = profileName;
-      break;
-    }
-  }
-  if (!androidDevelopmentBuildProfileName) {
-    Log.warn(
-      'This workflow requires an Android development build profile in your eas.json, but none were found.'
-    );
-    const add = await confirmAsync({
-      message: 'Do you want to add an Android development build profile?',
-      initial: false,
-    });
-    if (add) {
-      let androidDevelopmentBuildProfileName = 'android_development';
-      while (buildProfiles.has(androidDevelopmentBuildProfileName)) {
-        androidDevelopmentBuildProfileName = `${androidDevelopmentBuildProfileName}_1`;
-      }
-      await addAndroidDevelopmentBuildProfileToEasJsonAsync(
-        projectDir,
-        androidDevelopmentBuildProfileName
-      );
-    } else {
-      Log.log('Skipping Android development build job...');
-    }
-  }
-  if (androidDevelopmentBuildProfileName) {
-    Log.log(`Using Android development build profile: ${androidDevelopmentBuildProfileName}`);
-    workflowStarter.template.jobs.android_development_build = {
-      name: `Build ${androidDevelopmentBuildProfileName} for android`,
-      type: 'build',
-      params: {
-        profile: androidDevelopmentBuildProfileName,
-        platform: 'android',
-      },
-    };
-    nextSteps.add(nextStepForDeviceBuildProfile(androidDevelopmentBuildProfileName));
-  }
-
-  // ios_simulator_development_build
-  let iosSimulatorDevelopmentBuildProfileName: string | null = null;
-  for (const profileName of buildProfiles.keys()) {
-    const profile = buildProfiles.get(profileName)?.ios;
-    if (!profile) {
-      continue;
-    }
-    if (
-      isBuildProfileForDevelopment(profile, Platform.IOS) &&
-      isIosBuildProfileForSimulator(profile)
-    ) {
-      iosSimulatorDevelopmentBuildProfileName = profileName;
-      break;
-    }
-  }
-  if (!iosSimulatorDevelopmentBuildProfileName) {
-    Log.warn(
-      'This workflow requires an iOS simulator development build profile in your eas.json, but none were found.'
-    );
-    const add = await confirmAsync({
-      message: 'Do you want to add an iOS simulator development build profile?',
-      initial: false,
-    });
-    if (add) {
-      let iosSimulatorDevelopmentBuildProfileName = 'ios_simulator_development';
-      while (buildProfiles.has(iosSimulatorDevelopmentBuildProfileName)) {
-        iosSimulatorDevelopmentBuildProfileName = `${iosSimulatorDevelopmentBuildProfileName}_1`;
-      }
-      await addIosDevelopmentBuildProfileToEasJsonAsync(
-        projectDir,
-        iosSimulatorDevelopmentBuildProfileName,
-        true
-      );
-    } else {
-      Log.log('Skipping iOS simulator development build job...');
-    }
-  }
-  if (iosSimulatorDevelopmentBuildProfileName) {
-    Log.log(
-      `Using iOS simulator development build profile: ${iosSimulatorDevelopmentBuildProfileName}`
-    );
-    workflowStarter.template.jobs.ios_simulator_development_build = {
-      name: `Build ${iosSimulatorDevelopmentBuildProfileName} for iOS simulator`,
-      type: 'build',
-      params: {
-        profile: iosSimulatorDevelopmentBuildProfileName,
-        platform: 'ios',
-      },
-    };
-  }
-  // ios_device_development_build
-  let iosDeviceDevelopmentBuildProfileName: string | null = null;
-  for (const profileName of buildProfiles.keys()) {
-    const profile = buildProfiles.get(profileName)?.ios;
-    if (!profile) {
-      continue;
-    }
-    if (
-      isBuildProfileForDevelopment(profile, Platform.IOS) &&
-      !isIosBuildProfileForSimulator(profile)
-    ) {
-      iosDeviceDevelopmentBuildProfileName = profileName;
-      break;
-    }
-  }
-  if (!iosDeviceDevelopmentBuildProfileName) {
-    Log.warn(
-      'This workflow requires an iOS device development build profile in your eas.json, but none were found.'
-    );
-    const add = await confirmAsync({
-      message: 'Do you want to add an iOS device development build profile?',
-      initial: false,
-    });
-    if (add) {
-      let iosDeviceDevelopmentBuildProfileName = 'ios_device_development';
-      while (buildProfiles.has(iosDeviceDevelopmentBuildProfileName)) {
-        iosDeviceDevelopmentBuildProfileName = `${iosDeviceDevelopmentBuildProfileName}_1`;
-      }
-      await addIosDevelopmentBuildProfileToEasJsonAsync(
-        projectDir,
-        iosDeviceDevelopmentBuildProfileName,
-        false
-      );
-    } else {
-      Log.log('Skipping iOS device development build job...');
-    }
-  }
-  if (iosDeviceDevelopmentBuildProfileName) {
-    Log.log(`Using iOS device development build profile: ${iosDeviceDevelopmentBuildProfileName}`);
-    workflowStarter.template.jobs.ios_development_build = {
-      name: `Build ${iosDeviceDevelopmentBuildProfileName} for iOS simulator`,
-      type: 'build',
-      params: {
-        profile: iosDeviceDevelopmentBuildProfileName,
-        platform: 'ios',
-      },
-    };
-    nextSteps.add(nextStepForDeviceBuildProfile(iosDeviceDevelopmentBuildProfileName));
-  }
-  workflowStarter.nextSteps = [...nextSteps];
+/**
+ * Sets up the project for the "Create development builds" workflow:
+ * - Ensures app identifiers (android.package, ios.bundleIdentifier) are defined, which are
+ *   required for builds triggered by the GitHub integration.
+ * - Ensures the development build profiles exist in eas.json.
+ * - Ensures expo-dev-client is installed.
+ */
+async function setUpDevelopmentBuildTemplateAsync({
+  workflowStarter,
+  projectDir,
+  expoConfig,
+  graphqlClient,
+  projectId,
+  vcsClient,
+}: {
+  workflowStarter: WorkflowStarter;
+  projectDir: string;
+  expoConfig: ExpoConfig;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  vcsClient: Client;
+}): Promise<WorkflowStarter> {
+  await ensureAppIdentifiersAreDefinedAsync({
+    graphqlClient,
+    projectDir,
+    projectId,
+    exp: expoConfig,
+    vcsClient,
+  });
+  await ensureDevelopmentBuildProfilesExistAsync(projectDir);
+  await ensureExpoDevClientInstalledAsync(projectDir);
+  workflowStarter.nextSteps = [nextStepForDeviceBuildProfile(DEVELOPMENT_BUILD_PROFILE_NAME)];
   return workflowStarter;
+}
+
+/**
+ * Ensures the app identifiers are set in the app config for managed projects. Builds triggered by
+ * the GitHub integration require "android.package" and "ios.bundleIdentifier" to be set.
+ */
+async function ensureAppIdentifiersAreDefinedAsync({
+  graphqlClient,
+  projectDir,
+  projectId,
+  exp,
+  vcsClient,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  projectDir: string;
+  projectId: string;
+  exp: ExpoConfig;
+  vcsClient: Client;
+}): Promise<void> {
+  const androidWorkflow = await resolveWorkflowAsync(projectDir, Platform.ANDROID, vcsClient);
+  if (androidWorkflow === Workflow.MANAGED) {
+    await ensureApplicationIdIsDefinedForManagedProjectAsync({
+      graphqlClient,
+      projectDir,
+      projectId,
+      exp,
+      vcsClient,
+      nonInteractive: false,
+    });
+  }
+  const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
+  if (iosWorkflow === Workflow.MANAGED) {
+    await ensureBundleIdentifierIsDefinedForManagedProjectAsync({
+      graphqlClient,
+      projectDir,
+      projectId,
+      exp,
+      vcsClient,
+      nonInteractive: false,
+    });
+  }
+}
+
+async function ensureExpoDevClientInstalledAsync(projectDir: string): Promise<void> {
+  const packageJson = getPackageJson(projectDir);
+  const isInstalled = !!(packageJson.dependencies && 'expo-dev-client' in packageJson.dependencies);
+  if (isInstalled) {
+    return;
+  }
+  Log.log('Installing expo-dev-client...');
+  await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
 }
 
 export async function ensureProductionBuildProfileExistsAsync(
@@ -491,11 +400,21 @@ export async function ensureProductionBuildProfileExistsAsync(
   return workflowStarter;
 }
 
-export async function customizeTemplateIfNeededAsync(
-  workflowStarter: WorkflowStarter,
-  projectDir: string,
-  expoConfig: ExpoConfig
-): Promise<any> {
+export async function customizeTemplateIfNeededAsync({
+  workflowStarter,
+  projectDir,
+  expoConfig,
+  graphqlClient,
+  projectId,
+  vcsClient,
+}: {
+  workflowStarter: WorkflowStarter;
+  projectDir: string;
+  expoConfig: ExpoConfig;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  vcsClient: Client;
+}): Promise<WorkflowStarter> {
   // Ensure EAS Build is configured
   switch (workflowStarter.name) {
     case WorkflowStarterName.BUILD:
@@ -526,8 +445,15 @@ export async function customizeTemplateIfNeededAsync(
   // Customize template
   switch (workflowStarter.name) {
     case WorkflowStarterName.BUILD:
-      Log.debug('Adding build jobs to template...');
-      return await addBuildJobsToDevelopmentBuildTemplateAsync(projectDir, workflowStarter);
+      Log.debug('Setting up development builds workflow...');
+      return await setUpDevelopmentBuildTemplateAsync({
+        workflowStarter,
+        projectDir,
+        expoConfig,
+        graphqlClient,
+        projectId,
+        vcsClient,
+      });
     case WorkflowStarterName.DEPLOY:
       return await ensureProductionBuildProfileExistsAsync(projectDir, workflowStarter);
     default:
