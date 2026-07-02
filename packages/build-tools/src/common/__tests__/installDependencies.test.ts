@@ -40,7 +40,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -56,6 +56,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
         NPM_CONFIG_REGISTRY: npmCacheUrl,
       },
     });
@@ -66,6 +67,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       env: {
         EAS_VERBOSE: '1',
         EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -110,7 +112,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       packageManager: PackageManager.NPM,
       env: {
         EAS_USE_NPM_CACHE: '1',
-        NPM_CONFIG_REGISTRY: npmCacheUrl,
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
       },
       logger,
       cwd: '/tmp/build',
@@ -158,7 +160,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
         packageManager: PackageManager.NPM,
         env: {
           EAS_USE_NPM_CACHE: '1',
-          NPM_CONFIG_REGISTRY: 'http://npm.staging.caches.eas-build.internal',
+          EAS_BUILD_NPM_CACHE_URL: 'http://npm.staging.caches.eas-build.internal',
         },
         logger,
         cwd: '/tmp/build',
@@ -170,7 +172,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
-  it('does not retry when EAS_USE_NPM_CACHE is not enabled', async () => {
+  it('does not retry when the npm cache is not enabled', async () => {
     const logger = createMockLogger();
     const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
     const error = Object.assign(
@@ -188,9 +190,7 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     await expect(
       installDependenciesWithNpmCacheFallbackAsync({
         packageManager: PackageManager.NPM,
-        env: {
-          NPM_CONFIG_REGISTRY: npmCacheUrl,
-        },
+        env: {},
         logger,
         cwd: '/tmp/build',
         useFrozenLockfile: false,
@@ -198,6 +198,40 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
     ).rejects.toThrow(error);
 
     expect(spawn).toHaveBeenCalledTimes(1);
+    expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+
+  it('installs through the npm cache registry without retrying when the cache install succeeds', async () => {
+    const logger = createMockLogger();
+    const npmCacheUrl = 'http://npm.staging.caches.eas-build.internal';
+
+    jest
+      .mocked(spawn)
+      .mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesWithNpmCacheFallbackAsync({
+      packageManager: PackageManager.NPM,
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+      },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: false,
+    });
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledWith('npm', ['install', '--include=dev'], {
+      cwd: '/tmp/build',
+      logger,
+      infoCallbackFn: undefined,
+      lineTransformer: expect.any(Function),
+      env: {
+        EAS_USE_NPM_CACHE: '1',
+        EAS_BUILD_NPM_CACHE_URL: npmCacheUrl,
+        NPM_CONFIG_REGISTRY: npmCacheUrl,
+      },
+    });
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
 });
