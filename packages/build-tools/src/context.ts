@@ -72,6 +72,41 @@ export interface BuildContextOptions {
 
 export class SkipNativeBuildError extends Error {}
 
+function logEnvComparison({
+  oldMergeOrderEnv,
+  newMergeOrderEnv,
+}: {
+  oldMergeOrderEnv: Env;
+  newMergeOrderEnv: Env;
+}): void {
+  const envNames = new Set([...Object.keys(oldMergeOrderEnv), ...Object.keys(newMergeOrderEnv)]);
+  const sameEnvNames: string[] = [];
+  const differentEnvNames: string[] = [];
+
+  for (const key of envNames) {
+    const hasOldValue = key in oldMergeOrderEnv;
+    const hasNewValue = key in newMergeOrderEnv;
+    if (hasOldValue === hasNewValue && oldMergeOrderEnv[key] === newMergeOrderEnv[key]) {
+      sameEnvNames.push(key);
+    } else {
+      differentEnvNames.push(key);
+    }
+  }
+
+  if (differentEnvNames.length === 0) {
+    Datadog.log('BuildContext.updateEnv merge order produced same env');
+    return;
+  }
+
+  Datadog.log(
+    `BuildContext.updateEnv merge order produced different env: compared_env_count=${
+      envNames.size
+    } different_env_count=${differentEnvNames.length} different_env_names=${differentEnvNames.join(
+      ','
+    )} same_env_count=${sameEnvNames.length} same_env_names=${sameEnvNames.join(',')}`
+  );
+}
+
 export class BuildContext<TJob extends Job = Job> {
   public readonly workingdir: string;
   public logger: bunyan;
@@ -247,11 +282,24 @@ export class BuildContext<TJob extends Job = Job> {
         'Updating environment variables is only allowed when build was triggered by a git-based integration.'
       );
     }
-    this._env = {
+
+    const oldMergeOrderEnv: Env = {
       ...env,
       ...this._env,
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
+    const newMergeOrderEnv: Env = {
+      ...this._env,
+      ...env,
+      __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
+    };
+
+    logEnvComparison({
+      oldMergeOrderEnv,
+      newMergeOrderEnv,
+    });
+
+    this._env = newMergeOrderEnv;
     this._env.PATH = this._env.PATH
       ? [this.buildExecutablesDirectory, this._env.PATH].join(':')
       : this.buildExecutablesDirectory;
