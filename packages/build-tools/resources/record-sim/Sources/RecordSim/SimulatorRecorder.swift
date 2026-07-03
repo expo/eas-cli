@@ -2,6 +2,7 @@ import AVFoundation
 import CoreVideo
 import Foundation
 import IOSurface
+import UniformTypeIdentifiers
 
 public final class SimulatorRecorder {
     public var onSegment: ((SegmentOutput) -> Void)?
@@ -114,7 +115,10 @@ public final class SimulatorRecorder {
                 throw firstError
             }
             guard let writer, let input, let outputWriter else {
-                throw RecorderError.make(22, "No frames were captured")
+                let error = RecorderError.make(22, "No frames were captured")
+                firstError = error
+                signalFirstFrameReadyIfNeeded()
+                throw error
             }
             try appendTailFrameIfNeeded(finalPTS: monotonicClock.elapsedTime())
             input.markAsFinished()

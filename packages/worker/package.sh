@@ -22,6 +22,18 @@ fi
 
 echo "Building $OUTPUT_FILE"
 
+tmp_dir=""
+record_sim_build_dir=""
+cleanup() {
+  if [[ -n "$tmp_dir" ]]; then
+    rm -rf "$tmp_dir"
+  fi
+  if [[ -n "$record_sim_build_dir" ]]; then
+    rm -rf "$record_sim_build_dir"
+  fi
+}
+trap cleanup EXIT
+
 tmp_dir=$(mktemp -d)
 target_root_dir="$tmp_dir"
 target_worker_dir="$tmp_dir/packages/worker"
@@ -129,6 +141,3 @@ ln -s ../../../../packages/worker/dist/main.js "$target_root_dir/src/services/wo
 tar zcf $OUTPUT_FILE -C $target_root_dir .
 
 echo "Tarball is ready: $OUTPUT_FILE"
-
-rm -rf "$tmp_dir"
-rm -rf "$record_sim_build_dir"
