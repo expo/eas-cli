@@ -53,6 +53,7 @@ import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
 import { createPosthogAnnotationFunction } from './functions/createPosthogAnnotation';
+import { createWaitForPosthogQueryFunction } from './functions/waitForPosthogQuery';
 import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
@@ -101,6 +102,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createWaitForPosthogMetricFunction(),
     createUploadPosthogSourcemapsFunction(),
     createPosthogAnnotationFunction(),
+    createWaitForPosthogQueryFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
