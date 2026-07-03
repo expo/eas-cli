@@ -107,6 +107,12 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
                 throw firstError
             }
             let segmented = configuration.segmentDuration > 0
+            if segmented, initSegmentPath == nil {
+                throw RecorderError.make(50, "Missing initialization segment")
+            }
+            if segmented, segments.isEmpty {
+                throw RecorderError.make(51, "No media segments were written")
+            }
             let targetDuration = segmented
                 ? max(1, Int(ceil(segments.map(\.durationSeconds).max() ?? configuration.segmentDuration)))
                 : nil

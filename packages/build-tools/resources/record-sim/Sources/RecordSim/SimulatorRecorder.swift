@@ -189,28 +189,38 @@ public final class SimulatorRecorder {
         guard configuration.segmentDuration > 0 else {
             return
         }
-        let elapsed = monotonicClock.elapsedSeconds()
-        guard elapsed >= nextBoundaryElapsed else {
+        let currentPTSSeconds = writerQueue.sync { () -> TimeInterval? in
+            guard firstAcceptedCaptureTime != nil else {
+                return nil
+            }
+            return CMTimeGetSeconds(normalizedPresentationTime(for: monotonicClock.elapsedTime()))
+        }
+        guard let currentPTSSeconds, currentPTSSeconds >= nextBoundaryElapsed else {
             return
         }
 
-        var boundary = nextBoundaryElapsed
-        while boundary + configuration.segmentDuration <= elapsed {
-            boundary += configuration.segmentDuration
-        }
+        let boundary = nextBoundaryElapsed
 
-        let alreadyCrossedBoundary = writerQueue.sync { () -> Bool in
+        let didAppendBoundaryFrame = writerQueue.sync { () -> Bool in
             guard let lastPTS else {
                 return false
             }
-            return CMTimeGetSeconds(lastPTS) >= boundary
-        }
-        if alreadyCrossedBoundary {
-            nextBoundaryElapsed = boundary + configuration.segmentDuration
-            return
-        }
+            if CMTimeGetSeconds(lastPTS) >= boundary {
+                return true
+            }
 
-        captureFrame(force: true, reason: .boundary)
+            do {
+                let boundaryPTS = CMTime(seconds: boundary, preferredTimescale: 1_000_000_000)
+                return try appendHeldFrame(at: boundaryPTS)
+            } catch {
+                firstError = error
+                signalFirstFrameReadyIfNeeded()
+                return false
+            }
+        }
+        if didAppendBoundaryFrame {
+            nextBoundaryElapsed = boundary + configuration.segmentDuration
+        }
     }
 
     private func captureFrame(force: Bool, reason: CaptureReason) {
@@ -460,6 +470,11 @@ public final class SimulatorRecorder {
     }
 
     private func appendTailFrame(finalPTS: CMTime) throws -> Bool {
+        let pts = normalizedPresentationTime(for: finalPTS)
+        return try appendHeldFrame(at: pts)
+    }
+
+    private func appendHeldFrame(at pts: CMTime) throws -> Bool {
         guard let input,
               let adaptor,
               let lastPTS,
@@ -467,7 +482,6 @@ public final class SimulatorRecorder {
         else {
             return true
         }
-        let pts = normalizedPresentationTime(for: finalPTS)
         if CMTimeCompare(pts, lastPTS) <= 0 {
             return true
         }
@@ -475,7 +489,7 @@ public final class SimulatorRecorder {
             return false
         }
         if !adaptor.append(lastAppendedPixelBuffer, withPresentationTime: pts) {
-            throw writer?.error ?? RecorderError.make(45, "Failed to append tail frame")
+            throw writer?.error ?? RecorderError.make(45, "Failed to append held frame")
         }
         self.lastPTS = pts
         return true
