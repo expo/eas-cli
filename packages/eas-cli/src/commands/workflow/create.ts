@@ -24,6 +24,8 @@ import {
   workflowContentsFromParsedYaml,
 } from '../../commandUtils/workflow/validation';
 import Log, { link } from '../../log';
+import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
+import { initializeWithoutExplicitIDAsync } from '../../project/projectInitialization';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 
@@ -65,7 +67,7 @@ export class WorkflowCreate extends EasCommand {
     try {
       const {
         getDynamicPrivateProjectConfigAsync,
-        loggedIn: { graphqlClient },
+        loggedIn: { actor, graphqlClient },
         projectDir,
         vcsClient,
       } = await this.getContextAsync(WorkflowCreate, {
@@ -77,6 +79,17 @@ export class WorkflowCreate extends EasCommand {
       if (argFileName && !flags.template) {
         await createPlaceholderWorkflowFileAsync({ argFileName, projectDir });
         return;
+      }
+
+      // If the project isn't linked to an EAS project yet, run the same create-or-link flow as
+      // `eas init` (which lets the user pick the owning account, including organizations). Without
+      // this, an unconfigured org-owned project would silently default to the personal account.
+      const privateExpoConfig = await getPrivateExpoConfigAsync(projectDir);
+      if (!privateExpoConfig.extra?.eas?.projectId) {
+        await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
+          force: false,
+          nonInteractive: false,
+        });
       }
 
       const { exp: originalExpoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
@@ -218,7 +231,7 @@ function logNextSteps({
   );
   const steps = [...actionRequiredSteps, howToRunWorkflow(fileName, workflowStarter)];
   Log.addNewLineIfNone();
-  Log.log('Next steps:');
+  Log.log('➡️ Next steps:');
   Log.addNewLineIfNone();
   Log.log(
     formatFields(
@@ -247,7 +260,7 @@ async function createPlaceholderWorkflowFileAsync({
   await fs.writeFile(filePath, PLACEHOLDER_WORKFLOW_CONTENTS);
   Log.withTick(`Created ${chalk.bold(filePath)}`);
   Log.addNewLineIfNone();
-  Log.log('Next steps:');
+  Log.log('➡️ Next steps:');
   Log.addNewLineIfNone();
   Log.log(
     formatFields([
@@ -259,7 +272,7 @@ async function createPlaceholderWorkflowFileAsync({
       },
       {
         label: '2.',
-        value: `Run this workflow with ${chalk.bold(`eas workflow:run ${fileName}`)}.`,
+        value: `Run this workflow with ${chalk.bold(`eas workflow:run ${fileName}`)}`,
       },
     ])
   );

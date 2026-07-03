@@ -144,11 +144,6 @@ ${createdByEASCLI}
 
 const DEPLOY_TEMPLATE = {
   name: 'Deploy to production',
-  on: {
-    push: {
-      branches: ['main'],
-    },
-  },
   jobs: {
     fingerprint: {
       name: 'Fingerprint',
@@ -235,70 +230,86 @@ const DEPLOY_TEMPLATE_HEADER = `
 # Deploy to production
 #
 # Builds and submits to the app stores, or sends an over-the-air update when there are no native changes.
-# Triggered on pushes to "main".
 # Learn more: https://docs.expo.dev/eas/workflows/examples/deploy-to-production/
 #
 ${createdByEASCLI}
 `;
 
-function nextStepForDeviceBuildProfile(buildProfileName: string): string {
-  return `Building for real devices with the "${buildProfileName}" profile may require credentials. Set them up with ${chalk.bold(
-    'eas credentials'
-  )}. Learn more: ${link('https://docs.expo.dev/app-signing/app-credentials/')}`;
+function nextStepsForProductionCredentials(): string[] {
+  // Each step ends with the command (no trailing period) so it's easy to copy and paste.
+  return [
+    `Set up iOS build credentials for the "production" profile, required by the build jobs. Run ${chalk.bold(
+      'eas credentials:configure-build -p ios -e production'
+    )}`,
+    `Set up Android build credentials for the "production" profile, required by the build jobs. Run ${chalk.bold(
+      'eas credentials:configure-build -p android -e production'
+    )}`,
+    `Set up an App Store Connect API Key, required by the iOS submit job. In the menu, choose "App Store Connect: Manage your API Key" then "Set up your project to use an API Key for EAS Submit". Run ${chalk.bold(
+      'eas credentials -p ios'
+    )}`,
+    `Set up a Google Service Account Key, required by the Android submit job. In the menu, choose "Google Service Account" then "Set up a Google Service Account Key for Play Store Submissions". Run ${chalk.bold(
+      'eas credentials -p android'
+    )}`,
+  ];
 }
 
-function nextStepForAppSubmission(): string {
-  return `Submitting to the app stores requires App Store and Play Store credentials. Learn more: ${link(
-    'https://docs.expo.dev/deploy/submit-to-app-stores/'
-  )}`;
+function nextStepForDeviceDevelopmentBuild(buildProfileName: string): string {
+  // Ends with the command (no trailing period) so it's easy to copy and paste. iOS development
+  // builds only run on registered devices, and you register your device during this setup.
+  return `Set up iOS credentials so the development build can run on a physical device (you'll register your device when prompted). Learn more: ${link(
+    'https://docs.expo.dev/app-signing/app-credentials/'
+  )} Run ${chalk.bold(`eas credentials:configure-build -p ios -e ${buildProfileName}`)}`;
 }
 
 export function howToRunWorkflow(
   workflowFileName: string,
   workflowStarter: WorkflowStarter
 ): string {
-  let line = `Run this workflow with ${chalk.bold(`eas workflow:run ${workflowFileName}`)}.`;
+  let autoRunNote = '';
   const branches = workflowStarter.template?.on?.push?.branches;
   if (Array.isArray(branches) && branches.length > 0) {
     if (branches.length === 1 && branches[0] === '*') {
-      line += ' It also runs automatically when code is pushed to any branch.';
+      autoRunNote = 'This workflow also runs automatically when code is pushed to any branch. ';
     } else if (branches.length === 1) {
-      line += ` It also runs automatically when code is pushed to the "${branches[0]}" branch.`;
+      autoRunNote = `This workflow also runs automatically when code is pushed to the "${branches[0]}" branch. `;
     } else {
-      line += ` It also runs automatically when code is pushed to: ${branches.join(', ')}.`;
+      autoRunNote = `This workflow also runs automatically when code is pushed to: ${branches.join(
+        ', '
+      )}. `;
     }
   }
-  return line;
+  // Keep the run command last with no trailing period so it's easy to copy and paste.
+  return `${autoRunNote}Run this workflow with ${chalk.bold(`eas workflow:run ${workflowFileName}`)}`;
 }
 
 export const workflowStarters: WorkflowStarter[] = [
   {
-    displayName: 'Custom',
-    name: WorkflowStarterName.CUSTOM,
-    defaultFileName: 'custom.yml',
-    template: CUSTOM_TEMPLATE,
-    header: CUSTOM_TEMPLATE_HEADER,
-  },
-  {
-    displayName: 'Create development builds',
+    displayName: `${chalk.bold('Build')} development builds`,
     name: WorkflowStarterName.BUILD,
     defaultFileName: 'build.yml',
     template: BUILD_TEMPLATE,
     header: BUILD_TEMPLATE_HEADER,
   },
   {
-    displayName: 'Publish updates',
+    displayName: `${chalk.bold('Publish')} updates`,
     name: WorkflowStarterName.UPDATE,
     defaultFileName: 'update.yml',
     template: PUBLISH_UPDATE_TEMPLATE,
     header: PUBLISH_UPDATE_TEMPLATE_HEADER,
   },
   {
-    displayName: 'Deploy to production',
+    displayName: `${chalk.bold('Deploy')} to production`,
     name: WorkflowStarterName.DEPLOY,
     defaultFileName: 'deploy.yml',
     template: DEPLOY_TEMPLATE,
     header: DEPLOY_TEMPLATE_HEADER,
+  },
+  {
+    displayName: chalk.bold('Custom'),
+    name: WorkflowStarterName.CUSTOM,
+    defaultFileName: 'custom.yml',
+    template: CUSTOM_TEMPLATE,
+    header: CUSTOM_TEMPLATE_HEADER,
   },
 ];
 
@@ -333,7 +344,7 @@ async function setUpDevelopmentBuildTemplateAsync({
   });
   await ensureDevelopmentBuildProfilesExistAsync(projectDir);
   await ensureExpoDevClientInstalledAsync(projectDir);
-  workflowStarter.nextSteps = [nextStepForDeviceBuildProfile(DEVELOPMENT_BUILD_PROFILE_NAME)];
+  workflowStarter.nextSteps = [nextStepForDeviceDevelopmentBuild(DEVELOPMENT_BUILD_PROFILE_NAME)];
   return workflowStarter;
 }
 
@@ -393,10 +404,7 @@ export async function ensureProductionBuildProfileExistsAsync(
   workflowStarter: WorkflowStarter
 ): Promise<WorkflowStarter> {
   await addProductionBuildProfileToEasJsonIfNeededAsync(projectDir);
-  workflowStarter.nextSteps = [
-    nextStepForDeviceBuildProfile('production'),
-    nextStepForAppSubmission(),
-  ];
+  workflowStarter.nextSteps = nextStepsForProductionCredentials();
   return workflowStarter;
 }
 
