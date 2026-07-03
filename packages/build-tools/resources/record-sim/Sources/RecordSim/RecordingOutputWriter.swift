@@ -48,8 +48,8 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
                 return
             }
             do {
-                switch segmentType.rawValue {
-                case 1:
+                switch segmentType {
+                case .initialization:
                     let relativePath = "init.mp4"
                     let url = rootDirectory.appendingPathComponent(relativePath)
                     try segmentData.write(to: url, options: .atomic)
@@ -61,7 +61,7 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
                         byteCount: segmentData.count,
                         durationSeconds: nil
                     )
-                case 2:
+                case .separable:
                     let index = nextMediaSegmentIndex
                     let relativePath = String(format: "segments/segment-%06d.m4s", index)
                     let url = rootDirectory.appendingPathComponent(relativePath)

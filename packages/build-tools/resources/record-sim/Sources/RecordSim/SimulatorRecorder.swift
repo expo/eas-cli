@@ -12,6 +12,7 @@ public final class SimulatorRecorder {
     private let configuration: SimulatorRecordingConfiguration
     private let callbackQueue = DispatchQueue(label: "record-sim.frame-callbacks", qos: .userInteractive)
     private let writerQueue = DispatchQueue(label: "record-sim.asset-writer", qos: .userInitiated)
+    private let eventQueue = DispatchQueue(label: "record-sim.events", qos: .utility)
     private let pendingLock = NSLock()
     private var pendingFrames = 0
     private var displaySource: FramebufferDisplaySource?
@@ -297,7 +298,10 @@ public final class SimulatorRecorder {
             return
         }
         simulatorStoppedReason = state
-        onSimulatorStopped?(state)
+        let onSimulatorStopped = onSimulatorStopped
+        eventQueue.async {
+            onSimulatorStopped?(state)
+        }
     }
 
     private func rewireFramebuffer(reason: String) {

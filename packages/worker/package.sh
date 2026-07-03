@@ -93,11 +93,16 @@ if [[ "$PLATFORM" == "ios" ]]; then
   record_sim_package_dir="$ROOT_DIR/packages/build-tools/resources/record-sim"
   record_sim_bin_dir="$target_root_dir/packages/build-tools/bin"
   mkdir -p "$record_sim_bin_dir"
+  record_sim_bin_path=$(swift build \
+    -c release \
+    --package-path "$record_sim_package_dir" \
+    --build-path "$record_sim_build_dir" \
+    --show-bin-path)
   swift build \
     -c release \
     --package-path "$record_sim_package_dir" \
     --build-path "$record_sim_build_dir"
-  cp "$record_sim_build_dir/release/record-sim" "$record_sim_bin_dir/record-sim"
+  cp "$record_sim_bin_path/record-sim" "$record_sim_bin_dir/record-sim"
   chmod +x "$record_sim_bin_dir/record-sim"
 
   # build plugin
@@ -125,5 +130,5 @@ tar zcf $OUTPUT_FILE -C $target_root_dir .
 
 echo "Tarball is ready: $OUTPUT_FILE"
 
-rm -rf $tmp_dir
-rm -rf $record_sim_build_dir
+rm -rf "$tmp_dir"
+rm -rf "$record_sim_build_dir"
