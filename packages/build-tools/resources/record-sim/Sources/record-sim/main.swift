@@ -13,7 +13,7 @@ struct CLIOptions {
 private var stopRequested: CInt = 0
 private var simulatorStopped: CInt = 0
 
-private func handleStopSignal(_ signal: CInt) {
+private func handleStopSignal(_: CInt) {
     stopRequested = 1
 }
 

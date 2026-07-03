@@ -280,7 +280,7 @@ public final class SimulatorRecorder {
         if !isFirstFrameReady(),
            elapsed - lastFirstFrameRewireElapsed >= Self.firstFrameRewireInterval {
             lastFirstFrameRewireElapsed = elapsed
-            rewireFramebuffer(reason: "waiting for first frame")
+            rewireFramebuffer()
             captureFrame(force: true, reason: .healthProbe)
             return
         }
@@ -289,7 +289,7 @@ public final class SimulatorRecorder {
               snapshot.width > 0,
               snapshot.height > 0
         else {
-            rewireFramebuffer(reason: "missing framebuffer surface")
+            rewireFramebuffer()
             return
         }
 
@@ -301,7 +301,7 @@ public final class SimulatorRecorder {
         let lastCallback = lastFrameCallbackElapsed ?? 0
         if elapsed - lastCallback >= Self.callbackStalenessTimeout {
             captureFrame(force: false, reason: .healthProbe)
-            rewireFramebuffer(reason: "framebuffer changed without callbacks")
+            rewireFramebuffer()
         }
     }
 
@@ -327,7 +327,7 @@ public final class SimulatorRecorder {
         }
     }
 
-    private func rewireFramebuffer(reason: String) {
+    private func rewireFramebuffer() {
         guard let displaySource else {
             return
         }
