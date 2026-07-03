@@ -71,11 +71,13 @@ export async function pollArgentArtifactsForUploadAsync(
     });
   };
 
-  const listArtifactsForUploadAsync = async (): Promise<ArgentArtifact[]> => {
+  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
     try {
       const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken });
       listArtifactsErrorCount = 0;
-      return artifacts;
+      for (const artifact of artifacts) {
+        queueArtifactUpload(artifact);
+      }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       listArtifactsErrorCount += 1;
@@ -86,14 +88,6 @@ export async function pollArgentArtifactsForUploadAsync(
           'Could not list Argent remote session artifacts.'
         );
       }
-      return [];
-    }
-  };
-
-  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
-    const artifacts = await listArtifactsForUploadAsync();
-    for (const artifact of artifacts) {
-      queueArtifactUpload(artifact);
     }
   };
 
@@ -242,7 +236,10 @@ async function waitForPendingUploadsAsync({
         timeout = setTimeout(() => {
           reject(
             new SystemError(
-              `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Argent artifact uploads.`
+              `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Argent artifact uploads.`,
+              {
+                trackingCode: 'SIMULATOR_ARTIFACT_SLOW_UPLOAD',
+              }
             )
           );
         }, timeoutMs);
