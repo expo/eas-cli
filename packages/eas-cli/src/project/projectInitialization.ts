@@ -2,6 +2,7 @@ import { ConfigError, ExpoConfig, getProjectConfigDescription } from '@expo/conf
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from './expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -12,7 +13,6 @@ import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
-import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../project/expoConfig';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
 import { Actor } from '../user/User';
 
@@ -77,10 +77,6 @@ async function modifyExpoConfigAsync(
   }
 }
 
-/**
- * Ensures the "owner" and "slug" fields in the app config match the project identified by the given
- * project ID, prompting (or, with --force, overwriting) when they diverge.
- */
 export async function ensureOwnerSlugConsistencyAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
@@ -182,10 +178,6 @@ async function setExplicitIDAsync(
   }
 }
 
-/**
- * Links the project to the EAS project identified by an explicit project ID, writing it to the app
- * config (prompting on conflicts unless --force is set).
- */
 export async function initializeWithExplicitIDAsync(
   projectId: string,
   projectDir: string,
@@ -197,13 +189,6 @@ export async function initializeWithExplicitIDAsync(
   });
 }
 
-/**
- * Resolves the EAS project ID when none is provided explicitly:
- * - If the app config already has "extra.eas.projectId", returns it.
- * - Otherwise, determines the owning account from the "owner" field, or prompts the user to select
- *   one of the accounts they have access to (including organizations).
- * - Links an existing project on that account, or creates a new one, writing the ID to the app config.
- */
 export async function initializeWithoutExplicitIDAsync(
   graphqlClient: ExpoGraphqlClient,
   actor: Actor,

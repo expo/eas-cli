@@ -37,15 +37,11 @@ export type WorkflowStarter = {
 
 const createdByEASCLI = `# Created by EAS CLI v${easCliVersion}`;
 
-/**
- * Placeholder workflow written when a user runs `eas workflow:create <name>` with a file name
- * but without picking a template.
- */
 export const PLACEHOLDER_WORKFLOW_CONTENTS = `name: # Workflow name
 
 on: # Add triggers https://docs.expo.dev/eas/workflows/syntax/#on
 
-jobs: # Add pre-packaged jobs http://docs.expo.dev/eas/workflows/pre-packaged-jobs/. See all syntax https://docs.expo.dev/eas/workflows/syntax/#jobs.
+jobs: # Add pre-packaged jobs https://docs.expo.dev/eas/workflows/pre-packaged-jobs/. See all syntax https://docs.expo.dev/eas/workflows/syntax/#jobs.
 `;
 
 const CUSTOM_TEMPLATE = {
@@ -236,7 +232,6 @@ ${createdByEASCLI}
 `;
 
 function nextStepsForProductionCredentials(): string[] {
-  // Each step ends with the command (no trailing period) so it's easy to copy and paste.
   return [
     `Set up iOS build credentials for the "production" profile, required by the build jobs. Run ${chalk.bold(
       'eas credentials:configure-build -p ios -e production'
@@ -254,8 +249,6 @@ function nextStepsForProductionCredentials(): string[] {
 }
 
 function nextStepForDeviceDevelopmentBuild(buildProfileName: string): string {
-  // Ends with the command (no trailing period) so it's easy to copy and paste. iOS development
-  // builds only run on registered devices, and you register your device during this setup.
   return `Set up iOS credentials so the development build can run on a physical device (you'll register your device when prompted). Learn more: ${link(
     'https://docs.expo.dev/app-signing/app-credentials/'
   )} Run ${chalk.bold(`eas credentials:configure-build -p ios -e ${buildProfileName}`)}`;
@@ -278,7 +271,6 @@ export function howToRunWorkflow(
       )}. `;
     }
   }
-  // Keep the run command last with no trailing period so it's easy to copy and paste.
   return `${autoRunNote}Run this workflow with ${chalk.bold(`eas workflow:run ${workflowFileName}`)}`;
 }
 
@@ -313,13 +305,6 @@ export const workflowStarters: WorkflowStarter[] = [
   },
 ];
 
-/**
- * Sets up the project for the "Create development builds" workflow:
- * - Ensures app identifiers (android.package, ios.bundleIdentifier) are defined, which are
- *   required for builds triggered by the GitHub integration.
- * - Ensures the development build profiles exist in eas.json.
- * - Ensures expo-dev-client is installed.
- */
 async function setUpDevelopmentBuildTemplateAsync({
   workflowStarter,
   projectDir,
@@ -348,10 +333,6 @@ async function setUpDevelopmentBuildTemplateAsync({
   return workflowStarter;
 }
 
-/**
- * Ensures the app identifiers are set in the app config for managed projects. Builds triggered by
- * the GitHub integration require "android.package" and "ios.bundleIdentifier" to be set.
- */
 async function ensureAppIdentifiersAreDefinedAsync({
   graphqlClient,
   projectDir,
@@ -399,7 +380,7 @@ async function ensureExpoDevClientInstalledAsync(projectDir: string): Promise<vo
   await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
 }
 
-export async function ensureProductionBuildProfileExistsAsync(
+async function ensureProductionBuildProfileExistsAsync(
   projectDir: string,
   workflowStarter: WorkflowStarter
 ): Promise<WorkflowStarter> {

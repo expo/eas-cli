@@ -3,6 +3,7 @@ import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -43,7 +44,12 @@ export class WorkflowCreate extends EasCommand {
   static override flags = {
     template: Flags.option({
       description: 'Template to use for the workflow file',
-      options: ['build', 'update', 'deploy', 'custom'] as const,
+      options: [
+        WorkflowStarterName.BUILD,
+        WorkflowStarterName.UPDATE,
+        WorkflowStarterName.DEPLOY,
+        WorkflowStarterName.CUSTOM,
+      ] as const,
     })(),
     'skip-validation': Flags.boolean({
       description: 'If set, the workflow file will not be validated before being created',
@@ -75,15 +81,11 @@ export class WorkflowCreate extends EasCommand {
         withServerSideEnvironment: null,
       });
 
-      // If a file name is provided without a template, create a placeholder workflow and exit.
       if (argFileName && !flags.template) {
         await createPlaceholderWorkflowFileAsync({ argFileName, projectDir });
         return;
       }
 
-      // If the project isn't linked to an EAS project yet, run the same create-or-link flow as
-      // `eas init` (which lets the user pick the owning account, including organizations). Without
-      // this, an unconfigured org-owned project would silently default to the personal account.
       const privateExpoConfig = await getPrivateExpoConfigAsync(projectDir);
       if (!privateExpoConfig.extra?.eas?.projectId) {
         await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
@@ -96,13 +98,10 @@ export class WorkflowCreate extends EasCommand {
       let expoConfig = originalExpoConfig;
 
       let workflowStarter: WorkflowStarter | undefined;
-      if (flags.template) {
-        const starter = workflowStarters.find(
-          starter => starter.name === (flags.template as WorkflowStarterName)
-        );
-        if (!starter) {
-          throw new Error(`Unknown workflow template: ${flags.template}`);
-        }
+      while (!workflowStarter) {
+        const starter = flags.template
+          ? nullthrows(workflowStarters.find(s => s.name === flags.template))
+          : await chooseTemplateAsync();
         const result = await configureProjectForStarterAsync({
           workflowStarter: starter,
           projectDir,
@@ -110,26 +109,14 @@ export class WorkflowCreate extends EasCommand {
           getDynamicPrivateProjectConfigAsync,
         });
         if (!result.proceed) {
-          Log.log('Aborted workflow creation.');
-          return;
+          if (flags.template) {
+            Log.log('Aborted workflow creation.');
+            return;
+          }
+          continue;
         }
         expoConfig = result.expoConfig;
         workflowStarter = starter;
-      } else {
-        while (!workflowStarter) {
-          const starter = await chooseTemplateAsync();
-          const result = await configureProjectForStarterAsync({
-            workflowStarter: starter,
-            projectDir,
-            expoConfig,
-            getDynamicPrivateProjectConfigAsync,
-          });
-          if (!result.proceed) {
-            continue;
-          }
-          expoConfig = result.expoConfig;
-          workflowStarter = starter;
-        }
       }
 
       const { fileName, filePath } = await resolveTemplateFileNameAsync({
@@ -138,7 +125,6 @@ export class WorkflowCreate extends EasCommand {
         workflowStarter,
       });
 
-      // Customize the template if needed
       workflowStarter = await customizeTemplateIfNeededAsync({
         workflowStarter,
         projectDir,
@@ -166,7 +152,12 @@ export class WorkflowCreate extends EasCommand {
       await fs.writeFile(filePath, yamlString);
       Log.withTick(`Created ${chalk.bold(filePath)}`);
 
-      logNextSteps({ workflowStarter, fileName });
+      logNextSteps([
+        ...(workflowStarter.nextSteps ?? []).map(
+          step => `${chalk.yellow('[Action required]')} ${step}`
+        ),
+        howToRunWorkflow(fileName, workflowStarter),
+      ]);
     } catch (error) {
       logWorkflowValidationErrors(error);
       Log.error('Failed to create workflow file.');
@@ -174,10 +165,6 @@ export class WorkflowCreate extends EasCommand {
   }
 }
 
-/**
- * Runs the EAS Build/Update configuration steps required for the given template.
- * Returns whether to proceed with workflow creation, along with a freshly-read Expo config.
- */
 async function configureProjectForStarterAsync({
   workflowStarter,
   projectDir,
@@ -214,22 +201,11 @@ async function configureProjectForStarterAsync({
     default:
       break;
   }
-  // Re-read the Expo config because the configuration steps above may have changed it.
   const refreshedExpoConfig = (await getDynamicPrivateProjectConfigAsync()).exp;
   return { proceed: true, expoConfig: refreshedExpoConfig };
 }
 
-function logNextSteps({
-  workflowStarter,
-  fileName,
-}: {
-  workflowStarter: WorkflowStarter;
-  fileName: string;
-}): void {
-  const actionRequiredSteps = (workflowStarter.nextSteps ?? []).map(
-    step => `${chalk.yellow('[Action required]')} ${step}`
-  );
-  const steps = [...actionRequiredSteps, howToRunWorkflow(fileName, workflowStarter)];
+function logNextSteps(steps: string[]): void {
   Log.addNewLineIfNone();
   Log.log('➡️ Next steps:');
   Log.addNewLineIfNone();
@@ -259,23 +235,12 @@ async function createPlaceholderWorkflowFileAsync({
   await ensureWorkflowsDirectoryExistsAsync({ projectDir });
   await fs.writeFile(filePath, PLACEHOLDER_WORKFLOW_CONTENTS);
   Log.withTick(`Created ${chalk.bold(filePath)}`);
-  Log.addNewLineIfNone();
-  Log.log('➡️ Next steps:');
-  Log.addNewLineIfNone();
-  Log.log(
-    formatFields([
-      {
-        label: '1.',
-        value: `Fill in the "name", "on", and "jobs" fields. Learn more: ${link(
-          'https://docs.expo.dev/eas/workflows/syntax/'
-        )}`,
-      },
-      {
-        label: '2.',
-        value: `Run this workflow with ${chalk.bold(`eas workflow:run ${fileName}`)}`,
-      },
-    ])
-  );
+  logNextSteps([
+    `Fill in the "name", "on", and "jobs" fields. Learn more: ${link(
+      'https://docs.expo.dev/eas/workflows/syntax/'
+    )}`,
+    `Run this workflow with ${chalk.bold(`eas workflow:run ${fileName}`)}`,
+  ]);
 }
 
 async function ensureWorkflowsDirectoryExistsAsync({
@@ -306,11 +271,6 @@ async function chooseTemplateAsync(): Promise<WorkflowStarter> {
   return workflowStarter;
 }
 
-/**
- * Resolves the file name for a template-based workflow. When the user provides a file name it is
- * used (with a .yml/.yaml extension), otherwise the template's default file name is used. A numeric
- * suffix is appended to avoid overwriting an existing file.
- */
 async function resolveTemplateFileNameAsync({
   argFileName,
   projectDir,
@@ -335,10 +295,6 @@ async function resolveTemplateFileNameAsync({
   return { fileName, filePath };
 }
 
-/**
- * Ensures a file name ends with a .yml or .yaml extension. If the file name has no extension, .yml
- * is appended. If it has a non-YAML extension, an error is thrown.
- */
 function ensureYamlExtension(name: string): string {
   const ext = path.extname(name);
   if (!ext) {

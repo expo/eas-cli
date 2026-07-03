@@ -6,9 +6,6 @@ import UpdateConfigure from '../../commands/update/configure';
 import Log from '../../log';
 import { promptAsync } from '../../prompts';
 
-/**
- * Build profile names used by the "Create development builds" workflow template.
- */
 export const DEVELOPMENT_BUILD_PROFILE_NAME = 'development';
 export const DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME = 'development-ios-simulator';
 
@@ -21,11 +18,6 @@ export async function buildProfileNamesFromProjectAsync(projectDir: string): Pro
   return buildProfileNames;
 }
 
-/**
- * Ensures the build profiles used by the development builds workflow exist in eas.json:
- * - "development": development client build for Android and iOS devices.
- * - "development-ios-simulator": development client build for iOS simulators.
- */
 export async function ensureDevelopmentBuildProfilesExistAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   await easJsonAccessor.readRawJsonAsync();

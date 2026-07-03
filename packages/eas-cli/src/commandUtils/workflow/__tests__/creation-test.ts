@@ -69,8 +69,9 @@ describe('howToRunWorkflow', () => {
   });
 
   test('mentions automatic triggers when the template has push branches', () => {
-    const message = howToRunWorkflow('deploy.yml', starterFor(WorkflowStarterName.DEPLOY));
-    expect(message).toContain('eas workflow:run deploy.yml');
+    const message = howToRunWorkflow('custom.yml', starterFor(WorkflowStarterName.CUSTOM));
+    expect(message).toContain('eas workflow:run custom.yml');
+    expect(message).toContain('automatically');
     expect(message).toContain('main');
   });
 
