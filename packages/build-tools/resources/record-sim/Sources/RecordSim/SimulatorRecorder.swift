@@ -8,6 +8,7 @@ public final class SimulatorRecorder {
     public var onSimulatorStopped: ((String) -> Void)?
 
     private static let callbackStalenessTimeout: TimeInterval = 5
+    private static let firstFrameRewireInterval: TimeInterval = 1
     private let configuration: SimulatorRecordingConfiguration
     private let callbackQueue = DispatchQueue(label: "record-sim.frame-callbacks", qos: .userInteractive)
     private let writerQueue = DispatchQueue(label: "record-sim.asset-writer", qos: .userInitiated)
@@ -25,6 +26,7 @@ public final class SimulatorRecorder {
     private var lastPTS: CMTime?
     private var lastSeed: UInt32?
     private var lastFrameCallbackElapsed: TimeInterval?
+    private var lastFirstFrameRewireElapsed: TimeInterval = 0
     private var lastAppendedPixelBuffer: CVPixelBuffer?
     private var nextBoundaryElapsed: TimeInterval = 0
     private var simulatorStoppedReason: String?
@@ -48,6 +50,7 @@ public final class SimulatorRecorder {
 
         monotonicClock = MonotonicClock()
         nextBoundaryElapsed = configuration.segmentDuration
+        lastFirstFrameRewireElapsed = 0
         stopped = false
 
         let source = FramebufferDisplaySource(
@@ -256,6 +259,15 @@ public final class SimulatorRecorder {
         guard !stopped, let displaySource else {
             return
         }
+        let elapsed = monotonicClock.elapsedSeconds()
+        if !isFirstFrameReady(),
+           elapsed - lastFirstFrameRewireElapsed >= Self.firstFrameRewireInterval {
+            lastFirstFrameRewireElapsed = elapsed
+            rewireFramebuffer(reason: "waiting for first frame")
+            captureFrame(force: true, reason: .healthProbe)
+            return
+        }
+
         guard let snapshot = displaySource.surfaceSnapshot(),
               snapshot.width > 0,
               snapshot.height > 0
@@ -269,7 +281,6 @@ public final class SimulatorRecorder {
             return
         }
 
-        let elapsed = monotonicClock.elapsedSeconds()
         let lastCallback = lastFrameCallbackElapsed ?? 0
         if elapsed - lastCallback >= Self.callbackStalenessTimeout {
             captureFrame(force: false, reason: .healthProbe)
@@ -524,5 +535,11 @@ public final class SimulatorRecorder {
         }
         firstFrameReady = true
         firstFrameSemaphore.signal()
+    }
+
+    private func isFirstFrameReady() -> Bool {
+        writerQueue.sync {
+            firstFrameReady
+        }
     }
 }
