@@ -353,6 +353,7 @@ async function ensureAppIdentifiersAreDefinedAsync({
       exp,
       vcsClient,
       nonInteractive: false,
+      autoSelectDefault: true,
     });
   }
   const iosWorkflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
@@ -364,6 +365,7 @@ async function ensureAppIdentifiersAreDefinedAsync({
       exp,
       vcsClient,
       nonInteractive: false,
+      autoSelectDefault: true,
     });
   }
 }
@@ -378,10 +380,28 @@ async function ensureExpoDevClientInstalledAsync(projectDir: string): Promise<vo
   await expoCommandAsync(projectDir, ['install', 'expo-dev-client']);
 }
 
-async function ensureProductionBuildProfileExistsAsync(
-  projectDir: string,
-  workflowStarter: WorkflowStarter
-): Promise<WorkflowStarter> {
+async function setUpDeployTemplateAsync({
+  workflowStarter,
+  projectDir,
+  expoConfig,
+  graphqlClient,
+  projectId,
+  vcsClient,
+}: {
+  workflowStarter: WorkflowStarter;
+  projectDir: string;
+  expoConfig: ExpoConfig;
+  graphqlClient: ExpoGraphqlClient;
+  projectId: string;
+  vcsClient: Client;
+}): Promise<WorkflowStarter> {
+  await ensureAppIdentifiersAreDefinedAsync({
+    graphqlClient,
+    projectDir,
+    projectId,
+    exp: expoConfig,
+    vcsClient,
+  });
   await addProductionBuildProfileToEasJsonIfNeededAsync(projectDir);
   workflowStarter.nextSteps = nextStepsForProductionCredentials();
   return workflowStarter;
@@ -414,7 +434,15 @@ export async function customizeTemplateIfNeededAsync({
         vcsClient,
       });
     case WorkflowStarterName.DEPLOY:
-      return await ensureProductionBuildProfileExistsAsync(projectDir, workflowStarter);
+      Log.debug('Setting up deploy workflow...');
+      return await setUpDeployTemplateAsync({
+        workflowStarter,
+        projectDir,
+        expoConfig,
+        graphqlClient,
+        projectId,
+        vcsClient,
+      });
     default:
       return workflowStarter;
   }
