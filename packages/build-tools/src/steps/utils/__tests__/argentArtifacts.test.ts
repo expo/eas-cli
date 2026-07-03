@@ -211,4 +211,68 @@ describe(pollArgentArtifactsForUploadAsync, () => {
       stream: expect.anything(),
     });
   });
+
+  it('throws when pending uploads do not finish before the cleanup timeout', async () => {
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
+    const originalSetTimeout = global.setTimeout;
+    const setTimeoutSpy = jest
+      .spyOn(global, 'setTimeout')
+      .mockImplementation(((
+        callback: Parameters<typeof setTimeout>[0],
+        timeout?: number,
+        ...args: unknown[]
+      ) =>
+        originalSetTimeout(
+          callback,
+          timeout === 30_000 ? 0 : timeout,
+          ...args
+        )) as typeof setTimeout);
+
+    try {
+      jest.mocked(fetch).mockImplementation(async url => {
+        const urlString = String(url);
+        if (urlString.endsWith('/artifacts')) {
+          return new Response(
+            JSON.stringify({
+              artifacts: [
+                {
+                  id: 'artifact-a',
+                  filename: 'a.json',
+                  mimeType: 'application/json',
+                },
+              ],
+            })
+          );
+        }
+        if (urlString.endsWith('/artifacts/artifact-a')) {
+          return new Response(Readable.from([Buffer.from('artifact-a-data')]));
+        }
+        throw new Error(`Unexpected URL ${urlString}`);
+      });
+      jest
+        .mocked(uploadDeviceRunSessionArtifactAsync)
+        .mockImplementation(() => new Promise<void>(() => {}));
+
+      const pollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
+        deviceRunSessionId: 'drs-id',
+        toolsUrl: 'http://127.0.0.1:1234',
+        toolsAuthToken: 'tools-token',
+        logger,
+        signal: abortController.signal,
+      });
+
+      await waitForAssertionAsync(() => {
+        expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(1);
+      });
+      abortController.abort();
+
+      await expect(pollingPromise).rejects.toThrow(
+        'Timed out after 30s waiting for Argent artifact uploads.'
+      );
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
 });

@@ -229,18 +229,22 @@ async function waitForPendingUploadsAsync({
 
   logger.info(`Waiting for ${pendingUploads.size} Argent artifact upload(s) to finish.`);
   let timeout: NodeJS.Timeout | undefined;
-  const result = await Promise.race([
-    Promise.allSettled([...pendingUploads]).then(() => 'settled' as const),
-    new Promise<'timeout'>(resolve => {
-      timeout = setTimeout(() => resolve('timeout'), timeoutMs);
-    }),
-  ]);
-  if (timeout) {
-    clearTimeout(timeout);
-  }
-  if (result === 'timeout') {
-    logger.warn(
-      `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Argent artifact uploads; continuing shutdown.`
-    );
+  try {
+    await Promise.race([
+      Promise.allSettled([...pendingUploads]),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          reject(
+            new SystemError(
+              `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for Argent artifact uploads.`
+            )
+          );
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
   }
 }
