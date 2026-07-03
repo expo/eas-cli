@@ -36,7 +36,11 @@ function createCtxMock(): CustomBuildContext {
 }
 
 function createStatusCtxMock(
-  results: ({ status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' } | { error: Error })[]
+  results: (
+    | { status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' }
+    | { error: Error }
+    | { data: unknown }
+  )[]
 ): CustomBuildContext {
   const query = jest.fn(() => {
     const result = results.shift();
@@ -47,6 +51,9 @@ function createStatusCtxMock(
       toPromise: async () => {
         if ('error' in result) {
           throw result.error;
+        }
+        if ('data' in result) {
+          return { data: result.data };
         }
         return {
           data: {
@@ -241,6 +248,33 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
     expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
       'Could not poll device run session status',
       expect.any(Error),
+      { level: 'warning' }
+    );
+  });
+
+  it('logs and retries when the status response is missing', async () => {
+    const ctx = createStatusCtxMock([
+      { data: { deviceRunSessions: { byId: null } } },
+      { status: 'STOPPED' },
+    ]);
+    const logger = createLoggerMock();
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+    });
+
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ failedStatusPollCount: 1 }),
+      'Could not poll device run session status; will retry.'
+    );
+    expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
+      'Could not poll device run session status',
+      expect.objectContaining({
+        message: 'Device run session drs-id status response was missing.',
+      }),
       { level: 'warning' }
     );
   });

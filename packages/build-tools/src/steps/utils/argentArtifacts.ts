@@ -71,13 +71,11 @@ export async function pollArgentArtifactsForUploadAsync(
     });
   };
 
-  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
+  const listArtifactsForUploadAsync = async (): Promise<ArgentArtifact[]> => {
     try {
       const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken });
       listArtifactsErrorCount = 0;
-      for (const artifact of artifacts) {
-        queueArtifactUpload(artifact);
-      }
+      return artifacts;
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       listArtifactsErrorCount += 1;
@@ -88,6 +86,14 @@ export async function pollArgentArtifactsForUploadAsync(
           'Could not list Argent remote session artifacts.'
         );
       }
+      return [];
+    }
+  };
+
+  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
+    const artifacts = await listArtifactsForUploadAsync();
+    for (const artifact of artifacts) {
+      queueArtifactUpload(artifact);
     }
   };
 
@@ -202,15 +208,25 @@ async function sleepUntilAbortedAsync(timeoutMs: number, signal: AbortSignal): P
     return;
   }
   await new Promise<void>(resolve => {
-    const timeout = setTimeout(resolve, timeoutMs);
-    signal.addEventListener(
-      'abort',
-      () => {
+    let timeout: NodeJS.Timeout | undefined;
+    let settled = false;
+    const finish = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout) {
         clearTimeout(timeout);
-        resolve();
-      },
-      { once: true }
-    );
+      }
+      signal.removeEventListener('abort', finish);
+      resolve();
+    };
+    signal.addEventListener('abort', finish, { once: true });
+    if (signal.aborted) {
+      finish();
+      return;
+    }
+    timeout = setTimeout(finish, timeoutMs);
   });
 }
 

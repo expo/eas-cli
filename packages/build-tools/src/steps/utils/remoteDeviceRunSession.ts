@@ -132,7 +132,10 @@ export async function waitForDeviceRunSessionStoppedAsync({
         throw result.error;
       }
 
-      const status = result.data?.deviceRunSessions.byId.status;
+      const status = result.data?.deviceRunSessions?.byId?.status;
+      if (!status) {
+        throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
+      }
       pollErrorCount = 0;
       if (status === 'STOPPED') {
         logger.info(`Device run session ${deviceRunSessionId} was stopped.`);

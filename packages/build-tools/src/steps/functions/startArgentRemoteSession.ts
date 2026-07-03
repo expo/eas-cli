@@ -14,6 +14,7 @@ import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -172,7 +173,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         });
       } finally {
         artifactPollAbortController.abort();
-        await artifactPollingPromise;
+        try {
+          await artifactPollingPromise;
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          Sentry.capture('Could not finish Argent remote session artifact polling', error);
+          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
+        }
       }
     },
   });
