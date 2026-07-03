@@ -441,6 +441,9 @@ public final class SimulatorRecorder {
         if let lastPTS, CMTimeCompare(pts, lastPTS) <= 0 {
             return
         }
+        guard try appendPendingBoundaryFrames(before: pts) else {
+            return
+        }
         guard input.isReadyForMoreMediaData else {
             return
         }
@@ -472,6 +475,28 @@ public final class SimulatorRecorder {
     private func appendTailFrame(finalPTS: CMTime) throws -> Bool {
         let pts = normalizedPresentationTime(for: finalPTS)
         return try appendHeldFrame(at: pts)
+    }
+
+    private func appendPendingBoundaryFrames(before pts: CMTime) throws -> Bool {
+        guard configuration.segmentDuration > 0,
+              firstAcceptedCaptureTime != nil
+        else {
+            return true
+        }
+
+        while CMTimeGetSeconds(pts) > nextBoundaryElapsed {
+            if let lastPTS, CMTimeGetSeconds(lastPTS) >= nextBoundaryElapsed {
+                nextBoundaryElapsed += configuration.segmentDuration
+                continue
+            }
+
+            let boundaryPTS = CMTime(seconds: nextBoundaryElapsed, preferredTimescale: 1_000_000_000)
+            guard try appendHeldFrame(at: boundaryPTS) else {
+                return false
+            }
+            nextBoundaryElapsed += configuration.segmentDuration
+        }
+        return true
     }
 
     private func appendHeldFrame(at pts: CMTime) throws -> Bool {
