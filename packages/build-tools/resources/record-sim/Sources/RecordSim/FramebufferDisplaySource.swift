@@ -92,8 +92,15 @@ final class FramebufferDisplaySource {
         unregisterCallbacks()
         descriptors = nextDescriptors
         retainedBlocks.removeAll()
-        for descriptor in descriptors {
-            try registerCallbacks(descriptor: descriptor)
+        do {
+            for descriptor in descriptors {
+                try registerCallbacks(descriptor: descriptor)
+            }
+        } catch {
+            unregisterCallbacks()
+            descriptors.removeAll()
+            retainedBlocks.removeAll()
+            throw error
         }
     }
 

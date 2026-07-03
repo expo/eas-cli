@@ -3,6 +3,10 @@ import ObjectiveC
 
 enum XcodeDeveloperDirectory {
     static func current() -> String {
+        if let developerDir = ProcessInfo.processInfo.environment["DEVELOPER_DIR"], !developerDir.isEmpty {
+            return developerDir
+        }
+
         let fallback = "/Applications/Xcode.app/Contents/Developer"
         let pipe = Pipe()
         let process = Process()

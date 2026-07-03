@@ -65,8 +65,8 @@ public final class SimulatorRecorder {
                 self?.captureFrame(force: true, reason: .surfaceChange)
             }
         )
-        displaySource = source
         try source.start()
+        displaySource = source
 
         startBoundaryTimer()
     }
@@ -198,7 +198,6 @@ public final class SimulatorRecorder {
         while boundary + configuration.segmentDuration <= elapsed {
             boundary += configuration.segmentDuration
         }
-        nextBoundaryElapsed = boundary + configuration.segmentDuration
 
         let alreadyCrossedBoundary = writerQueue.sync { () -> Bool in
             guard let lastPTS else {
@@ -206,9 +205,12 @@ public final class SimulatorRecorder {
             }
             return CMTimeGetSeconds(lastPTS) >= boundary
         }
-        if !alreadyCrossedBoundary {
-            captureFrame(force: true, reason: .boundary)
+        if alreadyCrossedBoundary {
+            nextBoundaryElapsed = boundary + configuration.segmentDuration
+            return
         }
+
+        captureFrame(force: true, reason: .boundary)
     }
 
     private func captureFrame(force: Bool, reason: CaptureReason) {
@@ -302,6 +304,13 @@ public final class SimulatorRecorder {
             return
         }
         simulatorStoppedReason = state
+        let error = RecorderError.make(26, "Simulator stopped before first frame (state: \(state))")
+        writerQueue.async {
+            if self.firstError == nil, !self.firstFrameReady {
+                self.firstError = error
+                self.signalFirstFrameReadyIfNeeded()
+            }
+        }
         let onSimulatorStopped = onSimulatorStopped
         eventQueue.async {
             onSimulatorStopped?(state)
@@ -438,24 +447,38 @@ public final class SimulatorRecorder {
     }
 
     private func appendTailFrameIfNeeded(finalPTS: CMTime) throws {
+        let deadline = Date().addingTimeInterval(5)
+        while true {
+            if try appendTailFrame(finalPTS: finalPTS) {
+                return
+            }
+            if Date() >= deadline {
+                throw RecorderError.make(45, "Timed out waiting to append tail frame")
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+    }
+
+    private func appendTailFrame(finalPTS: CMTime) throws -> Bool {
         guard let input,
               let adaptor,
               let lastPTS,
               let lastAppendedPixelBuffer
         else {
-            return
+            return true
         }
         let pts = normalizedPresentationTime(for: finalPTS)
         if CMTimeCompare(pts, lastPTS) <= 0 {
-            return
+            return true
         }
         guard input.isReadyForMoreMediaData else {
-            return
+            return false
         }
         if !adaptor.append(lastAppendedPixelBuffer, withPresentationTime: pts) {
             throw writer?.error ?? RecorderError.make(45, "Failed to append tail frame")
         }
         self.lastPTS = pts
+        return true
     }
 
     private func normalizedPresentationTime(for capturedAt: CMTime) -> CMTime {
