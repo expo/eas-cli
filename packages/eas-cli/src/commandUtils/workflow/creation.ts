@@ -7,8 +7,6 @@ import {
   DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME,
   addProductionBuildProfileToEasJsonIfNeededAsync,
   ensureDevelopmentBuildProfilesExistAsync,
-  hasBuildConfigureBeenRunAsync,
-  hasUpdateConfigureBeenRunAsync,
 } from './buildProfileUtils';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 import Log, { link } from '../../log';
@@ -404,34 +402,6 @@ export async function customizeTemplateIfNeededAsync({
   projectId: string;
   vcsClient: Client;
 }): Promise<WorkflowStarter> {
-  // Ensure EAS Build is configured
-  switch (workflowStarter.name) {
-    case WorkflowStarterName.BUILD:
-    case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE:
-      if (!(await hasBuildConfigureBeenRunAsync({ projectDir, expoConfig }))) {
-        throw new Error(
-          'EAS Build is not configured for this project. Please run "eas build:configure" to configure it.'
-        );
-      }
-      break;
-    default:
-      break;
-  }
-  // Ensure EAS Update is configured
-  switch (workflowStarter.name) {
-    case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE:
-      if (!(await hasUpdateConfigureBeenRunAsync({ projectDir, expoConfig }))) {
-        throw new Error(
-          'EAS Update is not configured for this project. Please run "eas update:configure" to configure it.'
-        );
-      }
-      break;
-    default:
-      break;
-  }
-  // Customize template
   switch (workflowStarter.name) {
     case WorkflowStarterName.BUILD:
       Log.debug('Setting up development builds workflow...');

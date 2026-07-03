@@ -1,10 +1,14 @@
 import { ExpoConfig } from '@expo/config';
-import { EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 
-import BuildConfigure from '../../commands/build/configure';
-import UpdateConfigure from '../../commands/update/configure';
+import { ensureProjectConfiguredAsync } from '../../build/configure';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import { RequestedPlatform } from '../../platform';
+import {
+  ensureEASUpdateIsConfiguredAsync,
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+} from '../../update/configure';
+import { Client } from '../../vcs/vcs';
 
 export const DEVELOPMENT_BUILD_PROFILE_NAME = 'development';
 export const DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME = 'development-ios-simulator';
@@ -76,7 +80,7 @@ export async function addProductionBuildProfileToEasJsonIfNeededAsync(
   return profileAdded;
 }
 
-export async function hasBuildConfigureBeenRunAsync({
+async function hasBuildConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {
@@ -97,7 +101,7 @@ export async function hasBuildConfigureBeenRunAsync({
   return true;
 }
 
-export async function hasUpdateConfigureBeenRunAsync({
+async function hasUpdateConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {
@@ -118,88 +122,48 @@ export async function hasUpdateConfigureBeenRunAsync({
   }
 }
 
-/**
- * Runs update:configure if needed. Returns a boolean (proceed with workflow creation, or not)
- */
-
-export async function runUpdateConfigureIfNeededAsync({
+export async function configureEasUpdateIfNeededAsync({
   projectDir,
   expoConfig,
+  projectId,
+  vcsClient,
 }: {
   projectDir: string;
   expoConfig: ExpoConfig;
-}): Promise<boolean> {
-  if (
-    await hasUpdateConfigureBeenRunAsync({
-      projectDir,
-      expoConfig,
-    })
-  ) {
-    return true;
+  projectId: string;
+  vcsClient: Client;
+}): Promise<void> {
+  if (await hasUpdateConfigureBeenRunAsync({ projectDir, expoConfig })) {
+    return;
   }
-  const nextStep = (
-    await promptAsync({
-      type: 'select',
-      name: 'nextStep',
-      message:
-        'You have chosen to create a workflow that requires EAS Update configuration. What would you like to do?',
-      choices: [
-        { title: 'Configure EAS Update and then proceed', value: 'configure' },
-        { title: 'EAS Update is already configured, proceed', value: 'proceed' },
-        { title: 'Choose a different workflow template', value: 'repeat' },
-      ],
-    })
-  ).nextStep;
-  switch (nextStep) {
-    case 'configure':
-      Log.newLine();
-      await UpdateConfigure.run([]);
-      return true;
-    case 'proceed':
-      return true;
-    default:
-      return false;
-  }
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+  const easJsonCliConfig: EasJson['cli'] =
+    (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
+  await ensureEASUpdateIsConfiguredAsync({
+    exp: expoConfig,
+    projectId,
+    projectDir,
+    vcsClient,
+    platform: RequestedPlatform.All,
+    env: undefined,
+    forceNativeConfigSync: true,
+    manifestHostOverride: easJsonCliConfig?.updateManifestHostOverride ?? null,
+  });
+  await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+  Log.withTick('Configured EAS Update');
 }
-/**
- * Runs build:configure if needed. Returns a boolean (proceed with workflow creation, or not)
- */
-export async function runBuildConfigureIfNeededAsync({
+
+export async function configureEasBuildIfNeededAsync({
   projectDir,
   expoConfig,
+  vcsClient,
 }: {
   projectDir: string;
   expoConfig: ExpoConfig;
-}): Promise<boolean> {
-  if (
-    await hasBuildConfigureBeenRunAsync({
-      projectDir,
-      expoConfig,
-    })
-  ) {
-    return true;
+  vcsClient: Client;
+}): Promise<void> {
+  if (await hasBuildConfigureBeenRunAsync({ projectDir, expoConfig })) {
+    return;
   }
-  const nextStep = (
-    await promptAsync({
-      type: 'select',
-      name: 'nextStep',
-      message:
-        'You have chosen to create a workflow that requires EAS Build configuration. What would you like to do?',
-      choices: [
-        { title: 'Configure EAS Build and then proceed', value: 'configure' },
-        { title: 'EAS Build is already configured, proceed', value: 'proceed' },
-        { title: 'Choose a different workflow template', value: 'repeat' },
-      ],
-    })
-  ).nextStep;
-  switch (nextStep) {
-    case 'configure':
-      Log.newLine();
-      await BuildConfigure.run(['-p', 'all']);
-      return true;
-    case 'proceed':
-      return true;
-    default:
-      return false;
-  }
+  await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false, vcsClient });
 }

@@ -8,8 +8,8 @@ import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  runBuildConfigureIfNeededAsync,
-  runUpdateConfigureIfNeededAsync,
+  configureEasBuildIfNeededAsync,
+  configureEasUpdateIfNeededAsync,
 } from '../../commandUtils/workflow/buildProfileUtils';
 import {
   PLACEHOLDER_WORKFLOW_CONTENTS,
@@ -29,6 +29,7 @@ import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { initializeWithoutExplicitIDAsync } from '../../project/projectInitialization';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
+import { Client } from '../../vcs/vcs';
 
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
@@ -95,29 +96,19 @@ export class WorkflowCreate extends EasCommand {
       }
 
       const { exp: originalExpoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
-      let expoConfig = originalExpoConfig;
 
-      let workflowStarter: WorkflowStarter | undefined;
-      while (!workflowStarter) {
-        const starter = flags.template
-          ? nullthrows(workflowStarters.find(s => s.name === flags.template))
-          : await chooseTemplateAsync();
-        const result = await configureProjectForStarterAsync({
-          workflowStarter: starter,
-          projectDir,
-          expoConfig,
-          getDynamicPrivateProjectConfigAsync,
-        });
-        if (!result.proceed) {
-          if (flags.template) {
-            Log.log('Aborted workflow creation.');
-            return;
-          }
-          continue;
-        }
-        expoConfig = result.expoConfig;
-        workflowStarter = starter;
-      }
+      let workflowStarter = flags.template
+        ? nullthrows(workflowStarters.find(s => s.name === flags.template))
+        : await chooseTemplateAsync();
+
+      const expoConfig = await configureProjectForStarterAsync({
+        workflowStarter,
+        projectDir,
+        expoConfig: originalExpoConfig,
+        projectId,
+        vcsClient,
+        getDynamicPrivateProjectConfigAsync,
+      });
 
       const { fileName, filePath } = await resolveTemplateFileNameAsync({
         argFileName,
@@ -169,40 +160,35 @@ async function configureProjectForStarterAsync({
   workflowStarter,
   projectDir,
   expoConfig,
+  projectId,
+  vcsClient,
   getDynamicPrivateProjectConfigAsync,
 }: {
   workflowStarter: WorkflowStarter;
   projectDir: string;
   expoConfig: ExpoConfig;
+  projectId: string;
+  vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: () => Promise<{ exp: ExpoConfig }>;
-}): Promise<{ proceed: boolean; expoConfig: ExpoConfig }> {
+}): Promise<ExpoConfig> {
   switch (workflowStarter.name) {
     case WorkflowStarterName.BUILD:
     case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE: {
-      const shouldProceed = await runBuildConfigureIfNeededAsync({ projectDir, expoConfig });
-      if (!shouldProceed) {
-        return { proceed: false, expoConfig };
-      }
+    case WorkflowStarterName.UPDATE:
+      await configureEasBuildIfNeededAsync({ projectDir, expoConfig, vcsClient });
       break;
-    }
     default:
       break;
   }
   switch (workflowStarter.name) {
     case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE: {
-      const shouldProceed = await runUpdateConfigureIfNeededAsync({ projectDir, expoConfig });
-      if (!shouldProceed) {
-        return { proceed: false, expoConfig };
-      }
+    case WorkflowStarterName.UPDATE:
+      await configureEasUpdateIfNeededAsync({ projectDir, expoConfig, projectId, vcsClient });
       break;
-    }
     default:
       break;
   }
-  const refreshedExpoConfig = (await getDynamicPrivateProjectConfigAsync()).exp;
-  return { proceed: true, expoConfig: refreshedExpoConfig };
+  return (await getDynamicPrivateProjectConfigAsync()).exp;
 }
 
 function logNextSteps(steps: string[]): void {
