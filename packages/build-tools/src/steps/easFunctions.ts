@@ -51,6 +51,7 @@ import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
+import { createUploadPosthogSourcemapsFunction } from './functions/uploadPosthogSourcemaps';
 import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
@@ -97,6 +98,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createCapturePosthogEventFunction(),
     createRolloutPosthogFlagFunction(),
     createWaitForPosthogMetricFunction(),
+    createUploadPosthogSourcemapsFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
