@@ -71,13 +71,11 @@ export async function pollArgentArtifactsForUploadAsync(
     });
   };
 
-  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
+  const listArtifactsForUploadAsync = async (): Promise<ArgentArtifact[]> => {
     try {
       const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken });
       listArtifactsErrorCount = 0;
-      for (const artifact of artifacts) {
-        queueArtifactUpload(artifact);
-      }
+      return artifacts;
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       listArtifactsErrorCount += 1;
@@ -88,6 +86,14 @@ export async function pollArgentArtifactsForUploadAsync(
           'Could not list Argent remote session artifacts.'
         );
       }
+      return [];
+    }
+  };
+
+  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
+    const artifacts = await listArtifactsForUploadAsync();
+    for (const artifact of artifacts) {
+      queueArtifactUpload(artifact);
     }
   };
 
