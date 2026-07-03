@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Detect deno as the package manager for projects with a `deno.lock` lockfile, and use `deno install` / `deno task` during builds. ([#3951](https://github.com/expo/eas-cli/pull/3951) by [@yyq1025](https://github.com/yyq1025))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))

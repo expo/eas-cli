@@ -61,6 +61,10 @@ export function runExpoCliCommand({
     return spawn('pnpm', argsWithExpo, options);
   } else if (packageManager === PackageManager.BUN) {
     return spawn('bun', argsWithExpo, options);
+  } else if (packageManager === PackageManager.DENO) {
+    // deno has no bare `deno expo …` bin runner; `deno run -A npm:expo`
+    // resolves the copy from local node_modules when present.
+    return spawn('deno', ['run', '-A', 'npm:expo', ...args], options);
   } else {
     throw new Error(`Unsupported package manager: ${packageManager}`);
   }
