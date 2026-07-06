@@ -144,6 +144,14 @@ export const ShellStepZ = CommonStepZ.extend({
     )
     .optional(),
 
+  // Internal hook-anchor stamps set by EAS servers on generated shell steps
+  // (function steps bind to anchors through the hooks registry instead).
+  // Loose strings on purpose (never enums): an older worker must treat unknown
+  // anchor names as inert metadata instead of failing validation.
+  __hook_id: z.string().optional(),
+  __hook_before_id: z.string().optional(),
+  __hook_after_id: z.string().optional(),
+
   uses: z.never().optional(),
   with: z.never().optional(),
 });

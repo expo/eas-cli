@@ -71,6 +71,21 @@ describe('StepZ', () => {
   });
 });
 
+describe('hook anchor stamps', () => {
+  it('accepts internal hook stamp fields on shell steps', () => {
+    const steps = [
+      { run: 'echo upload', __hook_before_id: 'maestro_cloud' },
+      { run: 'echo results', __hook_after_id: 'maestro_cloud' },
+      { run: 'echo submit', __hook_id: 'submit' },
+    ];
+    expect(validateSteps(steps)).toEqual(steps);
+  });
+
+  it('treats stamp values as loose strings so old workers never hard-fail on new anchors', () => {
+    expect(() => validateSteps([{ run: 'echo x', __hook_id: 'some_future_anchor' }])).not.toThrow();
+  });
+});
+
 describe(isStepShellStep, () => {
   it('returns true for shell step', () => {
     expect(isStepShellStep({ run: 'echo Hello, world!', shell: 'sh' })).toBe(true);
