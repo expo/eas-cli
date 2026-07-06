@@ -5,6 +5,8 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+// Type-only import to avoid a runtime module cycle (BuildFunction imports BuildStep).
+import type { BuildFunction } from './BuildFunction';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
@@ -75,6 +77,10 @@ export class BuildStepOutputAccessor {
     return Object.values(this.outputById);
   }
 
+  public get hasExecuted(): boolean {
+    return this.executed;
+  }
+
   public getOutputValueByName(name: string): string | undefined {
     if (!this.executed) {
       throw new BuildStepRuntimeError(
@@ -135,6 +141,13 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly ifCondition?: string;
   public readonly timeoutMs?: number;
   public readonly __metricsId?: string;
+  // The function this step was created from, when it came from a `uses:` call
+  // or a function-group expansion. TS-only reference — never serialized.
+  public readonly sourceFunction?: BuildFunction;
+  // When set, this step is an after-hook of the referenced step: it runs iff
+  // that step executed (pass or fail), and is skipped iff that step skipped.
+  // TS-only reference — never serialized.
+  public readonly runAfterStep?: BuildStep;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -162,6 +175,8 @@ export class BuildStep extends BuildStepOutputAccessor {
       ifCondition,
       timeoutMs,
       __metricsId,
+      sourceFunction,
+      runAfterStep,
     }: {
       id: string;
       displayName: string;
@@ -176,6 +191,8 @@ export class BuildStep extends BuildStepOutputAccessor {
       ifCondition?: string;
       timeoutMs?: number;
       __metricsId?: string;
+      sourceFunction?: BuildFunction;
+      runAfterStep?: BuildStep;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -195,6 +212,8 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.ifCondition = ifCondition;
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
+    this.sourceFunction = sourceFunction;
+    this.runAfterStep = runAfterStep;
     this.status = BuildStepStatus.NEW;
 
     const logger = ctx.baseLogger.child({
@@ -305,10 +324,17 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   public shouldExecuteStep(): boolean {
+    // After-hook gate: run iff the anchor's before-side step executed (pass or
+    // fail), regardless of the global failure flag. A user if: below is
+    // thereby AND-ed with the gate; success()/failure() keep their global
+    // meaning inside it.
+    if (this.runAfterStep !== undefined && !this.runAfterStep.hasExecuted) {
+      return false;
+    }
     const hasAnyPreviousStepFailed = this.ctx.global.hasAnyPreviousStepFailed;
 
     if (!this.ifCondition) {
-      return !hasAnyPreviousStepFailed;
+      return this.runAfterStep !== undefined || !hasAnyPreviousStepFailed;
     }
 
     let ifCondition = this.ifCondition;

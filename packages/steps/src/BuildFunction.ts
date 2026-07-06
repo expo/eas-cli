@@ -92,6 +92,7 @@ export class BuildFunction {
       env,
       ifCondition,
       timeoutMs,
+      runAfterStep,
     }: {
       id?: string;
       name?: string;
@@ -101,6 +102,7 @@ export class BuildFunction {
       env?: BuildStepEnv;
       ifCondition?: string;
       timeoutMs?: number;
+      runAfterStep?: BuildStep;
     } = {}
   ): BuildStep {
     const buildStepId = BuildStep.getNewId(id);
@@ -134,6 +136,8 @@ export class BuildFunction {
       ifCondition,
       timeoutMs,
       __metricsId: this.__metricsId,
+      sourceFunction: this,
+      runAfterStep,
     });
   }
 }

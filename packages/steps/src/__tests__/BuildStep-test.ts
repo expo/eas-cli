@@ -1272,3 +1272,86 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
     }
   });
 });
+
+describe('runAfterStep gate', () => {
+  let ctx: BuildStepGlobalContext;
+
+  beforeEach(async () => {
+    ctx = createGlobalContextMock();
+    await fs.mkdir(ctx.defaultWorkingDirectory, { recursive: true });
+    await fs.mkdir(ctx.stepsInternalBuildDirectory, { recursive: true });
+  });
+  afterEach(async () => {
+    await fs.rm(ctx.stepsInternalBuildDirectory, { recursive: true });
+  });
+
+  async function createExecutedGateStepAsync(): Promise<BuildStep> {
+    const gateStep = new BuildStep(ctx, { id: 'gate', displayName: 'Gate', fn: () => {} });
+    await gateStep.executeAsync();
+    return gateStep;
+  }
+
+  it('runs when the gate step executed, even after a failure', async () => {
+    const gateStep = await createExecutedGateStepAsync();
+    ctx.markAsFailed();
+    const hookStep = new BuildStep(ctx, {
+      id: 'hook',
+      displayName: 'Hook',
+      command: 'echo hook',
+      runAfterStep: gateStep,
+    });
+    expect(hookStep.shouldExecuteStep()).toBe(true);
+  });
+
+  it('is skipped when the gate step did not execute', () => {
+    const gateStep = new BuildStep(ctx, { id: 'gate', displayName: 'Gate', fn: () => {} });
+    const hookStep = new BuildStep(ctx, {
+      id: 'hook',
+      displayName: 'Hook',
+      command: 'echo hook',
+      runAfterStep: gateStep,
+    });
+    expect(hookStep.shouldExecuteStep()).toBe(false);
+  });
+
+  it('ANDs a user if: with the gate; success()/failure() keep their global meaning', async () => {
+    const gateStep = await createExecutedGateStepAsync();
+    ctx.markAsFailed();
+    const successHook = new BuildStep(ctx, {
+      id: 'hook-success',
+      displayName: 'Hook success',
+      command: 'echo hook',
+      ifCondition: '${{ success() }}',
+      runAfterStep: gateStep,
+    });
+    const failureHook = new BuildStep(ctx, {
+      id: 'hook-failure',
+      displayName: 'Hook failure',
+      command: 'echo hook',
+      ifCondition: '${{ failure() }}',
+      runAfterStep: gateStep,
+    });
+    const alwaysHook = new BuildStep(ctx, {
+      id: 'hook-always',
+      displayName: 'Hook always',
+      command: 'echo hook',
+      ifCondition: '${{ always() }}',
+      runAfterStep: gateStep,
+    });
+    expect(successHook.shouldExecuteStep()).toBe(false);
+    expect(failureHook.shouldExecuteStep()).toBe(true);
+    expect(alwaysHook.shouldExecuteStep()).toBe(true);
+  });
+
+  it('always() cannot bypass the gate', () => {
+    const gateStep = new BuildStep(ctx, { id: 'gate', displayName: 'Gate', fn: () => {} });
+    const hookStep = new BuildStep(ctx, {
+      id: 'hook',
+      displayName: 'Hook',
+      command: 'echo hook',
+      ifCondition: '${{ always() }}',
+      runAfterStep: gateStep,
+    });
+    expect(hookStep.shouldExecuteStep()).toBe(false);
+  });
+});
