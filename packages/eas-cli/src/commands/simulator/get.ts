@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
 
-import { getBareJobRunUrl } from '../../build/utils/url';
+import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
   EasNonInteractiveAndJsonFlags,
@@ -24,11 +24,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class SimulatorGet extends EasCommand {
   static override hidden = true;
   static override description =
-    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its device run session ID';
+    '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
 
   static override flags = {
     id: Flags.string({
-      description: `Device run session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
+      description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -61,26 +61,28 @@ export default class SimulatorGet extends EasCommand {
       );
     }
 
-    const fetchSpinner = ora(`Fetching device run session ${flagId}`).start();
+    const fetchSpinner = ora(`Fetching simulator session ${flagId}`).start();
     let session;
     try {
       session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, flagId);
-      fetchSpinner.succeed(`Fetched device run session ${session.id}`);
+      fetchSpinner.succeed(`Fetched simulator session ${session.id}`);
     } catch (err) {
-      fetchSpinner.fail(`Failed to fetch device run session ${flagId}`);
+      fetchSpinner.fail(`Failed to fetch simulator session ${flagId}`);
       throw err;
     }
 
-    const jobRunUrl = session.turtleJobRun
-      ? getBareJobRunUrl(session.app.ownerAccount.name, session.app.slug, session.turtleJobRun.id)
-      : '';
+    const deviceRunSessionUrl = getDeviceRunSessionUrl(
+      session.app.ownerAccount.name,
+      session.app.slug,
+      session.id
+    );
 
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: session.id,
         type: deviceRunSessionTypeToFlagValue(session.type),
         status: session.status,
-        jobRunUrl: jobRunUrl || undefined,
+        deviceRunSessionUrl,
         remoteConfig: session.remoteConfig,
       });
       return;
@@ -90,7 +92,7 @@ export default class SimulatorGet extends EasCommand {
     Log.log(`ID:       ${session.id}`);
     Log.log(`Type:     ${session.type}`);
     Log.log(`Status:   ${session.status}`);
-    Log.log(`URL:      ${jobRunUrl ? link(jobRunUrl) : ''}`);
+    Log.log(`URL:      ${link(deviceRunSessionUrl)}`);
 
     if (session.status === DeviceRunSessionStatus.InProgress) {
       Log.newLine();

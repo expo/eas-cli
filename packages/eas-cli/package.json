@@ -1,6 +1,6 @@
 {
   "name": "eas-cli",
-  "version": "20.2.0",
+  "version": "20.5.1",
   "description": "EAS command line tool",
   "keywords": [
     "cli",
@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "postpack": "rimraf oclif.manifest.json",
-    "prepack": "yarn rebuild && node ./scripts/prepack.js",
+    "prepack": "yarn sync-agent-templates && yarn rebuild && node ./scripts/prepack.js",
     "rebuild": "rimraf build \"*.tsbuildinfo\" && yarn build",
     "build": "yarn typecheck-for-build && yarn copy-new-templates",
     "build-allow-unused": "tsc --project tsconfig.allowUnused.json",
@@ -36,6 +36,7 @@
     "typecheck": "tsc",
     "typecheck-for-build": "tsc --project tsconfig.build.json",
     "test": "jest",
+    "sync-agent-templates": "node scripts/sync-agent-templates.js",
     "version": "yarn run -T oclif readme && node scripts/patch-readme && git add README.md",
     "generate-graphql-code": "graphql-codegen --config graphql-codegen.ts",
     "verify-graphql-code": "./scripts/verify-graphql.sh",
@@ -43,12 +44,12 @@
     "copy-new-templates": "rimraf build/commandUtils/new/templates && mkdir -p build/commandUtils/new && cp -r src/commandUtils/new/templates build/commandUtils/new"
   },
   "dependencies": {
-    "@expo/apple-utils": "2.1.19",
+    "@expo/apple-utils": "2.1.22",
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "55.0.10",
     "@expo/config-plugins": "55.0.7",
-    "@expo/eas-build-job": "20.1.0",
-    "@expo/eas-json": "20.1.0",
+    "@expo/eas-build-job": "20.5.1",
+    "@expo/eas-json": "20.5.1",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "20.0.0",
@@ -63,7 +64,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "20.1.0",
+    "@expo/steps": "20.5.1",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^4.8.3",
     "@oclif/plugin-autocomplete": "^3.2.40",
@@ -223,6 +224,9 @@
       },
       "update": {
         "description": "manage individual updates"
+      },
+      "update:embedded": {
+        "description": "manage embedded updates registered with EAS Update"
       },
       "webhook": {
         "description": "manage webhooks"

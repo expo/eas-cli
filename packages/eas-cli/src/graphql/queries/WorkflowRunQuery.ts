@@ -38,6 +38,7 @@ export const WorkflowRunQuery = {
                   isLatest
                   isBeta
                   isDeprecated
+                  sourceIpaUrl
                 }
               }
             }

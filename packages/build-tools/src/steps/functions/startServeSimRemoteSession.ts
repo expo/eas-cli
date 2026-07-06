@@ -1,15 +1,14 @@
 import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
+  selectXcodeDeveloperDirectoryAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
 } from '../utils/remoteDeviceRunSession';
 
-const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
 
 export function createStartServeSimRemoteSessionBuildFunction(
@@ -27,8 +26,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
 
       logger.info('Starting serve-sim remote session.');
 
-      logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
-      await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+      await selectXcodeDeveloperDirectoryAsync({ env, logger });
 
       const { previewUrl, streamUrl } = await startServeSimWithTunnelAsync(ctx, {
         baseDomain: ngrokTunnelDomain,

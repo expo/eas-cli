@@ -17,11 +17,11 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 export default class SimulatorStop extends EasCommand {
   static override hidden = true;
   static override description =
-    '[EXPERIMENTAL] stop a remote simulator session on EAS by its device run session ID';
+    '[EXPERIMENTAL] stop a remote simulator session on EAS by its simulator session ID';
 
   static override flags = {
     id: Flags.string({
-      description: `Device run session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
+      description: `Simulator session ID. Defaults to ${SIMULATOR_DOTENV_FILE_NAME}.`,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -54,16 +54,16 @@ export default class SimulatorStop extends EasCommand {
       );
     }
 
-    const stopSpinner = ora(`🛑 Stopping device run session ${flagId}`).start();
+    const stopSpinner = ora(`🛑 Stopping simulator session ${flagId}`).start();
     let session;
     try {
       session = await DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync(
         graphqlClient,
         flagId
       );
-      stopSpinner.succeed(`🎉 Device run session ${session.id} is ${session.status.toLowerCase()}`);
+      stopSpinner.succeed(`🎉 Simulator session ${session.id} is ${session.status.toLowerCase()}`);
     } catch (err) {
-      stopSpinner.fail(`Failed to stop device run session ${flagId}`);
+      stopSpinner.fail(`Failed to stop simulator session ${flagId}`);
       throw err;
     }
 

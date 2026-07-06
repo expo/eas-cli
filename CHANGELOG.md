@@ -10,8 +10,55 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
+## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fix Free plan users being warned they had reached their build limit while still well below it. Overage warnings are now shown only for paid plans with an actual billable overage cost. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
+- [eas-cli] Select correct tvOS build target for non-interactive Apple builds when EXPO_TV env variable is set. ([#3907](https://github.com/expo/eas-cli/pull/3907) by [@douglowder](https://github.com/douglowder))
+
+### 🧹 Chores
+
+- [eas-cli] Bump `@expo/apple-utils` to `2.1.22`. ([#3913](https://github.com/expo/eas-cli/pull/3913) by [@sjchmiela](https://github.com/sjchmiela))
+
+## [20.5.0](https://github.com/expo/eas-cli/releases/tag/v20.5.0) - 2026-06-29
+
+### 🎉 New features
+
+- [eas-cli] `eas integrations:posthog:connect` now supports existing PostHog user connection. ([#3895](https://github.com/expo/eas-cli/pull/3895) by [@gwdp](https://github.com/gwdp))
+
+## [20.4.0](https://github.com/expo/eas-cli/releases/tag/v20.4.0) - 2026-06-25
+
+### 🎉 New features
+
+- [eas-cli] New command `observe:session` for inspecting events by session ID. ([#3868](https://github.com/expo/eas-cli/pull/3868) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Add tiered build-credit usage warnings (approaching/at/over) before each build, lowering the warning threshold to 80% to match email notifications. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fix `eas update --channel` failing with "Channel has no branches associated with it" when the channel was auto-created by a build. A branch with the channel's name is now created and linked, matching the behavior for a channel that doesn't exist yet. ([#3891](https://github.com/expo/eas-cli/pull/3891) by [@gwdp](https://github.com/gwdp))
+
+## [20.3.0](https://github.com/expo/eas-cli/releases/tag/v20.3.0) - 2026-06-18
+
+### 🎉 New features
+
+- [eas-cli] Add `eas account:audit [ACCOUNT_NAME]` command to view an account's audit logs. ([#3863](https://github.com/expo/eas-cli/pull/3863) by [@keith-kurak](https://github.com/keith-kurak))
+- [eas-cli] `eas update:view [GROUP_ID]` now also accepts a platform-specific update ID, resolving it to and displaying its update group. ([#3864](https://github.com/expo/eas-cli/pull/3864) by [@keith-kurak](https://github.com/keith-kurak))
+- [eas-cli] Add `eas integrations:posthog:connect` command. ([#3836](https://github.com/expo/eas-cli/pull/3836) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:posthog:dashboard` command. ([#3837](https://github.com/expo/eas-cli/pull/3837) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:posthog:disconnect` command. ([#3838](https://github.com/expo/eas-cli/pull/3838) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [eas-cli] `eas integrations:posthog:connect` no longer aborts when `npx expo install` reports an error (for example, on a dynamic app config); it finishes writing the environment variables and prints any remaining manual steps. ([#3877](https://github.com/expo/eas-cli/pull/3877) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
+- [eas-cli] Sync new app agent templates from `expo/llm-configs` before publishing. ([#3865](https://github.com/expo/eas-cli/pull/3865) by [@davidmokos](https://github.com/davidmokos))
 - [eas-cli] Simplify 2FA now that SMS is no longer supported. ([#3859](https://github.com/expo/eas-cli/pull/3859) by [@wschurman](https://github.com/wschurman))
 
 ## [20.2.0](https://github.com/expo/eas-cli/releases/tag/v20.2.0) - 2026-06-15
@@ -24,6 +71,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [expo-cocoapods-proxy] Fix iOS worker tarball build failing on macOS Tahoe due to bundler incompatibility with RubyGems 4. ([#3824](https://github.com/expo/eas-cli/pull/3824) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Fix `update:embedded` topic showing the `update:embedded:delete` subcommand description in the command listing. ([#3866](https://github.com/expo/eas-cli/pull/3866) by [@jc-expo](https://github.com/jc-expo))
 
 ## [20.1.0](https://github.com/expo/eas-cli/releases/tag/v20.1.0) - 2026-06-05
 

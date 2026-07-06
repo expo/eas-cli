@@ -243,6 +243,12 @@ async function logDiffFingerprints({
   ctx: BuildContext<BuildJob>;
 }): Promise<void> {
   const { resolvedRuntimeVersion, resolvedFingerprintSources } = resolvedRuntime;
+  const buildId = ctx.env.EAS_BUILD_ID;
+
+  if (!buildId) {
+    ctx.logger.warn('Skipping fingerprint diff because EAS_BUILD_ID is not set');
+    return;
+  }
 
   const fingerprintInfo = await ctx.graphqlClient
     .query(
@@ -257,7 +263,7 @@ async function logDiffFingerprints({
           }
         }
       `),
-      { id: ctx.env.EAS_BUILD_ID }
+      { id: buildId }
     )
     .toPromise();
 

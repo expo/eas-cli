@@ -118,7 +118,8 @@ describe(SimulatorGet, () => {
       id: 'session-123',
       type: 'agent-device',
       status: DeviceRunSessionStatus.InProgress,
-      jobRunUrl: 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123',
+      deviceRunSessionUrl:
+        'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
       remoteConfig: session.remoteConfig,
     });
   });

@@ -60,6 +60,7 @@ export const AppObserveEventFragmentNode = gql`
     sessionId
     easClientId
     customParams
+    routeName
   }
 `;
 

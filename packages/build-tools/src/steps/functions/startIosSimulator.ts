@@ -31,6 +31,12 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         defaultValue: 1,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      BuildStepInput.createProvider({
+        id: 'enable_accessibility_settings',
+        required: false,
+        defaultValue: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
     ],
     fn: async ({ logger }, { inputs, env }) => {
       try {
@@ -55,11 +61,18 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
         | undefined;
       const originalDeviceIdentifier =
         deviceIdentifierInput ?? (await findMostGenericIphoneUuidAsync({ env }));
+      const enableAccessibilitySettings = Boolean(inputs.enable_accessibility_settings.value);
 
       if (!originalDeviceIdentifier) {
         throw new Error('Could not find an iPhone among available simulator devices.');
       }
 
+      if (enableAccessibilitySettings) {
+        await IosSimulatorUtils.enableAccessibilitySettingsAsync({
+          deviceIdentifier: originalDeviceIdentifier,
+          env,
+        });
+      }
       const { udid } = await IosSimulatorUtils.startAsync({
         deviceIdentifier: originalDeviceIdentifier,
         env,
@@ -97,6 +110,12 @@ export function createStartIosSimulatorBuildFunction(): BuildFunction {
             env,
           });
 
+          if (enableAccessibilitySettings) {
+            await IosSimulatorUtils.enableAccessibilitySettingsAsync({
+              deviceIdentifier: cloneDeviceName,
+              env,
+            });
+          }
           const { udid: cloneUdid } = await IosSimulatorUtils.startAsync({
             deviceIdentifier: cloneDeviceName,
             env,

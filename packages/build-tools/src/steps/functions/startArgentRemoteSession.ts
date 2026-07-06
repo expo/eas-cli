@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import { type bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -9,13 +10,16 @@ import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
+  selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
@@ -24,11 +28,15 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
+export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 const ARGENT_STATE_FILE = path.join(os.homedir(), '.argent', 'tool-server.json');
-const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const STARTUP_TIMEOUT_MS = 60_000;
 
-const ArgentToolServerStateSchema = z.object({ port: z.number() });
+const ArgentToolServerStateSchema = z.object({
+  port: z.number(),
+  token: z.string().optional(),
+});
 
 export function createStartArgentRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -55,6 +63,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
       logger.info(
@@ -62,41 +71,71 @@ export function createStartArgentRemoteSessionBuildFunction(
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
-        await spawn('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], { env, logger });
+        await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
       // Stale state from a previous run would mask the new server's port.
       await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
+      logger.info('Enabling the Argent artifacts list endpoint flag.');
+      await spawn(
+        'bunx',
+        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        { env, logger }
+      );
 
-      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} via bunx.`);
-      // `argent mcp` is the public entry that triggers @argent/tools-client
-      // to spawn the tool-server detached + unref'd, so the tool-server
-      // outlives this MCP process. ARGENT_IDLE_TIMEOUT_MINUTES=0 disables the
-      // 30-min idle shutdown that would otherwise tear the tunnel down.
-      spawnDetached({
+      logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
+      const argentServer = spawnDetached({
         command: 'bunx',
-        args: [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'mcp'],
-        env: { ...env, ARGENT_IDLE_TIMEOUT_MINUTES: '0' },
+        args: [
+          `${ARGENT_PACKAGE_NAME}@${versionSpec}`,
+          'server',
+          'start',
+          '--port',
+          '0',
+          '--idle-timeout',
+          '0',
+          '--detach',
+        ],
+        env,
       });
 
       logger.info(`Waiting for argent tool-server state at ${ARGENT_STATE_FILE}.`);
-      const { port: toolServerPort } = await waitForFileAsync({
-        filePath: ARGENT_STATE_FILE,
-        timeoutMs: STARTUP_TIMEOUT_MS,
-        description: 'argent tool-server state',
-        parse: parseArgentToolServerState,
-      });
+      let toolServerPort: number;
+      let toolServerToken: string | undefined;
+      try {
+        const toolServerState = await waitForFileAsync({
+          filePath: ARGENT_STATE_FILE,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+          description: 'argent tool-server state',
+          parse: parseArgentToolServerState,
+        });
+        toolServerPort = toolServerState.port;
+        toolServerToken = toolServerState.token;
+      } catch (err) {
+        const output = argentServer.getOutput();
+        throw new SystemError(
+          `${
+            err instanceof Error ? err.message : `Timed out waiting for argent tool-server state.`
+          }${output ? `\nArgent tool-server output:\n${output}` : ''}`
+        );
+      }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
+      void pollArgentArtifactsForUploadAsync(ctx, {
+        deviceRunSessionId,
+        toolsUrl: `http://127.0.0.1:${toolServerPort}`,
+        toolsAuthToken: toolServerToken,
+        logger,
+      });
 
-      const toolsUrl = await startNgrokTunnelAsync({
+      const publicToolsUrl = await startNgrokTunnelAsync({
         port: toolServerPort,
         subdomainPrefix: 'argent',
         baseDomain: ngrokTunnelDomain,
         authtoken: ngrokAuthtoken,
+        rewriteHostHeader: true,
         logger,
       });
-      logger.info(`Tunnel is ready at ${toolsUrl}.`);
+      logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
       // serve-sim is iOS-only — Android sessions go without a preview URL.
       let webPreviewUrl: string | undefined;
@@ -115,7 +154,8 @@ export function createStartArgentRemoteSessionBuildFunction(
         ctx,
         deviceRunSessionId,
         remoteConfig: {
-          toolsUrl,
+          toolsUrl: publicToolsUrl,
+          ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
           ...(webPreviewUrl ? { webPreviewUrl } : {}),
         },
         logger,
@@ -129,7 +169,37 @@ export function createStartArgentRemoteSessionBuildFunction(
   });
 }
 
-function parseArgentToolServerState(raw: string): { port: number } {
+export function warnIfArgentPackageVersionCannotBeVerified({
+  packageVersion,
+  logger,
+}: {
+  packageVersion: string | undefined;
+  logger: bunyan;
+}): void {
+  if (!packageVersion || packageVersion === 'latest') {
+    return;
+  }
+
+  const validVersion = semver.valid(packageVersion);
+  if (!validVersion) {
+    logger.warn(
+      `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer, ` +
+        `but package_version "${packageVersion}" is not an exact semver version that EAS can verify. ` +
+        `Continuing and letting bunx resolve it.`
+    );
+    return;
+  }
+
+  if (semver.lt(validVersion, MIN_ARGENT_REMOTE_SESSION_VERSION)) {
+    throw new SystemError(
+      `Argent remote simulator sessions require ${ARGENT_PACKAGE_NAME}@${MIN_ARGENT_REMOTE_SESSION_VERSION} or newer. ` +
+        `The requested package_version "${packageVersion}" is too old for the EAS remote-session API. ` +
+        `Use "latest" or pass an exact version >= ${MIN_ARGENT_REMOTE_SESSION_VERSION}.`
+    );
+  }
+}
+
+function parseArgentToolServerState(raw: string): { port: number; token?: string } {
   const result = ArgentToolServerStateSchema.safeParse(JSON.parse(raw));
   if (!result.success) {
     throw new SystemError(
