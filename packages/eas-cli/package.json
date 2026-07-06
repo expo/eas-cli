@@ -161,7 +161,7 @@
     "@types/wrap-ansi": "3.0.0",
     "axios": "1.11.0",
     "eslint-plugin-graphql": "4.0.0",
-    "express": "4.20.0",
+    "express": "4.22.2",
     "jest": "29.7.0",
     "memfs": "3.4.13",
     "mockdate": "3.0.5",
