@@ -3,7 +3,11 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import { CreatePostHogAccountRequestInput, SetupPostHogProjectInput } from '../generated';
+import {
+  CreatePostHogAccountRequestInput,
+  CreatePostHogDeepLinkInput,
+  SetupPostHogProjectInput,
+} from '../generated';
 import {
   PostHogOrganizationConnectionFragmentNode,
   PostHogProjectData,
@@ -39,6 +43,16 @@ type DeletePostHogProjectMutation = {
 
 type DeletePostHogProjectMutationVariables = {
   id: string;
+};
+
+type CreatePostHogDeepLinkMutation = {
+  posthogOrganizationConnection: {
+    createPostHogDeepLink: { url: string };
+  };
+};
+
+type CreatePostHogDeepLinkMutationVariables = {
+  input: CreatePostHogDeepLinkInput;
 };
 
 export const PostHogMutation = {
@@ -117,5 +131,28 @@ export const PostHogMutation = {
         .toPromise()
     );
     return data.posthogProject.deletePostHogProject;
+  },
+
+  async createPostHogDeepLinkAsync(
+    graphqlClient: ExpoGraphqlClient,
+    input: CreatePostHogDeepLinkInput
+  ): Promise<string> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .mutation<CreatePostHogDeepLinkMutation, CreatePostHogDeepLinkMutationVariables>(
+          gql`
+            mutation CreatePostHogDeepLink($input: CreatePostHogDeepLinkInput!) {
+              posthogOrganizationConnection {
+                createPostHogDeepLink(input: $input) {
+                  url
+                }
+              }
+            }
+          `,
+          { input }
+        )
+        .toPromise()
+    );
+    return data.posthogOrganizationConnection.createPostHogDeepLink.url;
   },
 };

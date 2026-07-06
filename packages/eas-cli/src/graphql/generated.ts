@@ -5230,6 +5230,14 @@ export type CreatePostHogAccountRequestInput = {
   region: PostHogRegion;
 };
 
+export type CreatePostHogDeepLinkInput = {
+  /** When set, deep-links to this app's linked PostHog project; otherwise lands on the organization home. */
+  appId?: InputMaybe<Scalars['ID']['input']>;
+  posthogOrganizationConnectionId: Scalars['ID']['input'];
+  /** Which EAS surface opened the link; omitted lets PostHog apply its own default. */
+  purpose?: InputMaybe<PostHogDeepLinkPurpose>;
+};
+
 export type CreateSentryProjectInput = {
   appId: Scalars['ID']['input'];
   sentryProjectId: Scalars['String']['input'];
@@ -5735,7 +5743,7 @@ export type DeviceRunSessionFilterInput = {
 
 export type DeviceRunSessionMutation = {
   __typename?: 'DeviceRunSessionMutation';
-  /** Create an upload session for an artifact produced by an active device run session */
+  /** Create an upload session for an artifact while the backing job run is not in a final state */
   createArtifactUploadSession: CreateDeviceRunSessionArtifactUploadSessionResult;
   /** Create a device run session */
   createDeviceRunSession: DeviceRunSession;
@@ -8633,6 +8641,20 @@ export type PinnedDashboardView = {
 
 export type PlanEnablement = Concurrencies | EasTotalPlanEnablement;
 
+/** A one-time, signed-in PostHog link. Expires in 10 minutes and opens once. */
+export type PostHogDeepLink = {
+  __typename?: 'PostHogDeepLink';
+  expiresAt: Scalars['DateTime']['output'];
+  url: Scalars['String']['output'];
+};
+
+/** Which EAS surface a deep link was opened from; PostHog records it as an analytics label. */
+export enum PostHogDeepLinkPurpose {
+  Dashboard = 'DASHBOARD',
+  Observability = 'OBSERVABILITY',
+  Project = 'PROJECT'
+}
+
 export type PostHogIntegrationQuery = {
   __typename?: 'PostHogIntegrationQuery';
   clientIdentifier: Scalars['String']['output'];
@@ -8658,6 +8680,11 @@ export type PostHogOrganizationConnectionMutation = {
    */
   completePostHogConnection: PostHogOrganizationConnection;
   createPostHogAccountRequest: PostHogOrganizationConnection;
+  /**
+   * Mints a one-time, signed-in PostHog link. The URL expires in 10 minutes and can be
+   * opened once, so request it at click time rather than pre-rendering it.
+   */
+  createPostHogDeepLink: PostHogDeepLink;
   /** Removes the Expo-side connection only; the PostHog organization is preserved. */
   deletePostHogOrganizationConnection: Scalars['ID']['output'];
   /**
@@ -8675,6 +8702,11 @@ export type PostHogOrganizationConnectionMutationCompletePostHogConnectionArgs =
 
 export type PostHogOrganizationConnectionMutationCreatePostHogAccountRequestArgs = {
   input: CreatePostHogAccountRequestInput;
+};
+
+
+export type PostHogOrganizationConnectionMutationCreatePostHogDeepLinkArgs = {
+  input: CreatePostHogDeepLinkInput;
 };
 
 
@@ -9996,6 +10028,7 @@ export type SubscriptionDetails = {
   name?: Maybe<Scalars['String']['output']>;
   nextInvoice?: Maybe<Scalars['DateTime']['output']>;
   nextInvoiceAmountDueCents?: Maybe<Scalars['Int']['output']>;
+  paymentFailedAt?: Maybe<Scalars['DateTime']['output']>;
   planEnablement?: Maybe<PlanEnablement>;
   planId?: Maybe<Scalars['String']['output']>;
   price: Scalars['Int']['output'];
@@ -13713,6 +13746,13 @@ export type DeletePostHogProjectMutationVariables = Exact<{
 
 
 export type DeletePostHogProjectMutation = { __typename?: 'RootMutation', posthogProject: { __typename?: 'PostHogProjectMutation', deletePostHogProject: string } };
+
+export type CreatePostHogDeepLinkMutationVariables = Exact<{
+  input: CreatePostHogDeepLinkInput;
+}>;
+
+
+export type CreatePostHogDeepLinkMutation = { __typename?: 'RootMutation', posthogOrganizationConnection: { __typename?: 'PostHogOrganizationConnectionMutation', createPostHogDeepLink: { __typename?: 'PostHogDeepLink', url: string } } };
 
 export type GetSignedUploadMutationVariables = Exact<{
   contentTypes: Array<Scalars['String']['input']> | Scalars['String']['input'];
