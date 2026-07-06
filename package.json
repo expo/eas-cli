@@ -34,5 +34,8 @@
     "ts-jest": "29.1.1",
     "typescript": "5.5.4"
   },
+  "resolutions": {
+    "@xmldom/xmldom": "0.8.13"
+  },
   "packageManager": "yarn@4.12.0"
 }
