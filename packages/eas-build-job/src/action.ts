@@ -2,10 +2,9 @@
  * Schema for composite actions, reusable step groups referenced via `uses:` in EAS
  * workflows (`.eas/workflows/*.yml`) or inline job step definitions.
  *
- * This module defines the shape of an action configuration file (`action.yml`) and a
- * validator for it. Discovery and loading of local actions (resolving `uses:` paths,
- * building the action catalog) lives in `@expo/steps`, closer to where actions are
- * expanded. Actions are not supported in `.eas/build/*.yml` custom build config files.
+ * This module defines the shape of an action configuration file (`action.yml`).
+ * Callers that load action files format validation errors from `ActionConfigZ`.
+ * Actions are not supported in `.eas/build/*.yml` custom build config files.
  */
 import { z } from 'zod';
 
@@ -108,23 +107,3 @@ export const ActionConfigZ = z
 export type ActionConfig = z.infer<typeof ActionConfigZ>;
 
 export type ActionCatalog = Record<string, ActionConfig>;
-
-export function validateActionConfig(
-  maybeConfig: unknown,
-  { actionReference }: { actionReference?: string } = {}
-): ActionConfig {
-  const result = ActionConfigZ.safeParse(maybeConfig);
-  if (!result.success) {
-    const issues = result.error.issues
-      .map(issue => {
-        const path = issue.path.join('.');
-        return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-      })
-      .join('; ');
-    const prefix = actionReference
-      ? `Invalid action "${actionReference}": `
-      : 'Invalid action configuration: ';
-    throw new Error(`${prefix}${issues}`);
-  }
-  return result.data;
-}

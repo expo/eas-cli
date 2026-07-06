@@ -1,6 +1,8 @@
-import { validateActionConfig } from '../action';
+import { ZodError } from 'zod';
 
-describe(validateActionConfig, () => {
+import { ActionConfigZ } from '../action';
+
+describe('ActionConfigZ', () => {
   it('accepts a valid local action config', () => {
     const config = {
       name: 'Setup',
@@ -10,7 +12,7 @@ describe(validateActionConfig, () => {
         steps: [{ id: 'read', run: 'set-output version "1.0.0"' }],
       },
     };
-    expect(validateActionConfig(config)).toEqual(config);
+    expect(ActionConfigZ.parse(config)).toEqual(config);
   });
 
   it('accepts shorthand input names', () => {
@@ -20,7 +22,7 @@ describe(validateActionConfig, () => {
         steps: [{ run: 'echo hello' }],
       },
     };
-    expect(validateActionConfig(config)).toEqual(config);
+    expect(ActionConfigZ.parse(config)).toEqual(config);
   });
 
   it('accepts a minimal config with only runs.steps', () => {
@@ -29,7 +31,7 @@ describe(validateActionConfig, () => {
         steps: [{ run: 'echo hello' }],
       },
     };
-    expect(validateActionConfig(config)).toEqual(config);
+    expect(ActionConfigZ.parse(config)).toEqual(config);
   });
 
   it('applies default input type "string" when omitted', () => {
@@ -39,7 +41,7 @@ describe(validateActionConfig, () => {
         steps: [{ run: 'echo hello' }],
       },
     };
-    expect(validateActionConfig(config)).toEqual({
+    expect(ActionConfigZ.parse(config)).toEqual({
       inputs: [{ name: 'greeting', type: 'string' }],
       runs: {
         steps: [{ run: 'echo hello' }],
@@ -54,7 +56,8 @@ describe(validateActionConfig, () => {
         steps: [{ run: 'echo hello' }],
       },
     };
-    expect(() => validateActionConfig(config)).toThrow(/unknown_field/);
+    expect(() => ActionConfigZ.parse(config)).toThrow(ZodError);
+    expect(() => ActionConfigZ.parse(config)).toThrow(/unknown_field/);
   });
 
   it('errors when runs.steps is empty', () => {
@@ -62,18 +65,14 @@ describe(validateActionConfig, () => {
       name: 'Broken',
       runs: { steps: [] },
     };
-    expect(() => validateActionConfig(config)).toThrow(
-      /Invalid action configuration: .*must declare at least one step under "runs.steps"/
-    );
-  });
-
-  it('includes actionReference in validation errors when provided', () => {
-    const config = {
-      name: 'Broken',
-      runs: { steps: [] },
-    };
-    expect(() => validateActionConfig(config, { actionReference: './.eas/actions/setup' })).toThrow(
-      /Invalid action "\.\/\.eas\/actions\/setup": .*must declare at least one step/
-    );
+    expect(() => ActionConfigZ.parse(config)).toThrow(ZodError);
+    try {
+      ActionConfigZ.parse(config);
+    } catch (err) {
+      expect(err).toBeInstanceOf(ZodError);
+      expect((err as ZodError).issues[0]?.message).toMatch(
+        /must declare at least one step under "runs.steps"/
+      );
+    }
   });
 });
