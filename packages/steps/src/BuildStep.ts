@@ -24,7 +24,7 @@ import {
 } from './BuildTemporaryFiles';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
-import { jsepEval } from './utils/jsepEval';
+import { evaluateIfCondition } from './utils/jsepEval';
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
@@ -75,10 +75,6 @@ export class BuildStepOutputAccessor {
 
   public get outputs(): BuildStepOutput[] {
     return Object.values(this.outputById);
-  }
-
-  public get hasExecuted(): boolean {
-    return this.executed;
   }
 
   public getOutputValueByName(name: string): string | undefined {
@@ -144,10 +140,6 @@ export class BuildStep extends BuildStepOutputAccessor {
   // The function this step was created from, when it came from a `uses:` call
   // or a function-group expansion. TS-only reference — never serialized.
   public readonly sourceFunction?: BuildFunction;
-  // When set, this step is an after-hook of the referenced step: it runs iff
-  // that step executed (pass or fail), and is skipped iff that step skipped.
-  // TS-only reference — never serialized.
-  public readonly runAfterStep?: BuildStep;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -176,7 +168,6 @@ export class BuildStep extends BuildStepOutputAccessor {
       timeoutMs,
       __metricsId,
       sourceFunction,
-      runAfterStep,
     }: {
       id: string;
       displayName: string;
@@ -192,7 +183,6 @@ export class BuildStep extends BuildStepOutputAccessor {
       timeoutMs?: number;
       __metricsId?: string;
       sourceFunction?: BuildFunction;
-      runAfterStep?: BuildStep;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -213,7 +203,6 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
     this.sourceFunction = sourceFunction;
-    this.runAfterStep = runAfterStep;
     this.status = BuildStepStatus.NEW;
 
     const logger = ctx.baseLogger.child({
@@ -324,47 +313,30 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   public shouldExecuteStep(): boolean {
-    // After-hook gate: run iff the anchor's before-side step executed (pass or
-    // fail), regardless of the global failure flag. A user if: below is
-    // thereby AND-ed with the gate; success()/failure() keep their global
-    // meaning inside it.
-    if (this.runAfterStep !== undefined && !this.runAfterStep.hasExecuted) {
-      return false;
-    }
     const hasAnyPreviousStepFailed = this.ctx.global.hasAnyPreviousStepFailed;
 
     if (!this.ifCondition) {
-      return this.runAfterStep !== undefined || !hasAnyPreviousStepFailed;
+      return !hasAnyPreviousStepFailed;
     }
 
-    let ifCondition = this.ifCondition;
-
-    if (ifCondition.startsWith('${{') && ifCondition.endsWith('}}')) {
-      ifCondition = ifCondition.slice(3, -2);
-    } else if (ifCondition.startsWith('${') && ifCondition.endsWith('}')) {
-      ifCondition = ifCondition.slice(2, -1);
-    }
-
-    return Boolean(
-      jsepEval(ifCondition, {
-        inputs:
-          this.inputs?.reduce(
-            (acc, input) => {
-              acc[input.id] = input.getValue({
-                interpolationContext: this.getInterpolationContext(),
-              });
-              return acc;
-            },
-            {} as Record<string, unknown>
-          ) ?? {},
-        eas: {
-          runtimePlatform: this.ctx.global.runtimePlatform,
-          ...this.ctx.global.staticContext,
-          env: this.getScriptEnv(),
-        },
-        ...this.getInterpolationContext(),
-      })
-    );
+    return evaluateIfCondition(this.ifCondition, {
+      inputs:
+        this.inputs?.reduce(
+          (acc, input) => {
+            acc[input.id] = input.getValue({
+              interpolationContext: this.getInterpolationContext(),
+            });
+            return acc;
+          },
+          {} as Record<string, unknown>
+        ) ?? {},
+      eas: {
+        runtimePlatform: this.ctx.global.runtimePlatform,
+        ...this.ctx.global.staticContext,
+        env: this.getScriptEnv(),
+      },
+      ...this.getInterpolationContext(),
+    });
   }
 
   public skip(): void {

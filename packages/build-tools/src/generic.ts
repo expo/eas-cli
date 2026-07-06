@@ -22,7 +22,7 @@ export async function runGenericJobAsync(
     'expoApiV2BaseUrl is required for generic jobs'
   );
 
-  const customBuildCtx = new CustomBuildContext(ctx);
+  const customBuildCtx = new CustomBuildContext(ctx, { world: 'steps' });
 
   await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
     await retryAsync(
@@ -47,6 +47,7 @@ export async function runGenericJobAsync(
     externalFunctions: getEasFunctions(customBuildCtx),
     externalFunctionGroups: getEasFunctionGroups(customBuildCtx),
     steps: ctx.job.steps,
+    hooks: ctx.job.hooks,
   });
 
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {

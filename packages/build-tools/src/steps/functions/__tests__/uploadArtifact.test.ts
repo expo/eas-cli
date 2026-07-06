@@ -20,7 +20,7 @@ describe(createUploadArtifactBuildFunction, () => {
     uploadArtifact: contextUploadArtifact,
     workingdir: '',
   });
-  const customContext = new CustomBuildContext(ctx);
+  const customContext = new CustomBuildContext(ctx, { world: 'steps' });
   const uploadArtifact = createUploadArtifactBuildFunction(customContext);
 
   it.each(['build-artifact', 'BUILD_ARTIFACTS'])('accepts %s', async type => {

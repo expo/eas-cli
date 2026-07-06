@@ -54,6 +54,12 @@ const CommonStepZ = z.object({
   // Internal field for metrics collection. Not documented publicly.
   // YAML uses snake_case, but we transform to camelCase for internal use.
   __metrics_id: z.string().optional(),
+  // Internal hook-anchor stamp set by EAS servers on generated anchor steps,
+  // `uses:` steps included (unstamped function steps bind through the invoked
+  // function's own anchor declaration instead). Loose strings on purpose
+  // (never enums): an older worker must treat unknown anchor names as inert
+  // metadata instead of failing validation.
+  __hook_id: z.string().optional(),
 });
 
 export const FunctionStepZ = CommonStepZ.extend({
@@ -143,14 +149,6 @@ export const ShellStepZ = CommonStepZ.extend({
       ])
     )
     .optional(),
-
-  // Internal hook-anchor stamps set by EAS servers on generated shell steps
-  // (function steps bind to anchors through the hooks registry instead).
-  // Loose strings on purpose (never enums): an older worker must treat unknown
-  // anchor names as inert metadata instead of failing validation.
-  __hook_id: z.string().optional(),
-  __hook_before_id: z.string().optional(),
-  __hook_after_id: z.string().optional(),
 
   uses: z.never().optional(),
   with: z.never().optional(),

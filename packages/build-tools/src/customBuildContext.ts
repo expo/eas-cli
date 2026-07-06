@@ -9,12 +9,18 @@ import {
   StaticJobInterpolationContext,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, ExternalBuildContextProvider, StepMetric } from '@expo/steps';
+import {
+  BuildRuntimePlatform,
+  ExternalBuildContextProvider,
+  StepMetric,
+  WorkflowHookMetric,
+} from '@expo/steps';
 import { Client } from '@urql/core';
 import assert from 'assert';
 import path from 'path';
 
 import { ArtifactToUpload, BuildContext } from './context';
+import { reportWorkflowHookMetricToDatadog } from './utils/hookMetrics';
 import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
@@ -63,8 +69,12 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   private _env: Env;
   private readonly expoApiV2BaseUrl?: string;
   private readonly pendingMetricUploads: Promise<void>[] = [];
+  // The `world` tag on hook metrics is a property of the context owner: the
+  // generic/custom steps runners pass 'steps'; the native hook runner (not
+  // yet landed) will pass 'native'. Never hard-coded at the emission site.
+  private readonly world: 'steps' | 'native';
 
-  constructor(buildCtx: BuildContext<TJob>) {
+  constructor(buildCtx: BuildContext<TJob>, { world }: { world: 'steps' | 'native' }) {
     this._env = buildCtx.env;
     this.job = buildCtx.job;
     this.metadata = buildCtx.metadata;
@@ -80,6 +90,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     };
     this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;
     this.startTime = new Date();
+    this.world = world;
   }
 
   public hasBuildJob(): this is CustomBuildContext<BuildJob> {
@@ -163,6 +174,10 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       logger: this.logger,
     });
     this.pendingMetricUploads.push(p);
+  }
+
+  public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
+    reportWorkflowHookMetricToDatadog(metric, { world: this.world });
   }
 
   public async drainPendingMetricUploads(): Promise<void> {

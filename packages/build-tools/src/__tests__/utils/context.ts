@@ -10,7 +10,10 @@ import os from 'os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+import { createTestIosJob } from './job';
 import { createMockLogger } from './logger';
+import { BuildContext } from '../../context';
+import { CustomBuildContext } from '../../customBuildContext';
 
 export class MockContextProvider implements ExternalBuildContextProvider {
   private _env: BuildStepEnv = {};
@@ -70,6 +73,19 @@ export function createStepContextMock({
     logger: logger ?? createMockLogger(),
     relativeWorkingDirectory,
   });
+}
+
+export function createCustomBuildContextMock(): CustomBuildContext {
+  const ctx = new BuildContext(createTestIosJob({}), {
+    env: {
+      __API_SERVER_URL: 'http://api.expo.test',
+    },
+    logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+    logger: createMockLogger(),
+    uploadArtifact: jest.fn(),
+    workingdir: '',
+  });
+  return new CustomBuildContext(ctx, { world: 'steps' });
 }
 
 export function createGlobalContextMock({

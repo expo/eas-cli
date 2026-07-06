@@ -1,4 +1,4 @@
-import { HOOK_ANCHOR_ID_BY_FUNCTION_ID, HOOK_ANCHORS, parseHookKey } from '../hooks';
+import { HOOK_ANCHORS, parseHookKey } from '../hooks';
 
 describe('HOOK_ANCHORS', () => {
   it('contains the v1 anchors', () => {
@@ -15,23 +15,6 @@ describe('HOOK_ANCHORS', () => {
     for (const entry of Object.values(HOOK_ANCHORS)) {
       expect(entry.description.length).toBeGreaterThan(0);
     }
-  });
-
-  it('function ids are unique across anchors', () => {
-    const functionIds = Object.values(HOOK_ANCHORS)
-      .map(entry => ('functionId' in entry ? entry.functionId : undefined))
-      .filter((id): id is NonNullable<typeof id> => id !== undefined);
-    expect(new Set(functionIds).size).toBe(functionIds.length);
-  });
-});
-
-describe('HOOK_ANCHOR_ID_BY_FUNCTION_ID', () => {
-  it('maps every functionId back to its anchor id', () => {
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['eas/install_node_modules']).toBe('install_node_modules');
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['eas/upload_to_asc']).toBe('submit');
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['eas/checkout']).toBe('checkout');
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['eas/maestro_tests']).toBe('maestro_tests');
-    expect(Object.keys(HOOK_ANCHOR_ID_BY_FUNCTION_ID)).toHaveLength(4);
   });
 });
 
@@ -57,7 +40,5 @@ describe(parseHookKey, () => {
     expect(parseHookKey('before___proto__')).toBeNull();
     expect(parseHookKey('after_toString')).toBeNull();
     expect(parseHookKey('before_constructor')).toBeNull();
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['toString']).toBeUndefined();
-    expect(HOOK_ANCHOR_ID_BY_FUNCTION_ID['__proto__']).toBeUndefined();
   });
 });

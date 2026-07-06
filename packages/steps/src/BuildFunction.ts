@@ -1,3 +1,4 @@
+import { HookAnchorId } from '@expo/eas-build-job';
 import assert from 'assert';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
@@ -6,10 +7,30 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputProvider } from './BuildStepInput';
 import { BuildStepOutputProvider } from './BuildStepOutput';
+import { BuildConfigError } from './errors';
 import { createCustomFunctionCall } from './utils/customFunction';
 
 export type BuildFunctionById = Record<string, BuildFunction>;
 export type BuildFunctionCallInputs = Record<string, unknown>;
+
+export function createBuildFunctionByIdMapping(
+  buildFunctions: readonly BuildFunction[]
+): BuildFunctionById {
+  // Null prototype: a function named like an Object prototype property
+  // ("toString", "constructor", ...) must neither read as a duplicate here nor
+  // resolve to an inherited value at lookup sites.
+  const buildFunctionById: BuildFunctionById = Object.create(null);
+  for (const buildFunction of buildFunctions) {
+    const fullId = buildFunction.getFullId();
+    // Without the fence, last-write-wins would let the provider's array order
+    // silently decide which implementation a `uses:` step resolves to.
+    if (buildFunctionById[fullId] !== undefined) {
+      throw new BuildConfigError(`Build function with id ${fullId} is already defined.`);
+    }
+    buildFunctionById[fullId] = buildFunction;
+  }
+  return buildFunctionById;
+}
 
 export class BuildFunction {
   public readonly namespace?: string;
@@ -23,6 +44,11 @@ export class BuildFunction {
   public readonly fn?: BuildStepFunction;
   public readonly shell?: string;
   public readonly __metricsId?: string;
+  // The hook anchor this function declares itself as (the `__metricsId`
+  // pattern). Registry-typed, so an unregistered anchor is a compile error;
+  // a step-level `__hook_id` stamp overrides it (see
+  // StepsConfigParser.resolveStepAnchor for the resolution rules).
+  public readonly __hookId?: HookAnchorId;
 
   constructor({
     namespace,
@@ -36,6 +62,7 @@ export class BuildFunction {
     customFunctionModulePath,
     shell,
     __metricsId,
+    __hookId,
   }: {
     namespace?: string;
     id: string;
@@ -48,6 +75,7 @@ export class BuildFunction {
     fn?: BuildStepFunction;
     shell?: string;
     __metricsId?: string;
+    __hookId?: HookAnchorId;
   }) {
     assert(
       command !== undefined || fn !== undefined || customFunctionModulePath !== undefined,
@@ -75,6 +103,7 @@ export class BuildFunction {
     this.shell = shell;
     this.customFunctionModulePath = customFunctionModulePath;
     this.__metricsId = __metricsId;
+    this.__hookId = __hookId;
   }
 
   public getFullId(): string {
@@ -92,7 +121,6 @@ export class BuildFunction {
       env,
       ifCondition,
       timeoutMs,
-      runAfterStep,
     }: {
       id?: string;
       name?: string;
@@ -102,7 +130,6 @@ export class BuildFunction {
       env?: BuildStepEnv;
       ifCondition?: string;
       timeoutMs?: number;
-      runAfterStep?: BuildStep;
     } = {}
   ): BuildStep {
     const buildStepId = BuildStep.getNewId(id);
@@ -137,7 +164,6 @@ export class BuildFunction {
       timeoutMs,
       __metricsId: this.__metricsId,
       sourceFunction: this,
-      runAfterStep,
     });
   }
 }

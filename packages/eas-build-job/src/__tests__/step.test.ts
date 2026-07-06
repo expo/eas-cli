@@ -72,13 +72,22 @@ describe('StepZ', () => {
 });
 
 describe('hook anchor stamps', () => {
-  it('accepts internal hook stamp fields on shell steps', () => {
-    const steps = [
-      { run: 'echo upload', __hook_before_id: 'maestro_cloud' },
-      { run: 'echo results', __hook_after_id: 'maestro_cloud' },
-      { run: 'echo submit', __hook_id: 'submit' },
-    ];
+  it('accepts the internal __hook_id stamp field on shell steps', () => {
+    const steps = [{ run: 'echo submit', __hook_id: 'submit' }];
     expect(validateSteps(steps)).toEqual(steps);
+  });
+
+  it('accepts and retains the __hook_id stamp on uses: steps', () => {
+    const steps = [{ uses: 'eas/upload_to_asc', __hook_id: 'submit' }];
+    expect(validateSteps(steps)).toEqual(steps);
+  });
+
+  it('strips the removed split-pair stamp fields (legacy __hook_before_id/__hook_after_id)', () => {
+    expect(
+      validateSteps([
+        { run: 'echo x', __hook_before_id: 'maestro_cloud', __hook_after_id: 'maestro_cloud' },
+      ])
+    ).toEqual([{ run: 'echo x' }]);
   });
 
   it('treats stamp values as loose strings so old workers never hard-fail on new anchors', () => {

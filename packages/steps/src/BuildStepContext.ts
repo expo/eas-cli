@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepOutputAccessor, SerializedBuildStepOutputAccessor } from './BuildStep';
 import { BuildStepEnv } from './BuildStepEnv';
-import { StepMetric, StepMetricInput } from './StepMetrics';
+import { StepMetric, StepMetricInput, StepMetricResult, WorkflowHookMetric } from './StepMetrics';
 import { BuildStepRuntimeError } from './errors';
 import { hashFiles } from './utils/hashFiles';
 import {
@@ -41,6 +41,9 @@ export interface ExternalBuildContextProvider {
   readonly env: BuildStepEnv;
   updateEnv(env: BuildStepEnv): void;
   reportStepMetric?(metric: StepMetric): void;
+  // The ONLY `eas.workflow.hook` emitter, called once per executed authored
+  // hook entry. The implementer owns the `world` tag (steps vs native).
+  reportWorkflowHookMetric?(metric: WorkflowHookMetric): void;
 }
 
 export interface SerializedBuildStepGlobalContext {
@@ -185,6 +188,17 @@ export class BuildStepGlobalContext {
   public addStepMetric(metric: StepMetricInput): void {
     const stepMetric: StepMetric = { ...metric, platform: this.runtimePlatform };
     this.provider.reportStepMetric?.(stepMetric);
+  }
+
+  public collectStepMetric(step: BuildStep, result: StepMetricResult, durationMs: number): void {
+    if (!step.__metricsId) {
+      return;
+    }
+    this.addStepMetric({ metricsId: step.__metricsId, result, durationMs });
+  }
+
+  public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
+    this.provider.reportWorkflowHookMetric?.(metric);
   }
 
   public wasCheckedOut(): boolean {

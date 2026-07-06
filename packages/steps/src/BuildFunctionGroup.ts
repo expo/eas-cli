@@ -65,7 +65,10 @@ export class BuildFunctionGroup {
 export function createBuildFunctionGroupByIdMapping(
   buildFunctionGroups: BuildFunctionGroup[]
 ): BuildFunctionGroupById {
-  const buildFunctionGroupById: BuildFunctionGroupById = {};
+  // Null prototype: a lookup of an Object prototype property name ("toString",
+  // "constructor", ...) must return undefined, not an inherited function that
+  // then gets called as a group.
+  const buildFunctionGroupById: BuildFunctionGroupById = Object.create(null);
   for (const buildFunctionGroup of buildFunctionGroups) {
     if (buildFunctionGroupById[buildFunctionGroup.getFullId()] !== undefined) {
       throw new BuildConfigError(

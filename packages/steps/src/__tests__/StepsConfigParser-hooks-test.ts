@@ -4,10 +4,13 @@ import { createGlobalContextMock } from './utils/context';
 import { getErrorAsync } from './utils/error';
 import { BuildFunction } from '../BuildFunction';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
+import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStepGlobalContext } from '../BuildStepContext';
+import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildWorkflow } from '../BuildWorkflow';
 import { StepsConfigParser } from '../StepsConfigParser';
 import { BuildConfigError, BuildWorkflowError } from '../errors';
+import { constructHookEntriesAsync, validateHookStepsAsync } from '../hooks';
 
 function createInstallNodeModulesFunction(): BuildFunction {
   return new BuildFunction({
@@ -15,6 +18,7 @@ function createInstallNodeModulesFunction(): BuildFunction {
     id: 'install_node_modules',
     name: 'Install node modules',
     command: 'npm install',
+    __hookId: 'install_node_modules',
   });
 }
 
@@ -24,6 +28,7 @@ function createCheckoutFunction(): BuildFunction {
     id: 'checkout',
     name: 'Checkout',
     command: 'echo checkout',
+    __hookId: 'checkout',
   });
 }
 
@@ -52,7 +57,11 @@ async function parseWorkflowAsync({
   return await parser.parseAsync();
 }
 
-describe('StepsConfigParser hooks insertion', () => {
+function orderedDisplayNames(workflow: BuildWorkflow): string[] {
+  return workflow.getExecutionOrderedSteps().map(step => step.displayName);
+}
+
+describe('StepsConfigParser hook construction', () => {
   let ctx: BuildStepGlobalContext;
 
   beforeEach(() => {
@@ -67,10 +76,11 @@ describe('StepsConfigParser hooks insertion', () => {
         hooks,
       });
       expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Checkout', 'user-step']);
+      expect(workflow.hooksByAnchorStep.size).toBe(0);
     }
   });
 
-  it('wraps a function anchor with before and after hooks', async () => {
+  it('attaches before and after hook entries to a function anchor without splicing them into buildSteps', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/checkout' }, { uses: 'eas/install_node_modules' }],
@@ -79,72 +89,60 @@ describe('StepsConfigParser hooks insertion', () => {
         after_install_node_modules: [{ run: 'echo after', id: 'after-hook' }],
       },
     });
+    // Hook steps never join buildSteps; the engine executes them around the anchor.
     expect(workflow.buildSteps.map(step => step.displayName)).toEqual([
+      'Checkout',
+      'Install node modules',
+    ]);
+    const installStep = workflow.buildSteps[1];
+    const anchorHooks = workflow.hooksByAnchorStep.get(installStep);
+    expect(anchorHooks?.anchor).toBe('install_node_modules');
+    expect(anchorHooks?.before.map(entry => entry.steps.map(step => step.displayName))).toEqual([
+      ['before-hook'],
+    ]);
+    expect(anchorHooks?.after.map(entry => entry.steps.map(step => step.displayName))).toEqual([
+      ['after-hook'],
+    ]);
+    expect(orderedDisplayNames(workflow)).toEqual([
       'Checkout',
       'before-hook',
       'Install node modules',
       'after-hook',
     ]);
-    const installStep = workflow.buildSteps[2];
-    const afterHookStep = workflow.buildSteps[3];
-    expect(afterHookStep.runAfterStep).toBe(installStep);
-    expect(workflow.buildSteps[1].runAfterStep).toBeUndefined();
   });
 
-  it('desugars __hook_id into a wrap of a single shell step', async () => {
+  it('generates step ids in the spliced order (before → anchor → after) for id parity', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
-      steps: [{ run: 'echo submit', id: 'submit-step', __hook_id: 'submit' }],
+      steps: [{ uses: 'eas/install_node_modules' }],
       hooks: {
-        before_submit: [{ run: 'echo before', id: 'before-hook' }],
-        after_submit: [{ run: 'echo after', id: 'after-hook' }],
+        before_install_node_modules: [{ run: 'echo before' }],
+        after_install_node_modules: [{ run: 'echo after' }],
       },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual([
-      'before-hook',
-      'submit-step',
-      'after-hook',
-    ]);
-    expect(workflow.buildSteps[2].runAfterStep).toBe(workflow.buildSteps[1]);
+    const orderedIds = workflow.getExecutionOrderedSteps().map(step => step.id);
+    // Generated ids are sequential (step-NNN); execution order must equal
+    // generation order with no ids consumed and discarded in between,
+    // exactly as splicing produced it.
+    const numbers = orderedIds.map(id => Number(id.replace('step-', '')));
+    for (let i = 1; i < numbers.length; i++) {
+      expect(numbers[i]).toBe(numbers[i - 1] + 1);
+    }
   });
 
-  it('handles the split stamp pair with the gate on the before-side step', async () => {
+  it('resolves a stamped shell step (merged maestro_cloud) to its anchor', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
-      steps: [
-        { run: 'echo upload', id: 'upload', __hook_before_id: 'maestro_cloud' },
-        { run: 'echo results', id: 'results', __hook_after_id: 'maestro_cloud' },
-      ],
+      steps: [{ run: 'echo maestro cloud', id: 'maestro_cloud', __hook_id: 'maestro_cloud' }],
       hooks: {
         before_maestro_cloud: [{ run: 'echo before', id: 'before-hook' }],
         after_maestro_cloud: [{ run: 'echo after', id: 'after-hook' }],
       },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual([
-      'before-hook',
-      'upload',
-      'results',
-      'after-hook',
-    ]);
-    // The gate is the BEFORE-side step (upload), so after_maestro_cloud still
-    // fires when the results step self-skips.
-    const uploadStep = workflow.buildSteps[1];
-    expect(workflow.buildSteps[3].runAfterStep).toBe(uploadStep);
+    expect(orderedDisplayNames(workflow)).toEqual(['before-hook', 'maestro_cloud', 'after-hook']);
   });
 
-  it('rejects __hook_id combined with the split pair on the same step', async () => {
-    const error = await getErrorAsync<BuildConfigError>(async () => {
-      await parseWorkflowAsync({
-        ctx,
-        steps: [{ run: 'echo x', __hook_id: 'submit', __hook_before_id: 'maestro_cloud' }],
-        hooks: { before_submit: [{ run: 'echo before' }] },
-      });
-    });
-    expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toMatch(/__hook_id/);
-  });
-
-  it('wraps every occurrence of an anchored function independently', async () => {
+  it('wraps every occurrence of an anchored function independently (per-occurrence entries)', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }, { uses: 'eas/install_node_modules' }],
@@ -153,7 +151,7 @@ describe('StepsConfigParser hooks insertion', () => {
         after_install_node_modules: [{ run: 'echo after' }],
       },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual([
+    expect(orderedDisplayNames(workflow)).toEqual([
       'echo before',
       'Install node modules',
       'echo after',
@@ -161,11 +159,12 @@ describe('StepsConfigParser hooks insertion', () => {
       'Install node modules',
       'echo after',
     ]);
-    expect(workflow.buildSteps[2].runAfterStep).toBe(workflow.buildSteps[1]);
-    expect(workflow.buildSteps[5].runAfterStep).toBe(workflow.buildSteps[4]);
+    expect(workflow.hooksByAnchorStep.size).toBe(2);
+    const [firstHooks, secondHooks] = [...workflow.hooksByAnchorStep.values()];
+    expect(firstHooks.before[0].steps[0]).not.toBe(secondHooks.before[0].steps[0]);
   });
 
-  it('never treats hook-inserted steps as anchors (no nesting)', async () => {
+  it('never treats hook-constructed steps as anchors (no nesting, direct anchored function)', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
@@ -173,11 +172,11 @@ describe('StepsConfigParser hooks insertion', () => {
         before_install_node_modules: [{ uses: 'eas/install_node_modules', id: 'hook-install' }],
       },
     });
-    // The hook step invoking the anchored function is just a step: exactly one
-    // insertion, no recursive wrapping. (displayName is the function name for
-    // both, so assert on ids.)
-    expect(workflow.buildSteps).toHaveLength(2);
-    expect(workflow.buildSteps[0].id).toBe('hook-install');
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before[0].steps[0].id).toBe('hook-install');
+    // The hook step invoking the anchored function got no hooks of its own.
+    expect(workflow.hooksByAnchorStep.get(anchorHooks.before[0].steps[0])).toBeUndefined();
   });
 
   it('ignores unknown hook keys without erroring (worker skew constraint)', async () => {
@@ -189,7 +188,7 @@ describe('StepsConfigParser hooks insertion', () => {
         not_a_hook_key: [{ run: 'echo never' }],
       },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+    expect(orderedDisplayNames(workflow)).toEqual(['Install node modules']);
   });
 
   it('keeps unknown hook keys fully inert even when their steps reference unknown functions', async () => {
@@ -203,7 +202,7 @@ describe('StepsConfigParser hooks insertion', () => {
         also_not_a_hook_key: ['not even steps' as unknown as Step],
       },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+    expect(orderedDisplayNames(workflow)).toEqual(['Install node modules']);
   });
 
   it('ignores hook keys whose anchor is not present in the steps', async () => {
@@ -212,37 +211,16 @@ describe('StepsConfigParser hooks insertion', () => {
       steps: [{ uses: 'eas/checkout' }],
       hooks: { before_install_node_modules: [{ run: 'echo never' }] },
     });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Checkout']);
+    expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
   });
 
-  it('supports after-only usage gated on the anchor step itself', async () => {
-    const workflow = await parseWorkflowAsync({
-      ctx,
-      steps: [{ uses: 'eas/checkout' }, { run: 'echo hi' }],
-      hooks: { after_checkout: [{ run: 'echo after', id: 'after-hook' }] },
-    });
-    expect(workflow.buildSteps.map(step => step.displayName)).toEqual([
-      'Checkout',
-      'after-hook',
-      'echo hi',
-    ]);
-    expect(workflow.buildSteps[1].runAfterStep).toBe(workflow.buildSteps[0]);
-  });
-
-  it('hook steps are ordinary steps: function hook steps parse and receive the gate', async () => {
+  it('treats an explicit empty hook array as a deliberate no-op', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
-      hooks: {
-        after_install_node_modules: [
-          { uses: 'eas/checkout', id: 'hook-checkout', if: '${{ always() }}' },
-        ],
-      },
+      hooks: { before_install_node_modules: [] },
     });
-    expect(workflow.buildSteps).toHaveLength(2);
-    expect(workflow.buildSteps[1].id).toBe('hook-checkout');
-    expect(workflow.buildSteps[1].runAfterStep).toBe(workflow.buildSteps[0]);
-    expect(workflow.buildSteps[1].ifCondition).toBe('${{ always() }}');
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
   });
 
   it('validates hook step arrays like job steps (BuildConfigError, not a crash)', async () => {
@@ -282,20 +260,107 @@ describe('StepsConfigParser hooks insertion', () => {
     expect(error).toBeInstanceOf(BuildConfigError);
     expect(error.message).toMatch(/nonexistent_function/);
   });
+});
 
-  it('fails parseAsync when a hook step id collides with a job step id', async () => {
-    const error = await getErrorAsync<BuildWorkflowError>(async () => {
-      await parseWorkflowAsync({
+describe('constructHookEntriesAsync (public API)', () => {
+  it('treats an empty hook step array as a valid no-op', async () => {
+    const ctx = createGlobalContextMock();
+    await expect(
+      constructHookEntriesAsync(ctx, [], {
+        externalFunctions: [createInstallNodeModulesFunction()],
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it('rejects duplicate function ids instead of letting array order pick the implementation', async () => {
+    const ctx = createGlobalContextMock();
+    await expect(
+      constructHookEntriesAsync(ctx, [{ uses: 'eas/install_node_modules' }], {
+        externalFunctions: [createInstallNodeModulesFunction(), createInstallNodeModulesFunction()],
+      })
+    ).rejects.toThrow('already defined');
+  });
+
+  it('validateHookStepsAsync rejects duplicate ids across an ordered view (public API)', async () => {
+    const ctx = createGlobalContextMock();
+    const entries = await constructHookEntriesAsync(
+      ctx,
+      [
+        { run: 'echo a', id: 'dup' },
+        { run: 'echo b', id: 'dup' },
+      ],
+      {}
+    );
+    await expect(
+      validateHookStepsAsync(
         ctx,
-        steps: [{ uses: 'eas/install_node_modules' }, { run: 'echo hi', id: 'my-step' }],
-        hooks: { before_install_node_modules: [{ run: 'echo hook', id: 'my-step' }] },
-      });
-    });
-    expect(error).toBeInstanceOf(BuildWorkflowError);
+        entries.flatMap(entry => entry.steps)
+      )
+    ).rejects.toThrow('Hook steps are invalid.');
+  });
+
+  it('does not treat Object prototype property names as duplicates', async () => {
+    const ctx = createGlobalContextMock();
+    await expect(
+      constructHookEntriesAsync(ctx, [{ uses: 'toString' }], {
+        externalFunctions: [new BuildFunction({ id: 'toString', command: 'echo x' })],
+      })
+    ).resolves.toHaveLength(1);
   });
 });
 
-describe('StepsConfigParser hooks insertion inside function-group expansions', () => {
+describe('StepsConfigParser stamp semantics', () => {
+  let ctx: BuildStepGlobalContext;
+
+  beforeEach(() => {
+    ctx = createGlobalContextMock();
+  });
+
+  it('a stamp matching the invoked function declaration anchors the step', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules', __hook_id: 'install_node_modules' }],
+      hooks: { before_install_node_modules: [{ run: 'echo before', id: 'before-hook' }] },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['before-hook', 'Install node modules']);
+  });
+
+  it('a stamp CONFLICTING with the function declaration wins over it', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      // install_node_modules function, stamped as the submit anchor.
+      steps: [{ uses: 'eas/install_node_modules', __hook_id: 'submit' }],
+      hooks: {
+        before_submit: [{ run: 'echo before submit', id: 'submit-hook' }],
+        before_install_node_modules: [{ run: 'echo never' }],
+      },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['submit-hook', 'Install node modules']);
+  });
+
+  it('an UNREGISTERED stamp on a declaring function step is inert — no fallback to the declaration', async () => {
+    // A newer server stamping a future anchor must render the step inert on
+    // this worker, never silently rebind it to the function's older anchor.
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules', __hook_id: 'some_future_anchor' }],
+      hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['Install node modules']);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
+  });
+
+  it('an unstamped step invoking a declaring function resolves via the declaration', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ run: 'echo before', id: 'before-hook' }] },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['before-hook', 'Install node modules']);
+  });
+});
+
+describe('StepsConfigParser hooks with function groups', () => {
   let ctx: BuildStepGlobalContext;
   let checkoutFunction: BuildFunction;
   let installFunction: BuildFunction;
@@ -306,15 +371,18 @@ describe('StepsConfigParser hooks insertion inside function-group expansions', (
     installFunction = createInstallNodeModulesFunction();
   });
 
-  it('inserts hooks around anchored functions inside a group expansion', async () => {
-    const group = new BuildFunctionGroup({
+  function createGroup(id = 'group'): BuildFunctionGroup {
+    return new BuildFunctionGroup({
       namespace: 'test',
-      id: 'group',
+      id,
       createBuildStepsFromFunctionGroupCall: globalCtx => [
         checkoutFunction.createBuildStepFromFunctionCall(globalCtx),
         installFunction.createBuildStepFromFunctionCall(globalCtx),
       ],
     });
+  }
+
+  it('attaches hooks to anchored functions inside a group expansion (late construction)', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'test/group' }],
@@ -323,16 +391,11 @@ describe('StepsConfigParser hooks insertion inside function-group expansions', (
         after_install_node_modules: [{ run: 'echo after', id: 'after-hook' }],
       },
       externalFunctions: [checkoutFunction, installFunction],
-      externalFunctionGroups: [group],
+      externalFunctionGroups: [createGroup()],
     });
-    expect(workflow.buildSteps.map(step => step.sourceFunction?.getFullId() ?? step.id)).toEqual([
-      'eas/checkout',
-      'before-hook',
-      'eas/install_node_modules',
-      'after-hook',
-    ]);
-    const installStep = workflow.buildSteps[2];
-    expect(workflow.buildSteps[3].runAfterStep).toBe(installStep);
+    expect(
+      workflow.getExecutionOrderedSteps().map(step => step.sourceFunction?.getFullId() ?? step.id)
+    ).toEqual(['eas/checkout', 'before-hook', 'eas/install_node_modules', 'after-hook']);
   });
 
   it('leaves group expansions without anchored functions untouched', async () => {
@@ -354,45 +417,177 @@ describe('StepsConfigParser hooks insertion inside function-group expansions', (
       externalFunctionGroups: [group],
     });
     expect(workflow.buildSteps).toHaveLength(1);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
   });
 
-  it('rejects a function group inside an after hook (its steps cannot be gated on the anchor)', async () => {
-    const group = new BuildFunctionGroup({
-      namespace: 'test',
-      id: 'group',
-      createBuildStepsFromFunctionGroupCall: globalCtx => [
-        checkoutFunction.createBuildStepFromFunctionCall(globalCtx),
-      ],
+  it('parses a function group inside an after hook as ONE entry with the expansion inside', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { after_install_node_modules: [{ uses: 'test/group' }] },
+      externalFunctions: [installFunction, checkoutFunction],
+      externalFunctionGroups: [createGroup()],
     });
-    const error = await getErrorAsync<BuildConfigError>(async () => {
-      await parseWorkflowAsync({
-        ctx,
-        steps: [{ uses: 'eas/install_node_modules' }],
-        hooks: { after_install_node_modules: [{ uses: 'test/group' }] },
-        externalFunctions: [installFunction, checkoutFunction],
-        externalFunctionGroups: [group],
-      });
-    });
-    expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toMatch(/after hook/);
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.after).toHaveLength(1);
+    expect(anchorHooks.after[0].kind).toBe('uses');
+    expect(anchorHooks.after[0].steps.map(step => step.sourceFunction?.getFullId())).toEqual([
+      'eas/checkout',
+      'eas/install_node_modules',
+    ]);
   });
 
-  it('does not insert hooks into a group expansion that is itself a hook step (no nesting)', async () => {
-    const group = new BuildFunctionGroup({
-      namespace: 'test',
-      id: 'group',
-      createBuildStepsFromFunctionGroupCall: globalCtx => [
-        installFunction.createBuildStepFromFunctionCall(globalCtx),
-      ],
+  it('carries the authored if: of a group hook step on the entry (expansion drops step-level if:)', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ uses: 'test/group', if: '${{ failure() }}' }] },
+      externalFunctions: [installFunction, checkoutFunction],
+      externalFunctionGroups: [createGroup()],
     });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before[0].ifCondition).toBe('${{ failure() }}');
+  });
+
+  it('does not attach hooks inside a group expansion that is itself a hook step (no nesting)', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
       hooks: { before_install_node_modules: [{ uses: 'test/group' }] },
-      externalFunctions: [installFunction],
-      externalFunctionGroups: [group],
+      externalFunctions: [installFunction, checkoutFunction],
+      externalFunctionGroups: [createGroup()],
     });
-    // hook group expansion (1 install step, NOT wrapped) + anchor install step.
+    // Exactly one anchor: the job's own install step. The install step inside
+    // the hook's group expansion got nothing.
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    for (const hookStep of anchorHooks.before.flatMap(entry => entry.steps)) {
+      expect(workflow.hooksByAnchorStep.get(hookStep)).toBeUndefined();
+    }
+  });
+
+  it('rejects a REGISTERED-stamped function group call (no execution boundary to hook onto)', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'test/group', __hook_id: 'submit' }],
+        hooks: {},
+        externalFunctions: [installFunction, checkoutFunction],
+        externalFunctionGroups: [createGroup()],
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/function group/);
+  });
+
+  it('treats an UNREGISTERED-stamped group call as an inert ordinary step (skew outranks the group fence)', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'test/group', __hook_id: 'some_future_anchor' }],
+      hooks: { before_install_node_modules: [{ run: 'echo before', id: 'before-hook' }] },
+      externalFunctions: [installFunction, checkoutFunction],
+      externalFunctionGroups: [createGroup()],
+    });
+    // The group expands normally; its inner anchored functions still anchor.
     expect(workflow.buildSteps).toHaveLength(2);
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+  });
+});
+
+describe('StepsConfigParser hook validation view', () => {
+  let ctx: BuildStepGlobalContext;
+
+  beforeEach(() => {
+    ctx = createGlobalContextMock();
+  });
+
+  it('fails parseAsync when a hook step id collides with a job step id', async () => {
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }, { run: 'echo hi', id: 'my-step' }],
+        hooks: { before_install_node_modules: [{ run: 'echo hook', id: 'my-step' }] },
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
+  });
+
+  it('fails parseAsync when two hooks of different keys collide on step id', async () => {
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [{ run: 'echo a', id: 'dup' }],
+          after_install_node_modules: [{ run: 'echo b', id: 'dup' }],
+        },
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
+  });
+
+  it('validates output references through the ordered view: a step before the anchor cannot reference an after-hook output', async () => {
+    const consumer = new BuildFunction({
+      namespace: 'test',
+      id: 'consumer',
+      command: 'echo consume',
+      inputProviders: [
+        BuildStepInput.createProvider({
+          id: 'value',
+          required: true,
+          defaultValue: '${ steps.late-hook.value }',
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+    });
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'test/consumer' }, { uses: 'eas/install_node_modules' }],
+        hooks: {
+          after_install_node_modules: [
+            { run: 'echo hook', id: 'late-hook', outputs: [{ name: 'value' }] },
+          ],
+        },
+        externalFunctions: [createInstallNodeModulesFunction(), consumer],
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
+    expect((error as BuildWorkflowError).errors[0].message).toMatch(/future step "late-hook"/);
+
+    // The mirror case is valid: a step AFTER the anchor sees the after-hook's
+    // output, because the ordered view places the hook before it.
+    await expect(
+      parseWorkflowAsync({
+        ctx: createGlobalContextMock(),
+        steps: [{ uses: 'eas/install_node_modules' }, { uses: 'test/consumer' }],
+        hooks: {
+          after_install_node_modules: [
+            { run: 'echo hook', id: 'late-hook', outputs: [{ name: 'value' }] },
+          ],
+        },
+        externalFunctions: [createInstallNodeModulesFunction(), consumer],
+      })
+    ).resolves.toBeInstanceOf(BuildWorkflow);
+  });
+
+  it('validates runtime-platform allowance for hook steps through the same aggregate view', async () => {
+    const darwinOnly = new BuildFunction({
+      namespace: 'test',
+      id: 'darwin_only',
+      command: 'echo darwin',
+      supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
+    });
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        // The mock context runs on LINUX.
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { before_install_node_modules: [{ uses: 'test/darwin_only' }] },
+        externalFunctions: [createInstallNodeModulesFunction(), darwinOnly],
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
+    expect((error as BuildWorkflowError).errors[0].message).toMatch(/not allowed on platform/);
   });
 });
