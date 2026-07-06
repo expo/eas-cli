@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Bump `sigstore` to `4.1.1` to resolve [Dependabot alert 475](https://github.com/expo/eas-cli/security/dependabot/475). ([#3961](https://github.com/expo/eas-cli/pull/3961) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Bump `axios` to patched releases to resolve [Dependabot alert 439](https://github.com/expo/eas-cli/security/dependabot/439). ([#3964](https://github.com/expo/eas-cli/pull/3964) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Bump `handlebars` to `4.7.9` to resolve [Dependabot alert 334](https://github.com/expo/eas-cli/security/dependabot/334). ([#3958](https://github.com/expo/eas-cli/pull/3958) by [@szdziedzic](https://github.com/szdziedzic))
 
