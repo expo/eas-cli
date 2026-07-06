@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Resolve `@xmldom/xmldom` to `0.8.13` to resolve [Dependabot alert 372](https://github.com/expo/eas-cli/security/dependabot/372). ([#3967](https://github.com/expo/eas-cli/pull/3967) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
 ### 🐛 Bug fixes
