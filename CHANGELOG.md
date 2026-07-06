@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Bump `express` to `4.22.2` to resolve [Dependabot alert 343](https://github.com/expo/eas-cli/security/dependabot/343) for `path-to-regexp`. ([#3969](https://github.com/expo/eas-cli/pull/3969) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
 ### 🐛 Bug fixes
