@@ -79,9 +79,9 @@ describe(ObserveRoutes, () => {
   it('resolves --metric short aliases to navigation metric full names and deduplicates', async () => {
     const command = createCommand([
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
       'nav_tti',
     ]);
