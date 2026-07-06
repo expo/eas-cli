@@ -11,7 +11,8 @@ public final class SimulatorRecorder {
     private static let callbackStalenessTimeout: TimeInterval = 5
     private static let firstFrameRewireInterval: TimeInterval = 1
     private let configuration: SimulatorRecordingConfiguration
-    private let callbackQueue = DispatchQueue(label: "record-sim.frame-callbacks", qos: .userInteractive)
+    private let callbackQueue = DispatchQueue(
+        label: "record-sim.frame-callbacks", qos: .userInteractive)
     private let writerQueue = DispatchQueue(label: "record-sim.asset-writer", qos: .userInitiated)
     private let eventQueue = DispatchQueue(label: "record-sim.events", qos: .utility)
     private let pendingLock = NSLock()
@@ -44,10 +45,13 @@ public final class SimulatorRecorder {
     public func start() throws {
         try validateConfiguration()
 
-        let outputWriter = RecordingOutputWriter(rootDirectory: configuration.outputDirectory, onSegment: { [weak self] segment in
-            self?.onSegment?(segment)
-        })
-        try outputWriter.prepare(overwrite: configuration.overwrite, segmented: configuration.segmentDuration > 0)
+        let outputWriter = RecordingOutputWriter(
+            rootDirectory: configuration.outputDirectory,
+            onSegment: { [weak self] segment in
+                self?.onSegment?(segment)
+            })
+        try outputWriter.prepare(
+            overwrite: configuration.overwrite, segmented: configuration.segmentDuration > 0)
         self.outputWriter = outputWriter
 
         monotonicClock = MonotonicClock()
@@ -189,37 +193,32 @@ public final class SimulatorRecorder {
         guard configuration.segmentDuration > 0 else {
             return
         }
-        let currentPTSSeconds = writerQueue.sync { () -> TimeInterval? in
+        writerQueue.sync {
             guard firstAcceptedCaptureTime != nil else {
-                return nil
+                return
             }
-            return CMTimeGetSeconds(normalizedPresentationTime(for: monotonicClock.elapsedTime()))
-        }
-        guard let currentPTSSeconds, currentPTSSeconds >= nextBoundaryElapsed else {
-            return
-        }
-
-        let boundary = nextBoundaryElapsed
-
-        let didAppendBoundaryFrame = writerQueue.sync { () -> Bool in
+            let currentPTSSeconds = CMTimeGetSeconds(
+                normalizedPresentationTime(for: monotonicClock.elapsedTime()))
+            guard currentPTSSeconds >= nextBoundaryElapsed else {
+                return
+            }
+            let boundary = nextBoundaryElapsed
             guard let lastPTS else {
-                return false
-            }
-            if CMTimeGetSeconds(lastPTS) >= boundary {
-                return true
+                return
             }
 
             do {
-                let boundaryPTS = CMTime(seconds: boundary, preferredTimescale: 1_000_000_000)
-                return try appendHeldFrame(at: boundaryPTS)
+                if CMTimeGetSeconds(lastPTS) < boundary {
+                    let boundaryPTS = CMTime(seconds: boundary, preferredTimescale: 1_000_000_000)
+                    guard try appendHeldFrame(at: boundaryPTS) else {
+                        return
+                    }
+                }
+                nextBoundaryElapsed = boundary + configuration.segmentDuration
             } catch {
                 firstError = error
                 signalFirstFrameReadyIfNeeded()
-                return false
             }
-        }
-        if didAppendBoundaryFrame {
-            nextBoundaryElapsed = boundary + configuration.segmentDuration
         }
     }
 
@@ -241,7 +240,8 @@ public final class SimulatorRecorder {
         }
 
         let seed = snapshot.seed
-        if !force, let lastSeed, lastSeed == seed {
+        let matchesLastAppendedSeed = writerQueue.sync { lastSeed == seed }
+        if !force, matchesLastAppendedSeed {
             return
         }
 
@@ -257,9 +257,9 @@ public final class SimulatorRecorder {
                 width: surfaceWidth,
                 height: surfaceHeight
             )
-            lastSeed = seed
             appendOwned(
                 pixelBuffer: pixelBuffer,
+                seed: seed,
                 capturedAt: capturedAt,
                 capturedAtWallClock: capturedAtWallClock
             )
@@ -278,7 +278,8 @@ public final class SimulatorRecorder {
         }
         let elapsed = monotonicClock.elapsedSeconds()
         if !isFirstFrameReady(),
-           elapsed - lastFirstFrameRewireElapsed >= Self.firstFrameRewireInterval {
+            elapsed - lastFirstFrameRewireElapsed >= Self.firstFrameRewireInterval
+        {
             lastFirstFrameRewireElapsed = elapsed
             rewireFramebuffer()
             captureFrame(force: true, reason: .healthProbe)
@@ -286,15 +287,16 @@ public final class SimulatorRecorder {
         }
 
         guard let snapshot = displaySource.surfaceSnapshot(),
-              snapshot.width > 0,
-              snapshot.height > 0
+            snapshot.width > 0,
+            snapshot.height > 0
         else {
             rewireFramebuffer()
             return
         }
 
         let observedSeed = snapshot.seed
-        guard let lastSeed, observedSeed != lastSeed else {
+        let lastAppendedSeed = writerQueue.sync { lastSeed }
+        guard let lastAppendedSeed, observedSeed != lastAppendedSeed else {
             return
         }
 
@@ -381,8 +383,15 @@ public final class SimulatorRecorder {
             throw RecorderError.make(41, "Failed to allocate pixel buffer from pool: \(status)")
         }
 
-        CVPixelBufferLockBaseAddress(destination, [])
-        IOSurfaceLock(surface, .readOnly, nil)
+        let destinationLockStatus = CVPixelBufferLockBaseAddress(destination, [])
+        guard destinationLockStatus == kCVReturnSuccess else {
+            throw RecorderError.make(50, "Failed to lock pixel buffer: \(destinationLockStatus)")
+        }
+        let surfaceLockStatus = IOSurfaceLock(surface, .readOnly, nil)
+        guard surfaceLockStatus == KERN_SUCCESS else {
+            CVPixelBufferUnlockBaseAddress(destination, [])
+            throw RecorderError.make(49, "Failed to lock IOSurface: \(surfaceLockStatus)")
+        }
         defer {
             IOSurfaceUnlock(surface, .readOnly, nil)
             CVPixelBufferUnlockBaseAddress(destination, [])
@@ -394,8 +403,11 @@ public final class SimulatorRecorder {
         let sourceAddress = IOSurfaceGetBaseAddress(surface)
         let sourceStride = IOSurfaceGetBytesPerRow(surface)
         let destinationStride = CVPixelBufferGetBytesPerRow(destination)
-        let copyBytes = min(width * 4, sourceStride, destinationStride)
-        for row in 0..<height {
+        let copyWidth = min(width, IOSurfaceGetWidth(surface), CVPixelBufferGetWidth(destination))
+        let copyHeight = min(
+            height, IOSurfaceGetHeight(surface), CVPixelBufferGetHeight(destination))
+        let copyBytes = min(copyWidth * 4, sourceStride, destinationStride)
+        for row in 0..<copyHeight {
             memcpy(
                 destinationAddress.advanced(by: row * destinationStride),
                 sourceAddress.advanced(by: row * sourceStride),
@@ -407,6 +419,7 @@ public final class SimulatorRecorder {
 
     private func appendOwned(
         pixelBuffer: CVPixelBuffer,
+        seed: UInt32,
         capturedAt: CMTime,
         capturedAtWallClock: Date
     ) {
@@ -418,6 +431,7 @@ public final class SimulatorRecorder {
             do {
                 try self.appendOnWriterQueue(
                     pixelBuffer: pixelBuffer,
+                    seed: seed,
                     capturedAt: capturedAt,
                     capturedAtWallClock: capturedAtWallClock
                 )
@@ -430,6 +444,7 @@ public final class SimulatorRecorder {
 
     private func appendOnWriterQueue(
         pixelBuffer: CVPixelBuffer,
+        seed: UInt32,
         capturedAt: CMTime,
         capturedAtWallClock: Date
     ) throws {
@@ -455,6 +470,7 @@ public final class SimulatorRecorder {
             firstAcceptedWallClock = capturedAtWallClock
         }
         lastPTS = pts
+        lastSeed = seed
         lastAppendedPixelBuffer = pixelBuffer
         signalFirstFrameReadyIfNeeded()
     }
@@ -479,7 +495,7 @@ public final class SimulatorRecorder {
 
     private func appendPendingBoundaryFrames(before pts: CMTime) throws -> Bool {
         guard configuration.segmentDuration > 0,
-              firstAcceptedCaptureTime != nil
+            firstAcceptedCaptureTime != nil
         else {
             return true
         }
@@ -490,7 +506,8 @@ public final class SimulatorRecorder {
                 continue
             }
 
-            let boundaryPTS = CMTime(seconds: nextBoundaryElapsed, preferredTimescale: 1_000_000_000)
+            let boundaryPTS = CMTime(
+                seconds: nextBoundaryElapsed, preferredTimescale: 1_000_000_000)
             guard try appendHeldFrame(at: boundaryPTS) else {
                 return false
             }
@@ -501,9 +518,9 @@ public final class SimulatorRecorder {
 
     private func appendHeldFrame(at pts: CMTime) throws -> Bool {
         guard let input,
-              let adaptor,
-              let lastPTS,
-              let lastAppendedPixelBuffer
+            let adaptor,
+            let lastPTS,
+            let lastAppendedPixelBuffer
         else {
             return true
         }
