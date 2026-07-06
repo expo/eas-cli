@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli][build-tools][local-build-plugin][worker] Bump `tar` to `7.5.19`. ([#3971](https://github.com/expo/eas-cli/pull/3971) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [21.0.0](https://github.com/expo/eas-cli/releases/tag/v21.0.0) - 2026-07-13
 
 ### 🛠 Breaking changes
