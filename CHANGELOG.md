@@ -27,6 +27,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Bump `jws` to a patched version in the root lockfile. ([#3978](https://github.com/expo/eas-cli/pull/3978) by [@szdziedzic](https://github.com/szdziedzic))
 - [worker] Bump `koa` to `3.1.2`. ([#3974](https://github.com/expo/eas-cli/pull/3974) by [@szdziedzic](https://github.com/szdziedzic))
 - [steps] Bump `cross-spawn` to a patched version in the TypeScript custom function fixture. ([#3977](https://github.com/expo/eas-cli/pull/3977) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump transitive `immutable` dependency. ([#3972](https://github.com/expo/eas-cli/pull/3972) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
