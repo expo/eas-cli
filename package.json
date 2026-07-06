@@ -34,5 +34,8 @@
     "ts-jest": "29.1.1",
     "typescript": "5.5.4"
   },
+  "resolutions": {
+    "lodash": "4.18.1"
+  },
   "packageManager": "yarn@4.12.0"
 }
