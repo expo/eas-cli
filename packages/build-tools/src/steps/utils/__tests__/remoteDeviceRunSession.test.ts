@@ -1,18 +1,18 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
-import { sleepAsync } from '../../../utils/retry';
 import {
   fetchServeSimTurnArgsAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
 
+jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
-jest.mock('../../../utils/retry');
 jest.mock('../../../sentry');
 
 function createLoggerMock(): bunyan {
@@ -200,8 +200,8 @@ describe(fetchServeSimTurnArgsAsync, () => {
 describe(waitForDeviceRunSessionStoppedAsync, () => {
   beforeEach(() => {
     jest.mocked(Sentry).capture.mockReset();
-    jest.mocked(sleepAsync).mockReset();
-    jest.mocked(sleepAsync).mockResolvedValue(undefined);
+    jest.mocked(setTimeoutAsync).mockReset();
+    jest.mocked(setTimeoutAsync).mockResolvedValue(undefined);
   });
 
   it('continues polling until the device run session is stopped', async () => {

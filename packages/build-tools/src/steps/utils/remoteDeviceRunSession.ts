@@ -8,6 +8,7 @@ import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
@@ -113,17 +114,19 @@ export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
   logger,
+  signal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   logger: bunyan;
+  signal?: AbortSignal;
 }): Promise<void> {
   logger.info(
     `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
   );
   let pollErrorCount = 0;
 
-  for (;;) {
+  while (!signal?.aborted) {
     try {
       const result = await ctx.graphqlClient
         .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
@@ -159,7 +162,20 @@ export async function waitForDeviceRunSessionStoppedAsync({
         );
       }
     }
-    await sleepAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS);
+    await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+  }
+}
+
+async function sleepUntilAbortedAsync(
+  timeoutMs: number,
+  signal: AbortSignal | undefined
+): Promise<void> {
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, signal ? { signal } : undefined);
+  } catch (err) {
+    if (!signal?.aborted) {
+      throw err;
+    }
   }
 }
 

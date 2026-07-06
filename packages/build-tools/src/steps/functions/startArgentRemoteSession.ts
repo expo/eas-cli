@@ -55,7 +55,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -123,12 +123,15 @@ export function createStartArgentRemoteSessionBuildFunction(
       }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
       const artifactPollAbortController = new AbortController();
+      const artifactPollSignal = signal
+        ? AbortSignal.any([signal, artifactPollAbortController.signal])
+        : artifactPollAbortController.signal;
       const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
         deviceRunSessionId,
         toolsUrl: `http://127.0.0.1:${toolServerPort}`,
         toolsAuthToken: toolServerToken,
         logger,
-        signal: artifactPollAbortController.signal,
+        signal: artifactPollSignal,
       });
 
       try {
@@ -170,6 +173,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           logger,
+          signal,
         });
       } finally {
         artifactPollAbortController.abort();

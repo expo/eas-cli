@@ -6,6 +6,7 @@ import fetch from 'node-fetch';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -15,6 +16,7 @@ import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts
 
 const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
+const ARGENT_ARTIFACT_FETCH_TIMEOUT_MS = 10_000;
 
 const ArgentArtifactSchema = z.object({
   id: z.string(),
@@ -71,9 +73,13 @@ export async function pollArgentArtifactsForUploadAsync(
     });
   };
 
-  const listArtifactsForUploadAsync = async (): Promise<ArgentArtifact[]> => {
+  const listArtifactsForUploadAsync = async ({
+    signal,
+  }: {
+    signal?: AbortSignal;
+  } = {}): Promise<ArgentArtifact[]> => {
     try {
-      const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken });
+      const artifacts = await listArgentArtifactsAsync({ toolsUrl, toolsAuthToken, signal });
       listArtifactsErrorCount = 0;
       return artifacts;
     } catch (err) {
@@ -90,15 +96,19 @@ export async function pollArgentArtifactsForUploadAsync(
     }
   };
 
-  const listAndQueueArtifactUploadsAsync = async (): Promise<void> => {
-    const artifacts = await listArtifactsForUploadAsync();
+  const listAndQueueArtifactUploadsAsync = async ({
+    signal,
+  }: {
+    signal?: AbortSignal;
+  } = {}): Promise<void> => {
+    const artifacts = await listArtifactsForUploadAsync({ signal });
     for (const artifact of artifacts) {
       queueArtifactUpload(artifact);
     }
   };
 
   while (!signal.aborted) {
-    await listAndQueueArtifactUploadsAsync();
+    await listAndQueueArtifactUploadsAsync({ signal });
     await sleepUntilAbortedAsync(ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS, signal);
   }
 
@@ -114,12 +124,15 @@ export async function pollArgentArtifactsForUploadAsync(
 export async function listArgentArtifactsAsync({
   toolsUrl,
   toolsAuthToken,
+  signal,
 }: {
   toolsUrl: string;
   toolsAuthToken?: string;
+  signal?: AbortSignal;
 }): Promise<ArgentArtifact[]> {
   const response = await fetch(new URL('/artifacts', toolsUrl).toString(), {
     headers: toolsAuthToken ? { Authorization: `Bearer ${toolsAuthToken}` } : {},
+    signal: createTimeoutSignal({ signal, timeoutMs: ARGENT_ARTIFACT_FETCH_TIMEOUT_MS }),
   });
   if (!response.ok) {
     throw new SystemError(
@@ -189,6 +202,10 @@ async function downloadArgentArtifactToFileAsync({
 }): Promise<void> {
   const response = await fetch(new URL(`/artifacts/${artifact.id}`, toolsUrl).toString(), {
     headers: toolsAuthToken ? { Authorization: `Bearer ${toolsAuthToken}` } : {},
+    signal: createTimeoutSignal({
+      signal: undefined,
+      timeoutMs: ARGENT_ARTIFACT_FETCH_TIMEOUT_MS,
+    }),
   });
   if (!response.ok) {
     throw new SystemError(
@@ -204,30 +221,24 @@ async function downloadArgentArtifactToFileAsync({
 }
 
 async function sleepUntilAbortedAsync(timeoutMs: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) {
-    return;
-  }
-  await new Promise<void>(resolve => {
-    let timeout: NodeJS.Timeout | undefined;
-    let settled = false;
-    const finish = (): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      signal.removeEventListener('abort', finish);
-      resolve();
-    };
-    signal.addEventListener('abort', finish, { once: true });
-    if (signal.aborted) {
-      finish();
-      return;
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, { signal });
+  } catch (err) {
+    if (!signal.aborted) {
+      throw err;
     }
-    timeout = setTimeout(finish, timeoutMs);
-  });
+  }
+}
+
+function createTimeoutSignal({
+  signal,
+  timeoutMs,
+}: {
+  signal: AbortSignal | undefined;
+  timeoutMs: number;
+}): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 }
 
 async function waitForPendingUploadsAsync({

@@ -21,7 +21,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
     name: 'Start serve-sim remote session',
     __metricsId: 'eas/start_serve_sim_remote_session',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
-    fn: async ({ logger }, { env }) => {
+    fn: async ({ logger }, { env, signal }) => {
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
 
@@ -49,6 +49,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
         ctx,
         deviceRunSessionId,
         logger,
+        signal,
       });
     },
   });

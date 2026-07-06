@@ -82,6 +82,7 @@ describe(listArgentArtifactsAsync, () => {
     ]);
     expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts', {
       headers: { Authorization: 'Bearer tools-token' },
+      signal: expect.any(AbortSignal),
     });
   });
 });
@@ -118,6 +119,7 @@ describe(uploadArgentArtifactAsync, () => {
 
     expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts/artifact-id', {
       headers: { Authorization: 'Bearer tools-token' },
+      signal: expect.any(AbortSignal),
     });
     expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(ctx, {
       deviceRunSessionId: 'drs-id',
@@ -273,46 +275,6 @@ describe(pollArgentArtifactsForUploadAsync, () => {
       );
     } finally {
       setTimeoutSpy.mockRestore();
-    }
-  });
-
-  it('removes the abort listener when the polling sleep times out', async () => {
-    jest.useFakeTimers();
-    const logger = createLoggerMock();
-    const ctx = {} as unknown as CustomBuildContext;
-    const abortController = new AbortController();
-    const removeEventListenerSpy = jest.spyOn(abortController.signal, 'removeEventListener');
-
-    try {
-      jest.mocked(fetch).mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            artifacts: [],
-          })
-        )
-      );
-
-      const pollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
-        deviceRunSessionId: 'drs-id',
-        toolsUrl: 'http://127.0.0.1:1234',
-        toolsAuthToken: 'tools-token',
-        logger,
-        signal: abortController.signal,
-      });
-
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
-
-      await jest.advanceTimersByTimeAsync(5_000);
-      expect(jest.mocked(fetch)).toHaveBeenCalledTimes(2);
-      expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
-
-      abortController.abort();
-      await pollingPromise;
-    } finally {
-      removeEventListenerSpy.mockRestore();
-      jest.useRealTimers();
     }
   });
 });
