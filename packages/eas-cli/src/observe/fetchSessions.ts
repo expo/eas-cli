@@ -6,7 +6,7 @@ import {
   AppObserveEventsOrderByField,
 } from '../graphql/generated';
 import { fetchObserveCustomEventsAsync } from './fetchCustomEvents';
-import { fetchObserveEventsAsync } from './fetchEvents';
+import { fetchObserveEventsAsync, resolveOrderBy } from './fetchEvents';
 
 export interface SessionEventEntry {
   source: 'metric' | 'log';
@@ -145,4 +145,83 @@ export async function fetchObserveSessionEventsAsync(
     hasMoreMetricEvents: metricResult.pageInfo.hasNextPage,
     hasMoreLogEvents: logResult.pageInfo.hasNextPage,
   };
+}
+
+/**
+ * A metric event that is guaranteed to belong to a session — used as a
+ * candidate when picking a session to inspect via `observe:session`.
+ */
+export type SessionMetricCandidate = AppObserveEvent & { sessionId: string };
+
+export interface FetchSessionMetricCandidatesOptions {
+  metricName: string;
+  /** One of EventsOrderPreset (case-insensitive). */
+  sort: string;
+  startTime: string;
+  endTime: string;
+  limit: number;
+}
+
+/**
+ * Fetch a page of metric events for the given metricName + window, ordered
+ * per `sort`, and filtered to events that have a sessionId. The events query
+ * supports server-side ordering, so `sort` is passed straight through.
+ */
+export async function fetchSessionMetricCandidatesAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  options: FetchSessionMetricCandidatesOptions
+): Promise<SessionMetricCandidate[]> {
+  const { events } = await fetchObserveEventsAsync(graphqlClient, appId, {
+    metricName: options.metricName,
+    orderBy: resolveOrderBy(options.sort),
+    limit: options.limit,
+    startTime: options.startTime,
+    endTime: options.endTime,
+  });
+  return events.filter((e): e is SessionMetricCandidate => !!e.sessionId);
+}
+
+/**
+ * A custom log event that is guaranteed to belong to a session — used as a
+ * candidate when picking a session to inspect via `observe:session`.
+ */
+export type SessionLogCandidate = AppObserveCustomEvent & { sessionId: string };
+
+export interface FetchSessionLogCandidatesOptions {
+  eventName: string;
+  /** True → oldest-first (ascending timestamp); false → newest-first. */
+  orderAscending: boolean;
+  startTime: string;
+  endTime: string;
+  limit: number;
+}
+
+/**
+ * Fetch a page of custom log events for the given eventName + window,
+ * sorted client-side by timestamp (the customEventList query has no
+ * orderBy), and filtered to events that have a sessionId.
+ */
+export async function fetchSessionLogCandidatesAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string,
+  options: FetchSessionLogCandidatesOptions
+): Promise<SessionLogCandidate[]> {
+  const { events } = await fetchObserveCustomEventsAsync(graphqlClient, appId, {
+    eventName: options.eventName,
+    limit: options.limit,
+    startTime: options.startTime,
+    endTime: options.endTime,
+  });
+  const ascending = options.orderAscending;
+  const sorted = [...events].sort((a, b) => {
+    if (a.timestamp < b.timestamp) {
+      return ascending ? -1 : 1;
+    }
+    if (a.timestamp > b.timestamp) {
+      return ascending ? 1 : -1;
+    }
+    return 0;
+  });
+  return sorted.filter((e): e is SessionLogCandidate => !!e.sessionId);
 }
