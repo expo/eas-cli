@@ -206,6 +206,10 @@ async function downloadArgentArtifactToFileAsync({
 }): Promise<void> {
   const response = await fetch(new URL(`/artifacts/${artifact.id}`, toolsUrl).toString(), {
     headers: toolsAuthToken ? { Authorization: `Bearer ${toolsAuthToken}` } : {},
+    signal: createTimeoutSignal({
+      signal: undefined,
+      timeoutMs: ARGENT_ARTIFACT_FETCH_TIMEOUT_MS,
+    }),
   });
   if (!response.ok) {
     throw new SystemError(
