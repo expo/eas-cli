@@ -25,6 +25,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -53,7 +54,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -121,10 +122,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the daemon and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        signal,
+      });
     },
   });
 }
