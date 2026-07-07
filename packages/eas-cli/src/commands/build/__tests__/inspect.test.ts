@@ -36,13 +36,17 @@ describe(BuildInspect, () => {
   const tmpWorkingdir = '/tmp/eas-cli/tmp-id';
   const tmpBuildDir = path.join(tmpWorkingdir, 'build');
   const outputDirectory = path.join(process.cwd(), 'inspect-output');
+  const mockPathExists = fs.pathExists as jest.Mock;
+  const mockMkdirp = fs.mkdirp as jest.Mock;
+  const mockCopy = fs.copy as jest.Mock;
+  const mockRemove = fs.remove as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(fs.pathExists).mockResolvedValue(false);
-    jest.mocked(fs.mkdirp).mockResolvedValue(undefined);
-    jest.mocked(fs.copy).mockResolvedValue(undefined);
-    jest.mocked(fs.remove).mockResolvedValue(undefined);
+    mockPathExists.mockResolvedValue(false);
+    mockMkdirp.mockResolvedValue(undefined);
+    mockCopy.mockResolvedValue(undefined);
+    mockRemove.mockResolvedValue(undefined);
     jest.mocked(runBuildAndSubmitAsync).mockResolvedValue({ buildIds: [] });
   });
 
@@ -51,7 +55,7 @@ describe(BuildInspect, () => {
       ['--platform', 'ios', '--stage', 'pre-build', '--output', 'inspect-output'],
       mockConfig
     );
-    jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+    jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
       loggedIn: {
         actor: {},
         graphqlClient: {},
@@ -66,10 +70,7 @@ describe(BuildInspect, () => {
 
   it('removes the temporary working directory after copying output when the build fails', async () => {
     jest.mocked(runBuildAndSubmitAsync).mockRejectedValue(new Error('build failed'));
-    jest
-      .mocked(fs.pathExists)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
+    mockPathExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
     await createCommand().runAsync();
 
@@ -80,11 +81,8 @@ describe(BuildInspect, () => {
 
   it('keeps the temporary working directory when copying output fails', async () => {
     jest.mocked(runBuildAndSubmitAsync).mockRejectedValue(new Error('build failed'));
-    jest
-      .mocked(fs.pathExists)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
-    jest.mocked(fs.copy).mockRejectedValue(new Error('copy failed'));
+    mockPathExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockCopy.mockRejectedValue(new Error('copy failed'));
 
     await expect(createCommand().runAsync()).rejects.toThrow('copy failed');
 
