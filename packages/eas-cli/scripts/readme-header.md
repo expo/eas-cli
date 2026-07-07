@@ -28,7 +28,7 @@
   <a aria-label="npm version" href="https://www.npmjs.com/package/eas-cli" target="_blank">
     <img alt="npm version" src="https://img.shields.io/npm/v/eas-cli.svg?style=for-the-badge&label=npm&labelColor=000000&color=4630EB" />
   </a>
-  <a aria-label="npm downloads" href="https://www.npmtrends.com/eas-cli" target="_blank">
+  <a aria-label="npm downloads" href="https://npm-stat.com/charts.html?package=eas-cli" target="_blank">
     <img alt="downloads" src="https://img.shields.io/npm/dm/eas-cli.svg?style=for-the-badge&labelColor=000000&color=33CC12&label=downloads" />
   </a>
   <a aria-label="License: MIT" href="https://github.com/expo/eas-cli/blob/main/LICENSE" target="_blank">
