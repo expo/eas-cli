@@ -25,23 +25,26 @@ beforeEach(() => {
   jest.resetAllMocks();
 });
 
-const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `[
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 1"
-  },
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 2"
-  },
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 3"
-  }
-]`;
+const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `Build request error details:
+{
+  "graphQLErrors": [
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 1"
+    },
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 2"
+    },
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 3"
+    }
+  ]
+}`;
 
 const EXPECTED_EAS_BUILD_DOWN_MESSAGE = `EAS Build is down for maintenance. Try again later. Check ${link(
   'https://status.expo.dev/'
@@ -110,7 +113,7 @@ describe(Build.name, () => {
           handleBuildRequestError(error, platform);
         } catch {}
 
-        expect(logDebugSpy).toBeCalledWith(undefined);
+        expect(logDebugSpy).not.toHaveBeenCalled();
       });
 
       it('does it with iOS', async () => {
@@ -122,7 +125,7 @@ describe(Build.name, () => {
           handleBuildRequestError(error, platform);
         } catch {}
 
-        expect(logDebugSpy).toBeCalledWith(undefined);
+        expect(logDebugSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -508,6 +511,67 @@ describe(Build.name, () => {
             });
 
             assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+        });
+        describe('with empty GraphQL errors and network response details', () => {
+          it('throws base Error class with network and response details', async () => {
+            const platform = Platform.ANDROID;
+            const error = new CombinedError({
+              graphQLErrors: [],
+              networkError: new Error('Request failed: 400 (Bad Request)'),
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'expo-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+            const expectedMessage =
+              `${EXPECTED_GENERIC_MESSAGE}\n` +
+              'Network error: Request failed: 400 (Bad Request)\n' +
+              'Response status: 400 Bad Request\n' +
+              `Request ID: ${mockRequestId}`;
+
+            const handleBuildRequestErrorThrownError = getError<Error>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+
+          it('logs network and response details to debug', async () => {
+            const platform = Platform.ANDROID;
+            const logDebugSpy = jest.spyOn(Log, 'debug');
+            const error = new CombinedError({
+              graphQLErrors: [],
+              networkError: new Error('Request failed: 400 (Bad Request)'),
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'expo-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch {}
+
+            expect(logDebugSpy).toBeCalledWith(expect.stringContaining('"graphQLErrors": []'));
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining('"message": "[Network] Request failed: 400 (Bad Request)"')
+            );
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining('"message": "Request failed: 400 (Bad Request)"')
+            );
+            expect(logDebugSpy).toBeCalledWith(expect.stringContaining('"status": 400'));
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining(`"expo-request-id": "${mockRequestId}"`)
+            );
           });
         });
       });
