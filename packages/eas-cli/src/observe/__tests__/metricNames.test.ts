@@ -57,8 +57,11 @@ describe(resolveMetricName, () => {
   });
 
   it('lists both app-startup and navigation aliases in the error message on unknown alias', () => {
-    expect(() => resolveMetricName('bogus')).toThrow(/nav_tti/);
-    expect(() => resolveMetricName('bogus')).toThrow(/cold_launch/);
+    try {
+      resolveMetricName('bogus');
+    } catch (e: any) {
+      expect(e.message).toMatchSnapshot();
+    }
   });
 });
 

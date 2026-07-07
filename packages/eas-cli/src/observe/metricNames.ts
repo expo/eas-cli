@@ -1,5 +1,11 @@
 import { EasCommandError } from '../commandUtils/errors';
 
+export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
+  nav_cold_ttr: 'expo.navigation.cold_ttr',
+  nav_warm_ttr: 'expo.navigation.warm_ttr',
+  nav_tti: 'expo.navigation.tti',
+};
+
 export const METRIC_ALIASES: Record<string, string> = {
   tti: 'expo.app_startup.tti',
   ttr: 'expo.app_startup.ttr',
@@ -7,12 +13,7 @@ export const METRIC_ALIASES: Record<string, string> = {
   warm_launch: 'expo.app_startup.warm_launch_time',
   bundle_load: 'expo.app_startup.bundle_load_time',
   update_download: 'expo.updates.download_time',
-};
-
-export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
-  nav_cold_ttr: 'expo.navigation.cold_ttr',
-  nav_warm_ttr: 'expo.navigation.warm_ttr',
-  nav_tti: 'expo.navigation.tti',
+  ...NAVIGATION_METRIC_ALIASES,
 };
 
 const KNOWN_FULL_NAMES = new Set(Object.values(METRIC_ALIASES));
@@ -34,21 +35,11 @@ export function resolveMetricName(input: string): string {
   if (METRIC_ALIASES[input]) {
     return METRIC_ALIASES[input];
   }
-  if (NAVIGATION_METRIC_ALIASES[input]) {
-    return NAVIGATION_METRIC_ALIASES[input];
-  }
-  if (
-    KNOWN_FULL_NAMES.has(input) ||
-    KNOWN_FULL_NAVIGATION_NAMES.has(input) ||
-    input.includes('.')
-  ) {
+  if (KNOWN_FULL_NAMES.has(input) || input.includes('.')) {
     return input;
   }
   throw new EasCommandError(
-    `Unknown metric: "${input}". Use a full metric name (e.g. expo.app_startup.tti) or a short alias: ${[
-      ...Object.keys(METRIC_ALIASES),
-      ...Object.keys(NAVIGATION_METRIC_ALIASES),
-    ].join(', ')}`
+    `Unknown metric: "${input}". Use a full metric name (e.g. expo.app_startup.tti) or a short alias: ${Object.keys(METRIC_ALIASES).join(', ')}`
   );
 }
 

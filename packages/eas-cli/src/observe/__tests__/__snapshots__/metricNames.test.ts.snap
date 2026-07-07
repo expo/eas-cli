@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`resolveMetricName lists both app-startup and navigation aliases in the error message on unknown alias 1`] = `"Unknown metric: "bogus". Use a full metric name (e.g. expo.app_startup.tti) or a short alias: tti, ttr, cold_launch, warm_launch, bundle_load, update_download, nav_cold_ttr, nav_warm_ttr, nav_tti"`;

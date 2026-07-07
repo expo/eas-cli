@@ -19,12 +19,7 @@ import {
   ObserveTimeRangeFlags,
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
-import {
-  METRIC_ALIASES,
-  METRIC_SHORT_NAMES,
-  NAVIGATION_METRIC_ALIASES,
-  resolveMetricName,
-} from '../../observe/metricNames';
+import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
@@ -41,7 +36,7 @@ export default class ObserveMetrics extends EasCommand {
     metric: Args.string({
       description: 'Metric to query (e.g. tti, cold_launch, nav_tti)',
       required: false,
-      options: [...Object.keys(METRIC_ALIASES), ...Object.keys(NAVIGATION_METRIC_ALIASES)],
+      options: Object.keys(METRIC_ALIASES),
     }),
   };
 
@@ -95,7 +90,7 @@ export default class ObserveMetrics extends EasCommand {
     } else if (flags['non-interactive']) {
       throw new EasCommandError(
         'A metric argument is required in non-interactive mode. Available metrics: ' +
-          [...Object.keys(METRIC_ALIASES), ...Object.keys(NAVIGATION_METRIC_ALIASES)].join(', ')
+          Object.keys(METRIC_ALIASES).join(', ')
       );
     } else {
       const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
