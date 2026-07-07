@@ -16,11 +16,12 @@ import ProvisioningProfile, {
 import { BuildContext } from '../../context';
 
 export interface Credentials {
-  applicationTargetProvisioningProfile: ProvisioningProfile<Ios.Job>;
+  /** null if not signing */
+  applicationTargetProvisioningProfile: ProvisioningProfile<Ios.Job> | null;
   keychainPath: string;
   targetProvisioningProfiles: TargetProvisioningProfiles;
-  distributionType: DistributionType;
-  teamId: string;
+  distributionType: DistributionType | null;
+  teamId: string | null;
 }
 
 export type TargetProvisioningProfiles = Record<string, ProvisioningProfileData>;
@@ -62,17 +63,15 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
       targetProvisioningProfiles[target] = provisioningProfile.data;
     }
 
-    const applicationTargetProvisioningProfile = this.getApplicationTargetProvisioningProfile();
-
     // TODO: ensure that all dist types and team ids in the array are the same
-    const { distributionType, teamId } = applicationTargetProvisioningProfile.data;
+    const applicationTargetProvisioningProfile = this.getApplicationTargetProvisioningProfile();
 
     return {
       applicationTargetProvisioningProfile,
       keychainPath: this.keychain.data.path,
       targetProvisioningProfiles,
-      distributionType,
-      teamId,
+      distributionType: applicationTargetProvisioningProfile?.data.distributionType ?? null,
+      teamId: applicationTargetProvisioningProfile?.data.teamId ?? null,
     };
   }
 
@@ -155,9 +154,9 @@ export default class IosCredentialsManager<TJob extends Ios.Job> {
     }
   }
 
-  private getApplicationTargetProvisioningProfile(): ProvisioningProfile<TJob> {
+  private getApplicationTargetProvisioningProfile(): ProvisioningProfile<TJob> | null {
     // sorting works because bundle ids share common prefix
     const sorted = orderBy(this.provisioningProfiles, 'data.bundleIdentifier', 'asc');
-    return sorted[0];
+    return sorted[0] ?? null;
   }
 }

@@ -1,4 +1,4 @@
-import { Env, Ios } from '@expo/eas-build-job';
+import { Env, Ios, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn, { SpawnResult } from '@expo/turtle-spawn';
 import fs from 'fs-extra';
@@ -65,7 +65,14 @@ export async function runFastlaneResign<TJob extends Ios.Job>(
   ctx: BuildContext<TJob>,
   { credentials, ipaPath }: { credentials: Credentials; ipaPath: string }
 ): Promise<void> {
-  const { certificateCommonName } = credentials.applicationTargetProvisioningProfile.data;
+  const applicationTargetProvisioningProfile = credentials.applicationTargetProvisioningProfile;
+  if (!applicationTargetProvisioningProfile) {
+    throw new UserError(
+      'MISSING_PROVISIONING_PROFILE',
+      'Provisioning profile must exist for resigning. Configure credentials with `eas credentials` and try again.'
+    );
+  }
+  const { certificateCommonName } = applicationTargetProvisioningProfile.data;
 
   const fastlaneDirPath = path.join(ctx.buildDirectory, 'fastlane');
   await fs.ensureDir(fastlaneDirPath);
