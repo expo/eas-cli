@@ -152,6 +152,7 @@ export class WorkflowCreate extends EasCommand {
     } catch (error) {
       logWorkflowValidationErrors(error);
       Log.error('Failed to create workflow file.');
+      process.exitCode = 1;
     }
   }
 }
