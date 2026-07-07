@@ -18,6 +18,7 @@ const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 
 const AgentDeviceArtifactSchema = z.object({
   id: z.string(),
+  artifactType: z.string().nullish(),
   filename: z.string(),
 });
 const AgentDeviceArtifactsListResponseSchema = z.object({
@@ -152,6 +153,7 @@ export async function uploadAgentDeviceArtifactAsync(
       artifactId: artifact.id,
       name: `${artifact.filename} (${artifact.id})`,
       filename: artifact.filename,
+      kind: artifact.artifactType ?? undefined,
       size,
       stream: createReadStream(temporaryArtifactPath),
     });

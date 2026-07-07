@@ -27,6 +27,7 @@ export async function uploadDeviceRunSessionArtifactAsync(
     artifactId,
     name,
     filename,
+    kind,
     size,
     stream,
   }: {
@@ -34,6 +35,7 @@ export async function uploadDeviceRunSessionArtifactAsync(
     artifactId: string;
     name: string;
     filename: string;
+    kind: string | undefined;
     size: number;
     stream: NodeJS.ReadableStream;
   }
@@ -43,6 +45,7 @@ export async function uploadDeviceRunSessionArtifactAsync(
     artifactId,
     name,
     filename,
+    kind,
     size,
   });
   const response = await fetch(uploadSession.url, {
@@ -65,12 +68,14 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
     artifactId,
     name,
     filename,
+    kind,
     size,
   }: {
     deviceRunSessionId: string;
     artifactId: string;
     name: string;
     filename: string;
+    kind: string | undefined;
     size: number;
   }
 ) {
@@ -80,6 +85,7 @@ async function createDeviceRunSessionArtifactUploadSessionAsync(
       input: {
         name,
         filename,
+        ...(kind !== undefined ? { kind } : {}),
         size,
       },
     })

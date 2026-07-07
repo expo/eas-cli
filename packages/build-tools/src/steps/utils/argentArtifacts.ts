@@ -138,6 +138,7 @@ export async function uploadArgentArtifactAsync(
       artifactId: artifact.id,
       name: `${filename} (${artifact.id})`,
       filename,
+      kind: undefined,
       size,
       stream: createReadStream(temporaryArtifactPath),
     });
