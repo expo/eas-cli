@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Bump `minimatch` to patched versions. ([#3976](https://github.com/expo/eas-cli/pull/3976) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
 ### 🐛 Bug fixes
