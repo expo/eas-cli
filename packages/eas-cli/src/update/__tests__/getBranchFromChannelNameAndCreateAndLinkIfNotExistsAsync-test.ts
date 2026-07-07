@@ -163,6 +163,12 @@ function mockUpdateChannel({
     updatedAt: '2022-12-07T02:24:29.786Z',
     branchMapping:
       '{"data":[{"branchId":"f9dc4dbb-663f-4a19-8cf2-a783b484d2db","branchMappingLogic":"true"}],"version":0}',
+    buildCount: 0,
+    buildsAndEmbeddedUpdatesPaginated: {
+      edges: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    },
+    embeddedUpdateCount: 0,
     updateBranches: branchNames ? mockUpdateBranches(branchNames) : [],
     isPaused: false,
     __typename: 'UpdateChannel',

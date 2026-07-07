@@ -1,0 +1,16 @@
+{
+  "name": "eslint-plugin-graphql",
+  "version": "4.0.0-expo.1",
+  "description": "GraphQL ESLint plugin.",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "dependencies": {
+    "@babel/runtime": "^7.10.0",
+    "graphql-config": "^5.0.2",
+    "lodash.flatten": "^4.4.0",
+    "lodash.without": "^4.4.0"
+  },
+  "peerDependencies": {
+    "graphql": "^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0"
+  }
+}

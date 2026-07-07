@@ -25,7 +25,7 @@
     "eslint-plugin-async-protect": "3.1.0",
     "jest": "29.7.0",
     "jest-watch-typeahead": "2.2.2",
-    "lerna": "9.0.3",
+    "lerna": "9.0.7",
     "oclif": "^4.22.85",
     "oxfmt": "0.28.0",
     "oxlint": "1.43.0",
