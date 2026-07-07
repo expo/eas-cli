@@ -49,9 +49,19 @@ describe(listAgentDeviceArtifactsAsync, () => {
           artifacts: [
             {
               id: 'artifact-id',
+              artifactType: 'agent-device-test-report',
               filename: 'report.json',
               mimeType: 'application/json',
               sizeBytes: 123,
+              createdAt: '2026-07-02T12:00:00.000Z',
+              expiresAt: '2026-07-02T12:15:00.000Z',
+            },
+            {
+              id: 'untyped-artifact-id',
+              artifactType: null,
+              filename: 'untyped-report.json',
+              mimeType: 'application/json',
+              sizeBytes: 456,
               createdAt: '2026-07-02T12:00:00.000Z',
               expiresAt: '2026-07-02T12:15:00.000Z',
             },
@@ -68,7 +78,13 @@ describe(listAgentDeviceArtifactsAsync, () => {
     expect(artifacts).toEqual([
       {
         id: 'artifact-id',
+        artifactType: 'agent-device-test-report',
         filename: 'report.json',
+      },
+      {
+        id: 'untyped-artifact-id',
+        artifactType: null,
+        filename: 'untyped-report.json',
       },
     ]);
     expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts', {
@@ -113,6 +129,7 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       logger,
       artifact: {
         id: 'artifact-id',
+        artifactType: 'agent-device-test-report',
         filename: 'report.json',
       },
     });
@@ -125,9 +142,42 @@ describe(uploadAgentDeviceArtifactAsync, () => {
       artifactId: 'artifact-id',
       name: 'report.json (artifact-id)',
       filename: 'report.json',
+      kind: 'agent-device-test-report',
       size: data.length,
       stream: expect.anything(),
     });
+  });
+
+  it('uploads null artifact types as an explicit undefined kind', async () => {
+    const data = Buffer.from('artifact-data');
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+
+    jest.mocked(fetch).mockResolvedValueOnce(new Response(Readable.from([data])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadAgentDeviceArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger,
+      artifact: {
+        id: 'artifact-id',
+        artifactType: null,
+        filename: 'report.json',
+      },
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        kind: undefined,
+      })
+    );
   });
 });
 

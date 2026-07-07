@@ -14557,6 +14557,18 @@
                 "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
+              },
+              {
+                "name": "orderBy",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "AppObserveCustomEventListOrderBy",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
               }
             ],
             "type": {
@@ -16832,6 +16844,66 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "AppObserveCustomEventListOrderBy",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "direction",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "AppObserveEventsOrderByDirection",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "field",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "AppObserveCustomEventListOrderByField",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "AppObserveCustomEventListOrderByField",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "TIMESTAMP",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "AppObserveCustomEventName",
         "description": null,
@@ -17289,6 +17361,30 @@
             "deprecationReason": null
           },
           {
+            "name": "platformCounts",
+            "description": "Per-platform occurrence and unique-user counts, sorted by eventCount descending. Covers every device OS seen (iOS, Android, iPadOS, ...), so the counts sum to the group totals.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveErrorGroupPlatformCount",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "platforms",
             "description": "Distinct device OS values seen for this group (e.g. Android, iOS).",
             "args": [],
@@ -17323,6 +17419,30 @@
                 "kind": "ENUM",
                 "name": "AppObserveErrorSeverity",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "timeSeries",
+            "description": "Occurrences over the query window, bucketed ascending. Sparse (empty buckets omitted); the client fills gaps. Renders as the list sparkline. Bucket width is set via AppObserveErrorGroupsInput.bucketIntervalMinutes.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveErrorTimeSeriesBucket",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -17562,6 +17682,65 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AppObserveErrorGroupPlatformCount",
+        "description": null,
+        "fields": [
+          {
+            "name": "eventCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platform",
+            "description": "Device OS value, e.g. iOS, Android, iPadOS.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "uniqueUserCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AppObserveErrorGroups",
         "description": null,
         "fields": [
@@ -17659,6 +17838,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "bucketIntervalMinutes",
+            "description": "Bucket width in minutes for the per-group timeSeries field. Only used when timeSeries is selected. Defaults to 1440 (daily).",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
               "ofType": null
             },
             "defaultValue": null,
@@ -18166,6 +18357,22 @@
         "name": "AppObserveErrorTimeSeriesBucket",
         "description": null,
         "fields": [
+          {
+            "name": "affectedUsers",
+            "description": "Approximate count of unique affected users in this bucket. Not summable across buckets.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "bucket",
             "description": "Start of the bucket interval.",
@@ -33557,6 +33764,121 @@
         "possibleTypes": null
       },
       {
+        "kind": "UNION",
+        "name": "ChannelBuildOrEmbeddedUpdate",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "Build",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "EmbeddedUpdate",
+            "ofType": null
+          }
+        ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChannelBuildOrEmbeddedUpdateEdge",
+        "description": null,
+        "fields": [
+          {
+            "name": "cursor",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "node",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "UNION",
+                "name": "ChannelBuildOrEmbeddedUpdate",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChannelBuildsAndEmbeddedUpdatesConnection",
+        "description": null,
+        "fields": [
+          {
+            "name": "edges",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "ChannelBuildOrEmbeddedUpdateEdge",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "pageInfo",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "PageInfo",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "ChannelFilterInput",
         "description": null,
@@ -35302,6 +35624,18 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "kind",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -40354,6 +40688,18 @@
             "deprecationReason": null
           },
           {
+            "name": "kind",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "metadata",
             "description": null,
             "args": [],
@@ -41218,6 +41564,12 @@
             "deprecationReason": null
           },
           {
+            "name": "OBSERVE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "UPDATES",
             "description": null,
             "isDeprecated": false,
@@ -41272,6 +41624,12 @@
           },
           {
             "name": "MCP_REQUESTS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "OBSERVE_EVENTS",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -41358,6 +41716,12 @@
           },
           {
             "name": "CONCURRENCY",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "EVENT",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -65792,6 +66156,35 @@
             "deprecationReason": null
           },
           {
+            "name": "embeddedUpdateCount",
+            "description": null,
+            "args": [
+              {
+                "name": "channel",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "fingerprint",
             "description": null,
             "args": [],
@@ -72192,6 +72585,87 @@
             "deprecationReason": null
           },
           {
+            "name": "buildCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildsAndEmbeddedUpdatesPaginated",
+            "description": null,
+            "args": [
+              {
+                "name": "after",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "before",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "first",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "last",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ChannelBuildsAndEmbeddedUpdatesConnection",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -72201,6 +72675,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "embeddedUpdateCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },
@@ -75826,6 +76316,12 @@
           },
           {
             "name": "CREDIT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "EVENT",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -88612,6 +89108,150 @@
       },
       {
         "kind": "OBJECT",
+        "name": "WorkflowDispatchInput",
+        "description": null,
+        "fields": [
+          {
+            "name": "default",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "JSON",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "description",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "options",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "required",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "WorkflowDispatchInputType",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "WorkflowDispatchInputType",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "BOOLEAN",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "CHOICE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ENVIRONMENT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NUMBER",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "STRING",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "WorkflowJob",
         "description": null,
         "fields": [
@@ -89772,6 +90412,30 @@
                 "kind": "SCALAR",
                 "name": "ID",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "inputs",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "WorkflowDispatchInput",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,

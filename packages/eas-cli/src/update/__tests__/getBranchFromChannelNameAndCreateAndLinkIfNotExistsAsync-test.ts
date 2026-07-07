@@ -155,6 +155,12 @@ function mockUpdateChannel({
   return {
     id: 'a2a1fa12-9d6a-433a-a432-49c64ef8439f',
     app: {} as App,
+    buildCount: 0,
+    buildsAndEmbeddedUpdatesPaginated: {
+      edges: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    },
+    embeddedUpdateCount: 0,
     latestRuntimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
     runtimeInsights: {} as UpdateChannelRuntimeInsights,
     name: channelName ?? 'default-channel-name',
