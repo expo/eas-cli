@@ -8645,6 +8645,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"agent-cli-detector@npm:0.1.2":
+  version: 0.1.2
+  resolution: "agent-cli-detector@npm:0.1.2"
+  bin:
+    agent-cli-detector: dist/cli.js
+  checksum: 10c0/d7751eab293c4543f079988ffe519951859c254edb204fd3105ff49c114ac466d8ef05ba00b3b574fdd5038f9c4e24414d977918f5bccfe9a147628f83d013c3
+  languageName: node
+  linkType: hard
+
 "aggregate-error@npm:^3.0.0":
   version: 3.1.0
   resolution: "aggregate-error@npm:3.1.0"
@@ -11208,6 +11217,7 @@ __metadata:
     "@types/wrap-ansi": "npm:3.0.0"
     "@urql/core": "npm:4.0.11"
     "@urql/exchange-retry": "npm:1.2.0"
+    agent-cli-detector: "npm:0.1.2"
     ajv: "npm:8.11.0"
     ajv-formats: "npm:2.1.1"
     axios: "npm:1.11.0"

@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
 - Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
