@@ -11178,7 +11178,7 @@ __metadata:
 
 "eslint-plugin-graphql@file:vendor/eslint-plugin-graphql::locator=eas-cli%40workspace%3Apackages%2Feas-cli":
   version: 4.0.0-expo.1
-  resolution: "eslint-plugin-graphql@file:vendor/eslint-plugin-graphql#vendor/eslint-plugin-graphql::hash=86bf37&locator=eas-cli%40workspace%3Apackages%2Feas-cli"
+  resolution: "eslint-plugin-graphql@file:vendor/eslint-plugin-graphql#vendor/eslint-plugin-graphql::hash=2bf55f&locator=eas-cli%40workspace%3Apackages%2Feas-cli"
   dependencies:
     "@babel/runtime": "npm:^7.10.0"
     graphql-config: "npm:^5.0.2"
@@ -11186,7 +11186,7 @@ __metadata:
     lodash.without: "npm:^4.4.0"
   peerDependencies:
     graphql: ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
-  checksum: 10c0/943660b468a02bf401c253236a5fe693c3373ee29075f6418517bf1faafb289d496afd94d81026583a2971021417d82c884104ab37fa0e8089611b740ac08817
+  checksum: 10c0/9d0ca69ab684c6cba43b677f2530a17d2343457b556c88f820241a586883e078f70182237f9d41de8fe784c771d4f04af1de1f56c84d4af1193afdeb8445d716
   languageName: node
   linkType: hard
 
