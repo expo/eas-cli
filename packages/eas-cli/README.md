@@ -3011,13 +3011,15 @@ create a new workflow configuration YAML file
 
 ```
 USAGE
-  $ eas workflow:create [NAME] [--skip-validation]
+  $ eas workflow:create [NAME] [--template build|update|deploy|custom] [--skip-validation]
 
 ARGUMENTS
-  [NAME]  Name of the workflow file (must end with .yml or .yaml)
+  [NAME]  Name of the workflow file. When provided without --template, a placeholder workflow is created.
 
 FLAGS
-  --skip-validation  If set, the workflow file will not be validated before being created
+  --skip-validation    If set, the workflow file will not be validated before being created
+  --template=<option>  Template to use for the workflow file
+                       <options: build|update|deploy|custom>
 
 DESCRIPTION
   create a new workflow configuration YAML file
