@@ -3,7 +3,8 @@ import openBrowserAsync from 'better-opn';
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
-import { PostHogRegion } from '../../../../graphql/generated';
+import { PostHogDeepLinkPurpose, PostHogRegion } from '../../../../graphql/generated';
+import { PostHogMutation } from '../../../../graphql/mutations/PostHogMutation';
 import { PostHogQuery } from '../../../../graphql/queries/PostHogQuery';
 import {
   PostHogOrganizationConnectionData,
@@ -16,6 +17,7 @@ import IntegrationsPostHogDashboard from '../dashboard';
 
 jest.mock('better-opn');
 jest.mock('../../../../graphql/queries/PostHogQuery');
+jest.mock('../../../../graphql/mutations/PostHogMutation');
 jest.mock('../../../../log');
 jest.mock('../../../../utils/json');
 jest.mock('../../../../ora', () => ({
@@ -50,6 +52,8 @@ describe(IntegrationsPostHogDashboard, () => {
     posthogOrganizationConnection: mockConnection,
   };
 
+  const deepLinkUrl = 'https://us.posthog.com/agentic/login?token=deeplink&team_id=res-123';
+
   function createCommand(argv: string[] = []): IntegrationsPostHogDashboard {
     const command = new IntegrationsPostHogDashboard(argv, mockConfig);
     jest.spyOn(command as any, 'getContextAsync').mockReturnValue({
@@ -67,6 +71,7 @@ describe(IntegrationsPostHogDashboard, () => {
     jest.spyOn(Log, 'warn').mockImplementation(() => {});
     jest.spyOn(Log, 'log').mockImplementation(() => {});
     jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(mockProject);
+    jest.mocked(PostHogMutation.createPostHogDeepLinkAsync).mockResolvedValue(deepLinkUrl);
     jest.mocked(openBrowserAsync).mockResolvedValue({} as never);
     jest.mocked(ora).mockReturnValue({
       start: jest.fn().mockReturnThis(),
@@ -75,13 +80,50 @@ describe(IntegrationsPostHogDashboard, () => {
     } as any);
   });
 
-  it('opens the linked PostHog project dashboard', async () => {
+  it('mints a signed-in deep link for the linked project and opens it', async () => {
     await createCommand().runAsync();
 
-    expect(openBrowserAsync).toHaveBeenCalledWith('https://us.posthog.com/project/res-123');
+    expect(PostHogMutation.createPostHogDeepLinkAsync).toHaveBeenCalledWith(graphqlClient, {
+      posthogOrganizationConnectionId: 'connection-1',
+      appId: testProjectId,
+      purpose: PostHogDeepLinkPurpose.Dashboard,
+    });
+    expect(openBrowserAsync).toHaveBeenCalledWith(deepLinkUrl);
   });
 
-  it('normalizes a trailing-slash host and percent-encodes the project identifier', async () => {
+  it('does not print the one-time deep-link token by default', async () => {
+    const spinner = {
+      start: jest.fn().mockReturnThis(),
+      succeed: jest.fn().mockReturnThis(),
+      fail: jest.fn().mockReturnThis(),
+    };
+    jest.mocked(ora).mockReturnValue(spinner as any);
+
+    await createCommand().runAsync();
+
+    expect(openBrowserAsync).toHaveBeenCalledWith(deepLinkUrl);
+    expect(spinner.succeed).toHaveBeenCalledWith('Opened your PostHog dashboard');
+    expect(spinner.succeed).not.toHaveBeenCalledWith(expect.stringContaining('token='));
+  });
+
+  it('prints the signed-in deep-link URL when --show-link is set', async () => {
+    const spinner = {
+      start: jest.fn().mockReturnThis(),
+      succeed: jest.fn().mockReturnThis(),
+      fail: jest.fn().mockReturnThis(),
+    };
+    jest.mocked(ora).mockReturnValue(spinner as any);
+
+    await createCommand(['--show-link']).runAsync();
+
+    expect(openBrowserAsync).toHaveBeenCalledWith(deepLinkUrl);
+    expect(spinner.succeed).toHaveBeenCalledWith(`Opened ${deepLinkUrl}`);
+  });
+
+  it('falls back to the static (login-required) URL when minting a deep link fails', async () => {
+    jest
+      .mocked(PostHogMutation.createPostHogDeepLinkAsync)
+      .mockRejectedValue(new Error('deep links not enabled'));
     jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue({
       ...mockProject,
       posthogHost: 'https://us.posthog.com/',
@@ -118,19 +160,25 @@ describe(IntegrationsPostHogDashboard, () => {
     expect(spinner.fail).toHaveBeenCalledWith(
       expect.stringContaining('Unable to open a web browser')
     );
+    expect(spinner.fail).toHaveBeenCalledWith(
+      expect.stringContaining('https://us.posthog.com/project/res-123')
+    );
+    expect(spinner.fail).not.toHaveBeenCalledWith(expect.stringContaining('token='));
   });
 
-  it('prints the dashboard URL in non-interactive mode without opening a browser', async () => {
+  it('prints the stable static URL (not a one-time deep link) in non-interactive mode', async () => {
     await createCommand(['--non-interactive']).runAsync();
 
     expect(openBrowserAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.createPostHogDeepLinkAsync).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith('https://us.posthog.com/project/res-123');
   });
 
-  it('emits the dashboard URL as JSON with --json', async () => {
+  it('emits the stable static URL as JSON with --json (not a one-time deep link)', async () => {
     await createCommand(['--json']).runAsync();
 
     expect(openBrowserAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.createPostHogDeepLinkAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
       dashboardUrl: 'https://us.posthog.com/project/res-123',
     });

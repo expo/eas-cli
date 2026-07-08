@@ -9,10 +9,18 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Improve `eas workflow:create`: add a `--template` flag, generate a placeholder workflow when a file name is passed, use shorter default file names (`build.yml`, `update.yml`, `deploy.yml`), configure EAS Build and EAS Update automatically when the chosen template requires them, set default app identifiers without prompting for the development build and deploy templates, install `expo-dev-client` during development build setup, and tighten the generated comments and next steps. ([#3943](https://github.com/expo/eas-cli/pull/3943) by [@jonsamp](https://github.com/jonsamp))
+- [eas-cli] `eas integrations:posthog:dashboard` now opens PostHog via a signed-in link, skipping the login prompt. ([#3975](https://github.com/expo/eas-cli/pull/3975) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
+- [build-tools] Skip embedded bundle upload for development client builds instead of warning that the bundle is missing. ([#3940](https://github.com/expo/eas-cli/pull/3940) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Accept a navigation metric name in observe:metrics when passed in on the command line. ([#3973](https://github.com/expo/eas-cli/pull/3973) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
+
+- [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
+- Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 

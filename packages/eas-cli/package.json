@@ -72,6 +72,7 @@
     "@sentry/node": "7.77.0",
     "@urql/core": "4.0.11",
     "@urql/exchange-retry": "1.2.0",
+    "agent-cli-detector": "0.1.2",
     "ajv": "8.11.0",
     "ajv-formats": "2.1.1",
     "better-opn": "3.0.2",

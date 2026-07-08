@@ -46,6 +46,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       artifactId: 'artifact-id',
       name: 'Artifact report.json (artifact-id)',
       filename: 'report.json',
+      kind: 'agent-device-test-report',
       size: reportedSize,
       stream,
     });
@@ -57,6 +58,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
         input: {
           name: 'Artifact report.json (artifact-id)',
           filename: 'report.json',
+          kind: 'agent-device-test-report',
           size: reportedSize,
         },
       })

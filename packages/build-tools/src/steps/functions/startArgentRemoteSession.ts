@@ -14,6 +14,7 @@ import semver from 'semver';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -24,6 +25,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -53,7 +55,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -120,51 +122,69 @@ export function createStartArgentRemoteSessionBuildFunction(
         );
       }
       logger.info(`Argent tool-server is listening on port ${toolServerPort}.`);
-      void pollArgentArtifactsForUploadAsync(ctx, {
+      const artifactPollAbortController = new AbortController();
+      const artifactPollSignal = signal
+        ? AbortSignal.any([signal, artifactPollAbortController.signal])
+        : artifactPollAbortController.signal;
+      const artifactPollingPromise = pollArgentArtifactsForUploadAsync(ctx, {
         deviceRunSessionId,
         toolsUrl: `http://127.0.0.1:${toolServerPort}`,
         toolsAuthToken: toolServerToken,
         logger,
+        signal: artifactPollSignal,
       });
 
-      const publicToolsUrl = await startNgrokTunnelAsync({
-        port: toolServerPort,
-        subdomainPrefix: 'argent',
-        baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
-        rewriteHostHeader: true,
-        logger,
-      });
-      logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
-
-      // serve-sim is iOS-only — Android sessions go without a preview URL.
-      let webPreviewUrl: string | undefined;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const serveSim = await startServeSimWithTunnelAsync(ctx, {
+      try {
+        const publicToolsUrl = await startNgrokTunnelAsync({
+          port: toolServerPort,
+          subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
-          env,
+          authtoken: ngrokAuthtoken,
+          rewriteHostHeader: true,
           logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        webPreviewUrl = serveSim.previewUrl;
-        logger.info(`Web preview URL: ${webPreviewUrl}`);
+        logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
+
+        // serve-sim is iOS-only — Android sessions go without a preview URL.
+        let webPreviewUrl: string | undefined;
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          const serveSim = await startServeSimWithTunnelAsync(ctx, {
+            baseDomain: ngrokTunnelDomain,
+            env,
+            logger,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+          });
+          webPreviewUrl = serveSim.previewUrl;
+          logger.info(`Web preview URL: ${webPreviewUrl}`);
+        }
+
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: {
+            toolsUrl: publicToolsUrl,
+            ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
+            ...(webPreviewUrl ? { webPreviewUrl } : {}),
+          },
+          logger,
+        });
+
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          signal,
+        });
+      } finally {
+        artifactPollAbortController.abort();
+        try {
+          await artifactPollingPromise;
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          Sentry.capture('Could not finish Argent remote session artifact polling', error);
+          logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
+        }
       }
-
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: {
-          toolsUrl: publicToolsUrl,
-          ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
-          ...(webPreviewUrl ? { webPreviewUrl } : {}),
-        },
-        logger,
-      });
-
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the tool-server and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
     },
   });
 }

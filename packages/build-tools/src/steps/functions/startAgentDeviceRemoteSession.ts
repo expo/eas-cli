@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -24,14 +25,19 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
+  waitForDeviceRunSessionStoppedAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
-const AGENT_DEVICE_REPO_URL = 'https://github.com/callstackincubator/agent-device.git';
+const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
+const AGENT_DEVICE_DAEMON_ENV = {
+  AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
+  AGENT_DEVICE_RETAIN_ARTIFACTS: '1',
+};
 
 export function createStartAgentDeviceRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -48,7 +54,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ logger, global }, { inputs, env }) => {
+    fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
       // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
       // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
@@ -109,11 +115,19 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         },
         logger,
       });
+      void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+        deviceRunSessionId,
+        daemonUrl: `http://127.0.0.1:${daemonPort}`,
+        daemonToken,
+        logger,
+      });
 
-      logger.info('Remote session is live. Keeping the job alive until the session is stopped.');
-      // Keep the turtle job alive so the daemon and tunnel stay reachable
-      // until stopDeviceRunSession cancels the run.
-      await new Promise<never>(() => {});
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId,
+        logger,
+        signal,
+      });
     },
   });
 }
@@ -144,7 +158,7 @@ async function startAgentDeviceDaemonAsync({
     return spawnDetached({
       command: 'node',
       args: [daemonPath],
-      env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+      env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
     });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -201,7 +215,7 @@ async function startAgentDeviceDaemonFromGitAsync({
     command: 'bun',
     args: ['run', 'src/daemon.ts'],
     cwd: SRC_DIR,
-    env: { ...env, AGENT_DEVICE_DAEMON_SERVER_MODE: 'http' },
+    env: { ...env, ...AGENT_DEVICE_DAEMON_ENV },
   });
 }
 
