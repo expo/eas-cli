@@ -101,14 +101,21 @@ export class WorkflowCreate extends EasCommand {
         ? nullthrows(workflowStarters.find(s => s.name === flags.template))
         : await chooseTemplateAsync();
 
-      const expoConfig = await configureProjectForStarterAsync({
-        workflowStarter,
-        projectDir,
-        expoConfig: originalExpoConfig,
-        projectId,
-        vcsClient,
-        getDynamicPrivateProjectConfigAsync,
-      });
+      let expoConfig = originalExpoConfig;
+      if (
+        workflowStarter.name === WorkflowStarterName.BUILD ||
+        workflowStarter.name === WorkflowStarterName.UPDATE ||
+        workflowStarter.name === WorkflowStarterName.DEPLOY
+      ) {
+        expoConfig = await configureProjectForStarterAsync({
+          workflowStarter,
+          projectDir,
+          expoConfig: originalExpoConfig,
+          projectId,
+          vcsClient,
+          getDynamicPrivateProjectConfigAsync,
+        });
+      }
 
       const { fileName, filePath } = await resolveTemplateFileNameAsync({
         argFileName,
@@ -172,23 +179,15 @@ async function configureProjectForStarterAsync({
   vcsClient: Client;
   getDynamicPrivateProjectConfigAsync: () => Promise<{ exp: ExpoConfig }>;
 }): Promise<ExpoConfig> {
-  switch (workflowStarter.name) {
-    case WorkflowStarterName.BUILD:
-    case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE:
-      await configureEasBuildIfNeededAsync({ projectDir, expoConfig, vcsClient });
-      break;
-    default:
-      break;
+  await configureEasBuildIfNeededAsync({ projectDir, expoConfig, vcsClient });
+
+  if (
+    workflowStarter.name === WorkflowStarterName.UPDATE ||
+    workflowStarter.name === WorkflowStarterName.DEPLOY
+  ) {
+    await configureEasUpdateIfNeededAsync({ projectDir, expoConfig, projectId, vcsClient });
   }
-  switch (workflowStarter.name) {
-    case WorkflowStarterName.DEPLOY:
-    case WorkflowStarterName.UPDATE:
-      await configureEasUpdateIfNeededAsync({ projectDir, expoConfig, projectId, vcsClient });
-      break;
-    default:
-      break;
-  }
+
   return (await getDynamicPrivateProjectConfigAsync()).exp;
 }
 
