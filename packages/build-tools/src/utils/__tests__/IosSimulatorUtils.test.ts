@@ -178,7 +178,75 @@ describe('IosSimulatorUtils', () => {
   });
 
   describe(IosSimulatorUtils.disableApsdAsync, () => {
-    it('disables and boots out apsd in the simulator', async () => {
+    it('disables and boots out apsd in the simulator foreground user domain', async () => {
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (args.join(' ') === 'simctl spawn test-udid launchctl list com.apple.apsd') {
+          throw Object.assign(new Error('apsd not loaded'), { status: 113 });
+        }
+        return { stdout: '', stderr: '' } as any;
+      }) as any);
+
+      await IosSimulatorUtils.disableApsdAsync({
+        udid: 'test-udid' as any,
+        env: process.env,
+      });
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'disable', 'user/foreground/com.apple.apsd'],
+        { env: process.env }
+      );
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'bootout', 'user/foreground/com.apple.apsd'],
+        { env: process.env }
+      );
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'list', 'com.apple.apsd'],
+        { env: process.env }
+      );
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'xcrun',
+        ['simctl', 'spawn', 'test-udid', 'launchctl', 'disable', 'system/com.apple.apsd'],
+        { env: process.env }
+      );
+    });
+
+    it('succeeds when bootout fails after apsd is already stopped', async () => {
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (
+          args.join(' ') ===
+          'simctl spawn test-udid launchctl bootout user/foreground/com.apple.apsd'
+        ) {
+          throw Object.assign(new Error('bootout failed'), { status: 3 });
+        }
+        if (args.join(' ') === 'simctl spawn test-udid launchctl list com.apple.apsd') {
+          throw Object.assign(new Error('apsd not loaded'), { status: 113 });
+        }
+        return { stdout: '', stderr: '' } as any;
+      }) as any);
+
+      await expect(
+        IosSimulatorUtils.disableApsdAsync({
+          udid: 'test-udid' as any,
+          env: process.env,
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('falls back to the system domain when the foreground user domain keeps apsd running', async () => {
+      let listCount = 0;
+      mockedSpawn.mockImplementation((async (_command: string, args: string[]) => {
+        if (args.join(' ') === 'simctl spawn test-udid launchctl list com.apple.apsd') {
+          listCount += 1;
+          if (listCount === 2) {
+            throw Object.assign(new Error('apsd not loaded'), { status: 113 });
+          }
+        }
+        return { stdout: '', stderr: '' } as any;
+      }) as any);
+
       await IosSimulatorUtils.disableApsdAsync({
         udid: 'test-udid' as any,
         env: process.env,
@@ -189,11 +257,19 @@ describe('IosSimulatorUtils', () => {
         ['simctl', 'spawn', 'test-udid', 'launchctl', 'disable', 'system/com.apple.apsd'],
         { env: process.env }
       );
-      expect(mockedSpawn).toHaveBeenCalledWith(
-        'xcrun',
-        ['simctl', 'spawn', 'test-udid', 'launchctl', 'bootout', 'system/com.apple.apsd'],
-        { env: process.env }
-      );
+    });
+
+    it('throws a SystemError when apsd is still running after all disable attempts', async () => {
+      mockedSpawn.mockImplementation((async () => {
+        return { stdout: '', stderr: '' } as any;
+      }) as any);
+
+      await expect(
+        IosSimulatorUtils.disableApsdAsync({
+          udid: 'test-udid' as any,
+          env: process.env,
+        })
+      ).rejects.toThrow(SystemError);
     });
   });
 });
