@@ -34,7 +34,7 @@ export default class ObserveMetrics extends EasCommand {
 
   static override args = {
     metric: Args.string({
-      description: 'Metric to query (e.g. tti, cold_launch)',
+      description: 'Metric to query (e.g. tti, cold_launch, nav_tti)',
       required: false,
       options: Object.keys(METRIC_ALIASES),
     }),

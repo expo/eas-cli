@@ -43,12 +43,32 @@ describe(resolveMetricName, () => {
   it('passes through dot-containing custom metric names', () => {
     expect(resolveMetricName('custom.metric.name')).toBe('custom.metric.name');
   });
+
+  it('resolves navigation short aliases so they can be passed on the observe:metrics command line', () => {
+    expect(resolveMetricName('nav_cold_ttr')).toBe('expo.navigation.cold_ttr');
+    expect(resolveMetricName('nav_warm_ttr')).toBe('expo.navigation.warm_ttr');
+    expect(resolveMetricName('nav_tti')).toBe('expo.navigation.tti');
+  });
+
+  it('passes through navigation full metric names unchanged', () => {
+    expect(resolveMetricName('expo.navigation.cold_ttr')).toBe('expo.navigation.cold_ttr');
+    expect(resolveMetricName('expo.navigation.warm_ttr')).toBe('expo.navigation.warm_ttr');
+    expect(resolveMetricName('expo.navigation.tti')).toBe('expo.navigation.tti');
+  });
+
+  it('lists both app-startup and navigation aliases in the error message on unknown alias', () => {
+    try {
+      resolveMetricName('bogus');
+    } catch (e: any) {
+      expect(e.message).toMatchSnapshot();
+    }
+  });
 });
 
 describe(resolveNavigationMetricName, () => {
   it('resolves short aliases to navigation metric full names', () => {
-    expect(resolveNavigationMetricName('cold_ttr')).toBe('expo.navigation.cold_ttr');
-    expect(resolveNavigationMetricName('warm_ttr')).toBe('expo.navigation.warm_ttr');
+    expect(resolveNavigationMetricName('nav_cold_ttr')).toBe('expo.navigation.cold_ttr');
+    expect(resolveNavigationMetricName('nav_warm_ttr')).toBe('expo.navigation.warm_ttr');
     expect(resolveNavigationMetricName('nav_tti')).toBe('expo.navigation.tti');
   });
 
