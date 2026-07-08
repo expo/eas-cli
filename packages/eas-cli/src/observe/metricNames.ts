@@ -7,13 +7,13 @@ export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
 };
 
 export const METRIC_ALIASES: Record<string, string> = {
+  ...NAVIGATION_METRIC_ALIASES,
   tti: 'expo.app_startup.tti',
   ttr: 'expo.app_startup.ttr',
   cold_launch: 'expo.app_startup.cold_launch_time',
   warm_launch: 'expo.app_startup.warm_launch_time',
   bundle_load: 'expo.app_startup.bundle_load_time',
   update_download: 'expo.updates.download_time',
-  ...NAVIGATION_METRIC_ALIASES,
 };
 
 const KNOWN_FULL_NAMES = new Set(Object.values(METRIC_ALIASES));
