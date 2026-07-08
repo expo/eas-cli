@@ -89,6 +89,10 @@ export class WorkflowCreate extends EasCommand {
 
       const privateExpoConfig = await getPrivateExpoConfigAsync(projectDir);
       if (!privateExpoConfig.extra?.eas?.projectId) {
+        // Unlike `eas init`, we intentionally do not call `ensureOwnerSlugConsistencyAsync` here.
+        // The workflow scaffolder should only link/create a project ID, not rewrite the app
+        // config's `owner`/`slug` fields. If those are inconsistent, we leave them for `eas init`
+        // to reconcile.
         await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
           force: false,
           nonInteractive: false,
