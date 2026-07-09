@@ -2,7 +2,7 @@ import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 import fs from 'fs/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
-import { finishIosSimulatorRecordingsAsync } from '../utils/iosSimulatorRecordings';
+import { IosSimulatorRecordingUtils } from '../utils/IosSimulatorRecordingUtils';
 import limitFactory from 'promise-limit';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from '../utils/deviceRunSessionArtifacts';
@@ -19,7 +19,7 @@ export function createFinishIosSimulatorRecordingsBuildFunction(
     __metricsId: 'eas/finish_ios_simulator_recordings',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     fn: async ({ logger }, { env }) => {
-      const recordings = await finishIosSimulatorRecordingsAsync({ logger });
+      const recordings = await IosSimulatorRecordingUtils.finishAsync({ logger });
 
       const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
       if (!deviceRunSessionId) {

@@ -1,6 +1,6 @@
 import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
-import { startIosSimulatorRecordingsAsync } from '../utils/iosSimulatorRecordings';
+import { IosSimulatorRecordingUtils } from '../utils/IosSimulatorRecordingUtils';
 
 export function createStartIosSimulatorRecordingsBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -10,7 +10,7 @@ export function createStartIosSimulatorRecordingsBuildFunction(): BuildFunction 
     __metricsId: 'eas/start_ios_simulator_recordings',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     fn: async ({ logger }, { env }) => {
-      await startIosSimulatorRecordingsAsync({
+      await IosSimulatorRecordingUtils.startAsync({
         env,
         logger,
       });

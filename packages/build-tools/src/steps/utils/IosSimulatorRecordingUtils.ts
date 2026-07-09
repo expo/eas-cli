@@ -75,124 +75,124 @@ type IosSimulatorRecordingSession = {
 
 let activeIosSimulatorRecordingSession: IosSimulatorRecordingSession | null = null;
 
-export async function startIosSimulatorRecordingsAsync({
-  env,
-  logger,
-}: {
-  env: Env;
-  logger: bunyan;
-}): Promise<void> {
-  if (activeIosSimulatorRecordingSession) {
-    logger.info('iOS Simulator screen recording polling is already running.');
-    return;
-  }
+export namespace IosSimulatorRecordingUtils {
+  export async function startAsync({ env, logger }: { env: Env; logger: bunyan }): Promise<void> {
+    if (activeIosSimulatorRecordingSession) {
+      logger.info('iOS Simulator screen recording polling is already running.');
+      return;
+    }
 
-  const recordSimCommand = await resolveRecordSimCommandAsync({ env });
-  if (!recordSimCommand) {
-    logger.warn(
-      'record-sim binary is not available; iOS Simulator screen recordings are disabled.'
+    const recordSimCommand = await resolveRecordSimCommandAsync({ env });
+    if (!recordSimCommand) {
+      logger.warn(
+        'record-sim binary is not available; iOS Simulator screen recordings are disabled.'
+      );
+      return;
+    }
+
+    const recordingsRootDirectory = await mkdtemp(
+      path.join(os.tmpdir(), 'ios-simulator-recordings-')
     );
-    return;
+    const session: IosSimulatorRecordingSession = {
+      env,
+      logger,
+      recordSimCommand,
+      recordingsRootDirectory,
+      activeRecordings: new Map(),
+      completedRecordings: [],
+      recordingFailureCounts: new Map(),
+      pollingPromise: Promise.resolve(),
+      abortController: new AbortController(),
+    };
+    activeIosSimulatorRecordingSession = session;
+
+    logger.info('Started polling iOS Simulators for screen recordings.');
+    session.pollingPromise = pollIosSimulatorRecordingsAsync(session).catch(err => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture('iOS Simulator screen recording poller failed', error);
+      logger.warn({ err: error }, 'iOS Simulator screen recording poller failed.');
+    });
   }
 
-  const recordingsRootDirectory = await mkdtemp(
-    path.join(os.tmpdir(), 'ios-simulator-recordings-')
-  );
-  const session: IosSimulatorRecordingSession = {
-    env,
+  export async function finishAsync({
     logger,
-    recordSimCommand,
-    recordingsRootDirectory,
-    activeRecordings: new Map(),
-    completedRecordings: [],
-    recordingFailureCounts: new Map(),
-    pollingPromise: Promise.resolve(),
-    abortController: new AbortController(),
-  };
-  activeIosSimulatorRecordingSession = session;
+  }: {
+    logger: bunyan;
+  }): Promise<CompletedIosSimulatorRecording[]> {
+    const session = activeIosSimulatorRecordingSession;
+    if (!session) {
+      logger.info('No iOS Simulator screen recordings are running.');
+      return [];
+    }
+    activeIosSimulatorRecordingSession = null;
 
-  logger.info('Started polling iOS Simulators for screen recordings.');
-  session.pollingPromise = pollIosSimulatorRecordingsAsync(session).catch(err => {
-    const error = err instanceof Error ? err : new Error(String(err));
-    Sentry.capture('iOS Simulator screen recording poller failed', error);
-    logger.warn({ err: error }, 'iOS Simulator screen recording poller failed.');
-  });
-}
+    session.abortController.abort();
+    await session.pollingPromise;
+    await Promise.all(
+      [...session.activeRecordings.values()].map(async recording => {
+        logger.info(`Stopping screen recording for ${recording.displayName}.`);
+        recording.recordingProcess.kill('SIGINT');
+        const finished = await Promise.race([
+          recording.completionPromise.then(() => true),
+          setTimeout(RECORD_SIM_FINISH_TIMEOUT_MS, false, { ref: false }),
+        ]);
+        if (finished) {
+          return;
+        }
 
-export async function finishIosSimulatorRecordingsAsync({
-  logger,
-}: {
-  logger: bunyan;
-}): Promise<CompletedIosSimulatorRecording[]> {
-  const session = activeIosSimulatorRecordingSession;
-  if (!session) {
-    logger.info('No iOS Simulator screen recordings are running.');
-    return [];
-  }
-  activeIosSimulatorRecordingSession = null;
-
-  session.abortController.abort();
-  await session.pollingPromise;
-  await Promise.all(
-    [...session.activeRecordings.values()].map(async recording => {
-      logger.info(`Stopping screen recording for ${recording.displayName}.`);
-      recording.recordingProcess.kill('SIGINT');
-      const finished = await Promise.race([
-        recording.completionPromise.then(() => true),
-        setTimeout(RECORD_SIM_FINISH_TIMEOUT_MS, false, { ref: false }),
-      ]);
-      if (finished) {
-        return;
-      }
-
-      logger.warn(`Forcing iOS Simulator recording process for ${recording.displayName} to stop.`);
-      recording.recordingProcess.kill('SIGKILL');
-      const killed = await Promise.race([
-        recording.completionPromise.then(() => true),
-        setTimeout(RECORD_SIM_FORCE_STOP_TIMEOUT_MS, false, { ref: false }),
-      ]);
-      if (!killed) {
         logger.warn(
-          `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`
+          `Forcing iOS Simulator recording process for ${recording.displayName} to stop.`
         );
-        Sentry.capture(
-          `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`,
-          {
-            extras: {
-              output: recording.getOutput(),
-            },
-          }
-        );
-      }
-    })
-  );
+        recording.recordingProcess.kill('SIGKILL');
+        const killed = await Promise.race([
+          recording.completionPromise.then(() => true),
+          setTimeout(RECORD_SIM_FORCE_STOP_TIMEOUT_MS, false, { ref: false }),
+        ]);
+        if (!killed) {
+          logger.warn(
+            `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`
+          );
+          Sentry.capture(
+            `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`,
+            {
+              extras: {
+                output: recording.getOutput(),
+              },
+            }
+          );
+        }
+      })
+    );
 
-  const completedRecordings = [...session.completedRecordings].sort(
-    (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
-  );
-  return await Promise.all(
-    completedRecordings.map(async recording => {
-      let output;
-      try {
-        const manifest = RecordingManifestSchema.parse(
-          JSON.parse(await readFile(path.join(recording.outputDirectory, 'session.json'), 'utf-8'))
-        );
-        const recordingPath = path.join(recording.outputDirectory, manifest.recording);
-        await access(recordingPath);
-        output = {
-          path: recordingPath,
-          metadata: manifest,
+    const completedRecordings = [...session.completedRecordings].sort(
+      (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
+    );
+    return await Promise.all(
+      completedRecordings.map(async recording => {
+        let output;
+        try {
+          const manifest = RecordingManifestSchema.parse(
+            JSON.parse(
+              await readFile(path.join(recording.outputDirectory, 'session.json'), 'utf-8')
+            )
+          );
+          const recordingPath = path.join(recording.outputDirectory, manifest.recording);
+          await access(recordingPath);
+          output = {
+            path: recordingPath,
+            metadata: manifest,
+          };
+        } catch {
+          output = null;
+        }
+
+        return {
+          ...recording,
+          output,
         };
-      } catch {
-        output = null;
-      }
-
-      return {
-        ...recording,
-        output,
-      };
-    })
-  );
+      })
+    );
+  }
 }
 
 async function pollIosSimulatorRecordingsAsync(
