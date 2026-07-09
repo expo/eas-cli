@@ -13,6 +13,7 @@ import { createEasDeployBuildFunction } from './functions/deploy';
 import { createEasExportBuildFunction } from './functions/export';
 import { eagerBundleBuildFunction } from './functions/eagerBundle';
 import { createFindAndUploadBuildArtifactsBuildFunction } from './functions/findAndUploadBuildArtifacts';
+import { createFinishIosSimulatorRecordingsBuildFunction } from './functions/finishIosSimulatorRecordings';
 import { generateGymfileFromTemplateFunction } from './functions/generateGymfileFromTemplate';
 import { createGetCredentialsForBuildTriggeredByGithubIntegration } from './functions/getCredentialsForBuildTriggeredByGitHubIntegration';
 import { injectAndroidCredentialsFunction } from './functions/injectAndroidCredentials';
@@ -44,6 +45,7 @@ import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroi
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
+import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
 import { createStartServeSimRemoteSessionBuildFunction } from './functions/startServeSimRemoteSession';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
@@ -86,6 +88,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
+    createStartIosSimulatorRecordingsBuildFunction(),
+    createFinishIosSimulatorRecordingsBuildFunction(ctx),
     createStartServeSimRemoteSessionBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 
