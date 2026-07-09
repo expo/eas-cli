@@ -2,7 +2,7 @@ import { UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
 import { PosthogClient } from '../utils/PosthogClient';
-import { failOrLogError } from '../utils/PosthogUtils';
+import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createCapturePosthogEventFunction(): BuildFunction {
   return new BuildFunction({
@@ -53,7 +53,7 @@ export function createCapturePosthogEventFunction(): BuildFunction {
         env,
       });
       if (!client) {
-        failOrLogError({
+        PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
@@ -72,7 +72,7 @@ export function createCapturePosthogEventFunction(): BuildFunction {
           properties: inputs.properties.value as Record<string, unknown> | undefined,
         });
       } catch (error) {
-        failOrLogError({ logger, ignoreError, error });
+        PosthogUtils.failOrLogError({ logger, ignoreError, error });
         return;
       }
       logger.info(`Sent PostHog event "${event}"`);

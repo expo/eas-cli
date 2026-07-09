@@ -4,7 +4,7 @@ import { type BuildStepEnv } from '@expo/steps';
 import fetch, { Response } from 'node-fetch';
 import { z } from 'zod';
 
-import { readErrorAsync } from './PosthogUtils';
+import { PosthogUtils } from './PosthogUtils';
 
 const POSTHOG_DEFAULT_HOST = 'https://us.posthog.com';
 const SYSTEM_DISTINCT_ID = 'eas-workflow';
@@ -32,13 +32,13 @@ export class PosthogClient {
     projectIdOverride: string | undefined;
     env: BuildStepEnv;
   }): PosthogClient | undefined {
-    const apiKey = apiKeyOverride ?? env.POSTHOG_CLI_API_KEY;
-    const projectId = projectIdOverride ?? env.POSTHOG_CLI_PROJECT_ID;
+    const apiKey = apiKeyOverride || env.POSTHOG_CLI_API_KEY;
+    const projectId = projectIdOverride || env.POSTHOG_CLI_PROJECT_ID;
     if (!apiKey || !projectId) {
       return undefined;
     }
     return new PosthogClient(
-      (env.POSTHOG_CLI_HOST ?? POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
+      (env.POSTHOG_CLI_HOST || POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
       apiKey,
       projectId
     );
@@ -53,12 +53,12 @@ export class PosthogClient {
     hostOverride: string | undefined;
     env: BuildStepEnv;
   }): PosthogClient | undefined {
-    const apiKey = apiKeyOverride ?? env.EXPO_PUBLIC_POSTHOG_API_KEY ?? env.POSTHOG_API_KEY;
+    const apiKey = apiKeyOverride || env.EXPO_PUBLIC_POSTHOG_API_KEY || env.POSTHOG_API_KEY;
     if (!apiKey) {
       return undefined;
     }
     return new PosthogClient(
-      (hostOverride ?? env.EXPO_PUBLIC_POSTHOG_HOST ?? POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
+      (hostOverride || env.EXPO_PUBLIC_POSTHOG_HOST || POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
       apiKey,
       ''
     );
@@ -101,7 +101,7 @@ export class PosthogClient {
     if (!response.ok) {
       throw new UserError(
         'EAS_POSTHOG_CAPTURE_FAILED',
-        `Sending PostHog event "${event}" failed with ${await readErrorAsync(response)}.`
+        `Sending PostHog event "${event}" failed with ${await PosthogUtils.readErrorAsync(response)}.`
       );
     }
   }
@@ -130,7 +130,7 @@ export class PosthogClient {
     if (!response.ok) {
       throw new UserError(
         'EAS_POSTHOG_REQUEST_FAILED',
-        `${action} failed with ${await readErrorAsync(response)}.`
+        `${action} failed with ${await PosthogUtils.readErrorAsync(response)}.`
       );
     }
     return response;
@@ -166,7 +166,7 @@ export class PosthogClient {
     if (!response.ok) {
       throw new UserError(
         'EAS_POSTHOG_REQUEST_FAILED',
-        `Running the PostHog query failed with ${await readErrorAsync(response)}.`
+        `Running the PostHog query failed with ${await PosthogUtils.readErrorAsync(response)}.`
       );
     }
     let body: unknown;
