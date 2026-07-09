@@ -4,7 +4,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import spawn from '@expo/turtle-spawn';
 
 import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
-import { failOrLogError } from '../utils/PosthogUtils';
+import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createUploadPosthogSourcemapsFunction(): BuildFunction {
   return new BuildFunction({
@@ -45,7 +45,7 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
         env,
       });
       if (!client) {
-        failOrLogError({
+        PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
@@ -72,7 +72,7 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
           }
         );
       } catch (error) {
-        failOrLogError({
+        PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
