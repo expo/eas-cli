@@ -15,6 +15,7 @@ import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulat
 const IOS_SIMULATOR_RECORDING_POLL_INTERVAL_MS = 2_000;
 const RECORD_SIM_FINISH_TIMEOUT_MS = 30_000;
 const RECORD_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
+const RECORD_SIM_MAX_ATTEMPTS_PER_BOOT = 3;
 const RECORD_SIM_COMMAND = 'record-sim';
 
 const RecordingManifestSchema = z.object({
@@ -67,6 +68,7 @@ type IosSimulatorRecordingSession = {
   recordingsRootDirectory: string;
   activeRecordings: Map<IosSimulatorUuid, ActiveIosSimulatorRecording>;
   completedRecordings: IosSimulatorRecording[];
+  recordingFailureCounts: Map<IosSimulatorUuid, number>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
 };
@@ -103,6 +105,7 @@ export async function startIosSimulatorRecordingsAsync({
     recordingsRootDirectory,
     activeRecordings: new Map(),
     completedRecordings: [],
+    recordingFailureCounts: new Map(),
     pollingPromise: Promise.resolve(),
     abortController: new AbortController(),
   };
@@ -210,8 +213,18 @@ async function pollIosSimulatorRecordingsAsync(
       }
       listDevicesErrorCount = 0;
 
+      const bootedUdids = new Set(bootedDevices.map(device => device.udid));
+      for (const udid of session.recordingFailureCounts.keys()) {
+        if (!bootedUdids.has(udid)) {
+          session.recordingFailureCounts.delete(udid);
+        }
+      }
+
       for (const device of bootedDevices) {
-        if (session.activeRecordings.has(device.udid)) {
+        if (
+          session.activeRecordings.has(device.udid) ||
+          (session.recordingFailureCounts.get(device.udid) ?? 0) >= RECORD_SIM_MAX_ATTEMPTS_PER_BOOT
+        ) {
           continue;
         }
         await startIosSimulatorRecordingAsync(session, {
@@ -273,6 +286,7 @@ async function startIosSimulatorRecordingAsync(
   const completionPromise = recordingSpawn
     .then(() => undefined)
     .catch((err: unknown) => {
+      session.recordingFailureCounts.set(udid, (session.recordingFailureCounts.get(udid) ?? 0) + 1);
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.capture('iOS Simulator screen recording process failed', error);
       session.logger.warn(
