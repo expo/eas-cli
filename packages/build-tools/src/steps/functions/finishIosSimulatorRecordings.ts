@@ -2,12 +2,12 @@ import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 import fs from 'fs/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { IosSimulatorRecordingUtils } from '../utils/IosSimulatorRecordingUtils';
 import limitFactory from 'promise-limit';
 import { formatBytes } from '../../utils/artifacts';
 import { uploadDeviceRunSessionArtifactAsync } from '../utils/deviceRunSessionArtifacts';
 import { createReadStream } from 'fs-extra';
-import { Sentry } from '../..';
 
 export function createFinishIosSimulatorRecordingsBuildFunction(
   ctx: CustomBuildContext
