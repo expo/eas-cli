@@ -1,7 +1,7 @@
 import { UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
-import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
+import { PosthogClient, missingPosthogCredentialsMessage } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createPosthogAnnotationFunction(): BuildFunction {
@@ -41,22 +41,23 @@ export function createPosthogAnnotationFunction(): BuildFunction {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
 
-      const client = PosthogClient.fromEnv({
+      const result = PosthogClient.fromEnv({
         apiKeyOverride: inputs.api_key.value as string | undefined,
         projectIdOverride: inputs.project_id.value as string | undefined,
         env,
       });
-      if (!client) {
+      if (!result.client) {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
             'EAS_POSTHOG_MISSING_CREDENTIALS',
-            MISSING_POSTHOG_API_TARGET_MESSAGE
+            missingPosthogCredentialsMessage(result.missing)
           ),
         });
         return;
       }
+      const client = result.client;
 
       const content = inputs.content.value as string;
       const dateMarker =
