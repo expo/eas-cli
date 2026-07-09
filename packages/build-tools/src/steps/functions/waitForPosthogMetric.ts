@@ -12,7 +12,7 @@ import {
   PosthogClient,
   PosthogRetryableError,
 } from '../utils/PosthogClient';
-import { sleepAsync } from '../../utils/retry';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 const DEFAULT_TIMEOUT_SECONDS = 600;
 const DEFAULT_INTERVAL_SECONDS = 30;
@@ -74,7 +74,7 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
       }),
     ],
     outputProviders: [BuildStepOutput.createProvider({ id: 'value', required: false })],
-    fn: async (stepCtx, { inputs, outputs, env }) => {
+    fn: async (stepCtx, { inputs, outputs, env, signal }) => {
       const { logger } = stepCtx;
 
       const operator = inputs.operator.value as string;
@@ -110,6 +110,7 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
         threshold: inputs.threshold.value as number,
         timeoutSeconds,
         intervalSeconds,
+        signal,
       });
       outputs.value.set(String(value));
     },
@@ -124,6 +125,7 @@ async function waitForPosthogMetricAsync({
   threshold,
   timeoutSeconds,
   intervalSeconds,
+  signal,
 }: {
   logger: bunyan;
   client: PosthogClient;
@@ -132,6 +134,7 @@ async function waitForPosthogMetricAsync({
   threshold: number;
   timeoutSeconds: number;
   intervalSeconds: number;
+  signal: AbortSignal | undefined;
 }): Promise<number> {
   const deadline = Date.now() + timeoutSeconds * 1000;
   const { symbol, test } = OPERATORS[operator];
@@ -171,7 +174,7 @@ async function waitForPosthogMetricAsync({
           : `The PostHog query never returned a numeric value within ${timeoutSeconds}s. Check that the query returns a single number and that PostHog is reachable.`
       );
     }
-    await sleepAsync(Math.min(intervalSeconds * 1000, remainingMs));
+    await setTimeoutAsync(Math.min(intervalSeconds * 1000, remainingMs), undefined, { signal });
   }
 }
 
