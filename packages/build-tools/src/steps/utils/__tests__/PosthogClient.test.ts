@@ -2,7 +2,11 @@ import { UserError } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import fetch, { Response } from 'node-fetch';
 
-import { PosthogClient, PosthogRetryableError } from '../PosthogClient';
+import {
+  PosthogClient,
+  PosthogRetryableError,
+  missingPosthogCredentialsMessage,
+} from '../PosthogClient';
 
 jest.mock('@expo/logger');
 jest.mock('node-fetch');
@@ -44,13 +48,13 @@ describe('PosthogClient.fromEnv', () => {
         apiKeyOverride: undefined,
         projectIdOverride: undefined,
         env: API_ENV,
-      })
+      }).client
     ).toBeInstanceOf(PosthogClient);
   });
 
   it('prefers overrides over env', async () => {
     fetchMock.mockResolvedValue(res({ json: { results: [[1]] } }));
-    const client = PosthogClient.fromEnv({
+    const { client } = PosthogClient.fromEnv({
       apiKeyOverride: 'phx_override',
       projectIdOverride: '999',
       env: {},
@@ -62,7 +66,7 @@ describe('PosthogClient.fromEnv', () => {
   });
 
   it('exposes host and CLI env for subprocess uploads', () => {
-    const client = PosthogClient.fromEnv({
+    const { client } = PosthogClient.fromEnv({
       apiKeyOverride: 'phx_k',
       projectIdOverride: '55',
       env: { POSTHOG_CLI_HOST: 'https://eu.posthog.com' },
@@ -73,28 +77,72 @@ describe('PosthogClient.fromEnv', () => {
     });
   });
 
-  it('returns undefined when the key or project id is missing', () => {
-    expect(
-      PosthogClient.fromEnv({ apiKeyOverride: undefined, projectIdOverride: undefined, env: {} })
-    ).toBeUndefined();
-    expect(
-      PosthogClient.fromEnv({
-        apiKeyOverride: 'phx',
-        projectIdOverride: undefined,
-        env: {},
-      })
-    ).toBeUndefined();
+  it('reports both missing credentials when neither is provided', () => {
+    const result = PosthogClient.fromEnv({
+      apiKeyOverride: undefined,
+      projectIdOverride: undefined,
+      env: {},
+    });
+    expect(result.client).toBeUndefined();
+    expect(result).toMatchObject({
+      missing: [{ label: 'personal API key' }, { label: 'project id' }],
+    });
+  });
+
+  it('reports only the missing project id when the key is present', () => {
+    const result = PosthogClient.fromEnv({
+      apiKeyOverride: 'phx',
+      projectIdOverride: undefined,
+      env: {},
+    });
+    expect(result.client).toBeUndefined();
+    expect(result).toMatchObject({ missing: [{ label: 'project id' }] });
+  });
+
+  it('reports only the missing api key when the project id is present', () => {
+    const result = PosthogClient.fromEnv({
+      apiKeyOverride: undefined,
+      projectIdOverride: '1',
+      env: {},
+    });
+    expect(result.client).toBeUndefined();
+    expect(result).toMatchObject({ missing: [{ label: 'personal API key' }] });
   });
 
   it('falls back to the default host', async () => {
     fetchMock.mockResolvedValue(res({ json: { results: [[1]] } }));
-    const client = PosthogClient.fromEnv({
+    const { client } = PosthogClient.fromEnv({
       apiKeyOverride: 'phx',
       projectIdOverride: '1',
       env: {},
     });
     await client?.runQueryAsync('select 1', logger);
     expect(fetchMock.mock.calls[0][0]).toBe('https://us.posthog.com/api/projects/1/query/');
+  });
+});
+
+describe(missingPosthogCredentialsMessage, () => {
+  function missingFrom(
+    env: Record<string, string>
+  ): Parameters<typeof missingPosthogCredentialsMessage>[0] {
+    const result = PosthogClient.fromEnv({
+      apiKeyOverride: undefined,
+      projectIdOverride: undefined,
+      env,
+    });
+    return result.client ? [] : result.missing;
+  }
+
+  it('names both missing credentials with their env vars and inputs', () => {
+    expect(missingPosthogCredentialsMessage(missingFrom({}))).toBe(
+      'Missing PostHog credentials: personal API key, project id. Set the environment variables (POSTHOG_CLI_API_KEY, POSTHOG_CLI_PROJECT_ID) or step inputs (api_key, project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
+    );
+  });
+
+  it('names only the missing credential', () => {
+    expect(missingPosthogCredentialsMessage(missingFrom({ POSTHOG_CLI_API_KEY: 'phx' }))).toBe(
+      'Missing PostHog credentials: project id. Set the environment variables (POSTHOG_CLI_PROJECT_ID) or step inputs (project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
+    );
   });
 });
 
@@ -158,7 +206,7 @@ describe('captureEventAsync', () => {
 });
 
 describe('requestAsync', () => {
-  const client = PosthogClient.fromEnv({
+  const { client } = PosthogClient.fromEnv({
     apiKeyOverride: undefined,
     projectIdOverride: undefined,
     env: API_ENV,
@@ -213,7 +261,7 @@ describe('requestAsync', () => {
 });
 
 describe('runQueryAsync', () => {
-  const client = PosthogClient.fromEnv({
+  const { client } = PosthogClient.fromEnv({
     apiKeyOverride: undefined,
     projectIdOverride: undefined,
     env: API_ENV,
@@ -269,7 +317,7 @@ describe('runQueryAsync', () => {
 });
 
 it('is a UserError subclass so the step surfaces it to the user', async () => {
-  const client = PosthogClient.fromEnv({
+  const { client } = PosthogClient.fromEnv({
     apiKeyOverride: undefined,
     projectIdOverride: undefined,
     env: API_ENV,

@@ -11,8 +11,23 @@ const SYSTEM_DISTINCT_ID = 'eas-workflow';
 
 const QueryResponseSchema = z.object({ results: z.array(z.array(z.unknown())) });
 
-export const MISSING_POSTHOG_API_TARGET_MESSAGE =
-  'PostHog personal API key or project id is missing. Re-run "eas integrations:posthog:connect" with error tracking enabled, set the POSTHOG_CLI_API_KEY and POSTHOG_CLI_PROJECT_ID environment variables on EAS, or pass the "api_key" and "project_id" inputs to this step.';
+interface PosthogCredential {
+  label: string;
+  envVar: string;
+  input: string;
+}
+
+const POSTHOG_API_CREDENTIALS = {
+  apiKey: { label: 'personal API key', envVar: 'POSTHOG_CLI_API_KEY', input: 'api_key' },
+  projectId: { label: 'project id', envVar: 'POSTHOG_CLI_PROJECT_ID', input: 'project_id' },
+} satisfies Record<string, PosthogCredential>;
+
+export function missingPosthogCredentialsMessage(missing: PosthogCredential[]): string {
+  const labels = missing.map(credential => credential.label).join(', ');
+  const envVars = missing.map(credential => credential.envVar).join(', ');
+  const inputs = missing.map(credential => credential.input).join(', ');
+  return `Missing PostHog credentials: ${labels}. Set the environment variables (${envVars}) or step inputs (${inputs}) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.`;
+}
 
 export class PosthogRetryableError extends Error {}
 
@@ -31,17 +46,25 @@ export class PosthogClient {
     apiKeyOverride: string | undefined;
     projectIdOverride: string | undefined;
     env: BuildStepEnv;
-  }): PosthogClient | undefined {
+  }): { client: PosthogClient } | { client: undefined; missing: PosthogCredential[] } {
     const apiKey = apiKeyOverride || env.POSTHOG_CLI_API_KEY;
     const projectId = projectIdOverride || env.POSTHOG_CLI_PROJECT_ID;
     if (!apiKey || !projectId) {
-      return undefined;
+      return {
+        client: undefined,
+        missing: [
+          ...(apiKey ? [] : [POSTHOG_API_CREDENTIALS.apiKey]),
+          ...(projectId ? [] : [POSTHOG_API_CREDENTIALS.projectId]),
+        ],
+      };
     }
-    return new PosthogClient(
-      (env.POSTHOG_CLI_HOST || POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
-      apiKey,
-      projectId
-    );
+    return {
+      client: new PosthogClient(
+        (env.POSTHOG_CLI_HOST || POSTHOG_DEFAULT_HOST).replace(/\/+$/, ''),
+        apiKey,
+        projectId
+      ),
+    };
   }
 
   static forIngestion({
