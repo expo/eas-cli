@@ -58,7 +58,6 @@ describe(getProjectIdAsync, () => {
         ],
         isExpoAdmin: false,
         featureGates: {},
-        preferences: {},
       },
       authenticationInfo: { accessToken: 'fake', sessionSecret: null },
     });

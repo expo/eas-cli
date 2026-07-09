@@ -27,7 +27,6 @@ export const jester: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 export const jester2 = {
