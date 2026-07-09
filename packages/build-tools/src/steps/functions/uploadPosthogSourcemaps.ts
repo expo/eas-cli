@@ -3,7 +3,7 @@ import { PipeMode } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
-import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
+import { PosthogClient, missingPosthogCredentialsMessage } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createUploadPosthogSourcemapsFunction(): BuildFunction {
@@ -39,22 +39,23 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
 
-      const client = PosthogClient.fromEnv({
+      const result = PosthogClient.fromEnv({
         apiKeyOverride: inputs.api_key.value as string | undefined,
         projectIdOverride: inputs.project_id.value as string | undefined,
         env,
       });
-      if (!client) {
+      if (!result.client) {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
             'EAS_POSTHOG_MISSING_CREDENTIALS',
-            MISSING_POSTHOG_API_TARGET_MESSAGE
+            missingPosthogCredentialsMessage(result.missing)
           ),
         });
         return;
       }
+      const client = result.client;
 
       const directory = inputs.directory.value as string;
       const { host, env: cliEnv } = client.cliConfig();

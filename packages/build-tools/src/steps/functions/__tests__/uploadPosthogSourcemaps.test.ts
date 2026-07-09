@@ -104,7 +104,9 @@ describe(createUploadPosthogSourcemapsFunction, () => {
   it('throws when credentials are missing by default', async () => {
     const step = createStep({}, {});
 
-    await expect(step.executeAsync()).rejects.toThrow(/personal API key or project id/);
+    await expect(step.executeAsync()).rejects.toThrow(
+      /Missing PostHog credentials: personal API key, project id/
+    );
     expect(spawnMock).not.toHaveBeenCalled();
   });
 
