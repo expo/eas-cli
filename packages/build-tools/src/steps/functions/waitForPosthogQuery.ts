@@ -7,7 +7,7 @@ import {
   PosthogClient,
   PosthogRetryableError,
 } from '../utils/PosthogClient';
-import { sleepAsync } from '../../utils/retry';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 const DEFAULT_TIMEOUT_SECONDS = 600;
 const DEFAULT_INTERVAL_SECONDS = 30;
@@ -47,7 +47,7 @@ export function createWaitForPosthogQueryFunction(): BuildFunction {
         required: false,
       }),
     ],
-    fn: async (stepCtx, { inputs, env }) => {
+    fn: async (stepCtx, { inputs, env, signal }) => {
       const { logger } = stepCtx;
 
       const timeoutSeconds = inputs.timeout_seconds.value as number;
@@ -74,6 +74,7 @@ export function createWaitForPosthogQueryFunction(): BuildFunction {
         query: inputs.query.value as string,
         timeoutSeconds,
         intervalSeconds,
+        signal,
       });
     },
   });
@@ -85,12 +86,14 @@ async function waitForPosthogQueryAsync({
   query,
   timeoutSeconds,
   intervalSeconds,
+  signal,
 }: {
   logger: bunyan;
   client: PosthogClient;
   query: string;
   timeoutSeconds: number;
   intervalSeconds: number;
+  signal: AbortSignal | undefined;
 }): Promise<void> {
   const deadline = Date.now() + timeoutSeconds * 1000;
 
@@ -121,6 +124,6 @@ async function waitForPosthogQueryAsync({
         `The PostHog query did not return true within ${timeoutSeconds}s. It must select a single boolean, e.g. "SELECT count() > 100 FROM events".`
       );
     }
-    await sleepAsync(Math.min(intervalSeconds * 1000, remainingMs));
+    await setTimeoutAsync(Math.min(intervalSeconds * 1000, remainingMs), undefined, { signal });
   }
 }
