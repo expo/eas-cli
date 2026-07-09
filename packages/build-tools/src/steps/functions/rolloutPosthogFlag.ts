@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { z } from 'zod';
 
-import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
+import { PosthogClient, missingPosthogCredentialsMessage } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 const SEARCH_LIMIT = 200;
@@ -109,22 +109,23 @@ export function createRolloutPosthogFlagFunction(): BuildFunction {
         );
       }
 
-      const client = PosthogClient.fromEnv({
+      const result = PosthogClient.fromEnv({
         apiKeyOverride: inputs.api_key.value as string | undefined,
         projectIdOverride: inputs.project_id.value as string | undefined,
         env,
       });
-      if (!client) {
+      if (!result.client) {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
             'EAS_POSTHOG_MISSING_CREDENTIALS',
-            MISSING_POSTHOG_API_TARGET_MESSAGE
+            missingPosthogCredentialsMessage(result.missing)
           ),
         });
         return;
       }
+      const client = result.client;
 
       await rolloutPosthogFlagAsync({
         logger,
