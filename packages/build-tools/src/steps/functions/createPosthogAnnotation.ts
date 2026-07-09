@@ -2,7 +2,7 @@ import { UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
 import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
-import { failOrLogError } from '../utils/PosthogUtils';
+import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createPosthogAnnotationFunction(): BuildFunction {
   return new BuildFunction({
@@ -47,7 +47,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
         env,
       });
       if (!client) {
-        failOrLogError({
+        PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
@@ -70,7 +70,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
           body: { content, date_marker: dateMarker },
         });
       } catch (error) {
-        failOrLogError({ logger, ignoreError, error });
+        PosthogUtils.failOrLogError({ logger, ignoreError, error });
         return;
       }
 
