@@ -4,7 +4,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import { z } from 'zod';
 
 import { MISSING_POSTHOG_API_TARGET_MESSAGE, PosthogClient } from '../utils/PosthogClient';
-import { failOrLogError } from '../utils/PosthogUtils';
+import { PosthogUtils } from '../utils/PosthogUtils';
 
 const SEARCH_LIMIT = 200;
 
@@ -115,7 +115,7 @@ export function createRolloutPosthogFlagFunction(): BuildFunction {
         env,
       });
       if (!client) {
-        failOrLogError({
+        PosthogUtils.failOrLogError({
           logger,
           ignoreError,
           error: new UserError(
@@ -167,7 +167,7 @@ async function rolloutPosthogFlagAsync({
       { action: `Looking up PostHog flag "${flagKey}"`, forbiddenScope: 'feature_flag:read' }
     );
   } catch (error) {
-    failOrLogError({ logger, ignoreError, error });
+    PosthogUtils.failOrLogError({ logger, ignoreError, error });
     return;
   }
 
@@ -175,7 +175,7 @@ async function rolloutPosthogFlagAsync({
   try {
     results = FlagSearchResponseSchema.parse(await searchResponse.json()).results;
   } catch (error) {
-    failOrLogError({
+    PosthogUtils.failOrLogError({
       logger,
       ignoreError,
       error: new UserError(
@@ -194,7 +194,7 @@ async function rolloutPosthogFlagAsync({
     })
     .find(candidate => candidate.key === flagKey);
   if (!flag) {
-    failOrLogError({
+    PosthogUtils.failOrLogError({
       logger,
       ignoreError,
       error: new UserError(
@@ -230,7 +230,7 @@ async function rolloutPosthogFlagAsync({
       body: patch,
     });
   } catch (error) {
-    failOrLogError({ logger, ignoreError, error });
+    PosthogUtils.failOrLogError({ logger, ignoreError, error });
     return;
   }
 
