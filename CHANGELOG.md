@@ -6,7 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- [eas-cli] Remove `eas onboarding` command (aliases `init:onboarding`, `project:onboarding`). It has been non-functional since the expo.new onboarding flow was removed from the website (expo/universe#27211); this completes that removal and stops fetching the onboarding preference in the `CurrentUser` query. ([#3993](https://github.com/expo/eas-cli/pull/3993) by [@byronkarlen](https://github.com/byronkarlen))
+- [eas-cli] Remove `eas onboarding` command (aliases `init:onboarding`, `project:onboarding`). ([#3993](https://github.com/expo/eas-cli/pull/3993) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🎉 New features
 
