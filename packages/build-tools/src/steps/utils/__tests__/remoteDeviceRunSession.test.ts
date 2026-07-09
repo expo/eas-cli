@@ -1,5 +1,6 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
@@ -7,6 +8,9 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   fetchServeSimTurnArgsAsync,
+  getMetricsCorsOrigin,
+  metricsCorsOriginToServeSimArgs,
+  startServeSimWithTunnelAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
 } from '../remoteDeviceRunSession';
@@ -14,6 +18,7 @@ import {
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../sentry');
+jest.mock('@expo/turtle-spawn');
 
 function createLoggerMock(): bunyan {
   return {
@@ -79,6 +84,40 @@ function createStatusCtxMock(
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(getMetricsCorsOrigin, () => {
+  it('returns the env origin, or undefined when unset/empty', () => {
+    expect(
+      getMetricsCorsOrigin({
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
+      } as BuildStepEnv)
+    ).toBe('https://expo.dev');
+    expect(getMetricsCorsOrigin({} as BuildStepEnv)).toBeUndefined();
+    expect(
+      getMetricsCorsOrigin({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
+    ).toBeUndefined();
+  });
+});
+
+describe(metricsCorsOriginToServeSimArgs, () => {
+  it('returns no args when no origin is set', () => {
+    expect(metricsCorsOriginToServeSimArgs(undefined)).toEqual([]);
+    expect(metricsCorsOriginToServeSimArgs('')).toEqual([]);
+  });
+
+  it('builds one flag per comma-separated origin', () => {
+    expect(metricsCorsOriginToServeSimArgs('https://expo.dev')).toEqual([
+      '--metrics-cors-origin',
+      'https://expo.dev',
+    ]);
+    expect(metricsCorsOriginToServeSimArgs('https://expo.dev, https://staging.expo.dev')).toEqual([
+      '--metrics-cors-origin',
+      'https://expo.dev',
+      '--metrics-cors-origin',
+      'https://staging.expo.dev',
+    ]);
+  });
+});
 
 describe(turnIceServersToServeSimArgs, () => {
   it('returns no args for an empty ICE server list', () => {
@@ -277,5 +316,51 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       }),
       { level: 'warning' }
     );
+  });
+});
+
+describe(startServeSimWithTunnelAsync, () => {
+  const baseDomain = 'sim.expo.test';
+
+  function mockServeSimSpawn(tunnelOutput: string): void {
+    const stdout = {
+      on: (event: string, cb: (chunk: Buffer) => void): void => {
+        if (event === 'data') {
+          cb(Buffer.from(tunnelOutput));
+        }
+      },
+    };
+    const child = { pid: 123, unref: jest.fn(), stdout, stderr: { on: jest.fn() } };
+    const result = Object.assign(Promise.resolve({}), { child });
+    jest.mocked(spawn).mockReturnValue(result as unknown as ReturnType<typeof spawn>);
+  }
+
+  it('passes the metrics CORS origin through to serve-sim', async () => {
+    mockServeSimSpawn(`Tunnel: https://abc.${baseDomain}\n`);
+
+    const { previewUrl } = await startServeSimWithTunnelAsync(createCtxMock(), {
+      baseDomain,
+      env: { EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev' } as BuildStepEnv,
+      logger: createLoggerMock(),
+      timeoutMs: 1_000,
+    });
+
+    expect(previewUrl).toBe(`https://abc.${baseDomain}`);
+    const spawnArgs = jest.mocked(spawn).mock.calls[0][1];
+    expect(spawnArgs).toContain('--metrics-cors-origin');
+    expect(spawnArgs).toContain('https://expo.dev');
+  });
+
+  it('omits the metrics CORS args when no origin is set', async () => {
+    mockServeSimSpawn(`Tunnel: https://abc.${baseDomain}\n`);
+
+    await startServeSimWithTunnelAsync(createCtxMock(), {
+      baseDomain,
+      env: {} as BuildStepEnv,
+      logger: createLoggerMock(),
+      timeoutMs: 1_000,
+    });
+
+    expect(jest.mocked(spawn).mock.calls[0][1]).not.toContain('--metrics-cors-origin');
   });
 });
