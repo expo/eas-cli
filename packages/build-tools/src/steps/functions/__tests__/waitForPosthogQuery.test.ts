@@ -86,7 +86,9 @@ describe(createWaitForPosthogQueryFunction, () => {
   it('throws when credentials are missing', async () => {
     const step = createStep({ query: 'q' }, {});
 
-    await expect(step.executeAsync()).rejects.toThrow(/personal API key or project id/);
+    await expect(step.executeAsync()).rejects.toThrow(
+      /Missing PostHog credentials: personal API key, project id/
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

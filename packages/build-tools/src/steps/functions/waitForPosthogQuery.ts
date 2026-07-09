@@ -3,9 +3,9 @@ import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
 import {
-  MISSING_POSTHOG_API_TARGET_MESSAGE,
   PosthogClient,
   PosthogRetryableError,
+  missingPosthogCredentialsMessage,
 } from '../utils/PosthogClient';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
@@ -59,14 +59,18 @@ export function createWaitForPosthogQueryFunction(): BuildFunction {
         );
       }
 
-      const client = PosthogClient.fromEnv({
+      const result = PosthogClient.fromEnv({
         apiKeyOverride: inputs.api_key.value as string | undefined,
         projectIdOverride: inputs.project_id.value as string | undefined,
         env,
       });
-      if (!client) {
-        throw new UserError('EAS_POSTHOG_MISSING_CREDENTIALS', MISSING_POSTHOG_API_TARGET_MESSAGE);
+      if (!result.client) {
+        throw new UserError(
+          'EAS_POSTHOG_MISSING_CREDENTIALS',
+          missingPosthogCredentialsMessage(result.missing)
+        );
       }
+      const client = result.client;
 
       await waitForPosthogQueryAsync({
         logger,
