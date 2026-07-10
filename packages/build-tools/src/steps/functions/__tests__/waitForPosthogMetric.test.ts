@@ -75,6 +75,12 @@ describe(createWaitForPosthogMetricFunction, () => {
     await expect(step.executeAsync()).rejects.toThrow(/Invalid "operator"/);
   });
 
+  it('rejects an Object.prototype key as an operator', async () => {
+    const step = createStep({ query: 'q', operator: 'toString', threshold: '5' });
+
+    await expect(step.executeAsync()).rejects.toThrow(/Invalid "operator"/);
+  });
+
   it('throws with the PostHog error detail when the query fails to run', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ detail: 'Malformed HogQL query' }, { ok: false, status: 400 })

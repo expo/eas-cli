@@ -10,12 +10,9 @@ import {
 import {
   PosthogClient,
   PosthogRetryableError,
-  missingPosthogCredentialsMessage,
+  missingPosthogCredentialsError,
 } from '../utils/PosthogClient';
-import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
-
-const DEFAULT_TIMEOUT_SECONDS = 600;
-const DEFAULT_INTERVAL_SECONDS = 30;
+import { PosthogUtils } from '../utils/PosthogUtils';
 
 const OPERATORS = {
   lt: { symbol: '<', test: (value: number, threshold: number) => value < threshold },
@@ -54,13 +51,13 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
         id: 'timeout_seconds',
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
         required: false,
-        defaultValue: DEFAULT_TIMEOUT_SECONDS,
+        defaultValue: PosthogUtils.DEFAULT_POLL_TIMEOUT_SECONDS,
       }),
       BuildStepInput.createProvider({
         id: 'interval_seconds',
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
         required: false,
-        defaultValue: DEFAULT_INTERVAL_SECONDS,
+        defaultValue: PosthogUtils.DEFAULT_POLL_INTERVAL_SECONDS,
       }),
       BuildStepInput.createProvider({
         id: 'api_key',
@@ -78,7 +75,7 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
       const { logger } = stepCtx;
 
       const operator = inputs.operator.value as string;
-      if (!(operator in OPERATORS)) {
+      if (!Object.keys(OPERATORS).includes(operator)) {
         throw new UserError(
           'EAS_POSTHOG_METRIC_INVALID_OPERATOR',
           `Invalid "operator" "${operator}". Must be one of: ${Object.keys(OPERATORS).join(', ')}.`
@@ -86,12 +83,11 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
       }
       const timeoutSeconds = inputs.timeout_seconds.value as number;
       const intervalSeconds = inputs.interval_seconds.value as number;
-      if (timeoutSeconds <= 0 || intervalSeconds <= 0) {
-        throw new UserError(
-          'EAS_POSTHOG_METRIC_INVALID_INTERVAL',
-          '"timeout_seconds" and "interval_seconds" must be greater than 0.'
-        );
-      }
+      PosthogUtils.assertPollBoundsPositive({
+        timeoutSeconds,
+        intervalSeconds,
+        errorCode: 'EAS_POSTHOG_METRIC_INVALID_INTERVAL',
+      });
 
       const result = PosthogClient.fromEnv({
         apiKeyOverride: inputs.api_key.value as string | undefined,
@@ -99,10 +95,7 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
         env,
       });
       if (!result.client) {
-        throw new UserError(
-          'EAS_POSTHOG_MISSING_CREDENTIALS',
-          missingPosthogCredentialsMessage(result.missing)
-        );
+        throw missingPosthogCredentialsError(result.missing);
       }
       const client = result.client;
 
@@ -152,7 +145,7 @@ async function waitForPosthogMetricAsync({
   for (;;) {
     let value: number | undefined = undefined;
     try {
-      value = await queryMetricAsync({ logger, client, query });
+      value = await queryMetricAsync({ logger, client, query, signal });
     } catch (error) {
       if (!(error instanceof PosthogRetryableError)) {
         throw error;
@@ -169,8 +162,7 @@ async function waitForPosthogMetricAsync({
       logger.info('The query has not returned a numeric value yet. Still waiting.');
     }
 
-    const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) {
+    if (!(await PosthogUtils.waitForNextPollAsync({ intervalSeconds, deadline, signal }))) {
       throw new UserError(
         'EAS_POSTHOG_METRIC_TIMEOUT',
         lastValue !== undefined
@@ -178,7 +170,6 @@ async function waitForPosthogMetricAsync({
           : `The PostHog query never returned a numeric value within ${timeoutSeconds}s. Check that the query returns a single number and that PostHog is reachable.`
       );
     }
-    await setTimeoutAsync(Math.min(intervalSeconds * 1000, remainingMs), undefined, { signal });
   }
 }
 
@@ -186,11 +177,13 @@ async function queryMetricAsync({
   logger,
   client,
   query,
+  signal,
 }: {
   logger: bunyan;
   client: PosthogClient;
   query: string;
+  signal: AbortSignal | undefined;
 }): Promise<number | undefined> {
-  const cell = await client.runQueryAsync(query, logger);
+  const cell = await client.runQueryAsync(query, logger, signal);
   return typeof cell === 'number' && Number.isFinite(cell) ? cell : undefined;
 }
