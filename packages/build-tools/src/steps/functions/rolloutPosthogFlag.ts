@@ -84,7 +84,7 @@ export function createRolloutPosthogFlagFunction(): BuildFunction {
         required: false,
       }),
     ],
-    fn: async (stepCtx, { inputs, env }) => {
+    fn: async (stepCtx, { inputs, env, signal }) => {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
 
@@ -133,6 +133,7 @@ export function createRolloutPosthogFlagFunction(): BuildFunction {
         payload,
         variant,
         ignoreError,
+        signal,
       });
     },
   });
@@ -147,6 +148,7 @@ async function rolloutPosthogFlagAsync({
   payload,
   variant,
   ignoreError,
+  signal,
 }: {
   logger: bunyan;
   client: PosthogClient;
@@ -156,13 +158,18 @@ async function rolloutPosthogFlagAsync({
   payload: Record<string, unknown> | undefined;
   variant: string | undefined;
   ignoreError: boolean;
+  signal: AbortSignal | undefined;
 }): Promise<void> {
   let searchResponse;
   try {
     searchResponse = await client.requestAsync(
       'GET',
       `/feature_flags/?limit=${SEARCH_LIMIT}&search=${encodeURIComponent(flagKey)}`,
-      { action: `Looking up PostHog flag "${flagKey}"`, forbiddenScope: 'feature_flag:read' }
+      {
+        action: `Looking up PostHog flag "${flagKey}"`,
+        forbiddenScope: 'feature_flag:read',
+        signal,
+      }
     );
   } catch (error) {
     PosthogUtils.failOrLogError({ logger, ignoreError, error });
@@ -226,6 +233,7 @@ async function rolloutPosthogFlagAsync({
       action: `Updating PostHog flag "${flagKey}"`,
       forbiddenScope: 'feature_flag:write',
       body: patch,
+      signal,
     });
   } catch (error) {
     PosthogUtils.failOrLogError({ logger, ignoreError, error });
