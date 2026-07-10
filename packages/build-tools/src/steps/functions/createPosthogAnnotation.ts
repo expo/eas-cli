@@ -1,7 +1,6 @@
-import { UserError } from '@expo/eas-build-job';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
-import { PosthogClient, missingPosthogCredentialsMessage } from '../utils/PosthogClient';
+import { PosthogClient, missingPosthogCredentialsError } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createPosthogAnnotationFunction(): BuildFunction {
@@ -50,10 +49,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
-          error: new UserError(
-            'EAS_POSTHOG_MISSING_CREDENTIALS',
-            missingPosthogCredentialsMessage(result.missing)
-          ),
+          error: missingPosthogCredentialsError(result.missing),
         });
         return;
       }
