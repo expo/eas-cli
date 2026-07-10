@@ -35,7 +35,7 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
         required: false,
       }),
     ],
-    fn: async (stepCtx, { inputs, env }) => {
+    fn: async (stepCtx, { inputs, env, signal }) => {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
 
@@ -67,6 +67,7 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
             mode: PipeMode.COMBINED_AS_STDOUT,
             cwd: stepCtx.workingDirectory,
             env: { ...env, ...cliEnv },
+            signal,
           }
         );
       } catch (error) {
