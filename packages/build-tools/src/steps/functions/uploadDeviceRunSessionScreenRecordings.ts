@@ -84,6 +84,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
                 filename: `${recordingId}.mp4`,
                 kind: 'screen-recording',
                 metadata: {
+                  __eas_screen_recording: '1',
                   udid: recording.udid,
                   firstFrameAt: metadata.firstFrameWallClock.iso8601,
                 },
