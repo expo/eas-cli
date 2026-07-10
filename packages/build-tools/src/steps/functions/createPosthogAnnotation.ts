@@ -1,6 +1,6 @@
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 
-import { PosthogClient, missingPosthogCredentialsError } from '../utils/PosthogClient';
+import { PosthogClient } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createPosthogAnnotationFunction(): BuildFunction {
@@ -49,7 +49,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
-          error: missingPosthogCredentialsError(result.missing),
+          error: PosthogUtils.missingCredentialsError(result.missing),
         });
         return;
       }
