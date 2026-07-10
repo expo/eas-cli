@@ -74,13 +74,11 @@ function createMockBuildFragment({
     id: buildId ?? uuid(),
     logFiles: [],
     priority: BuildPriority.Normal,
-    project: {
-      __typename: 'App',
+    app: {
       slug: 'test-project',
       id: projectId,
       name: 'test-project',
       ownerAccount: {
-        __typename: 'Account',
         id: uuid(),
         name: 'test-account',
       },

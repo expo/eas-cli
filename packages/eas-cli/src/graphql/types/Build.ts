@@ -30,16 +30,13 @@ export const BuildFragmentNode = gql`
       displayName
     }
     logFiles
-    project {
-      __typename
+    app {
       id
       name
       slug
-      ... on App {
-        ownerAccount {
-          id
-          name
-        }
+      ownerAccount {
+        id
+        name
       }
     }
     channel
