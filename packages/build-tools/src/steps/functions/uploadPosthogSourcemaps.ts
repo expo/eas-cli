@@ -3,7 +3,7 @@ import { PipeMode } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
-import { PosthogClient, missingPosthogCredentialsError } from '../utils/PosthogClient';
+import { PosthogClient } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 export function createUploadPosthogSourcemapsFunction(): BuildFunction {
@@ -48,7 +48,7 @@ export function createUploadPosthogSourcemapsFunction(): BuildFunction {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
-          error: missingPosthogCredentialsError(result.missing),
+          error: PosthogUtils.missingCredentialsError(result.missing),
         });
         return;
       }
