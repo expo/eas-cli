@@ -98,6 +98,11 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     id: 'session-123',
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
+    platform: AppPlatform.Ios,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    startedAt: '2025-01-01T00:00:05.000Z',
+    finishedAt: null,
+    updatedAt: '2025-01-01T00:01:00.000Z',
     app: {
       id: 'app-123',
       slug: 'testapp',
@@ -106,6 +111,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
         name: 'testuser',
       },
     },
+    artifacts: [],
     remoteConfig: {
       __typename: 'AgentDeviceRunSessionRemoteConfig',
       agentDeviceRemoteSessionUrl: 'https://agent.example.com',
