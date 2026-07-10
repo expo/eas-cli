@@ -24,6 +24,7 @@ import { prepareIosBuildAsync } from './ios/build';
 import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureLockfileExistsAsync } from './validateLockfile';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
+import { streamBuildsLogsAsync } from './logs';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
 import { ensureRepoIsCleanAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
@@ -105,6 +106,7 @@ export interface BuildFlags {
   freezeCredentials: boolean;
   refreshAdHocProvisioningProfile?: boolean;
   isVerboseLoggingEnabled?: boolean;
+  isBuildLogStreamingEnabled?: boolean;
   whatToTest?: string;
   simulator?: SimulatorRunTarget;
 }
@@ -322,10 +324,15 @@ export async function runBuildAndSubmitAsync({
   }
 
   const { accountName } = Object.values(buildCtxByPlatform)[0];
-  const builds = await waitForBuildEndAsync(graphqlClient, {
-    buildIds: startedBuilds.map(({ build }) => build.id),
-    accountName,
-  });
+  const builds = flags.isBuildLogStreamingEnabled
+    ? await streamBuildsLogsAsync(
+        graphqlClient,
+        startedBuilds.map(({ build }) => build)
+      )
+    : await waitForBuildEndAsync(graphqlClient, {
+        buildIds: startedBuilds.map(({ build }) => build.id),
+        accountName,
+      });
   if (!flags.json) {
     printBuildResults(builds);
   }
