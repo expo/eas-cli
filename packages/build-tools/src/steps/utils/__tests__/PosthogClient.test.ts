@@ -125,7 +125,12 @@ describe('PosthogClient.forIngestion', () => {
       hostOverride: 'https://eu.posthog.com//',
       env: {},
     });
-    await client?.captureEventAsync({ event: 'e', distinctId: 'u', properties: undefined });
+    await client?.captureEventAsync({
+      event: 'e',
+      distinctId: 'u',
+      properties: undefined,
+      signal: undefined,
+    });
     expect(fetchMock.mock.calls[0][0]).toBe('https://eu.posthog.com/i/v0/e/');
   });
 
@@ -155,7 +160,12 @@ describe('captureEventAsync', () => {
 
   it('sends an anonymous system event when no distinct_id is given', async () => {
     fetchMock.mockResolvedValue(res({ ok: true, status: 200 }));
-    await client?.captureEventAsync({ event: 'e', distinctId: undefined, properties: { a: 1 } });
+    await client?.captureEventAsync({
+      event: 'e',
+      distinctId: undefined,
+      properties: { a: 1 },
+      signal: undefined,
+    });
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
     expect(body.distinct_id).toBe('eas-workflow');
     expect(body.properties).toEqual({ a: 1, $process_person_profile: false });
@@ -164,15 +174,40 @@ describe('captureEventAsync', () => {
   it('throws a UserError on a non-2xx response', async () => {
     fetchMock.mockResolvedValue(res({ ok: false, status: 400, text: 'bad' }));
     await expect(
-      client?.captureEventAsync({ event: 'e', distinctId: 'u', properties: undefined })
+      client?.captureEventAsync({
+        event: 'e',
+        distinctId: 'u',
+        properties: undefined,
+        signal: undefined,
+      })
     ).rejects.toThrow(/failed with status 400: bad/);
   });
 
   it('throws a UserError on a network error', async () => {
     fetchMock.mockRejectedValue(new Error('ECONNRESET'));
     await expect(
-      client?.captureEventAsync({ event: 'e', distinctId: 'u', properties: undefined })
+      client?.captureEventAsync({
+        event: 'e',
+        distinctId: 'u',
+        properties: undefined,
+        signal: undefined,
+      })
     ).rejects.toThrow(/Sending PostHog event "e" failed\.$/);
+  });
+
+  it('passes the signal and propagates without wrapping when aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValue(new Error('The operation was aborted'));
+    await expect(
+      client?.captureEventAsync({
+        event: 'e',
+        distinctId: 'u',
+        properties: undefined,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow('The operation was aborted');
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
   });
 });
 
@@ -189,6 +224,7 @@ describe('requestAsync', () => {
       action: 'Updating flag',
       forbiddenScope: 'feature_flag:write',
       body: { active: true },
+      signal: undefined,
     });
     expect(response?.ok).toBe(true);
     const [url, init] = fetchMock.mock.calls[0];
@@ -203,6 +239,7 @@ describe('requestAsync', () => {
       client?.requestAsync('GET', '/feature_flags/', {
         action: 'Looking up flag',
         forbiddenScope: 'feature_flag:read',
+        signal: undefined,
       })
     ).rejects.toMatchObject({
       errorCode: 'EAS_POSTHOG_FORBIDDEN',
@@ -216,6 +253,7 @@ describe('requestAsync', () => {
       client?.requestAsync('GET', '/feature_flags/', {
         action: 'Looking up flag',
         forbiddenScope: 'feature_flag:read',
+        signal: undefined,
       })
     ).rejects.toThrow(/Looking up flag failed with status 400: nope/);
   });
@@ -226,8 +264,23 @@ describe('requestAsync', () => {
       client?.requestAsync('GET', '/feature_flags/', {
         action: 'Looking up flag',
         forbiddenScope: 'feature_flag:read',
+        signal: undefined,
       })
     ).rejects.toThrow(/Looking up flag failed\.$/);
+  });
+
+  it('passes the signal and propagates without wrapping when aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValue(new Error('The operation was aborted'));
+    await expect(
+      client?.requestAsync('GET', '/feature_flags/', {
+        action: 'Looking up flag',
+        forbiddenScope: 'feature_flag:read',
+        signal: controller.signal,
+      })
+    ).rejects.toThrow('The operation was aborted');
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
   });
 });
 

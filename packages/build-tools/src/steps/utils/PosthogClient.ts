@@ -73,10 +73,12 @@ export class PosthogClient {
     event,
     distinctId,
     properties,
+    signal,
   }: {
     event: string;
     distinctId: string | undefined;
     properties: Record<string, unknown> | undefined;
+    signal: AbortSignal | undefined;
   }): Promise<void> {
     let response: Response;
     try {
@@ -93,8 +95,12 @@ export class PosthogClient {
               : { ...properties, $process_person_profile: false },
           timestamp: new Date().toISOString(),
         }),
+        signal,
       });
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
       throw new UserError(
         'EAS_POSTHOG_CAPTURE_FAILED',
         `Sending PostHog event "${event}" failed.`,
@@ -114,7 +120,12 @@ export class PosthogClient {
   async requestAsync(
     method: 'GET' | 'POST' | 'PATCH',
     path: string,
-    { action, forbiddenScope, body }: { action: string; forbiddenScope: string; body?: unknown }
+    {
+      action,
+      forbiddenScope,
+      body,
+      signal,
+    }: { action: string; forbiddenScope: string; body?: unknown; signal: AbortSignal | undefined }
   ): Promise<Response> {
     let response: Response;
     try {
@@ -122,8 +133,12 @@ export class PosthogClient {
         method,
         headers: this.authHeaders(),
         body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal,
       });
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
       throw new UserError('EAS_POSTHOG_REQUEST_FAILED', `${action} failed.`, { cause: error });
     }
     if (response.status === 403) {

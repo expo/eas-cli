@@ -42,7 +42,7 @@ export function createCapturePosthogEventFunction(): BuildFunction {
         required: false,
       }),
     ],
-    fn: async (stepCtx, { inputs, env }) => {
+    fn: async (stepCtx, { inputs, env, signal }) => {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
       const event = inputs.event.value as string;
@@ -70,6 +70,7 @@ export function createCapturePosthogEventFunction(): BuildFunction {
           event,
           distinctId: inputs.distinct_id.value as string | undefined,
           properties: inputs.properties.value as Record<string, unknown> | undefined,
+          signal,
         });
       } catch (error) {
         PosthogUtils.failOrLogError({ logger, ignoreError, error });
