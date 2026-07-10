@@ -5,7 +5,7 @@ import fetch, { Response } from 'node-fetch';
 import {
   PosthogClient,
   PosthogRetryableError,
-  missingPosthogCredentialsMessage,
+  missingPosthogCredentialsError,
 } from '../PosthogClient';
 
 jest.mock('@expo/logger');
@@ -59,7 +59,7 @@ describe('PosthogClient.fromEnv', () => {
       projectIdOverride: '999',
       env: {},
     });
-    await client?.runQueryAsync('select 1', logger);
+    await client?.runQueryAsync('select 1', logger, undefined);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://us.posthog.com/api/projects/999/query/');
     expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer phx_override');
@@ -116,15 +116,15 @@ describe('PosthogClient.fromEnv', () => {
       projectIdOverride: '1',
       env: {},
     });
-    await client?.runQueryAsync('select 1', logger);
+    await client?.runQueryAsync('select 1', logger, undefined);
     expect(fetchMock.mock.calls[0][0]).toBe('https://us.posthog.com/api/projects/1/query/');
   });
 });
 
-describe(missingPosthogCredentialsMessage, () => {
+describe(missingPosthogCredentialsError, () => {
   function missingFrom(
     env: Record<string, string>
-  ): Parameters<typeof missingPosthogCredentialsMessage>[0] {
+  ): Parameters<typeof missingPosthogCredentialsError>[0] {
     const result = PosthogClient.fromEnv({
       apiKeyOverride: undefined,
       projectIdOverride: undefined,
@@ -134,13 +134,17 @@ describe(missingPosthogCredentialsMessage, () => {
   }
 
   it('names both missing credentials with their env vars and inputs', () => {
-    expect(missingPosthogCredentialsMessage(missingFrom({}))).toBe(
-      'Missing PostHog credentials: personal API key, project id. Set the environment variables (POSTHOG_CLI_API_KEY, POSTHOG_CLI_PROJECT_ID) or step inputs (api_key, project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
-    );
+    expect(missingPosthogCredentialsError(missingFrom({}))).toMatchObject({
+      errorCode: 'EAS_POSTHOG_MISSING_CREDENTIALS',
+      message:
+        'Missing PostHog credentials: personal API key, project id. Set the environment variables (POSTHOG_CLI_API_KEY, POSTHOG_CLI_PROJECT_ID) or step inputs (api_key, project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.',
+    });
   });
 
   it('names only the missing credential', () => {
-    expect(missingPosthogCredentialsMessage(missingFrom({ POSTHOG_CLI_API_KEY: 'phx' }))).toBe(
+    expect(
+      missingPosthogCredentialsError(missingFrom({ POSTHOG_CLI_API_KEY: 'phx' })).message
+    ).toBe(
       'Missing PostHog credentials: project id. Set the environment variables (POSTHOG_CLI_PROJECT_ID) or step inputs (project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
     );
   });
@@ -269,19 +273,35 @@ describe('runQueryAsync', () => {
 
   it('returns the top-left cell', async () => {
     fetchMock.mockResolvedValue(res({ json: { results: [[42]] } }));
-    await expect(client?.runQueryAsync('select 1', logger)).resolves.toBe(42);
+    await expect(client?.runQueryAsync('select 1', logger, undefined)).resolves.toBe(42);
   });
 
   it('throws a retryable error on a network error', async () => {
     fetchMock.mockRejectedValue(new Error('ECONNRESET'));
-    await expect(client?.runQueryAsync('q', logger)).rejects.toBeInstanceOf(PosthogRetryableError);
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toBeInstanceOf(
+      PosthogRetryableError
+    );
+  });
+
+  it('passes the signal to fetch and propagates without retrying when aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    fetchMock.mockRejectedValue(new Error('The operation was aborted'));
+    await expect(client?.runQueryAsync('q', logger, controller.signal)).rejects.toThrow(
+      'The operation was aborted'
+    );
+    expect(fetchMock.mock.calls[0][1]?.signal).toBe(controller.signal);
   });
 
   it('throws a retryable error on 5xx and 429', async () => {
     fetchMock.mockResolvedValueOnce(res({ ok: false, status: 500 }));
-    await expect(client?.runQueryAsync('q', logger)).rejects.toBeInstanceOf(PosthogRetryableError);
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toBeInstanceOf(
+      PosthogRetryableError
+    );
     fetchMock.mockResolvedValueOnce(res({ ok: false, status: 429 }));
-    await expect(client?.runQueryAsync('q', logger)).rejects.toBeInstanceOf(PosthogRetryableError);
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toBeInstanceOf(
+      PosthogRetryableError
+    );
   });
 
   it('throws a retryable error on an invalid JSON body', async () => {
@@ -292,17 +312,19 @@ describe('runQueryAsync', () => {
         throw new Error('bad json');
       },
     } as unknown as Response);
-    await expect(client?.runQueryAsync('q', logger)).rejects.toBeInstanceOf(PosthogRetryableError);
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toBeInstanceOf(
+      PosthogRetryableError
+    );
   });
 
   it('returns undefined for a malformed result shape', async () => {
     fetchMock.mockResolvedValue(res({ json: { results: 'nope' } }));
-    await expect(client?.runQueryAsync('q', logger)).resolves.toBeUndefined();
+    await expect(client?.runQueryAsync('q', logger, undefined)).resolves.toBeUndefined();
   });
 
   it('throws a forbidden UserError on 403', async () => {
     fetchMock.mockResolvedValue(res({ ok: false, status: 403 }));
-    await expect(client?.runQueryAsync('q', logger)).rejects.toMatchObject({
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toMatchObject({
       errorCode: 'EAS_POSTHOG_FORBIDDEN',
       message: expect.stringContaining('"query:read"'),
     });
@@ -310,7 +332,7 @@ describe('runQueryAsync', () => {
 
   it('throws with the error detail on a non-2xx response', async () => {
     fetchMock.mockResolvedValue(res({ ok: false, status: 400, text: 'Malformed HogQL' }));
-    await expect(client?.runQueryAsync('q', logger)).rejects.toThrow(
+    await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toThrow(
       /failed with status 400: Malformed HogQL/
     );
   });
@@ -323,5 +345,5 @@ it('is a UserError subclass so the step surfaces it to the user', async () => {
     env: API_ENV,
   });
   fetchMock.mockResolvedValue(res({ ok: false, status: 403 }));
-  await expect(client?.runQueryAsync('q', logger)).rejects.toBeInstanceOf(UserError);
+  await expect(client?.runQueryAsync('q', logger, undefined)).rejects.toBeInstanceOf(UserError);
 });

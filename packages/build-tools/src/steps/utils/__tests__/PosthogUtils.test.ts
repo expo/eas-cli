@@ -54,6 +54,68 @@ describe(PosthogUtils.readErrorAsync, () => {
   });
 });
 
+describe(PosthogUtils.assertPollBoundsPositive, () => {
+  it('throws with the given error code when a bound is not positive', () => {
+    expect(() =>
+      PosthogUtils.assertPollBoundsPositive({
+        timeoutSeconds: 0,
+        intervalSeconds: 30,
+        errorCode: 'EAS_POSTHOG_TEST_INTERVAL',
+      })
+    ).toThrow(/greater than 0/);
+    expect(() =>
+      PosthogUtils.assertPollBoundsPositive({
+        timeoutSeconds: 600,
+        intervalSeconds: -1,
+        errorCode: 'EAS_POSTHOG_TEST_INTERVAL',
+      })
+    ).toThrow(/greater than 0/);
+  });
+
+  it('does nothing when both bounds are positive', () => {
+    expect(() =>
+      PosthogUtils.assertPollBoundsPositive({
+        timeoutSeconds: 600,
+        intervalSeconds: 30,
+        errorCode: 'EAS_POSTHOG_TEST_INTERVAL',
+      })
+    ).not.toThrow();
+  });
+});
+
+describe(PosthogUtils.waitForNextPollAsync, () => {
+  it('returns false without sleeping when the deadline has passed', async () => {
+    await expect(
+      PosthogUtils.waitForNextPollAsync({
+        intervalSeconds: 30,
+        deadline: Date.now() - 1,
+        signal: undefined,
+      })
+    ).resolves.toBe(false);
+  });
+
+  it('sleeps for the clamped interval and returns true when time remains', async () => {
+    await expect(
+      PosthogUtils.waitForNextPollAsync({
+        intervalSeconds: 0.01,
+        deadline: Date.now() + 1000,
+        signal: undefined,
+      })
+    ).resolves.toBe(true);
+  });
+
+  it('rejects when the signal aborts during the sleep', async () => {
+    const controller = new AbortController();
+    const promise = PosthogUtils.waitForNextPollAsync({
+      intervalSeconds: 30,
+      deadline: Date.now() + 60_000,
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(promise).rejects.toThrow();
+  });
+});
+
 describe(PosthogUtils.failOrLogError, () => {
   it('throws the error when ignoreError is false', () => {
     const error = new Error('boom');

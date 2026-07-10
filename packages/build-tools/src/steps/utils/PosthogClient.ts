@@ -22,11 +22,18 @@ const POSTHOG_API_CREDENTIALS = {
   projectId: { label: 'project id', envVar: 'POSTHOG_CLI_PROJECT_ID', input: 'project_id' },
 } satisfies Record<string, PosthogCredential>;
 
-export function missingPosthogCredentialsMessage(missing: PosthogCredential[]): string {
+function missingPosthogCredentialsMessage(missing: PosthogCredential[]): string {
   const labels = missing.map(credential => credential.label).join(', ');
   const envVars = missing.map(credential => credential.envVar).join(', ');
   const inputs = missing.map(credential => credential.input).join(', ');
   return `Missing PostHog credentials: ${labels}. Set the environment variables (${envVars}) or step inputs (${inputs}) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.`;
+}
+
+export function missingPosthogCredentialsError(missing: PosthogCredential[]): UserError {
+  return new UserError(
+    'EAS_POSTHOG_MISSING_CREDENTIALS',
+    missingPosthogCredentialsMessage(missing)
+  );
 }
 
 export class PosthogRetryableError extends Error {}
@@ -159,15 +166,23 @@ export class PosthogClient {
     return response;
   }
 
-  async runQueryAsync(query: string, logger: bunyan): Promise<unknown> {
+  async runQueryAsync(
+    query: string,
+    logger: bunyan,
+    signal: AbortSignal | undefined
+  ): Promise<unknown> {
     let response: Response;
     try {
       response = await fetch(this.apiUrl('/query/'), {
         method: 'POST',
         headers: this.authHeaders(),
         body: JSON.stringify({ query: { kind: 'HogQLQuery', query }, refresh: 'blocking' }),
+        signal,
       });
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
       logger.debug(error);
       logger.warn(
         'Running the PostHog query failed with a network error; will retry on the next poll.'
