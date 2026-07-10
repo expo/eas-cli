@@ -32,7 +32,11 @@ export namespace IosSimulatorUtils {
     lastBootedAt?: string;
   };
 
-  type SimulatorDevice = XcrunSimctlDevice & { runtime: string; displayName: string };
+  type SimulatorDevice = XcrunSimctlDevice & {
+    runtime: string;
+    runtimeDisplayName: string;
+    displayName: string;
+  };
 
   type XcrunSimctlListDevicesJsonOutput = {
     devices: {
@@ -60,6 +64,7 @@ export namespace IosSimulatorUtils {
         ...devices.map(device => ({
           ...device,
           runtime,
+          runtimeDisplayName: formatRuntimeDisplayName(runtime),
           displayName: `${device.name} (${device.udid}) on ${runtime}`,
         }))
       );
@@ -372,6 +377,11 @@ export namespace IosSimulatorUtils {
       return false;
     }
   }
+}
+
+function formatRuntimeDisplayName(runtimeIdentifier: string): string {
+  const match = /^com\.apple\.CoreSimulator\.SimRuntime\.([^-]+)-(.+)$/.exec(runtimeIdentifier);
+  return match ? `${match[1]} ${match[2].replaceAll('-', '.')}` : runtimeIdentifier;
 }
 
 async function isLaunchctlServiceLoadedAsync({
