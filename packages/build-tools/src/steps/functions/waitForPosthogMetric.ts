@@ -7,11 +7,7 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 
-import {
-  PosthogClient,
-  PosthogRetryableError,
-  missingPosthogCredentialsError,
-} from '../utils/PosthogClient';
+import { PosthogClient, PosthogRetryableError } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 const OPERATORS = {
@@ -95,7 +91,7 @@ export function createWaitForPosthogMetricFunction(): BuildFunction {
         env,
       });
       if (!result.client) {
-        throw missingPosthogCredentialsError(result.missing);
+        throw PosthogUtils.missingCredentialsError(result.missing);
       }
       const client = result.client;
 
