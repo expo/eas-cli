@@ -2,11 +2,7 @@ import { UserError } from '@expo/eas-build-job';
 import { createLogger } from '@expo/logger';
 import fetch, { Response } from 'node-fetch';
 
-import {
-  PosthogClient,
-  PosthogRetryableError,
-  missingPosthogCredentialsError,
-} from '../PosthogClient';
+import { PosthogClient, PosthogRetryableError } from '../PosthogClient';
 
 jest.mock('@expo/logger');
 jest.mock('node-fetch');
@@ -118,35 +114,6 @@ describe('PosthogClient.fromEnv', () => {
     });
     await client?.runQueryAsync('select 1', logger, undefined);
     expect(fetchMock.mock.calls[0][0]).toBe('https://us.posthog.com/api/projects/1/query/');
-  });
-});
-
-describe(missingPosthogCredentialsError, () => {
-  function missingFrom(
-    env: Record<string, string>
-  ): Parameters<typeof missingPosthogCredentialsError>[0] {
-    const result = PosthogClient.fromEnv({
-      apiKeyOverride: undefined,
-      projectIdOverride: undefined,
-      env,
-    });
-    return result.client ? [] : result.missing;
-  }
-
-  it('names both missing credentials with their env vars and inputs', () => {
-    expect(missingPosthogCredentialsError(missingFrom({}))).toMatchObject({
-      errorCode: 'EAS_POSTHOG_MISSING_CREDENTIALS',
-      message:
-        'Missing PostHog credentials: personal API key, project id. Set the environment variables (POSTHOG_CLI_API_KEY, POSTHOG_CLI_PROJECT_ID) or step inputs (api_key, project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.',
-    });
-  });
-
-  it('names only the missing credential', () => {
-    expect(
-      missingPosthogCredentialsError(missingFrom({ POSTHOG_CLI_API_KEY: 'phx' })).message
-    ).toBe(
-      'Missing PostHog credentials: project id. Set the environment variables (POSTHOG_CLI_PROJECT_ID) or step inputs (project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
-    );
   });
 });
 

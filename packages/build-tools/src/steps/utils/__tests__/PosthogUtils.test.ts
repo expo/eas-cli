@@ -54,6 +54,29 @@ describe(PosthogUtils.readErrorAsync, () => {
   });
 });
 
+describe(PosthogUtils.missingCredentialsError, () => {
+  it('names both missing credentials with their env vars and inputs', () => {
+    expect(
+      PosthogUtils.missingCredentialsError([
+        PosthogUtils.API_CREDENTIALS.apiKey,
+        PosthogUtils.API_CREDENTIALS.projectId,
+      ])
+    ).toMatchObject({
+      errorCode: 'EAS_POSTHOG_MISSING_CREDENTIALS',
+      message:
+        'Missing PostHog credentials: personal API key, project id. Set the environment variables (POSTHOG_CLI_API_KEY, POSTHOG_CLI_PROJECT_ID) or step inputs (api_key, project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.',
+    });
+  });
+
+  it('names only the missing credential', () => {
+    expect(
+      PosthogUtils.missingCredentialsError([PosthogUtils.API_CREDENTIALS.projectId]).message
+    ).toBe(
+      'Missing PostHog credentials: project id. Set the environment variables (POSTHOG_CLI_PROJECT_ID) or step inputs (project_id) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.'
+    );
+  });
+});
+
 describe(PosthogUtils.assertPollBoundsPositive, () => {
   it('throws with the given error code when a bound is not positive', () => {
     expect(() =>

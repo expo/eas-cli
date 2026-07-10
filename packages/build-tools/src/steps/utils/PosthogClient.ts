@@ -11,31 +11,6 @@ const SYSTEM_DISTINCT_ID = 'eas-workflow';
 
 const QueryResponseSchema = z.object({ results: z.array(z.array(z.unknown())) });
 
-interface PosthogCredential {
-  label: string;
-  envVar: string;
-  input: string;
-}
-
-const POSTHOG_API_CREDENTIALS = {
-  apiKey: { label: 'personal API key', envVar: 'POSTHOG_CLI_API_KEY', input: 'api_key' },
-  projectId: { label: 'project id', envVar: 'POSTHOG_CLI_PROJECT_ID', input: 'project_id' },
-} satisfies Record<string, PosthogCredential>;
-
-function missingPosthogCredentialsMessage(missing: PosthogCredential[]): string {
-  const labels = missing.map(credential => credential.label).join(', ');
-  const envVars = missing.map(credential => credential.envVar).join(', ');
-  const inputs = missing.map(credential => credential.input).join(', ');
-  return `Missing PostHog credentials: ${labels}. Set the environment variables (${envVars}) or step inputs (${inputs}) on EAS, or re-run "eas integrations:posthog:connect" with error tracking enabled.`;
-}
-
-export function missingPosthogCredentialsError(missing: PosthogCredential[]): UserError {
-  return new UserError(
-    'EAS_POSTHOG_MISSING_CREDENTIALS',
-    missingPosthogCredentialsMessage(missing)
-  );
-}
-
 export class PosthogRetryableError extends Error {}
 
 export class PosthogClient {
@@ -53,15 +28,15 @@ export class PosthogClient {
     apiKeyOverride: string | undefined;
     projectIdOverride: string | undefined;
     env: BuildStepEnv;
-  }): { client: PosthogClient } | { client: undefined; missing: PosthogCredential[] } {
+  }): { client: PosthogClient } | { client: undefined; missing: PosthogUtils.Credential[] } {
     const apiKey = apiKeyOverride || env.POSTHOG_CLI_API_KEY;
     const projectId = projectIdOverride || env.POSTHOG_CLI_PROJECT_ID;
     if (!apiKey || !projectId) {
       return {
         client: undefined,
         missing: [
-          ...(apiKey ? [] : [POSTHOG_API_CREDENTIALS.apiKey]),
-          ...(projectId ? [] : [POSTHOG_API_CREDENTIALS.projectId]),
+          ...(apiKey ? [] : [PosthogUtils.API_CREDENTIALS.apiKey]),
+          ...(projectId ? [] : [PosthogUtils.API_CREDENTIALS.projectId]),
         ],
       };
     }
