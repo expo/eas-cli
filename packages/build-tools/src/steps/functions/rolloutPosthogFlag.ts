@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
 import { z } from 'zod';
 
-import { PosthogClient, missingPosthogCredentialsMessage } from '../utils/PosthogClient';
+import { PosthogClient, missingPosthogCredentialsError } from '../utils/PosthogClient';
 import { PosthogUtils } from '../utils/PosthogUtils';
 
 const SEARCH_LIMIT = 200;
@@ -118,10 +118,7 @@ export function createRolloutPosthogFlagFunction(): BuildFunction {
         PosthogUtils.failOrLogError({
           logger,
           ignoreError,
-          error: new UserError(
-            'EAS_POSTHOG_MISSING_CREDENTIALS',
-            missingPosthogCredentialsMessage(result.missing)
-          ),
+          error: missingPosthogCredentialsError(result.missing),
         });
         return;
       }
