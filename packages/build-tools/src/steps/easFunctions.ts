@@ -48,6 +48,7 @@ import { createStartIosSimulatorBuildFunction } from './functions/startIosSimula
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
 import { createStartServeSimRemoteSessionBuildFunction } from './functions/startServeSimRemoteSession';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
+import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
 import { CustomBuildContext } from '../customBuildContext';
@@ -89,7 +90,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
     createStartIosSimulatorRecordingsBuildFunction(),
-    createFinishIosSimulatorRecordingsBuildFunction(ctx),
+    createFinishIosSimulatorRecordingsBuildFunction(),
+    createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartServeSimRemoteSessionBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 

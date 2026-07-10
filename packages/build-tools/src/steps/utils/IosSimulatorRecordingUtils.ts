@@ -3,11 +3,10 @@ import { type bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
 import { type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, mkdtemp, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { z } from 'zod';
 
 import { Sentry } from '../../sentry';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
@@ -17,26 +16,6 @@ const RECORD_SIM_FINISH_TIMEOUT_MS = 30_000;
 const RECORD_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
 const RECORD_SIM_MAX_ATTEMPTS_PER_BOOT = 3;
 const RECORD_SIM_COMMAND = 'record-sim';
-
-const RecordingManifestSchema = z.object({
-  firstFrameWallClock: z.object({
-    unixMs: z.number().int(),
-    iso8601: z.string(),
-  }),
-  hlsVersion: z.number().int().optional(),
-  hlsTargetDurationSeconds: z.number().int().optional(),
-  hlsMediaSequence: z.number().int().optional(),
-  recording: z.string(),
-  initSegment: z.string().optional(),
-  segments: z.array(
-    z.object({
-      file: z.string(),
-      durationSeconds: z.number(),
-    })
-  ),
-});
-
-type RecordingManifest = z.infer<typeof RecordingManifestSchema>;
 
 type IosSimulatorRecording = {
   id: string;
@@ -50,15 +29,6 @@ type IosSimulatorRecording = {
 type ActiveIosSimulatorRecording = IosSimulatorRecording & {
   recordingProcess: ChildProcess;
   completionPromise: Promise<void>;
-};
-
-type IosSimulatorRecordingOutput = {
-  path: string;
-  metadata: RecordingManifest;
-};
-
-type CompletedIosSimulatorRecording = IosSimulatorRecording & {
-  output: IosSimulatorRecordingOutput | null;
 };
 
 type IosSimulatorRecordingSession = {
@@ -118,7 +88,7 @@ export namespace IosSimulatorRecordingUtils {
     logger,
   }: {
     logger: bunyan;
-  }): Promise<CompletedIosSimulatorRecording[]> {
+  }): Promise<{ udid: IosSimulatorUuid; displayName: string; directory: string }[]> {
     const session = activeIosSimulatorRecordingSession;
     if (!session) {
       logger.info('No iOS Simulator screen recordings are running.');
@@ -167,31 +137,11 @@ export namespace IosSimulatorRecordingUtils {
     const completedRecordings = [...session.completedRecordings].sort(
       (a, b) => a.startedAt.getTime() - b.startedAt.getTime()
     );
-    return await Promise.all(
-      completedRecordings.map(async recording => {
-        let output;
-        try {
-          const manifest = RecordingManifestSchema.parse(
-            JSON.parse(
-              await readFile(path.join(recording.outputDirectory, 'session.json'), 'utf-8')
-            )
-          );
-          const recordingPath = path.join(recording.outputDirectory, manifest.recording);
-          await access(recordingPath);
-          output = {
-            path: recordingPath,
-            metadata: manifest,
-          };
-        } catch {
-          output = null;
-        }
-
-        return {
-          ...recording,
-          output,
-        };
-      })
-    );
+    return completedRecordings.map(recording => ({
+      udid: recording.udid,
+      displayName: recording.displayName,
+      directory: recording.outputDirectory,
+    }));
   }
 }
 
@@ -229,7 +179,7 @@ async function pollIosSimulatorRecordingsAsync(
         }
         await startIosSimulatorRecordingAsync(session, {
           udid: device.udid,
-          displayName: device.displayName,
+          displayName: `${device.name} screen recording`,
         });
       }
     } catch (err) {
