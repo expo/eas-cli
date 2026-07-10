@@ -36,7 +36,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
         required: false,
       }),
     ],
-    fn: async (stepCtx, { inputs, env }) => {
+    fn: async (stepCtx, { inputs, env, signal }) => {
       const { logger } = stepCtx;
       const ignoreError = Boolean(inputs.ignore_error.value);
 
@@ -65,6 +65,7 @@ export function createPosthogAnnotationFunction(): BuildFunction {
           action: 'Creating the PostHog annotation',
           forbiddenScope: 'annotation:write',
           body: { content, date_marker: dateMarker },
+          signal,
         });
       } catch (error) {
         PosthogUtils.failOrLogError({ logger, ignoreError, error });
