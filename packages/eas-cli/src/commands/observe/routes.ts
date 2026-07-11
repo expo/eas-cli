@@ -24,6 +24,7 @@ import {
   resolveNavigationStatKey,
 } from '../../observe/formatNavigationRoutes';
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -113,10 +114,8 @@ export default class ObserveRoutes extends EasCommand {
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
     const platforms = appPlatformsFromFlag(flags.platform);
 
-    const { routes, pageInfoByPlatform } = await fetchObserveNavigationRoutesAsync(
-      graphqlClient,
-      projectId,
-      {
+    const { routes, pageInfoByPlatform } = await withObservePlanGateHandlingAsync(() =>
+      fetchObserveNavigationRoutesAsync(graphqlClient, projectId, {
         startTime,
         endTime,
         platforms,
@@ -126,7 +125,7 @@ export default class ObserveRoutes extends EasCommand {
         updateId: flags['update-id'],
         buildNumber: flags['build-number'],
         routeNames,
-      }
+      })
     );
 
     if (json) {
