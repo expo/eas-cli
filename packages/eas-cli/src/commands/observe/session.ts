@@ -16,6 +16,7 @@ import {
   fetchSessionMetricCandidatesAsync,
 } from '../../observe/fetchSessions';
 import { ObserveProjectIdFlag, ObserveTimeRangeFlags } from '../../observe/flags';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import {
   buildObserveSessionEventsJson,
   buildObserveSessionEventsTable,
@@ -122,10 +123,12 @@ export default class ObserveSession extends EasCommand {
     }
 
     const { entries, metadata, hasMoreMetricEvents, hasMoreLogEvents } =
-      await fetchObserveSessionEventsAsync(graphqlClient, projectId, {
-        sessionId,
-        limit: SESSION_PAGE_SIZE,
-      });
+      await withObservePlanGateHandlingAsync(() =>
+        fetchObserveSessionEventsAsync(graphqlClient, projectId, {
+          sessionId,
+          limit: SESSION_PAGE_SIZE,
+        })
+      );
 
     if (json) {
       printJsonOnlyOutput(

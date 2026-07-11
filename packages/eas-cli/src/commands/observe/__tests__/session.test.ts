@@ -1,5 +1,9 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { EAS_OBSERVE_PLAN_UPGRADE_REQUIRED_ERROR_CODE } from '../../../observe/planGating';
 import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import {
   fetchObserveSessionEventsAsync,
@@ -160,6 +164,23 @@ describe(ObserveSession, () => {
   it('rejects unsupported filter flags like --platform', async () => {
     const command = createCommand(['session-abc', '--platform', 'ios']);
     await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('surfaces the server plan-gate message when the timeline is plan-gated', async () => {
+    const serverMessage =
+      'Access to this feature is not included in your current plan. ' +
+      'Upgrade your plan: https://expo.dev/accounts/acme/settings/billing';
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(serverMessage, null, null, null, null, null, {
+          errorCode: EAS_OBSERVE_PLAN_UPGRADE_REQUIRED_ERROR_CODE,
+        }),
+      ],
+    });
+    mockFetchObserveSessionEventsAsync.mockRejectedValueOnce(gateError);
+
+    const command = createCommand(['session-abc']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
   });
 
   // ---- new picker-mode behavior ----
