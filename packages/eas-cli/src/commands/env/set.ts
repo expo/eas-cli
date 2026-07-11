@@ -24,7 +24,6 @@ import {
   getDisplayNameForProjectIdAsync,
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
-import { confirmAsync } from '../../prompts';
 import {
   parseVisibility,
   promptVariableEnvironmentAsync,
@@ -34,10 +33,9 @@ import {
   promptVariableVisibilityAsync,
 } from '../../utils/prompts';
 
-interface RawCreateFlags {
+interface RawSetFlags {
   name?: string;
   value?: string;
-  force?: boolean;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EASEnvironmentVariableScopeFlagValue;
@@ -45,10 +43,9 @@ interface RawCreateFlags {
   'non-interactive': boolean;
 }
 
-interface CreateFlags {
+interface SetFlags {
   name?: string;
   value?: string;
-  force?: boolean;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EnvironmentVariableScope;
@@ -56,14 +53,14 @@ interface CreateFlags {
   'non-interactive': boolean;
 }
 
-export default class EnvCreate extends EasCommand {
+export default class EnvSet extends EasCommand {
   static override description =
-    'create an environment variable for the current project or account (deprecated, use eas env:set)';
+    'set (create or update) an environment variable on the current project or account';
 
   static override args = {
     environment: Args.string({
       description:
-        "Environment to create the variable in. Default environments are 'production', 'preview', and 'development'.",
+        "Environment to set the variable in. Default environments are 'production', 'preview', and 'development'.",
       required: false,
     }),
   };
@@ -74,10 +71,6 @@ export default class EnvCreate extends EasCommand {
     }),
     value: Flags.string({
       description: 'Text value or the variable',
-    }),
-    force: Flags.boolean({
-      description: 'Overwrite existing variable',
-      default: false,
     }),
     type: Flags.option({
       description: 'The type of variable',
@@ -96,17 +89,14 @@ export default class EnvCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    Log.warn('This command is deprecated. Use eas env:set instead.');
-    Log.newLine();
-
-    const { args, flags } = await this.parse(EnvCreate);
+    const { args, flags } = await this.parse(EnvSet);
 
     const validatedFlags = this.sanitizeFlags(flags);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(EnvCreate, {
+    } = await this.getContextAsync(EnvSet, {
       nonInteractive: validatedFlags['non-interactive'],
     });
 
@@ -114,10 +104,8 @@ export default class EnvCreate extends EasCommand {
       name,
       value,
       scope,
-      'non-interactive': nonInteractive,
       environment: environments,
       visibility,
-      force,
       type,
       fileName,
     } = await this.promptForMissingFlagsAsync(validatedFlags, args, {
@@ -130,8 +118,6 @@ export default class EnvCreate extends EasCommand {
       getOwnerAccountForProjectIdAsync(graphqlClient, projectId),
     ]);
 
-    let overwrite = false;
-
     if (scope === EnvironmentVariableScope.Project) {
       const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
         appId: projectId,
@@ -139,53 +125,44 @@ export default class EnvCreate extends EasCommand {
       });
 
       const existingVariable = existingVariables.find(
-        variable => !environments || variable.environments?.some(env => environments?.includes(env))
+        variable =>
+          variable.scope === EnvironmentVariableScope.Project &&
+          (!environments || variable.environments?.some(env => environments?.includes(env)))
       );
 
-      if (existingVariable) {
-        if (existingVariable.scope === EnvironmentVariableScope.Project) {
-          await this.promptForOverwriteAsync({
-            nonInteractive,
-            force,
-            message: `Variable ${name} already exists on this project.`,
-            suggestion: 'Do you want to overwrite it?',
-          });
-          overwrite = true;
-        }
-      }
-
-      const variable =
-        overwrite && existingVariable
-          ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
-              id: existingVariable.id,
+      const variable = existingVariable
+        ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+            id: existingVariable.id,
+            name,
+            value,
+            visibility,
+            environments,
+            type,
+            fileName,
+          })
+        : await EnvironmentVariableMutation.createForAppAsync(
+            graphqlClient,
+            {
               name,
               value,
-              visibility,
               environments,
-              type,
+              visibility,
+              type: type ?? EnvironmentSecretType.String,
               fileName,
-            })
-          : await EnvironmentVariableMutation.createForAppAsync(
-              graphqlClient,
-              {
-                name,
-                value,
-                environments,
-                visibility,
-                type: type ?? EnvironmentSecretType.String,
-                fileName,
-              },
-              projectId
-            );
+            },
+            projectId
+          );
 
       if (!variable) {
         throw new Error(
-          `Could not create variable with name ${name} on project ${projectDisplayName}`
+          `Could not set variable with name ${name} on project ${projectDisplayName}`
         );
       }
 
       Log.withTick(
-        `Created a new variable ${chalk.bold(name)} on project ${chalk.bold(projectDisplayName)}.`
+        `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on project ${chalk.bold(
+          projectDisplayName
+        )}.`
       );
     } else if (scope === EnvironmentVariableScope.Shared) {
       const existingVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
@@ -197,73 +174,36 @@ export default class EnvCreate extends EasCommand {
         variable => !environments || variable.environments?.some(env => environments?.includes(env))
       );
 
-      if (existingVariable) {
-        if (force) {
-          overwrite = true;
-        } else {
-          throw new Error(
-            `Account-wide variable with ${name} name already exists on this account.\n` +
-              `Use a different name or delete the existing variable on website or by using the "eas env:delete --name ${name} --scope account" command.`
-          );
-        }
-      }
-
-      const variable =
-        overwrite && existingVariable
-          ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
-              id: existingVariable.id,
+      const variable = existingVariable
+        ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
+            id: existingVariable.id,
+            name,
+            value,
+            visibility,
+            environments,
+            type,
+          })
+        : await EnvironmentVariableMutation.createSharedVariableAsync(
+            graphqlClient,
+            {
               name,
               value,
               visibility,
               environments,
-              type,
-            })
-          : await EnvironmentVariableMutation.createSharedVariableAsync(
-              graphqlClient,
-              {
-                name,
-                value,
-                visibility,
-                environments,
-                type: type ?? EnvironmentSecretType.String,
-              },
-              ownerAccount.id
-            );
+              type: type ?? EnvironmentSecretType.String,
+            },
+            ownerAccount.id
+          );
 
       if (!variable) {
-        throw new Error(
-          `Could not create variable with name ${name} on account ${ownerAccount.name}`
-        );
+        throw new Error(`Could not set variable with name ${name} on account ${ownerAccount.name}`);
       }
 
       Log.withTick(
-        `Created a new variable ${chalk.bold(name)} on account ${chalk.bold(ownerAccount.name)}.`
+        `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on account ${chalk.bold(
+          ownerAccount.name
+        )}.`
       );
-    }
-  }
-
-  private async promptForOverwriteAsync({
-    nonInteractive,
-    force,
-    message,
-    suggestion,
-  }: {
-    nonInteractive: boolean;
-    force: boolean;
-    message: string;
-    suggestion: string;
-  }): Promise<void> {
-    if (!nonInteractive) {
-      const confirmation = await confirmAsync({
-        message: `${message} ${suggestion}`,
-      });
-
-      if (!confirmation) {
-        Log.log('Aborting');
-        throw new Error(`${message}`);
-      }
-    } else if (!force) {
-      throw new Error(`${message} Use --force to overwrite it.`);
     }
   }
 
@@ -276,12 +216,12 @@ export default class EnvCreate extends EasCommand {
       'non-interactive': nonInteractive,
       type,
       ...rest
-    }: CreateFlags,
+    }: SetFlags,
     { environment }: { environment?: string },
     { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
   ): Promise<
     Required<
-      Omit<CreateFlags, 'type' | 'visibility'> & {
+      Omit<SetFlags, 'type' | 'visibility'> & {
         type: EnvironmentSecretType | undefined;
         visibility: EnvironmentVariableVisibility;
       }
@@ -352,7 +292,6 @@ export default class EnvCreate extends EasCommand {
       value,
       environment: newEnvironments,
       visibility: newVisibility,
-      force: rest.force ?? false,
       'non-interactive': nonInteractive,
       type: newType,
       fileName,
@@ -360,7 +299,7 @@ export default class EnvCreate extends EasCommand {
     };
   }
 
-  private sanitizeFlags(flags: RawCreateFlags): CreateFlags {
+  private sanitizeFlags(flags: RawSetFlags): SetFlags {
     return {
       ...flags,
       scope:

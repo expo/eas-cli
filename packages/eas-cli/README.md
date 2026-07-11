@@ -112,6 +112,7 @@ eas --help COMMAND
 * [`eas env:list [ENVIRONMENT]`](#eas-envlist-environment)
 * [`eas env:pull [ENVIRONMENT]`](#eas-envpull-environment)
 * [`eas env:push [ENVIRONMENT]`](#eas-envpush-environment)
+* [`eas env:set [ENVIRONMENT]`](#eas-envset-environment)
 * [`eas env:update [ENVIRONMENT]`](#eas-envupdate-environment)
 * [`eas fingerprint:compare [HASH1] [HASH2]`](#eas-fingerprintcompare-hash1-hash2)
 * [`eas fingerprint:generate`](#eas-fingerprintgenerate)
@@ -1316,7 +1317,7 @@ _See code: [packages/eas-cli/src/commands/diagnostics.ts](https://github.com/exp
 
 ## `eas env:create [ENVIRONMENT]`
 
-create an environment variable for the current project or account
+create an environment variable for the current project or account (deprecated, use eas env:set)
 
 ```
 USAGE
@@ -1341,7 +1342,7 @@ FLAGS
                             <options: plaintext|sensitive|secret>
 
 DESCRIPTION
-  create an environment variable for the current project or account
+  create an environment variable for the current project or account (deprecated, use eas env:set)
 ```
 
 _See code: [packages/eas-cli/src/commands/env/create.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/env/create.ts)_
@@ -1495,9 +1496,40 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/env/push.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/env/push.ts)_
 
+## `eas env:set [ENVIRONMENT]`
+
+set (create or update) an environment variable on the current project or account
+
+```
+USAGE
+  $ eas env:set [ENVIRONMENT] [--name <value>] [--value <value>] [--type string|file] [--visibility
+    plaintext|sensitive|secret] [--scope project|account] [--environment <value>...] [--non-interactive]
+
+ARGUMENTS
+  [ENVIRONMENT]  Environment to set the variable in. Default environments are 'production', 'preview', and
+                 'development'.
+
+FLAGS
+  --environment=<value>...  Environment variable's environment, e.g. 'production', 'preview', 'development'
+  --name=<value>            Name of the variable
+  --non-interactive         Run the command in non-interactive mode.
+  --scope=<option>          [default: project] Scope for the variable
+                            <options: project|account>
+  --type=<option>           The type of variable
+                            <options: string|file>
+  --value=<value>           Text value or the variable
+  --visibility=<option>     Visibility of the variable
+                            <options: plaintext|sensitive|secret>
+
+DESCRIPTION
+  set (create or update) an environment variable on the current project or account
+```
+
+_See code: [packages/eas-cli/src/commands/env/set.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/env/set.ts)_
+
 ## `eas env:update [ENVIRONMENT]`
 
-update an environment variable on the current project or account
+update an environment variable on the current project or account (deprecated, use eas env:set)
 
 ```
 USAGE
@@ -1524,7 +1556,7 @@ FLAGS
                                   <options: plaintext|sensitive|secret>
 
 DESCRIPTION
-  update an environment variable on the current project or account
+  update an environment variable on the current project or account (deprecated, use eas env:set)
 ```
 
 _See code: [packages/eas-cli/src/commands/env/update.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/env/update.ts)_
@@ -1860,11 +1892,13 @@ open the PostHog dashboard for the linked PostHog project
 
 ```
 USAGE
-  $ eas integrations:posthog:dashboard [--json] [--non-interactive]
+  $ eas integrations:posthog:dashboard [--show-link] [--json] [--non-interactive]
 
 FLAGS
   --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
+  --show-link        Print the signed-in dashboard URL in addition to opening it. The URL contains a single-use login
+                     token.
 
 DESCRIPTION
   open the PostHog dashboard for the linked PostHog project
@@ -2049,7 +2083,8 @@ USAGE
     <value>] [--project-id <value>] [--json] [--non-interactive]
 
 ARGUMENTS
-  [METRIC]  (tti|ttr|cold_launch|warm_launch|bundle_load|update_download) Metric to query (e.g. tti, cold_launch)
+  [METRIC]  (nav_cold_ttr|nav_warm_ttr|nav_tti|tti|ttr|cold_launch|warm_launch|bundle_load|update_download) Metric to
+            query (e.g. tti, cold_launch, nav_tti)
 
 FLAGS
   --after=<value>        Cursor for pagination. Use the endCursor from a previous query to fetch the next page.
@@ -2080,7 +2115,7 @@ display aggregated performance metric statistics grouped by app version
 ```
 USAGE
   $ eas observe:metrics-summary [--platform android|ios] [--metric
-    tti|ttr|cold_launch|warm_launch|bundle_load|update_download...] [--stat
+    nav_cold_ttr|nav_warm_ttr|nav_tti|tti|ttr|cold_launch|warm_launch|bundle_load|update_download...] [--stat
     min|median|max|average|p80|p90|p99|eventCount...] [--start <value> | --days <value>] [--end <value> | ]
     [--project-id <value>] [--json] [--non-interactive]
 
@@ -2089,7 +2124,8 @@ FLAGS
   --end=<value>         End of time range (ISO date)
   --json                Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --metric=<option>...  Metric name to display (can be specified multiple times).
-                        <options: tti|ttr|cold_launch|warm_launch|bundle_load|update_download>
+                        <options:
+                        nav_cold_ttr|nav_warm_ttr|nav_tti|tti|ttr|cold_launch|warm_launch|bundle_load|update_download>
   --non-interactive     Run the command in non-interactive mode.
   --platform=<option>   Filter by platform
                         <options: android|ios>
@@ -2110,7 +2146,7 @@ display app navigation route metrics (Cold TTR, Warm TTR, TTI) grouped by route 
 
 ```
 USAGE
-  $ eas observe:routes [--platform android|ios] [--metric cold_ttr|warm_ttr|nav_tti...] [--stat
+  $ eas observe:routes [--platform android|ios] [--metric nav_cold_ttr|nav_warm_ttr|nav_tti...] [--stat
     median|med|p90|count|event_count|eventCount...] [--after <value>] [--limit <value>] [--start <value> | --days
     <value>] [--end <value> | ] [--app-version <value>] [--update-id <value>] [--build-number <value>] [--route-name
     <value>...] [--project-id <value>] [--json] [--non-interactive]
@@ -2124,7 +2160,7 @@ FLAGS
   --json                   Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --limit=<value>          The number of items to fetch each query. Defaults to 50 and is capped at 200.
   --metric=<option>...     Navigation metric to display (can be specified multiple times). Defaults to all three.
-                           <options: cold_ttr|warm_ttr|nav_tti>
+                           <options: nav_cold_ttr|nav_warm_ttr|nav_tti>
   --non-interactive        Run the command in non-interactive mode.
   --platform=<option>      Filter by platform
                            <options: android|ios>
