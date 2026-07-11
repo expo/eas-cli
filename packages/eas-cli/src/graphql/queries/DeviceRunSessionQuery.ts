@@ -5,12 +5,41 @@ import { withErrorHandlingAsync } from '../client';
 import {
   DeviceRunSessionByIdQuery,
   DeviceRunSessionByIdQueryVariables,
+  DeviceRunSessionEventLogByIdQuery,
+  DeviceRunSessionEventLogByIdQueryVariables,
   DeviceRunSessionFilterInput,
   DeviceRunSessionsByAppIdQuery,
   DeviceRunSessionsByAppIdQueryVariables,
 } from '../generated';
 
 export const DeviceRunSessionQuery = {
+  async eventLogByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string
+  ): Promise<DeviceRunSessionEventLogByIdQuery['deviceRunSessions']['byId']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<DeviceRunSessionEventLogByIdQuery, DeviceRunSessionEventLogByIdQueryVariables>(
+          gql`
+            query DeviceRunSessionEventLogByIdQuery($deviceRunSessionId: ID!) {
+              deviceRunSessions {
+                byId(deviceRunSessionId: $deviceRunSessionId) {
+                  id
+                  status
+                  eventLog {
+                    fileUrl
+                  }
+                }
+              }
+            }
+          `,
+          { deviceRunSessionId },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSessions.byId;
+  },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string
