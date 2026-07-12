@@ -1,4 +1,17 @@
 import chalk from 'chalk';
+import wrapAnsi from 'wrap-ansi';
+
+/**
+ * Wraps a (possibly ANSI-styled) line to `width` visible columns, returning one string per physical
+ * line. `hard` breaks tokens longer than the width (e.g. URLs) so they wrap too. Returns the line
+ * unchanged when the width is too small to wrap into (e.g. output is not a terminal).
+ */
+export function wrapToWidth(text: string, width: number): string[] {
+  if (width < 10) {
+    return [text];
+  }
+  return wrapAnsi(text, width, { hard: true, trim: false }).split('\n');
+}
 
 /**
  * Minimal, streaming-friendly markdown-to-ANSI rendering for the terminal. The assistant streams

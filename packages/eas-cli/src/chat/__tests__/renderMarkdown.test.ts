@@ -4,6 +4,7 @@ import {
   createMarkdownRenderState,
   renderInlineMarkdown,
   renderMarkdownLine,
+  wrapToWidth,
 } from '../renderMarkdown';
 
 describe(renderInlineMarkdown, () => {
@@ -58,5 +59,30 @@ describe(renderMarkdownLine, () => {
     expect(renderMarkdownLine('the **latest** build', state)).toBe(
       `the ${chalk.bold('latest')} build`
     );
+  });
+});
+
+describe(wrapToWidth, () => {
+  it('word-wraps to the given width', () => {
+    const segments = wrapToWidth('one two three four five', 12);
+    expect(segments.length).toBeGreaterThan(1);
+    for (const segment of segments) {
+      expect(segment.length).toBeLessThanOrEqual(12);
+    }
+    expect(segments.join(' ').replace(/\s+/g, ' ').trim()).toBe('one two three four five');
+  });
+
+  it('hard-breaks long unbreakable tokens like URLs', () => {
+    const url = 'https://expo.dev/accounts/acme/projects/mobile/builds/cb7c9bdd-56e6-42b8';
+    const segments = wrapToWidth(url, 20);
+    expect(segments.length).toBeGreaterThan(1);
+    for (const segment of segments) {
+      expect(segment.length).toBeLessThanOrEqual(20);
+    }
+    expect(segments.join('')).toBe(url);
+  });
+
+  it('returns the text unchanged when the width is too small to wrap into', () => {
+    expect(wrapToWidth('anything at all here', 4)).toEqual(['anything at all here']);
   });
 });

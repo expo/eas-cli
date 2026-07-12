@@ -9,6 +9,7 @@ import {
   MarkdownRenderState,
   createMarkdownRenderState,
   renderMarkdownLine,
+  wrapToWidth,
 } from './renderMarkdown';
 
 /**
@@ -161,8 +162,11 @@ export async function streamChatResponseAsync({
   }
 
   // discardStdin: false so the spinner does not pause stdin, which the interactive readline prompt
-  // relies on staying open between turns.
-  const spinner = stream ? ora({ text: 'Thinking…', discardStdin: false }).start() : undefined;
+  // relies on staying open between turns. indent aligns the spinner (and tool status) with the
+  // "Expo > " reply body.
+  const spinner = stream
+    ? ora({ text: 'Thinking…', discardStdin: false, indent: ASSISTANT_INDENT.length }).start()
+    : undefined;
   const toolCallsById = new Map<string, ChatToolCall>();
   const announcedTools = new Set<string>();
   const markdownState: MarkdownRenderState = createMarkdownRenderState();
@@ -174,11 +178,19 @@ export async function streamChatResponseAsync({
   let wroteAssistantLine = false;
 
   // Prefixes the first written line with the "Expo > " label and every following line with a matching
-  // indent, so the whole reply lines up under the label.
+  // indent, so the whole reply lines up under the label. Long lines are wrapped to the terminal
+  // width (minus the indent) so terminal soft-wrapping does not drop wrapped text back to column 0.
   const writeAssistantLine = (rendered: string, withNewline: boolean): void => {
-    const prefix = wroteAssistantLine ? ASSISTANT_INDENT : ASSISTANT_LABEL;
-    wroteAssistantLine = true;
-    process.stdout.write(withNewline ? `${prefix}${rendered}\n` : `${prefix}${rendered}`);
+    const columns = process.stdout.columns ?? 0;
+    const width = columns > 0 ? columns - ASSISTANT_INDENT.length : 0;
+    const segments = wrapToWidth(rendered, width);
+    segments.forEach((segment, index) => {
+      const prefix = wroteAssistantLine ? ASSISTANT_INDENT : ASSISTANT_LABEL;
+      wroteAssistantLine = true;
+      const isLastSegment = index === segments.length - 1;
+      const needsNewline = !isLastSegment || withNewline;
+      process.stdout.write(`${prefix}${segment}${needsNewline ? '\n' : ''}`);
+    });
   };
 
   // Render markdown one completed line at a time: the assistant streams token by token, but markdown
