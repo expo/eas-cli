@@ -167,6 +167,18 @@ export async function streamChatResponseAsync({
   const spinner = stream
     ? ora({ text: 'Thinking…', discardStdin: false, indent: ASSISTANT_INDENT.length }).start()
     : undefined;
+
+  // ora leaves the cursor at its indent column after clearing on stop (its clear() ends with
+  // cursorTo(indent)), which would push the reply right by the indent. Reset to the line start.
+  const stopSpinner = (): void => {
+    if (!spinner) {
+      return;
+    }
+    spinner.stop();
+    if (process.stdout.isTTY) {
+      process.stdout.write('\r');
+    }
+  };
   const toolCallsById = new Map<string, ChatToolCall>();
   const announcedTools = new Set<string>();
   const markdownState: MarkdownRenderState = createMarkdownRenderState();
@@ -238,7 +250,7 @@ export async function streamChatResponseAsync({
         fullText += delta;
         if (stream) {
           if (!streamingText) {
-            spinner?.stop();
+            stopSpinner();
             streamingText = true;
           }
           displayBuffer += delta;
@@ -313,9 +325,7 @@ export async function streamChatResponseAsync({
       }
     }
   } finally {
-    if (spinner?.isSpinning) {
-      spinner.stop();
-    }
+    stopSpinner();
     if (stream) {
       flushDisplayLines(true);
     }

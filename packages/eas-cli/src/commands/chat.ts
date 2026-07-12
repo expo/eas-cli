@@ -125,10 +125,10 @@ export default class Chat extends EasCommand {
         )
       );
     }
-    Log.log(`${USER_LABEL}${args.message}`);
     if (!nonInteractive) {
-      Log.log(chalk.dim('Type a message to continue. Use /help for commands, or /exit to quit.'));
+      Log.log(chalk.dim('Use /help for commands, or /exit to quit.'));
     }
+    Log.log(`${USER_LABEL}${args.message}`);
     Log.newLine();
 
     // Seed history with the message from the command line so Up recalls it at the first prompt.
