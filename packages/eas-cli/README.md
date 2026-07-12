@@ -62,6 +62,8 @@ eas --help COMMAND
 * [`eas account:view`](#eas-accountview)
 * [`eas analytics [STATUS]`](#eas-analytics-status)
 * [`eas autocomplete [SHELL]`](#eas-autocomplete-shell)
+* [`eas billing:manage`](#eas-billingmanage)
+* [`eas billing:subscribe PLAN`](#eas-billingsubscribe-plan)
 * [`eas branch:create [NAME]`](#eas-branchcreate-name)
 * [`eas branch:delete [NAME]`](#eas-branchdelete-name)
 * [`eas branch:list`](#eas-branchlist)
@@ -328,6 +330,49 @@ EXAMPLES
 ```
 
 _See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomplete/blob/v3.2.40/packages/eas-cli/src/commands/autocomplete/index.ts)_
+
+## `eas billing:manage`
+
+open the Stripe customer portal to manage billing (change plan, update payment method, or cancel)
+
+```
+USAGE
+  $ eas billing:manage [-a <value>] [--open] [--json] [--non-interactive]
+
+FLAGS
+  -a, --account=<value>  Account to manage. Defaults to your account when you only have one.
+      --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --non-interactive  Run the command in non-interactive mode.
+      --[no-]open        Open the customer portal in a browser (use --no-open to only print the URL)
+
+DESCRIPTION
+  open the Stripe customer portal to manage billing (change plan, update payment method, or cancel)
+```
+
+_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/billing/manage.ts)_
+
+## `eas billing:subscribe PLAN`
+
+subscribe an account to an EAS plan via Stripe checkout
+
+```
+USAGE
+  $ eas billing:subscribe PLAN [-a <value>] [--open] [--json] [--non-interactive]
+
+ARGUMENTS
+  PLAN  (starter|agent|production-plus|enterprise) plan to subscribe to (starter, agent, production-plus, enterprise)
+
+FLAGS
+  -a, --account=<value>  Account to subscribe. Defaults to your account when you only have one.
+      --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --non-interactive  Run the command in non-interactive mode.
+      --[no-]open        Open the Stripe checkout page in a browser (use --no-open to only print the URL)
+
+DESCRIPTION
+  subscribe an account to an EAS plan via Stripe checkout
+```
+
+_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/billing/subscribe.ts)_
 
 ## `eas branch:create [NAME]`
 

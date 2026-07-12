@@ -10445,6 +10445,7 @@ __metadata:
     node-forge: "npm:1.4.0"
     node-stream-zip: "npm:1.15.0"
     nullthrows: "npm:1.1.1"
+    open: "npm:8.4.0"
     ora: "npm:5.1.0"
     pkg-dir: "npm:4.2.0"
     pngjs: "npm:7.0.0"
@@ -15798,7 +15799,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"open@npm:^8.0.4, open@npm:^8.4.0":
+"open@npm:8.4.0, open@npm:^8.0.4, open@npm:^8.4.0":
   version: 8.4.0
   resolution: "open@npm:8.4.0"
   dependencies:
