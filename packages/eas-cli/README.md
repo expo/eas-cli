@@ -214,6 +214,8 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
+* [`eas project:status`](#eas-projectstatus)
+* [`eas status`](#eas-status)
 * [`eas sim`](#eas-sim)
 * [`eas sim:availability`](#eas-simavailability)
 * [`eas sim:events`](#eas-simevents)
@@ -2755,6 +2757,48 @@ ALIASES
   $ eas simulator:start
   $ eas sim
   $ eas sim:start
+```
+
+## `eas project:status`
+
+show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+```
+USAGE
+  $ eas project:status [--limit <value>] [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --limit=<value>    The number of items to fetch each query. Defaults to 3 and is capped at 25.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+ALIASES
+  $ eas status
+```
+
+_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/project/status.ts)_
+
+## `eas status`
+
+show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+```
+USAGE
+  $ eas status [--limit <value>] [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --limit=<value>    The number of items to fetch each query. Defaults to 3 and is capped at 25.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+ALIASES
+  $ eas status
 ```
 
 ## `eas submit`
