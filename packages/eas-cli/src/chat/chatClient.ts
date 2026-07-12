@@ -77,6 +77,8 @@ function describeTool(toolName: string): string {
 const ASSISTANT_LABEL_TEXT = 'Expo';
 const ASSISTANT_LABEL = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${chalk.dim(' > ')}`;
 const ASSISTANT_INDENT = ' '.repeat(`${ASSISTANT_LABEL_TEXT} > `.length);
+// ora renders "prefixText + ' ' + spinner", so this omits the trailing space to read "Expo > ⠋".
+const ASSISTANT_SPINNER_PREFIX = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${chalk.dim(' >')}`;
 
 type UIMessageStreamFrame = {
   type: string;
@@ -162,14 +164,13 @@ export async function streamChatResponseAsync({
   }
 
   // discardStdin: false so the spinner does not pause stdin, which the interactive readline prompt
-  // relies on staying open between turns. indent aligns the spinner (and tool status) with the
-  // "Expo > " reply body.
+  // relies on staying open between turns. prefixText renders the "Expo >" label before the spinner
+  // ("Expo > ⠋ Thinking…"), so it is already aligned from the first frame and reads as the reply.
   const spinner = stream
-    ? ora({ text: 'Thinking…', discardStdin: false, indent: ASSISTANT_INDENT.length }).start()
+    ? ora({ text: 'Thinking…', discardStdin: false, prefixText: ASSISTANT_SPINNER_PREFIX }).start()
     : undefined;
 
-  // ora leaves the cursor at its indent column after clearing on stop (its clear() ends with
-  // cursorTo(indent)), which would push the reply right by the indent. Reset to the line start.
+  // Reset the cursor to the line start after clearing the spinner, so the reply begins at column 0.
   const stopSpinner = (): void => {
     if (!spinner) {
       return;
