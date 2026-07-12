@@ -58471,7 +58471,7 @@
           },
           {
             "name": "setPreferences",
-            "description": "Sets user preferences. This is a key-value store for user-specific settings. Provided values are\nkey-level merged with existing values.",
+            "description": "Legacy user preferences are no longer stored; this mutation accepts and discards\nits input. Use userPreference.set instead.",
             "args": [
               {
                 "name": "preferences",
@@ -58499,8 +58499,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer stored; this mutation has no effect. Use userPreference.set instead."
           },
           {
             "name": "setPrimarySecondFactorDevice",
@@ -66775,8 +66775,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer stored. Use userPreference instead."
           },
           {
             "name": "primaryAccount",
@@ -76602,8 +76602,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer stored. Use userPreference instead."
           },
           {
             "name": "primaryAccount",
@@ -77305,8 +77305,8 @@
                 "ofType": null
               }
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "No longer stored. Use userPreference instead."
           },
           {
             "name": "primaryAccount",
@@ -80045,20 +80045,8 @@
               "name": "UserPreferencesOnboarding",
               "ofType": null
             },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "selectedAccountName",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
             "isDeprecated": true,
-            "deprecationReason": "Use userPreference.get(key: \"selected-account-id\") instead."
+            "deprecationReason": "No longer stored; always null."
           }
         ],
         "inputFields": null,
@@ -80112,7 +80100,7 @@
           },
           {
             "name": "deviceType",
-            "description": "Can be null if the user has not selected one yet.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "ENUM",
@@ -80124,7 +80112,7 @@
           },
           {
             "name": "environment",
-            "description": "Can be null if the user has not selected one yet.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "ENUM",
@@ -80136,7 +80124,7 @@
           },
           {
             "name": "isCLIDone",
-            "description": "Set by CLI when the user has completed that phase. Used by the website to determine when\nthe next step can be shown.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -80148,7 +80136,7 @@
           },
           {
             "name": "lastUsed",
-            "description": "The last time when this object was updated.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -80164,7 +80152,7 @@
           },
           {
             "name": "platform",
-            "description": "User selects a platform for which they want to build the app. CLI uses this information to start the build.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "ENUM",
