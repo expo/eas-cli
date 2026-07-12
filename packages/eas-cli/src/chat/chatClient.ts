@@ -71,6 +71,12 @@ function describeTool(toolName: string): string {
   return TOOL_LABELS[toolName] ?? `Using ${toolName.replace(/_/g, ' ')}`;
 }
 
+// The assistant's reply is labeled "Expo > " and continuation lines are indented to align under it,
+// mirroring the "Chat > " prompt the user types into.
+const ASSISTANT_LABEL_TEXT = 'Expo';
+const ASSISTANT_LABEL = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${chalk.dim(' > ')}`;
+const ASSISTANT_INDENT = ' '.repeat(`${ASSISTANT_LABEL_TEXT} > `.length);
+
 type UIMessageStreamFrame = {
   type: string;
   delta?: string;
@@ -165,6 +171,15 @@ export async function streamChatResponseAsync({
   let errorText: string | undefined;
   let buffer = '';
   let displayBuffer = '';
+  let wroteAssistantLine = false;
+
+  // Prefixes the first written line with the "Expo > " label and every following line with a matching
+  // indent, so the whole reply lines up under the label.
+  const writeAssistantLine = (rendered: string, withNewline: boolean): void => {
+    const prefix = wroteAssistantLine ? ASSISTANT_INDENT : ASSISTANT_LABEL;
+    wroteAssistantLine = true;
+    process.stdout.write(withNewline ? `${prefix}${rendered}\n` : `${prefix}${rendered}`);
+  };
 
   // Render markdown one completed line at a time: the assistant streams token by token, but markdown
   // markers (e.g. **bold**) can span several tokens, so we can only style a line once it is whole.
@@ -175,14 +190,14 @@ export async function streamChatResponseAsync({
       displayBuffer = displayBuffer.slice(newlineIndex + 1);
       const rendered = renderMarkdownLine(rawLine, markdownState);
       if (rendered !== null) {
-        process.stdout.write(`${rendered}\n`);
+        writeAssistantLine(rendered, true);
       }
     }
     if (flushRemainder && displayBuffer.length > 0) {
       const rendered = renderMarkdownLine(displayBuffer, markdownState);
       displayBuffer = '';
       if (rendered !== null) {
-        process.stdout.write(rendered);
+        writeAssistantLine(rendered, false);
       }
     }
   };
@@ -195,7 +210,7 @@ export async function streamChatResponseAsync({
     const label = describeTool(toolName);
     if (streamingText) {
       flushDisplayLines(true);
-      process.stdout.write(chalk.dim(`\n(${label})\n`));
+      process.stdout.write(chalk.dim(`\n${ASSISTANT_INDENT}(${label})\n`));
     } else if (spinner) {
       spinner.text = `${label}…`;
     }

@@ -21,6 +21,8 @@ import { Actor } from '../user/User';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 
 const EXIT_WORDS = new Set(['exit', 'quit', 'q']);
+// "Chat > " labels the user's turn; it is 4 chars + " > " to line up with the assistant's "Expo > ".
+const USER_LABEL = `${chalk.bold.cyan('Chat')}${chalk.dim(' > ')}`;
 const CHAT_HELP = [
   'Commands:',
   '  /help    Show this help',
@@ -123,7 +125,7 @@ export default class Chat extends EasCommand {
         )
       );
     }
-    Log.log(chalk.dim(`> ${args.message}`));
+    Log.log(`${USER_LABEL}${args.message}`);
     if (!nonInteractive) {
       Log.log(chalk.dim('Type a message to continue. Use /help for commands, or /exit to quit.'));
     }
@@ -168,7 +170,7 @@ async function readNextUserMessageAsync(
 ): Promise<string | null> {
   for (;;) {
     Log.newLine();
-    const line = await input.askAsync(`${chalk.bold.cyan('You')} ${chalk.dim('›')} `);
+    const line = await input.askAsync(USER_LABEL);
     if (line === null) {
       return null;
     }
