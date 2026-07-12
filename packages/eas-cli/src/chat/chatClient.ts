@@ -5,6 +5,23 @@ import { getExpoWebsiteBaseUrl } from '../api';
 import fetch, { RequestError } from '../fetch';
 import Log from '../log';
 import { ora } from '../ora';
+import {
+  MarkdownRenderState,
+  createMarkdownRenderState,
+  renderMarkdownLine,
+} from './renderMarkdown';
+
+/**
+ * Client-side steering sent as a leading system message on every request. The server owns the base
+ * system prompt (which we cannot change), so this only adds guidance that is specific to running in
+ * a terminal instead of the web dashboard.
+ */
+const CHAT_SYSTEM_GUIDANCE = [
+  'You are being used through the EAS CLI in a terminal, not the web dashboard.',
+  'The user cannot see the interactive tables the dashboard renders from tool results, so include the important details directly in your text answer instead of assuming a table is shown.',
+  'Whenever you reference a specific artifact (a build, update, submission, deployment, workflow run, channel, or branch), include its direct https://expo.dev link so the user can open it.',
+  'Use only simple markdown: bold, inline code, and bullet or numbered lists.',
+].join(' ');
 
 /**
  * The Expo dashboard AI chat lives in a Next.js API route on the website (`/api/chat`), not on the
@@ -67,9 +84,13 @@ type UIMessageStreamFrame = {
 /** A single turn in the conversation, in the AI SDK `UIMessage` shape the endpoint expects. */
 export type ChatMessage = {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   parts: { type: 'text'; text: string }[];
 };
+
+function makeSystemMessage(text: string): ChatMessage {
+  return { id: uuidv4(), role: 'system', parts: [{ type: 'text', text }] };
+}
 
 export function makeUserMessage(text: string): ChatMessage {
   return { id: uuidv4(), role: 'user', parts: [{ type: 'text', text }] };
@@ -123,7 +144,7 @@ export async function streamChatResponseAsync({
         cookie: `${getWebsiteAuthCookieName()}=${encodeURIComponent(sessionSecret)}`,
         ...(accountName ? { 'x-account-name': accountName } : {}),
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages: [makeSystemMessage(CHAT_SYSTEM_GUIDANCE), ...messages] }),
     });
   } catch (error) {
     throw toFriendlyChatError(error);
@@ -136,10 +157,33 @@ export async function streamChatResponseAsync({
   const spinner = stream ? ora('Thinking…').start() : undefined;
   const toolCallsById = new Map<string, ChatToolCall>();
   const announcedTools = new Set<string>();
+  const markdownState: MarkdownRenderState = createMarkdownRenderState();
   let fullText = '';
   let streamingText = false;
   let errorText: string | undefined;
   let buffer = '';
+  let displayBuffer = '';
+
+  // Render markdown one completed line at a time: the assistant streams token by token, but markdown
+  // markers (e.g. **bold**) can span several tokens, so we can only style a line once it is whole.
+  const flushDisplayLines = (flushRemainder: boolean): void => {
+    let newlineIndex: number;
+    while ((newlineIndex = displayBuffer.indexOf('\n')) !== -1) {
+      const rawLine = displayBuffer.slice(0, newlineIndex);
+      displayBuffer = displayBuffer.slice(newlineIndex + 1);
+      const rendered = renderMarkdownLine(rawLine, markdownState);
+      if (rendered !== null) {
+        process.stdout.write(`${rendered}\n`);
+      }
+    }
+    if (flushRemainder && displayBuffer.length > 0) {
+      const rendered = renderMarkdownLine(displayBuffer, markdownState);
+      displayBuffer = '';
+      if (rendered !== null) {
+        process.stdout.write(rendered);
+      }
+    }
+  };
 
   const announceTool = (toolName: string): void => {
     if (!stream || announcedTools.has(toolName)) {
@@ -148,6 +192,7 @@ export async function streamChatResponseAsync({
     announcedTools.add(toolName);
     const label = describeTool(toolName);
     if (streamingText) {
+      flushDisplayLines(true);
       process.stdout.write(chalk.dim(`\n(${label})\n`));
     } else if (spinner) {
       spinner.text = `${label}…`;
@@ -167,7 +212,8 @@ export async function streamChatResponseAsync({
             spinner?.stop();
             streamingText = true;
           }
-          process.stdout.write(delta);
+          displayBuffer += delta;
+          flushDisplayLines(false);
         }
         break;
       }
@@ -240,6 +286,9 @@ export async function streamChatResponseAsync({
   } finally {
     if (spinner?.isSpinning) {
       spinner.stop();
+    }
+    if (stream) {
+      flushDisplayLines(true);
     }
   }
 

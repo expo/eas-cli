@@ -126,7 +126,12 @@ describe(streamChatResponseAsync, () => {
     expect(cookie).toContain('io.expo.auth.sessionSecret=');
     expect(cookie).toContain(encodeURIComponent('{"id":"abc","version":"1"}'));
     expect([capturedHeaders['x-account-name']].flat()[0]).toBe('my-account');
-    expect(capturedBody.messages[0].parts[0]).toEqual({ type: 'text', text: 'hello' });
+    // A steering system message is prepended, followed by the caller's messages.
+    expect(capturedBody.messages[0].role).toBe('system');
+    expect(capturedBody.messages[0].parts[0].text).toContain('https://expo.dev');
+    expect(capturedBody.messages[1]).toEqual(
+      expect.objectContaining({ role: 'user', parts: [{ type: 'text', text: 'hello' }] })
+    );
   });
 
   it('maps a 429 response to a usage-limit error', async () => {
