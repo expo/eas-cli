@@ -1,8 +1,8 @@
 import { getMockOclifConfig } from '../../__tests__/commands/utils';
 import { ChatResult, streamChatResponseAsync } from '../../chat/chatClient';
+import { ChatReplInput, createChatReplInput } from '../../chat/replInput';
 import * as flagsModule from '../../commandUtils/flags';
 import { AppQuery } from '../../graphql/queries/AppQuery';
-import { promptAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import Chat from '../chat';
 
@@ -10,20 +10,39 @@ jest.mock('../../chat/chatClient', () => ({
   ...jest.requireActual('../../chat/chatClient'),
   streamChatResponseAsync: jest.fn(),
 }));
+jest.mock('../../chat/replInput');
 jest.mock('../../log');
-jest.mock('../../prompts');
 jest.mock('../../utils/json');
 jest.mock('../../graphql/queries/AppQuery', () => ({
   AppQuery: { byFullNameAsync: jest.fn() },
 }));
 
 const mockStreamChatResponseAsync = jest.mocked(streamChatResponseAsync);
-const mockPromptAsync = jest.mocked(promptAsync);
+const mockCreateChatReplInput = jest.mocked(createChatReplInput);
 const mockAppByFullNameAsync = jest.mocked(AppQuery.byFullNameAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
 const emptyResult: ChatResult = { text: 'ok', toolCalls: [] };
+
+/** Builds a ChatReplInput whose askAsync yields the given lines in order, then `null`. */
+function mockReplInput(lines: (string | null)[]): { askAsync: jest.Mock; close: jest.Mock } {
+  const askAsync = jest.fn();
+  for (const line of lines) {
+    askAsync.mockResolvedValueOnce(line);
+  }
+  askAsync.mockResolvedValue(null);
+  const input = { askAsync, close: jest.fn() };
+  mockCreateChatReplInput.mockReturnValue(input as ChatReplInput);
+  return input;
+}
+
+/** Forces interactive mode (jest runs without a TTY, which otherwise defaults to non-interactive). */
+function forceInteractive(): void {
+  jest
+    .spyOn(flagsModule, 'resolveNonInteractiveAndJsonFlags')
+    .mockReturnValue({ json: false, nonInteractive: false });
+}
 
 describe(Chat, () => {
   const mockConfig = getMockOclifConfig();
@@ -71,7 +90,7 @@ describe(Chat, () => {
     expect(call.stream).toBe(true);
     expect(call.messages).toHaveLength(1);
     expect(call.messages[0].parts[0].text).toBe('how are my builds?');
-    expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(mockCreateChatReplInput).not.toHaveBeenCalled();
   });
 
   it('prefers the --account flag over the primary account', async () => {
@@ -111,14 +130,10 @@ describe(Chat, () => {
     await expect(command.runAsync()).rejects.toThrow(/@acme\/ghost was not found/);
   });
 
-  it('continues the conversation with follow-up replies until the user exits', async () => {
-    jest
-      .spyOn(flagsModule, 'resolveNonInteractiveAndJsonFlags')
-      .mockReturnValue({ json: false, nonInteractive: false });
+  it('continues the conversation with follow-up replies until the user types /exit', async () => {
+    forceInteractive();
     mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
-    mockPromptAsync
-      .mockResolvedValueOnce({ reply: 'and my updates?' })
-      .mockResolvedValueOnce({ reply: 'exit' });
+    const input = mockReplInput(['and my updates?', '/exit']);
 
     const command = createCommand(['how are my builds?']);
     await command.runAsync();
@@ -127,9 +142,47 @@ describe(Chat, () => {
     const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
     expect(secondCall.messages).toHaveLength(3);
     expect(secondCall.messages[1].role).toBe('assistant');
-    expect(secondCall.messages[1].parts[0].text).toBe('answer');
     expect(secondCall.messages[2].role).toBe('user');
     expect(secondCall.messages[2].parts[0].text).toBe('and my updates?');
+    expect(input.close).toHaveBeenCalled();
+  });
+
+  it('exits when the input stream closes (Ctrl-D)', async () => {
+    forceInteractive();
+    mockReplInput([null]);
+
+    const command = createCommand(['how are my builds?']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts a new conversation with /clear', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
+    mockReplInput(['/clear', 'fresh question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0].text).toBe('fresh question');
+  });
+
+  it('ignores unknown slash commands and keeps prompting', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
+    mockReplInput(['/bogus', 'a real question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    expect(mockStreamChatResponseAsync.mock.calls[1][0].messages[2].parts[0].text).toBe(
+      'a real question'
+    );
   });
 
   it('emits structured JSON and does not stream or prompt when --json is passed', async () => {
@@ -143,7 +196,7 @@ describe(Chat, () => {
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockStreamChatResponseAsync.mock.calls[0][0].stream).toBe(false);
-    expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(mockCreateChatReplInput).not.toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       message: 'how are my builds?',
       account: 'my-account',

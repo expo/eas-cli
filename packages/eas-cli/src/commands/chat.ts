@@ -7,6 +7,7 @@ import {
   makeUserMessage,
   streamChatResponseAsync,
 } from '../chat/chatClient';
+import { ChatReplInput, createChatReplInput } from '../chat/replInput';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
@@ -15,11 +16,16 @@ import {
 } from '../commandUtils/flags';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log from '../log';
-import { promptAsync } from '../prompts';
 import { Actor } from '../user/User';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 
 const EXIT_WORDS = new Set(['exit', 'quit', 'q']);
+const CHAT_HELP = [
+  'Commands:',
+  '  /help    Show this help',
+  '  /clear   Start a new conversation',
+  '  /exit    Quit',
+].join('\n');
 
 export default class Chat extends EasCommand {
   static override description = 'ask an AI assistant about your Expo account and EAS projects';
@@ -103,37 +109,80 @@ export default class Chat extends EasCommand {
     }
     Log.log(chalk.dim(`> ${args.message}`));
     if (!nonInteractive) {
-      Log.log(chalk.dim('Type a reply to continue the conversation, or "exit" to quit.'));
+      Log.log(chalk.dim('Type a message to continue. Use /help for commands, or /exit to quit.'));
     }
     Log.newLine();
 
-    for (;;) {
-      const result = await streamChatResponseAsync({
-        messages: [...messages],
-        accountName,
-        sessionSecret,
-        stream: true,
-      });
-      messages.push(makeAssistantMessage(result.text));
+    const input = nonInteractive ? undefined : createChatReplInput();
+    try {
+      for (;;) {
+        const result = await streamChatResponseAsync({
+          messages: [...messages],
+          accountName,
+          sessionSecret,
+          stream: true,
+        });
+        messages.push(makeAssistantMessage(result.text));
 
-      if (nonInteractive) {
-        break;
-      }
+        if (!input) {
+          break;
+        }
 
-      Log.newLine();
-      const { reply } = await promptAsync({
-        type: 'text',
-        name: 'reply',
-        message: 'Reply',
-      });
-      const trimmedReply = reply?.trim();
-      if (!trimmedReply || EXIT_WORDS.has(trimmedReply.toLowerCase())) {
-        Log.log(chalk.dim('Ending chat.'));
-        break;
+        const nextMessage = await readNextUserMessageAsync(input, messages);
+        if (nextMessage === null) {
+          Log.log(chalk.dim('Ending chat.'));
+          break;
+        }
+        messages.push(makeUserMessage(nextMessage));
       }
-      Log.newLine();
-      messages.push(makeUserMessage(trimmedReply));
+    } finally {
+      input?.close();
     }
+  }
+}
+
+/**
+ * Prompts for the next message, handling slash commands. Returns the message text to send, or `null`
+ * to end the chat. `messages` is mutated in place by conversation-affecting commands (e.g. /clear).
+ */
+async function readNextUserMessageAsync(
+  input: ChatReplInput,
+  messages: ChatMessage[]
+): Promise<string | null> {
+  for (;;) {
+    Log.newLine();
+    const line = await input.askAsync(`${chalk.bold.cyan('You')} ${chalk.dim('›')} `);
+    if (line === null) {
+      return null;
+    }
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (EXIT_WORDS.has(trimmed.toLowerCase())) {
+      return null;
+    }
+
+    if (trimmed.startsWith('/')) {
+      const command = trimmed.slice(1).split(/\s+/)[0].toLowerCase();
+      if (['exit', 'quit', 'q'].includes(command)) {
+        return null;
+      }
+      if (['clear', 'new', 'reset'].includes(command)) {
+        messages.length = 0;
+        Log.log(chalk.dim('Started a new conversation.'));
+        continue;
+      }
+      if (['help', 'h', '?'].includes(command)) {
+        Log.log(chalk.dim(CHAT_HELP));
+        continue;
+      }
+      Log.warn(`Unknown command "/${command}". Type /help for commands.`);
+      continue;
+    }
+
+    Log.newLine();
+    return trimmed;
   }
 }
 
