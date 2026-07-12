@@ -7,6 +7,7 @@ import {
   makeUserMessage,
   streamChatResponseAsync,
 } from '../chat/chatClient';
+import { detectCurrentProjectAsync } from '../chat/detectProject';
 import { ChatReplInput, createChatReplInput } from '../chat/replInput';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -76,10 +77,19 @@ export default class Chat extends EasCommand {
 
     let accountName = flags.account ?? getDefaultAccountName(actor);
     let projectLabel: string | undefined;
+    let projectDetectedFromDirectory = false;
     if (flags.project) {
       const resolved = await resolveProjectAsync(graphqlClient, flags.project, accountName);
       accountName = resolved.accountName;
       projectLabel = resolved.label;
+    } else if (!flags.account) {
+      // No explicit scope given: focus on the current directory's project when there is one.
+      const detected = await detectCurrentProjectAsync(graphqlClient);
+      if (detected) {
+        accountName = detected.accountName;
+        projectLabel = detected.label;
+        projectDetectedFromDirectory = true;
+      }
     }
 
     const firstMessageText = projectLabel
@@ -105,7 +115,13 @@ export default class Chat extends EasCommand {
     }
 
     if (projectLabel) {
-      Log.log(chalk.dim(`Project: ${projectLabel}`));
+      Log.log(
+        chalk.dim(
+          projectDetectedFromDirectory
+            ? `Project: ${projectLabel} (from current directory; use --account to widen)`
+            : `Project: ${projectLabel}`
+        )
+      );
     }
     Log.log(chalk.dim(`> ${args.message}`));
     if (!nonInteractive) {

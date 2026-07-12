@@ -1,5 +1,6 @@
 import { getMockOclifConfig } from '../../__tests__/commands/utils';
 import { ChatResult, streamChatResponseAsync } from '../../chat/chatClient';
+import { detectCurrentProjectAsync } from '../../chat/detectProject';
 import { ChatReplInput, createChatReplInput } from '../../chat/replInput';
 import * as flagsModule from '../../commandUtils/flags';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -11,6 +12,7 @@ jest.mock('../../chat/chatClient', () => ({
   streamChatResponseAsync: jest.fn(),
 }));
 jest.mock('../../chat/replInput');
+jest.mock('../../chat/detectProject');
 jest.mock('../../log');
 jest.mock('../../utils/json');
 jest.mock('../../graphql/queries/AppQuery', () => ({
@@ -19,6 +21,7 @@ jest.mock('../../graphql/queries/AppQuery', () => ({
 
 const mockStreamChatResponseAsync = jest.mocked(streamChatResponseAsync);
 const mockCreateChatReplInput = jest.mocked(createChatReplInput);
+const mockDetectCurrentProjectAsync = jest.mocked(detectCurrentProjectAsync);
 const mockAppByFullNameAsync = jest.mocked(AppQuery.byFullNameAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -51,6 +54,7 @@ describe(Chat, () => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
     mockStreamChatResponseAsync.mockResolvedValue(emptyResult);
+    mockDetectCurrentProjectAsync.mockResolvedValue(null);
   });
 
   function createCommand(
@@ -93,11 +97,39 @@ describe(Chat, () => {
     expect(mockCreateChatReplInput).not.toHaveBeenCalled();
   });
 
-  it('prefers the --account flag over the primary account', async () => {
+  it('prefers the --account flag over the primary account and skips project auto-detection', async () => {
     const command = createCommand(['hi', '--account', 'other-account', '--non-interactive']);
     await command.runAsync();
 
     expect(mockStreamChatResponseAsync.mock.calls[0][0].accountName).toBe('other-account');
+    expect(mockDetectCurrentProjectAsync).not.toHaveBeenCalled();
+  });
+
+  it('auto-scopes to the current directory project when no scope flags are given', async () => {
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+
+    const command = createCommand(['is my build ok?', '--non-interactive']);
+    await command.runAsync();
+
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('acme');
+    expect(call.messages[0].parts[0].text).toBe(
+      'Regarding the EAS project @acme/mobile: is my build ok?'
+    );
+  });
+
+  it('does not auto-detect when --project is given', async () => {
+    mockAppByFullNameAsync.mockResolvedValue({
+      id: 'app1',
+      fullName: '@acme/mobile',
+      slug: 'mobile',
+      ownerAccount: { id: 'acc', name: 'acme' },
+    } as any);
+
+    const command = createCommand(['hi', '--project', 'acme/mobile', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockDetectCurrentProjectAsync).not.toHaveBeenCalled();
   });
 
   it('resolves --project to its owner account and frames the message', async () => {
