@@ -276,4 +276,51 @@ export const AccountQuery = {
       end: new Date(end),
     };
   },
+
+  async getSubscriptionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string
+  ): Promise<AccountSubscriptionInfo | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<{
+          account: {
+            byId: {
+              id: string;
+              subscription: AccountSubscriptionInfo | null;
+            } | null;
+          };
+        }>(
+          gql`
+            query AccountSubscription($accountId: String!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  subscription {
+                    id
+                    name
+                    planId
+                    status
+                    willCancel
+                  }
+                }
+              }
+            }
+          `,
+          { accountId },
+          { additionalTypenames: ['Account', 'SubscriptionDetails'] }
+        )
+        .toPromise()
+    );
+
+    return data.account.byId?.subscription ?? null;
+  },
+};
+
+export type AccountSubscriptionInfo = {
+  id: string;
+  name: string | null;
+  planId: string | null;
+  status: string | null;
+  willCancel: boolean | null;
 };
