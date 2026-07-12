@@ -143,7 +143,6 @@ eas --help COMMAND
 * [`eas observe:routes`](#eas-observeroutes)
 * [`eas observe:session SESSIONID`](#eas-observesession-sessionid)
 * [`eas observe:versions`](#eas-observeversions)
-* [`eas open`](#eas-open)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
@@ -436,21 +435,23 @@ _See code: [packages/eas-cli/src/commands/branch/view.ts](https://github.com/exp
 
 ## `eas browse [PAGE]`
 
-open the project page in a web browser
+Transition from the terminal to the web browser to view and interact with your project on https://expo.dev
 
 ```
 USAGE
-  $ eas browse [PAGE] [-n]
+  $ eas browse [PAGE] [-n] [--json] [--non-interactive]
 
 ARGUMENTS
   [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|in
           sights|observe|settings) Project subpage to open. Defaults to the project dashboard.
 
 FLAGS
-  -n, --no-browser  Print the URL instead of opening it in a web browser
+  -n, --no-browser       Print the URL instead of opening it in a web browser
+      --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --non-interactive  Run the command in non-interactive mode.
 
 DESCRIPTION
-  open the project page in a web browser
+  Transition from the terminal to the web browser to view and interact with your project on https://expo.dev
 ```
 
 _See code: [packages/eas-cli/src/commands/browse.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/browse.ts)_
@@ -2213,20 +2214,6 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v21.0.0/packages/eas-cli/src/commands/observe/versions.ts)_
-
-## `eas open`
-
-open the project page in a web browser (alias of `eas browse`)
-
-```
-USAGE
-  $ eas open
-
-DESCRIPTION
-  open the project page in a web browser (alias of `eas browse`)
-```
-
-_See code: [packages/eas-cli/src/commands/open.ts](https://github.com/expo/eas-cli/blob/v21.0.0/packages/eas-cli/src/commands/open.ts)_
 
 ## `eas project:info`
 

@@ -3,13 +3,15 @@ import openBrowserAsync from 'better-opn';
 
 import { getProjectPageUrl } from '../build/utils/url';
 import EasCommand from '../commandUtils/EasCommand';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../commandUtils/flags';
 import Log from '../log';
 import { ora } from '../ora';
 import { getOwnerAccountForProjectIdAsync } from '../project/projectUtils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 
-// Maps the page argument to its path on the project dashboard. Keys are the accepted
-// argument values; multiple keys can point at the same page so both the EAS command name
-// (e.g. `build`) and the website's wording (e.g. `builds`) work.
 const PROJECT_PAGES: Record<string, string> = {
   build: 'builds',
   builds: 'builds',
@@ -30,7 +32,8 @@ const PROJECT_PAGES: Record<string, string> = {
 };
 
 export default class Browse extends EasCommand {
-  static override description = 'open the project page in a web browser';
+  static override description =
+    'Transition from the terminal to the web browser to view and interact with your project on https://expo.dev';
 
   static override args = {
     page: Args.string({
@@ -46,6 +49,7 @@ export default class Browse extends EasCommand {
       description: 'Print the URL instead of opening it in a web browser',
       default: false,
     }),
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -56,18 +60,26 @@ export default class Browse extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(Browse);
     const page = args.page ? PROJECT_PAGES[args.page] : null;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
-    // this command is interactive by nature (only really run by humans in a terminal)
     const {
       privateProjectConfig: { projectId, exp },
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(Browse, {
-      nonInteractive: false,
+      nonInteractive,
       withServerSideEnvironment: null,
     });
 
     const account = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
     const url = getProjectPageUrl(account.name, exp.slug, page);
+
+    if (jsonFlag) {
+      printJsonOnlyOutput({ url });
+      return;
+    }
 
     if (flags['no-browser']) {
       Log.log(url);
