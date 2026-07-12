@@ -1,3 +1,5 @@
+import { StringDecoder } from 'node:string_decoder';
+
 import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -302,9 +304,12 @@ export async function streamChatResponseAsync({
     }
   };
 
+  // Decode incrementally so a multi-byte character split across two chunks is not corrupted: the
+  // decoder holds an incomplete trailing byte sequence until the next chunk completes it.
+  const decoder = new StringDecoder('utf8');
   try {
     for await (const chunk of response.body) {
-      buffer += chunk.toString();
+      buffer += decoder.write(chunk as Buffer);
       let newlineIndex: number;
       while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, newlineIndex).trim();
