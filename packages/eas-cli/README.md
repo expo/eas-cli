@@ -1503,7 +1503,7 @@ set (create or update) an environment variable on the current project or account
 ```
 USAGE
   $ eas env:set [ENVIRONMENT] [--name <value>] [--value <value>] [--type string|file] [--visibility
-    plaintext|sensitive|secret] [--scope project|account] [--environment <value>...] [--non-interactive]
+    plaintext|sensitive|secret] [--scope project|account] [--environment <value>...] [--json] [--non-interactive]
 
 ARGUMENTS
   [ENVIRONMENT]  Environment to set the variable in. Default environments are 'production', 'preview', and
@@ -1511,13 +1511,14 @@ ARGUMENTS
 
 FLAGS
   --environment=<value>...  Environment variable's environment, e.g. 'production', 'preview', 'development'
+  --json                    Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --name=<value>            Name of the variable
   --non-interactive         Run the command in non-interactive mode.
   --scope=<option>          [default: project] Scope for the variable
                             <options: project|account>
   --type=<option>           The type of variable
                             <options: string|file>
-  --value=<value>           Text value or the variable
+  --value=<value>           Text value of the variable
   --visibility=<option>     Visibility of the variable
                             <options: plaintext|sensitive|secret>
 

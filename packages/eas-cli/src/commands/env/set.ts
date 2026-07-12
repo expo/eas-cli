@@ -9,11 +9,13 @@ import {
   EASEnvironmentVariableScopeFlag,
   EASEnvironmentVariableScopeFlagValue,
   EASMultiEnvironmentFlag,
-  EASNonInteractiveFlag,
   EASVariableVisibilityFlag,
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import {
   EnvironmentSecretType,
+  EnvironmentVariableFragment,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../graphql/generated';
@@ -24,6 +26,7 @@ import {
   getDisplayNameForProjectIdAsync,
   getOwnerAccountForProjectIdAsync,
 } from '../../project/projectUtils';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import {
   parseVisibility,
   promptVariableEnvironmentAsync,
@@ -41,6 +44,7 @@ interface RawSetFlags {
   scope: EASEnvironmentVariableScopeFlagValue;
   environment?: string[];
   'non-interactive': boolean;
+  json: boolean;
 }
 
 interface SetFlags {
@@ -51,6 +55,14 @@ interface SetFlags {
   scope: EnvironmentVariableScope;
   environment?: string[];
   'non-interactive': boolean;
+  json: boolean;
+}
+
+interface ResolvedVariableDetails {
+  value: string;
+  visibility: EnvironmentVariableVisibility;
+  type: EnvironmentSecretType | undefined;
+  fileName: string | undefined;
 }
 
 export default class EnvSet extends EasCommand {
@@ -70,7 +82,7 @@ export default class EnvSet extends EasCommand {
       description: 'Name of the variable',
     }),
     value: Flags.string({
-      description: 'Text value or the variable',
+      description: 'Text value of the variable',
     }),
     type: Flags.option({
       description: 'The type of variable',
@@ -79,7 +91,7 @@ export default class EnvSet extends EasCommand {
     ...EASVariableVisibilityFlag,
     ...EASEnvironmentVariableScopeFlag,
     ...EASMultiEnvironmentFlag,
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -91,27 +103,51 @@ export default class EnvSet extends EasCommand {
   async runAsync(): Promise<void> {
     const { args, flags } = await this.parse(EnvSet);
 
-    const validatedFlags = this.sanitizeFlags(flags);
+    const {
+      name: nameFlag,
+      value,
+      type,
+      visibility,
+      scope,
+      environment,
+    } = this.sanitizeFlags(flags);
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(EnvSet, {
-      nonInteractive: validatedFlags['non-interactive'],
+      nonInteractive,
     });
 
-    const {
-      name,
-      value,
-      scope,
-      environment: environments,
-      visibility,
-      type,
-      fileName,
-    } = await this.promptForMissingFlagsAsync(validatedFlags, args, {
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
+
+    const name = nameFlag ?? (await promptVariableNameAsync(nonInteractive));
+
+    const environments = await this.resolveEnvironmentsAsync(environment, args.environment, {
+      nonInteractive,
       graphqlClient,
       projectId,
     });
+
+    const existingVariable = await this.findExistingVariableAsync(graphqlClient, {
+      scope,
+      projectId,
+      name,
+      environments,
+    });
+
+    const {
+      value: resolvedValue,
+      visibility: resolvedVisibility,
+      type: resolvedType,
+      fileName,
+    } = await this.resolveVariableDetailsAsync(
+      { name, value, type, visibility, nonInteractive },
+      existingVariable
+    );
 
     const [projectDisplayName, ownerAccount] = await Promise.all([
       getDisplayNameForProjectIdAsync(graphqlClient, projectId),
@@ -119,35 +155,24 @@ export default class EnvSet extends EasCommand {
     ]);
 
     if (scope === EnvironmentVariableScope.Project) {
-      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
-        appId: projectId,
-        filterNames: [name],
-      });
-
-      const existingVariable = existingVariables.find(
-        variable =>
-          variable.scope === EnvironmentVariableScope.Project &&
-          (!environments || variable.environments?.some(env => environments?.includes(env)))
-      );
-
       const variable = existingVariable
         ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
             id: existingVariable.id,
             name,
-            value,
-            visibility,
+            value: resolvedValue,
+            visibility: resolvedVisibility,
             environments,
-            type,
+            type: resolvedType,
             fileName,
           })
         : await EnvironmentVariableMutation.createForAppAsync(
             graphqlClient,
             {
               name,
-              value,
+              value: resolvedValue,
               environments,
-              visibility,
-              type: type ?? EnvironmentSecretType.String,
+              visibility: resolvedVisibility,
+              type: resolvedType ?? EnvironmentSecretType.String,
               fileName,
             },
             projectId
@@ -159,38 +184,33 @@ export default class EnvSet extends EasCommand {
         );
       }
 
-      Log.withTick(
-        `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on project ${chalk.bold(
-          projectDisplayName
-        )}.`
-      );
+      if (jsonFlag) {
+        printJsonOnlyOutput(variable);
+      } else {
+        Log.withTick(
+          `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on project ${chalk.bold(
+            projectDisplayName
+          )}.`
+        );
+      }
     } else if (scope === EnvironmentVariableScope.Shared) {
-      const existingVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
-        appId: projectId,
-        filterNames: [name],
-      });
-
-      const existingVariable = existingVariables.find(
-        variable => !environments || variable.environments?.some(env => environments?.includes(env))
-      );
-
       const variable = existingVariable
         ? await EnvironmentVariableMutation.updateAsync(graphqlClient, {
             id: existingVariable.id,
             name,
-            value,
-            visibility,
+            value: resolvedValue,
+            visibility: resolvedVisibility,
             environments,
-            type,
+            type: resolvedType,
           })
         : await EnvironmentVariableMutation.createSharedVariableAsync(
             graphqlClient,
             {
               name,
-              value,
-              visibility,
+              value: resolvedValue,
+              visibility: resolvedVisibility,
               environments,
-              type: type ?? EnvironmentSecretType.String,
+              type: resolvedType ?? EnvironmentSecretType.String,
             },
             ownerAccount.id
           );
@@ -199,103 +219,156 @@ export default class EnvSet extends EasCommand {
         throw new Error(`Could not set variable with name ${name} on account ${ownerAccount.name}`);
       }
 
-      Log.withTick(
-        `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on account ${chalk.bold(
-          ownerAccount.name
-        )}.`
-      );
+      if (jsonFlag) {
+        printJsonOnlyOutput(variable);
+      } else {
+        Log.withTick(
+          `${existingVariable ? 'Updated' : 'Created'} variable ${chalk.bold(name)} on account ${chalk.bold(
+            ownerAccount.name
+          )}.`
+        );
+      }
     }
   }
 
-  private async promptForMissingFlagsAsync(
+  private async resolveEnvironmentsAsync(
+    environmentFlag: string[] | undefined,
+    environmentArg: string | undefined,
+    {
+      nonInteractive,
+      graphqlClient,
+      projectId,
+    }: { nonInteractive: boolean; graphqlClient: ExpoGraphqlClient; projectId: string }
+  ): Promise<string[]> {
+    const environments = environmentFlag ?? (environmentArg ? [environmentArg] : undefined);
+    if (environments && environments.length > 0) {
+      return environments;
+    }
+
+    const promptedEnvironments = await promptVariableEnvironmentAsync({
+      nonInteractive,
+      multiple: true,
+      canEnterCustomEnvironment: true,
+      graphqlClient,
+      projectId,
+    });
+
+    if (!promptedEnvironments || promptedEnvironments.length === 0) {
+      throw new Error('No environments selected');
+    }
+
+    return promptedEnvironments;
+  }
+
+  private async findExistingVariableAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      scope,
+      projectId,
+      name,
+      environments,
+    }: {
+      scope: EnvironmentVariableScope;
+      projectId: string;
+      name: string;
+      environments: string[];
+    }
+  ): Promise<EnvironmentVariableFragment | undefined> {
+    if (scope === EnvironmentVariableScope.Project) {
+      const existingVariables = await EnvironmentVariablesQuery.byAppIdAsync(graphqlClient, {
+        appId: projectId,
+        filterNames: [name],
+      });
+
+      return existingVariables.find(
+        variable =>
+          variable.scope === EnvironmentVariableScope.Project &&
+          variable.environments?.some(env => environments.includes(env))
+      );
+    }
+
+    const existingVariables = await EnvironmentVariablesQuery.sharedAsync(graphqlClient, {
+      appId: projectId,
+      filterNames: [name],
+    });
+
+    return existingVariables.find(variable =>
+      variable.environments?.some(env => environments.includes(env))
+    );
+  }
+
+  private async resolveVariableDetailsAsync(
     {
       name,
       value,
-      environment: environments,
-      visibility,
-      'non-interactive': nonInteractive,
       type,
-      ...rest
-    }: SetFlags,
-    { environment }: { environment?: string },
-    { graphqlClient, projectId }: { graphqlClient: ExpoGraphqlClient; projectId: string }
-  ): Promise<
-    Required<
-      Omit<SetFlags, 'type' | 'visibility'> & {
-        type: EnvironmentSecretType | undefined;
-        visibility: EnvironmentVariableVisibility;
-      }
-    > & { fileName?: string }
-  > {
-    if (!name) {
-      name = await promptVariableNameAsync(nonInteractive);
-    }
-
-    let newType;
-    let newVisibility = visibility ? parseVisibility(visibility) : undefined;
-
+      visibility,
+      nonInteractive,
+    }: {
+      name: string;
+      value?: string;
+      type?: 'string' | 'file';
+      visibility?: 'plaintext' | 'sensitive' | 'secret';
+      nonInteractive: boolean;
+    },
+    existingVariable: EnvironmentVariableFragment | undefined
+  ): Promise<ResolvedVariableDetails> {
+    let newType: EnvironmentSecretType | undefined;
     if (type === 'file') {
       newType = EnvironmentSecretType.FileBase64;
     } else if (type === 'string') {
       newType = EnvironmentSecretType.String;
     }
 
+    let newVisibility = visibility ? parseVisibility(visibility) : undefined;
+
     if (!type && !value && !nonInteractive) {
-      newType = await promptVariableTypeAsync(nonInteractive);
+      newType = await promptVariableTypeAsync(nonInteractive, existingVariable?.type);
     }
 
     if (!newVisibility) {
-      newVisibility = await promptVariableVisibilityAsync(nonInteractive);
+      newVisibility = await promptVariableVisibilityAsync(
+        nonInteractive,
+        existingVariable?.visibility
+      );
+    }
+
+    // When a value is provided without an explicit --type, keep the existing variable's type so
+    // that updating a file variable does not silently convert it to a plain string.
+    if (value && !newType) {
+      newType = existingVariable?.type;
     }
 
     if (!value) {
       value = await promptVariableValueAsync({
         nonInteractive,
         hidden: newVisibility !== EnvironmentVariableVisibility.Public,
-        filePath: newType === EnvironmentSecretType.FileBase64,
+        filePath: (newType ?? existingVariable?.type) === EnvironmentSecretType.FileBase64,
       });
-    }
-
-    let environmentFilePath: string | undefined;
-    let fileName: string | undefined;
-
-    if (newType === EnvironmentSecretType.FileBase64) {
-      environmentFilePath = path.resolve(value);
-      if (!(await fs.pathExists(environmentFilePath))) {
-        throw new Error(`File "${value}" does not exist`);
-      }
-      fileName = path.basename(environmentFilePath);
-    }
-
-    value = environmentFilePath ? await fs.readFile(environmentFilePath, 'base64') : value;
-
-    let newEnvironments = environments ?? (environment ? [environment] : undefined);
-
-    if (!newEnvironments) {
-      newEnvironments = await promptVariableEnvironmentAsync({
-        nonInteractive,
-        multiple: true,
-        canEnterCustomEnvironment: true,
-        graphqlClient,
-        projectId,
-      });
-
-      if (!newEnvironments || newEnvironments.length === 0) {
-        throw new Error('No environments selected');
-      }
     }
 
     newVisibility = newVisibility ?? EnvironmentVariableVisibility.Public;
 
+    let fileName: string | undefined;
+    if (newType === EnvironmentSecretType.FileBase64) {
+      const environmentFilePath = path.resolve(value);
+      if (!(await fs.pathExists(environmentFilePath))) {
+        if (type === 'file') {
+          throw new Error(`File "${value}" does not exist`);
+        }
+        throw new Error(
+          `Variable "${name}" is a file type, but "${value}" does not exist as a file. If you want to convert it to a string, pass --type string.`
+        );
+      }
+      fileName = path.basename(environmentFilePath);
+      value = await fs.readFile(environmentFilePath, 'base64');
+    }
+
     return {
-      name,
       value,
-      environment: newEnvironments,
       visibility: newVisibility,
-      'non-interactive': nonInteractive,
       type: newType,
       fileName,
-      ...rest,
     };
   }
 
