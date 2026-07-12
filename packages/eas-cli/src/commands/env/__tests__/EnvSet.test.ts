@@ -1,3 +1,5 @@
+import fs from 'fs-extra';
+
 import { getMockAppFragment, getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { DefaultEnvironment } from '../../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -10,6 +12,7 @@ import {
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import {
   parseVisibility,
   promptVariableEnvironmentAsync,
@@ -23,6 +26,8 @@ jest.mock('../../../graphql/mutations/EnvironmentVariableMutation');
 jest.mock('../../../graphql/queries/AppQuery');
 jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../utils/prompts');
+jest.mock('../../../utils/json');
+jest.mock('fs-extra');
 
 describe(EnvSet, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -318,6 +323,155 @@ describe(EnvSet, () => {
         type: EnvironmentSecretType.String,
       },
       testProjectId
+    );
+  });
+
+  it('preserves the file type when updating a file variable with --value but no --type', async () => {
+    const testFilePath = '/path/to/creds.json';
+    const testFileBase64 = 'dGVzdCBmaWxlIGNvbnRlbnQ=';
+    const testFileName = 'creds.json';
+    const otherVariableId = 'otherId';
+
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdAsync)
+      // @ts-expect-error
+      .mockImplementation(async () => [
+        {
+          id: otherVariableId,
+          name: 'VarName',
+          environments: [DefaultEnvironment.Production],
+          scope: EnvironmentVariableScope.Project,
+          type: EnvironmentSecretType.FileBase64,
+        },
+      ]);
+
+    jest.mocked(fs.pathExists).mockImplementation(() => Promise.resolve(true));
+    jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(testFileBase64));
+
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        testFilePath,
+        '--environment',
+        'production',
+        '--visibility',
+        'secret',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(fs.pathExists).toHaveBeenCalledWith(testFilePath);
+    expect(fs.readFile).toHaveBeenCalledWith(testFilePath, 'base64');
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: otherVariableId,
+      name: 'VarName',
+      value: testFileBase64,
+      visibility: EnvironmentVariableVisibility.Secret,
+      environments: [DefaultEnvironment.Production],
+      type: EnvironmentSecretType.FileBase64,
+      fileName: testFileName,
+    });
+  });
+
+  it('throws when updating a file variable with a value that is not a valid file path and no --type', async () => {
+    const plainStringValue = 'some-new-value';
+    const otherVariableId = 'otherId';
+
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdAsync)
+      // @ts-expect-error
+      .mockImplementation(async () => [
+        {
+          id: otherVariableId,
+          name: 'VarName',
+          environments: [DefaultEnvironment.Production],
+          scope: EnvironmentVariableScope.Project,
+          type: EnvironmentSecretType.FileBase64,
+        },
+      ]);
+
+    jest.mocked(fs.pathExists).mockImplementation(() => Promise.resolve(false));
+
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        plainStringValue,
+        '--environment',
+        'production',
+        '--visibility',
+        'secret',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await expect(command.runAsync()).rejects.toThrow(
+      `Variable "VarName" is a file type, but "${plainStringValue}" does not exist as a file. If you want to convert it to a string, pass --type string.`
+    );
+    expect(EnvironmentVariableMutation.updateAsync).not.toHaveBeenCalled();
+  });
+
+  it('outputs the created variable as JSON with --json and does not print a tick', async () => {
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        'VarValue',
+        '--environment',
+        'production',
+        '--visibility',
+        'plaintext',
+        '--json',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(enableJsonOutput).toHaveBeenCalled();
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        name: 'VarName',
+        value: 'VarValue',
+        environments: [DefaultEnvironment.Production],
+        visibility: EnvironmentVariableVisibility.Public,
+        type: EnvironmentSecretType.String,
+      },
+      testProjectId
+    );
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: variableId,
+        name: 'VarName',
+        value: 'VarValue',
+      })
     );
   });
 });
