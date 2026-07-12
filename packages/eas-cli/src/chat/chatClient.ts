@@ -154,7 +154,9 @@ export async function streamChatResponseAsync({
     throw new Error('The chat service returned an empty response.');
   }
 
-  const spinner = stream ? ora('Thinking…').start() : undefined;
+  // discardStdin: false so the spinner does not pause stdin, which the interactive readline prompt
+  // relies on staying open between turns.
+  const spinner = stream ? ora({ text: 'Thinking…', discardStdin: false }).start() : undefined;
   const toolCallsById = new Map<string, ChatToolCall>();
   const announcedTools = new Set<string>();
   const markdownState: MarkdownRenderState = createMarkdownRenderState();

@@ -15,6 +15,19 @@ describe(createChatReplInput, () => {
     repl.close();
   });
 
+  it('reads input even when the stream was left paused (e.g. by a spinner)', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const repl = createChatReplInput({ input, output, terminal: false });
+    input.pause();
+
+    const pending = repl.askAsync('> ');
+    input.write('hello\n');
+
+    expect(await pending).toBe('hello');
+    repl.close();
+  });
+
   it('resolves null when the input stream ends', async () => {
     const input = new PassThrough();
     const output = new PassThrough();

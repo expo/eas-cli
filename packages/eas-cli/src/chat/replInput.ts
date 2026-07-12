@@ -16,8 +16,9 @@ export function createChatReplInput(options?: {
   output?: NodeJS.WritableStream;
   terminal?: boolean;
 }): ChatReplInput {
+  const inputStream = options?.input ?? process.stdin;
   const rl = readline.createInterface({
-    input: options?.input ?? process.stdin,
+    input: inputStream,
     output: options?.output ?? process.stdout,
     terminal: options?.terminal ?? true,
     historySize: 100,
@@ -37,6 +38,9 @@ export function createChatReplInput(options?: {
       if (closed) {
         return null;
       }
+      // A spinner (ora) or a previous reader can leave stdin paused; resuming it recovers input and
+      // keeps the event loop alive while we wait, so the prompt does not exit immediately.
+      inputStream.resume();
       return await new Promise<string | null>(resolve => {
         let settled = false;
         const onClose = (): void => {
