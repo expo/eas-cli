@@ -177,6 +177,10 @@ describe(Chat, () => {
     expect(secondCall.messages[2].role).toBe('user');
     expect(secondCall.messages[2].parts[0].text).toBe('and my updates?');
     expect(input.close).toHaveBeenCalled();
+    // The command-line message seeds history so Up recalls it at the first prompt.
+    expect(mockCreateChatReplInput).toHaveBeenCalledWith(
+      expect.objectContaining({ history: ['how are my builds?'] })
+    );
   });
 
   it('exits when the input stream closes (Ctrl-D)', async () => {

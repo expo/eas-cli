@@ -129,7 +129,8 @@ export default class Chat extends EasCommand {
     }
     Log.newLine();
 
-    const input = nonInteractive ? undefined : createChatReplInput();
+    // Seed history with the message from the command line so Up recalls it at the first prompt.
+    const input = nonInteractive ? undefined : createChatReplInput({ history: [args.message] });
     try {
       for (;;) {
         const result = await streamChatResponseAsync({

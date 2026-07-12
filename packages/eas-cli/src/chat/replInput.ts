@@ -15,6 +15,8 @@ export function createChatReplInput(options?: {
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
   terminal?: boolean;
+  /** Initial arrow-key history (most recent first), e.g. the message passed on the command line. */
+  history?: string[];
 }): ChatReplInput {
   const inputStream = options?.input ?? process.stdin;
   const rl = readline.createInterface({
@@ -22,6 +24,7 @@ export function createChatReplInput(options?: {
     output: options?.output ?? process.stdout,
     terminal: options?.terminal ?? true,
     historySize: 100,
+    history: options?.history,
   });
 
   let closed = false;
