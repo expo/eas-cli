@@ -73,6 +73,14 @@ describe(Browse, () => {
     );
   });
 
+  it('opens the observe page', async () => {
+    await createCommand(['observe']).runAsync();
+
+    expect(openBrowserAsync).toHaveBeenCalledWith(
+      'https://expo.dev/accounts/testuser/projects/testapp/observe'
+    );
+  });
+
   it('prints the URL without opening a browser when --no-browser is passed', async () => {
     await createCommand(['hosting', '--no-browser']).runAsync();
 

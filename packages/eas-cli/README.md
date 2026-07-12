@@ -444,7 +444,7 @@ USAGE
 
 ARGUMENTS
   [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|in
-          sights|settings) Project subpage to open. Defaults to the project dashboard.
+          sights|observe|settings) Project subpage to open. Defaults to the project dashboard.
 
 FLAGS
   -n, --no-browser  Print the URL instead of opening it in a web browser

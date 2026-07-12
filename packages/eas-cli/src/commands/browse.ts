@@ -25,6 +25,7 @@ const PROJECT_PAGES: Record<string, string> = {
   credentials: 'credentials',
   env: 'environment-variables',
   insights: 'insights',
+  observe: 'observe',
   settings: 'settings',
 };
 
