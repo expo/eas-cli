@@ -27,7 +27,7 @@ export default class ProjectDelete extends EasCommand {
     name: Args.string({
       required: false,
       description:
-        "Full name (@account/slug) or ID of the project to delete. Defaults to the project in the current directory.",
+        'Full name (@account/slug) or ID of the project to delete. Defaults to the project in the current directory.',
     }),
   };
 

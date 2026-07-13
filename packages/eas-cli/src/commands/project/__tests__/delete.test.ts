@@ -25,9 +25,7 @@ jest.mock('../../../graphql/mutations/AppMutation');
 jest.mock('../../../utils/pollForBackgroundJobReceiptAsync');
 jest.mock('../../../prompts');
 jest.mock('../../../user/sudo');
-jest.mock(
-  '../../../commandUtils/context/contextUtils/findProjectDirAndVerifyProjectSetupAsync'
-);
+jest.mock('../../../commandUtils/context/contextUtils/findProjectDirAndVerifyProjectSetupAsync');
 jest.mock('../../../project/expoConfig');
 jest.mock('../../../log');
 jest.mock('../../../ora', () => ({
@@ -156,7 +154,12 @@ describe(ProjectDelete, () => {
 
   it('deletes a project by full name argument outside a project directory', async () => {
     await createCommand(
-      [testExperienceName, '--non-interactive', '--dangerously-confirm-deletion', testExperienceName],
+      [
+        testExperienceName,
+        '--non-interactive',
+        '--dangerously-confirm-deletion',
+        testExperienceName,
+      ],
       { insideProjectDir: false }
     ).runAsync();
 
