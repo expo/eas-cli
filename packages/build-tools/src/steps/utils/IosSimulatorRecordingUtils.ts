@@ -20,7 +20,8 @@ const RECORD_SIM_COMMAND = 'record-sim';
 type IosSimulatorRecording = {
   id: string;
   udid: IosSimulatorUuid;
-  displayName: string;
+  deviceName: string;
+  runtimeDisplayName: string;
   outputDirectory: string;
   startedAt: Date;
   getOutput: () => string;
@@ -84,11 +85,14 @@ export namespace IosSimulatorRecordingUtils {
     });
   }
 
-  export async function finishAsync({
-    logger,
-  }: {
-    logger: bunyan;
-  }): Promise<{ udid: IosSimulatorUuid; displayName: string; directory: string }[]> {
+  export async function finishAsync({ logger }: { logger: bunyan }): Promise<
+    {
+      udid: IosSimulatorUuid;
+      deviceName: string;
+      runtimeDisplayName: string;
+      directory: string;
+    }[]
+  > {
     const session = activeIosSimulatorRecordingSession;
     if (!session) {
       logger.info('No iOS Simulator screen recordings are running.');
@@ -100,7 +104,7 @@ export namespace IosSimulatorRecordingUtils {
     await session.pollingPromise;
     await Promise.all(
       [...session.activeRecordings.values()].map(async recording => {
-        logger.info(`Stopping screen recording for ${recording.displayName}.`);
+        logger.info(`Stopping screen recording for ${recording.deviceName}.`);
         recording.recordingProcess.kill('SIGINT');
         const finished = await Promise.race([
           recording.completionPromise.then(() => true),
@@ -110,9 +114,7 @@ export namespace IosSimulatorRecordingUtils {
           return;
         }
 
-        logger.warn(
-          `Forcing iOS Simulator recording process for ${recording.displayName} to stop.`
-        );
+        logger.warn(`Forcing iOS Simulator recording process for ${recording.deviceName} to stop.`);
         recording.recordingProcess.kill('SIGKILL');
         const killed = await Promise.race([
           recording.completionPromise.then(() => true),
@@ -120,10 +122,10 @@ export namespace IosSimulatorRecordingUtils {
         ]);
         if (!killed) {
           logger.warn(
-            `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`
+            `iOS Simulator recording process for ${recording.deviceName} did not exit after SIGKILL.`
           );
           Sentry.capture(
-            `iOS Simulator recording process for ${recording.displayName} did not exit after SIGKILL.`,
+            `iOS Simulator recording process for ${recording.deviceName} did not exit after SIGKILL.`,
             {
               extras: {
                 output: recording.getOutput(),
@@ -139,7 +141,8 @@ export namespace IosSimulatorRecordingUtils {
     );
     return completedRecordings.map(recording => ({
       udid: recording.udid,
-      displayName: recording.displayName,
+      deviceName: recording.deviceName,
+      runtimeDisplayName: recording.runtimeDisplayName,
       directory: recording.outputDirectory,
     }));
   }
@@ -179,7 +182,8 @@ async function pollIosSimulatorRecordingsAsync(
         }
         await startIosSimulatorRecordingAsync(session, {
           udid: device.udid,
-          displayName: `${device.name} screen recording`,
+          deviceName: device.name,
+          runtimeDisplayName: device.runtimeDisplayName,
         });
       }
     } catch (err) {
@@ -212,10 +216,12 @@ async function startIosSimulatorRecordingAsync(
   session: IosSimulatorRecordingSession,
   {
     udid,
-    displayName,
+    deviceName,
+    runtimeDisplayName,
   }: {
     udid: IosSimulatorUuid;
-    displayName: string;
+    deviceName: string;
+    runtimeDisplayName: string;
   }
 ): Promise<void> {
   const startedAt = new Date();
@@ -223,7 +229,7 @@ async function startIosSimulatorRecordingAsync(
   const outputDirectory = path.join(session.recordingsRootDirectory, recordingId);
   await mkdir(outputDirectory, { recursive: true });
 
-  session.logger.info(`Starting screen recording for ${displayName}.`);
+  session.logger.info(`Starting screen recording for ${deviceName}.`);
   const recordingSpawn = spawn(
     session.recordSimCommand,
     ['--udid', udid, '--output', outputDirectory, '--segment-duration', '0'],
@@ -241,7 +247,7 @@ async function startIosSimulatorRecordingAsync(
       Sentry.capture('iOS Simulator screen recording process failed', error);
       session.logger.warn(
         { err: error, recordSimOutput: getOutput() },
-        `Screen recording process failed for ${displayName}.`
+        `Screen recording process failed for ${deviceName}.`
       );
     })
     .finally(() => {
@@ -249,7 +255,8 @@ async function startIosSimulatorRecordingAsync(
       session.completedRecordings.push({
         id: recordingId,
         udid,
-        displayName,
+        deviceName,
+        runtimeDisplayName,
         outputDirectory,
         startedAt,
         getOutput,
@@ -259,7 +266,8 @@ async function startIosSimulatorRecordingAsync(
   session.activeRecordings.set(udid, {
     id: recordingId,
     udid,
-    displayName,
+    deviceName,
+    runtimeDisplayName,
     outputDirectory,
     recordingProcess: recordingSpawn.child,
     completionPromise,

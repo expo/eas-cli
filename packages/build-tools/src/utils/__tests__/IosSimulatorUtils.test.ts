@@ -23,6 +23,39 @@ describe('IosSimulatorUtils', () => {
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
   });
 
+  describe(IosSimulatorUtils.getAvailableDevicesAsync, () => {
+    it('adds a human-readable runtime display name', async () => {
+      mockedSpawn.mockResolvedValue({
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-18-6': [
+              {
+                dataPath: '/tmp/eas-test-simulator-data',
+                dataPathSize: 1,
+                logPath: '/tmp/eas-test-simulator-logs',
+                udid: 'test-udid',
+                isAvailable: true,
+                deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
+                state: 'Booted',
+                name: 'iPhone 16',
+              },
+            ],
+          },
+        }),
+        stderr: '',
+      } as any);
+
+      await expect(
+        IosSimulatorUtils.getAvailableDevicesAsync({ env: process.env, filter: 'booted' })
+      ).resolves.toEqual([
+        expect.objectContaining({
+          name: 'iPhone 16',
+          runtimeDisplayName: 'iOS 18.6',
+        }),
+      ]);
+    });
+  });
+
   describe(IosSimulatorUtils.startAsync, () => {
     it('waits for boot completion without writing accessibility prefs', async () => {
       mockedSpawn.mockImplementation((async (command: string, args: string[]) => {
