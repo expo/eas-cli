@@ -442,8 +442,8 @@ USAGE
   $ eas browse [PAGE] [-n] [--json] [--non-interactive]
 
 ARGUMENTS
-  [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|in
-          sights|observe|settings) Project subpage to open. Defaults to the project dashboard.
+  [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|
+          insights|observe|settings) Project subpage to open. Defaults to the project dashboard.
 
 FLAGS
   -n, --no-browser       Print the URL instead of opening it in a web browser
@@ -454,7 +454,7 @@ DESCRIPTION
   Transition from the terminal to the web browser to view and interact with your project on https://expo.dev
 ```
 
-_See code: [packages/eas-cli/src/commands/browse.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/browse.ts)_
+_See code: [packages/eas-cli/src/commands/browse.ts](https://github.com/expo/eas-cli/blob/v21.0.0/packages/eas-cli/src/commands/browse.ts)_
 
 ## `eas build`
 
