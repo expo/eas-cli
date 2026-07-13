@@ -8217,8 +8217,9 @@ export type MeMutation = {
   /** Schedule deletion of a SSO user. Actor must be an owner on the SSO user's SSO account. */
   scheduleSSOUserDeletionAsSSOAccountOwner: BackgroundJobReceipt;
   /**
-   * Sets user preferences. This is a key-value store for user-specific settings. Provided values are
-   * key-level merged with existing values.
+   * Legacy user preferences are no longer stored; this mutation accepts and discards
+   * its input. Use userPreference.set instead.
+   * @deprecated No longer stored; this mutation has no effect. Use userPreference.set instead.
    */
   setPreferences: UserPreferences;
   /** Set the user's primary second factor device */
@@ -9387,6 +9388,7 @@ export type SsoUser = Actor & UserActor & {
   lastName?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
   pinnedDashboardViews: Array<PinnedDashboardView>;
+  /** @deprecated No longer stored. Use userPreference instead. */
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
@@ -10739,6 +10741,7 @@ export type User = Actor & UserActor & {
   pendingUserInvitations: Array<UserInvitation>;
   pinnedApps: Array<App>;
   pinnedDashboardViews: Array<PinnedDashboardView>;
+  /** @deprecated No longer stored. Use userPreference instead. */
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
@@ -10833,6 +10836,7 @@ export type UserActor = {
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
+  /** @deprecated No longer stored. Use userPreference instead. */
   preferences: UserPreferences;
   /** Associated accounts */
   primaryAccount: Account;
@@ -11276,9 +11280,8 @@ export type UserPreferenceQueryGetArgs = {
 
 export type UserPreferences = {
   __typename?: 'UserPreferences';
+  /** @deprecated No longer stored; always null. */
   onboarding?: Maybe<UserPreferencesOnboarding>;
-  /** @deprecated Use userPreference.get(key: "selected-account-id") instead. */
-  selectedAccountName?: Maybe<Scalars['String']['output']>;
 };
 
 export type UserPreferencesInput = {
@@ -11292,18 +11295,10 @@ export type UserPreferencesInput = {
 export type UserPreferencesOnboarding = {
   __typename?: 'UserPreferencesOnboarding';
   appId: Scalars['ID']['output'];
-  /** Can be null if the user has not selected one yet. */
   deviceType?: Maybe<OnboardingDeviceType>;
-  /** Can be null if the user has not selected one yet. */
   environment?: Maybe<OnboardingEnvironment>;
-  /**
-   * Set by CLI when the user has completed that phase. Used by the website to determine when
-   * the next step can be shown.
-   */
   isCLIDone?: Maybe<Scalars['Boolean']['output']>;
-  /** The last time when this object was updated. */
   lastUsed: Scalars['String']['output'];
-  /** User selects a platform for which they want to build the app. CLI uses this information to start the build. */
   platform?: Maybe<AppPlatform>;
 };
 
@@ -12392,7 +12387,9 @@ export type WorkflowJobApproval = {
   createdAt: Scalars['DateTime']['output'];
   decision: WorkflowJobReviewDecision;
   id: Scalars['ID']['output'];
+  reviewingActor?: Maybe<Actor>;
   updatedAt: Scalars['DateTime']['output'];
+  /** @deprecated Use reviewingActor instead */
   userActor?: Maybe<UserActor>;
   workflowJob: WorkflowJob;
 };
@@ -13329,6 +13326,13 @@ export type CreateAppMutationVariables = Exact<{
 
 
 export type CreateAppMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', createApp: { __typename?: 'App', id: string } } | null };
+
+export type ScheduleAppDeletionMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type ScheduleAppDeletionMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', scheduleAppDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } | null };
 
 export type CreateAppVersionMutationVariables = Exact<{
   appVersionInput: AppVersionInput;
