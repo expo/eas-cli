@@ -117,7 +117,6 @@ eas --help COMMAND
 * [`eas fingerprint:generate`](#eas-fingerprintgenerate)
 * [`eas help [COMMAND]`](#eas-help-command)
 * [`eas init`](#eas-init)
-* [`eas init:onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-initonboarding-target_project_directory)
 * [`eas integrations:asc:connect`](#eas-integrationsascconnect)
 * [`eas integrations:asc:disconnect`](#eas-integrationsascdisconnect)
 * [`eas integrations:asc:status`](#eas-integrationsascstatus)
@@ -143,12 +142,10 @@ eas --help COMMAND
 * [`eas observe:routes`](#eas-observeroutes)
 * [`eas observe:session SESSIONID`](#eas-observesession-sessionid)
 * [`eas observe:versions`](#eas-observeversions)
-* [`eas onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-onboarding-target_project_directory)
 * [`eas open`](#eas-open)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
-* [`eas project:onboarding [TARGET_PROJECT_DIRECTORY]`](#eas-projectonboarding-target_project_directory)
 * [`eas submit`](#eas-submit)
 * [`eas update`](#eas-update)
 * [`eas update:configure`](#eas-updateconfigure)
@@ -1648,22 +1645,6 @@ ALIASES
   $ eas init
 ```
 
-## `eas init:onboarding [TARGET_PROJECT_DIRECTORY]`
-
-continue onboarding process started on the https://expo.new website.
-
-```
-USAGE
-  $ eas init:onboarding [TARGET_PROJECT_DIRECTORY]
-
-DESCRIPTION
-  continue onboarding process started on the https://expo.new website.
-
-ALIASES
-  $ eas init:onboarding
-  $ eas onboarding
-```
-
 ## `eas integrations:asc:connect`
 
 connect a project to an App Store Connect app
@@ -2207,22 +2188,6 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/observe/versions.ts)_
 
-## `eas onboarding [TARGET_PROJECT_DIRECTORY]`
-
-continue onboarding process started on the https://expo.new website.
-
-```
-USAGE
-  $ eas onboarding [TARGET_PROJECT_DIRECTORY]
-
-DESCRIPTION
-  continue onboarding process started on the https://expo.new website.
-
-ALIASES
-  $ eas init:onboarding
-  $ eas onboarding
-```
-
 ## `eas open`
 
 open the project page in a web browser
@@ -2297,24 +2262,6 @@ ALIASES
 ```
 
 _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/project/new.ts)_
-
-## `eas project:onboarding [TARGET_PROJECT_DIRECTORY]`
-
-continue onboarding process started on the https://expo.new website.
-
-```
-USAGE
-  $ eas project:onboarding [TARGET_PROJECT_DIRECTORY]
-
-DESCRIPTION
-  continue onboarding process started on the https://expo.new website.
-
-ALIASES
-  $ eas init:onboarding
-  $ eas onboarding
-```
-
-_See code: [packages/eas-cli/src/commands/project/onboarding.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/project/onboarding.ts)_
 
 ## `eas submit`
 
