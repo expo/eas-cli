@@ -4,11 +4,14 @@ import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
 import os from 'os';
 import path from 'path';
+import v8 from 'v8';
 
 import config from './config';
 import { Environment } from './constants';
 import { androidImagesWithJavaVersionLowerThen11 } from './external/turtle';
 import { getAccessedEnvs } from './utils/env';
+
+const GIB_IN_BYTES = 1024 ** 3;
 
 // keep in sync with local-build-plugin env vars
 // see packages/local-build-plugin/src/build.ts
@@ -49,6 +52,9 @@ export function getBuildEnv({
   setEnv(env, 'LANG', 'en_US.UTF-8');
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
   setEnv(env, 'EAS_BUILD_PROJECT_ID', projectId);
+
+  // Keep inherited options last so they override singleton options supplied by the worker.
+  setEnv(env, 'NODE_OPTIONS', [getNodeMemoryOptions(), env.NODE_OPTIONS].filter(Boolean).join(' '));
 
   const runnerPlatform = job.platform;
   if (runnerPlatform === Platform.IOS) {
@@ -178,4 +184,18 @@ export function getGradleMemoryOptions() {
   return {
     maxHeapSize: `${Math.max(1, Math.round(totalMemoryGb / 4))}g`,
   };
+}
+
+export function getNodeMemoryOptions(): string | undefined {
+  // constrainedMemory() returns 0 when there is no container or process memory limit.
+  const memoryLimit = process.constrainedMemory() || os.totalmem();
+  const heapLimit = v8.getHeapStatistics().heap_size_limit;
+
+  // V8 defaults to a roughly 2 GiB heap on smaller workers. Raise the ceiling for build child
+  // processes only when the worker has enough memory and Node has not already selected a larger one.
+  if (memoryLimit < 6 * GIB_IN_BYTES || heapLimit >= 3 * GIB_IN_BYTES) {
+    return undefined;
+  }
+
+  return '--max-old-space-size=3072';
 }
