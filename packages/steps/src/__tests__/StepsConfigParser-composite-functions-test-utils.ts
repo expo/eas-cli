@@ -4,6 +4,7 @@ import { createGlobalContextMock } from './utils/context';
 import { BuildFunction } from '../BuildFunction';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildStepOutput } from '../BuildStepOutput';
 import { BuildWorkflow } from '../BuildWorkflow';
 import { StepsConfigParser } from '../StepsConfigParser';
 
@@ -47,4 +48,78 @@ export function echoFunction(): BuildFunction {
       }),
     ],
   });
+}
+
+export function setVersionFunction(): BuildFunction {
+  return new BuildFunction({
+    namespace: 'test',
+    id: 'set-version',
+    fn: (_ctx, { outputs }) => {
+      outputs.version.set('$(echo injected)');
+    },
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'version',
+        required: true,
+      }),
+    ],
+  });
+}
+
+export function failingFunction(): BuildFunction {
+  return new BuildFunction({
+    namespace: 'test',
+    id: 'fail',
+    fn: () => {
+      throw new Error('inner failed');
+    },
+  });
+}
+
+export function passThroughFunction(): BuildFunction {
+  return new BuildFunction({
+    namespace: 'test',
+    id: 'passthrough',
+    fn: (_ctx, { inputs, outputs }) => {
+      outputs.out.set(String(inputs.value.value ?? ''));
+    },
+    inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'value',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        required: false,
+      }),
+    ],
+    outputProviders: [BuildStepOutput.createProvider({ id: 'out', required: true })],
+  });
+}
+
+export function captureEnvFunction(
+  sink: (env: Record<string, string | undefined>) => void
+): BuildFunction {
+  return new BuildFunction({
+    namespace: 'test',
+    id: 'capture-env',
+    fn: (_ctx, { env }) => {
+      sink(env);
+    },
+  });
+}
+
+export function echoInputAction(inputName: string, input: Record<string, unknown>) {
+  return {
+    inputs: [input],
+    runs: { steps: [{ run: `echo "\${{ inputs.${inputName} }}"` }] },
+  };
+}
+
+export function actionReadingInput(input: Record<string, unknown>) {
+  return {
+    inputs: [input],
+    runs: {
+      steps: [
+        { id: 'inner', uses: 'test/passthrough', with: { value: `\${{ inputs.${input.name} }}` } },
+      ],
+    },
+  };
 }

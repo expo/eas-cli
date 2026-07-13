@@ -10,37 +10,59 @@ import { JobInterpolationContext } from '@expo/eas-build-job';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
+import { BuildStepInput } from './BuildStepInput';
+import { BuildStepRuntimeError } from './errors';
+import {
+  resolveInterpolatedTarget,
+  stringifyInterpolatedResult,
+} from './utils/compositeFunctionInterpolation';
 
 export type EvaluateIfExpression = (
   expression: string,
   context: JobInterpolationContext
 ) => boolean;
 
+type ScopedInterpolationContext = JobInterpolationContext & { inputs: Record<string, unknown> };
+
 export class BuildStepCompositeFunctionScope {
   public readonly parent?: BuildStepCompositeFunctionScope;
   public readonly env?: BuildStepEnv;
   private readonly ctx: BuildStepGlobalContext;
   private readonly ifCondition?: string;
+  private readonly compositeFunctionPath: string;
+  private readonly inputs: Map<string, BuildStepInput>;
+  private readonly providedInputKeys: ReadonlySet<string>;
   private readonly stepIdAliases: Map<string, string>;
   private cachedIsActive?: boolean;
+  // Detects cycles while resolving input default values.
+  private readonly resolvingInputs = new Set<string>();
 
   constructor({
     ctx,
     parent,
     ifCondition,
     env,
+    compositeFunctionPath,
+    inputs,
+    providedInputKeys,
     stepIdAliases,
   }: {
     ctx: BuildStepGlobalContext;
     parent?: BuildStepCompositeFunctionScope;
     ifCondition?: string;
     env?: BuildStepEnv;
+    compositeFunctionPath: string;
+    inputs: Map<string, BuildStepInput>;
+    providedInputKeys: ReadonlySet<string>;
     stepIdAliases: Map<string, string>;
   }) {
     this.ctx = ctx;
     this.parent = parent;
     this.ifCondition = ifCondition;
     this.env = env;
+    this.compositeFunctionPath = compositeFunctionPath;
+    this.inputs = inputs;
+    this.providedInputKeys = providedInputKeys;
     this.stepIdAliases = stepIdAliases;
   }
 
@@ -57,13 +79,16 @@ export class BuildStepCompositeFunctionScope {
     return this.cachedIsActive;
   }
 
-  // Call-site if uses caller env/steps/status. Input interpolation and inherited env
-  // template resolution are added when composite function inputs are wired up.
+  // Call-site if uses caller env/inputs/steps, not expanded inner steps.
   private evaluateCallIfCondition(evaluate: EvaluateIfExpression): boolean {
     if (!this.ifCondition) {
       return !this.ctx.hasAnyPreviousStepFailed;
     }
-    const env = { ...this.ctx.env, ...(this.env ?? {}) };
+    const callerBase: JobInterpolationContext = {
+      ...this.ctx.getInterpolationContext(),
+      env: this.ctx.env,
+    };
+    const env = { ...this.ctx.env, ...this.resolveInheritedEnv(callerBase) };
     const baseContext = this.ctx.getIfConditionContext({
       inputs: {},
       env,
@@ -79,10 +104,38 @@ export class BuildStepCompositeFunctionScope {
   }
 
   public getScopedInterpolationContext(base: JobInterpolationContext): JobInterpolationContext {
-    return {
+    // Spread `base` into a new object; never spread the returned context, as that would eagerly
+    // resolve every lazy input getter.
+    const scoped: ScopedInterpolationContext = {
       ...base,
       steps: this.buildStepsView(),
+      inputs: this.buildInputsObject(base),
     };
+    return scoped;
+  }
+
+  /** Caller scope for `with:` values and call-site env. */
+  public getCallerInterpolationContext(base: JobInterpolationContext): JobInterpolationContext {
+    return this.parent ? this.parent.getScopedInterpolationContext(base) : base;
+  }
+
+  public resolveScopeEnv(base: JobInterpolationContext): BuildStepEnv {
+    if (!this.env) {
+      return {};
+    }
+    const callerContext = this.getCallerInterpolationContext(base);
+    return Object.fromEntries(
+      Object.entries(this.env).map(([key, value]) => [
+        key,
+        stringifyInterpolatedResult(resolveInterpolatedTarget(value, callerContext)),
+      ])
+    );
+  }
+
+  /** Merge call-site env from each scope level, outer to inner; inner keys win. */
+  public resolveInheritedEnv(base: JobInterpolationContext): BuildStepEnv {
+    const parentEnv = this.parent?.resolveInheritedEnv(base) ?? {};
+    return { ...parentEnv, ...this.resolveScopeEnv(base) };
   }
 
   // Workflow hides prefixed ids; re-expose them under short aliases.
@@ -96,5 +149,51 @@ export class BuildStepCompositeFunctionScope {
       }
     }
     return view;
+  }
+
+  private buildInputsObject(base: JobInterpolationContext): Record<string, unknown> {
+    const inputs: Record<string, unknown> = {};
+    for (const [name, input] of this.inputs) {
+      Object.defineProperty(inputs, name, {
+        enumerable: true,
+        configurable: true,
+        get: () => this.resolveInputValue(name, input, base),
+      });
+    }
+    return inputs;
+  }
+
+  private resolveInputValue(
+    name: string,
+    input: BuildStepInput,
+    base: JobInterpolationContext
+  ): unknown {
+    if (this.resolvingInputs.has(name)) {
+      throw new BuildStepRuntimeError(
+        `Composite function "${this.compositeFunctionPath}" input "${name}" references itself, directly or indirectly, through its default value.`
+      );
+    }
+    this.resolvingInputs.add(name);
+    try {
+      const isProvided = this.providedInputKeys.has(name);
+      // Env binds at the call boundary so inner step `env:` overrides do not leak into inputs.
+      const boundBase: JobInterpolationContext = {
+        ...base,
+        env: this.resolveCompositeFunctionBoundaryEnv(base),
+      };
+      // Caller-provided values resolve in the caller's scope; defaults resolve in this composite function's.
+      const interpolationContext = isProvided
+        ? this.getCallerInterpolationContext(boundBase)
+        : this.getScopedInterpolationContext(boundBase);
+      return input.getValue({ interpolationContext, skipLegacyOutputInterpolation: true });
+    } finally {
+      this.resolvingInputs.delete(name);
+    }
+  }
+
+  // Global + inherited call-site env; inputs ignore inner overrides.
+  public resolveCompositeFunctionBoundaryEnv(base: JobInterpolationContext): BuildStepEnv {
+    const boundaryBase: JobInterpolationContext = { ...base, env: this.ctx.env };
+    return { ...this.ctx.env, ...this.resolveInheritedEnv(boundaryBase) };
   }
 }
