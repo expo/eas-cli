@@ -20,7 +20,8 @@ import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 const RecordingsSchema = z.array(
   z.object({
     udid: z.string(),
-    displayName: z.string(),
+    deviceName: z.string(),
+    runtimeDisplayName: z.string(),
     directory: z.string(),
   })
 );
@@ -67,6 +68,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
       await Promise.all(
         recordings.map(recording =>
           limit(async () => {
+            const displayName = `${recording.deviceName} screen recording`;
             try {
               const metadata = RecordingManifestSchema.parse(
                 JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
@@ -75,17 +77,19 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               const { size } = await stat(recordingPath);
               const recordingId = path.basename(recording.directory);
               logger.info(
-                `Uploading screen recording for ${recording.displayName} (${formatBytes(size)}).`
+                `Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`
               );
               await uploadDeviceRunSessionArtifactAsync(ctx, {
                 deviceRunSessionId,
                 artifactId: recordingId,
-                name: recording.displayName,
+                name: displayName,
                 filename: `${recordingId}.mp4`,
                 kind: 'screen-recording',
                 metadata: {
                   __eas_screen_recording: '1',
                   udid: recording.udid,
+                  deviceName: recording.deviceName,
+                  runtimeDisplayName: recording.runtimeDisplayName,
                   firstFrameAt: metadata.firstFrameWallClock.iso8601,
                 },
                 size,
@@ -96,7 +100,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               Sentry.capture('Could not upload iOS Simulator screen recording', error);
               logger.warn(
                 { err: error },
-                `Could not upload screen recording for ${recording.displayName}.`
+                `Could not upload screen recording for ${recording.deviceName}.`
               );
             }
           })

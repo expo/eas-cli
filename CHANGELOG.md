@@ -6,13 +6,30 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+- [eas-cli] Add `--dev-domain` flag to `eas deploy` to choose the project's preview URL (`<name>.expo.app`) without prompting, allowing first-time deploys with `--non-interactive`. ([#4004](https://github.com/expo/eas-cli/pull/4004) by [@brentvatne](https://github.com/brentvatne))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [21.0.0](https://github.com/expo/eas-cli/releases/tag/v21.0.0) - 2026-07-13
+
+### 🛠 Breaking changes
+
 - [eas-cli] Remove `eas onboarding` command (aliases `init:onboarding`, `project:onboarding`). ([#3993](https://github.com/expo/eas-cli/pull/3993) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🎉 New features
 
 - [eas-cli] Improve `eas workflow:create`: add a `--template` flag, generate a placeholder workflow when a file name is passed, use shorter default file names (`build.yml`, `update.yml`, `deploy.yml`), configure EAS Build and EAS Update automatically when the chosen template requires them, set default app identifiers without prompting for the development build and deploy templates, install `expo-dev-client` during development build setup, and tighten the generated comments and next steps. ([#3943](https://github.com/expo/eas-cli/pull/3943) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] `eas integrations:posthog:dashboard` now opens PostHog via a signed-in link, skipping the login prompt. ([#3975](https://github.com/expo/eas-cli/pull/3975) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `--dev-domain` flag to `eas deploy` to choose the project's preview URL (`<name>.expo.app`) without prompting, allowing first-time deploys with `--non-interactive`. ([#4004](https://github.com/expo/eas-cli/pull/4004) by [@brentvatne](https://github.com/brentvatne))
+- [build-tools] Add `eas/posthog_capture_event` workflow function to send PostHog events from workflow runs. ([#3934](https://github.com/expo/eas-cli/pull/3934) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_flag_rollout` workflow function to update PostHog feature flags from workflow runs. ([#3944](https://github.com/expo/eas-cli/pull/3944) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_wait_for_metric` workflow function to gate workflow runs on a PostHog metric. ([#3945](https://github.com/expo/eas-cli/pull/3945) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_upload_sourcemaps` workflow function to upload source maps to PostHog. ([#3947](https://github.com/expo/eas-cli/pull/3947) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_annotation` workflow function to create PostHog annotations from workflow runs. ([#3948](https://github.com/expo/eas-cli/pull/3948) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_wait_for_query` workflow function to gate workflow runs on a PostHog query. ([#3949](https://github.com/expo/eas-cli/pull/3949) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
@@ -25,6 +42,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
 - Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Bump `jws` to a patched version in the root lockfile. ([#3978](https://github.com/expo/eas-cli/pull/3978) by [@szdziedzic](https://github.com/szdziedzic))
+- [worker] Bump `koa` to `3.1.2`. ([#3974](https://github.com/expo/eas-cli/pull/3974) by [@szdziedzic](https://github.com/szdziedzic))
+- [steps] Bump `cross-spawn` to a patched version in the TypeScript custom function fixture. ([#3977](https://github.com/expo/eas-cli/pull/3977) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `node-forge` to `1.4.0`. ([#3970](https://github.com/expo/eas-cli/pull/3970) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-builder` to `1.2.1` to resolve [Dependabot alert 400](https://github.com/expo/eas-cli/security/dependabot/400). ([#3966](https://github.com/expo/eas-cli/pull/3966) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `form-data` to patched releases to resolve [Dependabot alert 465](https://github.com/expo/eas-cli/security/dependabot/465). ([#3962](https://github.com/expo/eas-cli/pull/3962) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-parser` to `4.5.7` to resolve [Dependabot alert 286](https://github.com/expo/eas-cli/security/dependabot/286). ([#3960](https://github.com/expo/eas-cli/pull/3960) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `shell-quote` to `1.9.0` to resolve [Dependabot alert 440](https://github.com/expo/eas-cli/security/dependabot/440). ([#3959](https://github.com/expo/eas-cli/pull/3959) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
