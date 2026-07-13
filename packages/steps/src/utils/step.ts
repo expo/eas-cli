@@ -1,7 +1,15 @@
 import { ShellStep } from '@expo/eas-build-job';
 
 import { BuildStepGlobalContext } from '../BuildStepContext';
+import { BuildStepEnv } from '../BuildStepEnv';
 import { BuildStepOutput } from '../BuildStepOutput';
+
+export function mergeEnv(base?: BuildStepEnv, overrides?: BuildStepEnv): BuildStepEnv | undefined {
+  if (!base && !overrides) {
+    return undefined;
+  }
+  return { ...base, ...overrides };
+}
 
 export function getShellStepDisplayName(step: ShellStep): string {
   return (

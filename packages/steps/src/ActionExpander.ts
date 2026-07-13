@@ -26,7 +26,11 @@ import { BuildStepEnv } from './BuildStepEnv';
 import { BuildConfigError } from './errors';
 import { duplicates } from './utils/expodash/duplicates';
 import { isActionPath, parseActionPath } from './utils/localActions';
-import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
+import {
+  createBuildStepOutputsFromDefinition,
+  getShellStepDisplayName,
+  mergeEnv,
+} from './utils/step';
 
 const MAX_ACTION_NESTING_DEPTH = 10;
 
@@ -327,11 +331,4 @@ export class ActionExpander {
     }
     return { stepIdMap, newIds };
   }
-}
-
-function mergeEnv(base?: BuildStepEnv, overrides?: BuildStepEnv): BuildStepEnv | undefined {
-  if (!base && !overrides) {
-    return undefined;
-  }
-  return { ...base, ...overrides };
 }
