@@ -122,6 +122,31 @@ describe(assignDevDomainNameAsync, () => {
     expect(promptAsync).not.toHaveBeenCalled();
   });
 
+  it('falls back to the prompt when the requested dev domain name is taken in interactive mode', async () => {
+    const graphqlClient = {} as ExpoGraphqlClient;
+    jest
+      .mocked(DeploymentsMutation.assignDevDomainNameAsync)
+      .mockRejectedValueOnce(createDevDomainNameTakenError())
+      .mockResolvedValueOnce(true);
+    jest
+      .mocked(DeploymentsQuery.getSuggestedDevDomainByAppIdAsync)
+      .mockResolvedValueOnce('suggested-name');
+    jest.mocked(promptAsync).mockResolvedValueOnce({ name: 'prompted-name' });
+
+    await assignDevDomainNameAsync({
+      graphqlClient,
+      appId: 'test-app-id',
+      devDomainName: 'my-app',
+      nonInteractive: false,
+    });
+
+    expect(promptAsync).toHaveBeenCalledTimes(1);
+    expect(DeploymentsMutation.assignDevDomainNameAsync).toHaveBeenLastCalledWith(graphqlClient, {
+      appId: 'test-app-id',
+      name: 'prompted-name',
+    });
+  });
+
   it('throws when the suggested dev domain name is taken in non-interactive mode', async () => {
     const graphqlClient = {} as ExpoGraphqlClient;
     jest
@@ -181,10 +206,7 @@ describe(getSignedDeploymentUrlAsync, () => {
 
   it('assigns the requested dev domain name when the project has none yet', async () => {
     const graphqlClient = {} as ExpoGraphqlClient;
-    jest
-      .mocked(DeploymentsQuery.getDevDomainNameByAppIdAsync)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('my-app');
+    jest.mocked(DeploymentsQuery.getDevDomainNameByAppIdAsync).mockResolvedValueOnce(null);
     jest
       .mocked(DeploymentsMutation.createSignedDeploymentUrlAsync)
       .mockRejectedValueOnce(createMissingDevDomainNameError())
@@ -203,6 +225,26 @@ describe(getSignedDeploymentUrlAsync, () => {
       appId: 'test-app-id',
       name: 'my-app',
     });
+    // The retry after assignment must not re-run the dev domain pre-check query
+    expect(DeploymentsQuery.getDevDomainNameByAppIdAsync).toHaveBeenCalledTimes(1);
     expect(promptAsync).not.toHaveBeenCalled();
+  });
+
+  it('throws when the requested dev domain name was never assigned by the deployment', async () => {
+    const graphqlClient = {} as ExpoGraphqlClient;
+    jest.mocked(DeploymentsQuery.getDevDomainNameByAppIdAsync).mockResolvedValueOnce(null);
+    jest
+      .mocked(DeploymentsMutation.createSignedDeploymentUrlAsync)
+      .mockResolvedValueOnce('https://upload-url.example');
+
+    await expect(
+      getSignedDeploymentUrlAsync(graphqlClient, {
+        appId: 'test-app-id',
+        devDomainName: 'my-app',
+        nonInteractive: true,
+      })
+    ).rejects.toThrow(/preview URL was not assigned as part of this deployment/);
+
+    expect(DeploymentsMutation.assignDevDomainNameAsync).not.toHaveBeenCalled();
   });
 });

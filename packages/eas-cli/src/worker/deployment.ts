@@ -24,11 +24,11 @@ export async function getSignedDeploymentUrlAsync(
     nonInteractive?: boolean;
   }
 ): Promise<string> {
+  let currentDevDomainName: string | null = null;
   if (options.devDomainName) {
-    const currentDevDomainName = await DeploymentsQuery.getDevDomainNameByAppIdAsync(
-      graphqlClient,
-      { appId: options.appId }
-    );
+    currentDevDomainName = await DeploymentsQuery.getDevDomainNameByAppIdAsync(graphqlClient, {
+      appId: options.appId,
+    });
 
     if (currentDevDomainName && currentDevDomainName !== options.devDomainName) {
       throw new Error(
@@ -37,8 +37,9 @@ export async function getSignedDeploymentUrlAsync(
     }
   }
 
+  let signedUrl: string;
   try {
-    return await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
+    signedUrl = await DeploymentsMutation.createSignedDeploymentUrlAsync(graphqlClient, {
       appId: options.appId,
       deploymentIdentifier: options.deploymentIdentifier,
     });
@@ -61,9 +62,21 @@ export async function getSignedDeploymentUrlAsync(
       devDomainName: options.devDomainName,
       nonInteractive: options.nonInteractive,
     });
-    // Retry creating the signed URL
-    return await getSignedDeploymentUrlAsync(graphqlClient, options);
+    // Retry creating the signed URL. The dev domain name was just assigned, so drop it from
+    // the retry to skip the pre-checks (and their extra query) — it is known to be set now.
+    return await getSignedDeploymentUrlAsync(graphqlClient, { ...options, devDomainName: undefined });
   }
+
+  // The --dev-domain flag is applied when the server requires a preview URL to be assigned
+  // before the first deployment. If the deployment was accepted without that assignment,
+  // fail instead of silently deploying without the requested preview URL.
+  if (options.devDomainName && !currentDevDomainName) {
+    throw new Error(
+      `The --dev-domain flag was provided, but the project's preview URL was not assigned as part of this deployment.\nRemove the --dev-domain flag and set the preview URL from the project's hosting settings on the website instead.`
+    );
+  }
+
+  return signedUrl;
 }
 
 type PromptInstance = {
@@ -208,18 +221,16 @@ export async function assignDevDomainNameAsync({
       throw error;
     }
 
-    if (requestedDevDomainName) {
-      throw new Error(
-        `The preview URL "${requestedDevDomainName}" is already taken, choose a different URL with the --dev-domain flag.`
-      );
-    }
-
     if (nonInteractive) {
       throw new Error(
-        `The suggested preview URL "${devDomainName}" is already taken, choose a different URL with the --dev-domain flag.`
+        requestedDevDomainName
+          ? `The preview URL "${requestedDevDomainName}" is already taken, choose a different URL with the --dev-domain flag.`
+          : `The suggested preview URL "${devDomainName}" is already taken, choose a different URL with the --dev-domain flag.`
       );
     }
 
+    // In interactive mode, fall back to the prompt so a taken name (requested or suggested)
+    // does not abort the deployment.
     Log.error(`The preview URL "${devDomainName}" is already taken, choose a different URL.`);
     return await assignDevDomainNameAsync({ graphqlClient, appId, nonInteractive });
   }
