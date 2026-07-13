@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Improve `eas workflow:create`: add a `--template` flag, generate a placeholder workflow when a file name is passed, use shorter default file names (`build.yml`, `update.yml`, `deploy.yml`), configure EAS Build and EAS Update automatically when the chosen template requires them, set default app identifiers without prompting for the development build and deploy templates, install `expo-dev-client` during development build setup, and tighten the generated comments and next steps. ([#3943](https://github.com/expo/eas-cli/pull/3943) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] `eas integrations:posthog:dashboard` now opens PostHog via a signed-in link, skipping the login prompt. ([#3975](https://github.com/expo/eas-cli/pull/3975) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/posthog_capture_event` workflow function to send PostHog events from workflow runs. ([#3934](https://github.com/expo/eas-cli/pull/3934) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_flag_rollout` workflow function to update PostHog feature flags from workflow runs. ([#3944](https://github.com/expo/eas-cli/pull/3944) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 

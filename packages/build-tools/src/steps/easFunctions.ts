@@ -39,6 +39,7 @@ import { runFastlaneFunction } from './functions/runFastlane';
 import { runGradleFunction } from './functions/runGradle';
 import { createMaestroTestsBuildFunction } from './functions/maestroTests';
 import { createSaveBuildCacheFunction } from './functions/saveBuildCache';
+import { createRolloutPosthogFlagFunction } from './functions/rolloutPosthogFlag';
 import { createSaveCacheFunction } from './functions/saveCache';
 import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
@@ -99,6 +100,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),
     createCapturePosthogEventFunction(),
+    createRolloutPosthogFlagFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
