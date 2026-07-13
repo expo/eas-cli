@@ -47,6 +47,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       name: 'Artifact report.json (artifact-id)',
       filename: 'report.json',
       kind: 'agent-device-test-report',
+      metadata: { firstFrameRecordAt: 'test-time' },
       size: reportedSize,
       stream,
     });
@@ -59,6 +60,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
           name: 'Artifact report.json (artifact-id)',
           filename: 'report.json',
           kind: 'agent-device-test-report',
+          metadata: { firstFrameRecordAt: 'test-time' },
           size: reportedSize,
         },
       })

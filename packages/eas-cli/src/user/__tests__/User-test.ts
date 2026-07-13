@@ -20,7 +20,6 @@ const userStub: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const ssoUserStub: Actor = {
@@ -41,7 +40,6 @@ const ssoUserStub: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const robotStub: Actor = {
