@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade Expo plist dependencies to use `@xmldom/xmldom` `0.8.13` without a root resolution, addressing Dependabot alert 372. ([#4010](https://github.com/expo/eas-cli/pull/4010) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
 - Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Bump `jws` to a patched version in the root lockfile. ([#3978](https://github.com/expo/eas-cli/pull/3978) by [@szdziedzic](https://github.com/szdziedzic))
