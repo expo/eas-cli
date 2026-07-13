@@ -2,6 +2,7 @@ import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  AppPlatform,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
@@ -47,6 +48,11 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
     id: 'session-123',
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
+    platform: AppPlatform.Ios,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    startedAt: '2025-01-01T00:00:05.000Z',
+    finishedAt: null,
+    updatedAt: '2025-01-01T00:01:00.000Z',
     app: {
       id: 'app-123',
       slug: 'testapp',
@@ -55,6 +61,18 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
         name: 'testuser',
       },
     },
+    artifacts: [
+      {
+        id: 'artifact-123',
+        name: 'session-log',
+        filename: 'session.log',
+        downloadUrl: 'https://artifacts.example.com/session.log',
+        fileSizeBytes: 1234,
+        metadata: { kind: 'log' },
+        createdAt: '2025-01-01T00:00:10.000Z',
+        updatedAt: '2025-01-01T00:00:20.000Z',
+      },
+    ],
     remoteConfig: {
       __typename: 'AgentDeviceRunSessionRemoteConfig',
       agentDeviceRemoteSessionUrl: 'https://agent.example.com',
@@ -118,9 +136,15 @@ describe(SimulatorGet, () => {
       id: 'session-123',
       type: 'agent-device',
       status: DeviceRunSessionStatus.InProgress,
+      platform: AppPlatform.Ios,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:00:05.000Z',
+      finishedAt: undefined,
+      updatedAt: '2025-01-01T00:01:00.000Z',
       deviceRunSessionUrl:
         'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
       remoteConfig: session.remoteConfig,
+      artifacts: session.artifacts,
     });
   });
 

@@ -25,6 +25,11 @@ export const DeviceRunSessionQuery = {
                   id
                   status
                   type
+                  platform
+                  createdAt
+                  startedAt
+                  finishedAt
+                  updatedAt
                   app {
                     id
                     slug
@@ -32,6 +37,16 @@ export const DeviceRunSessionQuery = {
                       id
                       name
                     }
+                  }
+                  artifacts {
+                    id
+                    name
+                    filename
+                    downloadUrl
+                    fileSizeBytes
+                    metadata
+                    createdAt
+                    updatedAt
                   }
                   remoteConfig {
                     __typename

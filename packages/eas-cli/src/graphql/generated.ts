@@ -79,8 +79,6 @@ export type AccessTokenMutationSetAccessTokenRevokedArgs = {
  */
 export type Account = {
   __typename?: 'Account';
-  /** @deprecated Legacy access tokens are deprecated */
-  accessTokens: Array<Maybe<AccessToken>>;
   /** Server account feature gate values for this account, optionally filtering by desired gates. */
   accountFeatureGates: Scalars['JSONObject']['output'];
   /** Coalesced project activity for all apps belonging to this account. */
@@ -116,8 +114,6 @@ export type Account = {
   appsPaginated: AccountAppsConnection;
   /** Audit logs for account */
   auditLogsPaginated: AuditLogConnection;
-  /** @deprecated Build packs are no longer supported */
-  availableBuilds?: Maybe<Scalars['Int']['output']>;
   /** Billing information. Only visible to members with the ADMIN or OWNER role. */
   billing?: Maybe<Billing>;
   billingPeriod: BillingPeriod;
@@ -141,8 +137,6 @@ export type Account = {
   googleServiceAccountKeys: Array<GoogleServiceAccountKey>;
   /** Android credentials for account */
   googleServiceAccountKeysPaginated: AccountGoogleServiceAccountKeysConnection;
-  /** @deprecated No longer needed */
-  hasBuilds: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   isCurrent: Scalars['Boolean']['output'];
   isDisabled: Scalars['Boolean']['output'];
@@ -174,8 +168,6 @@ export type Account = {
   profileImageUrl: Scalars['String']['output'];
   pushSecurityEnabled: Scalars['Boolean']['output'];
   requireTwoFactor: Scalars['Boolean']['output'];
-  /** @deprecated Legacy access tokens are deprecated */
-  requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
   sentryInstallation?: Maybe<SentryInstallation>;
   /**
    * Snacks associated with this account
@@ -190,20 +182,11 @@ export type Account = {
   ssoConfiguration?: Maybe<AccountSsoConfiguration>;
   /** Subscription info visible to members that have VIEWER role */
   subscription?: Maybe<SubscriptionDetails>;
-  /** @deprecated No longer needed */
-  subscriptionChangesPending?: Maybe<Scalars['Boolean']['output']>;
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
-  /** @deprecated See isCurrent */
-  unlimitedBuilds: Scalars['Boolean']['output'];
   updatedAt: Scalars['DateTime']['output'];
   /** Account query object for querying EAS usage metrics */
   usageMetrics: AccountUsageMetrics;
-  /**
-   * Owning UserActor of this account if personal account
-   * @deprecated Deprecated in favor of ownerUserActor
-   */
-  userActorOwner?: Maybe<UserActor>;
   /** Pending user invitations for this account */
   userInvitations: Array<UserInvitation>;
   userSpecifiedAccountUsage?: Maybe<UserSpecifiedAccountUsage>;
@@ -218,8 +201,6 @@ export type Account = {
   viewerNotificationPreferences: Array<NotificationPreferenceItem>;
   /** Permission info for the viewer on this account */
   viewerUserPermission: UserPermission;
-  /** @deprecated Build packs are no longer supported */
-  willAutoRenewBuilds?: Maybe<Scalars['Boolean']['output']>;
 };
 
 
@@ -470,6 +451,7 @@ export type AccountGoogleServiceAccountKeysPaginatedArgs = {
 export type AccountMembersPaginatedArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   before?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<AccountMembersFilterInput>;
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   memberType?: InputMaybe<AccountMemberType>;
@@ -668,6 +650,18 @@ export type AccountMembersEdge = {
   __typename?: 'AccountMembersEdge';
   cursor: Scalars['String']['output'];
   node: UserPermission;
+};
+
+export type AccountMembersFilterInput = {
+  /**
+   * Filter members by 2FA status. Only regular users are returned when set, since SSO users
+   * and robots don't have 2FA. Requires admin permission on the account.
+   */
+  isSecondFactorAuthenticationEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Filter members by role. Only OWNER, ADMIN, DEVELOPER, and VIEW_ONLY are supported. */
+  role?: InputMaybe<Role>;
+  /** Case-insensitive substring match on username, email, and name */
+  searchTerm?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type AccountMutation = {
@@ -1047,20 +1041,6 @@ export type ActorExperimentMutationCreateOrUpdateActorExperimentArgs = {
   experiment: Experiment;
 };
 
-export type ActorQuery = {
-  __typename?: 'ActorQuery';
-  /**
-   * Query an Actor by ID
-   * @deprecated Public actor queries are no longer supported
-   */
-  byId: Actor;
-};
-
-
-export type ActorQueryByIdArgs = {
-  id: Scalars['ID']['input'];
-};
-
 export type AddonDetails = {
   __typename?: 'AddonDetails';
   id: Scalars['ID']['output'];
@@ -1069,15 +1049,6 @@ export type AddonDetails = {
   planId: Scalars['String']['output'];
   quantity?: Maybe<Scalars['Int']['output']>;
   willCancel?: Maybe<Scalars['Boolean']['output']>;
-};
-
-export type Address = {
-  __typename?: 'Address';
-  city?: Maybe<Scalars['String']['output']>;
-  country?: Maybe<Scalars['String']['output']>;
-  line1?: Maybe<Scalars['String']['output']>;
-  state?: Maybe<Scalars['String']['output']>;
-  zip?: Maybe<Scalars['String']['output']>;
 };
 
 export type AgentDeviceRunSessionRemoteConfig = {
@@ -1438,8 +1409,6 @@ export type AndroidSubmissionConfigInput = {
 /** Represents an Exponent App (or Experience in legacy terms) */
 export type App = Project & {
   __typename?: 'App';
-  /** @deprecated Legacy access tokens are deprecated */
-  accessTokens: Array<Maybe<AccessToken>>;
   /** Coalesced project activity for an app */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   /** Android app credentials for the project */
@@ -1458,11 +1427,6 @@ export type App = Project & {
   /** (EAS Build) Builds associated with this app */
   builds: Array<Build>;
   buildsPaginated: AppBuildsConnection;
-  /**
-   * Classic update release channel names that have at least one build
-   * @deprecated Classic updates have been deprecated.
-   */
-  buildsReleaseChannels: Array<Scalars['String']['output']>;
   channelsPaginated: AppChannelsConnection;
   convexProject?: Maybe<ConvexProject>;
   deployment?: Maybe<Deployment>;
@@ -1504,15 +1468,11 @@ export type App = Project & {
   internalDistributionBuildPrivacy: AppInternalDistributionBuildPrivacy;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
-  /** @deprecated Use lastDeletionAttemptTime !== null instead */
-  isDeleting: Scalars['Boolean']['output'];
   /**
    * Whether the latest classic update publish is using a deprecated SDK version
    * @deprecated Classic updates have been deprecated.
    */
   isDeprecated: Scalars['Boolean']['output'];
-  /** @deprecated 'likes' have been deprecated. */
-  isLikedByMe: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   /** @deprecated No longer supported */
   lastPublishedTime: Scalars['DateTime']['output'];
@@ -1521,23 +1481,12 @@ export type App = Project & {
   latestAppVersionByPlatformAndApplicationIdentifier?: Maybe<AppVersion>;
   /** @deprecated Classic updates have been deprecated. */
   latestReleaseForReleaseChannel?: Maybe<AppRelease>;
-  /**
-   * ID of latest classic update release
-   * @deprecated Classic updates have been deprecated.
-   */
-  latestReleaseId: Scalars['ID']['output'];
-  /** @deprecated 'likes' have been deprecated. */
-  likeCount: Scalars['Int']['output'];
-  /** @deprecated 'likes' have been deprecated. */
-  likedBy: Array<Maybe<User>>;
   logRocketProject?: Maybe<LogRocketProject>;
   name: Scalars['String']['output'];
   observe: AppObserve;
   ownerAccount: Account;
   /** @deprecated No longer supported */
   packageName: Scalars['String']['output'];
-  /** @deprecated No longer supported */
-  packageUsername: Scalars['String']['output'];
   /**
    * android.playStoreUrl field from most recent classic update manifest
    * @deprecated Classic updates have been deprecated.
@@ -1557,11 +1506,6 @@ export type App = Project & {
   /** App query field for querying details about an app's push notifications */
   pushNotifications: AppPushNotifications;
   pushSecurityEnabled: Scalars['Boolean']['output'];
-  /**
-   * Classic update release channel names (to be removed)
-   * @deprecated Classic updates have been deprecated.
-   */
-  releaseChannels: Array<Scalars['String']['output']>;
   /** @deprecated Legacy access tokens are deprecated */
   requiresAccessTokenForPushSecurity: Scalars['Boolean']['output'];
   resourceClassExperiment?: Maybe<ResourceClassExperiment>;
@@ -1581,8 +1525,6 @@ export type App = Project & {
   suggestedDevDomainName: Scalars['String']['output'];
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
-  /** @deprecated 'likes' have been deprecated. */
-  trendScore: Scalars['Float']['output'];
   turtleBrownfieldArtifactsPaginated: BrownfieldArtifactsConnection;
   /** get an EAS branch owned by the app by name */
   updateBranchByName?: Maybe<UpdateBranch>;
@@ -1607,8 +1549,6 @@ export type App = Project & {
   usageMetrics: AppUsageMetrics;
   /** @deprecated Use ownerAccount.name instead */
   username: Scalars['String']['output'];
-  /** @deprecated No longer supported */
-  users?: Maybe<Array<Maybe<User>>>;
   vexoApp?: Maybe<VexoApp>;
   /** Notification preferences of the viewer for this app */
   viewerNotificationPreferences: Array<NotificationPreferenceItem>;
@@ -1772,13 +1712,6 @@ export type AppLatestAppVersionByPlatformAndApplicationIdentifierArgs = {
 export type AppLatestReleaseForReleaseChannelArgs = {
   platform: AppPlatform;
   releaseChannel: Scalars['String']['input'];
-};
-
-
-/** Represents an Exponent App (or Experience in legacy terms) */
-export type AppLikedByArgs = {
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -2106,8 +2039,6 @@ export type AppFingerprintsConnection = {
 
 export type AppIcon = {
   __typename?: 'AppIcon';
-  /** @deprecated No longer supported */
-  colorPalette?: Maybe<Scalars['JSON']['output']>;
   originalUrl: Scalars['String']['output'];
   primaryColor?: Maybe<Scalars['String']['output']>;
   url: Scalars['String']['output'];
@@ -2155,8 +2086,6 @@ export type AppMutation = {
   __typename?: 'AppMutation';
   /** Create an app */
   createApp: App;
-  /** @deprecated No longer supported */
-  grantAccess?: Maybe<App>;
   /** Remove profile image (icon) for the app. Do nothing if there's no profile image associated. */
   removeProfileImage: App;
   /** Delete an App. Returns the ID of the background job receipt. Use BackgroundJobReceiptQuery to get the status of the job. */
@@ -2172,12 +2101,6 @@ export type AppMutation = {
 
 export type AppMutationCreateAppArgs = {
   appInput: AppInput;
-};
-
-
-export type AppMutationGrantAccessArgs = {
-  accessLevel?: InputMaybe<Scalars['String']['input']>;
-  toUser: Scalars['ID']['input'];
 };
 
 
@@ -4153,8 +4076,6 @@ export type Billing = {
   /** History of invoices */
   charges?: Maybe<Array<Maybe<Charge>>>;
   id: Scalars['ID']['output'];
-  /** @deprecated No longer used */
-  payment?: Maybe<PaymentDetails>;
   subscription?: Maybe<SubscriptionDetails>;
 };
 
@@ -4539,11 +4460,6 @@ export type BuildMutation = {
   deleteBuild: Build;
   /** Retry an Android EAS Build */
   retryAndroidBuild: Build;
-  /**
-   * Retry an EAS Build build
-   * @deprecated Use retryAndroidBuild and retryIosBuild instead
-   */
-  retryBuild: Build;
   /** Retry an iOS EAS Build */
   retryIosBuild: Build;
   /** Update metadata for EAS Build build */
@@ -4588,11 +4504,6 @@ export type BuildMutationDeleteBuildArgs = {
 export type BuildMutationRetryAndroidBuildArgs = {
   buildId: Scalars['ID']['input'];
   jobOverrides?: InputMaybe<AndroidJobOverridesInput>;
-};
-
-
-export type BuildMutationRetryBuildArgs = {
-  buildId: Scalars['ID']['input'];
 };
 
 
@@ -4792,15 +4703,6 @@ export enum BuildWorkflow {
   Unknown = 'UNKNOWN'
 }
 
-export type Card = {
-  __typename?: 'Card';
-  brand?: Maybe<Scalars['String']['output']>;
-  cardHolder?: Maybe<Scalars['String']['output']>;
-  expMonth?: Maybe<Scalars['Int']['output']>;
-  expYear?: Maybe<Scalars['Int']['output']>;
-  last4?: Maybe<Scalars['String']['output']>;
-};
-
 export type ChannelBuildOrEmbeddedUpdate = Build | EmbeddedUpdate;
 
 export type ChannelBuildOrEmbeddedUpdateEdge = {
@@ -4858,6 +4760,15 @@ export type Charge = {
   paid: Scalars['Boolean']['output'];
   receiptUrl?: Maybe<Scalars['String']['output']>;
   wasRefunded: Scalars['Boolean']['output'];
+};
+
+/** A human user's chat token usage over the trailing 30 days, with their fair-usage limit. */
+export type ChatTokenUsage = {
+  __typename?: 'ChatTokenUsage';
+  isLimitExceeded: Scalars['Boolean']['output'];
+  /** Null when the user's plan has no chat token limit. */
+  limitTokens?: Maybe<Scalars['Int']['output']>;
+  usedTokens: Scalars['Int']['output'];
 };
 
 export type CodeSigningInfo = {
@@ -6746,8 +6657,6 @@ export enum EnvironmentSecretType {
 
 export type EnvironmentVariable = {
   __typename?: 'EnvironmentVariable';
-  /** @deprecated Environment variables are automatically linked to all apps */
-  apps: Array<App>;
   createdAt: Scalars['DateTime']['output'];
   environments?: Maybe<Array<Scalars['EnvironmentVariableEnvironment']['output']>>;
   fileName?: Maybe<Scalars['String']['output']>;
@@ -7780,8 +7689,6 @@ export type InvoiceQueryPreviewInvoiceForSubscriptionUpdateArgs = {
 
 export type IosAppBuildCredentials = {
   __typename?: 'IosAppBuildCredentials';
-  /** @deprecated Get Apple Devices from AppleProvisioningProfile instead */
-  appleDevices?: Maybe<Array<Maybe<AppleDevice>>>;
   distributionCertificate?: Maybe<AppleDistributionCertificate>;
   id: Scalars['ID']['output'];
   iosAppCredentials: IosAppCredentials;
@@ -8054,8 +7961,6 @@ export type JobRun = {
   __typename?: 'JobRun';
   app: App;
   artifacts: Array<WorkflowArtifact>;
-  /** @deprecated No longer supported */
-  childJobRun?: Maybe<JobRun>;
   createdAt: Scalars['DateTime']['output'];
   displayName?: Maybe<Scalars['String']['output']>;
   endedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -8301,6 +8206,8 @@ export type MeMutation = {
   leaveAccount: LeaveAccountResult;
   /** Purge unfinished two-factor authentication setup for the current user if not fully-set-up */
   purgeUnfinishedSecondFactorAuthentication: SecondFactorBooleanResult;
+  /** Record chat token usage for the current user. */
+  recordChatTokenUsage: ChatTokenUsage;
   /** Regenerate backup codes for the current user */
   regenerateSecondFactorBackupCodes: SecondFactorRegenerateBackupCodesResult;
   /** Schedule deletion for Account created via createAccount */
@@ -8309,11 +8216,6 @@ export type MeMutation = {
   scheduleCurrentUserDeletion: BackgroundJobReceipt;
   /** Schedule deletion of a SSO user. Actor must be an owner on the SSO user's SSO account. */
   scheduleSSOUserDeletionAsSSOAccountOwner: BackgroundJobReceipt;
-  /**
-   * Send SMS OTP to a second factor device for use during device setup or during change confirmation
-   * @deprecated This method is no longer supported.
-   */
-  sendSMSOTPToSecondFactorDevice: SecondFactorBooleanResult;
   /**
    * Sets user preferences. This is a key-value store for user-specific settings. Provided values are
    * key-level merged with existing values.
@@ -8375,6 +8277,12 @@ export type MeMutationLeaveAccountArgs = {
 };
 
 
+export type MeMutationRecordChatTokenUsageArgs = {
+  inputTokens: Scalars['Int']['input'];
+  outputTokens: Scalars['Int']['input'];
+};
+
+
 export type MeMutationRegenerateSecondFactorBackupCodesArgs = {
   otp?: InputMaybe<Scalars['String']['input']>;
 };
@@ -8387,11 +8295,6 @@ export type MeMutationScheduleAccountDeletionArgs = {
 
 export type MeMutationScheduleSsoUserDeletionAsSsoAccountOwnerArgs = {
   ssoUserId: Scalars['ID']['input'];
-};
-
-
-export type MeMutationSendSmsotpToSecondFactorDeviceArgs = {
-  userSecondFactorDeviceId: Scalars['ID']['input'];
 };
 
 
@@ -8608,13 +8511,6 @@ export type PartnerActor = Actor & {
 /** Represents a partner-provisioned actor. */
 export type PartnerActorFeatureGatesArgs = {
   filter?: InputMaybe<Array<Scalars['String']['input']>>;
-};
-
-export type PaymentDetails = {
-  __typename?: 'PaymentDetails';
-  address?: Maybe<Address>;
-  card?: Maybe<Card>;
-  id: Scalars['ID']['output'];
 };
 
 export type PendingSentryInstallation = {
@@ -9189,11 +9085,6 @@ export type RootQuery = {
   /** Top-level query object for querying AccountSSOConfigurationPublicData */
   accountSSOConfigurationPublicData: AccountSsoConfigurationPublicDataQuery;
   /**
-   * Top-level query object for querying Actors.
-   * @deprecated Public actor queries are no longer supported
-   */
-  actor: ActorQuery;
-  /**
    * Public apps in the app directory
    * @deprecated Use 'all' field under 'app'.
    */
@@ -9291,11 +9182,6 @@ export type RootQuery = {
    * @deprecated Public user queries are no longer supported
    */
   user: UserQuery;
-  /**
-   * Top-level query object for querying UserActors.
-   * @deprecated Public user queries are no longer supported
-   */
-  userActor: UserActorQuery;
   /** Top-level query object for querying UserActorPublicData publicly. */
   userActorPublicData: UserActorPublicDataQuery;
   /** Top-level query object for querying User Audit Logs. */
@@ -9315,6 +9201,8 @@ export type RootQuery = {
    * query object
    */
   viewer?: Maybe<User>;
+  /** The current user's chat token usage and limit. */
+  viewerChatTokenUsage: ChatTokenUsage;
   /** Top-level query object for querying Webhooks. */
   webhook: WebhookQuery;
   workerDeployment: WorkerDeploymentQuery;
@@ -9471,8 +9359,6 @@ export type SsoUser = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated No longer supported */
-  appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published. If this user is the viewer, this field returns the apps the user has access to.
    * @deprecated Use Account.appsPaginated instead
@@ -9494,17 +9380,11 @@ export type SsoUser = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated No longer supported */
-  githubUsername?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  /** @deprecated No longer supported */
-  industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated No longer supported */
-  location?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
   pinnedDashboardViews: Array<PinnedDashboardView>;
   preferences: UserPreferences;
@@ -9515,8 +9395,6 @@ export type SsoUser = Actor & UserActor & {
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this account */
   snacks: Array<Snack>;
-  /** @deprecated No longer supported */
-  twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
@@ -10819,8 +10697,6 @@ export type User = Actor & UserActor & {
   /** Coalesced project activity for all apps belonging to all accounts this user belongs to. Only resolves for the viewer. */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated No longer supported */
-  appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published
    * @deprecated Use Account.appsPaginated instead
@@ -10844,14 +10720,10 @@ export type User = Actor & UserActor & {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated No longer supported */
-  githubUsername?: Maybe<Scalars['String']['output']>;
   hasPassword: Scalars['Boolean']['output'];
   /** Whether this user has any pending user invitations. Only resolves for the viewer. */
   hasPendingUserInvitations: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
-  /** @deprecated No longer supported */
-  industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
   /** @deprecated No longer supported */
   isLegacy: Scalars['Boolean']['output'];
@@ -10859,8 +10731,6 @@ export type User = Actor & UserActor & {
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated No longer supported */
-  location?: Maybe<Scalars['String']['output']>;
   newEmailPendingVerification?: Maybe<Scalars['String']['output']>;
   oAuthIdentities: Array<OAuthIdentity>;
   /** Registered passkey credentials */
@@ -10879,8 +10749,6 @@ export type User = Actor & UserActor & {
   secondFactorDevices: Array<UserSecondFactorDevice>;
   /** Snacks associated with this account */
   snacks: Array<Snack>;
-  /** @deprecated No longer supported */
-  twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
@@ -10934,8 +10802,6 @@ export type UserActor = {
    */
   activityTimelineProjectActivities: Array<ActivityTimelineProjectActivity>;
   appCount: Scalars['Int']['output'];
-  /** @deprecated No longer supported */
-  appetizeCode?: Maybe<Scalars['String']['output']>;
   /**
    * Apps this user has published
    * @deprecated Use Account.appsPaginated instead
@@ -10961,17 +10827,11 @@ export type UserActor = {
   fullName?: Maybe<Scalars['String']['output']>;
   /** GitHub account linked to a user */
   githubUser?: Maybe<GitHubUser>;
-  /** @deprecated No longer supported */
-  githubUsername?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  /** @deprecated No longer supported */
-  industry?: Maybe<Scalars['String']['output']>;
   isExpoAdmin: Scalars['Boolean']['output'];
   isStaffModeEnabled: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   lastName?: Maybe<Scalars['String']['output']>;
-  /** @deprecated No longer supported */
-  location?: Maybe<Scalars['String']['output']>;
   pinnedApps: Array<App>;
   preferences: UserPreferences;
   /** Associated accounts */
@@ -10981,8 +10841,6 @@ export type UserActor = {
   profilePhoto: Scalars['String']['output'];
   /** Snacks associated with this user's personal account */
   snacks: Array<Snack>;
-  /** @deprecated No longer supported */
-  twitterUsername?: Maybe<Scalars['String']['output']>;
   username: Scalars['String']['output'];
   websiteNotificationsPaginated: WebsiteNotificationsConnection;
 };
@@ -11057,30 +10915,6 @@ export type UserActorPublicDataQueryByUsernameArgs = {
   username: Scalars['String']['input'];
 };
 
-export type UserActorQuery = {
-  __typename?: 'UserActorQuery';
-  /**
-   * Query a UserActor by ID
-   * @deprecated Public user actor queries are no longer supported
-   */
-  byId: UserActor;
-  /**
-   * Query a UserActor by username
-   * @deprecated Public user actor queries are no longer supported
-   */
-  byUsername: UserActor;
-};
-
-
-export type UserActorQueryByIdArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
-export type UserActorQueryByUsernameArgs = {
-  username: Scalars['String']['input'];
-};
-
 export enum UserAgentBrowser {
   AndroidMobile = 'ANDROID_MOBILE',
   Chrome = 'CHROME',
@@ -11143,8 +10977,6 @@ export type UserAuditLog = {
   targetEntityMutationType: TargetEntityMutationType;
   targetEntityTypeName: UserEntityTypeName;
   targetEntityTypePublicName: Scalars['String']['output'];
-  /** @deprecated Use userActor instead */
-  user: User;
   userActor: UserActor;
   websiteMessage: Scalars['String']['output'];
 };
@@ -11257,11 +11089,6 @@ export type UserInvitation = {
   accountName: Scalars['String']['output'];
   /** The profile image URL of the account owner */
   accountProfileImageUrl: Scalars['String']['output'];
-  /**
-   * If the invite is for a personal team, the profile photo of account owner
-   * @deprecated Use accountProfileImageUrl
-   */
-  accountProfilePhoto?: Maybe<Scalars['String']['output']>;
   /** Whether the account requires two-factor authentication */
   accountRequiresTwoFactor: Scalars['Boolean']['output'];
   created: Scalars['DateTime']['output'];
@@ -11450,12 +11277,12 @@ export type UserPreferenceQueryGetArgs = {
 export type UserPreferences = {
   __typename?: 'UserPreferences';
   onboarding?: Maybe<UserPreferencesOnboarding>;
+  /** @deprecated Use userPreference.get(key: "selected-account-id") instead. */
   selectedAccountName?: Maybe<Scalars['String']['output']>;
 };
 
 export type UserPreferencesInput = {
   onboarding?: InputMaybe<UserPreferencesOnboardingInput>;
-  selectedAccountName?: InputMaybe<Scalars['String']['input']>;
 };
 
 /**
@@ -11492,20 +11319,10 @@ export type UserPreferencesOnboardingInput = {
 export type UserQuery = {
   __typename?: 'UserQuery';
   /**
-   * Query a User by ID
-   * @deprecated Public user queries are no longer supported
-   */
-  byId: User;
-  /**
    * Query a User by username
    * @deprecated Public user queries are no longer supported
    */
   byUsername: User;
-};
-
-
-export type UserQueryByIdArgs = {
-  userId: Scalars['ID']['input'];
 };
 
 
@@ -13820,13 +13637,6 @@ export type CreateAccountScopedUploadSessionMutationVariables = Exact<{
 
 export type CreateAccountScopedUploadSessionMutation = { __typename?: 'RootMutation', uploadSession: { __typename?: 'UploadSession', createAccountScopedUploadSession: any } };
 
-export type MarkCliDoneInOnboardingUserPreferencesMutationVariables = Exact<{
-  preferences: UserPreferencesInput;
-}>;
-
-
-export type MarkCliDoneInOnboardingUserPreferencesMutation = { __typename?: 'RootMutation', me: { __typename?: 'MeMutation', setPreferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, isCLIDone?: boolean | null } | null } } };
-
 export type CreateWebhookMutationVariables = Exact<{
   appId: Scalars['String']['input'];
   webhookInput: WebhookInput;
@@ -14168,7 +13978,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?: { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null } | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null } | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string } | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
@@ -14455,7 +14265,7 @@ export type UpdateByIdQuery = { __typename?: 'RootQuery', updates: { __typename?
 export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, preferences: { __typename?: 'UserPreferences', onboarding?: { __typename?: 'UserPreferencesOnboarding', appId: string, platform?: AppPlatform | null, deviceType?: OnboardingDeviceType | null, environment?: OnboardingEnvironment | null, isCLIDone?: boolean | null, lastUsed: string } | null }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
+export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?: { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'SSOUser', username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | { __typename: 'User', email: string, username: string, id: string, featureGates: any, isExpoAdmin: boolean, primaryAccount: { __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?: { __typename?: 'SSOUser', id: string, username: string } | { __typename?: 'User', id: string, username: string } | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor: { __typename?: 'PartnerActor', id: string } | { __typename?: 'Robot', id: string } | { __typename?: 'SSOUser', id: string } | { __typename?: 'User', id: string } }> }> } | null };
 
 export type WebhooksByAppIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Remove `eas onboarding` command (aliases `init:onboarding`, `project:onboarding`). ([#3993](https://github.com/expo/eas-cli/pull/3993) by [@byronkarlen](https://github.com/byronkarlen))
+
 ### 🎉 New features
 
 - [eas-cli] Improve `eas workflow:create`: add a `--template` flag, generate a placeholder workflow when a file name is passed, use shorter default file names (`build.yml`, `update.yml`, `deploy.yml`), configure EAS Build and EAS Update automatically when the chosen template requires them, set default app identifiers without prompting for the development build and deploy templates, install `expo-dev-client` during development build setup, and tighten the generated comments and next steps. ([#3943](https://github.com/expo/eas-cli/pull/3943) by [@jonsamp](https://github.com/jonsamp))
@@ -15,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Rethrow Apple errors during capability sync instead of silently succeeding. ([#3989](https://github.com/expo/eas-cli/pull/3989) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Skip embedded bundle upload for development client builds instead of warning that the bundle is missing. ([#3940](https://github.com/expo/eas-cli/pull/3940) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Accept a navigation metric name in observe:metrics when passed in on the command line. ([#3973](https://github.com/expo/eas-cli/pull/3973) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))
@@ -23,6 +26,10 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
 - Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Bump `jws` to a patched version in the root lockfile. ([#3978](https://github.com/expo/eas-cli/pull/3978) by [@szdziedzic](https://github.com/szdziedzic))
+- [worker] Bump `koa` to `3.1.2`. ([#3974](https://github.com/expo/eas-cli/pull/3974) by [@szdziedzic](https://github.com/szdziedzic))
+- [steps] Bump `cross-spawn` to a patched version in the TypeScript custom function fixture. ([#3977](https://github.com/expo/eas-cli/pull/3977) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-builder` to `1.2.1` to resolve [Dependabot alert 400](https://github.com/expo/eas-cli/security/dependabot/400). ([#3966](https://github.com/expo/eas-cli/pull/3966) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
