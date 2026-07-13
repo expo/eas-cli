@@ -63,7 +63,6 @@ describe(IntegrationsPostHogConnect, () => {
     featureGates: {},
     isExpoAdmin: false,
     primaryAccount: { id: testAccountId, name: testAccountName, ownerUserActor: null, users: [] },
-    preferences: { onboarding: null },
     accounts: [],
   };
 

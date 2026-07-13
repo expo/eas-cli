@@ -290,26 +290,6 @@
         "description": "An account is a container owning projects, credentials, billing and other organization\ndata and settings. Actors may own and be members of accounts.",
         "fields": [
           {
-            "name": "accessTokens",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "AccessToken",
-                  "ofType": null
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Legacy access tokens are deprecated"
-          },
-          {
             "name": "accountFeatureGates",
             "description": "Server account feature gate values for this account, optionally filtering by desired gates.",
             "args": [
@@ -1357,18 +1337,6 @@
             "deprecationReason": null
           },
           {
-            "name": "availableBuilds",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Build packs are no longer supported"
-          },
-          {
             "name": "billing",
             "description": "Billing information. Only visible to members with the ADMIN or OWNER role.",
             "args": [],
@@ -1844,22 +1812,6 @@
             "deprecationReason": null
           },
           {
-            "name": "hasBuilds",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer needed"
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -2001,6 +1953,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "filter",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "AccountMembersFilterInput",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -2205,22 +2169,6 @@
             "deprecationReason": null
           },
           {
-            "name": "requiresAccessTokenForPushSecurity",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Legacy access tokens are deprecated"
-          },
-          {
             "name": "sentryInstallation",
             "description": null,
             "args": [],
@@ -2403,18 +2351,6 @@
             "deprecationReason": null
           },
           {
-            "name": "subscriptionChangesPending",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer needed"
-          },
-          {
             "name": "timelineActivity",
             "description": "Coalesced project activity for an app using pagination",
             "args": [
@@ -2492,22 +2428,6 @@
             "deprecationReason": null
           },
           {
-            "name": "unlimitedBuilds",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "See isCurrent"
-          },
-          {
             "name": "updatedAt",
             "description": null,
             "args": [],
@@ -2538,18 +2458,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "userActorOwner",
-            "description": "Owning UserActor of this account if personal account",
-            "args": [],
-            "type": {
-              "kind": "INTERFACE",
-              "name": "UserActor",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Deprecated in favor of ownerUserActor"
           },
           {
             "name": "userInvitations",
@@ -2662,18 +2570,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "willAutoRenewBuilds",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Build packs are no longer supported"
           }
         ],
         "inputFields": null,
@@ -3779,6 +3675,53 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "AccountMembersFilterInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "isSecondFactorAuthenticationEnabled",
+            "description": "Filter members by 2FA status. Only regular users are returned when set, since SSO users\nand robots don't have 2FA. Requires admin permission on the account.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "role",
+            "description": "Filter members by role. Only OWNER, ADMIN, DEVELOPER, and VIEW_ONLY are supported.",
+            "type": {
+              "kind": "ENUM",
+              "name": "Role",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "searchTerm",
+            "description": "Case-insensitive substring match on username, email, and name",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -6352,50 +6295,6 @@
       },
       {
         "kind": "OBJECT",
-        "name": "ActorQuery",
-        "description": null,
-        "fields": [
-          {
-            "name": "byId",
-            "description": "Query an Actor by ID",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INTERFACE",
-                "name": "Actor",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public actor queries are no longer supported"
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
         "name": "AddonDetails",
         "description": null,
         "fields": [
@@ -6478,77 +6377,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "Boolean",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "Address",
-        "description": null,
-        "fields": [
-          {
-            "name": "city",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "country",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "line1",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "state",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "zip",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -9243,26 +9071,6 @@
         "description": "Represents an Exponent App (or Experience in legacy terms)",
         "fields": [
           {
-            "name": "accessTokens",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "AccessToken",
-                  "ofType": null
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Legacy access tokens are deprecated"
-          },
-          {
             "name": "activityTimelineProjectActivities",
             "description": "Coalesced project activity for an app",
             "args": [
@@ -9738,30 +9546,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "buildsReleaseChannels",
-            "description": "Classic update release channel names that have at least one build",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
           },
           {
             "name": "channelsPaginated",
@@ -10626,22 +10410,6 @@
             "deprecationReason": null
           },
           {
-            "name": "isDeleting",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use lastDeletionAttemptTime !== null instead"
-          },
-          {
             "name": "isDeprecated",
             "description": "Whether the latest classic update publish is using a deprecated SDK version",
             "args": [],
@@ -10656,22 +10424,6 @@
             },
             "isDeprecated": true,
             "deprecationReason": "Classic updates have been deprecated."
-          },
-          {
-            "name": "isLikedByMe",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "'likes' have been deprecated."
           },
           {
             "name": "lastDeletionAttemptTime",
@@ -10808,83 +10560,6 @@
             "deprecationReason": "Classic updates have been deprecated."
           },
           {
-            "name": "latestReleaseId",
-            "description": "ID of latest classic update release",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
-          },
-          {
-            "name": "likeCount",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Int",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "'likes' have been deprecated."
-          },
-          {
-            "name": "likedBy",
-            "description": null,
-            "args": [
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "User",
-                  "ofType": null
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "'likes' have been deprecated."
-          },
-          {
             "name": "logRocketProject",
             "description": null,
             "args": [],
@@ -10946,22 +10621,6 @@
           },
           {
             "name": "packageName",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
-            "name": "packageUsername",
             "description": null,
             "args": [],
             "type": {
@@ -11104,30 +10763,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "releaseChannels",
-            "description": "Classic update release channel names (to be removed)",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
           },
           {
             "name": "requiresAccessTokenForPushSecurity",
@@ -11524,22 +11159,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "trendScore",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Float",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "'likes' have been deprecated."
           },
           {
             "name": "turtleBrownfieldArtifactsPaginated",
@@ -12125,22 +11744,6 @@
             },
             "isDeprecated": true,
             "deprecationReason": "Use ownerAccount.name instead"
-          },
-          {
-            "name": "users",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "User",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "vexoApp",
@@ -13681,18 +13284,6 @@
         "description": null,
         "fields": [
           {
-            "name": "colorPalette",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "JSON",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "originalUrl",
             "description": null,
             "args": [],
@@ -14002,47 +13593,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "grantAccess",
-            "description": null,
-            "args": [
-              {
-                "name": "accessLevel",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "toUser",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "App",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "removeProfileImage",
@@ -28956,18 +28506,6 @@
             "deprecationReason": null
           },
           {
-            "name": "payment",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "PaymentDetails",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer used"
-          },
-          {
             "name": "subscription",
             "description": null,
             "args": [],
@@ -32480,39 +32018,6 @@
             "deprecationReason": null
           },
           {
-            "name": "retryBuild",
-            "description": "Retry an EAS Build build",
-            "args": [
-              {
-                "name": "buildId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "Build",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use retryAndroidBuild and retryIosBuild instead"
-          },
-          {
             "name": "retryIosBuild",
             "description": "Retry an iOS EAS Build",
             "args": [
@@ -33693,77 +33198,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "OBJECT",
-        "name": "Card",
-        "description": null,
-        "fields": [
-          {
-            "name": "brand",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "cardHolder",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "expMonth",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "expYear",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "last4",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
         "kind": "UNION",
         "name": "ChannelBuildOrEmbeddedUpdate",
         "description": null,
@@ -34217,6 +33651,61 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChatTokenUsage",
+        "description": "A human user's chat token usage over the trailing 30 days, with their fair-usage limit.",
+        "fields": [
+          {
+            "name": "isLimitExceeded",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "limitTokens",
+            "description": "Null when the user's plan has no chat token limit.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "usedTokens",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },
@@ -47269,30 +46758,6 @@
         "description": null,
         "fields": [
           {
-            "name": "apps",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "App",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Environment variables are automatically linked to all apps"
-          },
-          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -54679,22 +54144,6 @@
         "description": null,
         "fields": [
           {
-            "name": "appleDevices",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "AppleDevice",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Get Apple Devices from AppleProvisioningProfile instead"
-          },
-          {
             "name": "distributionCertificate",
             "description": null,
             "args": [],
@@ -56841,18 +56290,6 @@
             "deprecationReason": null
           },
           {
-            "name": "childJobRun",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "JobRun",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -58873,6 +58310,55 @@
             "deprecationReason": null
           },
           {
+            "name": "recordChatTokenUsage",
+            "description": "Record chat token usage for the current user.",
+            "args": [
+              {
+                "name": "inputTokens",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "outputTokens",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ChatTokenUsage",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "regenerateSecondFactorBackupCodes",
             "description": "Regenerate backup codes for the current user",
             "args": [
@@ -58982,39 +58468,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "sendSMSOTPToSecondFactorDevice",
-            "description": "Send SMS OTP to a second factor device for use during device setup or during change confirmation",
-            "args": [
-              {
-                "name": "userSecondFactorDeviceId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "SecondFactorBooleanResult",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "This method is no longer supported."
           },
           {
             "name": "setPreferences",
@@ -60650,57 +60103,6 @@
             "ofType": null
           }
         ],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "PaymentDetails",
-        "description": null,
-        "fields": [
-          {
-            "name": "address",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "Address",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "card",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "Card",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -64965,22 +64367,6 @@
             "deprecationReason": null
           },
           {
-            "name": "actor",
-            "description": "Top-level query object for querying Actors.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "ActorQuery",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public actor queries are no longer supported"
-          },
-          {
             "name": "allPublicApps",
             "description": "Public apps in the app directory",
             "args": [
@@ -65804,22 +65190,6 @@
             "deprecationReason": "Public user queries are no longer supported"
           },
           {
-            "name": "userActor",
-            "description": "Top-level query object for querying UserActors.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "UserActorQuery",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user queries are no longer supported"
-          },
-          {
             "name": "userActorPublicData",
             "description": "Top-level query object for querying UserActorPublicData publicly.",
             "args": [],
@@ -65965,6 +65335,22 @@
               "kind": "OBJECT",
               "name": "User",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "viewerChatTokenUsage",
+            "description": "The current user's chat token usage and limit.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "ChatTokenUsage",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -67035,18 +66421,6 @@
             "deprecationReason": null
           },
           {
-            "name": "appetizeCode",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "apps",
             "description": "Apps this user has published. If this user is the viewer, this field returns the apps the user has access to.",
             "args": [
@@ -67269,18 +66643,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -67295,18 +66657,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "industry",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "isExpoAdmin",
@@ -67363,18 +66713,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "location",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "pinnedApps",
@@ -67544,18 +66882,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "twitterUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "username",
@@ -76742,18 +76068,6 @@
             "deprecationReason": null
           },
           {
-            "name": "appetizeCode",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "apps",
             "description": "Apps this user has published",
             "args": [
@@ -77008,18 +76322,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "hasPassword",
             "description": null,
             "args": [],
@@ -77066,18 +76368,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "industry",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "isExpoAdmin",
@@ -77166,18 +76456,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "location",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "newEmailPendingVerification",
@@ -77457,18 +76735,6 @@
             "deprecationReason": null
           },
           {
-            "name": "twitterUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "username",
             "description": null,
             "args": [],
@@ -77709,18 +76975,6 @@
             "deprecationReason": null
           },
           {
-            "name": "appetizeCode",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "apps",
             "description": "Apps this user has published",
             "args": [
@@ -77943,18 +77197,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -77969,18 +77211,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "industry",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "isExpoAdmin",
@@ -78037,18 +77267,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "location",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "pinnedApps",
@@ -78194,18 +77412,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "twitterUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "username",
@@ -78504,83 +77710,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "UserActorQuery",
-        "description": null,
-        "fields": [
-          {
-            "name": "byId",
-            "description": "Query a UserActor by ID",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INTERFACE",
-                "name": "UserActor",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user actor queries are no longer supported"
-          },
-          {
-            "name": "byUsername",
-            "description": "Query a UserActor by username",
-            "args": [
-              {
-                "name": "username",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INTERFACE",
-                "name": "UserActor",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user actor queries are no longer supported"
           }
         ],
         "inputFields": null,
@@ -78990,22 +78119,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "user",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "User",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use userActor instead"
           },
           {
             "name": "userActor",
@@ -79813,18 +78926,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "accountProfilePhoto",
-            "description": "If the invite is for a personal team, the profile photo of account owner",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use accountProfileImageUrl"
           },
           {
             "name": "accountRequiresTwoFactor",
@@ -80956,8 +80057,8 @@
               "name": "String",
               "ofType": null
             },
-            "isDeprecated": false,
-            "deprecationReason": null
+            "isDeprecated": true,
+            "deprecationReason": "Use userPreference.get(key: \"selected-account-id\") instead."
           }
         ],
         "inputFields": null,
@@ -80977,18 +80078,6 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "UserPreferencesOnboardingInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "selectedAccountName",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -81187,39 +80276,6 @@
         "name": "UserQuery",
         "description": null,
         "fields": [
-          {
-            "name": "byId",
-            "description": "Query a User by ID",
-            "args": [
-              {
-                "name": "userId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "User",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user queries are no longer supported"
-          },
           {
             "name": "byUsername",
             "description": "Query a User by username",

@@ -293,6 +293,8 @@ export async function uploadRemoteSessionConfigAsync({
 }
 
 export type DetachedProcessHandle = {
+  /** PID of the directly spawned process, if the OS assigned one. */
+  pid: number | undefined;
   getOutput: () => string;
 };
 
@@ -325,7 +327,7 @@ export function spawnDetached({
   promise.child.stdout?.on('data', appendChunk);
   promise.child.stderr?.on('data', appendChunk);
 
-  return { getOutput: () => output };
+  return { pid: promise.child.pid, getOutput: () => output };
 }
 
 export async function startServeSimWithTunnelAsync(
