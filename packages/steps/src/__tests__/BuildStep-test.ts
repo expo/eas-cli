@@ -636,6 +636,9 @@ describe(BuildStep, () => {
       it('skips a later default-gated inner step when a required output is missing on an earlier one', async () => {
         const compositeFunctionScope = new BuildStepCompositeFunctionScope({
           ctx: baseStepCtx,
+          compositeFunctionPath: 'test-action',
+          inputs: new Map(),
+          providedInputKeys: new Set(),
           stepIdAliases: new Map(),
         });
 

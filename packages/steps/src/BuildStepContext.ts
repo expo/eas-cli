@@ -328,7 +328,7 @@ export interface SerializedBuildStepContext {
 
 export class BuildStepContext {
   public readonly logger: bunyan;
-  public readonly relativeWorkingDirectory?: string;
+  private _relativeWorkingDirectory?: string;
 
   constructor(
     private readonly ctx: BuildStepGlobalContext,
@@ -341,7 +341,15 @@ export class BuildStepContext {
     }
   ) {
     this.logger = logger ?? ctx.baseLogger;
-    this.relativeWorkingDirectory = relativeWorkingDirectory;
+    this._relativeWorkingDirectory = relativeWorkingDirectory;
+  }
+
+  public get relativeWorkingDirectory(): string | undefined {
+    return this._relativeWorkingDirectory;
+  }
+
+  public updateRelativeWorkingDirectory(value: string | undefined): void {
+    this._relativeWorkingDirectory = value;
   }
 
   public get global(): BuildStepGlobalContext {

@@ -1,0 +1,59 @@
+import { JobInterpolationContext } from '@expo/eas-build-job';
+import { instance, mock, when } from 'ts-mockito';
+
+import { createGlobalContextMock } from './utils/context';
+import { BuildStep } from '../BuildStep';
+import { BuildStepCompositeFunctionScope } from '../BuildStepCompositeFunctionScope';
+import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
+import { BuildStepOutput } from '../BuildStepOutput';
+import { interpolateJobContext } from '../interpolation';
+
+describe(BuildStepCompositeFunctionScope, () => {
+  const baseContext = {} as unknown as JobInterpolationContext;
+
+  function makeScope(): BuildStepCompositeFunctionScope {
+    const ctx = createGlobalContextMock();
+
+    // Aliases resolve against registered global steps, not base.
+    const versionOutput = mock<BuildStepOutput>();
+    when(versionOutput.id).thenReturn('version');
+    when(versionOutput.rawValue).thenReturn('1.0.0');
+    const innerStep = mock<BuildStep>();
+    when(innerStep.id).thenReturn('setup__build');
+    when(innerStep.outputs).thenReturn([instance(versionOutput)]);
+    ctx.registerStep(instance(innerStep));
+
+    const greeting = new BuildStepInput(ctx, {
+      id: 'greeting',
+      stepDisplayName: 'test-action',
+      required: false,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    });
+    greeting.set('hello');
+    return new BuildStepCompositeFunctionScope({
+      ctx,
+      compositeFunctionPath: 'test-action',
+      inputs: new Map([['greeting', greeting]]),
+      providedInputKeys: new Set(['greeting']),
+      stepIdAliases: new Map([['build', 'setup__build']]),
+    });
+  }
+
+  it('exposes declared inputs and composite-function-local step aliases in the interpolation context', () => {
+    const scope = makeScope();
+    const context = scope.getScopedInterpolationContext(baseContext);
+    expect(interpolateJobContext({ target: '${{ inputs.greeting }}', context })).toBe('hello');
+    expect(interpolateJobContext({ target: '${{ steps.build.outputs.version }}', context })).toBe(
+      '1.0.0'
+    );
+  });
+
+  it('returns undefined for references outside the composite function scope', () => {
+    const scope = makeScope();
+    const context = scope.getScopedInterpolationContext(baseContext);
+    expect(interpolateJobContext({ target: '${{ inputs.gretting }}', context })).toBeUndefined();
+    expect(
+      interpolateJobContext({ target: '${{ steps.checkout.outputs.sha }}', context })
+    ).toBeUndefined();
+  });
+});

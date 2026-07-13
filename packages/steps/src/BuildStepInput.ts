@@ -236,6 +236,25 @@ export class BuildStepInput<
   }
 }
 
+/** Raw allowed-values check; skips step/context refs that only resolve at runtime. */
+export function getDisallowedInputValueError(
+  input: BuildStepInput,
+  stepDisplayName: string
+): string | undefined {
+  if (input.rawValue === undefined) {
+    return undefined;
+  }
+  if (input.isRawValueStepOrContextReference() || input.isRawValueOneOfAllowedValues()) {
+    return undefined;
+  }
+  const rendered =
+    typeof input.rawValue === 'object' ? JSON.stringify(input.rawValue) : String(input.rawValue);
+  const allowedValues = (input.allowedValues ?? [])
+    .map(value => (typeof value === 'object' ? JSON.stringify(value) : `"${value}"`))
+    .join(', ');
+  return `Input parameter "${input.id}" for step "${stepDisplayName}" is set to "${rendered}" which is not one of the allowed values: ${allowedValues}.`;
+}
+
 export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
   if (inputs === undefined) {
     return {};
