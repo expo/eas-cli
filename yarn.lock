@@ -18967,9 +18967,9 @@ __metadata:
   linkType: hard
 
 "shell-quote@npm:^1.7.3":
-  version: 1.7.4
-  resolution: "shell-quote@npm:1.7.4"
-  checksum: 10c0/54a9f16eee9449879290b9ab082d380ff229b9176608879087d1c21c423ad0bf954fe02941963ee80cafce6e09d629ae5b209ac7061de22cf8e1b9b3edf3e694
+  version: 1.8.4
+  resolution: "shell-quote@npm:1.8.4"
+  checksum: 10c0/86c93678bc394cb81f5ddcdc87df9c95d279ef9652775cd1cd1eed361404169a8d8cbaacaeed232ab09919e36ee1e5363863570390d78571f8c22b7f6312fb40
   languageName: node
   linkType: hard
 
