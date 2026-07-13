@@ -53,6 +53,7 @@ import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
 import { createSetUpNpmrcBuildFunction } from './functions/useNpmToken';
+import { createWaitForPosthogMetricFunction } from './functions/waitForPosthogMetric';
 import { CustomBuildContext } from '../customBuildContext';
 
 export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
@@ -101,6 +102,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createSendSlackMessageFunction(),
     createCapturePosthogEventFunction(),
     createRolloutPosthogFlagFunction(),
+    createWaitForPosthogMetricFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
