@@ -143,6 +143,7 @@ eas --help COMMAND
 * [`eas observe:routes`](#eas-observeroutes)
 * [`eas observe:session SESSIONID`](#eas-observesession-sessionid)
 * [`eas observe:versions`](#eas-observeversions)
+* [`eas project:delete [NAME]`](#eas-projectdelete-name)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
@@ -442,8 +443,8 @@ USAGE
   $ eas browse [PAGE] [-n] [--json] [--non-interactive]
 
 ARGUMENTS
-  [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|
-          insights|observe|settings) Project subpage to open. Defaults to the project dashboard.
+  [PAGE]  (build|builds|submit|submissions|update|updates|workflow|workflows|cicd|hosting|deployments|credentials|env|in
+          sights|observe|settings) Project subpage to open. Defaults to the project dashboard.
 
 FLAGS
   -n, --no-browser       Print the URL instead of opening it in a web browser
@@ -2214,6 +2215,30 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/observe/versions.ts](https://github.com/expo/eas-cli/blob/v21.0.0/packages/eas-cli/src/commands/observe/versions.ts)_
+
+## `eas project:delete [NAME]`
+
+delete a project
+
+```
+USAGE
+  $ eas project:delete [NAME] [--dangerously-confirm-deletion <value>] [--json] [--non-interactive]
+
+ARGUMENTS
+  [NAME]  Full name (@account/slug) or ID of the project to delete. Defaults to the project in the current directory.
+
+FLAGS
+  --dangerously-confirm-deletion=<value>  The project's full name (@account/slug), to confirm deletion. Required in
+                                          non-interactive mode.
+  --json                                  Enable JSON output, non-JSON messages will be printed to stderr. Implies
+                                          --non-interactive.
+  --non-interactive                       Run the command in non-interactive mode.
+
+DESCRIPTION
+  delete a project
+```
+
+_See code: [packages/eas-cli/src/commands/project/delete.ts](https://github.com/expo/eas-cli/blob/v21.0.0/packages/eas-cli/src/commands/project/delete.ts)_
 
 ## `eas project:info`
 

@@ -1,3 +1,4 @@
+import { getConfigFilePaths } from '@expo/config';
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
@@ -64,12 +65,24 @@ export default class ProjectDelete extends EasCommand {
         ? await AppQuery.byIdAsync(graphqlClient, name)
         : await AppQuery.byFullNameAsync(graphqlClient, name);
     } else {
-      let projectId: string | undefined;
+      let projectDir: string | null = null;
       try {
-        const projectDir = await findProjectRootAsync();
-        const exp = await getPrivateExpoConfigAsync(projectDir);
-        projectId = exp.extra?.eas?.projectId;
-      } catch {}
+        projectDir = await findProjectRootAsync();
+      } catch {
+        // Not inside a project directory — handled by the error below.
+      }
+
+      let projectId: string | undefined;
+      if (projectDir) {
+        // Only read the config when one already exists: getPrivateExpoConfigAsync creates a
+        // fresh app.json as a side effect when the directory has none. Config errors (broken
+        // app.config.js, invalid app.json) propagate so they are not masked by the error below.
+        const configPaths = getConfigFilePaths(projectDir);
+        if (configPaths.staticConfigPath ?? configPaths.dynamicConfigPath) {
+          const exp = await getPrivateExpoConfigAsync(projectDir);
+          projectId = exp.extra?.eas?.projectId;
+        }
+      }
       if (!projectId) {
         throw new Error(
           "No EAS project found in the current directory. Pass the project's full name (@account/slug) or ID as an argument."

@@ -1,3 +1,5 @@
+import { getConfigFilePaths } from '@expo/config';
+
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { findProjectRootAsync } from '../../../commandUtils/context/contextUtils/findProjectDirAndVerifyProjectSetupAsync';
@@ -27,6 +29,7 @@ jest.mock('../../../prompts');
 jest.mock('../../../user/sudo');
 jest.mock('../../../commandUtils/context/contextUtils/findProjectDirAndVerifyProjectSetupAsync');
 jest.mock('../../../project/expoConfig');
+jest.mock('@expo/config');
 jest.mock('../../../log');
 jest.mock('../../../ora', () => ({
   ora: () => ({
@@ -58,6 +61,9 @@ describe(ProjectDelete, () => {
   function createCommand(argv: string[], { insideProjectDir = true } = {}): ProjectDelete {
     if (insideProjectDir) {
       jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
+      jest
+        .mocked(getConfigFilePaths)
+        .mockReturnValue({ staticConfigPath: '/app/app.json', dynamicConfigPath: null });
       jest
         .mocked(getPrivateExpoConfigAsync)
         .mockResolvedValue({ extra: { eas: { projectId: testProjectId } } } as never);
@@ -191,14 +197,37 @@ describe(ProjectDelete, () => {
   });
 
   it('throws when the current project has no EAS projectId configured, without offering to create one', async () => {
-    jest.mocked(findProjectRootAsync).mockResolvedValue('/app');
-    jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({} as never);
     const command = createCommand([]);
     jest.mocked(getPrivateExpoConfigAsync).mockResolvedValue({} as never);
 
     await expect(command.runAsync()).rejects.toThrow(
       /No EAS project found in the current directory/
     );
+
+    expect(AppMutation.scheduleAppDeletionAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not read or create an app config when the directory has none', async () => {
+    const command = createCommand([]);
+    jest
+      .mocked(getConfigFilePaths)
+      .mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+
+    await expect(command.runAsync()).rejects.toThrow(
+      /No EAS project found in the current directory/
+    );
+
+    expect(getPrivateExpoConfigAsync).not.toHaveBeenCalled();
+    expect(AppMutation.scheduleAppDeletionAsync).not.toHaveBeenCalled();
+  });
+
+  it('propagates app config errors instead of reporting no project found', async () => {
+    const command = createCommand([]);
+    jest
+      .mocked(getPrivateExpoConfigAsync)
+      .mockRejectedValue(new Error('Invalid app config.\n"name" is required'));
+
+    await expect(command.runAsync()).rejects.toThrow(/Invalid app config/);
 
     expect(AppMutation.scheduleAppDeletionAsync).not.toHaveBeenCalled();
   });
