@@ -1,6 +1,7 @@
 import { BuildFunction } from '@expo/steps';
 
 import { calculateEASUpdateRuntimeVersionFunction } from './functions/calculateEASUpdateRuntimeVersion';
+import { createCapturePosthogEventFunction } from './functions/capturePosthogEvent';
 import { createCheckoutBuildFunction } from './functions/checkout';
 import { configureAndroidVersionFunction } from './functions/configureAndroidVersion';
 import { configureEASUpdateIfInstalledFunction } from './functions/configureEASUpdateIfInstalled';
@@ -97,6 +98,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
 
     createInstallPodsBuildFunction(),
     createSendSlackMessageFunction(),
+    createCapturePosthogEventFunction(),
 
     calculateEASUpdateRuntimeVersionFunction(),
 
