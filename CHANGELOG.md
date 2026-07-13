@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Add `eas/posthog_wait_for_metric` workflow function to gate workflow runs on a PostHog metric. ([#3945](https://github.com/expo/eas-cli/pull/3945) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/posthog_upload_sourcemaps` workflow function to upload source maps to PostHog. ([#3947](https://github.com/expo/eas-cli/pull/3947) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/posthog_annotation` workflow function to create PostHog annotations from workflow runs. ([#3948](https://github.com/expo/eas-cli/pull/3948) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_wait_for_query` workflow function to gate workflow runs on a PostHog query. ([#3949](https://github.com/expo/eas-cli/pull/3949) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
