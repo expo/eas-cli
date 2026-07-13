@@ -64,7 +64,10 @@ export async function getSignedDeploymentUrlAsync(
     });
     // Retry creating the signed URL. The dev domain name was just assigned, so drop it from
     // the retry to skip the pre-checks (and their extra query) — it is known to be set now.
-    return await getSignedDeploymentUrlAsync(graphqlClient, { ...options, devDomainName: undefined });
+    return await getSignedDeploymentUrlAsync(graphqlClient, {
+      ...options,
+      devDomainName: undefined,
+    });
   }
 
   // The --dev-domain flag is applied when the server requires a preview URL to be assigned
