@@ -29,6 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [worker] Bump `koa` to `3.1.2`. ([#3974](https://github.com/expo/eas-cli/pull/3974) by [@szdziedzic](https://github.com/szdziedzic))
 - [steps] Bump `cross-spawn` to a patched version in the TypeScript custom function fixture. ([#3977](https://github.com/expo/eas-cli/pull/3977) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Bump `fast-xml-builder` to `1.2.1` to resolve [Dependabot alert 400](https://github.com/expo/eas-cli/security/dependabot/400). ([#3966](https://github.com/expo/eas-cli/pull/3966) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-parser` to `4.5.7` to resolve [Dependabot alert 286](https://github.com/expo/eas-cli/security/dependabot/286). ([#3960](https://github.com/expo/eas-cli/pull/3960) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
