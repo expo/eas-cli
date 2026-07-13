@@ -15,6 +15,8 @@ import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
+import { isProcessDescendantOfAsync } from '../../utils/processes';
+import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
   getDeviceRunSessionIdOrThrow,
@@ -26,19 +28,21 @@ import {
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
-  waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
-const ARGENT_STATE_FILE = path.join(os.homedir(), '.argent', 'tool-server.json');
+const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 const STARTUP_TIMEOUT_MS = 60_000;
 
 const ArgentToolServerStateSchema = z.object({
   port: z.number(),
+  pid: z.number(),
   token: z.string().optional(),
 });
+
+type ArgentToolServerState = z.infer<typeof ArgentToolServerStateSchema>;
 
 export function createStartArgentRemoteSessionBuildFunction(
   ctx: CustomBuildContext
@@ -76,8 +80,6 @@ export function createStartArgentRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
-      // Stale state from a previous run would mask the new server's port.
-      await fs.promises.rm(ARGENT_STATE_FILE, { force: true });
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
         'bunx',
@@ -86,6 +88,8 @@ export function createStartArgentRemoteSessionBuildFunction(
       );
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
+      // Keep Argent itself in foreground mode under the detached bunx process. This preserves
+      // the bunx -> Argent CLI -> tool-server ancestry used to identify the matching state file.
       const argentServer = spawnDetached({
         command: 'bunx',
         args: [
@@ -96,20 +100,24 @@ export function createStartArgentRemoteSessionBuildFunction(
           '0',
           '--idle-timeout',
           '0',
-          '--detach',
+          '--force',
         ],
         env,
       });
+      if (argentServer.pid === undefined) {
+        throw new SystemError(
+          'Failed to start Argent: could not determine the PID of the launched process.'
+        );
+      }
 
-      logger.info(`Waiting for argent tool-server state at ${ARGENT_STATE_FILE}.`);
+      logger.info(`Waiting for argent tool-server state in ${ARGENT_STATE_DIR}.`);
       let toolServerPort: number;
       let toolServerToken: string | undefined;
       try {
-        const toolServerState = await waitForFileAsync({
-          filePath: ARGENT_STATE_FILE,
+        const toolServerState = await waitForArgentToolServerStateAsync({
+          stateDir: ARGENT_STATE_DIR,
+          ancestorPid: argentServer.pid,
           timeoutMs: STARTUP_TIMEOUT_MS,
-          description: 'argent tool-server state',
-          parse: parseArgentToolServerState,
         });
         toolServerPort = toolServerState.port;
         toolServerToken = toolServerState.token;
@@ -219,12 +227,64 @@ export function warnIfArgentPackageVersionCannotBeVerified({
   }
 }
 
-function parseArgentToolServerState(raw: string): { port: number; token?: string } {
-  const result = ArgentToolServerStateSchema.safeParse(JSON.parse(raw));
+function parseArgentToolServerState(raw: string): ArgentToolServerState {
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch (err) {
+    throw new SystemError('Expected tool-server state to contain valid JSON.', { cause: err });
+  }
+  const result = ArgentToolServerStateSchema.safeParse(json);
   if (!result.success) {
     throw new SystemError(
-      `Expected tool-server state to contain { "port": <number>, ... }: ${result.error.message}`
+      `Expected tool-server state to contain { "port": <number>, "pid": <number>, ... }: ${result.error.message}`
     );
   }
   return result.data;
+}
+
+export async function waitForArgentToolServerStateAsync({
+  stateDir,
+  ancestorPid,
+  timeoutMs,
+  pollIntervalMs = 1_000,
+}: {
+  stateDir: string;
+  ancestorPid: number;
+  timeoutMs: number;
+  pollIntervalMs?: number;
+}): Promise<ArgentToolServerState> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+
+  while (Date.now() < deadline) {
+    try {
+      const stateFileNames = (await fs.promises.readdir(stateDir)).filter(
+        name => name.startsWith('tool-server') && name.endsWith('.json')
+      );
+      for (const stateFileName of stateFileNames) {
+        try {
+          const state = parseArgentToolServerState(
+            await fs.promises.readFile(path.join(stateDir, stateFileName), 'utf8')
+          );
+          if (await isProcessDescendantOfAsync(state.pid, ancestorPid)) {
+            return state;
+          }
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT' && !(err instanceof SystemError)) {
+            throw err;
+          }
+        }
+      }
+    } catch (err) {
+      lastError = err;
+    }
+    await sleepAsync(pollIntervalMs);
+  }
+
+  throw new SystemError(
+    `Timed out waiting for an argent tool-server state file belonging to process ${ancestorPid} in ${stateDir}${
+      lastError instanceof Error ? `: ${lastError.message}` : ''
+    }.`
+  );
 }

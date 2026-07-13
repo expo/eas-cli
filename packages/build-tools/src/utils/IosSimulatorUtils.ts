@@ -32,7 +32,11 @@ export namespace IosSimulatorUtils {
     lastBootedAt?: string;
   };
 
-  type SimulatorDevice = XcrunSimctlDevice & { runtime: string; displayName: string };
+  type SimulatorDevice = XcrunSimctlDevice & {
+    runtime: string;
+    runtimeDisplayName: string;
+    displayName: string;
+  };
 
   type XcrunSimctlListDevicesJsonOutput = {
     devices: {
@@ -60,6 +64,7 @@ export namespace IosSimulatorUtils {
         ...devices.map(device => ({
           ...device,
           runtime,
+          runtimeDisplayName: formatRuntimeDisplayName(runtime),
           displayName: `${device.name} (${device.udid}) on ${runtime}`,
         }))
       );
@@ -226,16 +231,32 @@ export namespace IosSimulatorUtils {
     udid: IosSimulatorUuid;
     env: NodeJS.ProcessEnv;
   }): Promise<void> {
-    await spawn(
-      'xcrun',
-      ['simctl', 'spawn', udid, 'launchctl', 'disable', 'system/com.apple.apsd'],
-      { env }
-    );
-    await spawn(
-      'xcrun',
-      ['simctl', 'spawn', udid, 'launchctl', 'bootout', 'system/com.apple.apsd'],
-      { env }
-    );
+    const launchctlDomains = ['user/foreground', 'system'];
+    let lastError: unknown;
+
+    for (const domain of launchctlDomains) {
+      const service = `${domain}/com.apple.apsd`;
+      try {
+        await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'disable', service], { env });
+
+        try {
+          await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'bootout', service], {
+            env,
+          });
+        } catch (err) {
+          // bootout can fail when apsd is already gone; verify the service state below.
+          lastError = err;
+        }
+
+        if (!(await isLaunchctlServiceLoadedAsync({ udid, env, serviceLabel: 'com.apple.apsd' }))) {
+          return;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError ?? new SystemError('Unable to disable apsd in the Simulator.');
   }
 
   export async function collectLogsAsync({
@@ -355,6 +376,31 @@ export namespace IosSimulatorUtils {
       // If ps command fails, assume no data migration processes are running
       return false;
     }
+  }
+}
+
+function formatRuntimeDisplayName(runtimeIdentifier: string): string {
+  const match = /^com\.apple\.CoreSimulator\.SimRuntime\.([^-]+)-(.+)$/.exec(runtimeIdentifier);
+  return match ? `${match[1]} ${match[2].replaceAll('-', '.')}` : runtimeIdentifier;
+}
+
+async function isLaunchctlServiceLoadedAsync({
+  udid,
+  env,
+  serviceLabel,
+}: {
+  udid: IosSimulatorUuid;
+  env: NodeJS.ProcessEnv;
+  serviceLabel: string;
+}): Promise<boolean> {
+  try {
+    await spawn('xcrun', ['simctl', 'spawn', udid, 'launchctl', 'list', serviceLabel], { env });
+    return true;
+  } catch (err) {
+    if (err instanceof Error && 'status' in err && (err as { status: unknown }).status === 113) {
+      return false;
+    }
+    throw err;
   }
 }
 
