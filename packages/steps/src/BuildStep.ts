@@ -1,12 +1,11 @@
-import { JobInterpolationContext } from '@expo/eas-build-job';
+import { HookAnchorId, JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
+import util from 'util';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
-// Type-only import to avoid a runtime module cycle (BuildFunction imports BuildStep).
-import type { BuildFunction } from './BuildFunction';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
@@ -137,9 +136,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly ifCondition?: string;
   public readonly timeoutMs?: number;
   public readonly __metricsId?: string;
-  // The function this step was created from, when it came from a `uses:` call
-  // or a function-group expansion. TS-only reference — never serialized.
-  public readonly sourceFunction?: BuildFunction;
+  public readonly __hookId?: HookAnchorId;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -167,7 +164,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       ifCondition,
       timeoutMs,
       __metricsId,
-      sourceFunction,
+      __hookId,
     }: {
       id: string;
       displayName: string;
@@ -182,7 +179,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       ifCondition?: string;
       timeoutMs?: number;
       __metricsId?: string;
-      sourceFunction?: BuildFunction;
+      __hookId?: HookAnchorId;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -202,7 +199,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.ifCondition = ifCondition;
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
-    this.sourceFunction = sourceFunction;
+    this.__hookId = __hookId;
     this.status = BuildStepStatus.NEW;
 
     const logger = ctx.baseLogger.child({
@@ -278,13 +275,21 @@ export class BuildStep extends BuildStepOutputAccessor {
       );
       this.status = BuildStepStatus.SUCCESS;
     } catch (err) {
-      this.ctx.logger.error({ err });
+      // Downstream error handling relies on real Errors; wrap non-Error
+      // throwables here, at the only step-execution boundary.
+      const error =
+        err instanceof Error
+          ? err
+          : new BuildStepRuntimeError(
+              `Build step "${this.displayName}" threw a non-Error value: ${util.inspect(err)}`
+            );
+      this.ctx.logger.error({ err: error });
       this.ctx.logger.error(
         { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.FAIL },
         `Build step "${this.displayName}" failed`
       );
       this.status = BuildStepStatus.FAIL;
-      throw err;
+      throw error;
     } finally {
       this.executed = true;
 
@@ -319,24 +324,22 @@ export class BuildStep extends BuildStepOutputAccessor {
       return !hasAnyPreviousStepFailed;
     }
 
-    return evaluateIfCondition(this.ifCondition, {
-      inputs:
-        this.inputs?.reduce(
-          (acc, input) => {
-            acc[input.id] = input.getValue({
-              interpolationContext: this.getInterpolationContext(),
-            });
-            return acc;
-          },
-          {} as Record<string, unknown>
-        ) ?? {},
-      eas: {
-        runtimePlatform: this.ctx.global.runtimePlatform,
-        ...this.ctx.global.staticContext,
+    return evaluateIfCondition(
+      this.ifCondition,
+      this.ctx.global.getIfConditionContext({
+        inputs:
+          this.inputs?.reduce(
+            (acc, input) => {
+              acc[input.id] = input.getValue({
+                interpolationContext: this.getInterpolationContext(),
+              });
+              return acc;
+            },
+            {} as Record<string, unknown>
+          ) ?? {},
         env: this.getScriptEnv(),
-      },
-      ...this.getInterpolationContext(),
-    });
+      })
+    );
   }
 
   public skip(): void {

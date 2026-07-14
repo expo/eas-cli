@@ -30,7 +30,7 @@ describe(CustomBuildContext, () => {
         workingdir: '',
       }
     );
-    const customContext = new CustomBuildContext(ctx, { world: 'steps' });
+    const customContext = new CustomBuildContext(ctx);
     expect(customContext.job.workflowInterpolationContext).toStrictEqual({
       foo: 'bar',
     });
@@ -81,7 +81,7 @@ describe(CustomBuildContext, () => {
           'expoApiV2BaseUrl' in overrides ? overrides.expoApiV2BaseUrl : expoApiV2BaseUrl,
       });
 
-      return new CustomBuildContext(ctx, { world: 'steps' });
+      return new CustomBuildContext(ctx);
     }
 
     beforeEach(() => {

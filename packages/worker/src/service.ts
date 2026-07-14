@@ -310,8 +310,7 @@ export default class BuildService {
       });
       await this.finishSuccess(artifacts);
     } catch (error: any) {
-      // A step may throw a falsy value; the engine propagates it faithfully.
-      const maybeArtifacts = (error?.artifacts as Artifacts | undefined) ?? null;
+      const maybeArtifacts = (error.artifacts as Artifacts | undefined) ?? null;
       const err =
         error instanceof errors.ExpoError
           ? error

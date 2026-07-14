@@ -105,18 +105,18 @@ describe(BuildFunction, () => {
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
     });
-    it('retains the originating function on created build steps', () => {
+    it('stamps the declared hook anchor on created build steps', () => {
       const ctx = createGlobalContextMock();
       const buildFunction = new BuildFunction({
         namespace: 'eas',
         id: 'install_node_modules',
         command: 'npm install',
+        __hookId: 'install_node_modules',
       });
       const step = buildFunction.createBuildStepFromFunctionCall(ctx, {
         workingDirectory: ctx.defaultWorkingDirectory,
       });
-      expect(step.sourceFunction).toBe(buildFunction);
-      expect(step.sourceFunction?.getFullId()).toBe('eas/install_node_modules');
+      expect(step.__hookId).toBe('install_node_modules');
     });
     it('passes the function metrics id to created build steps', () => {
       const ctx = createGlobalContextMock();

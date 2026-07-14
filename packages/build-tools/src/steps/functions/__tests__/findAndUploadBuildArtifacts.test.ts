@@ -22,7 +22,7 @@ describe(createFindAndUploadBuildArtifactsBuildFunction, () => {
     uploadArtifact: contextUploadArtifact,
     workingdir: '',
   });
-  const customContext = new CustomBuildContext(ctx, { world: 'steps' });
+  const customContext = new CustomBuildContext(ctx);
   const findAndUploadBuildArtifacts = createFindAndUploadBuildArtifactsBuildFunction(customContext);
 
   it('throws first error', async () => {

@@ -1,14 +1,13 @@
+import { HookAnchorId } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
+
 import { BuildFunctionById } from './BuildFunction';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { StepMetricResult } from './StepMetrics';
-import {
-  AnchorHooks,
-  executeHookStepsAsync,
-  logConditionEvaluationError,
-  skipHookEntries,
-} from './hooks';
+import { AnchorHooks, HookEntry } from './hooks';
+import { evaluateIfCondition } from './utils/jsepEval';
 
 export class BuildWorkflow {
   public readonly buildSteps: BuildStep[];
@@ -48,20 +47,18 @@ export class BuildWorkflow {
     const orderedSteps: BuildStep[] = [];
     for (const step of this.buildSteps) {
       const hooks = this.hooksByAnchorStep.get(step);
-      if (hooks !== undefined) {
-        orderedSteps.push(...hooks.before.flatMap(entry => entry.steps));
-      }
-      orderedSteps.push(step);
-      if (hooks !== undefined) {
-        orderedSteps.push(...hooks.after.flatMap(entry => entry.steps));
-      }
+      orderedSteps.push(
+        ...(hooks?.before ?? []).flatMap(entry => entry.steps),
+        step,
+        ...(hooks?.after ?? []).flatMap(entry => entry.steps)
+      );
     }
     return orderedSteps;
   }
 
   public async executeAsync(): Promise<void> {
-    // Failure is an explicit boolean pair, never the truthiness of the error
-    // value: `throw undefined` is legal JS and must fail the job too.
+    // Boolean, not error truthiness — gate-evaluation throws bypass
+    // BuildStep's non-Error normalization.
     let hasFailed = false;
     let firstError: unknown;
     const recordFailure = (err: unknown): void => {
@@ -69,13 +66,11 @@ export class BuildWorkflow {
         hasFailed = true;
         firstError = err;
       }
+      this.ctx.markAsFailed();
     };
 
     for (const step of this.buildSteps) {
       const hooks = this.hooksByAnchorStep.get(step);
-      // Captured BEFORE the gate: hooks of an anchor that runs past a
-      // pre-existing failure (via `always()`) must default-run too.
-      const baselineFailure = this.ctx.hasAnyPreviousStepFailed;
 
       // The anchor's gate is evaluated ONCE and decides for the whole
       // occurrence; an anchor's `if:` cannot see its before-hooks' outputs.
@@ -90,60 +85,51 @@ export class BuildWorkflow {
           step.ifCondition
         );
         recordFailure(err);
-        this.ctx.markAsFailed();
       }
 
       if (!shouldExecuteStep) {
         step.skip();
-        if (hooks !== undefined) {
-          skipHookEntries(hooks.before);
-          skipHookEntries(hooks.after);
+        for (const entry of [...(hooks?.before ?? []), ...(hooks?.after ?? [])]) {
+          for (const hookStep of entry.steps) {
+            hookStep.skip();
+          }
         }
         continue;
       }
 
-      if (hooks !== undefined) {
-        const before = await executeHookStepsAsync(this.ctx, hooks.before, {
-          anchor: hooks.anchor,
-          timing: 'before',
-          baselineFailure,
-        });
-        if (before.failedLocally) {
-          recordFailure(before.firstError);
-          step.skip();
-          skipHookEntries(hooks.after);
-          continue;
+      const before = await this.executeHookSideAsync(hooks, 'before');
+      if (before.failedLocally) {
+        recordFailure(before.firstError);
+        step.skip();
+        for (const entry of hooks?.after ?? []) {
+          for (const hookStep of entry.steps) {
+            hookStep.skip();
+          }
         }
+        continue;
       }
 
-      // LOCAL anchor outcome — distinct from the global failure flag, which
-      // may have been true all along when the anchor ran via `always()`.
+      // LOCAL outcome, not the global flag.
       let anchorFailed = false;
       const startTime = performance.now();
-      let stepResult: StepMetricResult;
+      let stepResult: StepMetricResult = 'success';
       try {
         await step.executeAsync();
-        stepResult = 'success';
       } catch (err: any) {
         stepResult = 'failed';
         anchorFailed = true;
         recordFailure(err);
-        this.ctx.markAsFailed();
       } finally {
-        this.ctx.collectStepMetric(step, stepResult!, performance.now() - startTime);
+        this.ctx.collectStepMetric(step, stepResult, performance.now() - startTime);
       }
 
-      if (hooks !== undefined) {
-        const after = await executeHookStepsAsync(this.ctx, hooks.after, {
-          anchor: hooks.anchor,
-          timing: 'after',
-          anchorResult: anchorFailed ? 'failed' : 'success',
-        });
-        // A green anchor with a failed after-hook fails the job; a failed
-        // anchor's error outranks the hook's.
-        if (after.failedLocally) {
-          recordFailure(after.firstError);
-        }
+      const after = await this.executeHookSideAsync(
+        hooks,
+        'after',
+        anchorFailed ? 'failed' : 'success'
+      );
+      if (after.failedLocally) {
+        recordFailure(after.firstError);
       }
     }
 
@@ -151,4 +137,154 @@ export class BuildWorkflow {
       throw firstError;
     }
   }
+
+  private async executeHookSideAsync(
+    hooks: AnchorHooks | undefined,
+    timing: 'before' | 'after',
+    anchorResult?: StepMetricResult
+  ): Promise<{ failedLocally: boolean; firstError: unknown }> {
+    if (hooks === undefined) {
+      return { failedLocally: false, firstError: undefined };
+    }
+    return await executeHookStepsAsync(this.ctx, hooks[timing], {
+      anchor: hooks.anchor,
+      timing,
+      anchorResult,
+    });
+  }
+}
+
+/**
+ * Executes hook entries around an anchor: the engine-public execution
+ * primitive. Catches condition-evaluation errors AND execution errors, marks
+ * global failure, preserves the FIRST local error, and reports ONE
+ * `WorkflowHookMetric` per executed hook side.
+ *
+ * Default-run rules (a step or entry with no `if:`):
+ * - `before`: runs unless a failure occurred within THIS hook sequence;
+ *   failures predating the call are ignored — "runs iff the anchor runs".
+ * - `after`: runs unconditionally — past the anchor's own failure AND past an
+ *   earlier after-entry's failure.
+ * A user `if:` is always evaluated against the real global context, so
+ * `failure()` / `success()` keep their global meaning on both sides.
+ */
+export async function executeHookStepsAsync(
+  ctx: BuildStepGlobalContext,
+  entries: HookEntry[],
+  options: {
+    anchor: HookAnchorId;
+    timing: 'before' | 'after';
+    /** The anchor's LOCAL outcome; set by the caller on after-timing calls. */
+    anchorResult?: StepMetricResult;
+  }
+): Promise<{ failedLocally: boolean; firstError: unknown }> {
+  let failedLocally = false;
+  let firstError: unknown;
+  const recordFailure = (err: unknown): void => {
+    if (!failedLocally) {
+      failedLocally = true;
+      firstError = err;
+    }
+    ctx.markAsFailed();
+  };
+
+  let anyStepExecuted = false;
+  for (const entry of entries) {
+    // Truthiness, not presence: an empty `if:` means "no condition", the same
+    // as BuildStep.shouldExecuteStep treats it.
+    const entryHasExplicitCondition = Boolean(entry.ifCondition);
+    if (entry.ifCondition) {
+      let entryEligible = false;
+      try {
+        entryEligible = evaluateIfCondition(
+          entry.ifCondition,
+          // A group entry has no step to hang the authored condition on, so
+          // its `if:` gets the shared context with no step inputs.
+          ctx.getIfConditionContext({ inputs: {}, env: ctx.env })
+        );
+      } catch (err) {
+        logConditionEvaluationError(
+          entry.steps[0]?.ctx.logger ?? ctx.baseLogger,
+          err,
+          'the hook group step',
+          entry.ifCondition
+        );
+        recordFailure(err);
+      }
+      if (!entryEligible) {
+        for (const step of entry.steps) {
+          step.skip();
+        }
+        continue;
+      }
+    }
+
+    let entryFailed = false;
+    for (const step of entry.steps) {
+      let shouldExecuteStep = false;
+      if (step.ifCondition) {
+        try {
+          shouldExecuteStep = step.shouldExecuteStep();
+        } catch (err) {
+          logConditionEvaluationError(
+            step.ctx.logger,
+            err,
+            `step "${step.displayName}"`,
+            step.ifCondition
+          );
+          recordFailure(err);
+          entryFailed = true;
+        }
+      } else {
+        // Before-side: a no-`if:` step runs unless this hook sequence has
+        // already failed. An entry whose explicit condition evaluated true
+        // behaves like a single step whose if: passed — the entry's no-`if:`
+        // steps ignore failures from EARLIER entries (only within-entry
+        // failures skip them).
+        shouldExecuteStep =
+          options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
+      }
+      if (!shouldExecuteStep) {
+        step.skip();
+        continue;
+      }
+      anyStepExecuted = true;
+      const startTime = performance.now();
+      let stepResult: StepMetricResult = 'success';
+      try {
+        await step.executeAsync();
+      } catch (err) {
+        stepResult = 'failed';
+        entryFailed = true;
+        recordFailure(err);
+      } finally {
+        ctx.collectStepMetric(step, stepResult, performance.now() - startTime);
+      }
+    }
+  }
+
+  if (anyStepExecuted) {
+    ctx.reportWorkflowHookMetric({
+      anchor: options.anchor,
+      timing: options.timing,
+      result: failedLocally ? 'failed' : 'success',
+      ...(options.anchorResult !== undefined ? { anchorResult: options.anchorResult } : null),
+    });
+  }
+
+  return { failedLocally, firstError };
+}
+
+// The one wording for an `if:` that could not be evaluated — anchor steps,
+// hook steps, and hook group entries all log through here.
+function logConditionEvaluationError(
+  logger: bunyan,
+  err: unknown,
+  subject: string,
+  ifCondition: string | undefined
+): void {
+  logger.error({ err });
+  logger.error(
+    `Runner failed to evaluate if it should execute ${subject}, using its if condition "${ifCondition}". This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
+  );
 }

@@ -16,10 +16,7 @@ export type BuildFunctionCallInputs = Record<string, unknown>;
 export function createBuildFunctionByIdMapping(
   buildFunctions: readonly BuildFunction[]
 ): BuildFunctionById {
-  // Null prototype: a function named like an Object prototype property
-  // ("toString", "constructor", ...) must neither read as a duplicate here nor
-  // resolve to an inherited value at lookup sites.
-  const buildFunctionById: BuildFunctionById = Object.create(null);
+  const buildFunctionById: BuildFunctionById = {};
   for (const buildFunction of buildFunctions) {
     const fullId = buildFunction.getFullId();
     // Without the fence, last-write-wins would let the provider's array order
@@ -163,7 +160,7 @@ export class BuildFunction {
       ifCondition,
       timeoutMs,
       __metricsId: this.__metricsId,
-      sourceFunction: this,
+      __hookId: this.__hookId,
     });
   }
 }

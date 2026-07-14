@@ -80,14 +80,10 @@ export class StepsConfigParser extends AbstractConfigParser {
       this.externalFunctionGroups ?? []
     );
 
-    // Constructs hook steps around anchor occurrences in the job's own steps,
-    // recorded in the map (see BuildWorkflow.hooksByAnchorStep). Only the
-    // job's own steps are scanned — steps constructed from hooks are never
-    // treated as anchors (no nesting). Unknown hook keys and unregistered
-    // stamp values are inert (a worker must never fail on anchors newer than
-    // itself). Construction order (before → anchor → after per occurrence;
-    // groups expand first) keeps generated step ids identical across the
-    // splicing→engine rollout.
+    // Only the job's own steps are scanned — steps constructed from hooks are
+    // never treated as anchors (no nesting). Construction order (before →
+    // anchor → after per occurrence; groups expand first) keeps generated
+    // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
 
@@ -96,14 +92,6 @@ export class StepsConfigParser extends AbstractConfigParser {
         ? buildFunctionGroupById[stepConfig.uses]
         : undefined;
       if (maybeFunctionGroup !== undefined) {
-        // The unregistered-stamp check runs FIRST: a future-anchor stamp from
-        // a newer server must render the step inert on this worker (no anchor,
-        // NO error) — skew safety outranks the group fence below.
-        if (stepConfig.__hook_id !== undefined && isHookAnchorId(stepConfig.__hook_id)) {
-          throw new BuildConfigError(
-            `A function group call ("${stepConfig.uses}") cannot carry the hook anchor stamp "${stepConfig.__hook_id}": the group call expands into its steps, so there is no single step to attach hooks to.`
-          );
-        }
         // The group expands FIRST (its internal steps get their ids), then the
         // anchors found among expanded steps get their hook steps constructed.
         // TODO: allow to set id, name, working_directory, shell, env and if
@@ -113,7 +101,7 @@ export class StepsConfigParser extends AbstractConfigParser {
         });
         buildSteps.push(...expandedSteps);
         for (const expandedStep of expandedSteps) {
-          const anchorId = expandedStep.sourceFunction?.__hookId;
+          const anchorId = expandedStep.__hookId;
           if (anchorId === undefined) {
             continue;
           }
@@ -135,8 +123,6 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
       this.encounteredHookAnchors.add(anchorId);
-      // Per anchor occurrence: before hook steps → the anchor step → after
-      // hook steps, exactly the id-generation order splicing produced.
       const maps = { buildFunctionById, buildFunctionGroupById };
       const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
       const anchorStep = this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById);
@@ -237,11 +223,6 @@ export class StepsConfigParser extends AbstractConfigParser {
     return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, maps);
   }
 
-  /**
-   * Warns about payload hook keys that never matched: unknown keys and keys
-   * whose anchor never occurred in this job's steps. Never throws — a worker
-   * must stay inert on anchors newer than itself.
-   */
   private warnAboutUnmatchedHookKeys(): void {
     for (const hookKey of Object.keys(this.hooks)) {
       const parsedHookKey = parseHookKey(hookKey);

@@ -59,9 +59,7 @@ describe('hook anchor self-declarations', () => {
     });
     const workflow = await parser.parseAsync();
 
-    const installStep = workflow.buildSteps.find(
-      step => step.sourceFunction?.getFullId() === 'eas/install_node_modules'
-    );
+    const installStep = workflow.buildSteps.find(step => step.__hookId === 'install_node_modules');
     expect(installStep).toBeDefined();
     const anchorHooks = workflow.hooksByAnchorStep.get(installStep!);
     expect(anchorHooks?.anchor).toBe('install_node_modules');

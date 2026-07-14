@@ -1,3 +1,5 @@
+import { HookAnchorId } from '@expo/eas-build-job';
+
 export type StepMetricResult = 'success' | 'failed';
 
 export type StepMetricInput = {
@@ -11,15 +13,14 @@ export type StepMetric = StepMetricInput & {
 };
 
 /**
- * One `eas.workflow.hook` event, reported per executed authored hook entry (a
- * `uses:` group hook is ONE event with the entry's aggregated result; skipped
- * hooks report nothing). `anchorResult` is set only on after-timing events and
- * reflects the anchor's LOCAL outcome, not the global failure flag.
+ * One event per executed hook side (skipped hooks report nothing). `result` is
+ * the hook's own outcome, aggregated across the side's entries; `anchorResult`
+ * is the wrapped anchor step's outcome — after-timing only, and LOCAL: an
+ * anchor running green past an earlier failure via `always()` is 'success'.
  */
 export type WorkflowHookMetric = {
-  anchor: string;
+  anchor: HookAnchorId;
   timing: 'before' | 'after';
-  kind: 'run' | 'uses';
   result: StepMetricResult;
   anchorResult?: StepMetricResult;
 };

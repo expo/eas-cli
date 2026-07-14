@@ -22,7 +22,7 @@ import { getEasFunctions } from '../steps/easFunctions';
 import { retryAsync } from '../utils/retry';
 
 export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<Artifacts> {
-  const customBuildCtx = new CustomBuildContext(ctx, { world: 'steps' });
+  const customBuildCtx = new CustomBuildContext(ctx);
 
   await ctx.runBuildPhase(BuildPhase.PREPARE_PROJECT, async () => {
     await retryAsync(
@@ -106,11 +106,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
       await customBuildCtx.drainPendingMetricUploads();
     }
   } catch (err: any) {
-    // A step may throw a falsy value (the engine deliberately propagates it);
-    // decorating it would raise a TypeError and replace the original error.
-    if (err !== null && typeof err === 'object') {
-      err.artifacts = ctx.artifacts;
-    }
+    err.artifacts = ctx.artifacts;
     throw err;
   }
 

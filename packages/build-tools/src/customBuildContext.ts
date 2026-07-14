@@ -69,12 +69,8 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   private _env: Env;
   private readonly expoApiV2BaseUrl?: string;
   private readonly pendingMetricUploads: Promise<void>[] = [];
-  // The `world` tag on hook metrics is a property of the context owner: the
-  // generic/custom steps runners pass 'steps'; the native hook runner (not
-  // yet landed) will pass 'native'. Never hard-coded at the emission site.
-  private readonly world: 'steps' | 'native';
 
-  constructor(buildCtx: BuildContext<TJob>, { world }: { world: 'steps' | 'native' }) {
+  constructor(buildCtx: BuildContext<TJob>) {
     this._env = buildCtx.env;
     this.job = buildCtx.job;
     this.metadata = buildCtx.metadata;
@@ -90,7 +86,6 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
     };
     this.expoApiV2BaseUrl = buildCtx.expoApiV2BaseUrl;
     this.startTime = new Date();
-    this.world = world;
   }
 
   public hasBuildJob(): this is CustomBuildContext<BuildJob> {
@@ -177,7 +172,7 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
   }
 
   public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
-    reportWorkflowHookMetricToDatadog(metric, { world: this.world });
+    reportWorkflowHookMetricToDatadog(metric);
   }
 
   public async drainPendingMetricUploads(): Promise<void> {

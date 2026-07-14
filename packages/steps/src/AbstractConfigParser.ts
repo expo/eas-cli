@@ -45,7 +45,7 @@ export abstract class AbstractConfigParser {
   protected abstract parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
     buildSteps: BuildStep[];
     buildFunctionById: BuildFunctionById;
-    hooksByAnchorStep?: ReadonlyMap<BuildStep, AnchorHooks>;
+    hooksByAnchorStep: ReadonlyMap<BuildStep, AnchorHooks>;
   }>;
 
   private validateExternalFunctions(externalFunctions?: BuildFunction[]): void {

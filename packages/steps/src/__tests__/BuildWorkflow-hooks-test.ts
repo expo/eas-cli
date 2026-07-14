@@ -5,12 +5,12 @@ import { Hooks, Step } from '@expo/eas-build-job';
 import { createGlobalContextMock } from './utils/context';
 import { BuildFunction } from '../BuildFunction';
 import { BuildFunctionGroup } from '../BuildFunctionGroup';
-import { BuildStep, BuildStepStatus } from '../BuildStep';
+import { BuildStepStatus } from '../BuildStep';
 import { BuildStepGlobalContext } from '../BuildStepContext';
 import { BuildWorkflow } from '../BuildWorkflow';
 import { StepsConfigParser } from '../StepsConfigParser';
 import { WorkflowHookMetric } from '../StepMetrics';
-import { executeHookStepsAsync } from '../hooks';
+import { BuildStepRuntimeError } from '../errors';
 
 describe('BuildWorkflow hook execution', () => {
   let ctx: BuildStepGlobalContext;
@@ -327,7 +327,7 @@ describe('BuildWorkflow hook execution', () => {
       expect(metrics).toEqual([]);
     });
 
-    it('a step throwing a falsy value now fails the job instead of being swallowed', async () => {
+    it('a step throwing a falsy value fails the job with a descriptive wrapped error', async () => {
       const workflow = await parseAsync({
         steps: [
           { uses: 'test/falsy-boom' },
@@ -348,11 +348,13 @@ describe('BuildWorkflow hook execution', () => {
           recordingFunction('cleanup'),
         ],
       });
-      await expect(workflow.executeAsync()).rejects.toBeUndefined();
+      const execution = workflow.executeAsync();
+      await expect(execution).rejects.toBeInstanceOf(BuildStepRuntimeError);
+      await expect(execution).rejects.toThrow('threw a non-Error value: undefined');
       expect(executionLog).toEqual(['falsy-boom', 'cleanup']);
     });
 
-    it('a falsy first error is not overwritten by a later truthy error', async () => {
+    it('the first failure wins even when it was a falsy throw', async () => {
       const workflow = await parseAsync({
         steps: [{ uses: 'test/falsy-boom' }, { uses: 'test/late-boom', if: '${{ always() }}' }],
         hooks: undefined,
@@ -371,9 +373,7 @@ describe('BuildWorkflow hook execution', () => {
           }),
         ],
       });
-      // The FIRST failure is the job's error, even when it is a falsy value —
-      // failure tracking guards on the boolean, never on error truthiness.
-      await expect(workflow.executeAsync()).rejects.toBeUndefined();
+      await expect(workflow.executeAsync()).rejects.toThrow('threw a non-Error value');
     });
   });
 
@@ -425,7 +425,7 @@ describe('BuildWorkflow hook execution', () => {
       }
     });
 
-    it('a group entry whose if: passes runs its children past an earlier entry failure', async () => {
+    it('a group entry whose if: passes runs its steps past an earlier entry failure', async () => {
       const { group, functions } = createGroup('group', ['child-one', 'child-two']);
       const workflow = await parseAsync({
         steps: [{ uses: 'eas/install_node_modules' }],
@@ -442,16 +442,17 @@ describe('BuildWorkflow hook execution', () => {
         ],
         externalFunctionGroups: [group],
       });
-      // Same rule as a single always() hook step: the entry passed its own
-      // gate, so its no-if children ignore the earlier entry's failure.
       await expect(workflow.executeAsync()).rejects.toThrow('before failed');
       expect(executionLog).toEqual(['failing-before', 'child-one', 'child-two']);
-      expect(metrics).toContainEqual({
-        anchor: 'install_node_modules',
-        timing: 'before',
-        kind: 'uses',
-        result: 'success',
-      });
+      // ONE event for the whole before side, with the side's aggregated
+      // result (the first entry failed); the skipped anchor reports nothing.
+      expect(metrics).toEqual([
+        {
+          anchor: 'install_node_modules',
+          timing: 'before',
+          result: 'failed',
+        },
+      ]);
     });
 
     it('an entry-level condition evaluation error fails the hook (and the job), not silently ignored', async () => {
@@ -473,7 +474,7 @@ describe('BuildWorkflow hook execution', () => {
   });
 
   describe('the eas.workflow.hook metric callback', () => {
-    it('reports one event per executed authored entry with anchor, timing, kind, and result', async () => {
+    it('reports one event per executed hook side with anchor, timing, and result', async () => {
       const workflow = await parseAsync({
         steps: [{ uses: 'eas/install_node_modules' }],
         hooks: {
@@ -487,13 +488,11 @@ describe('BuildWorkflow hook execution', () => {
         {
           anchor: 'install_node_modules',
           timing: 'before',
-          kind: 'run',
           result: 'success',
         },
         {
           anchor: 'install_node_modules',
           timing: 'after',
-          kind: 'uses',
           result: 'success',
           anchorResult: 'success',
         },
@@ -528,7 +527,6 @@ describe('BuildWorkflow hook execution', () => {
         {
           anchor: 'install_node_modules',
           timing: 'after',
-          kind: 'uses',
           result: 'success',
           anchorResult: 'failed',
         },
@@ -550,14 +548,13 @@ describe('BuildWorkflow hook execution', () => {
         {
           anchor: 'install_node_modules',
           timing: 'after',
-          kind: 'uses',
           result: 'success',
           anchorResult: 'success',
         },
       ]);
     });
 
-    it('a multi-child group hook entry reports exactly ONE event with the aggregated result', async () => {
+    it('a multi-child group hook reports exactly ONE event with the aggregated result', async () => {
       const failingChild = new BuildFunction({
         namespace: 'test',
         id: 'failing-child',
@@ -570,9 +567,8 @@ describe('BuildWorkflow hook execution', () => {
       const group = new BuildFunctionGroup({
         namespace: 'test',
         id: 'group',
-        // The failing child comes FIRST: after-side no-if children continue
-        // past sibling failures (the old gate ran spliced after-children
-        // unconditionally), so ok-child must still execute.
+        // The failing child comes FIRST: after-side no-`if:` steps continue
+        // past sibling failures, so ok-child must still execute.
         createBuildStepsFromFunctionGroupCall: globalCtx => [
           failingChild.createBuildStepFromFunctionCall(globalCtx),
           okChild.createBuildStepFromFunctionCall(globalCtx),
@@ -590,47 +586,10 @@ describe('BuildWorkflow hook execution', () => {
         {
           anchor: 'install_node_modules',
           timing: 'after',
-          kind: 'uses',
           result: 'failed',
           anchorResult: 'success',
         },
       ]);
-    });
-  });
-
-  describe('executeHookStepsAsync baselineFailure (the native-runner lever)', () => {
-    // The engine always passes the flag captured immediately before the gate,
-    // so in-engine the two are indistinguishable; the option exists for
-    // callers whose gate decision and hook execution are further apart.
-    function makeEntry(id: string): { steps: BuildStep[]; kind: 'uses' } {
-      return {
-        steps: [recordingFunction(id).createBuildStepFromFunctionCall(ctx)],
-        kind: 'uses',
-      };
-    }
-
-    it('baselineFailure: true lets no-if before entries run under a pre-existing failure', async () => {
-      ctx.markAsFailed();
-      const result = await executeHookStepsAsync(ctx, [makeEntry('hook')], {
-        anchor: 'install_node_modules',
-        timing: 'before',
-        baselineFailure: true,
-      });
-      expect(result.failedLocally).toBe(false);
-      expect(executionLog).toEqual(['hook']);
-    });
-
-    it('baselineFailure: false treats a pre-existing failure as new and skips no-if before entries', async () => {
-      ctx.markAsFailed();
-      const entry = makeEntry('hook');
-      const result = await executeHookStepsAsync(ctx, [entry], {
-        anchor: 'install_node_modules',
-        timing: 'before',
-        baselineFailure: false,
-      });
-      expect(result.failedLocally).toBe(false);
-      expect(executionLog).toEqual([]);
-      expect(entry.steps[0].status).toBe(BuildStepStatus.SKIPPED);
     });
   });
 

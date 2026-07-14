@@ -85,7 +85,7 @@ export function createCustomBuildContextMock(): CustomBuildContext {
     uploadArtifact: jest.fn(),
     workingdir: '',
   });
-  return new CustomBuildContext(ctx, { world: 'steps' });
+  return new CustomBuildContext(ctx);
 }
 
 export function createGlobalContextMock({

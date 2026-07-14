@@ -41,8 +41,6 @@ export interface ExternalBuildContextProvider {
   readonly env: BuildStepEnv;
   updateEnv(env: BuildStepEnv): void;
   reportStepMetric?(metric: StepMetric): void;
-  // The ONLY `eas.workflow.hook` emitter, called once per executed authored
-  // hook entry. The implementer owns the `world` tag (steps vs native).
   reportWorkflowHookMetric?(metric: WorkflowHookMetric): void;
 }
 
@@ -150,17 +148,42 @@ export class BuildStepGlobalContext {
     };
   }
 
+  /**
+   * One builder for both step-level and hook-entry-level `if:` contexts so
+   * the two cannot drift; the real differences (step inputs, step-level env
+   * overrides) ride in as parameters.
+   */
+  public getIfConditionContext({
+    inputs,
+    env,
+  }: {
+    inputs: Record<string, unknown>;
+    env: BuildStepEnv;
+  }): Record<string, unknown> {
+    return {
+      inputs,
+      eas: this.getEasContext(env),
+      ...this.getInterpolationContext(),
+      env,
+    };
+  }
+
+  // The one definition of the user-visible `eas.*` namespace shape.
+  private getEasContext(env: BuildStepEnv): Record<string, unknown> {
+    return {
+      runtimePlatform: this.runtimePlatform,
+      ...this.staticContext,
+      env,
+    };
+  }
+
   public interpolate<InterpolableType extends string | object>(
     value: InterpolableType
   ): InterpolableType {
     return interpolateWithGlobalContext(value, path => {
       return (
         getObjectValueForInterpolation(path, {
-          eas: {
-            runtimePlatform: this.runtimePlatform,
-            ...this.staticContext,
-            env: this.env,
-          },
+          eas: this.getEasContext(this.env),
         })?.toString() ?? ''
       );
     });
@@ -198,7 +221,12 @@ export class BuildStepGlobalContext {
   }
 
   public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
-    this.provider.reportWorkflowHookMetric?.(metric);
+    try {
+      this.provider.reportWorkflowHookMetric?.(metric);
+    } catch (err) {
+      // Telemetry must never fail the job or mask a step's error.
+      this.baseLogger.debug({ err }, 'Reporting the workflow hook metric failed');
+    }
   }
 
   public wasCheckedOut(): boolean {

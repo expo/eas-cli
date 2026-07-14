@@ -298,15 +298,6 @@ describe('constructHookEntriesAsync (public API)', () => {
       )
     ).rejects.toThrow('Hook steps are invalid.');
   });
-
-  it('does not treat Object prototype property names as duplicates', async () => {
-    const ctx = createGlobalContextMock();
-    await expect(
-      constructHookEntriesAsync(ctx, [{ uses: 'toString' }], {
-        externalFunctions: [new BuildFunction({ id: 'toString', command: 'echo x' })],
-      })
-    ).resolves.toHaveLength(1);
-  });
 });
 
 describe('StepsConfigParser stamp semantics', () => {
@@ -393,9 +384,12 @@ describe('StepsConfigParser hooks with function groups', () => {
       externalFunctions: [checkoutFunction, installFunction],
       externalFunctionGroups: [createGroup()],
     });
-    expect(
-      workflow.getExecutionOrderedSteps().map(step => step.sourceFunction?.getFullId() ?? step.id)
-    ).toEqual(['eas/checkout', 'before-hook', 'eas/install_node_modules', 'after-hook']);
+    expect(orderedDisplayNames(workflow)).toEqual([
+      'Checkout',
+      'before-hook',
+      'Install node modules',
+      'after-hook',
+    ]);
   });
 
   it('leaves group expansions without anchored functions untouched', async () => {
@@ -430,10 +424,9 @@ describe('StepsConfigParser hooks with function groups', () => {
     });
     const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
     expect(anchorHooks.after).toHaveLength(1);
-    expect(anchorHooks.after[0].kind).toBe('uses');
-    expect(anchorHooks.after[0].steps.map(step => step.sourceFunction?.getFullId())).toEqual([
-      'eas/checkout',
-      'eas/install_node_modules',
+    expect(anchorHooks.after[0].steps.map(step => step.displayName)).toEqual([
+      'Checkout',
+      'Install node modules',
     ]);
   });
 
@@ -466,18 +459,18 @@ describe('StepsConfigParser hooks with function groups', () => {
     }
   });
 
-  it('rejects a REGISTERED-stamped function group call (no execution boundary to hook onto)', async () => {
-    const error = await getErrorAsync<BuildConfigError>(async () => {
-      await parseWorkflowAsync({
-        ctx,
-        steps: [{ uses: 'test/group', __hook_id: 'submit' }],
-        hooks: {},
-        externalFunctions: [installFunction, checkoutFunction],
-        externalFunctionGroups: [createGroup()],
-      });
+  it('a REGISTERED stamp on a group call is inert like any other stamp on a group call', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'test/group', __hook_id: 'submit' }],
+      hooks: { before_submit: [{ run: 'echo never' }] },
+      externalFunctions: [installFunction, checkoutFunction],
+      externalFunctionGroups: [createGroup()],
     });
-    expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toMatch(/function group/);
+    // The group expands normally; the stamp never matches an anchor, so the
+    // submit hook stays unmatched (warned, not run).
+    expect(workflow.buildSteps).toHaveLength(2);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
   });
 
   it('treats an UNREGISTERED-stamped group call as an inert ordinary step (skew outranks the group fence)', async () => {
