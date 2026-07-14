@@ -88,8 +88,10 @@ export class BuildStepInput<
 
   public getValue({
     interpolationContext,
+    skipLegacyOutputInterpolation = false,
   }: {
     interpolationContext: JobInterpolationContext;
+    skipLegacyOutputInterpolation?: boolean;
   }): R extends true ? BuildStepInputValueType<T> : BuildStepInputValueType<T> | undefined {
     const rawValue = this._value ?? this.defaultValue;
     if (this.required && rawValue === undefined) {
@@ -124,10 +126,13 @@ export class BuildStepInput<
       // so this will never be true.
       assert(interpolatedValue !== undefined);
       const valueInterpolatedWithGlobalContext = this.ctx.interpolate(interpolatedValue);
-      const valueInterpolatedWithOutputsAndGlobalContext = interpolateWithOutputs(
-        valueInterpolatedWithGlobalContext,
-        path => this.ctx.getStepOutputValue(path) ?? ''
-      );
+      // Composite functions support only `${{ }}`; legacy `${ steps.* }` stays literal in composite-function-scoped inputs.
+      const valueInterpolatedWithOutputsAndGlobalContext = skipLegacyOutputInterpolation
+        ? valueInterpolatedWithGlobalContext
+        : interpolateWithOutputs(
+            valueInterpolatedWithGlobalContext,
+            path => this.ctx.getStepOutputValue(path) ?? ''
+          );
       returnValue = this.parseInputValueToAllowedType(valueInterpolatedWithOutputsAndGlobalContext);
     }
     return returnValue;

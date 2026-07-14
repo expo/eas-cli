@@ -15,9 +15,10 @@ import {
 } from './BuildFunctionGroup';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepOutput } from './BuildStepOutput';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
 import { BuildConfigError, BuildWorkflowError } from './errors';
+import { isCompositeFunctionPath } from './utils/localCompositeFunctions';
+import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 /**
  * One entry per AUTHORED hook step — the unit the user wrote. The wrapper
@@ -125,6 +126,11 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
+    if (isLocalCompositeFunctionPath(step.uses)) {
+      throw new BuildConfigError(
+        `Local composite function steps ("uses: ${step.uses}") are not supported in hooks.`
+      );
+    }
     const maybeFunctionGroup = buildFunctionGroupById[step.uses];
     if (maybeFunctionGroup !== undefined) {
       entries.push({
@@ -159,25 +165,11 @@ export function createBuildStepFromShellStep(
   ctx: BuildStepGlobalContext,
   step: ShellStep
 ): BuildStep {
-  const id = BuildStep.getNewId(step.id);
-  const displayName =
-    step.name ??
-    step.id ??
-    step.run
-      .split('\n')
-      .find(line => line.trim())
-      ?.trim() ??
-    step.run;
-  const outputs = step.outputs?.map(
-    entry =>
-      new BuildStepOutput(ctx, {
-        id: entry.name,
-        stepDisplayName: displayName,
-        required: entry.required ?? true,
-      })
-  );
+  const displayName = getShellStepDisplayName(step);
+  const outputs =
+    step.outputs && createBuildStepOutputsFromDefinition(ctx, step.outputs, displayName);
   return new BuildStep(ctx, {
-    id,
+    id: BuildStep.getNewId(step.id),
     displayName,
     outputs,
     workingDirectory: step.working_directory,
@@ -202,7 +194,7 @@ export function validateAllStepFunctionsExist(
 ): void {
   const calledFunctionsOrFunctionGroupsSet = new Set<string>();
   for (const step of steps) {
-    if (step.uses) {
+    if (step.uses && !isLocalCompositeFunctionPath(step.uses)) {
       calledFunctionsOrFunctionGroupsSet.add(step.uses);
     }
   }

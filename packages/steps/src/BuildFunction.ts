@@ -3,6 +3,7 @@ import assert from 'assert';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction } from './BuildStep';
+import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputProvider } from './BuildStepInput';
@@ -117,6 +118,8 @@ export class BuildFunction {
       shell,
       env,
       ifCondition,
+      compositeFunctionScope,
+      isCompositeFunctionInternal,
       timeoutMs,
     }: {
       id?: string;
@@ -126,6 +129,8 @@ export class BuildFunction {
       shell?: string;
       env?: BuildStepEnv;
       ifCondition?: string;
+      compositeFunctionScope?: BuildStepCompositeFunctionScope;
+      isCompositeFunctionInternal?: boolean;
       timeoutMs?: number;
     } = {}
   ): BuildStep {
@@ -158,6 +163,8 @@ export class BuildFunction {
       supportedRuntimePlatforms: this.supportedRuntimePlatforms,
       env,
       ifCondition,
+      compositeFunctionScope,
+      isCompositeFunctionInternal,
       timeoutMs,
       __metricsId: this.__metricsId,
       __hookId: this.__hookId,
