@@ -12387,7 +12387,9 @@ export type WorkflowJobApproval = {
   createdAt: Scalars['DateTime']['output'];
   decision: WorkflowJobReviewDecision;
   id: Scalars['ID']['output'];
+  reviewingActor?: Maybe<Actor>;
   updatedAt: Scalars['DateTime']['output'];
+  /** @deprecated Use reviewingActor instead */
   userActor?: Maybe<UserActor>;
   workflowJob: WorkflowJob;
 };
@@ -13324,6 +13326,13 @@ export type CreateAppMutationVariables = Exact<{
 
 
 export type CreateAppMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', createApp: { __typename?: 'App', id: string } } | null };
+
+export type ScheduleAppDeletionMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type ScheduleAppDeletionMutation = { __typename?: 'RootMutation', app?: { __typename?: 'AppMutation', scheduleAppDeletion: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } | null };
 
 export type CreateAppVersionMutationVariables = Exact<{
   appVersionInput: AppVersionInput;
