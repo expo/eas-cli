@@ -1,10 +1,18 @@
-import { BuildStep } from './BuildStep';
+import { JobInterpolationContext } from '@expo/eas-build-job';
+
+import { BuildStep, BuildStepFunction } from './BuildStep';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
+import { BuildStepOutput } from './BuildStepOutput';
+import {
+  resolveInterpolatedTarget,
+  stringifyInterpolatedResult,
+} from './utils/compositeFunctionInterpolation';
 
 /**
  * Parse-time node for one composite function call (`uses: ./...`).
- * Flattening contributes children (and this node only when it declares outputs).
+ * Flattening contributes children (and this node only when it declares outputs);
+ * when it runs, it resolves output templates onto the caller's step id.
  */
 export class CompositeBuildStep extends BuildStep {
   public readonly children: BuildStep[];
@@ -16,18 +24,41 @@ export class CompositeBuildStep extends BuildStep {
       displayName,
       scope,
       children,
+      outputTemplates,
     }: {
       id: string;
       displayName: string;
       scope: BuildStepCompositeFunctionScope;
       children: BuildStep[];
+      outputTemplates: Array<{ name: string; template: string }>;
     }
   ) {
+    const outputs = outputTemplates.map(
+      ({ name }) =>
+        new BuildStepOutput(ctx, {
+          id: name,
+          stepDisplayName: displayName,
+          required: true,
+        })
+    );
+    // Closes over locals only, never `this`: created before super() runs.
+    const fn: BuildStepFunction = (stepCtx, { outputs: outputById, env: stepEnv }) => {
+      const base: JobInterpolationContext = {
+        ...stepCtx.global.getInterpolationContext(),
+        env: stepEnv,
+      };
+      const scopedContext = scope.getScopedInterpolationContext(base);
+      for (const { name, template } of outputTemplates) {
+        outputById[name].set(
+          stringifyInterpolatedResult(resolveInterpolatedTarget(template, scopedContext))
+        );
+      }
+    };
     super(ctx, {
       id,
       displayName,
-      outputs: [],
-      fn: async () => {},
+      outputs,
+      fn,
       ifCondition: '${{ always() }}',
       compositeFunctionScope: scope,
     });
