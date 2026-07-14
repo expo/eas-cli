@@ -39,6 +39,7 @@ type ActionCall = {
   actionPath: string;
   /** Caller-assigned id used as prefix for all inner step ids and the action outputs step. */
   syntheticStepId: string;
+  /** Caller-provided input values, consumed when action inputs are interpolated. */
   callWith?: Record<string, unknown>;
   callIf?: string;
   parentScope?: BuildStepActionScope;
@@ -106,15 +107,15 @@ export class ActionExpander {
   }
 
   private guardAgainstRunawayRecursion(actionPath: string, visited: ReadonlySet<string>): void {
-    if (visited.size >= MAX_ACTION_NESTING_DEPTH) {
-      throw new BuildConfigError(
-        `Maximum action nesting depth (${MAX_ACTION_NESTING_DEPTH}) exceeded while expanding action "${actionPath}".`
-      );
-    }
     if (visited.has(actionPath)) {
       const cyclePath = [...visited, actionPath].join(' -> ');
       throw new BuildConfigError(
         `Detected a cycle while expanding actions: ${cyclePath}. An action cannot reference itself, directly or indirectly.`
+      );
+    }
+    if (visited.size >= MAX_ACTION_NESTING_DEPTH) {
+      throw new BuildConfigError(
+        `Maximum action nesting depth (${MAX_ACTION_NESTING_DEPTH}) exceeded while expanding action "${actionPath}".`
       );
     }
   }
@@ -148,19 +149,23 @@ export class ActionExpander {
 
     if (isStepFunctionStep(innerStep)) {
       if (isActionPath(innerStep.uses)) {
-        return this.expandNestedActionCall(
-          innerStep,
-          parseActionPath(innerStep.uses),
+        return this.expandNestedActionCall(innerStep, {
+          actionPath: parseActionPath(innerStep.uses),
           newId,
           overrides,
           scope,
-          nestedVisited
-        );
+          visited: nestedVisited,
+        });
       }
-      return this.createExpandedFunctionSteps(innerStep, newId, overrides, scope, actionPath);
+      return this.createExpandedFunctionSteps(innerStep, {
+        newId,
+        overrides,
+        scope,
+        actionPath: actionPath,
+      });
     }
     if (isStepShellStep(innerStep)) {
-      return [this.createExpandedShellStep(innerStep, newId, overrides, scope)];
+      return [this.createExpandedShellStep(innerStep, { newId, overrides, scope })];
     }
     throw new BuildConfigError(
       `Invalid step configuration in action "${actionPath}". Step must be a shell or function step.`
@@ -179,11 +184,19 @@ export class ActionExpander {
 
   private expandNestedActionCall(
     innerStep: FunctionStep,
-    actionPath: string,
-    newId: string,
-    overrides: StepOverrides,
-    scope: BuildStepActionScope,
-    visited: ReadonlySet<string>
+    {
+      actionPath,
+      newId,
+      overrides,
+      scope,
+      visited,
+    }: {
+      actionPath: string;
+      newId: string;
+      overrides: StepOverrides;
+      scope: BuildStepActionScope;
+      visited: ReadonlySet<string>;
+    }
   ): BuildStep[] {
     return this.expand(
       {
@@ -201,16 +214,22 @@ export class ActionExpander {
 
   private createExpandedShellStep(
     step: ShellStep,
-    id: string,
-    overrides: StepOverrides,
-    scope: BuildStepActionScope
+    {
+      newId,
+      overrides,
+      scope,
+    }: {
+      newId: string;
+      overrides: StepOverrides;
+      scope: BuildStepActionScope;
+    }
   ): BuildStep {
     const command = step.run;
     const displayName = getShellStepDisplayName(step);
     const outputs =
       step.outputs && createBuildStepOutputsFromDefinition(this.ctx, step.outputs, displayName);
     return new BuildStep(this.ctx, {
-      id,
+      id: newId,
       displayName,
       outputs,
       workingDirectory: overrides.workingDirectory,
@@ -225,10 +244,17 @@ export class ActionExpander {
 
   private createExpandedFunctionSteps(
     step: FunctionStep,
-    id: string,
-    overrides: StepOverrides,
-    scope: BuildStepActionScope,
-    actionPath: string
+    {
+      newId,
+      overrides,
+      scope,
+      actionPath,
+    }: {
+      newId: string;
+      overrides: StepOverrides;
+      scope: BuildStepActionScope;
+      actionPath: string;
+    }
   ): BuildStep[] {
     const functionId = step.uses;
     const { buildFunctionById, buildFunctionGroupById } = this.functionMaps;
@@ -250,7 +276,7 @@ export class ActionExpander {
 
     return [
       buildFunction.createBuildStepFromFunctionCall(this.ctx, {
-        id,
+        id: newId,
         name: step.name,
         callInputs,
         workingDirectory: overrides.workingDirectory,

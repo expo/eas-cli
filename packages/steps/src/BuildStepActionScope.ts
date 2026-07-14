@@ -15,8 +15,6 @@ export type EvaluateScopedIfCondition = (
   scope: BuildStepActionScope
 ) => boolean;
 
-// Runtime scope for one expanded action call. Overlays interpolation with a `steps` view keyed by
-// short (action-local) step ids.
 export class BuildStepActionScope {
   public readonly parent?: BuildStepActionScope;
   public readonly env?: BuildStepEnv;

@@ -1,6 +1,6 @@
-import assert from 'assert';
-
 import { ActionCatalog, ActionConfigZ, Step } from '@expo/eas-build-job';
+import assert from 'node:assert';
+
 import { createGlobalContextMock } from './utils/context';
 import { getErrorAsync } from './utils/error';
 import { BuildFunction } from '../BuildFunction';
@@ -8,8 +8,8 @@ import { BuildFunctionGroup } from '../BuildFunctionGroup';
 import { BuildStepStatus } from '../BuildStep';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
-import { StepsConfigParser } from '../StepsConfigParser';
 import { BuildWorkflow } from '../BuildWorkflow';
+import { StepsConfigParser } from '../StepsConfigParser';
 import { BuildConfigError, BuildWorkflowError } from '../errors';
 
 const SETUP = './.eas/actions/setup';

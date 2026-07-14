@@ -328,8 +328,9 @@ export class BuildStep extends BuildStepOutputAccessor {
     if (this.actionScope && !this.actionScope.isActive(evaluateScopeCondition)) {
       return false;
     }
-    // The action scope supplies `inputs`; plain function steps use their own step inputs.
-    const shouldEvaluateOwnStepInputs = !this.actionScope && this.ifCondition;
+    // For action-expanded steps, `inputs.*` references are resolved by action-input
+    // interpolation before runtime; only plain steps evaluate their own step inputs here.
+    const shouldEvaluateOwnStepInputs = !this.actionScope && this.ifCondition !== undefined;
     return this.evaluateIfCondition(this.ifCondition, {
       scope: this.actionScope,
       env: this.getScriptEnv(),
