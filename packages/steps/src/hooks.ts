@@ -18,6 +18,7 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepOutput } from './BuildStepOutput';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
 import { BuildConfigError, BuildWorkflowError } from './errors';
+import { isActionPath } from './utils/localActions';
 
 /**
  * One entry per AUTHORED hook step — the unit the user wrote. The wrapper
@@ -202,7 +203,7 @@ export function validateAllStepFunctionsExist(
 ): void {
   const calledFunctionsOrFunctionGroupsSet = new Set<string>();
   for (const step of steps) {
-    if (step.uses) {
+    if (step.uses && !isActionPath(step.uses)) {
       calledFunctionsOrFunctionGroupsSet.add(step.uses);
     }
   }

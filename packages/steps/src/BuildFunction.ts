@@ -3,6 +3,7 @@ import assert from 'assert';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction } from './BuildStep';
+import { BuildStepActionScope } from './BuildStepActionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputProvider } from './BuildStepInput';
@@ -117,6 +118,7 @@ export class BuildFunction {
       shell,
       env,
       ifCondition,
+      actionScope,
       timeoutMs,
     }: {
       id?: string;
@@ -126,6 +128,7 @@ export class BuildFunction {
       shell?: string;
       env?: BuildStepEnv;
       ifCondition?: string;
+      actionScope?: BuildStepActionScope;
       timeoutMs?: number;
     } = {}
   ): BuildStep {
@@ -158,6 +161,7 @@ export class BuildFunction {
       supportedRuntimePlatforms: this.supportedRuntimePlatforms,
       env,
       ifCondition,
+      actionScope,
       timeoutMs,
       __metricsId: this.__metricsId,
       __hookId: this.__hookId,

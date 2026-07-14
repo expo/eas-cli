@@ -88,8 +88,11 @@ export class BuildStepInput<
 
   public getValue({
     interpolationContext,
+    getStepOutputValue = path => this.ctx.getStepOutputValue(path) ?? '',
   }: {
     interpolationContext: JobInterpolationContext;
+    // Steps expanded from an action override this to resolve action-local step ids.
+    getStepOutputValue?: (path: string) => string;
   }): R extends true ? BuildStepInputValueType<T> : BuildStepInputValueType<T> | undefined {
     const rawValue = this._value ?? this.defaultValue;
     if (this.required && rawValue === undefined) {
@@ -126,7 +129,7 @@ export class BuildStepInput<
       const valueInterpolatedWithGlobalContext = this.ctx.interpolate(interpolatedValue);
       const valueInterpolatedWithOutputsAndGlobalContext = interpolateWithOutputs(
         valueInterpolatedWithGlobalContext,
-        path => this.ctx.getStepOutputValue(path) ?? ''
+        getStepOutputValue
       );
       returnValue = this.parseInputValueToAllowedType(valueInterpolatedWithOutputsAndGlobalContext);
     }

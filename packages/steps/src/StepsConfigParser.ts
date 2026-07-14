@@ -1,4 +1,5 @@
 import {
+  ActionCatalog,
   FunctionStep,
   HookAnchorId,
   Hooks,
@@ -12,6 +13,7 @@ import {
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
+import { ActionExpander, FunctionMaps } from './ActionExpander';
 import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
 import {
   BuildFunctionGroup,
@@ -28,10 +30,13 @@ import {
   createBuildStepFromShellStep,
   validateAllStepFunctionsExist,
 } from './hooks';
+import { isActionPath, parseActionPath } from './utils/localActions';
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
   private readonly hooks: Hooks;
+  /** Pre-loaded action configs keyed by normalized path (e.g. `./.eas/actions/setup`). */
+  private readonly actionCatalog: ActionCatalog;
   // Anchors present in the job's own steps, collected during construction.
   // Used to warn about payload hook keys whose anchor never occurred.
   private readonly encounteredHookAnchors = new Set<HookAnchorId>();
@@ -43,6 +48,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       hooks,
       externalFunctions,
       externalFunctionGroups,
+      actionCatalog,
     }: {
       steps: Step[];
       // Required (not `hooks?:`) so a call site cannot silently forget to pass
@@ -50,6 +56,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       hooks: Hooks | undefined;
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
+      actionCatalog?: ActionCatalog;
     }
   ) {
     super(ctx, {
@@ -59,6 +66,7 @@ export class StepsConfigParser extends AbstractConfigParser {
 
     this.steps = steps;
     this.hooks = hooks ?? {};
+    this.actionCatalog = actionCatalog ?? {};
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
@@ -88,9 +96,10 @@ export class StepsConfigParser extends AbstractConfigParser {
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
 
     for (const stepConfig of validatedSteps) {
-      const maybeFunctionGroup = isStepFunctionStep(stepConfig)
-        ? buildFunctionGroupById[stepConfig.uses]
-        : undefined;
+      const maybeFunctionGroup =
+        isStepFunctionStep(stepConfig) && !isActionPath(stepConfig.uses)
+          ? buildFunctionGroupById[stepConfig.uses]
+          : undefined;
       if (maybeFunctionGroup !== undefined) {
         // The group expands FIRST (its internal steps get their ids), then the
         // anchors found among expanded steps get their hook steps constructed.
@@ -117,15 +126,18 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
 
+      const maps = { buildFunctionById, buildFunctionGroupById };
       const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
       if (anchorId === undefined) {
-        buildSteps.push(this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById));
+        buildSteps.push(...this.createBuildStepsFromNonGroupStepConfig(stepConfig, maps));
         continue;
       }
-      this.encounteredHookAnchors.add(anchorId);
-      const maps = { buildFunctionById, buildFunctionGroupById };
-      const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
-      const anchorStep = this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById);
+      if (createdSteps.length !== 1) {
+        throw new BuildConfigError(
+          'Hook anchors are not supported on local action steps that expand into multiple build steps.'
+        );
+      }
+      const anchorStep = createdSteps[0];
       buildSteps.push(anchorStep);
       const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
       if (before.length > 0 || after.length > 0) {
@@ -240,36 +252,53 @@ export class StepsConfigParser extends AbstractConfigParser {
     }
   }
 
-  private createBuildStepFromNonGroupStepConfig(
+  private createBuildStepsFromNonGroupStepConfig(
     stepConfig: Step,
-    buildFunctionById: BuildFunctionById
-  ): BuildStep {
+    { buildFunctionById, buildFunctionGroupById }: FunctionMaps
+  ): BuildStep[] {
     if (isStepShellStep(stepConfig)) {
-      return createBuildStepFromShellStep(this.ctx, stepConfig);
-    } else if (isStepFunctionStep(stepConfig)) {
-      return this.createBuildStepFromFunctionStepConfig(stepConfig, buildFunctionById);
-    } else {
-      throw new BuildConfigError(
-        'Invalid job step configuration detected. Step must be shell or function step'
-      );
+      return [createBuildStepFromShellStep(this.ctx, stepConfig)];
     }
+    if (isStepFunctionStep(stepConfig)) {
+      return this.createBuildStepsFromFunctionStepConfig(stepConfig, {
+        buildFunctionById,
+        buildFunctionGroupById,
+      });
+    }
+    throw new BuildConfigError(
+      'Invalid job step configuration detected. Step must be shell or function step'
+    );
   }
 
-  private createBuildStepFromFunctionStepConfig(
+  private createBuildStepsFromFunctionStepConfig(
     step: FunctionStep,
-    buildFunctionById: BuildFunctionById
-  ): BuildStep {
+    { buildFunctionById, buildFunctionGroupById }: FunctionMaps
+  ): BuildStep[] {
+    if (isActionPath(step.uses)) {
+      const expander = new ActionExpander(this.ctx, this.actionCatalog, {
+        buildFunctionById,
+        buildFunctionGroupById,
+      });
+      return expander.expandActionStep(
+        step,
+        parseActionPath(step.uses),
+        BuildStep.getNewId(step.id)
+      );
+    }
+
     const buildFunction = buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
 
-    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
-      id: step.id,
-      name: step.name,
-      callInputs: step.with,
-      workingDirectory: step.working_directory,
-      shell: step.shell,
-      env: step.env,
-      ifCondition: step.if,
-    });
+    return [
+      buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+        id: step.id,
+        name: step.name,
+        callInputs: step.with,
+        workingDirectory: step.working_directory,
+        shell: step.shell,
+        env: step.env,
+        ifCondition: step.if,
+      }),
+    ];
   }
 }

@@ -1,11 +1,11 @@
-import { HookAnchorId, JobInterpolationContext } from '@expo/eas-build-job';
+import { JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
-import util from 'util';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { BuildStepActionScope, EvaluateScopedIfCondition } from './BuildStepActionScope';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
@@ -23,11 +23,11 @@ import {
 } from './BuildTemporaryFiles';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
-import { evaluateIfCondition } from './utils/jsepEval';
+import { jsepEval } from './utils/jsepEval';
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
-import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
+import { interpolateWithInputs, interpolateWithOutputs, parseOutputPath } from './utils/template';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -134,9 +134,9 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly ctx: BuildStepContext;
   public readonly stepEnvOverrides: BuildStepEnv;
   public readonly ifCondition?: string;
+  public readonly actionScope?: BuildStepActionScope;
   public readonly timeoutMs?: number;
   public readonly __metricsId?: string;
-  public readonly __hookId?: HookAnchorId;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -162,9 +162,9 @@ export class BuildStep extends BuildStepOutputAccessor {
       supportedRuntimePlatforms: maybeSupportedRuntimePlatforms,
       env,
       ifCondition,
+      actionScope,
       timeoutMs,
       __metricsId,
-      __hookId,
     }: {
       id: string;
       displayName: string;
@@ -177,9 +177,9 @@ export class BuildStep extends BuildStepOutputAccessor {
       supportedRuntimePlatforms?: BuildRuntimePlatform[];
       env?: BuildStepEnv;
       ifCondition?: string;
+      actionScope?: BuildStepActionScope;
       timeoutMs?: number;
       __metricsId?: string;
-      __hookId?: HookAnchorId;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -197,9 +197,9 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.command = command;
     this.shell = shell ?? '/bin/bash -eo pipefail';
     this.ifCondition = ifCondition;
+    this.actionScope = actionScope;
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
-    this.__hookId = __hookId;
     this.status = BuildStepStatus.NEW;
 
     const logger = ctx.baseLogger.child({
@@ -275,21 +275,13 @@ export class BuildStep extends BuildStepOutputAccessor {
       );
       this.status = BuildStepStatus.SUCCESS;
     } catch (err) {
-      // Downstream error handling relies on real Errors; wrap non-Error
-      // throwables here, at the only step-execution boundary.
-      const error =
-        err instanceof Error
-          ? err
-          : new BuildStepRuntimeError(
-              `Build step "${this.displayName}" threw a non-Error value: ${util.inspect(err)}`
-            );
-      this.ctx.logger.error({ err: error });
+      this.ctx.logger.error({ err });
       this.ctx.logger.error(
         { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.FAIL },
         `Build step "${this.displayName}" failed`
       );
       this.status = BuildStepStatus.FAIL;
-      throw error;
+      throw normalizeStepExecutionError(err);
     } finally {
       this.executed = true;
 
@@ -310,6 +302,10 @@ export class BuildStep extends BuildStepOutputAccessor {
     }
   }
 
+  public markScopeAsFailed(): void {
+    this.actionScope?.markStepFailed();
+  }
+
   public canBeRunOnRuntimePlatform(): boolean {
     return (
       !this.supportedRuntimePlatforms ||
@@ -318,35 +314,94 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   public shouldExecuteStep(): boolean {
-    const hasAnyPreviousStepFailed = this.ctx.global.hasAnyPreviousStepFailed;
+    // An action call's `if` is evaluated at the call site (caller env/inputs/steps), not inside
+    // the expanded inner steps.
+    const evaluateScopeCondition: EvaluateScopedIfCondition = (ifCondition, scope) => {
+      const callerScope = scope.parent;
+      return this.evaluateIfCondition(ifCondition, {
+        scope: callerScope,
+        env: { ...this.ctx.global.env, ...scope.env },
+        inputs: {},
+      });
+    };
 
-    if (!this.ifCondition) {
-      return !hasAnyPreviousStepFailed;
+    if (this.actionScope && !this.actionScope.isActive(evaluateScopeCondition)) {
+      return false;
+    }
+    // The action scope supplies `inputs`; plain function steps use their own step inputs.
+    const shouldEvaluateOwnStepInputs = !this.actionScope && this.ifCondition;
+    return this.evaluateIfCondition(this.ifCondition, {
+      scope: this.actionScope,
+      env: this.getScriptEnv(),
+      inputs: shouldEvaluateOwnStepInputs ? this.evaluateOwnStepInputs() : {},
+    });
+  }
+
+  private evaluateOwnStepInputs(): Record<string, unknown> {
+    return (
+      this.inputs?.reduce(
+        (acc, input) => {
+          acc[input.id] = input.getValue({
+            interpolationContext: this.getInterpolationContext(),
+            getStepOutputValue: path => this.getLegacyStepOutputValue(path),
+          });
+          return acc;
+        },
+        {} as Record<string, unknown>
+      ) ?? {}
+    );
+  }
+
+  private evaluateIfCondition(
+    maybeIfCondition: string | undefined,
+    {
+      scope,
+      env,
+      inputs,
+    }: {
+      scope: BuildStepActionScope | undefined;
+      env: BuildStepEnv;
+      inputs: Record<string, unknown>;
+    }
+  ): boolean {
+    const failureContext = this.getFailureInterpolationContext(scope);
+
+    if (!maybeIfCondition) {
+      return failureContext.success();
     }
 
-    return evaluateIfCondition(
-      this.ifCondition,
-      this.ctx.global.getIfConditionContext({
-        inputs:
-          this.inputs?.reduce(
-            (acc, input) => {
-              acc[input.id] = input.getValue({
-                interpolationContext: this.getInterpolationContext(),
-              });
-              return acc;
-            },
-            {} as Record<string, unknown>
-          ) ?? {},
-        env: this.getScriptEnv(),
-      })
-    );
+    let ifCondition = maybeIfCondition;
+
+    if (ifCondition.startsWith('${{') && ifCondition.endsWith('}}')) {
+      ifCondition = ifCondition.slice(3, -2);
+    } else if (ifCondition.startsWith('${') && ifCondition.endsWith('}')) {
+      ifCondition = ifCondition.slice(2, -1);
+    }
+
+    const baseContext = {
+      inputs,
+      eas: {
+        runtimePlatform: this.ctx.global.runtimePlatform,
+        ...this.ctx.global.staticContext,
+        env,
+      },
+      ...this.ctx.global.getInterpolationContext(),
+      env,
+      ...failureContext,
+    };
+    // Overlay the scope last so `inputs`/`steps` come from the action while `eas.*` stays global.
+    const context: JobInterpolationContext = scope
+      ? scope.getScopedInterpolationContext(baseContext)
+      : baseContext;
+
+    return Boolean(jsepEval(ifCondition, context));
   }
 
   public skip(): void {
     this.status = BuildStepStatus.SKIPPED;
     this.ctx.logger.info(
       { marker: BuildStepLogMarker.START_STEP },
-      'Executing build step "${this.displayName}"'
+      `Executing build step "${this.displayName}"`
     );
     this.ctx.logger.info(`Skipped build step "${this.displayName}"`);
     this.ctx.logger.info(
@@ -356,9 +411,23 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private getInterpolationContext(): JobInterpolationContext {
-    return {
+    const base: JobInterpolationContext = {
       ...this.ctx.global.getInterpolationContext(),
       env: this.getScriptEnv(),
+      ...this.getFailureInterpolationContext(this.actionScope),
+    };
+    return this.actionScope?.getScopedInterpolationContext(base) ?? base;
+  }
+
+  private getFailureInterpolationContext(scope?: BuildStepActionScope): {
+    success: () => boolean;
+    failure: () => boolean;
+  } {
+    // Inside an action, failure() reflects sibling inner steps; outside, prior workflow steps.
+    const hasFailed = scope ? scope.hasFailedStep : this.ctx.global.hasAnyPreviousStepFailed;
+    return {
+      success: () => !hasFailed,
+      failure: () => hasFailed,
     };
   }
 
@@ -423,7 +492,12 @@ export class BuildStep extends BuildStepOutputAccessor {
       inputs: Object.fromEntries(
         Object.entries(this.inputById).map(([key, input]) => [
           key,
-          { value: input.getValue({ interpolationContext: this.getInterpolationContext() }) },
+          {
+            value: input.getValue({
+              interpolationContext: this.getInterpolationContext(),
+              getStepOutputValue: path => this.getLegacyStepOutputValue(path),
+            }),
+          },
         ])
       ),
       outputs: this.outputById,
@@ -439,14 +513,16 @@ export class BuildStep extends BuildStepOutputAccessor {
     inputs?: BuildStepInput[]
   ): string {
     if (!inputs) {
-      return interpolateWithOutputs(
-        this.ctx.global.interpolate(template),
-        path => this.ctx.global.getStepOutputValue(path) ?? ''
+      return interpolateWithOutputs(this.ctx.global.interpolate(template), path =>
+        this.getLegacyStepOutputValue(path)
       );
     }
     const vars = inputs.reduce(
       (acc, input) => {
-        const value = input.getValue({ interpolationContext: this.getInterpolationContext() });
+        const value = input.getValue({
+          interpolationContext: this.getInterpolationContext(),
+          getStepOutputValue: path => this.getLegacyStepOutputValue(path),
+        });
         acc[input.id] =
           typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
         return acc;
@@ -455,8 +531,17 @@ export class BuildStep extends BuildStepOutputAccessor {
     );
     return interpolateWithOutputs(
       interpolateWithInputs(this.ctx.global.interpolate(template), vars),
-      path => this.ctx.global.getStepOutputValue(path) ?? ''
+      path => this.getLegacyStepOutputValue(path)
     );
+  }
+
+  private getLegacyStepOutputValue(path: string): string {
+    const { stepId, outputId } = parseOutputPath(path);
+    const resolvedStepId = this.actionScope ? this.actionScope.resolveStepId(stepId) : stepId;
+    if (resolvedStepId === undefined) {
+      return '';
+    }
+    return this.ctx.global.getStepOutputValue(`steps.${resolvedStepId}.${outputId}`) ?? '';
   }
 
   private async collectAndValidateOutputsAsync(outputsDir: string): Promise<void> {

@@ -1120,6 +1120,26 @@ describe(BuildStep.deserialize, () => {
 });
 
 describe(BuildStep.prototype.shouldExecuteStep, () => {
+  it('does not evaluate inputs for a step without an if condition after a failure', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      inputs: [
+        new BuildStepInput(ctx, {
+          id: 'required',
+          stepDisplayName: 'Test 1',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+    });
+
+    expect(step.shouldExecuteStep()).toBe(false);
+  });
+
   it('returns true when if condition is always and previous steps failed', () => {
     const ctx = createGlobalContextMock();
     ctx.markAsFailed();
