@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas project:delete` command to delete a project — the current directory's project by default, or any project passed as an argument (`@account/slug` or ID). Confirmation requires the project's full name, typed at the interactive prompt or passed via `--dangerously-confirm-deletion` (required in non-interactive mode). Deletion requires sudo mode: the command prompts for your password (and OTP) to upgrade the session when the server requires it. Deletion was previously only possible from the website. ([#4012](https://github.com/expo/eas-cli/pull/4012) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `eas browse` to open the project page on expo.dev in a web browser, with an optional page argument (e.g. `eas browse build`, `eas browse hosting`) for project subpages and a `--no-browser` flag to print the URL. `eas open` is now an alias of `eas browse`. ([#4003](https://github.com/expo/eas-cli/pull/4003) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] Add `--dev-domain` flag to `eas deploy` to choose the project's preview URL (`<name>.expo.app`) without prompting, allowing first-time deploys with `--non-interactive`. ([#4004](https://github.com/expo/eas-cli/pull/4004) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Add `-p` as an alias for `--platform` in `eas simulator:start`. ([#3902](https://github.com/expo/eas-cli/pull/3902) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 
