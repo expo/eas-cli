@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepOutputAccessor, SerializedBuildStepOutputAccessor } from './BuildStep';
 import { BuildStepEnv } from './BuildStepEnv';
-import { StepMetric, StepMetricInput } from './StepMetrics';
+import { StepMetric, StepMetricInput, StepMetricResult, WorkflowHookMetric } from './StepMetrics';
 import { BuildStepRuntimeError } from './errors';
 import { hashFiles } from './utils/hashFiles';
 import {
@@ -41,6 +41,7 @@ export interface ExternalBuildContextProvider {
   readonly env: BuildStepEnv;
   updateEnv(env: BuildStepEnv): void;
   reportStepMetric?(metric: StepMetric): void;
+  reportWorkflowHookMetric?(metric: WorkflowHookMetric): void;
 }
 
 export interface SerializedBuildStepGlobalContext {
@@ -147,17 +148,42 @@ export class BuildStepGlobalContext {
     };
   }
 
+  /**
+   * One builder for both step-level and hook-entry-level `if:` contexts so
+   * the two cannot drift; the real differences (step inputs, step-level env
+   * overrides) ride in as parameters.
+   */
+  public getIfConditionContext({
+    inputs,
+    env,
+  }: {
+    inputs: Record<string, unknown>;
+    env: BuildStepEnv;
+  }): Record<string, unknown> {
+    return {
+      inputs,
+      eas: this.getEasContext(env),
+      ...this.getInterpolationContext(),
+      env,
+    };
+  }
+
+  // The one definition of the user-visible `eas.*` namespace shape.
+  private getEasContext(env: BuildStepEnv): Record<string, unknown> {
+    return {
+      runtimePlatform: this.runtimePlatform,
+      ...this.staticContext,
+      env,
+    };
+  }
+
   public interpolate<InterpolableType extends string | object>(
     value: InterpolableType
   ): InterpolableType {
     return interpolateWithGlobalContext(value, path => {
       return (
         getObjectValueForInterpolation(path, {
-          eas: {
-            runtimePlatform: this.runtimePlatform,
-            ...this.staticContext,
-            env: this.env,
-          },
+          eas: this.getEasContext(this.env),
         })?.toString() ?? ''
       );
     });
@@ -185,6 +211,22 @@ export class BuildStepGlobalContext {
   public addStepMetric(metric: StepMetricInput): void {
     const stepMetric: StepMetric = { ...metric, platform: this.runtimePlatform };
     this.provider.reportStepMetric?.(stepMetric);
+  }
+
+  public collectStepMetric(step: BuildStep, result: StepMetricResult, durationMs: number): void {
+    if (!step.__metricsId) {
+      return;
+    }
+    this.addStepMetric({ metricsId: step.__metricsId, result, durationMs });
+  }
+
+  public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
+    try {
+      this.provider.reportWorkflowHookMetric?.(metric);
+    } catch (err) {
+      // Telemetry must never fail the job or mask a step's error.
+      this.baseLogger.debug({ err }, 'Reporting the workflow hook metric failed');
+    }
   }
 
   public wasCheckedOut(): boolean {

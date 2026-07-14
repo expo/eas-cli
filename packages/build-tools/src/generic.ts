@@ -47,6 +47,7 @@ export async function runGenericJobAsync(
     externalFunctions: getEasFunctions(customBuildCtx),
     externalFunctionGroups: getEasFunctionGroups(customBuildCtx),
     steps: ctx.job.steps,
+    hooks: ctx.job.hooks,
   });
 
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {

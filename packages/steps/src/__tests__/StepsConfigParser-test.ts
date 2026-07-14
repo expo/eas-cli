@@ -17,6 +17,7 @@ describe(StepsConfigParser, () => {
       const error = getError<BuildStepRuntimeError>(() => {
         // eslint-disable-next-line no-new
         new StepsConfigParser(ctx, {
+          hooks: undefined,
           steps: [],
           externalFunctions: [
             new BuildFunction({ id: 'abc', command: 'echo 123' }),
@@ -33,6 +34,7 @@ describe(StepsConfigParser, () => {
       const error = getError<BuildStepRuntimeError>(() => {
         // eslint-disable-next-line no-new
         new StepsConfigParser(ctx, {
+          hooks: undefined,
           steps: [
             {
               run: 'test',
@@ -64,6 +66,7 @@ describe(StepsConfigParser, () => {
       expect(() => {
         // eslint-disable-next-line no-new
         new StepsConfigParser(ctx, {
+          hooks: undefined,
           steps: [
             {
               run: 'test',
@@ -85,6 +88,7 @@ describe(StepsConfigParser, () => {
       expect(() => {
         // eslint-disable-next-line no-new
         new StepsConfigParser(ctx, {
+          hooks: undefined,
           steps: [
             {
               run: 'test',
@@ -114,6 +118,7 @@ describe(StepsConfigParser, () => {
     it('throws an error when calling non-existent function', async () => {
       const ctx = createGlobalContextMock();
       const parser = new StepsConfigParser(ctx, {
+        hooks: undefined,
         steps: [
           {
             run: 'test',
@@ -131,6 +136,7 @@ describe(StepsConfigParser, () => {
     it('throws an error if steps are empty array', async () => {
       const ctx = createGlobalContextMock();
       const parser = new StepsConfigParser(ctx, {
+        hooks: undefined,
         steps: [],
       });
       await expect(parser.parseAsync()).rejects.toThrow(
@@ -141,6 +147,7 @@ describe(StepsConfigParser, () => {
     it('returns a BuildWorkflow object', async () => {
       const ctx = createGlobalContextMock();
       const parser = new StepsConfigParser(ctx, {
+        hooks: undefined,
         steps: [
           {
             run: 'test',
@@ -164,6 +171,7 @@ describe(StepsConfigParser, () => {
     it('parses steps and external functions into build workflow with steps', async () => {
       const ctx = createGlobalContextMock();
       const parser = new StepsConfigParser(ctx, {
+        hooks: undefined,
         steps: [
           {
             run: 'command1',
