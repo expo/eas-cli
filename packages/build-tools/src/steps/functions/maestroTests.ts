@@ -97,6 +97,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
     id: 'maestro_tests',
     name: 'Run Maestro Tests',
     __metricsId: 'eas/maestro_tests',
+    __hookId: 'maestro_tests',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'flow_path',

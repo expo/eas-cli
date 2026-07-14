@@ -329,6 +329,9 @@ export namespace AndroidEmulatorUtils {
       await emulatorPromise;
     }
     emulatorPromise.child.unref();
+    // The emulator is detached and managed through adb. Observe its process promise
+    // immediately so expected exits during retry cleanup do not become unhandled rejections.
+    void asyncResult(emulatorPromise);
 
     const serialId = await retryAsync(
       async () => {

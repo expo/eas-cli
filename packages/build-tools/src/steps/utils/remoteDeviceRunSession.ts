@@ -8,6 +8,7 @@ import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
@@ -29,6 +30,19 @@ const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
     }
   }
 `);
+
+const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
+  query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
+    deviceRunSessions {
+      byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
@@ -94,6 +108,75 @@ export async function selectXcodeDeveloperDirectoryAsync({
     logger,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+}
+
+export async function waitForDeviceRunSessionStoppedAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+  signal,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<void> {
+  logger.info(
+    `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+  );
+  let pollErrorCount = 0;
+
+  while (!signal?.aborted) {
+    try {
+      const result = await ctx.graphqlClient
+        .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+        .toPromise();
+      if (result.error) {
+        throw result.error;
+      }
+
+      const status = result.data?.deviceRunSessions?.byId?.status;
+      if (!status) {
+        throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
+      }
+      pollErrorCount = 0;
+      if (status === 'STOPPED') {
+        logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+        return;
+      }
+      if (status === 'ERRORED') {
+        throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+      }
+    } catch (err) {
+      if (err instanceof SystemError) {
+        throw err;
+      }
+
+      const error = err instanceof Error ? err : new Error(String(err));
+      pollErrorCount += 1;
+      if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+        Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+        logger.warn(
+          { err: error, failedStatusPollCount: pollErrorCount },
+          'Could not poll device run session status; will retry.'
+        );
+      }
+    }
+    await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+  }
+}
+
+async function sleepUntilAbortedAsync(
+  timeoutMs: number,
+  signal: AbortSignal | undefined
+): Promise<void> {
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, signal ? { signal } : undefined);
+  } catch (err) {
+    if (!signal?.aborted) {
+      throw err;
+    }
+  }
 }
 
 const TurnIceServersResponseSchema = z.object({
@@ -210,6 +293,8 @@ export async function uploadRemoteSessionConfigAsync({
 }
 
 export type DetachedProcessHandle = {
+  /** PID of the directly spawned process, if the OS assigned one. */
+  pid: number | undefined;
   getOutput: () => string;
 };
 
@@ -242,7 +327,7 @@ export function spawnDetached({
   promise.child.stdout?.on('data', appendChunk);
   promise.child.stderr?.on('data', appendChunk);
 
-  return { getOutput: () => output };
+  return { pid: promise.child.pid, getOutput: () => output };
 }
 
 export async function startServeSimWithTunnelAsync(

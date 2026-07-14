@@ -233,7 +233,7 @@ async function uploadProjectMetadataAsync(
         }
       `),
       {
-        buildId: ctx.env.EAS_BUILD_ID,
+        buildId: nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set'),
         projectMetadataFile: {
           type: 'GCS',
           bucketKey: uploadSession.bucketKey,

@@ -115,8 +115,8 @@ export const ArchiveSourceSchemaZ = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type Env = Record<string, string>;
-export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string());
+export type Env = Record<string, string | undefined>;
+export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string().optional());
 
 export type EnvironmentSecret = {
   name: string;

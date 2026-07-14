@@ -7,6 +7,7 @@ export function createCheckoutBuildFunction(): BuildFunction {
     id: 'checkout',
     name: 'Checkout',
     __metricsId: 'eas/checkout',
+    __hookId: 'checkout',
     fn: async stepsCtx => {
       if (stepsCtx.global.wasCheckedOut()) {
         stepsCtx.logger.info('Project directory is already checked out');

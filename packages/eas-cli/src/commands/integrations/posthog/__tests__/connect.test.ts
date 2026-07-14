@@ -1,4 +1,5 @@
 import spawnAsync from '@expo/spawn-async';
+import openBrowserAsync from 'better-opn';
 import * as fs from 'fs-extra';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
@@ -17,6 +18,7 @@ import { PostHogQuery } from '../../../../graphql/queries/PostHogQuery';
 import {
   PostHogOrganizationConnectionData,
   PostHogProjectData,
+  StartPostHogConnectionResult,
 } from '../../../../graphql/types/PostHogConnection';
 import Log from '../../../../log';
 import { createOrModifyExpoConfigAsync } from '../../../../project/expoConfig';
@@ -27,6 +29,7 @@ import { printJsonOnlyOutput } from '../../../../utils/json';
 import IntegrationsPostHogConnect from '../connect';
 
 jest.mock('@expo/spawn-async');
+jest.mock('better-opn');
 jest.mock('fs-extra');
 jest.mock('../../../../project/expoConfig');
 jest.mock('../../../../graphql/queries/PostHogQuery');
@@ -42,6 +45,7 @@ jest.mock('../../../../ora', () => ({
     start: jest.fn().mockReturnThis(),
     succeed: jest.fn().mockReturnThis(),
     fail: jest.fn().mockReturnThis(),
+    stop: jest.fn().mockReturnThis(),
   }),
 }));
 
@@ -59,7 +63,6 @@ describe(IntegrationsPostHogConnect, () => {
     featureGates: {},
     isExpoAdmin: false,
     primaryAccount: { id: testAccountId, name: testAccountName, ownerUserActor: null, users: [] },
-    preferences: { onboarding: null },
     accounts: [],
   };
 
@@ -77,6 +80,16 @@ describe(IntegrationsPostHogConnect, () => {
     posthogRegion: PostHogRegion.Us,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
+  };
+
+  const mockConnectionResult: StartPostHogConnectionResult = {
+    __typename: 'PostHogOrganizationConnection',
+    ...mockConnection,
+  };
+
+  const mockPendingResult: StartPostHogConnectionResult = {
+    __typename: 'PostHogPendingConnection',
+    url: 'https://us.posthog.com/login?next=/oauth/authorize',
   };
 
   const mockProject: PostHogProjectData = {
@@ -137,8 +150,11 @@ describe(IntegrationsPostHogConnect, () => {
       .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
       .mockResolvedValue(mockConnection);
     jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(mockProject);
-    jest.mocked(PostHogMutation.createPostHogAccountRequestAsync).mockResolvedValue(mockConnection);
+    jest
+      .mocked(PostHogMutation.startPostHogConnectionAsync)
+      .mockResolvedValue(mockConnectionResult);
     jest.mocked(PostHogMutation.setupPostHogProjectAsync).mockResolvedValue(mockProject);
+    jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([]);
     jest.mocked(EnvironmentVariableMutation.createForAppAsync).mockResolvedValue({
       id: 'env-var-1',
@@ -187,7 +203,7 @@ describe(IntegrationsPostHogConnect, () => {
     jest.mocked(promptAsync).mockImplementation((async (opts: any) => {
       if (opts.name === 'features') {
         provisionedBeforePrompt =
-          jest.mocked(PostHogMutation.createPostHogAccountRequestAsync).mock.calls.length > 0 &&
+          jest.mocked(PostHogMutation.startPostHogConnectionAsync).mock.calls.length > 0 &&
           jest.mocked(PostHogMutation.setupPostHogProjectAsync).mock.calls.length > 0;
         return { features: ['analytics'] };
       }
@@ -261,7 +277,7 @@ describe(IntegrationsPostHogConnect, () => {
       createCommand(['--non-interactive', '--error-tracking']).runAsync()
     ).rejects.toThrow(/personal API key in non-interactive/);
 
-    expect(PostHogMutation.createPostHogAccountRequestAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.startPostHogConnectionAsync).not.toHaveBeenCalled();
   });
 
   it('non-interactive --error-tracking with --posthog-cli-api-key sets up CLI vars without prompting', async () => {
@@ -321,29 +337,119 @@ describe(IntegrationsPostHogConnect, () => {
   it('reuses an existing connection + project without provisioning', async () => {
     await createCommand([]).runAsync();
 
-    expect(PostHogMutation.createPostHogAccountRequestAsync).not.toHaveBeenCalled();
+    expect(PostHogMutation.startPostHogConnectionAsync).not.toHaveBeenCalled();
     expect(PostHogMutation.setupPostHogProjectAsync).not.toHaveBeenCalled();
   });
 
-  it('surfaces the existing-account dead-end without provisioning a project', async () => {
+  it('completes an existing-account connection via the browser, then provisions the project', async () => {
+    // No connection at the first check; the start mutation hands off to the browser, and
+    // polling then finds the connection the website callback created.
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(mockConnection);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(PostHogMutation.startPostHogConnectionAsync).mockResolvedValue(mockPendingResult);
+    mockFeatureSelection(['analytics']);
+
+    await createCommand(['--region', 'US']).runAsync();
+
+    expect(openBrowserAsync).toHaveBeenCalledWith(mockPendingResult.url);
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Opened'));
+    expect(PostHogMutation.setupPostHogProjectAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      posthogOrganizationConnectionId: mockConnection.id,
+    });
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
+  });
+
+  it('still prints the approval URL when a browser cannot be opened', async () => {
+    jest
+      .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(mockConnection);
+    jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(PostHogMutation.startPostHogConnectionAsync).mockResolvedValue(mockPendingResult);
+    jest.mocked(openBrowserAsync).mockResolvedValue(false as never);
+    mockFeatureSelection(['analytics']);
+
+    await createCommand(['--region', 'US']).runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('Open this URL to approve the connection')
+    );
+    expect(PostHogMutation.setupPostHogProjectAsync).toHaveBeenCalled();
+  });
+
+  it('retries polling after a transient failure, then completes', async () => {
+    jest.useFakeTimers();
+    const debugSpy = jest.spyOn(Log, 'debug').mockImplementation(() => {});
+    try {
+      // No connection initially; the first poll throws (transient), the next finds it.
+      jest
+        .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+        .mockResolvedValueOnce(null)
+        .mockRejectedValueOnce(new Error('network blip'))
+        .mockResolvedValue(mockConnection);
+      jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+      jest.mocked(PostHogMutation.startPostHogConnectionAsync).mockResolvedValue(mockPendingResult);
+      mockFeatureSelection(['analytics']);
+
+      const promise = createCommand(['--region', 'US']).runAsync();
+      // Flush the poll interval so the retry runs after the transient failure.
+      await jest.advanceTimersByTimeAsync(3_000);
+      await promise;
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Polling for the PostHog connection failed')
+      );
+      expect(PostHogMutation.setupPostHogProjectAsync).toHaveBeenCalled();
+    } finally {
+      debugSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('refuses the browser handoff non-interactively and provisions nothing', async () => {
     jest
       .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
       .mockResolvedValue(null);
     jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
-    jest.mocked(PostHogMutation.createPostHogAccountRequestAsync).mockRejectedValue(
-      Object.assign(new Error('You already have a PostHog account.'), {
-        graphQLErrors: [{ extensions: { errorCode: 'POSTHOG_EXISTING_USER_NOT_SUPPORTED_ERROR' } }],
-      })
+    jest.mocked(PostHogMutation.startPostHogConnectionAsync).mockResolvedValue(mockPendingResult);
+
+    await expect(createCommand(['--non-interactive', '--region', 'US']).runAsync()).rejects.toThrow(
+      /already has a PostHog account.*interactively/s
     );
 
-    await expect(createCommand(['--region', 'US']).runAsync()).rejects.toThrow(
-      'You already have a PostHog account.'
-    );
-
-    // Fails (non-zero exit) without provisioning a project or writing any config.
+    expect(openBrowserAsync).not.toHaveBeenCalled();
     expect(PostHogMutation.setupPostHogProjectAsync).not.toHaveBeenCalled();
     expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
     expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('times out (and provisions nothing) if the connection is never approved', async () => {
+    jest.useFakeTimers();
+    try {
+      // Connection never appears: null at the first check and on every poll.
+      jest
+        .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
+        .mockResolvedValue(null);
+      jest.mocked(PostHogQuery.getPostHogProjectByAppIdAsync).mockResolvedValue(null);
+      jest.mocked(PostHogMutation.startPostHogConnectionAsync).mockResolvedValue(mockPendingResult);
+      mockFeatureSelection(['analytics']);
+
+      const promise = createCommand(['--region', 'US']).runAsync();
+      const assertion = expect(promise).rejects.toThrow(/Timed out waiting for the PostHog/);
+      // Advance past the 15-minute poll window, flushing each poll iteration's awaits.
+      await jest.advanceTimersByTimeAsync(16 * 60 * 1_000);
+      await assertion;
+
+      expect(PostHogMutation.setupPostHogProjectAsync).not.toHaveBeenCalled();
+      expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('emits JSON output with --json', async () => {
@@ -390,7 +496,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     await createCommand(['--region', 'US']).runAsync();
 
-    expect(PostHogMutation.createPostHogAccountRequestAsync).toHaveBeenCalledWith(graphqlClient, {
+    expect(PostHogMutation.startPostHogConnectionAsync).toHaveBeenCalledWith(graphqlClient, {
       accountId: testAccountId,
       region: PostHogRegion.Us,
     });
@@ -405,7 +511,7 @@ describe(IntegrationsPostHogConnect, () => {
       .mocked(PostHogQuery.getPostHogOrganizationConnectionByAccountIdAsync)
       .mockResolvedValue(null);
     jest
-      .mocked(PostHogMutation.createPostHogAccountRequestAsync)
+      .mocked(PostHogMutation.startPostHogConnectionAsync)
       .mockRejectedValue(new Error('network down'));
 
     await expect(createCommand(['--region', 'US']).runAsync()).rejects.toThrow('network down');
@@ -532,7 +638,7 @@ describe(IntegrationsPostHogConnect, () => {
     await createCommand([]).runAsync();
 
     expect(selectAsync).toHaveBeenCalledWith('Select a PostHog region', expect.any(Array));
-    expect(PostHogMutation.createPostHogAccountRequestAsync).toHaveBeenCalledWith(graphqlClient, {
+    expect(PostHogMutation.startPostHogConnectionAsync).toHaveBeenCalledWith(graphqlClient, {
       accountId: testAccountId,
       region: PostHogRegion.Us,
     });

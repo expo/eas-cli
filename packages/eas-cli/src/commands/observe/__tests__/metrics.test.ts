@@ -52,6 +52,23 @@ describe(ObserveMetrics, () => {
     return command;
   }
 
+  it('accepts a navigation metric alias as the positional arg', async () => {
+    const command = createCommand(['nav_tti']);
+    await command.runAsync();
+
+    expect(mockFetchObserveEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockFetchObserveEventsAsync.mock.calls[0][2].metricName).toBe('expo.navigation.tti');
+  });
+
+  it('accepts nav_cold_ttr as a positional arg and resolves it to the navigation full name', async () => {
+    const command = createCommand(['nav_cold_ttr']);
+    await command.runAsync();
+
+    expect(mockFetchObserveEventsAsync.mock.calls[0][2].metricName).toBe(
+      'expo.navigation.cold_ttr'
+    );
+  });
+
   it('uses --days to compute start/end time range', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });

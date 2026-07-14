@@ -1,18 +1,19 @@
 import { EasCommandError } from '../commandUtils/errors';
 
+export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
+  nav_cold_ttr: 'expo.navigation.cold_ttr',
+  nav_warm_ttr: 'expo.navigation.warm_ttr',
+  nav_tti: 'expo.navigation.tti',
+};
+
 export const METRIC_ALIASES: Record<string, string> = {
+  ...NAVIGATION_METRIC_ALIASES,
   tti: 'expo.app_startup.tti',
   ttr: 'expo.app_startup.ttr',
   cold_launch: 'expo.app_startup.cold_launch_time',
   warm_launch: 'expo.app_startup.warm_launch_time',
   bundle_load: 'expo.app_startup.bundle_load_time',
   update_download: 'expo.updates.download_time',
-};
-
-export const NAVIGATION_METRIC_ALIASES: Record<string, string> = {
-  cold_ttr: 'expo.navigation.cold_ttr',
-  warm_ttr: 'expo.navigation.warm_ttr',
-  nav_tti: 'expo.navigation.tti',
 };
 
 const KNOWN_FULL_NAMES = new Set(Object.values(METRIC_ALIASES));

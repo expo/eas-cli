@@ -1,4 +1,4 @@
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 
 import { createFingerprintAsync } from './cli';
 import { Fingerprint } from './types';
@@ -16,7 +16,7 @@ export async function getFingerprintInfoFromLocalProjectForPlatformsAsync(
   projectId: string,
   vcsClient: Client,
   platforms: AppPlatform[],
-  { env }: { env?: Record<string, string> } = {}
+  { env }: { env?: Env } = {}
 ): Promise<Fingerprint> {
   const workflows = await resolveWorkflowPerPlatformAsync(projectDir, vcsClient);
   const optionsFromWorkflow = getFingerprintOptionsFromWorkflow(platforms, workflows);

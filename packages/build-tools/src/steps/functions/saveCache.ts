@@ -43,6 +43,10 @@ export function createSaveCacheFunction(): BuildFunction {
           .filter(path => path.length > 0);
         const key = z.string().parse(inputs.key.value);
         const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+        const expoApiServerURL = nullthrows(
+          stepsCtx.global.staticContext.expoApiServerURL,
+          'expoApiServerURL is not set'
+        );
         const robotAccessToken = nullthrows(
           stepsCtx.global.staticContext.job.secrets?.robotAccessToken,
           'robotAccessToken is not set'
@@ -61,7 +65,7 @@ export function createSaveCacheFunction(): BuildFunction {
           await uploadPublicCacheAsync({
             logger,
             jobId,
-            expoApiServerURL: stepsCtx.global.staticContext.expoApiServerURL,
+            expoApiServerURL,
             robotAccessToken,
             archivePath,
             key,
@@ -73,7 +77,7 @@ export function createSaveCacheFunction(): BuildFunction {
           await uploadCacheAsync({
             logger,
             jobId,
-            expoApiServerURL: stepsCtx.global.staticContext.expoApiServerURL,
+            expoApiServerURL,
             robotAccessToken,
             archivePath,
             key,

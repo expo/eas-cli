@@ -1,15 +1,18 @@
+import { ExpoConfig } from '@expo/config';
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import fsExtra from 'fs-extra';
+import nullthrows from 'nullthrows';
 import path from 'path';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
-  runBuildConfigureIfNeededAsync,
-  runUpdateConfigureIfNeededAsync,
+  configureEasBuildIfNeededAsync,
+  configureEasUpdateIfNeededAsync,
 } from '../../commandUtils/workflow/buildProfileUtils';
 import {
+  PLACEHOLDER_WORKFLOW_CONTENTS,
   WorkflowStarter,
   WorkflowStarterName,
   customizeTemplateIfNeededAsync,
@@ -21,22 +24,34 @@ import {
   validateWorkflowFileAsync,
   workflowContentsFromParsedYaml,
 } from '../../commandUtils/workflow/validation';
-import Log from '../../log';
+import Log, { link } from '../../log';
+import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
+import { initializeWithoutExplicitIDAsync } from '../../project/projectInitialization';
 import { promptAsync } from '../../prompts';
 import formatFields from '../../utils/formatFields';
-import { WorkflowFile } from '../../utils/workflowFile';
+import { Client } from '../../vcs/vcs';
 
 export class WorkflowCreate extends EasCommand {
   static override description = 'create a new workflow configuration YAML file';
 
   static override args = {
     name: Args.string({
-      description: 'Name of the workflow file (must end with .yml or .yaml)',
+      description:
+        'Name of the workflow file. When provided without --template, a placeholder workflow is created.',
       required: false,
     }),
   };
 
   static override flags = {
+    template: Flags.option({
+      description: 'Template to use for the workflow file',
+      options: [
+        WorkflowStarterName.BUILD,
+        WorkflowStarterName.UPDATE,
+        WorkflowStarterName.DEPLOY,
+        WorkflowStarterName.CUSTOM,
+      ] as const,
+    })(),
     'skip-validation': Flags.boolean({
       description: 'If set, the workflow file will not be validated before being created',
       default: false,
@@ -47,6 +62,7 @@ export class WorkflowCreate extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -58,68 +74,67 @@ export class WorkflowCreate extends EasCommand {
     try {
       const {
         getDynamicPrivateProjectConfigAsync,
-        loggedIn: { graphqlClient },
+        loggedIn: { actor, graphqlClient },
         projectDir,
+        vcsClient,
       } = await this.getContextAsync(WorkflowCreate, {
         nonInteractive: false,
         withServerSideEnvironment: null,
       });
 
-      const { exp: originalExpoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
-      let expoConfig = originalExpoConfig;
-
-      let workflowStarter;
-      while (!workflowStarter) {
-        workflowStarter = await chooseTemplateAsync();
-        switch (workflowStarter.name) {
-          case WorkflowStarterName.BUILD:
-          case WorkflowStarterName.DEPLOY:
-          case WorkflowStarterName.UPDATE: {
-            const shouldProceed = await runBuildConfigureIfNeededAsync({
-              projectDir,
-              expoConfig,
-            });
-            if (!shouldProceed) {
-              workflowStarter = undefined;
-              continue;
-            }
-            break;
-          }
-          default:
-            break;
-        }
-        switch (workflowStarter.name) {
-          case WorkflowStarterName.DEPLOY:
-          case WorkflowStarterName.UPDATE: {
-            const shouldProceed = await runUpdateConfigureIfNeededAsync({
-              projectDir,
-              expoConfig,
-            });
-            if (!shouldProceed) {
-              workflowStarter = undefined;
-              continue;
-            }
-            // Need to refetch the Expo config because it may have changed
-            expoConfig = (await getDynamicPrivateProjectConfigAsync()).exp;
-            break;
-          }
-          default:
-            break;
-        }
+      if (argFileName && !flags.template) {
+        await createPlaceholderWorkflowFileAsync({ argFileName, projectDir });
+        return;
       }
 
-      const { fileName, filePath } = await chooseFileNameAsync(
+      const privateExpoConfig = await getPrivateExpoConfigAsync(projectDir);
+      if (!privateExpoConfig.extra?.eas?.projectId) {
+        // Unlike `eas init`, we intentionally do not call `ensureOwnerSlugConsistencyAsync` here.
+        // The workflow scaffolder should only link/create a project ID, not rewrite the app
+        // config's `owner`/`slug` fields. If those are inconsistent, we leave them for `eas init`
+        // to reconcile.
+        await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
+          force: false,
+          nonInteractive: false,
+        });
+      }
+
+      const { exp: originalExpoConfig, projectId } = await getDynamicPrivateProjectConfigAsync();
+
+      let workflowStarter = flags.template
+        ? nullthrows(workflowStarters.find(s => s.name === flags.template))
+        : await chooseTemplateAsync();
+
+      let expoConfig = originalExpoConfig;
+      if (
+        workflowStarter.name === WorkflowStarterName.BUILD ||
+        workflowStarter.name === WorkflowStarterName.UPDATE ||
+        workflowStarter.name === WorkflowStarterName.DEPLOY
+      ) {
+        expoConfig = await configureProjectForStarterAsync({
+          workflowStarter,
+          projectDir,
+          expoConfig: originalExpoConfig,
+          projectId,
+          vcsClient,
+          getDynamicPrivateProjectConfigAsync,
+        });
+      }
+
+      const { fileName, filePath } = await resolveTemplateFileNameAsync({
         argFileName,
         projectDir,
-        workflowStarter
-      );
+        workflowStarter,
+      });
 
-      // Customize the template if needed
-      workflowStarter = await customizeTemplateIfNeededAsync(
+      workflowStarter = await customizeTemplateIfNeededAsync({
         workflowStarter,
         projectDir,
-        expoConfig
-      );
+        expoConfig,
+        graphqlClient,
+        projectId,
+        vcsClient,
+      });
 
       Log.debug(`Creating workflow file ${fileName} from template ${workflowStarter.name}`);
       const yamlString = [
@@ -136,30 +151,86 @@ export class WorkflowCreate extends EasCommand {
         );
       }
       await ensureWorkflowsDirectoryExistsAsync({ projectDir });
-      filePath && (await fs.writeFile(filePath, yamlString));
+      await fs.writeFile(filePath, yamlString);
       Log.withTick(`Created ${chalk.bold(filePath)}`);
-      Log.addNewLineIfNone();
-      Log.log(howToRunWorkflow(fileName, workflowStarter));
 
-      // Next steps
-      if (workflowStarter.nextSteps && workflowStarter.nextSteps.length > 0) {
-        Log.addNewLineIfNone();
-        Log.log('Next steps:');
-        Log.addNewLineIfNone();
-        Log.log(
-          formatFields(
-            workflowStarter.nextSteps.map((step: string, index: number) => ({
-              label: `${index + 1}.`,
-              value: step,
-            }))
-          )
-        );
-      }
+      logNextSteps([
+        ...(workflowStarter.nextSteps ?? []).map(
+          step => `${chalk.yellow('[Action required]')} ${step}`
+        ),
+        howToRunWorkflow(fileName, workflowStarter),
+      ]);
     } catch (error) {
       logWorkflowValidationErrors(error);
       Log.error('Failed to create workflow file.');
+      process.exitCode = 1;
     }
   }
+}
+
+async function configureProjectForStarterAsync({
+  workflowStarter,
+  projectDir,
+  expoConfig,
+  projectId,
+  vcsClient,
+  getDynamicPrivateProjectConfigAsync,
+}: {
+  workflowStarter: WorkflowStarter;
+  projectDir: string;
+  expoConfig: ExpoConfig;
+  projectId: string;
+  vcsClient: Client;
+  getDynamicPrivateProjectConfigAsync: () => Promise<{ exp: ExpoConfig }>;
+}): Promise<ExpoConfig> {
+  await configureEasBuildIfNeededAsync({ projectDir, expoConfig, vcsClient });
+
+  if (
+    workflowStarter.name === WorkflowStarterName.UPDATE ||
+    workflowStarter.name === WorkflowStarterName.DEPLOY
+  ) {
+    await configureEasUpdateIfNeededAsync({ projectDir, expoConfig, projectId, vcsClient });
+  }
+
+  return (await getDynamicPrivateProjectConfigAsync()).exp;
+}
+
+function logNextSteps(steps: string[]): void {
+  Log.addNewLineIfNone();
+  Log.log('➡️ Next steps:');
+  Log.addNewLineIfNone();
+  Log.log(
+    formatFields(
+      steps.map((step, index) => ({
+        label: `${index + 1}.`,
+        value: step,
+      }))
+    )
+  );
+}
+
+async function createPlaceholderWorkflowFileAsync({
+  argFileName,
+  projectDir,
+}: {
+  argFileName: string;
+  projectDir: string;
+}): Promise<void> {
+  const fileName = ensureYamlExtension(argFileName);
+  const filePath = path.join(projectDir, '.eas', 'workflows', fileName);
+  if (await fsExtra.pathExists(filePath)) {
+    Log.error(`Workflow file already exists: ${chalk.bold(filePath)}`);
+    return;
+  }
+  await ensureWorkflowsDirectoryExistsAsync({ projectDir });
+  await fs.writeFile(filePath, PLACEHOLDER_WORKFLOW_CONTENTS);
+  Log.withTick(`Created ${chalk.bold(filePath)}`);
+  logNextSteps([
+    `Fill in the "name", "on", and "jobs" fields. Learn more: ${link(
+      'https://docs.expo.dev/eas/workflows/syntax/'
+    )}`,
+    `Run this workflow with ${chalk.bold(`eas workflow:run ${fileName}`)}`,
+  ]);
 }
 
 async function ensureWorkflowsDirectoryExistsAsync({
@@ -190,40 +261,38 @@ async function chooseTemplateAsync(): Promise<WorkflowStarter> {
   return workflowStarter;
 }
 
-async function chooseFileNameAsync(
-  initialValue: string | undefined,
-  projectDir: string,
-  workflowStarter: WorkflowStarter
-): Promise<{ fileName: string; filePath: string }> {
-  let fileName = initialValue;
-  let filePath = '';
-  while ((fileName?.length ?? 0) === 0) {
-    fileName = (
-      await promptAsync({
-        type: 'text',
-        name: 'fileName',
-        message: 'What would you like to name your workflow file?',
-        initial: workflowStarter.defaultFileName,
-      })
-    ).fileName;
-    if (!fileName) {
-      fileName = undefined;
-      continue;
-    }
-    try {
-      WorkflowFile.validateYamlExtension(fileName);
-    } catch (error) {
-      Log.error(error instanceof Error ? error.message : 'Invalid YAML file name extension');
-      fileName = undefined;
-      continue;
-    }
+async function resolveTemplateFileNameAsync({
+  argFileName,
+  projectDir,
+  workflowStarter,
+}: {
+  argFileName: string | undefined;
+  projectDir: string;
+  workflowStarter: WorkflowStarter;
+}): Promise<{ fileName: string; filePath: string }> {
+  const baseName = argFileName ? ensureYamlExtension(argFileName) : workflowStarter.defaultFileName;
+  const ext = path.extname(baseName);
+  const stem = baseName.slice(0, baseName.length - ext.length);
+
+  let fileName = baseName;
+  let filePath = path.join(projectDir, '.eas', 'workflows', fileName);
+  let counter = 1;
+  while (await fsExtra.pathExists(filePath)) {
+    fileName = `${stem}-${counter}${ext}`;
     filePath = path.join(projectDir, '.eas', 'workflows', fileName);
-    if (await fsExtra.pathExists(filePath)) {
-      Log.error(`Workflow file already exists: ${filePath}`);
-      Log.error('Please choose a different file name.');
-      Log.newLine();
-      fileName = undefined;
-    }
+    counter++;
   }
-  return { fileName: fileName ?? '', filePath };
+  return { fileName, filePath };
+}
+
+function ensureYamlExtension(name: string): string {
+  const ext = path.extname(name);
+  if (!ext) {
+    return `${name}.yml`;
+  }
+  const lowerExt = ext.toLowerCase();
+  if (lowerExt === '.yml' || lowerExt === '.yaml') {
+    return name;
+  }
+  throw new Error(`Workflow file name must end with .yml or .yaml, but got "${name}".`);
 }
