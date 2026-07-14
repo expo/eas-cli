@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `eas browse` to open the project page on expo.dev in a web browser, with an optional page argument (e.g. `eas browse build`, `eas browse hosting`) for project subpages and a `--no-browser` flag to print the URL. `eas open` is now an alias of `eas browse`. ([#4003](https://github.com/expo/eas-cli/pull/4003) by [@jonsamp](https://github.com/jonsamp))
+- [eas-cli] Add `--dev-domain` flag to `eas deploy` to choose the project's preview URL (`<name>.expo.app`) without prompting, allowing first-time deploys with `--non-interactive`. ([#4004](https://github.com/expo/eas-cli/pull/4004) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 

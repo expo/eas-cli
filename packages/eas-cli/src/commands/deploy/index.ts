@@ -18,6 +18,7 @@ import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import * as WorkerAssets from '../../worker/assets';
 import {
+  assertValidDevDomainName,
   assignWorkerDeploymentAliasAsync,
   assignWorkerDeploymentProductionAsync,
   getSignedDeploymentUrlAsync,
@@ -30,6 +31,7 @@ import {
   uploadAsync,
 } from '../../worker/upload';
 import {
+  EXPO_BASE_DOMAIN,
   formatWorkerDeploymentJson,
   formatWorkerDeploymentTable,
   getDeploymentUrlFromFullName,
@@ -50,6 +52,7 @@ interface DeployFlags {
   aliasName?: string;
   environment?: string;
   deploymentIdentifier?: string;
+  devDomainName?: string;
   exportDir: string;
   dryRun: boolean;
   sourceMaps: boolean;
@@ -62,6 +65,7 @@ interface RawDeployFlags {
   prod: boolean;
   alias?: string;
   id?: string;
+  'dev-domain'?: string;
   'export-dir': string;
   'dry-run': boolean;
   'source-maps': boolean;
@@ -82,7 +86,11 @@ interface DeployInProgressParams {
 export default class WorkerDeploy extends EasCommand {
   static override description = 'deploy your Expo Router web build and API Routes';
   static override aliases = ['worker:deploy'];
-  static override usage = [chalk`deploy {dim [options]}`, `deploy --prod`];
+  static override usage = [
+    chalk`deploy {dim [options]}`,
+    `deploy --prod`,
+    `deploy --non-interactive --dev-domain my-app`,
+  ];
   static override state = 'preview';
 
   static override flags = {
@@ -98,6 +106,10 @@ export default class WorkerDeploy extends EasCommand {
     id: Flags.string({
       description: 'Custom unique identifier for the new deployment.',
       helpValue: 'xyz123',
+    }),
+    'dev-domain': Flags.string({
+      description: `Custom preview URL subdomain to assign to the project on its first deployment, e.g. "my-app" for my-app.${EXPO_BASE_DOMAIN}.app. Required with --non-interactive if you want to customize the preview URL.`,
+      helpValue: 'name',
     }),
     'export-dir': Flags.string({
       description: 'Directory where the Expo project was exported.',
@@ -322,6 +334,7 @@ export default class WorkerDeploy extends EasCommand {
       const uploadUrl = await getSignedDeploymentUrlAsync(graphqlClient, {
         appId: projectId,
         deploymentIdentifier: flags.deploymentIdentifier,
+        devDomainName: flags.devDomainName,
         // NOTE(cedric): this function might ask the user for a dev-domain name,
         // when that happens, no ora spinner should be running.
         onSetupDevDomain: () => progress.stop(),
@@ -467,12 +480,19 @@ export default class WorkerDeploy extends EasCommand {
 
   private sanitizeFlags(flags: RawDeployFlags): DeployFlags {
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+
+    const devDomainName = flags['dev-domain']?.trim().toLowerCase();
+    if (devDomainName !== undefined) {
+      assertValidDevDomainName(devDomainName);
+    }
+
     return {
       nonInteractive,
       json,
       isProduction: !!flags.prod,
       aliasName: flags.alias?.trim().toLowerCase(),
       deploymentIdentifier: flags.id?.trim(),
+      devDomainName,
       exportDir: flags['export-dir'],
       environment: flags['environment'],
       dryRun: flags['dry-run'],
