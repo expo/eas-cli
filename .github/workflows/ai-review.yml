@@ -34,8 +34,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run AI review
-        # Run from the repo root so the OpenCode server can read the whole checkout.
-        run: bun tools/reviewer/src/entrypoints/ci.ts
+        # Put tools/reviewer/node_modules/.bin on PATH so the `opencode` binary
+        # the SDK spawns resolves. ci.ts chdirs to the repo root itself, so the
+        # OpenCode server still reads the whole checkout.
+        working-directory: tools/reviewer
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          bun run ci
         continue-on-error: true
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
