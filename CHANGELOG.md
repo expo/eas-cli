@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Remove temporary working directories after `eas build:inspect` copies inspect output, avoiding leftover disk usage after failed builds. ([#3981](https://github.com/expo/eas-cli/pull/3981) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - [worker] Bump `ws` to patched releases to resolve [Dependabot alert 462](https://github.com/expo/eas-cli/security/dependabot/462). ([#3963](https://github.com/expo/eas-cli/pull/3963) by [@szdziedzic](https://github.com/szdziedzic))
