@@ -61,6 +61,8 @@ public struct FirstFrameWallClock: Codable, Sendable {
 
 public struct RecordingManifest: Codable, Sendable {
     public let firstFrameWallClock: FirstFrameWallClock
+    public let width: Int
+    public let height: Int
     public let hlsVersion: Int?
     public let hlsTargetDurationSeconds: Int?
     public let hlsMediaSequence: Int?

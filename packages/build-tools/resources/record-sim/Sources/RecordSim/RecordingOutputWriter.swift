@@ -100,7 +100,9 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
     @discardableResult
     func writeManifest(
         configuration: SimulatorRecordingConfiguration,
-        firstFrameWallClock: Date
+        firstFrameWallClock: Date,
+        width: Int,
+        height: Int
     ) throws -> RecordingManifest {
         try stateQueue.sync {
             if let firstError {
@@ -121,6 +123,8 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
                     unixMs: unixMs(firstFrameWallClock),
                     iso8601: iso8601(firstFrameWallClock)
                 ),
+                width: width,
+                height: height,
                 hlsVersion: segmented ? 7 : nil,
                 hlsTargetDurationSeconds: targetDuration,
                 hlsMediaSequence: segmented ? 0 : nil,

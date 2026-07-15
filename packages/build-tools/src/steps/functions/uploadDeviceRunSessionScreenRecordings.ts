@@ -30,6 +30,8 @@ const RecordingManifestSchema = z.object({
   firstFrameWallClock: z.object({
     iso8601: z.string(),
   }),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
   recording: z.string(),
 });
 
@@ -91,6 +93,8 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
                   deviceName: recording.deviceName,
                   runtimeDisplayName: recording.runtimeDisplayName,
                   firstFrameAt: metadata.firstFrameWallClock.iso8601,
+                  width: metadata.width,
+                  height: metadata.height,
                 },
                 size,
                 stream: createReadStream(recordingPath),
