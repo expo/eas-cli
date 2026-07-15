@@ -13,6 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [eas-cli] Bump `axios` to patched releases to resolve [Dependabot alert 439](https://github.com/expo/eas-cli/security/dependabot/439). ([#3964](https://github.com/expo/eas-cli/pull/3964) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `handlebars` to `4.7.9` to resolve [Dependabot alert 334](https://github.com/expo/eas-cli/security/dependabot/334). ([#3958](https://github.com/expo/eas-cli/pull/3958) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [21.0.1](https://github.com/expo/eas-cli/releases/tag/v21.0.1) - 2026-07-15
 
