@@ -5599,7 +5599,6 @@ export type DeviceRunSession = {
   app: App;
   artifacts: Array<DeviceRunSessionArtifact>;
   createdAt: Scalars['DateTime']['output'];
-  eventLog: DeviceRunSessionEventLog;
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
@@ -5645,11 +5644,6 @@ export type DeviceRunSessionArtifactUploadSession = {
   __typename?: 'DeviceRunSessionArtifactUploadSession';
   headers: Scalars['JSONObject']['output'];
   url: Scalars['String']['output'];
-};
-
-export type DeviceRunSessionEventLog = {
-  __typename?: 'DeviceRunSessionEventLog';
-  fileUrl: Scalars['String']['output'];
 };
 
 export type DeviceRunSessionFilterInput = {
@@ -13974,12 +13968,12 @@ export type ConvexProjectByAppIdQueryVariables = Exact<{
 
 export type ConvexProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, convexProject?: { __typename?: 'ConvexProject', id: string, convexProjectIdentifier: string, convexProjectName: string, convexProjectSlug: string, createdAt: any, updatedAt: any, convexTeamConnection: { __typename?: 'ConvexTeamConnection', id: string, convexTeamIdentifier: string, convexTeamName: string, convexTeamSlug: string, hasBeenClaimed: boolean, createdAt: any, updatedAt: any, invitedAt?: any | null, invitedEmail?: string | null } } | null } } };
 
-export type DeviceRunSessionEventLogByIdQueryVariables = Exact<{
+export type DeviceRunSessionEventsByIdQueryVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];
 }>;
 
 
-export type DeviceRunSessionEventLogByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, eventLog: { __typename?: 'DeviceRunSessionEventLog', fileUrl: string } } } };
+export type DeviceRunSessionEventsByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, downloadUrl: string, metadata?: any | null }> } } };
 
 export type DeviceRunSessionByIdQueryVariables = Exact<{
   deviceRunSessionId: Scalars['ID']['input'];

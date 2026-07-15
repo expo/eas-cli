@@ -39973,22 +39973,6 @@
             "deprecationReason": null
           },
           {
-            "name": "eventLog",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "DeviceRunSessionEventLog",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "finishedAt",
             "description": null,
             "args": [],
@@ -40372,33 +40356,6 @@
           },
           {
             "name": "url",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "DeviceRunSessionEventLog",
-        "description": null,
-        "fields": [
-          {
-            "name": "fileUrl",
             "description": null,
             "args": [],
             "type": {

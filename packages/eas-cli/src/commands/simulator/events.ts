@@ -74,14 +74,16 @@ export default class SimulatorEvents extends EasCommand {
 
     try {
       do {
-        const session = await DeviceRunSessionQuery.eventLogByIdAsync(
+        const session = await DeviceRunSessionQuery.eventsByIdAsync(
           graphqlClient,
           deviceRunSessionId
         );
-        const events = await downloadDeviceRunSessionEventsAsync(
-          session.eventLog.fileUrl,
-          deviceRunSessionId
+        const eventArtifact = session.artifacts.find(
+          artifact => artifact.metadata?.__eas_device_run_session_events === '1'
         );
+        const events = eventArtifact
+          ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl, deviceRunSessionId)
+          : [];
 
         if (jsonFlag) {
           printJsonOnlyOutput({ deviceRunSessionId, events });
