@@ -3572,7 +3572,7 @@ __metadata:
     typescript: "npm:5.5.4"
     uuid: "npm:3.4.0"
     uuidv7: "npm:1.1.0"
-    ws: "npm:8.21.0"
+    ws: "npm:8.21.1"
     xml2js: "npm:0.6.2"
     zod: "npm:4.1.8"
   languageName: unknown
@@ -20691,9 +20691,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:8.21.0, ws@npm:^8.12.0, ws@npm:^8.13.0, ws@npm:^8.15.0":
-  version: 8.21.0
-  resolution: "ws@npm:8.21.0"
+"ws@npm:8.21.1, ws@npm:^8.12.0, ws@npm:^8.13.0, ws@npm:^8.15.0":
+  version: 8.21.1
+  resolution: "ws@npm:8.21.1"
   peerDependencies:
     bufferutil: ^4.0.1
     utf-8-validate: ">=5.0.2"
@@ -20702,16 +20702,16 @@ __metadata:
       optional: true
     utf-8-validate:
       optional: true
-  checksum: 10c0/ef4a243476283fc49bc7550966c4af4aa0eef56273837211e700de3b664e08604a760cdddcb5ba43c049140e74ccfec5b0ee0bb439e08c2adf9138902fdde5f9
+  checksum: 10c0/c4c6f1d95f6d465262de2037c57c715725d67e078dd49420ede4e19115668aba159cb64d85c5e89c06eb2826be599e62e5095860ad6cc54ff42e8bd7684e1db8
   languageName: node
   linkType: hard
 
 "ws@npm:^5.2.0":
-  version: 5.2.5
-  resolution: "ws@npm:5.2.5"
+  version: 5.2.6
+  resolution: "ws@npm:5.2.6"
   dependencies:
     async-limiter: "npm:~1.0.0"
-  checksum: 10c0/829b2e57028c65765a01bd240fb05c736050cc1e6836f5d6df04ebc4e78c2950c7d437bbfd01a79345050813e9da2162171be8c5b5301cc4307804932908d9de
+  checksum: 10c0/2127ceb49bc1dc39186a5634327931425ff75eeb222ac4a0bbc05c2095565caaa702214f13ddb67fb07357d7c0cfb4b373ca844814f2ae4621bae71edb4eb08a
   languageName: node
   linkType: hard
 
