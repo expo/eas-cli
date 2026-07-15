@@ -1563,6 +1563,10 @@ export type App = Project & {
   workerDeploymentsCrashes?: Maybe<WorkerDeploymentCrashes>;
   workerDeploymentsRequest: WorkerDeploymentRequestEdge;
   workerDeploymentsRequests?: Maybe<WorkerDeploymentRequests>;
+  /** Caches associated with this app, ordered by last access time (most recent first). */
+  workflowCachesPaginated: AppWorkflowCachesConnection;
+  /** Per-type caching configuration for this app. */
+  workflowCachingConfig: WorkflowCachingConfig;
   workflowDeviceTestCaseHistory: WorkflowDeviceTestCaseHistory;
   workflowDeviceTestCaseInsights: WorkflowDeviceTestCaseInsights;
   workflowRunGitBranchesPaginated: AppWorkflowRunGitBranchesConnection;
@@ -1893,6 +1897,15 @@ export type AppWorkerDeploymentsRequestsArgs = {
 
 
 /** Represents an Exponent App (or Experience in legacy terms) */
+export type AppWorkflowCachesPaginatedArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** Represents an Exponent App (or Experience in legacy terms) */
 export type AppWorkflowDeviceTestCaseHistoryArgs = {
   filters?: InputMaybe<WorkflowDeviceTestCaseHistoryFiltersInput>;
   path: Scalars['String']['input'];
@@ -2096,6 +2109,8 @@ export type AppMutation = {
   setPushSecurityEnabled: App;
   /** Set resource class experiment for app */
   setResourceClassExperiment: App;
+  /** Set per-type caching configuration for the app. */
+  setWorkflowCachingConfig: App;
 };
 
 
@@ -2129,6 +2144,12 @@ export type AppMutationSetPushSecurityEnabledArgs = {
 export type AppMutationSetResourceClassExperimentArgs = {
   appId: Scalars['ID']['input'];
   resourceClassExperiment?: InputMaybe<ResourceClassExperiment>;
+};
+
+
+export type AppMutationSetWorkflowCachingConfigArgs = {
+  appId: Scalars['ID']['input'];
+  config: WorkflowCachingConfigInput;
 };
 
 /** App-level notification preference */
@@ -3359,6 +3380,18 @@ export type AppWithGithubRepositoryInput = {
   appInfo?: InputMaybe<AppInfoInput>;
   installationIdentifier?: InputMaybe<Scalars['String']['input']>;
   projectName: Scalars['String']['input'];
+};
+
+export type AppWorkflowCacheEdge = {
+  __typename?: 'AppWorkflowCacheEdge';
+  cursor: Scalars['String']['output'];
+  node: WorkflowCache;
+};
+
+export type AppWorkflowCachesConnection = {
+  __typename?: 'AppWorkflowCachesConnection';
+  edges: Array<AppWorkflowCacheEdge>;
+  pageInfo: PageInfo;
 };
 
 export type AppWorkflowFilterInput = {
@@ -9051,6 +9084,7 @@ export type RootMutation = {
   webhook: WebhookMutation;
   /** Mutations that modify a websiteNotification */
   websiteNotifications: WebsiteNotificationMutation;
+  workflowCache: WorkflowCacheMutation;
   workflowDeviceTestCaseResult: WorkflowDeviceTestCaseResultMutation;
   workflowJobAppleDeviceRegistrationRequest: WorkflowJobAppleDeviceRegistrationRequestMutation;
   workflowJobApproval: WorkflowJobApprovalMutation;
@@ -10588,6 +10622,11 @@ export type UpdatesTimelineFilter = {
   channel?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppPlatform>;
   runtimeVersions?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
+   * Case-insensitive substring match on update group message and branch name.
+   * Embedded updates are matched on channel and runtime version.
+   */
+  searchTerm?: InputMaybe<Scalars['String']['input']>;
   types?: InputMaybe<Array<UpdatesTimelineItemType>>;
 };
 
@@ -12011,6 +12050,72 @@ export enum WorkflowArtifactStorageType {
   Gcs = 'GCS',
   R2 = 'R2'
 }
+
+export type WorkflowCache = {
+  __typename?: 'WorkflowCache';
+  createdAt: Scalars['DateTime']['output'];
+  /** Actor who created this cache. Null if the creating user no longer exists. */
+  creatingActor?: Maybe<Actor>;
+  /** Git branch name the cache was created from. Null for user-scoped caches. */
+  gitBranchName?: Maybe<Scalars['String']['output']>;
+  /**
+   * Build that created this cache. Null if the cache was created by a job run
+   * or the build no longer exists.
+   */
+  hydratingBuild?: Maybe<Build>;
+  /**
+   * Job run that created this cache. Null if the cache was created by a build
+   * or the job run no longer exists.
+   */
+  hydratingJobRun?: Maybe<JobRun>;
+  id: Scalars['ID']['output'];
+  /** Cache key used to identify the cache entry. */
+  key: Scalars['String']['output'];
+  /**
+   * Time the cache was last used to restore, or the creation time if it has
+   * never been restored.
+   */
+  lastAccessedAt: Scalars['DateTime']['output'];
+  /** Size of the cache archive in bytes. Null if the cache has not been hydrated yet. */
+  sizeBytes?: Maybe<Scalars['Float']['output']>;
+};
+
+export type WorkflowCacheMutation = {
+  __typename?: 'WorkflowCacheMutation';
+  deleteWorkflowCache: WorkflowCache;
+};
+
+
+export type WorkflowCacheMutationDeleteWorkflowCacheArgs = {
+  cacheId: Scalars['ID']['input'];
+};
+
+export type WorkflowCachingConfig = {
+  __typename?: 'WorkflowCachingConfig';
+  /**
+   * Whether the ccache compiler cache is enabled. Null if not explicitly
+   * configured, in which case the account-level default applies.
+   */
+  ccacheEnabled?: Maybe<Scalars['Boolean']['output']>;
+  /**
+   * Whether the Gradle build cache is enabled. Null if not explicitly
+   * configured, in which case it is disabled.
+   */
+  gradleCacheEnabled?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type WorkflowCachingConfigInput = {
+  /**
+   * Pass true or false to explicitly enable or disable, null to reset to the account-level
+   * default, or omit the field to leave it unchanged.
+   */
+  ccacheEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Pass true or false to explicitly enable or disable, null to reset to the default
+   * (disabled), or omit the field to leave it unchanged.
+   */
+  gradleCacheEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+};
 
 /**
  * Grouping key from the [shard N] prefix-stripped error_message. `count` is
@@ -14510,6 +14615,7 @@ export type AppObserveCustomEventListQueryVariables = Exact<{
   filter?: InputMaybe<AppObserveCustomEventListFilter>;
   first?: InputMaybe<Scalars['Int']['input']>;
   after?: InputMaybe<Scalars['String']['input']>;
+  orderBy?: InputMaybe<AppObserveCustomEventListOrderBy>;
 }>;
 
 
