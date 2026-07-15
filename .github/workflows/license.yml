@@ -7,6 +7,9 @@ on:
       - main
     paths:
       - .github/workflows/license.yml
+  pull_request:
+    paths:
+      - .github/workflows/license.yml
   workflow_dispatch:
 
 jobs:
