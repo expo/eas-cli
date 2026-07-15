@@ -34,8 +34,5 @@
     "ts-jest": "29.1.1",
     "typescript": "5.5.4"
   },
-  "resolutions": {
-    "immutable@npm:~3.7.6": "npm:3.8.3"
-  },
   "packageManager": "yarn@4.12.0"
 }
