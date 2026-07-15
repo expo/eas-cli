@@ -10,15 +10,15 @@ struct CLIOptions {
     var codec: RecorderCodec = .h264
 }
 
-private var stopRequested: CInt = 0
+private var requestedStopSignal: CInt = 0
 private var simulatorStopped: CInt = 0
 
-private func handleStopSignal(_: CInt) {
-    stopRequested = 1
+private func handleStopSignal(_ signal: CInt) {
+    requestedStopSignal = signal
 }
 
 private func isStopRequested() -> Bool {
-    stopRequested != 0 || simulatorStopped != 0
+    requestedStopSignal != 0 || simulatorStopped != 0
 }
 
 func usage() -> String {
@@ -112,6 +112,14 @@ do {
         simulatorStopped = 1
         fputs("[record-sim] simulator stopped state=\(state); finalizing recording\n", stderr)
     }
+    recorder.onFinalizationStage = { stage in
+        switch stage {
+        case .captureStopped:
+            fputs("[record-sim] screen capture stopped; saving final video\n", stderr)
+        case .videoSaved:
+            fputs("[record-sim] final video saved; writing recording details\n", stderr)
+        }
+    }
     recorder.onSegment = { segment in
         switch segment.kind {
         case .initialization:
@@ -130,6 +138,14 @@ do {
         Thread.sleep(forTimeInterval: 0.1)
     }
 
+    if requestedStopSignal != 0 {
+        let signalName = switch requestedStopSignal {
+        case SIGINT: "SIGINT"
+        case SIGTERM: "SIGTERM"
+        default: "signal \(requestedStopSignal)"
+        }
+        fputs("[record-sim] received \(signalName); finishing recording\n", stderr)
+    }
     let manifest = try recorder.stop()
     if let recording = manifest.recording {
         fputs("[record-sim] done recording=\(recording)\n", stderr)

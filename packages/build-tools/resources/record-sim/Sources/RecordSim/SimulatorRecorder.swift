@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 public final class SimulatorRecorder {
     public var onSegment: ((SegmentOutput) -> Void)?
     public var onSimulatorStopped: ((String) -> Void)?
+    public var onFinalizationStage: ((RecordingFinalizationStage) -> Void)?
 
     private static let callbackStalenessTimeout: TimeInterval = 5
     private static let firstFrameRewireInterval: TimeInterval = 1
@@ -115,6 +116,7 @@ public final class SimulatorRecorder {
             displaySource?.stop()
             displaySource = nil
         }
+        onFinalizationStage?(.captureStopped)
 
         return try writerQueue.sync {
             if let firstError {
@@ -141,6 +143,7 @@ public final class SimulatorRecorder {
             if let error = outputWriter.error {
                 throw error
             }
+            onFinalizationStage?(.videoSaved)
             guard let firstAcceptedWallClock else {
                 throw RecorderError.make(25, "Missing first frame wall-clock timestamp")
             }
