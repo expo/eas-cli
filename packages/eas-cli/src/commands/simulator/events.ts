@@ -79,7 +79,7 @@ export default class SimulatorEvents extends EasCommand {
           deviceRunSessionId
         );
         const eventArtifact = session.artifacts.find(
-          artifact => artifact.metadata?.__eas_device_run_session_events === '1'
+          artifact => artifact.metadata?.__eas_type === 'session-events'
         );
         const events = eventArtifact
           ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl, deviceRunSessionId)

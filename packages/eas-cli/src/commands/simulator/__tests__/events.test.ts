@@ -49,7 +49,7 @@ describe(SimulatorEvents, () => {
         {
           id: 'event-artifact-id',
           downloadUrl: 'https://example.test/events',
-          metadata: { __eas_device_run_session_events: '1' },
+          metadata: { __eas_type: 'session-events' },
         },
       ],
     };
