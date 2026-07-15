@@ -35,6 +35,19 @@ const RecordingManifestSchema = z.object({
   recording: z.string(),
 });
 
+const recordingStartTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  fractionalSecondDigits: 3,
+  hourCycle: 'h23',
+  timeZone: 'UTC',
+  timeZoneName: 'short',
+});
+
 export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
   ctx: CustomBuildContext
 ): BuildFunction {
@@ -74,7 +87,10 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               const metadata = RecordingManifestSchema.parse(
                 JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
               );
-              const displayName = `${recording.deviceName} screen recording (started at ${metadata.firstFrameWallClock.iso8601})`;
+              const startedAt = recordingStartTimeFormatter.format(
+                new Date(metadata.firstFrameWallClock.iso8601)
+              );
+              const displayName = `${recording.deviceName} screen recording (started at ${startedAt})`;
               const recordingPath = path.join(recording.directory, metadata.recording);
               const { size } = await stat(recordingPath);
               const recordingId = path.basename(recording.directory);
