@@ -39,27 +39,6 @@
   </a>
 </p>
 
-<p align="center">
-  <a aria-label="Follow Expo on X" href="https://x.com/intent/follow?screen_name=expo" target="_blank">
-    <img alt="Expo on X" src="https://img.shields.io/badge/X-000000?style=for-the-badge&logo=x&logoColor=white" />
-  </a>&nbsp;
-  <a aria-label="Follow Expo on GitHub" href="https://github.com/expo" target="_blank">
-    <img alt="Expo on GitHub" src="https://img.shields.io/badge/GitHub-222222?style=for-the-badge&logo=github&logoColor=white" />
-  </a>&nbsp;
-  <a aria-label="Follow Expo on Reddit" href="https://www.reddit.com/r/expo/" target="_blank">
-    <img alt="Expo on Reddit" src="https://img.shields.io/badge/Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" />
-  </a>&nbsp;
-  <a aria-label="Follow Expo on Bluesky" href="https://bsky.app/profile/expo.dev" target="_blank">
-    <img alt="Expo on Bluesky" src="https://img.shields.io/badge/Bluesky-1DA1F2?style=for-the-badge&logo=bluesky&logoColor=white" />
-  </a>&nbsp;
-  <a aria-label="Follow Expo on LinkedIn" href="https://www.linkedin.com/company/expo-dev" target="_blank">
-    <img alt="Expo on LinkedIn" src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=LinkedIn&logoColor=white" />
-  </a>&nbsp;
-  <a aria-label="Subscribe to Expo on YouTube" href="https://www.youtube.com/channel/UCx_YiR733cfqVPRsQ1n8Fag" target="_blank">
-    <img alt="Expo on YouTube" src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=YouTube&logoColor=white" />
-  </a>
-</p>
-
 ---
 
 EAS CLI is the command-line interface for [Expo Application Services (EAS)](https://expo.dev/eas) — deeply integrated cloud services for Expo and React Native apps, from the team behind Expo.
