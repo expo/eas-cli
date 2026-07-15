@@ -9560,7 +9560,8 @@ export type SentryProjectMutationDeleteSentryProjectArgs = {
 export type ServeSimRunSessionRemoteConfig = {
   __typename?: 'ServeSimRunSessionRemoteConfig';
   previewUrl: Scalars['String']['output'];
-  streamUrl: Scalars['String']['output'];
+  /** @deprecated Use previewUrl instead. */
+  streamUrl?: Maybe<Scalars['String']['output']>;
 };
 
 export type SetupConvexProjectInput = {
@@ -14374,7 +14375,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
-        | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string, streamUrl: string }
+        | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };
 
 export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
