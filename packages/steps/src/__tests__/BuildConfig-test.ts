@@ -1042,6 +1042,40 @@ describe(validateAllFunctionsExist, () => {
       validateAllFunctionsExist(buildConfig, { externalFunctionIds: [] });
     }).toThrowError(/Calling non-existent functions: "eas\/build"/);
   });
+  test('rejects local action references with a dedicated error', () => {
+    const buildConfig: BuildConfig = {
+      build: {
+        steps: ['./.eas/actions/my-action'],
+      },
+    };
+
+    expect(() => {
+      validateAllFunctionsExist(buildConfig, { externalFunctionIds: [] });
+    }).toThrowError(
+      /Local actions \("\.\/\.eas\/actions\/my-action"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local actions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
+    );
+  });
+  test('rejects object-form local action references with a dedicated error', () => {
+    const buildConfig: BuildConfig = {
+      build: {
+        steps: [
+          {
+            './.eas/actions/my-action': {
+              inputs: {
+                foo: 'bar',
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    expect(() => {
+      validateAllFunctionsExist(buildConfig, { externalFunctionIds: [] });
+    }).toThrow(
+      /Local actions \("\.\/\.eas\/actions\/my-action"\) are not supported in "\.eas\/build\/\*\.yml" custom builds\. Local actions can only be used in EAS workflows \("\.eas\/workflows\/\*\.yml"\)\./
+    );
+  });
   test('non-existent namespaced functions with skipNamespacedFunctionsOrFunctionGroupsCheck = false', () => {
     const buildConfig: BuildConfig = {
       build: {
