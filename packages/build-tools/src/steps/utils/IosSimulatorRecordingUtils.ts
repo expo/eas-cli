@@ -115,9 +115,10 @@ export namespace IosSimulatorRecordingUtils {
         }
 
         const recordSimOutput = recording.getOutput().trim();
+        const finishTimeoutSeconds = Math.round(RECORD_SIM_FINISH_TIMEOUT_MS / 1_000);
         logger.warn(
           { recordSimOutput },
-          `Screen recording for ${recording.deviceName} did not finish within 70 seconds and will be stopped.${
+          `Screen recording for ${recording.deviceName} did not finish within ${finishTimeoutSeconds} seconds and will be stopped.${
             recordSimOutput
               ? `\nRecent recorder messages:\n${recordSimOutput}`
               : '\nNo recorder messages were captured.'
