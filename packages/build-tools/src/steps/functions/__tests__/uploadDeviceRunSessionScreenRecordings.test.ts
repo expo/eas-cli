@@ -70,6 +70,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         expect.objectContaining({
           name: 'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
           metadata: {
+            __eas_type: 'screen-recording',
             __eas_screen_recording: '1',
             udid: SIMULATOR_UDID,
             deviceName: 'iPhone 16',

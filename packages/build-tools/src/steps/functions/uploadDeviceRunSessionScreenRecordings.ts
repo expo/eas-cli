@@ -105,6 +105,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
                 filename: `${recordingId}.mp4`,
                 kind: 'screen-recording',
                 metadata: {
+                  __eas_type: 'screen-recording',
                   __eas_screen_recording: '1',
                   udid: recording.udid,
                   deviceName: recording.deviceName,
