@@ -120,8 +120,8 @@ describe(isKnownMetricName, () => {
   });
 
   it('returns true for navigation short aliases', () => {
-    expect(isKnownMetricName('cold_ttr')).toBe(true);
-    expect(isKnownMetricName('warm_ttr')).toBe(true);
+    expect(isKnownMetricName('nav_cold_ttr')).toBe(true);
+    expect(isKnownMetricName('nav_warm_ttr')).toBe(true);
     expect(isKnownMetricName('nav_tti')).toBe(true);
   });
 
