@@ -8,6 +8,7 @@
   "endOfLine": "lf",
   "ignorePatterns": [
     ".github",
+    "tools/reviewer",
     "lerna.json",
     "**/build/**",
     "**/dist/**",

@@ -1,0 +1,46 @@
+name: AI code review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Phase 1: comment-only. Only needs to read the repo and write PR comments.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # A reviewer failure must never fail the PR's checks in phase 1.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install reviewer dependencies
+        working-directory: tools/reviewer
+        run: bun install --frozen-lockfile
+
+      - name: Run AI review
+        # Run from the repo root so the OpenCode server can read the whole checkout.
+        run: bun tools/reviewer/src/entrypoints/ci.ts
+        continue-on-error: true
+        env:
+          # GitHub token scoped by the permissions block above (PR comments only).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Model credentials picked up by OpenCode. Swap for your provider's key.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional: override the model used by every agent.
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
