@@ -62,7 +62,9 @@ export async function reviewChanges(
     timestamp: new Date().toISOString(),
     mode: options.mode,
     runId,
-    metadata,
+    // Only log refs — never the PR title/body, which are author-controlled and
+    // could contain secrets someone pasted into a description.
+    metadata: { baseRef: metadata.baseRef, headRef: metadata.headRef },
     reviewedFiles: kept.map(entry => entry.path),
     filteredFiles: filtered,
   };
@@ -88,7 +90,7 @@ export async function reviewChanges(
 
   const config = await loadReviewerConfig();
   progress('Starting OpenCode server…');
-  let handle: OpencodeHandle;
+  let handle: OpencodeHandle | null = null;
   try {
     handle = await startOpencode(config);
   } catch (error) {
@@ -152,7 +154,7 @@ export async function reviewChanges(
     });
     throw error;
   } finally {
-    handle.close();
+    handle?.close();
   }
 }
 

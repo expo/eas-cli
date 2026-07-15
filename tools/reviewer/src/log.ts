@@ -8,7 +8,9 @@ export interface RunLogRecord {
   timestamp: string;
   mode: 'ci' | 'local';
   runId: string;
-  metadata: ReviewMetadata;
+  // Refs only — PR title/body are deliberately excluded to avoid persisting
+  // secrets that might appear in author-controlled text.
+  metadata: Pick<ReviewMetadata, 'baseRef' | 'headRef'>;
   reviewedFiles: string[];
   filteredFiles: FilteredFile[];
   agentCosts: Record<string, number>;
