@@ -65,7 +65,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          name: 'iPhone 16 screen recording (started at Jul 10, 2026, 10:00:00.000 UTC)',
+          name: 'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
           metadata: {
             __eas_screen_recording: '1',
             udid: 'simulator-udid',
@@ -82,22 +82,24 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
     }
   });
 
-  it('uses unique names for recordings from the same simulator', async () => {
+  it('uses unique names for recordings from rebooted and same-model simulators', async () => {
     const recordingDirectories = await Promise.all(
-      ['2026-07-10T10:00:00.000Z', '2026-07-10T10:05:00.000Z'].map(async firstFrameAt => {
-        const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ios-recording-test-'));
-        await fs.writeFile(path.join(directory, 'recording.mp4'), 'recording');
-        await fs.writeFile(
-          path.join(directory, 'session.json'),
-          JSON.stringify({
-            recording: 'recording.mp4',
-            firstFrameWallClock: { iso8601: firstFrameAt },
-            width: 1179,
-            height: 2556,
-          })
-        );
-        return directory;
-      })
+      ['2026-07-10T10:00:00.000Z', '2026-07-10T10:05:00.000Z', '2026-07-10T10:00:00.000Z'].map(
+        async firstFrameAt => {
+          const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ios-recording-test-'));
+          await fs.writeFile(path.join(directory, 'recording.mp4'), 'recording');
+          await fs.writeFile(
+            path.join(directory, 'session.json'),
+            JSON.stringify({
+              recording: 'recording.mp4',
+              firstFrameWallClock: { iso8601: firstFrameAt },
+              width: 1179,
+              height: 2556,
+            })
+          );
+          return directory;
+        }
+      )
     );
 
     try {
@@ -109,8 +111,8 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       ).createBuildStepFromFunctionCall(globalContext, {
         env: { DEVICE_RUN_SESSION_ID: 'device-run-session-id' },
         callInputs: {
-          recordings_json: recordingDirectories.map(directory => ({
-            udid: 'simulator-udid',
+          recordings_json: recordingDirectories.map((directory, index) => ({
+            udid: index === 2 ? 'second-simulator-udid' : 'simulator-udid',
             deviceName: 'iPhone 16',
             runtimeDisplayName: 'iOS 18.6',
             directory,
@@ -125,11 +127,12 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         .mock.calls.map(([, options]) => options.name);
       expect(names).toEqual(
         expect.arrayContaining([
-          'iPhone 16 screen recording (started at Jul 10, 2026, 10:00:00.000 UTC)',
-          'iPhone 16 screen recording (started at Jul 10, 2026, 10:05:00.000 UTC)',
+          'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:05:00.000 UTC)',
+          'iPhone 16 screen recording (UDID second-simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
         ])
       );
-      expect(new Set(names).size).toBe(2);
+      expect(new Set(names).size).toBe(3);
     } finally {
       await Promise.all(
         recordingDirectories.map(directory => fs.rm(directory, { recursive: true, force: true }))
