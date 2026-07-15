@@ -31,6 +31,7 @@ async function parseActions(options: {
   const ctx = createGlobalContextMock();
   const parser = new StepsConfigParser(ctx, {
     steps: options.steps,
+    hooks: undefined,
     actionCatalog: makeCatalog(options.catalog ?? {}),
     externalFunctions: options.externalFunctions,
     externalFunctionGroups: options.externalFunctionGroups,
@@ -1145,6 +1146,7 @@ describe('StepsConfigParser local actions', () => {
       ctx.updateEnv({ DEPLOY: 'true' });
       const parser = new StepsConfigParser(ctx, {
         steps: [{ uses: SETUP, id: 'setup', if: "${{ env.DEPLOY == 'true' }}" }],
+        hooks: undefined,
         actionCatalog: makeCatalog({
           [SETUP]: {
             runs: { steps: [{ id: 'inner', uses: 'eas/echo', env: { DEPLOY: 'false' } }] },
