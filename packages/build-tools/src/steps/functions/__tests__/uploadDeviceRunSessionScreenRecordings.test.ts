@@ -68,7 +68,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          name: 'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          name: 'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
           metadata: {
             __eas_screen_recording: '1',
             udid: SIMULATOR_UDID,
@@ -130,9 +130,9 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         .mock.calls.map(([, options]) => options.name);
       expect(names).toEqual(
         expect.arrayContaining([
-          'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:00:00.000 UTC)',
-          'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:05:00.000 UTC)',
-          'iPhone 16 screen recording (simulator FEDCBA98, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          'iPhone 16 screen recording (01234567-…, started at Jul 10, 2026, 10:05:00.000 UTC)',
+          'iPhone 16 screen recording (FEDCBA98-…, started at Jul 10, 2026, 10:00:00.000 UTC)',
         ])
       );
       expect(new Set(names).size).toBe(3);

@@ -90,8 +90,8 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               const startedAt = recordingStartTimeFormatter.format(
                 new Date(metadata.firstFrameWallClock.iso8601)
               );
-              const shortUdid = recording.udid.slice(0, 8);
-              const displayName = `${recording.deviceName} screen recording (simulator ${shortUdid}, started at ${startedAt})`;
+              const shortUdid = `${recording.udid.slice(0, 8)}-…`;
+              const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt})`;
               const recordingPath = path.join(recording.directory, metadata.recording);
               const { size } = await stat(recordingPath);
               const recordingId = path.basename(recording.directory);
