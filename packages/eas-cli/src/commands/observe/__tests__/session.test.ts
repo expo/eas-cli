@@ -170,6 +170,12 @@ describe(ObserveSession, () => {
     expect(mockFetchObserveSessionEventsAsync).not.toHaveBeenCalled();
   });
 
+  it('treats --json as non-interactive (requires a session ID)', async () => {
+    const command = createCommand(['--json']);
+    await expect(command.runAsync()).rejects.toThrow(/session ID argument is required/);
+    expect(mockFetchObserveSessionEventsAsync).not.toHaveBeenCalled();
+  });
+
   it('rejects picker flags when a session ID is also provided', async () => {
     const command = createCommand(['session-abc', '--event-name', 'tti']);
     await expect(command.runAsync()).rejects.toThrow(/picker flags/);

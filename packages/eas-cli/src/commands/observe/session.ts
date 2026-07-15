@@ -2,7 +2,10 @@ import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import Log from '../../log';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
@@ -76,16 +79,17 @@ export default class ObserveSession extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveSession);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveSession,
       loggedInOnlyContextDefinition: ObserveSession.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -103,7 +107,7 @@ export default class ObserveSession extends EasCommand {
         );
       }
       sessionId = args.sessionId;
-    } else if (flags['non-interactive']) {
+    } else if (nonInteractive) {
       throw new EasCommandError(
         'A session ID argument is required in non-interactive mode. In interactive mode, you can omit the session ID to pick one from a list of events.'
       );
@@ -123,7 +127,7 @@ export default class ObserveSession extends EasCommand {
         limit: SESSION_PAGE_SIZE,
       });
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(
         buildObserveSessionEventsJson(
           entries,
