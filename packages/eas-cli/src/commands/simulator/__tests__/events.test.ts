@@ -2,7 +2,7 @@ import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
-  DeviceRunSessionEventLogByIdQuery,
+  DeviceRunSessionEventsByIdQuery,
   DeviceRunSessionStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
@@ -20,7 +20,7 @@ jest.mock('../../../simulator/env', () => ({
 jest.mock('../../../simulator/events');
 jest.mock('../../../utils/json');
 
-const mockEventLogByIdAsync = jest.mocked(DeviceRunSessionQuery.eventLogByIdAsync);
+const mockEventsByIdAsync = jest.mocked(DeviceRunSessionQuery.eventsByIdAsync);
 const mockDownloadEventsAsync = jest.mocked(downloadDeviceRunSessionEventsAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
@@ -42,10 +42,16 @@ describe(SimulatorEvents, () => {
   });
 
   it('prints a JSON snapshot for the requested session', async () => {
-    const session: DeviceRunSessionEventLogByIdQuery['deviceRunSessions']['byId'] = {
+    const session: DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId'] = {
       id: 'session-id',
       status: DeviceRunSessionStatus.InProgress,
-      eventLog: { fileUrl: 'https://example.test/events' },
+      artifacts: [
+        {
+          id: 'event-artifact-id',
+          downloadUrl: 'https://example.test/events',
+          metadata: { __eas_device_run_session_events: '1' },
+        },
+      ],
     };
     const events = [
       {
@@ -58,7 +64,7 @@ describe(SimulatorEvents, () => {
         summary: 'Started tap',
       },
     ];
-    mockEventLogByIdAsync.mockResolvedValue(session);
+    mockEventsByIdAsync.mockResolvedValue(session);
     mockDownloadEventsAsync.mockResolvedValue(events);
     const command = new SimulatorEvents(['--id', 'session-id', '--json'], getMockOclifConfig());
     // @ts-expect-error getContextAsync is protected
@@ -71,7 +77,7 @@ describe(SimulatorEvents, () => {
 
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
-    expect(mockEventLogByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
+    expect(mockEventsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
     expect(mockDownloadEventsAsync).toHaveBeenCalledWith(
       'https://example.test/events',
       'session-id'
@@ -79,6 +85,28 @@ describe(SimulatorEvents, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       events,
+    });
+  });
+
+  it('prints an empty snapshot when the session has no event artifact', async () => {
+    mockEventsByIdAsync.mockResolvedValue({
+      id: 'session-id',
+      status: DeviceRunSessionStatus.Stopped,
+      artifacts: [],
+    });
+    const command = new SimulatorEvents(['--id', 'session-id', '--json'], getMockOclifConfig());
+    // @ts-expect-error getContextAsync is protected
+    jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+      loggedIn: { graphqlClient },
+      projectDir,
+    });
+
+    await command.runAsync();
+
+    expect(mockDownloadEventsAsync).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      deviceRunSessionId: 'session-id',
+      events: [],
     });
   });
 });
