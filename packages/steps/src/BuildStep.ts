@@ -1,4 +1,4 @@
-import { JobInterpolationContext } from '@expo/eas-build-job';
+import { HookAnchorId, JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
@@ -137,6 +137,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly actionScope?: BuildStepActionScope;
   public readonly timeoutMs?: number;
   public readonly __metricsId?: string;
+  public readonly __hookId?: HookAnchorId;
   public status: BuildStepStatus;
   private readonly outputsDir: string;
   private readonly envsDir: string;
@@ -165,6 +166,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       actionScope,
       timeoutMs,
       __metricsId,
+      __hookId,
     }: {
       id: string;
       displayName: string;
@@ -180,6 +182,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       actionScope?: BuildStepActionScope;
       timeoutMs?: number;
       __metricsId?: string;
+      __hookId?: HookAnchorId;
     }
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
@@ -200,6 +203,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.actionScope = actionScope;
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
+    this.__hookId = __hookId;
     this.status = BuildStepStatus.NEW;
 
     const logger = ctx.baseLogger.child({
