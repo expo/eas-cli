@@ -33,6 +33,7 @@ import {
 } from './BuildStepInput';
 import { BuildStepOutput, BuildStepOutputProvider } from './BuildStepOutput';
 import { BuildConfigError } from './errors';
+import { AnchorHooks } from './hooks';
 
 export class BuildConfigParser extends AbstractConfigParser {
   private readonly configPath: string;
@@ -59,6 +60,7 @@ export class BuildConfigParser extends AbstractConfigParser {
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
     buildSteps: BuildStep[];
     buildFunctionById: BuildFunctionById;
+    hooksByAnchorStep: ReadonlyMap<BuildStep, AnchorHooks>;
   }> {
     const config = await readAndValidateBuildConfigFromPathAsync(this.configPath, {
       externalFunctionIds: this.getExternalFunctionFullIds(),
@@ -81,6 +83,9 @@ export class BuildConfigParser extends AbstractConfigParser {
     return {
       buildSteps,
       buildFunctionById: buildFunctions,
+      // config.yml builds have no hooks — the payload `hooks` field never
+      // reaches this parser.
+      hooksByAnchorStep: new Map(),
     };
   }
 

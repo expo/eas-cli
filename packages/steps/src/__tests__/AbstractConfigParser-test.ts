@@ -33,6 +33,7 @@ describe('Publish Update job', () => {
       }),
     ];
     const stepsParser = new StepsConfigParser(ctx, {
+      hooks: undefined,
       steps: [
         {
           uses: 'eas/checkout',

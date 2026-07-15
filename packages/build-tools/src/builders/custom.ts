@@ -63,6 +63,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
         externalFunctions: easFunctions,
         externalFunctionGroups: easFunctionGroups,
         steps: ctx.job.steps,
+        hooks: ctx.job.hooks,
       })
     : new BuildConfigParser(globalContext, {
         externalFunctions: easFunctions,

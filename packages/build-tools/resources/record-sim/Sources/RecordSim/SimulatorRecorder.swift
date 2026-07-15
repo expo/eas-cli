@@ -26,6 +26,8 @@ public final class SimulatorRecorder {
     private var monotonicClock = MonotonicClock()
     private var firstAcceptedCaptureTime: CMTime?
     private var firstAcceptedWallClock: Date?
+    private var recordingWidth: Int?
+    private var recordingHeight: Int?
     private var lastPTS: CMTime?
     private var lastSeed: UInt32?
     private var lastFrameCallbackElapsed: TimeInterval?
@@ -142,9 +144,14 @@ public final class SimulatorRecorder {
             guard let firstAcceptedWallClock else {
                 throw RecorderError.make(25, "Missing first frame wall-clock timestamp")
             }
+            guard let recordingWidth, let recordingHeight else {
+                throw RecorderError.make(27, "Missing recording dimensions")
+            }
             return try outputWriter.writeManifest(
                 configuration: configuration,
-                firstFrameWallClock: firstAcceptedWallClock
+                firstFrameWallClock: firstAcceptedWallClock,
+                width: recordingWidth,
+                height: recordingHeight
             )
         }
     }
@@ -590,6 +597,8 @@ public final class SimulatorRecorder {
         self.writer = writer
         self.input = input
         self.adaptor = adaptor
+        recordingWidth = width
+        recordingHeight = height
     }
 
     private func assetWriterSettings(width: Int, height: Int) -> [String: Any] {

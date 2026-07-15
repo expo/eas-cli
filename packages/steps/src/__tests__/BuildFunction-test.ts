@@ -105,6 +105,31 @@ describe(BuildFunction, () => {
       expect(step.displayName).toBe('Test function');
       expect(step.fn).toBe(fn);
     });
+    it('stamps the declared hook anchor on created build steps', () => {
+      const ctx = createGlobalContextMock();
+      const buildFunction = new BuildFunction({
+        namespace: 'eas',
+        id: 'install_node_modules',
+        command: 'npm install',
+        __hookId: 'install_node_modules',
+      });
+      const step = buildFunction.createBuildStepFromFunctionCall(ctx, {
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__hookId).toBe('install_node_modules');
+    });
+    it('passes the function metrics id to created build steps', () => {
+      const ctx = createGlobalContextMock();
+      const buildFunction = new BuildFunction({
+        id: 'test1',
+        command: 'echo 123',
+        __metricsId: 'eas/test1',
+      });
+      const step = buildFunction.createBuildStepFromFunctionCall(ctx, {
+        workingDirectory: ctx.defaultWorkingDirectory,
+      });
+      expect(step.__metricsId).toBe('eas/test1');
+    });
     it('works with custom JS/TS function', () => {
       const ctx = createGlobalContextMock();
       const buildFunction = new BuildFunction({
