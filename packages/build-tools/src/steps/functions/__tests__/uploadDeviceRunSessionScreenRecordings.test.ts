@@ -12,6 +12,9 @@ jest.mock('../../utils/deviceRunSessionArtifacts', () => ({
   uploadDeviceRunSessionArtifactAsync: jest.fn(),
 }));
 
+const SIMULATOR_UDID = '01234567-89AB-CDEF-0123-456789ABCDEF';
+const SECOND_SIMULATOR_UDID = 'FEDCBA98-7654-3210-FEDC-BA9876543210';
+
 describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
   beforeEach(() => {
     jest
@@ -51,7 +54,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         callInputs: {
           recordings_json: [
             {
-              udid: 'simulator-udid',
+              udid: SIMULATOR_UDID,
               deviceName: 'iPhone 16',
               runtimeDisplayName: 'iOS 18.6',
               directory: recordingDirectory,
@@ -65,10 +68,10 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          name: 'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          name: 'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:00:00.000 UTC)',
           metadata: {
             __eas_screen_recording: '1',
-            udid: 'simulator-udid',
+            udid: SIMULATOR_UDID,
             deviceName: 'iPhone 16',
             runtimeDisplayName: 'iOS 18.6',
             firstFrameAt: '2026-07-10T10:00:00.000Z',
@@ -112,7 +115,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         env: { DEVICE_RUN_SESSION_ID: 'device-run-session-id' },
         callInputs: {
           recordings_json: recordingDirectories.map((directory, index) => ({
-            udid: index === 2 ? 'second-simulator-udid' : 'simulator-udid',
+            udid: index === 2 ? SECOND_SIMULATOR_UDID : SIMULATOR_UDID,
             deviceName: 'iPhone 16',
             runtimeDisplayName: 'iOS 18.6',
             directory,
@@ -127,9 +130,9 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
         .mock.calls.map(([, options]) => options.name);
       expect(names).toEqual(
         expect.arrayContaining([
-          'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
-          'iPhone 16 screen recording (UDID simulator-udid, started at Jul 10, 2026, 10:05:00.000 UTC)',
-          'iPhone 16 screen recording (UDID second-simulator-udid, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:00:00.000 UTC)',
+          'iPhone 16 screen recording (simulator 01234567, started at Jul 10, 2026, 10:05:00.000 UTC)',
+          'iPhone 16 screen recording (simulator FEDCBA98, started at Jul 10, 2026, 10:00:00.000 UTC)',
         ])
       );
       expect(new Set(names).size).toBe(3);
