@@ -30,6 +30,10 @@ describe(parseActionPath, () => {
     expect(parseActionPath('../shared/other/../actions/setup')).toBe('../shared/actions/setup');
   });
 
+  it('keeps the "./" prefix for under-root directories whose name starts with ".."', () => {
+    expect(parseActionPath('./..actions/setup')).toBe('./..actions/setup');
+  });
+
   it('throws for degenerate paths with no path segment', () => {
     expect(() => parseActionPath('./')).toThrow(/does not point to an action directory/);
     expect(() => parseActionPath('  ./  ')).toThrow(/does not point to an action directory/);

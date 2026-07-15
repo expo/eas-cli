@@ -62,6 +62,7 @@ export class BuildStepInput<
   public readonly required: R;
 
   private _value?: unknown;
+  private boundGetStepOutputValue?: (path: string) => string;
 
   public static createProvider(params: BuildStepInputProviderParams): BuildStepInputProvider {
     return (ctx, stepDisplayName) => new BuildStepInput(ctx, { ...params, stepDisplayName });
@@ -86,14 +87,17 @@ export class BuildStepInput<
     this.allowedValueTypeName = allowedValueTypeName;
   }
 
+  public bindStepOutputResolver(getStepOutputValue: (path: string) => string): void {
+    this.boundGetStepOutputValue = getStepOutputValue;
+  }
+
   public getValue({
     interpolationContext,
-    getStepOutputValue = path => this.ctx.getStepOutputValue(path) ?? '',
   }: {
     interpolationContext: JobInterpolationContext;
-    // Steps expanded from an action override this to resolve action-local step ids.
-    getStepOutputValue?: (path: string) => string;
   }): R extends true ? BuildStepInputValueType<T> : BuildStepInputValueType<T> | undefined {
+    const getStepOutputValue =
+      this.boundGetStepOutputValue ?? (path => this.ctx.getStepOutputValue(path) ?? '');
     const rawValue = this._value ?? this.defaultValue;
     if (this.required && rawValue === undefined) {
       throw new BuildStepRuntimeError(

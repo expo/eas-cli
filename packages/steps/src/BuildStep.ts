@@ -3,6 +3,7 @@ import assert from 'assert';
 import { Buffer } from 'buffer';
 import fs from 'fs/promises';
 import path from 'path';
+import util from 'util';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepActionScope, EvaluateScopedIfCondition } from './BuildStepActionScope';
@@ -23,7 +24,7 @@ import {
 } from './BuildTemporaryFiles';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
-import { jsepEval } from './utils/jsepEval';
+import { evaluateIfCondition as evaluateIfConditionExpression } from './utils/jsepEval';
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
@@ -195,6 +196,9 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.supportedRuntimePlatforms = maybeSupportedRuntimePlatforms;
     this.inputs = inputs;
     this.inputById = makeBuildStepInputByIdMap(inputs);
+    for (const input of inputs ?? []) {
+      input.bindStepOutputResolver(path => this.getLegacyStepOutputValue(path));
+    }
     this.outputById = outputById;
     this.fn = fn;
     this.command = command;
@@ -279,13 +283,20 @@ export class BuildStep extends BuildStepOutputAccessor {
       );
       this.status = BuildStepStatus.SUCCESS;
     } catch (err) {
-      this.ctx.logger.error({ err });
+      const error =
+        err instanceof Error
+          ? err
+          : new BuildStepRuntimeError(
+              `Build step "${this.displayName}" threw a non-Error value: ${util.inspect(err)}`
+            );
+      this.ctx.logger.error({ err: error });
       this.ctx.logger.error(
         { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.FAIL },
         `Build step "${this.displayName}" failed`
       );
       this.status = BuildStepStatus.FAIL;
-      throw normalizeStepExecutionError(err);
+      this.actionScope?.markStepFailed();
+      throw error;
     } finally {
       this.executed = true;
 
@@ -306,10 +317,6 @@ export class BuildStep extends BuildStepOutputAccessor {
     }
   }
 
-  public markScopeAsFailed(): void {
-    this.actionScope?.markStepFailed();
-  }
-
   public canBeRunOnRuntimePlatform(): boolean {
     return (
       !this.supportedRuntimePlatforms ||
@@ -318,28 +325,33 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   public shouldExecuteStep(): boolean {
-    // An action call's `if` is evaluated at the call site (caller env/inputs/steps), not inside
-    // the expanded inner steps.
-    const evaluateScopeCondition: EvaluateScopedIfCondition = (ifCondition, scope) => {
-      const callerScope = scope.parent;
-      return this.evaluateIfCondition(ifCondition, {
-        scope: callerScope,
-        env: { ...this.ctx.global.env, ...scope.env },
-        inputs: {},
-      });
-    };
+    try {
+      // An action call's `if` is evaluated at the call site (caller env/inputs/steps), not inside
+      // the expanded inner steps.
+      const evaluateScopeCondition: EvaluateScopedIfCondition = (ifCondition, scope) => {
+        const callerScope = scope.parent;
+        return this.evaluateIfCondition(ifCondition, {
+          scope: callerScope,
+          env: { ...this.ctx.global.env, ...scope.env },
+          inputs: {},
+        });
+      };
 
-    if (this.actionScope && !this.actionScope.isActive(evaluateScopeCondition)) {
-      return false;
+      if (this.actionScope && !this.actionScope.isActive(evaluateScopeCondition)) {
+        return false;
+      }
+      if (!this.ifCondition) {
+        return this.getFailureInterpolationContext(this.actionScope).success();
+      }
+      return this.evaluateIfCondition(this.ifCondition, {
+        scope: this.actionScope,
+        env: this.getScriptEnv(),
+        inputs: this.actionScope ? {} : this.evaluateOwnStepInputs(),
+      });
+    } catch (err) {
+      this.actionScope?.markStepFailed();
+      throw err;
     }
-    // For action-expanded steps, `inputs.*` references are resolved by action-input
-    // interpolation before runtime; only plain steps evaluate their own step inputs here.
-    const shouldEvaluateOwnStepInputs = !this.actionScope && this.ifCondition !== undefined;
-    return this.evaluateIfCondition(this.ifCondition, {
-      scope: this.actionScope,
-      env: this.getScriptEnv(),
-      inputs: shouldEvaluateOwnStepInputs ? this.evaluateOwnStepInputs() : {},
-    });
   }
 
   private evaluateOwnStepInputs(): Record<string, unknown> {
@@ -348,7 +360,6 @@ export class BuildStep extends BuildStepOutputAccessor {
         (acc, input) => {
           acc[input.id] = input.getValue({
             interpolationContext: this.getInterpolationContext(),
-            getStepOutputValue: path => this.getLegacyStepOutputValue(path),
           });
           return acc;
         },
@@ -370,36 +381,16 @@ export class BuildStep extends BuildStepOutputAccessor {
     }
   ): boolean {
     const failureContext = this.getFailureInterpolationContext(scope);
-
     if (!maybeIfCondition) {
       return failureContext.success();
     }
-
-    let ifCondition = maybeIfCondition;
-
-    if (ifCondition.startsWith('${{') && ifCondition.endsWith('}}')) {
-      ifCondition = ifCondition.slice(3, -2);
-    } else if (ifCondition.startsWith('${') && ifCondition.endsWith('}')) {
-      ifCondition = ifCondition.slice(2, -1);
-    }
-
     const baseContext = {
-      inputs,
-      eas: {
-        runtimePlatform: this.ctx.global.runtimePlatform,
-        ...this.ctx.global.staticContext,
-        env,
-      },
-      ...this.ctx.global.getInterpolationContext(),
-      env,
+      ...this.ctx.global.getIfConditionContext({ inputs, env }),
       ...failureContext,
-    };
+    } as JobInterpolationContext;
     // Overlay the scope last so `inputs`/`steps` come from the action while `eas.*` stays global.
-    const context: JobInterpolationContext = scope
-      ? scope.getScopedInterpolationContext(baseContext)
-      : baseContext;
-
-    return Boolean(jsepEval(ifCondition, context));
+    const context = scope ? scope.getScopedInterpolationContext(baseContext) : baseContext;
+    return evaluateIfConditionExpression(maybeIfCondition, context);
   }
 
   public skip(): void {
@@ -500,7 +491,6 @@ export class BuildStep extends BuildStepOutputAccessor {
           {
             value: input.getValue({
               interpolationContext: this.getInterpolationContext(),
-              getStepOutputValue: path => this.getLegacyStepOutputValue(path),
             }),
           },
         ])
@@ -526,7 +516,6 @@ export class BuildStep extends BuildStepOutputAccessor {
       (acc, input) => {
         const value = input.getValue({
           interpolationContext: this.getInterpolationContext(),
-          getStepOutputValue: path => this.getLegacyStepOutputValue(path),
         });
         acc[input.id] =
           typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');

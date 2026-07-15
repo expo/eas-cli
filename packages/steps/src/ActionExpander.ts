@@ -58,7 +58,11 @@ export class ActionExpander {
     private readonly functionMaps: FunctionMaps
   ) {}
 
-  public expandActionStep(step: FunctionStep, actionPath: string, syntheticStepId: string): BuildStep[] {
+  public expandActionStep(
+    step: FunctionStep,
+    actionPath: string,
+    syntheticStepId: string
+  ): BuildStep[] {
     return this.expand(
       {
         actionPath,

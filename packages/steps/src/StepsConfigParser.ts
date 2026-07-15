@@ -132,6 +132,9 @@ export class StepsConfigParser extends AbstractConfigParser {
         buildSteps.push(...this.createBuildStepsFromNonGroupStepConfig(stepConfig, maps));
         continue;
       }
+      this.encounteredHookAnchors.add(anchorId);
+      const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
+      const createdSteps = this.createBuildStepsFromNonGroupStepConfig(stepConfig, maps);
       if (createdSteps.length !== 1) {
         throw new BuildConfigError(
           'Hook anchors are not supported on local action steps that expand into multiple build steps.'

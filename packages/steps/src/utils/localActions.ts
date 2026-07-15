@@ -31,7 +31,7 @@ export function parseActionPath(uses: string): string {
       `Local action path "${trimmed}" does not point to an action directory.`
     );
   }
-  return normalized.startsWith('..') ? normalized : `./${normalized}`;
+  return normalized.startsWith('../') ? normalized : `./${normalized}`;
 }
 
 export function isActionPath(uses: string): boolean {

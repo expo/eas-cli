@@ -260,6 +260,18 @@ describe('StepsConfigParser hook construction', () => {
     expect(error).toBeInstanceOf(BuildConfigError);
     expect(error.message).toMatch(/nonexistent_function/);
   });
+
+  it('rejects a hook step using a local action with BuildConfigError, not an assertion crash', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { before_install_node_modules: [{ uses: './.eas/actions/setup' }] },
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/not supported in hooks/);
+  });
 });
 
 describe('constructHookEntriesAsync (public API)', () => {
