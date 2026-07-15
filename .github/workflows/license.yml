@@ -7,9 +7,6 @@ on:
       - main
     paths:
       - .github/workflows/license.yml
-  pull_request:
-    paths:
-      - .github/workflows/license.yml
   workflow_dispatch:
 
 jobs:
@@ -20,10 +17,6 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.EXPO_BOT_PAT }}
-          ref: ${{ github.head_ref || github.ref_name }}
-      - name: Verify Expo Bot token can push
-        if: github.event_name == 'pull_request'
-        run: git push origin "HEAD:refs/heads/$GITHUB_HEAD_REF"
       - name: Check last commit date
         run: |
           # The date in the license
