@@ -1,5 +1,6 @@
 import {
   AppObserveCustomEvent,
+  AppObserveCustomEventListOrderByField,
   AppObserveEvent,
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
@@ -278,12 +279,42 @@ describe('fetchSessionLogCandidatesAsync', () => {
     expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
   });
 
-  it('sorts client-side descending when orderAscending is false (newest first)', async () => {
+  it('requests descending timestamp order when orderAscending is false', async () => {
+    await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: false,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
+      field: AppObserveCustomEventListOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+
+  it('requests ascending timestamp order when orderAscending is true', async () => {
+    await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: true,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
+      field: AppObserveCustomEventListOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Asc,
+    });
+  });
+
+  it('preserves the server-provided order (no client-side re-sorting)', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [
-        makeCustomEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
         makeCustomEvent({ id: 'c', timestamp: '2025-01-15T10:10:00.000Z' }),
         makeCustomEvent({ id: 'b', timestamp: '2025-01-15T10:05:00.000Z' }),
+        makeCustomEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
       ],
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     });
@@ -296,26 +327,6 @@ describe('fetchSessionLogCandidatesAsync', () => {
       limit: 25,
     });
     expect(result.map(e => e.id)).toEqual(['c', 'b', 'a']);
-  });
-
-  it('sorts client-side ascending when orderAscending is true (oldest first)', async () => {
-    mockFetchObserveCustomEventsAsync.mockResolvedValue({
-      events: [
-        makeCustomEvent({ id: 'c', timestamp: '2025-01-15T10:10:00.000Z' }),
-        makeCustomEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
-        makeCustomEvent({ id: 'b', timestamp: '2025-01-15T10:05:00.000Z' }),
-      ],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
-    });
-
-    const result = await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
-      eventName: 'login_pressed',
-      orderAscending: true,
-      startTime: '2025-01-01T00:00:00.000Z',
-      endTime: '2025-02-01T00:00:00.000Z',
-      limit: 25,
-    });
-    expect(result.map(e => e.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('filters out events without a sessionId', async () => {

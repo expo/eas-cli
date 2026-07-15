@@ -1,6 +1,7 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AppObserveCustomEvent,
+  AppObserveCustomEventListOrderByField,
   AppObserveEvent,
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
@@ -198,9 +199,8 @@ export interface FetchSessionLogCandidatesOptions {
 }
 
 /**
- * Fetch a page of custom log events for the given eventName + window,
- * sorted client-side by timestamp (the customEventList query has no
- * orderBy), and filtered to events that have a sessionId.
+ * Fetch a page of custom log events for the given eventName + window, ordered
+ * by timestamp server-side, and filtered to events that have a sessionId.
  */
 export async function fetchSessionLogCandidatesAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -212,16 +212,12 @@ export async function fetchSessionLogCandidatesAsync(
     limit: options.limit,
     startTime: options.startTime,
     endTime: options.endTime,
+    orderBy: {
+      field: AppObserveCustomEventListOrderByField.Timestamp,
+      direction: options.orderAscending
+        ? AppObserveEventsOrderByDirection.Asc
+        : AppObserveEventsOrderByDirection.Desc,
+    },
   });
-  const ascending = options.orderAscending;
-  const sorted = [...events].sort((a, b) => {
-    if (a.timestamp < b.timestamp) {
-      return ascending ? -1 : 1;
-    }
-    if (a.timestamp > b.timestamp) {
-      return ascending ? 1 : -1;
-    }
-    return 0;
-  });
-  return sorted.filter((e): e is SessionLogCandidate => !!e.sessionId);
+  return events.filter((e): e is SessionLogCandidate => !!e.sessionId);
 }
