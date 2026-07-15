@@ -12,7 +12,7 @@ import { Sentry } from '../../sentry';
 import { IosSimulatorUtils, type IosSimulatorUuid } from '../../utils/IosSimulatorUtils';
 
 const IOS_SIMULATOR_RECORDING_POLL_INTERVAL_MS = 2_000;
-const RECORD_SIM_FINISH_TIMEOUT_MS = 30_000;
+const RECORD_SIM_FINISH_TIMEOUT_MS = 70_000;
 const RECORD_SIM_FORCE_STOP_TIMEOUT_MS = 5_000;
 const RECORD_SIM_MAX_ATTEMPTS_PER_BOOT = 3;
 const RECORD_SIM_COMMAND = 'record-sim';
@@ -114,7 +114,15 @@ export namespace IosSimulatorRecordingUtils {
           return;
         }
 
-        logger.warn(`Forcing iOS Simulator recording process for ${recording.deviceName} to stop.`);
+        const recordSimOutput = recording.getOutput().trim();
+        logger.warn(
+          { recordSimOutput },
+          `Screen recording for ${recording.deviceName} did not finish within 70 seconds and will be stopped.${
+            recordSimOutput
+              ? `\nRecent recorder messages:\n${recordSimOutput}`
+              : '\nNo recorder messages were captured.'
+          }`
+        );
         recording.recordingProcess.kill('SIGKILL');
         const killed = await Promise.race([
           recording.completionPromise.then(() => true),
