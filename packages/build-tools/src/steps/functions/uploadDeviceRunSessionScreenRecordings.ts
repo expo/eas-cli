@@ -70,11 +70,11 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
       await Promise.all(
         recordings.map(recording =>
           limit(async () => {
-            const displayName = `${recording.deviceName} screen recording`;
             try {
               const metadata = RecordingManifestSchema.parse(
                 JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
               );
+              const displayName = `${recording.deviceName} screen recording (started at ${metadata.firstFrameWallClock.iso8601})`;
               const recordingPath = path.join(recording.directory, metadata.recording);
               const { size } = await stat(recordingPath);
               const recordingId = path.basename(recording.directory);
