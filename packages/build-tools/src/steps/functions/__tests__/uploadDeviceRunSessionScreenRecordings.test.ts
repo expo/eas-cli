@@ -22,6 +22,8 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       JSON.stringify({
         recording: path.basename(recordingPath),
         firstFrameWallClock: { iso8601: '2026-07-10T10:00:00.000Z' },
+        width: 1179,
+        height: 2556,
       })
     );
 
@@ -57,6 +59,8 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
             deviceName: 'iPhone 16',
             runtimeDisplayName: 'iOS 18.6',
             firstFrameAt: '2026-07-10T10:00:00.000Z',
+            width: 1179,
+            height: 2556,
           },
         })
       );
