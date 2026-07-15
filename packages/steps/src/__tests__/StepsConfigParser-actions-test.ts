@@ -16,8 +16,8 @@ const SETUP = './.eas/actions/setup';
 
 function makeCatalog(entries: Record<string, unknown>): ActionCatalog {
   const catalog: ActionCatalog = {};
-  for (const [ref, raw] of Object.entries(entries)) {
-    catalog[ref] = ActionConfigZ.parse(raw);
+  for (const [actionPath, raw] of Object.entries(entries)) {
+    catalog[actionPath] = ActionConfigZ.parse(raw);
   }
   return catalog;
 }
@@ -118,6 +118,84 @@ function echoInputAction(inputName: string, input: Record<string, unknown>) {
 
 describe('StepsConfigParser local actions', () => {
   describe('expansion', () => {
+    it('expands a single-level composite action, binding inputs and exposing outputs', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            name: 'Setup',
+            inputs: [{ name: 'greeting', type: 'string', default_value: 'hello' }],
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [
+                { id: 'read', run: 'set-output version "1.0.0"' },
+                { run: 'echo "${{ inputs.greeting }}"' },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { greeting: 'hi' } }],
+      });
+
+      expect(workflow.buildSteps).toHaveLength(3);
+
+      const [readStep, echoStep, outputsStep] = workflow.buildSteps;
+      expect(readStep.id).toBe('setup__read');
+      expect(readStep.displayName).toBe('read');
+      expect(echoStep.id).toBe('setup__action_step_1');
+      expect(echoStep.command).toBe('echo "${{ inputs.greeting }}"');
+
+      expect(outputsStep.id).toBe('setup');
+      expect(outputsStep.displayName).toBe('Setup');
+      expect(outputsStep.command).toBeUndefined();
+      expect(outputsStep.fn).toBeDefined();
+      expect(Object.keys(outputsStep.outputById)).toEqual(['version']);
+    });
+
+    it('generates a synthetic id when the caller step has no id', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            name: 'Setup',
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [
+                { id: 'read', run: 'set-output version "1.0.0"' },
+                { id: 'echo', run: 'echo "${{ steps.read.outputs.version }}"' },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP }],
+      });
+
+      const [readStep, echoStep, outputsStep] = workflow.buildSteps;
+      const syntheticStepId = readStep.id.split('__')[0];
+
+      expect(syntheticStepId).toMatch(/^step-\d{3,}$/);
+      expect(readStep.id).toBe(`${syntheticStepId}__read`);
+      expect(echoStep.command).toBe('echo "${{ steps.read.outputs.version }}"');
+      expect(outputsStep.id).toBe(syntheticStepId);
+    });
+
+    it('uses the caller step name for the synthetic outputs step display name', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            name: 'Setup',
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [{ id: 'read', run: 'set-output version "1.0.0"' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', name: 'Prepare release' }],
+      });
+
+      const outputsStep = workflow.buildSteps[1];
+      expect(outputsStep.id).toBe('setup');
+      expect(outputsStep.displayName).toBe('Prepare release');
+    });
+
     it('keeps templated inner step names raw at parse time', async () => {
       const workflow = await parseActions({
         catalog: {
@@ -189,7 +267,133 @@ describe('StepsConfigParser local actions', () => {
     });
   });
 
+  describe('outputs', () => {
+    it('sets composite action outputs via fn without shell interpolation', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [{ id: 'read', uses: 'test/set-version' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup' }],
+        externalFunctions: [setVersionFunction()],
+      });
+      await workflow.executeAsync();
+
+      const outputsStep = workflow.buildSteps[1];
+      expect(outputsStep.getOutputValueByName('version')).toBe('$(echo injected)');
+    });
+
+    it('resolves legacy ${ steps.* } step output references in action outputs', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            outputs: { version: { value: '${ steps.read.outputs.version }' } },
+            runs: {
+              steps: [{ id: 'read', uses: 'test/set-version' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup' }],
+        externalFunctions: [setVersionFunction()],
+      });
+      await workflow.executeAsync();
+
+      const outputsStep = workflow.buildSteps[1];
+      expect(outputsStep.getOutputValueByName('version')).toBe('$(echo injected)');
+    });
+
+    it('runs the outputs step after a failed inner step when caller uses always(), setting action outputs to empty strings', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [{ id: 'read', uses: 'test/fail' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', if: '${{ always() }}' }],
+        externalFunctions: [failingFunction()],
+      });
+
+      const innerStep = workflow.buildSteps[0];
+      const outputsStep = workflow.buildSteps[1];
+      expect(outputsStep.ifCondition).toBe('${{ always() }}');
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      expect(innerStep.status).toBe(BuildStepStatus.FAIL);
+      expect(outputsStep.status).toBe(BuildStepStatus.SUCCESS);
+      expect(outputsStep.getOutputValueByName('version')).toBe('');
+    });
+
+    it('exposes outputs from both the outer and a nested inner action', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/outer': {
+            outputs: { outer_version: { value: '${{ steps.mid.outputs.inner_version }}' } },
+            runs: { steps: [{ uses: './.eas/actions/inner', id: 'mid' }] },
+          },
+          './.eas/actions/inner': {
+            outputs: { inner_version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: { steps: [{ id: 'read', uses: 'test/set-version' }] },
+          },
+        },
+        steps: [{ uses: './.eas/actions/outer', id: 'top' }],
+        externalFunctions: [setVersionFunction()],
+      });
+      await workflow.executeAsync();
+
+      const innerOutputsStep = workflow.buildSteps.find(s => s.id === 'top__mid');
+      const outerOutputsStep = workflow.buildSteps.find(s => s.id === 'top');
+      expect(innerOutputsStep?.getOutputValueByName('inner_version')).toBe('$(echo injected)');
+      expect(outerOutputsStep?.getOutputValueByName('outer_version')).toBe('$(echo injected)');
+    });
+  });
+
   describe('step reference scoping', () => {
+    it("resolves inner steps.* references against the action's own steps, isolating two callers", async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/pair': {
+            inputs: [{ name: 'tag', type: 'string', required: true }],
+            runs: {
+              steps: [
+                { id: 'a', uses: 'test/passthrough', with: { value: '${{ inputs.tag }}' } },
+                {
+                  id: 'b',
+                  uses: 'test/passthrough',
+                  with: { value: '${{ steps.a.outputs.out }}' },
+                },
+              ],
+            },
+          },
+        },
+        steps: [
+          { uses: './.eas/actions/pair', id: 'first', with: { tag: 'first-tag' } },
+          { uses: './.eas/actions/pair', id: 'second', with: { tag: 'second-tag' } },
+        ],
+        externalFunctions: [passThroughFunction()],
+      });
+
+      const ids = workflow.buildSteps.map(s => s.id);
+      expect(ids).toEqual(['first__a', 'first__b', 'second__a', 'second__b']);
+
+      await workflow.executeAsync();
+
+      expect(workflow.buildSteps.find(s => s.id === 'first__b')?.getOutputValueByName('out')).toBe(
+        'first-tag'
+      );
+      expect(workflow.buildSteps.find(s => s.id === 'second__b')?.getOutputValueByName('out')).toBe(
+        'second-tag'
+      );
+    });
+
     it('leaves step references raw, untouched inside longer identifiers', async () => {
       const workflow = await parseActions({
         catalog: {
@@ -234,6 +438,63 @@ describe('StepsConfigParser local actions', () => {
       expect(workflow.buildSteps.find(s => s.id === 'caller__c')?.getOutputValueByName('out')).toBe(
         'short-long'
       );
+    });
+
+    it('resolves caller step references passed through action inputs against the caller scope', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/notify': {
+            inputs: [{ name: 'msg', type: 'string', required: true }],
+            runs: {
+              steps: [
+                { id: 'build', uses: 'test/passthrough', with: { value: 'inner build' } },
+                { id: 'report', uses: 'test/passthrough', with: { value: '${{ inputs.msg }}' } },
+              ],
+            },
+          },
+        },
+        steps: [
+          { id: 'build', uses: 'test/set-version' },
+          {
+            uses: './.eas/actions/notify',
+            id: 'notify',
+            with: { msg: '${{ steps.build.outputs.version }}' },
+          },
+        ],
+        externalFunctions: [passThroughFunction(), setVersionFunction()],
+      });
+
+      await workflow.executeAsync();
+
+      expect(
+        workflow.buildSteps.find(s => s.id === 'notify__report')?.getOutputValueByName('out')
+      ).toBe('$(echo injected)');
+    });
+
+    it("resolves inner step references in action input defaults against the action's own steps", async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/notify': {
+            inputs: [
+              { name: 'msg', type: 'string', default_value: '${{ steps.build.outputs.version }}' },
+            ],
+            runs: {
+              steps: [
+                { id: 'build', uses: 'test/set-version' },
+                { id: 'report', uses: 'test/passthrough', with: { value: '${{ inputs.msg }}' } },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: './.eas/actions/notify', id: 'notify' }],
+        externalFunctions: [passThroughFunction(), setVersionFunction()],
+      });
+
+      await workflow.executeAsync();
+
+      expect(
+        workflow.buildSteps.find(s => s.id === 'notify__report')?.getOutputValueByName('out')
+      ).toBe('$(echo injected)');
     });
 
     it('resolves an out-of-scope step reference to an empty value', async () => {
@@ -283,9 +544,53 @@ describe('StepsConfigParser local actions', () => {
         workflow.buildSteps.find(s => s.id === 'notify__report')?.getOutputValueByName('out')
       ).toBe('');
     });
+
+    it('resolves an out-of-scope action output reference to an empty string', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/notify': {
+            outputs: { sha: { value: '${{ steps.checkout.outputs.sha }}' } },
+            runs: {
+              steps: [
+                { id: 'noop', uses: 'test/passthrough', with: { value: 'x' }, if: '${{ false }}' },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: './.eas/actions/notify', id: 'notify' }],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+      expect(workflow.buildSteps.find(s => s.id === 'notify')?.getOutputValueByName('sha')).toBe(
+        ''
+      );
+    });
   });
 
   describe('caller context propagation', () => {
+    it('binds action inputs into inner function step inputs', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/wrap': {
+            inputs: [{ name: 'msg', type: 'string', required: true }],
+            runs: {
+              steps: [
+                { id: 'inner', uses: 'test/passthrough', with: { value: '${{ inputs.msg }}' } },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: './.eas/actions/wrap', id: 'wrap', with: { msg: 'bound-value' } }],
+        externalFunctions: [passThroughFunction()],
+      });
+      const innerStep = workflow.buildSteps[0];
+      expect(innerStep.inputs?.[0].id).toBe('value');
+      expect(innerStep.inputs?.[0].rawValue).toBe('${{ inputs.msg }}');
+
+      await workflow.executeAsync();
+      expect(innerStep.getOutputValueByName('out')).toBe('bound-value');
+    });
+
     it('propagates caller env to expanded inner steps and keeps only their own if condition', async () => {
       const workflow = await parseActions({
         catalog: {
@@ -472,6 +777,38 @@ describe('StepsConfigParser local actions', () => {
       expect(workflow.buildSteps[0].ctx.relativeWorkingDirectory).toBe('packages/app');
     });
 
+    it('lets an inner step working_directory override the caller working_directory', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'dir', type: 'string', default_value: 'inner/dir' }],
+            runs: {
+              steps: [
+                {
+                  id: 'inner',
+                  uses: 'test/passthrough',
+                  with: { value: 'ok' },
+                  working_directory: '${{ inputs.dir }}',
+                },
+              ],
+            },
+          },
+        },
+        steps: [
+          {
+            uses: SETUP,
+            id: 'setup',
+            working_directory: 'caller/dir',
+            with: { dir: 'overridden/dir' },
+          },
+        ],
+        externalFunctions: [passThroughFunction()],
+      });
+      expect(workflow.buildSteps[0].ctx.relativeWorkingDirectory).toBe('${{ inputs.dir }}');
+      await workflow.executeAsync();
+      expect(workflow.buildSteps[0].ctx.relativeWorkingDirectory).toBe('overridden/dir');
+    });
+
     it('interpolates action inputs inside inner step if expressions', async () => {
       const workflow = await parseActions({
         catalog: {
@@ -521,6 +858,139 @@ describe('StepsConfigParser local actions', () => {
         expect(workflow.buildSteps[0].command).toBe(expectedCommand);
       }
     );
+
+    it.each([5, true, '"literal"', '[1, 2]'])(
+      'accepts scalar %p for a json input',
+      async config => {
+        await expect(
+          parseActions({
+            catalog: {
+              [SETUP]: echoInputAction('config', { name: 'config', type: 'json' }),
+            },
+            steps: [{ uses: SETUP, id: 'setup', with: { config } }],
+          })
+        ).resolves.toBeDefined();
+      }
+    );
+
+    it('rejects a string that does not parse as JSON for a json input', async () => {
+      const error = await getErrorAsync<BuildWorkflowError>(() =>
+        parseActions({
+          catalog: {
+            [SETUP]: echoInputAction('config', { name: 'config', type: 'json' }),
+          },
+          steps: [{ uses: SETUP, id: 'setup', with: { config: 'literal' } }],
+        })
+      );
+      expect(error.message).toMatch(
+        /input "config" must be of type "json" but got "literal", which is not a valid JSON string/
+      );
+    });
+
+    it('accepts structurally equal json input when value matches allowed_values', async () => {
+      await expect(
+        parseActions({
+          catalog: {
+            [SETUP]: {
+              inputs: [
+                {
+                  name: 'config',
+                  type: 'json',
+                  allowed_values: [{ mode: 'dev' }, { mode: 'prod' }],
+                },
+              ],
+              runs: { steps: [{ run: 'echo done' }] },
+            },
+          },
+          steps: [{ uses: SETUP, id: 'setup', with: { config: { mode: 'dev' } } }],
+        })
+      ).resolves.toBeDefined();
+    });
+
+    it.each([
+      [
+        'a required input is missing',
+        echoInputAction('token', { name: 'token', type: 'string', required: true }),
+        [{ uses: SETUP, id: 'setup' }],
+        /requires input "token"/,
+      ],
+      [
+        'called with an unknown input',
+        echoInputAction('greeting', { name: 'greeting', type: 'string' }),
+        [{ uses: SETUP, id: 'setup', with: { greetng: 'hi' } }],
+        /unknown input "greetng"/,
+      ],
+      [
+        'a provided input has the wrong type',
+        echoInputAction('count', { name: 'count', type: 'number' }),
+        [{ uses: SETUP, id: 'setup', with: { count: 'two' } }],
+        /must be of type "number"/,
+      ],
+      [
+        'explicit null is provided instead of falling back to default_value',
+        echoInputAction('greeting', {
+          name: 'greeting',
+          type: 'string',
+          default_value: 'hello',
+        }),
+        [{ uses: SETUP, id: 'setup', with: { greeting: null } }],
+        /must be of type "string"/,
+      ],
+      [
+        'a provided input is not in allowed_values',
+        echoInputAction('greeting', {
+          name: 'greeting',
+          type: 'string',
+          allowed_values: ['hi', 'hello'],
+        }),
+        [{ uses: SETUP, id: 'setup', with: { greeting: 'bye' } }],
+        /must be one of/,
+      ],
+      [
+        'json input is not structurally equal to any allowed_values entry',
+        {
+          inputs: [
+            {
+              name: 'config',
+              type: 'json',
+              allowed_values: [{ mode: 'dev' }, { mode: 'prod' }],
+            },
+          ],
+          runs: { steps: [{ run: 'echo done' }] },
+        },
+        [{ uses: SETUP, id: 'setup', with: { config: { mode: 'staging' } } }],
+        /must be one of/,
+      ],
+    ])('errors when %s', async (_, actionConfig, steps, message) => {
+      await expect(parseActions({ catalog: { [SETUP]: actionConfig }, steps })).rejects.toThrow(
+        message
+      );
+    });
+
+    it('resolves an undeclared input reference to an empty value', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'greeting', type: 'string', default_value: 'hello' }],
+            runs: {
+              steps: [
+                {
+                  id: 'inner',
+                  uses: 'test/passthrough',
+                  with: { value: '${{ inputs.gretting }}' },
+                },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup' }],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+      expect(
+        workflow.buildSteps.find(s => s.id === 'setup__inner')?.getOutputValueByName('out')
+      ).toBe('');
+    });
   });
 
   describe('resolution errors', () => {
@@ -689,6 +1159,36 @@ describe('StepsConfigParser local actions', () => {
       );
     });
 
+    it('resolves an expression-valued input used inside an inner if condition at runtime', async () => {
+      const okFunction = new BuildFunction({
+        namespace: 'test',
+        id: 'ok',
+        fn: (_ctx, { outputs }) => {
+          outputs.ok.set('true');
+        },
+        outputProviders: [BuildStepOutput.createProvider({ id: 'ok', required: true })],
+      });
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'flag', type: 'string' }],
+            runs: {
+              steps: [{ id: 'gated', uses: 'eas/echo', if: '${{ inputs.flag == "true" }}' }],
+            },
+          },
+        },
+        steps: [
+          { id: 'prev', uses: 'test/ok' },
+          { uses: SETUP, id: 'setup', with: { flag: '${{ steps.prev.outputs.ok }}' } },
+        ],
+        externalFunctions: [okFunction, echoFunction()],
+      });
+      await workflow.executeAsync();
+      expect(workflow.buildSteps.find(s => s.id === 'setup__gated')?.status).toBe(
+        BuildStepStatus.SUCCESS
+      );
+    });
+
     it('uses scoped success() in input interpolation, matching if condition semantics', async () => {
       let captured: unknown;
       const captureFunction = new BuildFunction({
@@ -736,6 +1236,25 @@ describe('StepsConfigParser local actions', () => {
   });
 
   describe('bare if conditions', () => {
+    it('substitutes action inputs in bare inner if expressions', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'flag', type: 'string', required: true }],
+            runs: {
+              steps: [{ id: 'inner', uses: 'eas/echo', if: 'inputs.flag == "true"' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { flag: 'true' } }],
+        externalFunctions: [echoFunction()],
+      });
+      expect(workflow.buildSteps[0].ifCondition).toBe('inputs.flag == "true"');
+
+      await workflow.executeAsync();
+      expect(workflow.buildSteps[0].status).toBe(BuildStepStatus.SUCCESS);
+    });
+
     it('resolves inner step references in bare if expressions at runtime', async () => {
       const workflow = await parseActions({
         catalog: {
@@ -824,6 +1343,35 @@ describe('StepsConfigParser local actions', () => {
     });
   });
 
+  describe('skipped inner steps', () => {
+    it('resolves action outputs referencing a skipped inner step to empty strings', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            outputs: {
+              version: { value: '${ steps.read.outputs.version }' },
+              version_expr: { value: '${{ steps.read.outputs.version }}' },
+            },
+            runs: {
+              steps: [{ id: 'read', uses: 'test/set-version', if: '${{ 1 == 2 }}' }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup' }],
+        externalFunctions: [setVersionFunction()],
+      });
+
+      await workflow.executeAsync();
+
+      const innerStep = workflow.buildSteps[0];
+      const outputsStep = workflow.buildSteps[1];
+      expect(innerStep.status).toBe(BuildStepStatus.SKIPPED);
+      expect(outputsStep.status).toBe(BuildStepStatus.SUCCESS);
+      expect(outputsStep.getOutputValueByName('version')).toBe('');
+      expect(outputsStep.getOutputValueByName('version_expr')).toBe('');
+    });
+  });
+
   describe('step id collisions', () => {
     it('reports a clear error when a user step id collides with an expanded action step id', async () => {
       const error = await getErrorAsync<BuildWorkflowError>(() =>
@@ -840,6 +1388,231 @@ describe('StepsConfigParser local actions', () => {
       expect(error.errors[0].message).toMatch(
         /collide with steps created by expanding a local action/
       );
+    });
+  });
+
+  describe('lifted restrictions and runtime resolution', () => {
+    it('resolves an input whose value mixes text with an expression, used inside an inner expression', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'target', type: 'string' }],
+            runs: {
+              steps: [
+                {
+                  id: 'gate',
+                  uses: 'test/passthrough',
+                  with: { value: 'ran' },
+                  if: '${{ inputs.target == "prod-1" }}',
+                },
+              ],
+            },
+          },
+        },
+        steps: [
+          { id: 'prev', uses: 'test/passthrough', with: { value: '1' } },
+          { uses: SETUP, id: 'setup', with: { target: 'prod-${{ steps.prev.outputs.out }}' } },
+        ],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+
+      const gate = workflow.buildSteps.find(s => s.id === 'setup__gate');
+      expect(gate?.status).toBe(BuildStepStatus.SUCCESS);
+      expect(gate?.getOutputValueByName('out')).toBe('ran');
+    });
+
+    it('supports property access on a json input at runtime', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'config', type: 'json' }],
+            runs: {
+              steps: [
+                {
+                  id: 'show',
+                  uses: 'test/passthrough',
+                  with: { value: 'retries=${{ inputs.config.retries }}' },
+                },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { config: { retries: 3 } } }],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+
+      expect(
+        workflow.buildSteps.find(s => s.id === 'setup__show')?.getOutputValueByName('out')
+      ).toBe('retries=3');
+    });
+
+    it('resolves a hyphenated input referenced with bracket syntax', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'app-name', type: 'string' }],
+            runs: {
+              steps: [
+                {
+                  id: 'show',
+                  uses: 'test/passthrough',
+                  with: { value: `\${{ inputs['app-name'] }}` },
+                },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { 'app-name': 'my-app' } }],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+
+      expect(
+        workflow.buildSteps.find(s => s.id === 'setup__show')?.getOutputValueByName('out')
+      ).toBe('my-app');
+    });
+
+    it('does not resolve a hyphenated input referenced with dot syntax', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'app-name', type: 'string' }],
+            runs: {
+              steps: [
+                {
+                  id: 'inner',
+                  uses: 'test/passthrough',
+                  with: { value: '${{ inputs.app-name }}' },
+                },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { 'app-name': 'my-app' } }],
+        externalFunctions: [passThroughFunction()],
+      });
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toMatch(/Invalid identifier "name"/);
+    });
+
+    it('validates an expression-valued constrained input against allowed_values at runtime', async () => {
+      const makeWorkflow = (provided: string): Promise<BuildWorkflow> =>
+        parseActions({
+          catalog: {
+            [SETUP]: {
+              inputs: [{ name: 'env', type: 'string', allowed_values: ['dev', 'prod'] }],
+              runs: {
+                steps: [
+                  { id: 'show', uses: 'test/passthrough', with: { value: '${{ inputs.env }}' } },
+                ],
+              },
+            },
+          },
+          steps: [
+            { id: 'pick', uses: 'test/passthrough', with: { value: provided } },
+            { uses: SETUP, id: 'setup', with: { env: '${{ steps.pick.outputs.out }}' } },
+          ],
+          externalFunctions: [passThroughFunction()],
+        });
+
+      const okWorkflow = await makeWorkflow('prod');
+      await okWorkflow.executeAsync();
+      expect(
+        okWorkflow.buildSteps.find(s => s.id === 'setup__show')?.getOutputValueByName('out')
+      ).toBe('prod');
+
+      const badWorkflow = await makeWorkflow('staging');
+      const error = await getErrorAsync<Error>(() => badWorkflow.executeAsync());
+      expect(error.message).toMatch(/input "env" must be one of: "dev", "prod"/);
+    });
+
+    it('resolves an expression-valued env override into the process env', async () => {
+      let capturedEnv: Record<string, string | undefined> = {};
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [{ name: 'token', type: 'string' }],
+            runs: {
+              steps: [
+                { id: 'read', uses: 'test/capture-env', env: { MY_TOKEN: '${{ inputs.token }}' } },
+              ],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup', with: { token: 'secret' } }],
+        externalFunctions: [captureEnvFunction(env => (capturedEnv = env))],
+      });
+      await workflow.executeAsync();
+
+      expect(capturedEnv.MY_TOKEN).toBe('secret');
+    });
+
+    it('throws a runtime error when an input default references itself indirectly', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          [SETUP]: {
+            inputs: [
+              { name: 'a', type: 'string', default_value: '${{ inputs.b }}' },
+              { name: 'b', type: 'string', default_value: '${{ inputs.a }}' },
+            ],
+            runs: {
+              steps: [{ id: 'show', uses: 'test/passthrough', with: { value: '${{ inputs.a }}' } }],
+            },
+          },
+        },
+        steps: [{ uses: SETUP, id: 'setup' }],
+        externalFunctions: [passThroughFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toMatch(/input "a" references itself/);
+    });
+
+    it('resolves nested action if and with against the outer action inputs at runtime', async () => {
+      const workflow = await parseActions({
+        catalog: {
+          './.eas/actions/wrap': {
+            inputs: [
+              { name: 'flag', type: 'string' },
+              { name: 'msg', type: 'string' },
+            ],
+            runs: {
+              steps: [
+                {
+                  uses: './.eas/actions/inner',
+                  id: 'inner',
+                  if: '${{ inputs.flag == "go" }}',
+                  with: { text: '${{ inputs.msg }}' },
+                },
+              ],
+            },
+          },
+          './.eas/actions/inner': {
+            inputs: [{ name: 'text', type: 'string' }],
+            runs: {
+              steps: [
+                { id: 'show', uses: 'test/passthrough', with: { value: '${{ inputs.text }}' } },
+              ],
+            },
+          },
+        },
+        steps: [
+          { id: 'prev', uses: 'test/passthrough', with: { value: 'hello' } },
+          {
+            uses: './.eas/actions/wrap',
+            id: 'wrap',
+            with: { flag: 'go', msg: '${{ steps.prev.outputs.out }}' },
+          },
+        ],
+        externalFunctions: [passThroughFunction()],
+      });
+      await workflow.executeAsync();
+
+      const show = workflow.buildSteps.find(s => s.id === 'wrap__inner__show');
+      expect(show?.status).toBe(BuildStepStatus.SUCCESS);
+      expect(show?.getOutputValueByName('out')).toBe('hello');
     });
   });
 });
