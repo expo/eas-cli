@@ -127,8 +127,9 @@ export async function reviewChanges(
     }
 
     progress('Coordinating findings…');
-    const { output, cost } = await coordinate(handle, metadata, agentFindings);
+    const { output: rawOutput, cost } = await coordinate(handle, metadata, agentFindings);
     agentCosts['coordinator'] = cost;
+    const output = applyReviewPolicy(rawOutput);
 
     await safeLog(logPath, {
       ...baseRecord,
@@ -156,6 +157,20 @@ export async function reviewChanges(
   } finally {
     handle?.close();
   }
+}
+
+/**
+ * Phase-1 policy backstop (in addition to the prompt instructions): drop
+ * suggestion-level findings, and downgrade approve_with_comments to approve when
+ * nothing substantive remains.
+ */
+function applyReviewPolicy(output: CoordinatorOutput): CoordinatorOutput {
+  const findings = output.findings.filter(finding => finding.severity !== 'suggestion');
+  const decision =
+    output.decision === 'approve_with_comments' && findings.length === 0
+      ? 'approve'
+      : output.decision;
+  return { ...output, findings, decision };
 }
 
 function sum(costs: Record<string, number>): number {

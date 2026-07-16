@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { run } from '../exec.ts';
-import { renderMarkdown } from '../render.ts';
+import { COMMENT_MARKER, renderMarkdown } from '../render.ts';
 import type { CoordinatorOutput } from '../schema.ts';
 import type { Reporter } from './reporter.ts';
 
@@ -18,13 +18,16 @@ export interface GitHubReporterOptions {
 const MAINTAINER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 
 interface IssueComment {
+  id: number;
   body?: string;
   author_association?: string;
 }
 
 /**
- * Posts exactly one PR comment. Runs the break-glass check first. Phase 1 renders
- * the decision but never calls the approve / request-changes review APIs.
+ * Maintains exactly one PR comment, updating it in place across re-reviews (and
+ * cleaning up any duplicates from earlier runs) so the review converges instead
+ * of churning. Runs the break-glass check first. Phase 1 renders the decision but
+ * never calls the approve / request-changes review APIs.
  */
 export class GitHubReporter implements Reporter {
   private readonly skipMarker: string;
@@ -34,8 +37,27 @@ export class GitHubReporter implements Reporter {
   }
 
   async checkBreakGlass(): Promise<boolean> {
-    // Request the most recent comments as a single JSON array. (Avoid
-    // --paginate, which concatenates one array per page into invalid JSON.)
+    const comments = await this.fetchRecentComments();
+    return comments.some(
+      comment =>
+        typeof comment.body === 'string' &&
+        comment.body.includes(this.skipMarker) &&
+        MAINTAINER_ASSOCIATIONS.has(comment.author_association ?? '')
+    );
+  }
+
+  /** Posts/updates the single comment with a short break-glass note. */
+  async postSkipNote(): Promise<void> {
+    await this.upsertComment(`${COMMENT_MARKER}\n🤖 AI review skipped via \`${this.skipMarker}\`.`);
+  }
+
+  async report(review: CoordinatorOutput): Promise<void> {
+    await this.upsertComment(renderMarkdown(review));
+  }
+
+  /** Most recent 100 issue comments as a single JSON array (no --paginate, which
+   * concatenates one array per page into invalid JSON). */
+  private async fetchRecentComments(): Promise<IssueComment[]> {
     const { stdout } = await run(
       'gh',
       [
@@ -52,47 +74,80 @@ export class GitHubReporter implements Reporter {
       ],
       { cwd: this.options.cwd }
     );
-    let comments: IssueComment[];
     try {
-      comments = JSON.parse(stdout) as IssueComment[];
+      return JSON.parse(stdout) as IssueComment[];
     } catch {
-      return false;
+      return [];
     }
-    return comments.some(
-      comment =>
-        typeof comment.body === 'string' &&
-        comment.body.includes(this.skipMarker) &&
-        MAINTAINER_ASSOCIATIONS.has(comment.author_association ?? '')
+  }
+
+  /**
+   * Update the reviewer's existing comment if present (deleting any older
+   * duplicates), otherwise create it. Comments are fetched newest-first, so the
+   * first marked comment is the one we keep.
+   */
+  private async upsertComment(body: string): Promise<void> {
+    const marked = (await this.fetchRecentComments()).filter(comment =>
+      comment.body?.includes(COMMENT_MARKER)
     );
+
+    if (marked.length === 0) {
+      await this.createComment(body);
+      return;
+    }
+
+    const [keep, ...duplicates] = marked;
+    await this.patchComment(keep!.id, body);
+    for (const duplicate of duplicates) {
+      await this.deleteComment(duplicate.id);
+    }
   }
 
-  /** Posts a short note when a run is skipped via break-glass. */
-  async postSkipNote(): Promise<void> {
-    await this.postComment(
-      `<!-- eas-ai-reviewer -->\n🤖 AI review skipped via \`${this.skipMarker}\`.`
-    );
-  }
-
-  async report(review: CoordinatorOutput): Promise<void> {
-    await this.postComment(renderMarkdown(review));
-  }
-
-  private async postComment(body: string): Promise<void> {
-    // Pass the body via a temp file to avoid arg-length and quoting issues.
+  private async withBodyFile<T>(body: string, fn: (jsonPath: string) => Promise<T>): Promise<T> {
     const dir = await mkdtemp(path.join(tmpdir(), 'eas-review-'));
-    const bodyFile = path.join(dir, 'comment.md');
-    await writeFile(bodyFile, body, 'utf8');
+    const jsonPath = path.join(dir, 'comment.json');
+    await writeFile(jsonPath, JSON.stringify({ body }), 'utf8');
+    return fn(jsonPath);
+  }
+
+  private async createComment(body: string): Promise<void> {
+    await this.withBodyFile(body, jsonPath =>
+      run(
+        'gh',
+        [
+          'api',
+          '-X',
+          'POST',
+          `repos/${this.options.repo}/issues/${this.options.prNumber}/comments`,
+          '--input',
+          jsonPath,
+        ],
+        { cwd: this.options.cwd }
+      )
+    );
+  }
+
+  private async patchComment(commentId: number, body: string): Promise<void> {
+    await this.withBodyFile(body, jsonPath =>
+      run(
+        'gh',
+        [
+          'api',
+          '-X',
+          'PATCH',
+          `repos/${this.options.repo}/issues/comments/${commentId}`,
+          '--input',
+          jsonPath,
+        ],
+        { cwd: this.options.cwd }
+      )
+    );
+  }
+
+  private async deleteComment(commentId: number): Promise<void> {
     await run(
       'gh',
-      [
-        'pr',
-        'comment',
-        String(this.options.prNumber),
-        '--repo',
-        this.options.repo,
-        '--body-file',
-        bodyFile,
-      ],
+      ['api', '-X', 'DELETE', `repos/${this.options.repo}/issues/comments/${commentId}`],
       { cwd: this.options.cwd }
     );
   }

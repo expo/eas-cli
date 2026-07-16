@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { z } from 'zod';
 
 /** Severity levels, ordered most→least severe for sorting/rendering. */
@@ -83,6 +85,20 @@ export function extractJsonObject(text: string): unknown {
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
+}
+
+/**
+ * Stable identifier for a finding, used to dedupe across re-reviews and update a
+ * single comment in place. Deliberately excludes the line number (which shifts as
+ * a PR grows) so the same issue keeps the same fingerprint across commits.
+ */
+export function fingerprintFinding(finding: Finding): string {
+  const normalized = [
+    finding.file,
+    finding.category,
+    finding.title.toLowerCase().replace(/\s+/g, ' ').trim(),
+  ].join('|');
+  return createHash('sha1').update(normalized).digest('hex').slice(0, 12);
 }
 
 export function parseReviewerOutput(text: string): ReviewerOutput {

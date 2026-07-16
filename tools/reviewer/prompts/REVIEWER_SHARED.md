@@ -27,6 +27,10 @@ role-specific prompt.
 Bias toward restraint. A high-signal review reports roughly one finding, not a
 firehose. When in doubt, stay silent.
 
+**For now, report only `critical` and `warning` findings. Do not emit
+`suggestion`-level items at all** — if the only thing you'd say is a suggestion,
+return no finding for it.
+
 ## Output contract
 
 Return **only** a single fenced ```json code block and nothing else. It must be a

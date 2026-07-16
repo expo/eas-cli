@@ -53,5 +53,6 @@ Return **only** a single fenced ```json code block of this exact shape:
 }
 ```
 
-`findings` is the deduped, re-categorized list. Use `null` for `line` when a
-finding is not tied to a specific line. Emit no prose outside the JSON block.
+`findings` is the deduped, re-categorized list. **Emit only `critical` and
+`warning` findings — drop every `suggestion`-level item.** Use `null` for `line`
+when a finding is not tied to a specific line. Emit no prose outside the JSON block.

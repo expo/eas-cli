@@ -1,5 +1,8 @@
-import { SEVERITIES } from './schema.ts';
+import { fingerprintFinding, SEVERITIES } from './schema.ts';
 import type { CoordinatorOutput, Decision, Finding, Severity } from './schema.ts';
+
+/** HTML marker identifying the reviewer's single PR comment (used for upsert). */
+export const COMMENT_MARKER = '<!-- eas-ai-reviewer -->';
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
 
@@ -36,7 +39,7 @@ function location(finding: Finding): string {
 
 /** GitHub comment body. Marker enables in-place updates in a later phase. */
 export function renderMarkdown(review: CoordinatorOutput): string {
-  const lines: string[] = ['<!-- eas-ai-reviewer -->', '## 🤖 AI code review', ''];
+  const lines: string[] = [COMMENT_MARKER, '## 🤖 AI code review', ''];
   lines.push(`**Decision:** ${decisionLabel(review.decision)}`, '', review.summary, '');
 
   if (review.findings.length === 0) {
@@ -64,7 +67,26 @@ export function renderMarkdown(review: CoordinatorOutput): string {
     '---',
     '_Phase 1: comment-only. This review never blocks a merge and never auto-approves._'
   );
+  // Hidden, machine-readable fingerprints of the current findings. A later run
+  // (and feedback learning) reads these to reconcile against what was already
+  // shown instead of churning the comment.
+  const fingerprints = review.findings.map(fingerprintFinding);
+  lines.push('', `<!-- eas-ai-reviewer:fingerprints=${JSON.stringify(fingerprints)} -->`);
   return lines.join('\n');
+}
+
+/** Parse the fingerprints embedded in a previously-posted comment body. */
+export function parseEmbeddedFingerprints(body: string): string[] {
+  const match = body.match(/<!-- eas-ai-reviewer:fingerprints=(\[.*?\]) -->/);
+  if (!match) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(match[1]!);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function severityHeading(severity: Severity): string {
