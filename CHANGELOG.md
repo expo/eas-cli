@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] replace Build fragment logFiles with logFileUrls, which excludes Xcode build logs. ([#4028](https://github.com/expo/eas-cli/pull/4028) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
