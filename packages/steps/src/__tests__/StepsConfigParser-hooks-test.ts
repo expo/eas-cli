@@ -468,7 +468,7 @@ describe('StepsConfigParser hooks with function groups', () => {
       externalFunctionGroups: [createGroup()],
     });
     // The group expands normally; the stamp never matches an anchor, so the
-    // submit hook stays unmatched (warned, not run).
+    // submit hook stays unmatched (ignored, not run).
     expect(workflow.buildSteps).toHaveLength(2);
     expect(workflow.hooksByAnchorStep.size).toBe(0);
   });

@@ -2,19 +2,13 @@ import { HOOK_ANCHORS, parseHookKey } from '../hooks';
 
 describe('HOOK_ANCHORS', () => {
   it('contains the v1 anchors', () => {
-    expect(Object.keys(HOOK_ANCHORS).sort()).toEqual([
+    expect([...HOOK_ANCHORS].sort()).toEqual([
       'checkout',
       'install_node_modules',
       'maestro_cloud',
       'maestro_tests',
       'submit',
     ]);
-  });
-
-  it('every entry has a non-empty description', () => {
-    for (const entry of Object.values(HOOK_ANCHORS)) {
-      expect(entry.description.length).toBeGreaterThan(0);
-    }
   });
 });
 
