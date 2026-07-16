@@ -15,6 +15,7 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
+import { startAgentDeviceEventCollectionAsync } from '../utils/deviceRunSessionEvents';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -32,7 +33,8 @@ import {
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
-const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
+const AGENT_DEVICE_STATE_DIR = path.join(os.homedir(), '.agent-device');
+const DAEMON_JSON_PATH = path.join(AGENT_DEVICE_STATE_DIR, 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
@@ -122,12 +124,24 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         logger,
       });
 
-      await waitForDeviceRunSessionStoppedAsync({
+      const eventCollection = await startAgentDeviceEventCollectionAsync({
         ctx,
         deviceRunSessionId,
+        stateDir: AGENT_DEVICE_STATE_DIR,
+        producerVersion: packageVersion,
         logger,
-        signal,
       });
+
+      try {
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          signal,
+        });
+      } finally {
+        await eventCollection.stopAsync();
+      }
     },
   });
 }
