@@ -104,11 +104,9 @@ export class LocalGitSource implements ReviewSource {
    * `git diff --no-index` (which exits 1 when files differ, hence check: false).
    */
   private async untrackedDiffs(): Promise<string> {
-    const listing = await git(['ls-files', '--others', '--exclude-standard'], this.cwd);
-    const files = listing
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean);
+    // -z: null-terminated output so filenames containing newlines parse correctly.
+    const listing = await git(['ls-files', '-z', '--others', '--exclude-standard'], this.cwd);
+    const files = listing.split('\0').filter(Boolean);
 
     const chunks: string[] = [];
     for (const file of files) {

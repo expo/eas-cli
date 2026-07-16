@@ -30,16 +30,23 @@ Options:
 Exit codes: 0 approve / approve-with-comments, 1 request-changes, 2 error.
 `;
 
+function requireValue(flag: string, value: string | undefined): string {
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+}
+
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { staged: false, json: false, noFail: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     switch (arg) {
       case '--base':
-        args.base = argv[++i];
+        args.base = requireValue(arg, argv[++i]);
         break;
       case '--head':
-        args.head = argv[++i];
+        args.head = requireValue(arg, argv[++i]);
         break;
       case '--staged':
         args.staged = true;
