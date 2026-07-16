@@ -30,7 +30,7 @@ const updateStub: UpdateFragment = {
   group: 'group-1234',
   branch: { id: 'branch-1234', name: 'main' },
   message: 'test message',
-  runtimeVersion: 'exposdk:47.0.0',
+  runtime: { id: 'runtime-1234', version: 'exposdk:47.0.0' },
   platform: 'ios',
   gitCommitHash: 'commit',
   isGitWorkingTreeDirty: false,
