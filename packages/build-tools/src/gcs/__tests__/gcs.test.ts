@@ -1,10 +1,8 @@
 import { randomBytes } from 'crypto';
-import fs from 'fs-extra';
 import fetch, { RequestInit, Response } from 'node-fetch';
-import path from 'path';
 import { Readable } from 'stream';
 
-import GCS from '../client';
+import { GCS } from '../client';
 
 jest.mock('node-fetch');
 
@@ -29,18 +27,15 @@ class DNSError extends ErrorWithCode {
 
 const TEST_BUCKET = 'turtle-v2-test';
 
-let googleApplicationCredentials: string | undefined;
-beforeAll(() => {
-  googleApplicationCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(__dirname, 'mock-credentials.json');
-});
-
-afterAll(() => {
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = googleApplicationCredentials;
-});
+function createSignedUrl(key: string, contentType: string): GCS.SignedUrl {
+  return {
+    url: `https://storage.googleapis.com/${TEST_BUCKET}/${key}?signature=test`,
+    headers: { 'content-type': contentType },
+  };
+}
 
 describe('GCS client', () => {
-  describe('uploadWithPresignedURL function', () => {
+  describe('uploadWithSignedUrl', () => {
     it('should throw an error if upload fails', async () => {
       const fetchMock = jest.mocked(fetch);
       const res = {
@@ -48,22 +43,16 @@ describe('GCS client', () => {
         status: 500,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock.mockImplementation(async () => res);
       await expect(
         GCS.uploadWithSignedUrl({
           signedUrl,
-          srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-          retryIntervalMs: 500,
+          srcGeneratorAsync: async () => Readable.from('image'),
+          retryIntervalMs: 0,
         })
       ).rejects.toThrow();
     });
@@ -75,21 +64,15 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock.mockImplementation(async () => res);
       const result = await GCS.uploadWithSignedUrl({
         signedUrl,
-        srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-        retryIntervalMs: 500,
+        srcGeneratorAsync: async () => Readable.from('image'),
+        retryIntervalMs: 0,
       });
       expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
     });
@@ -101,15 +84,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock
         .mockImplementationOnce(async () => {
@@ -121,8 +98,8 @@ describe('GCS client', () => {
         .mockImplementation(async () => res);
       const result = await GCS.uploadWithSignedUrl({
         signedUrl,
-        srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-        retryIntervalMs: 500,
+        srcGeneratorAsync: async () => Readable.from('image'),
+        retryIntervalMs: 0,
       });
       expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -135,15 +112,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock
         .mockImplementationOnce(async () => {
@@ -161,8 +132,8 @@ describe('GCS client', () => {
         .mockImplementation(async () => res);
       const result = await GCS.uploadWithSignedUrl({
         signedUrl,
-        srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-        retryIntervalMs: 500,
+        srcGeneratorAsync: async () => Readable.from('image'),
+        retryIntervalMs: 0,
       });
       expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -175,15 +146,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock
         .mockImplementationOnce(async () => {
@@ -198,8 +163,8 @@ describe('GCS client', () => {
         .mockImplementation(async () => res);
       const result = await GCS.uploadWithSignedUrl({
         signedUrl,
-        srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-        retryIntervalMs: 500,
+        srcGeneratorAsync: async () => Readable.from('image'),
+        retryIntervalMs: 0,
       });
       expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/cat.jpg');
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -212,15 +177,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       const lastDNSError = new DNSError('failed thrice');
       fetchMock
@@ -237,8 +196,8 @@ describe('GCS client', () => {
       await expect(
         GCS.uploadWithSignedUrl({
           signedUrl,
-          srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-          retryIntervalMs: 500,
+          srcGeneratorAsync: async () => Readable.from('image'),
+          retryIntervalMs: 0,
         })
       ).rejects.toThrow(lastDNSError);
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -251,15 +210,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock
         .mockImplementationOnce(async () => {
@@ -284,8 +237,8 @@ describe('GCS client', () => {
       await expect(
         GCS.uploadWithSignedUrl({
           signedUrl,
-          srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-          retryIntervalMs: 500,
+          srcGeneratorAsync: async () => Readable.from('image'),
+          retryIntervalMs: 0,
         })
       ).rejects.toThrow();
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -298,15 +251,9 @@ describe('GCS client', () => {
         status: 200,
       } as Response;
 
-      const localImagePath = path.join(__dirname, 'cat.jpg');
       const key = 'cat.jpg';
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key,
-        expirationTime: 30000,
-        contentType: 'image/jpeg',
-      });
+      const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       const nonDNSError = new ErrorWithCode('failed once', 'A_DIFFERENT_CODE');
       fetchMock
@@ -317,8 +264,8 @@ describe('GCS client', () => {
       await expect(
         GCS.uploadWithSignedUrl({
           signedUrl,
-          srcGeneratorAsync: async () => fs.createReadStream(localImagePath),
-          retryIntervalMs: 500,
+          srcGeneratorAsync: async () => Readable.from('image'),
+          retryIntervalMs: 0,
         })
       ).rejects.toThrow(nonDNSError);
       expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -354,19 +301,14 @@ describe('GCS client', () => {
           } as Response;
         });
 
-      const gcs = new GCS(TEST_BUCKET);
-      const signedUrl = await gcs.createSignedUploadUrl({
-        key: 'text.txt',
-        expirationTime: 30000,
-        contentType: 'text/plain',
-      });
+      const signedUrl = createSignedUrl('text.txt', 'text/plain');
 
       const bufferToUpload = randomBytes(16);
 
       const result = await GCS.uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from(bufferToUpload),
-        retryIntervalMs: 500,
+        retryIntervalMs: 0,
       });
       expect(result).toEqual('https://storage.googleapis.com/turtle-v2-test/text.txt');
       expect(fetchMock).toHaveBeenCalledTimes(3);

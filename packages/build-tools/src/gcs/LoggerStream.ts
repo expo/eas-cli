@@ -8,7 +8,7 @@ import { Readable, Writable, pipeline } from 'stream';
 import { promisify } from 'util';
 import zlib from 'zlib';
 
-import GCS from './client';
+import { GCS } from './client';
 
 type PromiseResolveFn = (value?: void | PromiseLike<void> | undefined) => void;
 
@@ -41,7 +41,7 @@ class GCSLoggerStream extends Writable {
   }
 
   private findNormalizedHeader(name: string): string | null {
-    if (!this.uploadMethod || 'client' in this.uploadMethod) {
+    if (!this.uploadMethod) {
       return null;
     }
 
@@ -165,25 +165,10 @@ class GCSLoggerStream extends Writable {
       );
     };
 
-    if ('signedUrl' in this.uploadMethod) {
-      return await GCS.uploadWithSignedUrl({
-        signedUrl: this.uploadMethod.signedUrl,
-        srcGeneratorAsync,
-      });
-    }
-
-    const { Location } = await this.uploadMethod.client.uploadFile({
-      key: this.uploadMethod.key,
-      src: await srcGeneratorAsync(),
-      streamOptions: {
-        metadata: {
-          contentType: 'text/plain;charset=utf-8',
-          ...(this.compress !== null ? { contentEncoding: this.compress } : {}),
-          customTime: this.uploadMethod.customTime,
-        },
-      },
+    return await GCS.uploadWithSignedUrl({
+      signedUrl: this.uploadMethod.signedUrl,
+      srcGeneratorAsync,
     });
-    return Location;
   }
 
   private async createCompressedStream(src: Readable): Promise<Readable> {
@@ -223,9 +208,9 @@ namespace GCSLoggerStream {
     compress?: CompressionMethod;
   }
 
-  export type UploadMethod =
-    | { client: GCS; key: string; customTime: Date | null }
-    | { signedUrl: GCS.SignedUrl };
+  export type UploadMethod = {
+    signedUrl: GCS.SignedUrl;
+  };
 
   export interface Config {
     logger: bunyan;
