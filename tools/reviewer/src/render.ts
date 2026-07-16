@@ -1,8 +1,11 @@
 import { fingerprintFinding, SEVERITIES } from './schema.ts';
 import type { CoordinatorOutput, Decision, Finding, Severity } from './schema.ts';
 
+/** Base tag for this reviewer (general Expo tool, not eas-specific). */
+export const REVIEWER_TAG = 'expo-ai-code-reviewer';
 /** HTML marker identifying the reviewer's single PR comment (used for upsert). */
-export const COMMENT_MARKER = '<!-- eas-ai-reviewer -->';
+export const COMMENT_MARKER = `<!-- ${REVIEWER_TAG} -->`;
+const FINGERPRINTS_PREFIX = `${REVIEWER_TAG}:fingerprints`;
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
 
@@ -71,13 +74,13 @@ export function renderMarkdown(review: CoordinatorOutput): string {
   // (and feedback learning) reads these to reconcile against what was already
   // shown instead of churning the comment.
   const fingerprints = review.findings.map(fingerprintFinding);
-  lines.push('', `<!-- eas-ai-reviewer:fingerprints=${JSON.stringify(fingerprints)} -->`);
+  lines.push('', `<!-- ${FINGERPRINTS_PREFIX}=${JSON.stringify(fingerprints)} -->`);
   return lines.join('\n');
 }
 
 /** Parse the fingerprints embedded in a previously-posted comment body. */
 export function parseEmbeddedFingerprints(body: string): string[] {
-  const match = body.match(/<!-- eas-ai-reviewer:fingerprints=(\[.*?\]) -->/);
+  const match = body.match(new RegExp(`<!-- ${FINGERPRINTS_PREFIX}=(\\[.*?\\]) -->`));
   if (!match) {
     return [];
   }
