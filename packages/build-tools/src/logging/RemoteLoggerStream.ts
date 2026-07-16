@@ -8,17 +8,18 @@ import { Readable, Writable, pipeline } from 'stream';
 import { promisify } from 'util';
 import zlib from 'zlib';
 
-import { GCS } from './client';
+import { SignedUrl as RemoteSignedUrl, uploadWithSignedUrl } from '../storage/uploadWithSignedUrl';
 
 type PromiseResolveFn = (value?: void | PromiseLike<void> | undefined) => void;
 
 const pipe = promisify(pipeline);
 
-class GCSLoggerStream extends Writable {
+class RemoteLoggerStream extends Writable {
   public writable = true;
   private readonly logger: bunyan;
-  private readonly uploadMethod?: GCSLoggerStream.UploadMethod;
-  private readonly options: GCSLoggerStream.Options;
+  private readonly uploadMethod?: RemoteLoggerStream.UploadMethod;
+  private readonly options: RemoteLoggerStream.Options;
+  private readonly onError?: RemoteLoggerStream.ErrorHandler;
   private readonly temporaryLogsPath: string;
   private readonly temporaryCompressedLogsPath: string;
   private readonly compress: string | null;
@@ -29,12 +30,15 @@ class GCSLoggerStream extends Writable {
   private buffer: string[] = [];
   private writePromise?: Promise<any>;
   private cleanUpCalled: boolean = false;
+  private bytesAccepted = 0;
+  private didExceedMaxSize = false;
 
-  constructor({ logger, uploadMethod, options }: GCSLoggerStream.Config) {
+  constructor({ logger, uploadMethod, options, onError }: RemoteLoggerStream.Config) {
     super();
     this.logger = logger;
     this.uploadMethod = uploadMethod;
     this.options = options;
+    this.onError = onError;
     this.compress = options?.compress ?? this.findNormalizedHeader('contentencoding');
     this.temporaryLogsPath = path.join(os.tmpdir(), `logs-${randomUUID()}`);
     this.temporaryCompressedLogsPath = `${this.temporaryLogsPath}.compressed`;
@@ -84,7 +88,7 @@ class GCSLoggerStream extends Writable {
 
     await fs.remove(this.temporaryLogsPath);
     await fs.remove(this.temporaryCompressedLogsPath);
-    this.logger.info('Cleaning up GCS log stream');
+    this.logger.info('Cleaning up log stream');
   }
 
   public write(rec: any): boolean {
@@ -92,6 +96,25 @@ class GCSLoggerStream extends Writable {
       return true;
     }
     const logLine = `${JSON.stringify(rec)}\n`;
+    const logLineSize = Buffer.byteLength(logLine);
+    if (
+      this.options.maxSizeBytes !== undefined &&
+      this.bytesAccepted + logLineSize > this.options.maxSizeBytes
+    ) {
+      if (!this.didExceedMaxSize) {
+        this.didExceedMaxSize = true;
+        const error = new Error(
+          `Log stream exceeded its maximum size of ${this.options.maxSizeBytes} bytes.`
+        );
+        this.onError?.(error, 'write');
+        this.logger.error(
+          { err: error, origin: 'remote-logger' },
+          'Log stream size limit exceeded'
+        );
+      }
+      return true;
+    }
+    this.bytesAccepted += logLineSize;
     this.buffer.push(logLine);
     void this.safeWriteToFile();
     return true;
@@ -115,7 +138,9 @@ class GCSLoggerStream extends Writable {
       this.buffer = this.buffer.slice(buffer.length);
       this.hasChangesToUpload = true;
     } catch (err) {
-      this.logger.error({ err, origin: 'gcs-logger' }, 'Failed to write logs to file');
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.onError?.(error, 'write');
+      this.logger.error({ err: error, origin: 'remote-logger' }, 'Failed to write logs to file');
     } finally {
       this.writePromise = undefined;
     }
@@ -144,7 +169,9 @@ class GCSLoggerStream extends Writable {
         return result;
       })
       .catch(err => {
-        this.logger.error({ err }, 'Failed to upload logs file to GCS');
+        const error = err instanceof Error ? err : new Error(String(err));
+        this.onError?.(error, 'upload');
+        this.logger.error({ err: error }, 'Failed to upload logs file');
       })
       .then(result => {
         this.uploadingPromise = undefined;
@@ -160,14 +187,18 @@ class GCSLoggerStream extends Writable {
 
     const { size } = await fs.stat(this.temporaryLogsPath);
     const srcGeneratorAsync = async (): Promise<Readable> => {
+      // Writes may continue during an upload, so read exactly the snapshot whose size is sent.
       return await this.createCompressedStream(
-        fs.createReadStream(this.temporaryLogsPath, { end: size })
+        size === 0
+          ? Readable.from([])
+          : fs.createReadStream(this.temporaryLogsPath, { start: 0, end: size - 1 })
       );
     };
 
-    return await GCS.uploadWithSignedUrl({
+    return await uploadWithSignedUrl({
       signedUrl: this.uploadMethod.signedUrl,
       srcGeneratorAsync,
+      ...(this.compress === null ? { contentLength: size } : {}),
     });
   }
 
@@ -197,7 +228,7 @@ class GCSLoggerStream extends Writable {
   }
 }
 
-namespace GCSLoggerStream {
+namespace RemoteLoggerStream {
   export enum CompressionMethod {
     GZIP = 'gzip',
     BR = 'br',
@@ -206,17 +237,23 @@ namespace GCSLoggerStream {
   export interface Options {
     uploadIntervalMs: number;
     compress?: CompressionMethod;
+    maxSizeBytes?: number;
   }
 
   export type UploadMethod = {
-    signedUrl: GCS.SignedUrl;
+    signedUrl: SignedUrl;
   };
+
+  export type SignedUrl = RemoteSignedUrl;
+
+  export type ErrorHandler = (error: Error, operation: 'write' | 'upload') => void;
 
   export interface Config {
     logger: bunyan;
     uploadMethod?: UploadMethod;
     options: Options;
+    onError?: ErrorHandler;
   }
 }
 
-export default GCSLoggerStream;
+export default RemoteLoggerStream;

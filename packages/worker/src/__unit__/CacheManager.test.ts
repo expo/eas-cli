@@ -1,4 +1,4 @@
-import { GCS } from '@expo/build-tools';
+import { uploadWithSignedUrl } from '@expo/build-tools';
 import downloadFile from '@expo/downloader';
 import { Cache, Platform } from '@expo/eas-build-job';
 import { randomUUID } from 'crypto';
@@ -41,7 +41,7 @@ describe(GCSCacheManager, () => {
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
     await fs.rm(outsideDir, { recursive: true, force: true });
-    jest.mocked(GCS.uploadWithSignedUrl).mockReset();
+    jest.mocked(uploadWithSignedUrl).mockReset();
     jest.mocked(downloadFile).mockReset();
   });
 
@@ -63,7 +63,7 @@ describe(GCSCacheManager, () => {
       },
     } as any;
     let tarReadStream: Readable;
-    jest.mocked(GCS.uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
+    jest.mocked(uploadWithSignedUrl).mockImplementation(async ({ srcGeneratorAsync }) => {
       const result = await srcGeneratorAsync();
       tarReadStream = result;
       return randomUUID();
