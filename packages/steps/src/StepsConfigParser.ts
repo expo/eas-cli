@@ -32,9 +32,6 @@ import {
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
   private readonly hooks: Hooks;
-  // Anchors present in the job's own steps, collected during construction.
-  // Used to warn about payload hook keys whose anchor never occurred.
-  private readonly encounteredHookAnchors = new Set<HookAnchorId>();
 
   constructor(
     ctx: BuildStepGlobalContext,
@@ -105,7 +102,6 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          this.encounteredHookAnchors.add(anchorId);
           const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
             buildFunctionById,
             buildFunctionGroupById,
@@ -122,7 +118,6 @@ export class StepsConfigParser extends AbstractConfigParser {
         buildSteps.push(this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById));
         continue;
       }
-      this.encounteredHookAnchors.add(anchorId);
       const maps = { buildFunctionById, buildFunctionGroupById };
       const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
       const anchorStep = this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById);
@@ -132,9 +127,6 @@ export class StepsConfigParser extends AbstractConfigParser {
         hooksByAnchorStep.set(anchorStep, { anchor: anchorId, before, after });
       }
     }
-
-    // After construction: group expansions also record encountered anchors.
-    this.warnAboutUnmatchedHookKeys();
 
     return {
       buildSteps,
@@ -146,10 +138,9 @@ export class StepsConfigParser extends AbstractConfigParser {
   private validateHooks(): Record<string, Step[]> {
     const validatedHooks: Record<string, Step[]> = {};
     for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
-      // Keys that don't name a registered anchor are fully inert — never
-      // validated, never constructed, reported by warnAboutUnmatchedHookKeys.
-      // A worker must not fail on hook keys newer than itself, even when their
-      // steps reference functions it doesn't have yet.
+      // A worker must not fail on a hook key newer than itself, so unregistered
+      // keys skip validation entirely (their steps may reference functions this
+      // worker lacks).
       if (parseHookKey(hookKey) === null) {
         continue;
       }
@@ -221,23 +212,6 @@ export class StepsConfigParser extends AbstractConfigParser {
       return [];
     }
     return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, maps);
-  }
-
-  private warnAboutUnmatchedHookKeys(): void {
-    for (const hookKey of Object.keys(this.hooks)) {
-      const parsedHookKey = parseHookKey(hookKey);
-      if (parsedHookKey === null) {
-        this.ctx.baseLogger.warn(
-          { hookKey },
-          `Unknown hook key "${hookKey}" in the job payload; its steps did not run.`
-        );
-      } else if (!this.encounteredHookAnchors.has(parsedHookKey.anchorId)) {
-        this.ctx.baseLogger.warn(
-          { hookKey, hookAnchor: parsedHookKey.anchorId },
-          `Hook key "${hookKey}" did not match any step in this job (anchor "${parsedHookKey.anchorId}" never occurred); its steps did not run.`
-        );
-      }
-    }
   }
 
   private createBuildStepFromNonGroupStepConfig(
