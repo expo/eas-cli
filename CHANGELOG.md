@@ -77,7 +77,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix Free plan users being warned they had reached their build limit while still well below it. Overage warnings are now shown only for paid plans with an actual billable overage cost. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
-- [eas-cli] Count only genuine per-worker build overages in the pre-build usage warning, so the reported number of builds beyond included credits is accurate. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
+- [eas-cli] Count only genuine per-worker build overages in the pre-build usage warning, so the reported number of builds beyond included credits is accurate. ([#3932](https://github.com/expo/eas-cli/pull/3932) by [@sarahlane8](https://github.com/sarahlane8))
 - [eas-cli] Select correct tvOS build target for non-interactive Apple builds when EXPO_TV env variable is set. ([#3907](https://github.com/expo/eas-cli/pull/3907) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
