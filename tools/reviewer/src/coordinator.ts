@@ -1,4 +1,4 @@
-import { promptAgent } from './opencode.ts';
+import { promptAndParse } from './opencode.ts';
 import type { OpencodeHandle } from './opencode.ts';
 import { buildCoordinatorSystem, buildCoordinatorTask } from './prompts.ts';
 import { parseCoordinatorOutput } from './schema.ts';
@@ -20,11 +20,10 @@ export async function coordinate(
 ): Promise<CoordinationResult> {
   const system = await buildCoordinatorSystem();
   const text = buildCoordinatorTask(metadata, agentFindings);
-  const result = await promptAgent(handle, {
-    agent: 'coordinator',
-    system,
-    text,
-    title: 'review-coordinator',
-  });
-  return { output: parseCoordinatorOutput(result.text), cost: result.cost };
+  const { value, cost } = await promptAndParse(
+    handle,
+    { agent: 'coordinator', system, text, title: 'review-coordinator' },
+    parseCoordinatorOutput
+  );
+  return { output: value, cost };
 }

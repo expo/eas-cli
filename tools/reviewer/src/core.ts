@@ -7,7 +7,7 @@ import { writeRunLog } from './log.ts';
 import type { RunLogRecord } from './log.ts';
 import { filterNoise, writePatchWorkspace } from './noise.ts';
 import type { FilteredFile } from './noise.ts';
-import { promptAgent, startOpencode } from './opencode.ts';
+import { promptAndParse, startOpencode } from './opencode.ts';
 import type { OpencodeHandle } from './opencode.ts';
 import { buildReviewerSystem, buildReviewerTask } from './prompts.ts';
 import { parseReviewerOutput } from './schema.ts';
@@ -110,14 +110,13 @@ export async function reviewChanges(
       REVIEWERS.map(async ({ agent }) => {
         const system = await buildReviewerSystem(agent);
         const task = buildReviewerTask(workspace);
-        const result = await promptAgent(handle, {
-          agent,
-          system,
-          text: task,
-          title: `review-${agent}`,
-        });
-        agentCosts[agent] = result.cost;
-        return { agent, findings: parseReviewerOutput(result.text).findings };
+        const { value, cost } = await promptAndParse(
+          handle,
+          { agent, system, text: task, title: `review-${agent}` },
+          parseReviewerOutput
+        );
+        agentCosts[agent] = cost;
+        return { agent, findings: value.findings };
       })
     );
 

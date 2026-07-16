@@ -75,3 +75,38 @@ export async function promptAgent(
 
   return { text, cost: response.info?.cost ?? 0, sessionID: session.id };
 }
+
+const CORRECTIVE =
+  '\n\nIMPORTANT: your previous reply could not be parsed. Reply with ONLY the single ' +
+  'JSON object described above — no prose, no code fences, no partial output.';
+
+/**
+ * Prompt an agent and parse its reply, retrying once with a corrective nudge in a
+ * fresh session if parsing fails. Models occasionally emit malformed or truncated
+ * JSON; this keeps an intermittent bad reply from failing the whole review.
+ */
+export async function promptAndParse<T>(
+  handle: OpencodeHandle,
+  args: { agent: string; system: string; text: string; title: string },
+  parse: (text: string) => T
+): Promise<{ value: T; cost: number }> {
+  let cost = 0;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await promptAgent(handle, {
+      ...args,
+      text: attempt === 0 ? args.text : args.text + CORRECTIVE,
+    });
+    cost += result.cost;
+    try {
+      return { value: parse(result.text), cost };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(
+    `Agent "${args.agent}" did not return parseable JSON after a retry: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
+}
