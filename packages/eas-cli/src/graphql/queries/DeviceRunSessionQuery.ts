@@ -62,7 +62,6 @@ export const DeviceRunSessionQuery = {
                     }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
-                      streamUrl
                     }
                   }
                   turtleJobRun {
