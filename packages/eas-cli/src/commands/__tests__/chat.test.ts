@@ -26,7 +26,19 @@ const mockAppByFullNameAsync = jest.mocked(AppQuery.byFullNameAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-const emptyResult: ChatResult = { text: 'ok', toolCalls: [] };
+function makeChatResult(text: string, toolCalls: ChatResult['toolCalls'] = []): ChatResult {
+  return {
+    text,
+    toolCalls,
+    assistantMessage: {
+      id: 'assistant-message',
+      role: 'assistant',
+      parts: [{ type: 'text', text }],
+    },
+  };
+}
+
+const emptyResult = makeChatResult('ok');
 
 /** Builds a ChatReplInput whose askAsync yields the given lines in order, then `null`. */
 function mockReplInput(lines: (string | null)[]): { askAsync: jest.Mock; close: jest.Mock } {
@@ -93,7 +105,7 @@ describe(Chat, () => {
     expect(call.sessionSecret).toBe('{"id":"session-id","version":"1"}');
     expect(call.stream).toBe(true);
     expect(call.messages).toHaveLength(1);
-    expect(call.messages[0].parts[0].text).toBe('how are my builds?');
+    expect(call.messages[0].parts[0]).toEqual({ type: 'text', text: 'how are my builds?' });
     expect(mockCreateChatReplInput).not.toHaveBeenCalled();
   });
 
@@ -113,9 +125,10 @@ describe(Chat, () => {
 
     const call = mockStreamChatResponseAsync.mock.calls[0][0];
     expect(call.accountName).toBe('acme');
-    expect(call.messages[0].parts[0].text).toBe(
-      'Regarding the EAS project @acme/mobile: is my build ok?'
-    );
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
   });
 
   it('does not auto-detect when --project is given', async () => {
@@ -151,9 +164,10 @@ describe(Chat, () => {
     expect(mockAppByFullNameAsync).toHaveBeenCalledWith(expect.anything(), '@acme/mobile');
     const call = mockStreamChatResponseAsync.mock.calls[0][0];
     expect(call.accountName).toBe('acme');
-    expect(call.messages[0].parts[0].text).toBe(
-      'Regarding the EAS project @acme/mobile: is my build ok?'
-    );
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
   });
 
   it('throws a friendly error when --project cannot be found', async () => {
@@ -164,7 +178,7 @@ describe(Chat, () => {
 
   it('continues the conversation with follow-up replies until the user types /exit', async () => {
     forceInteractive();
-    mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
     const input = mockReplInput(['and my updates?', '/exit']);
 
     const command = createCommand(['how are my builds?']);
@@ -175,12 +189,39 @@ describe(Chat, () => {
     expect(secondCall.messages).toHaveLength(3);
     expect(secondCall.messages[1].role).toBe('assistant');
     expect(secondCall.messages[2].role).toBe('user');
-    expect(secondCall.messages[2].parts[0].text).toBe('and my updates?');
+    expect(secondCall.messages[2].parts[0]).toEqual({ type: 'text', text: 'and my updates?' });
     expect(input.close).toHaveBeenCalled();
     // The command-line message seeds history so Up recalls it at the first prompt.
     expect(mockCreateChatReplInput).toHaveBeenCalledWith(
       expect.objectContaining({ history: ['how are my builds?'] })
     );
+  });
+
+  it('retains tool results in the conversation history for follow-up questions', async () => {
+    forceInteractive();
+    const result = makeChatResult('The latest build passed.', [
+      { toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: ['b1'] } },
+    ]);
+    result.assistantMessage.parts = [
+      { type: 'step-start' },
+      {
+        type: 'tool-get_latest_builds',
+        toolCallId: 't1',
+        state: 'output-available',
+        input: { limit: 1 },
+        output: { builds: ['b1'] },
+      },
+      { type: 'step-start' },
+      { type: 'text', text: result.text },
+    ];
+    mockStreamChatResponseAsync.mockResolvedValue(result);
+    mockReplInput(['what SDK did it use?', '/exit']);
+
+    const command = createCommand(['how are my builds?']);
+    await command.runAsync();
+
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages[1]).toEqual(result.assistantMessage);
   });
 
   it('exits when the input stream closes (Ctrl-D)', async () => {
@@ -195,7 +236,7 @@ describe(Chat, () => {
 
   it('starts a new conversation with /clear', async () => {
     forceInteractive();
-    mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
     mockReplInput(['/clear', 'fresh question', '/exit']);
 
     const command = createCommand(['first question']);
@@ -204,28 +245,47 @@ describe(Chat, () => {
     expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
     const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
     expect(secondCall.messages).toHaveLength(1);
-    expect(secondCall.messages[0].parts[0].text).toBe('fresh question');
+    expect(secondCall.messages[0].parts[0]).toEqual({ type: 'text', text: 'fresh question' });
+  });
+
+  it('restores project scope after /clear', async () => {
+    forceInteractive();
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['/clear', 'fresh question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: fresh question',
+    });
   });
 
   it('ignores unknown slash commands and keeps prompting', async () => {
     forceInteractive();
-    mockStreamChatResponseAsync.mockResolvedValue({ text: 'answer', toolCalls: [] });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
     mockReplInput(['/bogus', 'a real question', '/exit']);
 
     const command = createCommand(['first question']);
     await command.runAsync();
 
     expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
-    expect(mockStreamChatResponseAsync.mock.calls[1][0].messages[2].parts[0].text).toBe(
-      'a real question'
-    );
+    expect(mockStreamChatResponseAsync.mock.calls[1][0].messages[2].parts[0]).toEqual({
+      type: 'text',
+      text: 'a real question',
+    });
   });
 
   it('emits structured JSON and does not stream or prompt when --json is passed', async () => {
-    mockStreamChatResponseAsync.mockResolvedValue({
-      text: 'Your latest build passed.',
-      toolCalls: [{ toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: [] } }],
-    });
+    mockStreamChatResponseAsync.mockResolvedValue(
+      makeChatResult('Your latest build passed.', [
+        { toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: [] } },
+      ])
+    );
 
     const command = createCommand(['how are my builds?', '--json']);
     await command.runAsync();

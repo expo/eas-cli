@@ -73,6 +73,7 @@ describe(streamChatResponseAsync, () => {
       .reply(
         200,
         sseBody([
+          { type: 'start-step' },
           {
             type: 'tool-input-available',
             toolCallId: 't1',
@@ -80,7 +81,10 @@ describe(streamChatResponseAsync, () => {
             input: { limit: 1 },
           },
           { type: 'tool-output-available', toolCallId: 't1', output: { builds: ['b1'] } },
+          { type: 'finish-step' },
+          { type: 'start-step' },
           { type: 'text-delta', delta: 'Done.' },
+          { type: 'finish-step' },
           { type: 'finish' },
         ])
       );
@@ -102,6 +106,23 @@ describe(streamChatResponseAsync, () => {
         errorText: undefined,
       },
     ]);
+    expect(result.assistantMessage).toEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        parts: [
+          { type: 'step-start' },
+          {
+            type: 'tool-get_latest_builds',
+            toolCallId: 't1',
+            state: 'output-available',
+            input: { limit: 1 },
+            output: { builds: ['b1'] },
+          },
+          { type: 'step-start' },
+          { type: 'text', text: 'Done.' },
+        ],
+      })
+    );
   });
 
   it('sends the session secret as a cookie and the account as a header', async () => {

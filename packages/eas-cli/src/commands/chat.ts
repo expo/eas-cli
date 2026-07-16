@@ -1,12 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import {
-  ChatMessage,
-  makeAssistantMessage,
-  makeUserMessage,
-  streamChatResponseAsync,
-} from '../chat/chatClient';
+import { ChatMessage, makeUserMessage, streamChatResponseAsync } from '../chat/chatClient';
 import { detectCurrentProjectAsync } from '../chat/detectProject';
 import { ChatReplInput, createChatReplInput } from '../chat/replInput';
 import EasCommand from '../commandUtils/EasCommand';
@@ -94,9 +89,7 @@ export default class Chat extends EasCommand {
       }
     }
 
-    const firstMessageText = projectLabel
-      ? `Regarding the EAS project ${projectLabel}: ${args.message}`
-      : args.message;
+    const firstMessageText = scopeMessageToProject(args.message, projectLabel);
     const messages: ChatMessage[] = [makeUserMessage(firstMessageText)];
 
     if (json) {
@@ -141,13 +134,13 @@ export default class Chat extends EasCommand {
           sessionSecret,
           stream: true,
         });
-        messages.push(makeAssistantMessage(result.text));
+        messages.push(result.assistantMessage);
 
         if (!input) {
           break;
         }
 
-        const nextMessage = await readNextUserMessageAsync(input, messages);
+        const nextMessage = await readNextUserMessageAsync(input, messages, projectLabel);
         if (nextMessage === null) {
           Log.log(chalk.dim('Ending chat.'));
           break;
@@ -166,8 +159,10 @@ export default class Chat extends EasCommand {
  */
 async function readNextUserMessageAsync(
   input: ChatReplInput,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  projectLabel: string | undefined
 ): Promise<string | null> {
+  let shouldRestoreProjectScope = false;
   for (;;) {
     Log.newLine();
     const line = await input.askAsync(USER_LABEL);
@@ -189,6 +184,7 @@ async function readNextUserMessageAsync(
       }
       if (['clear', 'new', 'reset'].includes(command)) {
         messages.length = 0;
+        shouldRestoreProjectScope = true;
         Log.log(chalk.dim('Started a new conversation.'));
         continue;
       }
@@ -201,8 +197,12 @@ async function readNextUserMessageAsync(
     }
 
     Log.newLine();
-    return trimmed;
+    return shouldRestoreProjectScope ? scopeMessageToProject(trimmed, projectLabel) : trimmed;
   }
+}
+
+function scopeMessageToProject(message: string, projectLabel: string | undefined): string {
+  return projectLabel ? `Regarding the EAS project ${projectLabel}: ${message}` : message;
 }
 
 function getDefaultAccountName(actor: Actor): string | undefined {

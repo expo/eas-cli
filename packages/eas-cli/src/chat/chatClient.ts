@@ -84,6 +84,7 @@ const ASSISTANT_SPINNER_PREFIX = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${c
 
 type UIMessageStreamFrame = {
   type: string;
+  id?: string;
   delta?: string;
   toolCallId?: string;
   toolName?: string;
@@ -92,11 +93,23 @@ type UIMessageStreamFrame = {
   errorText?: string;
 };
 
+type ChatMessagePart =
+  | { type: 'text'; text: string }
+  | { type: 'step-start' }
+  | {
+      type: `tool-${string}`;
+      toolCallId: string;
+      state: 'input-streaming' | 'input-available' | 'output-available' | 'output-error';
+      input: unknown;
+      output?: unknown;
+      errorText?: string;
+    };
+
 /** A single turn in the conversation, in the AI SDK `UIMessage` shape the endpoint expects. */
 export type ChatMessage = {
   id: string;
   role: 'system' | 'user' | 'assistant';
-  parts: { type: 'text'; text: string }[];
+  parts: ChatMessagePart[];
 };
 
 function makeSystemMessage(text: string): ChatMessage {
@@ -107,8 +120,8 @@ export function makeUserMessage(text: string): ChatMessage {
   return { id: uuidv4(), role: 'user', parts: [{ type: 'text', text }] };
 }
 
-export function makeAssistantMessage(text: string): ChatMessage {
-  return { id: uuidv4(), role: 'assistant', parts: [{ type: 'text', text }] };
+function makeAssistantMessage(parts: ChatMessagePart[]): ChatMessage {
+  return { id: uuidv4(), role: 'assistant', parts };
 }
 
 export type ChatToolCall = {
@@ -123,6 +136,8 @@ export type ChatResult = {
   text: string;
   /** Tools the assistant invoked, in call order, with their inputs and outputs. */
   toolCalls: ChatToolCall[];
+  /** Complete UI message, including tool results, to retain in the next request's history. */
+  assistantMessage: ChatMessage;
 };
 
 /**
@@ -183,6 +198,9 @@ export async function streamChatResponseAsync({
     }
   };
   const toolCallsById = new Map<string, ChatToolCall>();
+  const toolMessagePartsById = new Map<string, Extract<ChatMessagePart, { toolCallId: string }>>();
+  const textMessagePartsById = new Map<string, Extract<ChatMessagePart, { type: 'text' }>>();
+  const assistantMessageParts: ChatMessagePart[] = [];
   const announcedTools = new Set<string>();
   const markdownState: MarkdownRenderState = createMarkdownRenderState();
   let fullText = '';
@@ -191,6 +209,42 @@ export async function streamChatResponseAsync({
   let buffer = '';
   let displayBuffer = '';
   let wroteAssistantLine = false;
+  let currentTextMessagePart: Extract<ChatMessagePart, { type: 'text' }> | undefined;
+
+  const getOrCreateToolMessagePart = (
+    toolCallId: string,
+    toolName: string
+  ): Extract<ChatMessagePart, { toolCallId: string }> => {
+    const existing = toolMessagePartsById.get(toolCallId);
+    if (existing) {
+      return existing;
+    }
+    const part: Extract<ChatMessagePart, { toolCallId: string }> = {
+      type: `tool-${toolName}`,
+      toolCallId,
+      state: 'input-streaming',
+      input: undefined,
+    };
+    toolMessagePartsById.set(toolCallId, part);
+    assistantMessageParts.push(part);
+    return part;
+  };
+
+  const getOrCreateTextMessagePart = (
+    id: string | undefined
+  ): Extract<ChatMessagePart, { type: 'text' }> => {
+    const existing = id ? textMessagePartsById.get(id) : currentTextMessagePart;
+    if (existing) {
+      return existing;
+    }
+    const part: Extract<ChatMessagePart, { type: 'text' }> = { type: 'text', text: '' };
+    if (id) {
+      textMessagePartsById.set(id, part);
+    }
+    currentTextMessagePart = part;
+    assistantMessageParts.push(part);
+    return part;
+  };
 
   // Prefixes the first written line with the "Expo > " label and every following line with a matching
   // indent, so the whole reply lines up under the label. Long lines are wrapped to the terminal
@@ -245,12 +299,22 @@ export async function streamChatResponseAsync({
 
   const handleFrame = (frame: UIMessageStreamFrame): void => {
     switch (frame.type) {
+      case 'start-step': {
+        assistantMessageParts.push({ type: 'step-start' });
+        currentTextMessagePart = undefined;
+        break;
+      }
+      case 'text-start': {
+        currentTextMessagePart = getOrCreateTextMessagePart(frame.id);
+        break;
+      }
       case 'text-delta': {
         const delta = typeof frame.delta === 'string' ? frame.delta : '';
         if (!delta) {
           return;
         }
         fullText += delta;
+        getOrCreateTextMessagePart(frame.id).text += delta;
         if (stream) {
           if (!streamingText) {
             stopSpinner();
@@ -259,6 +323,10 @@ export async function streamChatResponseAsync({
           displayBuffer += delta;
           flushDisplayLines(false);
         }
+        break;
+      }
+      case 'text-end': {
+        currentTextMessagePart = undefined;
         break;
       }
       case 'tool-input-start':
@@ -274,6 +342,31 @@ export async function streamChatResponseAsync({
           output: existing?.output,
           errorText: existing?.errorText,
         });
+        const toolPart = getOrCreateToolMessagePart(toolCallId, toolName);
+        if (frame.type === 'tool-input-available') {
+          toolPart.state = 'input-available';
+          toolPart.input = frame.input;
+          delete toolPart.output;
+          delete toolPart.errorText;
+        }
+        announceTool(toolName);
+        break;
+      }
+      case 'tool-input-error': {
+        const { toolCallId, toolName } = frame;
+        if (!toolCallId || !toolName || typeof frame.errorText !== 'string') {
+          return;
+        }
+        toolCallsById.set(toolCallId, {
+          toolName,
+          input: frame.input,
+          errorText: frame.errorText,
+        });
+        const toolPart = getOrCreateToolMessagePart(toolCallId, toolName);
+        toolPart.state = 'output-error';
+        toolPart.input = frame.input;
+        delete toolPart.output;
+        toolPart.errorText = frame.errorText;
         announceTool(toolName);
         break;
       }
@@ -285,13 +378,24 @@ export async function streamChatResponseAsync({
         const existing = toolCallsById.get(toolCallId);
         if (existing) {
           existing.output = frame.output;
+          delete existing.errorText;
+          const toolPart = getOrCreateToolMessagePart(toolCallId, existing.toolName);
+          toolPart.state = 'output-available';
+          toolPart.output = frame.output;
+          delete toolPart.errorText;
         }
         break;
       }
       case 'tool-output-error': {
         const { toolCallId } = frame;
         if (toolCallId && toolCallsById.has(toolCallId) && typeof frame.errorText === 'string') {
-          toolCallsById.get(toolCallId)!.errorText = frame.errorText;
+          const toolCall = toolCallsById.get(toolCallId)!;
+          delete toolCall.output;
+          toolCall.errorText = frame.errorText;
+          const toolPart = getOrCreateToolMessagePart(toolCallId, toolCall.toolName);
+          toolPart.state = 'output-error';
+          delete toolPart.output;
+          toolPart.errorText = frame.errorText;
         }
         break;
       }
@@ -342,6 +446,15 @@ export async function streamChatResponseAsync({
   }
 
   const toolCalls = [...toolCallsById.values()];
+  const assistantMessage = makeAssistantMessage(
+    assistantMessageParts.filter(
+      part =>
+        part.type === 'text' ||
+        part.type === 'step-start' ||
+        part.state === 'output-available' ||
+        part.state === 'output-error'
+    )
+  );
 
   if (stream) {
     if (fullText.length > 0) {
@@ -357,7 +470,7 @@ export async function streamChatResponseAsync({
     }
   }
 
-  return { text: fullText, toolCalls };
+  return { text: fullText, toolCalls, assistantMessage };
 }
 
 function toFriendlyChatError(error: unknown): Error {
