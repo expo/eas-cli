@@ -30,26 +30,30 @@ export const BuildFragmentNode = gql`
       displayName
     }
     logFiles
-    project {
+    app {
       __typename
       id
       name
       slug
-      ... on App {
-        ownerAccount {
-          id
-          name
-        }
+      ownerAccount {
+        id
+        name
       }
     }
-    channel
+    updateChannel {
+      id
+      name
+    }
     distribution
     iosEnterpriseProvisioning
     buildProfile
     sdkVersion
     appVersion
     appBuildVersion
-    runtimeVersion
+    runtime {
+      id
+      version
+    }
     gitCommitHash
     gitCommitMessage
     initialQueuePosition
