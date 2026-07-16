@@ -74,7 +74,7 @@ function createMockBuildFragment({
     platform: AppPlatform.Android,
     id: buildId ?? uuid(),
     priority: BuildPriority.Normal,
-    project: {
+    app: {
       __typename: 'App',
       slug: 'test-project',
       id: projectId,

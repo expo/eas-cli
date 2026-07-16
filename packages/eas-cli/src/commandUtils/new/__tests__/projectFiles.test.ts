@@ -2,7 +2,7 @@ import { ExpoConfig } from '@expo/config';
 import fs from 'fs-extra';
 
 import { getEASUpdateURL } from '../../../api';
-import { AppFragment } from '../../../graphql/generated';
+import { AppFragment, Role } from '../../../graphql/generated';
 import { easCliVersion } from '../../../utils/easCli';
 import {
   cleanAndPrefix,
@@ -62,7 +62,7 @@ describe('projectFiles', () => {
       ownerAccount: {
         id: 'testowner-account-id',
         name: 'testowner',
-        users: [],
+        viewerUserPermission: { role: Role.Owner },
       },
       ...overrides,
     });
@@ -126,7 +126,7 @@ describe('projectFiles', () => {
         ownerAccount: {
           id: 'test-owner-account-id',
           name: 'test-owner',
-          users: [],
+          viewerUserPermission: { role: Role.Owner },
         },
       });
 
@@ -151,7 +151,7 @@ describe('projectFiles', () => {
         ownerAccount: {
           id: 'test-owner-123-account-id',
           name: 'test-owner-123',
-          users: [],
+          viewerUserPermission: { role: Role.Owner },
         },
       });
 

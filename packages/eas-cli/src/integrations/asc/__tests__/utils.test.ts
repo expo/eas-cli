@@ -7,11 +7,17 @@ import {
   formatAscAppLinkStatus,
   isAscAuthenticationError,
 } from '../utils';
+import { Role } from '../../../graphql/generated';
 
 const mockMetadataConnected = {
   id: 'app-id',
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: {
     id: 'asc-app-link-id',
     ascAppIdentifier: '1234567890',
@@ -27,7 +33,12 @@ const mockMetadataConnected = {
 const mockMetadataDisconnected = {
   id: 'app-id',
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: null,
 };
 

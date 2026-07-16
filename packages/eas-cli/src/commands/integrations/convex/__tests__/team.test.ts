@@ -21,7 +21,7 @@ describe(IntegrationsConvexTeam, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    users: [{ role: 'OWNER' as any, actor: { id: 'test-user-id' } }],
+    viewerUserPermission: { role: 'OWNER' as any },
   };
 
   const mockConnection: ConvexTeamConnectionData = {

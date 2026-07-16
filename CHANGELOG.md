@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Migrate off deprecated Expo GraphQL API fields (`Build.project`/`channel`/`runtimeVersion`, `Update.runtimeVersion`, `BuildMutation.cancel`, `Account.appleTeams`, `Account.users`, `AndroidSubmissionConfig.applicationIdentifier`, `selectedImage` build metadata). Build objects in `--json` output (e.g. `eas build --json`, `eas build:list --json`) now have `app`, `updateChannel { id name }`, and `runtime { id version }` instead of `project`, `channel`, and `runtimeVersion`; update objects have `runtime { id version }` instead of `runtimeVersion`. ([#4021](https://github.com/expo/eas-cli/pull/4021) by [@tchayen](https://github.com/tchayen))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes

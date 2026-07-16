@@ -93,7 +93,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     },
     {
       label: 'Channel',
-      value: build.channel,
+      value: build.updateChannel?.name,
     },
     {
       label: 'SDK Version',
@@ -101,7 +101,7 @@ export function formatGraphQLBuild(build: BuildFragment): string {
     },
     {
       label: 'Runtime Version',
-      value: build.runtimeVersion,
+      value: build.runtime?.version,
     },
     {
       label: 'Version',
