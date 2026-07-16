@@ -1,11 +1,11 @@
 import { Response } from 'node-fetch';
 
-export interface RetryOptions {
+type RetryOptions = {
   retries: number;
   retryIntervalMs: number;
-  shouldRetryOnError: (error: any) => boolean;
+  shouldRetryOnError: (error: unknown) => boolean;
   shouldRetryOnResponse: (response: Response) => boolean;
-}
+};
 
 // based on https://github.com/googleapis/nodejs-storage/blob/8ab50804fc7bae3bbd159bbb4adf65c02215b11b/src/storage.ts#L284-L320
 export async function retryOnGCSUploadFailure(
@@ -18,13 +18,14 @@ export async function retryOnGCSUploadFailure(
   return await retry(fn, {
     retries,
     retryIntervalMs,
-    shouldRetryOnError: e => {
+    shouldRetryOnError: err => {
       return (
-        e.code === 'ENOTFOUND' ||
-        e.code === 'EAI_AGAIN' ||
-        e.code === 'ECONNRESET' ||
-        e.code === 'ETIMEDOUT' ||
-        e.code === 'EPIPE'
+        isErrorWithCode(err) &&
+        (err.code === 'ENOTFOUND' ||
+          err.code === 'EAI_AGAIN' ||
+          err.code === 'ECONNRESET' ||
+          err.code === 'ETIMEDOUT' ||
+          err.code === 'EPIPE')
       );
     },
     shouldRetryOnResponse: resp => {
@@ -33,8 +34,12 @@ export async function retryOnGCSUploadFailure(
   });
 }
 
+function isErrorWithCode(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
 /**
- * Wrapper used to execute an inner function and possibly retry it if it throws and error
+ * Wrapper used to execute an inner function and possibly retry it if it throws an error
  * @param fn Function to be executed and retried in case of error
  * @param retries How many times at most should the function be retried
  * @param retryIntervalMs Time interval between the retries
@@ -55,7 +60,7 @@ async function retry(
       } else {
         return resp;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (attemptCount === retries || !shouldRetryOnError(err)) {
         throw err;
       }

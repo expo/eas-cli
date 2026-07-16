@@ -50,7 +50,6 @@
     "@expo/template-file": "21.0.0",
     "@expo/turtle-spawn": "21.0.0",
     "@expo/xcpretty": "^4.3.1",
-    "@google-cloud/storage": "^7.11.2",
     "@ngrok/ngrok": "1.7.0",
     "@sentry/node": "7.77.0",
     "@urql/core": "^6.0.1",
