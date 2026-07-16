@@ -70,7 +70,6 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
       await Promise.all(
         recordings.map(recording =>
           limit(async () => {
-            const displayName = `${recording.deviceName} screen recording`;
             try {
               const metadata = RecordingManifestSchema.parse(
                 JSON.parse(await readFile(path.join(recording.directory, 'session.json'), 'utf-8'))
@@ -84,7 +83,7 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               await uploadDeviceRunSessionArtifactAsync(ctx, {
                 deviceRunSessionId,
                 artifactId: recordingId,
-                name: displayName,
+                name: `${recording.deviceName} screen recording (${metadata.firstFrameWallClock.iso8601})`,
                 filename: `${recordingId}.mp4`,
                 kind: 'screen-recording',
                 metadata: {

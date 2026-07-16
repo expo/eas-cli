@@ -52,7 +52,7 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
       expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          name: 'iPhone 16 screen recording',
+          name: 'iPhone 16 screen recording (2026-07-10T10:00:00.000Z)',
           metadata: {
             __eas_screen_recording: '1',
             udid: 'simulator-udid',
