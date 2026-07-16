@@ -29,7 +29,7 @@ export const BuildFragmentNode = gql`
       id
       displayName
     }
-    logFiles
+    logFileUrls
     project {
       __typename
       id

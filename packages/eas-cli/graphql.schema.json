@@ -29450,7 +29450,7 @@
             "deprecationReason": null
           },
           {
-            "name": "logFiles",
+            "name": "logFileUrls",
             "description": null,
             "args": [],
             "type": {
@@ -29472,6 +29472,30 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "logFiles",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "Use logFileUrls instead"
           },
           {
             "name": "maxBuildTimeSeconds",
