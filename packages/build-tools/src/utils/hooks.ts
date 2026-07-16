@@ -34,7 +34,9 @@ export async function runHookIfPresent<TJob extends BuildJob>(
       ctx.packageManager === PackageManager.YARN && hook === Hook.PRE_INSTALL
         ? PackageManager.NPM
         : ctx.packageManager;
-    await spawn(packageManager, ['run', hook], {
+    // `deno task` is deno's equivalent of `<packageManager> run` for package.json scripts.
+    const runArgs = packageManager === PackageManager.DENO ? ['task', hook] : ['run', hook];
+    await spawn(packageManager, runArgs, {
       cwd: projectDir,
       logger: ctx.logger,
       env: {

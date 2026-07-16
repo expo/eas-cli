@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Detect deno as the package manager for projects with a `deno.lock` lockfile, and use `deno install` / `deno task` during builds. ([#3951](https://github.com/expo/eas-cli/pull/3951) by [@yyq1025](https://github.com/yyq1025))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Remove temporary working directories after `eas build:inspect` copies inspect output, avoiding leftover disk usage after failed builds. ([#3981](https://github.com/expo/eas-cli/pull/3981) by [@szdziedzic](https://github.com/szdziedzic))

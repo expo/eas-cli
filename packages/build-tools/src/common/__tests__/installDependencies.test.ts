@@ -3,7 +3,10 @@ import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
 import { PackageManager } from '../../utils/packageManager';
-import { installDependenciesWithNpmCacheFallbackAsync } from '../installDependencies';
+import {
+  installDependenciesAsync,
+  installDependenciesWithNpmCacheFallbackAsync,
+} from '../installDependencies';
 
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../../sentry', () => ({
@@ -11,6 +14,57 @@ jest.mock('../../sentry', () => ({
     capture: jest.fn(),
   },
 }));
+
+describe(installDependenciesAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('runs "deno install" for deno projects', async () => {
+    const logger = createMockLogger();
+    jest.mocked(spawn).mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.DENO,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: false,
+    });
+
+    expect(spawn).toHaveBeenCalledWith('deno', ['install'], expect.any(Object));
+  });
+
+  it('runs "deno install --frozen" when using a frozen lockfile', async () => {
+    const logger = createMockLogger();
+    jest.mocked(spawn).mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.DENO,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith('deno', ['install', '--frozen'], expect.any(Object));
+  });
+
+  it('does not pass --verbose to deno when EAS_VERBOSE is set', async () => {
+    const logger = createMockLogger();
+    jest.mocked(spawn).mockReturnValueOnce(createSpawnPromise(Promise.resolve(createSpawnResult())));
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.DENO,
+      env: { EAS_VERBOSE: '1' },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: false,
+    });
+
+    expect(spawn).toHaveBeenCalledWith('deno', ['install'], expect.any(Object));
+  });
+});
 
 describe(installDependenciesWithNpmCacheFallbackAsync, () => {
   beforeEach(() => {
