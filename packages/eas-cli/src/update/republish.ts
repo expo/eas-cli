@@ -227,13 +227,7 @@ export async function republishAsync({
   }
 
   if (json) {
-    // The other update commands' --json output keeps the flat runtimeVersion key.
-    printJsonOnlyOutput(
-      updatesRepublished.map(({ runtime, ...update }) => ({
-        ...update,
-        runtimeVersion: runtime.version,
-      }))
-    );
+    printJsonOnlyOutput(updatesRepublished);
     return;
   }
 
