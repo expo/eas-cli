@@ -2,6 +2,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import {
   AppObserveCustomEvent,
   AppObserveCustomEventListFilter,
+  AppObserveCustomEventListOrderBy,
   AppObservePlatform,
   PageInfo,
 } from '../graphql/generated';
@@ -17,6 +18,7 @@ interface FetchCustomEventsOptions {
   appVersion?: string;
   updateId?: string;
   sessionId?: string;
+  orderBy?: AppObserveCustomEventListOrderBy;
 }
 
 interface FetchCustomEventsResult {
@@ -44,5 +46,6 @@ export async function fetchObserveCustomEventsAsync(
     filter,
     first: options.limit,
     ...(options.after && { after: options.after }),
+    ...(options.orderBy && { orderBy: options.orderBy }),
   });
 }

@@ -1,7 +1,10 @@
 import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
@@ -73,6 +76,7 @@ export default class ObserveEvents extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveEvents);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (args.eventName && flags['all-events']) {
       throw new Error(
@@ -85,10 +89,10 @@ export default class ObserveEvents extends EasCommand {
       commandClass: ObserveEvents,
       loggedInOnlyContextDefinition: ObserveEvents.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -104,7 +108,7 @@ export default class ObserveEvents extends EasCommand {
         platform,
       });
 
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
       } else {
         Log.addNewLineIfNone();
@@ -140,7 +144,7 @@ export default class ObserveEvents extends EasCommand {
         platform,
       });
 
-      if (flags.json) {
+      if (json) {
         printJsonOnlyOutput(
           buildObserveCustomEventsEmptyWithSuggestionsJson(args.eventName, names, isTruncated)
         );
@@ -158,7 +162,7 @@ export default class ObserveEvents extends EasCommand {
       return;
     }
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveCustomEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();

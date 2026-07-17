@@ -1,7 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
@@ -73,16 +76,17 @@ export default class ObserveMetricsSummary extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetricsSummary);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveMetricsSummary,
       loggedInOnlyContextDefinition: ObserveMetricsSummary.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -108,7 +112,7 @@ export default class ObserveMetricsSummary extends EasCommand {
       ? Array.from(new Set(flags.stat.map(resolveStatKey)))
       : undefined;
 
-    if (flags.json) {
+    if (json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
         buildObserveMetricsJson(

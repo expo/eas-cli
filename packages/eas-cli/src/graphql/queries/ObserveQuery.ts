@@ -6,6 +6,7 @@ import {
   AppObserveAppVersion,
   AppObserveCustomEvent,
   AppObserveCustomEventListFilter,
+  AppObserveCustomEventListOrderBy,
   AppObserveCustomEventName,
   AppObserveEvent,
   AppObserveEventsFilter,
@@ -112,6 +113,7 @@ type AppObserveCustomEventListQueryVariables = {
   filter?: AppObserveCustomEventListFilter;
   first?: number;
   after?: string;
+  orderBy?: AppObserveCustomEventListOrderBy;
 };
 
 type AppObserveCustomEventNamesQuery = {
@@ -328,12 +330,18 @@ export const ObserveQuery = {
               $filter: AppObserveCustomEventListFilter
               $first: Int
               $after: String
+              $orderBy: AppObserveCustomEventListOrderBy
             ) {
               app {
                 byId(appId: $appId) {
                   id
                   observe {
-                    customEventList(filter: $filter, first: $first, after: $after) {
+                    customEventList(
+                      filter: $filter
+                      first: $first
+                      after: $after
+                      orderBy: $orderBy
+                    ) {
                       pageInfo {
                         hasNextPage
                         hasPreviousPage

@@ -1,5 +1,8 @@
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import {
@@ -34,16 +37,17 @@ export default class ObserveVersions extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveVersions);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveVersions,
       loggedInOnlyContextDefinition: ObserveVersions.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -59,7 +63,7 @@ export default class ObserveVersions extends EasCommand {
       endTime
     );
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveVersionsJson(results));
     } else {
       Log.addNewLineIfNone();

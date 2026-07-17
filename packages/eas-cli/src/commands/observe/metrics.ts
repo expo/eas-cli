@@ -2,7 +2,10 @@ import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import {
@@ -71,23 +74,24 @@ export default class ObserveMetrics extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveMetrics);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveMetrics,
       loggedInOnlyContextDefinition: ObserveMetrics.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
     let metricName: string;
     if (args.metric) {
       metricName = resolveMetricName(args.metric);
-    } else if (flags['non-interactive']) {
+    } else if (nonInteractive) {
       throw new EasCommandError(
         'A metric argument is required in non-interactive mode. Available metrics: ' +
           Object.keys(METRIC_ALIASES).join(', ')
@@ -128,7 +132,7 @@ export default class ObserveMetrics extends EasCommand {
       ),
     ]);
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();
