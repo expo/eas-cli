@@ -96,7 +96,11 @@ export class CompositeFunctionExpander {
     const compositeFunction = this.lookupCompositeFunction(compositeFunctionPath);
     const innerSteps = compositeFunction.runs.steps;
 
-    const { stepIdMap, newIds } = this.buildInnerStepIdMap(innerSteps, syntheticStepId, compositeFunctionPath);
+    const { stepIdMap, newIds } = this.buildInnerStepIdMap(
+      innerSteps,
+      syntheticStepId,
+      compositeFunctionPath
+    );
 
     const nestedVisited = new Set(visited).add(compositeFunctionPath);
 
