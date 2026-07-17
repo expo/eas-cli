@@ -24,12 +24,12 @@ export function createCheckoutBuildFunction(): BuildFunction {
 
       if (stepsCtx.global.wasCheckedOut()) {
         if (ref) {
-          stepsCtx.logger.warn(
-            `Project directory is already checked out, ignoring the "ref" input (${ref})`
+          throw new UserError(
+            'EAS_CHECKOUT_REF_AFTER_CHECKOUT',
+            `Project directory is already checked out, so the "ref" input (${ref}) would have no effect. Move this eas/checkout step before any other step that checks out the project (e.g. before eas/build).`
           );
-        } else {
-          stepsCtx.logger.info('Project directory is already checked out');
         }
+        stepsCtx.logger.info('Project directory is already checked out');
         return;
       }
 

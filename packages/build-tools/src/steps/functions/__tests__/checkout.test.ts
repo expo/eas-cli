@@ -96,7 +96,7 @@ describe(createCheckoutBuildFunction, () => {
     expect(fetchAndCheckoutRefAsync).not.toHaveBeenCalled();
   });
 
-  it('warns and skips the ref input when the project is already checked out', async () => {
+  it('rejects the ref input when the project is already checked out', async () => {
     const logger = createMockLogger();
     jest.mocked(logger.child).mockReturnValue(logger);
     const { globalCtx, executeAsync } = createCheckoutStep({
@@ -106,9 +106,10 @@ describe(createCheckoutBuildFunction, () => {
     });
     globalCtx.markAsCheckedOut(logger);
 
-    await expect(executeAsync()).resolves.not.toThrow();
+    await expect(executeAsync()).rejects.toMatchObject({
+      errorCode: 'EAS_CHECKOUT_REF_AFTER_CHECKOUT',
+    });
 
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('ignoring the "ref" input'));
     expect(await vol.promises.readFile(`${projectSourceDirectory}/app.json`, 'utf8')).toBe('{}');
     expect(vol.existsSync(`${projectTargetDirectory}/app.json`)).toBe(false);
     expect(fetchAndCheckoutRefAsync).not.toHaveBeenCalled();
