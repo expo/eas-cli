@@ -9,7 +9,7 @@ async function makeProjectWithCompositeFunctionAsync(
   contents: string
 ): Promise<string> {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-test-'));
-  const functionDir = path.join(projectRoot, '.eas', 'actions', functionName);
+  const functionDir = path.join(projectRoot, '.eas', 'functions', functionName);
   await fs.mkdir(functionDir, { recursive: true });
   await fs.writeFile(path.join(functionDir, 'function.yml'), contents, 'utf-8');
   return projectRoot;
@@ -48,10 +48,10 @@ describe(buildCompositeFunctionCatalogAsync, () => {
     expect(action.outputs?.version.value).toBe('${{ steps.read.outputs.version }}');
   });
 
-  it('loads nested composite functions transitively referenced by other actions', async () => {
+  it('loads nested composite functions transitively referenced by other composite functions', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-nested-'));
-    const innerDir = path.join(projectRoot, '.eas', 'actions', 'inner');
-    const outerDir = path.join(projectRoot, '.eas', 'actions', 'outer');
+    const innerDir = path.join(projectRoot, '.eas', 'functions', 'inner');
+    const outerDir = path.join(projectRoot, '.eas', 'functions', 'outer');
     await fs.mkdir(innerDir, { recursive: true });
     await fs.mkdir(outerDir, { recursive: true });
     await fs.writeFile(
@@ -95,9 +95,9 @@ describe(buildCompositeFunctionCatalogAsync, () => {
     expect(catalog).toEqual({});
   });
 
-  it('resolves actions referenced by an arbitrary path (arbitrary path style)', async () => {
+  it('resolves composite functions referenced by an arbitrary path (arbitrary path style)', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-arbitrary-'));
-    const functionDir = path.join(projectRoot, 'internal-actions', 'deploy');
+    const functionDir = path.join(projectRoot, 'internal-functions', 'deploy');
     await fs.mkdir(functionDir, { recursive: true });
     await fs.writeFile(
       path.join(functionDir, 'function.yml'),
@@ -106,15 +106,15 @@ describe(buildCompositeFunctionCatalogAsync, () => {
     );
 
     const catalog = await buildCompositeFunctionCatalogAsync(projectRoot, {
-      steps: [{ uses: './internal-actions/deploy', id: 'deploy' }],
+      steps: [{ uses: './internal-functions/deploy', id: 'deploy' }],
     });
 
-    expect(Object.keys(catalog)).toEqual(['./internal-actions/deploy']);
+    expect(Object.keys(catalog)).toEqual(['./internal-functions/deploy']);
   });
 
-  it('resolves actions defined with an function.yaml extension', async () => {
+  it('resolves composite functions defined with a function.yaml extension', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-yaml-'));
-    const functionDir = path.join(projectRoot, '.eas', 'actions', 'setup');
+    const functionDir = path.join(projectRoot, '.eas', 'functions', 'setup');
     await fs.mkdir(functionDir, { recursive: true });
     await fs.writeFile(
       path.join(functionDir, 'function.yaml'),
@@ -132,7 +132,7 @@ describe(buildCompositeFunctionCatalogAsync, () => {
   it('loads a shared composite function above the EAS project root', async () => {
     const sourceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-monorepo-'));
     const projectRoot = path.join(sourceRoot, 'apps', 'my-app');
-    const functionDir = path.join(sourceRoot, 'shared', 'actions', 'setup');
+    const functionDir = path.join(sourceRoot, 'shared', 'functions', 'setup');
     await fs.mkdir(projectRoot, { recursive: true });
     await fs.mkdir(functionDir, { recursive: true });
     await fs.writeFile(
@@ -142,24 +142,24 @@ describe(buildCompositeFunctionCatalogAsync, () => {
     );
 
     const catalog = await buildCompositeFunctionCatalogAsync(projectRoot, {
-      steps: [{ uses: '../../shared/actions/setup', id: 'setup' }],
+      steps: [{ uses: '../../shared/functions/setup', id: 'setup' }],
     });
 
-    expect(Object.keys(catalog)).toEqual(['../../shared/actions/setup']);
+    expect(Object.keys(catalog)).toEqual(['../../shared/functions/setup']);
   });
 
-  it('throws a clear error for a referenced action that does not exist', async () => {
+  it('throws a clear error for a referenced composite function that does not exist', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-missing-'));
     await expect(
       buildCompositeFunctionCatalogAsync(projectRoot, {
         steps: [{ uses: './.eas/functions/missing', id: 'missing' }],
       })
     ).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/actions\/missing" was referenced by a step but no such composite function exists/
+      /Local composite function "\.\/\.eas\/functions\/missing" was referenced by a step but no such composite function exists/
     );
   });
 
-  it('throws a clear error for a malformed referenced action config', async () => {
+  it('throws a clear error for a malformed referenced composite function config', async () => {
     const projectRoot = await makeProjectWithCompositeFunctionAsync(
       'broken',
       ['name: Broken', 'runs:', '  steps: []'].join('\n')
