@@ -60,6 +60,20 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
       return await credentialsManager.prepare();
     });
 
+    const resolvedExpoUpdatesRuntimeVersion = await ctx.runBuildPhase(
+      BuildPhase.CALCULATE_EXPO_UPDATES_RUNTIME_VERSION,
+      async () => {
+        return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
+          cwd: ctx.getReactNativeProjectDirectory(),
+          logger: ctx.logger,
+          appConfig: await ctx.appConfig,
+          platform: ctx.job.platform,
+          workflow: ctx.job.type,
+          env: ctx.env,
+        });
+      }
+    );
+
     await ctx.runBuildPhase(BuildPhase.PREBUILD, async () => {
       if (hasNativeCode) {
         ctx.markBuildPhaseSkipped();
@@ -100,20 +114,6 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     await ctx.runBuildPhase(BuildPhase.POST_INSTALL_HOOK, async () => {
       await runHookIfPresent(ctx, Hook.POST_INSTALL);
     });
-
-    const resolvedExpoUpdatesRuntimeVersion = await ctx.runBuildPhase(
-      BuildPhase.CALCULATE_EXPO_UPDATES_RUNTIME_VERSION,
-      async () => {
-        return await resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
-          cwd: ctx.getReactNativeProjectDirectory(),
-          logger: ctx.logger,
-          appConfig: await ctx.appConfig,
-          platform: ctx.job.platform,
-          workflow: ctx.job.type,
-          env: ctx.env,
-        });
-      }
-    );
 
     const buildConfiguration = resolveBuildConfiguration(ctx);
     if (credentials) {
