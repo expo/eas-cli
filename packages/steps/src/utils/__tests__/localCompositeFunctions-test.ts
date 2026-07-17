@@ -42,8 +42,12 @@ describe(parseLocalCompositeFunctionPath, () => {
     expect(parseLocalCompositeFunctionPath('././.eas/functions/setup')).toBe(
       './.eas/functions/setup'
     );
-    expect(parseLocalCompositeFunctionPath('./.eas/functions/other/../setup')).toBe('./.eas/functions/setup');
-    expect(parseLocalCompositeFunctionPath('../shared/other/../compositeFunctions/setup')).toBe('../shared/actions/setup');
+    expect(parseLocalCompositeFunctionPath('./.eas/functions/other/../setup')).toBe(
+      './.eas/functions/setup'
+    );
+    expect(parseLocalCompositeFunctionPath('../shared/other/../functions/setup')).toBe(
+      '../shared/functions/setup'
+    );
   });
 
   it('keeps the "./" prefix for under-root directories whose name starts with ".."', () => {
@@ -218,7 +222,7 @@ describe(resolveLocalCompositeFunctionPath, () => {
 
   it('resolves a path under the conventional .eas/functions directory', () => {
     expect(resolveLocalCompositeFunctionPath(projectRoot, './.eas/functions/setup')).toBe(
-      path.join(projectRoot, '.eas', 'actions', 'setup')
+      path.join(projectRoot, '.eas', 'functions', 'setup')
     );
   });
 
