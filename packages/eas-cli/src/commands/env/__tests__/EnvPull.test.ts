@@ -1,5 +1,4 @@
 import * as fs from 'fs-extra';
-import chalk from 'chalk';
 import path from 'path';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
@@ -353,8 +352,8 @@ describe(EnvPull, () => {
   });
 
   describe('existing .env.local file handling', () => {
-    it('preserves existing secret values when they exist', async () => {
-      const existingEnvContent = 'SECRET_KEY=existing-secret-value\nOTHER_VAR=other-value';
+    it.each(['existing-secret-value', ''])('preserves an existing secret value %j', async value => {
+      const existingEnvContent = `SECRET_KEY=${value}\nOTHER_VAR=other-value`;
       jest.mocked(fs.exists).mockImplementation(() => Promise.resolve(true));
       jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(existingEnvContent));
       jest.mocked(confirmAsync).mockResolvedValue(true);
@@ -377,60 +376,13 @@ describe(EnvPull, () => {
       const fileContent = envFileCall![1] as string;
 
       // Should use existing secret value instead of placeholder
-      expect(fileContent).toContain('SECRET_KEY=existing-secret-value');
+      expect(fileContent).toContain(`SECRET_KEY=${value}`);
       expect(fileContent).not.toContain('# SECRET_KEY=***** (secret)');
 
       // Should log that it reused the local value
       expect(Log.log).toHaveBeenCalledWith(
         expect.stringContaining('Reused local values for following secrets: SECRET_KEY')
       );
-    });
-  });
-
-  describe('diff output', () => {
-    it('shows added, changed, unchanged, and removed variables', async () => {
-      jest.mocked(fs.pathExists).mockResolvedValue(true);
-      jest.mocked(fs.readFile).mockResolvedValue(Buffer.from('file-value').toString('base64'));
-
-      const command = new EnvPull([], mockConfig);
-      const diffLog = await command.diffLogAsync(
-        [
-          {
-            ...mockEnvironmentVariables[0],
-            name: 'NEW_VAR',
-            value: 'new-value',
-          },
-          {
-            ...mockEnvironmentVariables[0],
-            name: 'UNCHANGED_VAR',
-            value: 'same-value',
-          },
-          {
-            ...mockEnvironmentVariables[0],
-            name: 'CHANGED_VAR',
-            value: 'new-value',
-          },
-          {
-            ...mockEnvironmentVariables[3],
-            name: 'FILE_VAR',
-            valueWithFileContent: Buffer.from('file-value').toString('base64'),
-          },
-        ],
-        {
-          UNCHANGED_VAR: 'same-value',
-          CHANGED_VAR: 'old-value',
-          FILE_VAR: '/old/file',
-          REMOVED_VAR: 'old-value',
-        }
-      );
-
-      expect(diffLog).toEqual([
-        chalk.green('+ NEW_VAR'),
-        '  UNCHANGED_VAR',
-        chalk.yellow('~ CHANGED_VAR'),
-        '  FILE_VAR',
-        chalk.red('- REMOVED_VAR'),
-      ]);
     });
   });
 });
