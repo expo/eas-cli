@@ -10,6 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
+
+### 🐛 Bug fixes
+
 - [eas-cli] Remove temporary working directories after `eas build:inspect` copies inspect output, avoiding leftover disk usage after failed builds. ([#3981](https://github.com/expo/eas-cli/pull/3981) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
