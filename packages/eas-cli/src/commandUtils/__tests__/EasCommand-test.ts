@@ -23,6 +23,9 @@ jest.mock('../../analytics/AnalyticsManager', () => {
   };
 });
 jest.mock('../../log');
+jest.mock('../agentFeedback', () => ({
+  printAgentFeedbackIfNeeded: jest.fn(),
+}));
 
 let originalProcessArgv: string[];
 const mockRequestId = uuidv4();
@@ -98,6 +101,14 @@ describe('EasCommand', () => {
 
       const Sentry = jest.requireMock('../../sentry').default;
       expect(Sentry.flush).toHaveBeenCalled();
+    });
+
+    it('checks whether to print agent feedback instructions after the command finishes', async () => {
+      const TestEasCommand = createTestEasCommand();
+      await TestEasCommand.run();
+
+      const { printAgentFeedbackIfNeeded } = jest.requireMock('../agentFeedback');
+      expect(printAgentFeedbackIfNeeded).toHaveBeenCalledWith(TestEasCommand.id, expect.any(Array));
     });
 
     it('logs events', async () => {

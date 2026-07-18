@@ -31,6 +31,7 @@ import Sentry from '../sentry';
 import SessionManager from '../user/SessionManager';
 import { getActorDisplayName } from '../user/User';
 import { Client } from '../vcs/vcs';
+import { printAgentFeedbackIfNeeded } from './agentFeedback';
 
 export type ContextInput<
   T extends {
@@ -252,7 +253,9 @@ export default abstract class EasCommand extends Command {
   override async finally(err: Error): Promise<any> {
     await this.analytics.flushAsync();
     await Sentry.flush(2000);
-    return await super.finally(err);
+    const result = await super.finally(err);
+    printAgentFeedbackIfNeeded(this.id, this.argv);
+    return result;
   }
 
   protected override catch(err: Error): Promise<any> {
