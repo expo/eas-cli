@@ -4,7 +4,10 @@ import { BillingClient } from '../../billing/billingClient';
 import { openOrPrintUrlAsync } from '../../billing/openUrl';
 import { resolveBillingAccountAsync } from '../../billing/resolveAccount';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { ora } from '../../ora';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -31,8 +34,7 @@ export default class BillingManage extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(BillingManage);
-    const nonInteractive = flags['non-interactive'];
-    const json = flags.json || nonInteractive;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
     }

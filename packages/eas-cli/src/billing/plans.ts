@@ -6,9 +6,7 @@
  */
 export const SUBSCRIBABLE_PLANS = {
   starter: { planType: 'STARTER', label: 'Starter' },
-  agent: { planType: 'AGENT', label: 'Agent' },
   'production-plus': { planType: 'PRODUCTION_PLUS', label: 'Production Plus' },
-  enterprise: { planType: 'ENTERPRISE', label: 'Enterprise' },
 } as const;
 
 export type PlanSlug = keyof typeof SUBSCRIBABLE_PLANS;
