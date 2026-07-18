@@ -15,11 +15,13 @@ export async function uploadServeSimMetricsFileAsync(
     deviceRunSessionId,
     udid,
     filePath,
+    meta,
     logger,
   }: {
     deviceRunSessionId: string;
     udid: string;
     filePath: string;
+    meta?: Record<string, unknown>;
     logger: bunyan;
   }
 ): Promise<void> {
@@ -27,11 +29,11 @@ export async function uploadServeSimMetricsFileAsync(
   try {
     ({ size } = await stat(filePath));
   } catch {
-    logger.info(`No serve-sim metrics captured for ${udid}; skipping upload.`);
+    logger.info(`No serve-sim metrics file was written for ${udid}; skipping upload.`);
     return;
   }
   if (size === 0) {
-    logger.info(`No serve-sim metrics captured for ${udid}; skipping upload.`);
+    logger.info(`serve-sim metrics file for ${udid} is empty; skipping upload.`);
     return;
   }
   try {
@@ -39,9 +41,18 @@ export async function uploadServeSimMetricsFileAsync(
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
       artifactId: `metrics-${udid}`,
-      name: METRICS_ARTIFACT_FILENAME,
+      name: `Performance metrics (${udid.slice(0, 8)})`,
       filename: METRICS_ARTIFACT_FILENAME,
-      kind: undefined,
+      kind: 'performance-metrics',
+      metadata: {
+        __eas_type: 'performance-metrics',
+        udid,
+        ...(meta && {
+          hostCores: meta.hostCores,
+          sampleIntervalMs: meta.sampleIntervalMs,
+          schemaVersion: meta.schemaVersion,
+        }),
+      },
       size,
       stream: createReadStream(filePath),
     });
