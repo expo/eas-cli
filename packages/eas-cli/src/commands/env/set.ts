@@ -138,6 +138,9 @@ export default class EnvSet extends EasCommand {
       name,
       environments,
     });
+    const environmentsToSet = existingVariable
+      ? [...new Set([...(existingVariable.environments ?? []), ...environments])]
+      : environments;
 
     const {
       value: resolvedValue,
@@ -161,7 +164,7 @@ export default class EnvSet extends EasCommand {
             name,
             value: resolvedValue,
             visibility: resolvedVisibility,
-            environments,
+            environments: environmentsToSet,
             type: resolvedType,
             fileName,
           })
@@ -200,7 +203,7 @@ export default class EnvSet extends EasCommand {
             name,
             value: resolvedValue,
             visibility: resolvedVisibility,
-            environments,
+            environments: environmentsToSet,
             type: resolvedType,
           })
         : await EnvironmentVariableMutation.createSharedVariableAsync(

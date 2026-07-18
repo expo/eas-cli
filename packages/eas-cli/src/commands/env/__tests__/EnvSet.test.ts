@@ -167,6 +167,52 @@ describe(EnvSet, () => {
     expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
   });
 
+  it('preserves other environments when updating an existing project variable', async () => {
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        'VarValue',
+        '--environment',
+        'production',
+        '--visibility',
+        'secret',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    const otherVariableId = 'otherId';
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdAsync)
+      // @ts-expect-error
+      .mockImplementation(async () => [
+        {
+          id: otherVariableId,
+          environments: [DefaultEnvironment.Production, DefaultEnvironment.Preview],
+          scope: EnvironmentVariableScope.Project,
+        },
+      ]);
+
+    await command.runAsync();
+
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: otherVariableId,
+      name: 'VarName',
+      value: 'VarValue',
+      environments: [DefaultEnvironment.Production, DefaultEnvironment.Preview],
+      visibility: EnvironmentVariableVisibility.Secret,
+      type: undefined,
+      fileName: undefined,
+    });
+  });
+
   it('creates an account-wide variable when none exists', async () => {
     const command = new EnvSet(
       [
@@ -248,6 +294,52 @@ describe(EnvSet, () => {
       type: undefined,
     });
     expect(EnvironmentVariableMutation.createSharedVariableAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves other environments when updating an existing account-wide variable', async () => {
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        'VarValue',
+        '--environment',
+        'production',
+        '--scope',
+        'account',
+      ],
+      mockConfig
+    );
+
+    const otherVariableId = 'otherId';
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    jest
+      .mocked(EnvironmentVariablesQuery.sharedAsync)
+      // @ts-expect-error
+      .mockImplementation(async () => [
+        {
+          id: otherVariableId,
+          environments: [DefaultEnvironment.Production, DefaultEnvironment.Preview],
+          scope: EnvironmentVariableScope.Shared,
+        },
+      ]);
+
+    await command.runAsync();
+
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: otherVariableId,
+      name: 'VarName',
+      value: 'VarValue',
+      environments: [DefaultEnvironment.Production, DefaultEnvironment.Preview],
+      visibility: EnvironmentVariableVisibility.Public,
+      type: undefined,
+    });
   });
 
   it('accepts the environment as a positional argument', async () => {

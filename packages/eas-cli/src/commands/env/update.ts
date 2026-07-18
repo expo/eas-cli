@@ -65,6 +65,7 @@ interface UpdateFlags {
 export default class EnvUpdate extends EasCommand {
   static override description =
     'update an environment variable on the current project or account (deprecated, use eas env:set)';
+  static override hidden = true;
 
   static override flags = {
     'variable-name': Flags.string({

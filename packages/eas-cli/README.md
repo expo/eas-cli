@@ -106,7 +106,6 @@ eas --help COMMAND
 * [`eas device:rename`](#eas-devicerename)
 * [`eas device:view [UDID]`](#eas-deviceview-udid)
 * [`eas diagnostics`](#eas-diagnostics)
-* [`eas env:create [ENVIRONMENT]`](#eas-envcreate-environment)
 * [`eas env:delete [ENVIRONMENT]`](#eas-envdelete-environment)
 * [`eas env:exec ENVIRONMENT BASH_COMMAND`](#eas-envexec-environment-bash_command)
 * [`eas env:get [ENVIRONMENT]`](#eas-envget-environment)
@@ -114,7 +113,6 @@ eas --help COMMAND
 * [`eas env:pull [ENVIRONMENT]`](#eas-envpull-environment)
 * [`eas env:push [ENVIRONMENT]`](#eas-envpush-environment)
 * [`eas env:set [ENVIRONMENT]`](#eas-envset-environment)
-* [`eas env:update [ENVIRONMENT]`](#eas-envupdate-environment)
 * [`eas fingerprint:compare [HASH1] [HASH2]`](#eas-fingerprintcompare-hash1-hash2)
 * [`eas fingerprint:generate`](#eas-fingerprintgenerate)
 * [`eas help [COMMAND]`](#eas-help-command)
@@ -1342,38 +1340,6 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/diagnostics.ts](https://github.com/expo/eas-cli/blob/v21.0.2/packages/eas-cli/src/commands/diagnostics.ts)_
 
-## `eas env:create [ENVIRONMENT]`
-
-create an environment variable for the current project or account (deprecated, use eas env:set)
-
-```
-USAGE
-  $ eas env:create [ENVIRONMENT] [--name <value>] [--value <value>] [--force] [--type string|file] [--visibility
-    plaintext|sensitive|secret] [--scope project|account] [--environment <value>...] [--non-interactive]
-
-ARGUMENTS
-  [ENVIRONMENT]  Environment to create the variable in. Default environments are 'production', 'preview', and
-                 'development'.
-
-FLAGS
-  --environment=<value>...  Environment variable's environment, e.g. 'production', 'preview', 'development'
-  --force                   Overwrite existing variable
-  --name=<value>            Name of the variable
-  --non-interactive         Run the command in non-interactive mode.
-  --scope=<option>          [default: project] Scope for the variable
-                            <options: project|account>
-  --type=<option>           The type of variable
-                            <options: string|file>
-  --value=<value>           Text value or the variable
-  --visibility=<option>     Visibility of the variable
-                            <options: plaintext|sensitive|secret>
-
-DESCRIPTION
-  create an environment variable for the current project or account (deprecated, use eas env:set)
-```
-
-_See code: [packages/eas-cli/src/commands/env/create.ts](https://github.com/expo/eas-cli/blob/v21.0.2/packages/eas-cli/src/commands/env/create.ts)_
-
 ## `eas env:delete [ENVIRONMENT]`
 
 delete an environment variable for the current project or account
@@ -1553,41 +1519,7 @@ DESCRIPTION
   set (create or update) an environment variable on the current project or account
 ```
 
-_See code: [packages/eas-cli/src/commands/env/set.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/env/set.ts)_
-
-## `eas env:update [ENVIRONMENT]`
-
-update an environment variable on the current project or account (deprecated, use eas env:set)
-
-```
-USAGE
-  $ eas env:update [ENVIRONMENT] [--variable-name <value>] [--variable-environment <value>] [--name <value>]
-    [--value <value>] [--type string|file] [--visibility plaintext|sensitive|secret] [--scope project|account]
-    [--environment <value>...] [--non-interactive]
-
-ARGUMENTS
-  [ENVIRONMENT]  Current environment of the variable to update. Default environments are 'production', 'preview', and
-                 'development'.
-
-FLAGS
-  --environment=<value>...        Environment variable's environment, e.g. 'production', 'preview', 'development'
-  --name=<value>                  New name of the variable
-  --non-interactive               Run the command in non-interactive mode.
-  --scope=<option>                [default: project] Scope for the variable
-                                  <options: project|account>
-  --type=<option>                 The type of variable
-                                  <options: string|file>
-  --value=<value>                 New value or the variable
-  --variable-environment=<value>  Current environment of the variable to update
-  --variable-name=<value>         Current name of the variable
-  --visibility=<option>           Visibility of the variable
-                                  <options: plaintext|sensitive|secret>
-
-DESCRIPTION
-  update an environment variable on the current project or account (deprecated, use eas env:set)
-```
-
-_See code: [packages/eas-cli/src/commands/env/update.ts](https://github.com/expo/eas-cli/blob/v21.0.2/packages/eas-cli/src/commands/env/update.ts)_
+_See code: [packages/eas-cli/src/commands/env/set.ts](https://github.com/expo/eas-cli/blob/v21.0.2/packages/eas-cli/src/commands/env/set.ts)_
 
 ## `eas fingerprint:compare [HASH1] [HASH2]`
 
