@@ -16,7 +16,6 @@ import { Actor } from '../user/User';
 import { enableJsonOutput, printJsonOnlyOutput } from '../utils/json';
 
 const EXIT_WORDS = new Set(['exit', 'quit', 'q']);
-// "Chat > " labels the user's turn; it is 4 chars + " > " to line up with the assistant's "Expo > ".
 const USER_LABEL = `${chalk.bold.cyan('Chat')}${chalk.dim(' > ')}`;
 const CHAT_HELP = [
   'Commands:',
@@ -84,7 +83,6 @@ export default class Chat extends EasCommand {
       accountName = resolved.accountName;
       projectLabel = resolved.label;
     } else if (!flags.account) {
-      // No explicit scope given: focus on the current directory's project when there is one.
       const detected = await detectCurrentProjectAsync(graphqlClient);
       if (detected) {
         accountName = detected.accountName;
@@ -94,7 +92,6 @@ export default class Chat extends EasCommand {
     }
 
     if (json) {
-      // args.message is guaranteed here: JSON mode without a message throws above.
       const messages: ChatMessage[] = [
         makeUserMessage(scopeMessageToProject(args.message as string, projectLabel)),
       ];
@@ -127,7 +124,6 @@ export default class Chat extends EasCommand {
       Log.log(chalk.dim('Use /help for commands, or /exit to quit.'));
     }
 
-    // Seed history with the command-line message so Up recalls it at the first prompt.
     const input = nonInteractive
       ? undefined
       : createChatReplInput({ history: args.message ? [args.message] : [] });
@@ -141,14 +137,11 @@ export default class Chat extends EasCommand {
 
     try {
       for (;;) {
-        // Prompt for a message whenever there is no pending user turn to send: at the very start when
-        // no command-line message was given, and after each assistant reply.
         const lastMessage = messages[messages.length - 1];
         if (!lastMessage || lastMessage.role === 'assistant') {
           if (!input) {
             break;
           }
-          // Scope the first typed message to the project when nothing was passed on the command line.
           const scopeNextMessage = messages.length === 0;
           const nextMessage = await readNextUserMessageAsync(
             input,
@@ -177,11 +170,6 @@ export default class Chat extends EasCommand {
   }
 }
 
-/**
- * Prompts for the next message, handling slash commands. Returns the message text to send, or `null`
- * to end the chat. `messages` is mutated in place by conversation-affecting commands (e.g. /clear).
- * When `scopeFirstMessage` is set (or after a /clear), the next message is framed to the project.
- */
 async function readNextUserMessageAsync(
   input: ChatReplInput,
   messages: ChatMessage[],

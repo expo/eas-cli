@@ -14,11 +14,6 @@ import {
   wrapToWidth,
 } from './renderMarkdown';
 
-/**
- * Client-side steering sent as a leading system message on every request. The server owns the base
- * system prompt (which we cannot change), so this only adds guidance that is specific to running in
- * a terminal instead of the web dashboard.
- */
 const CHAT_SYSTEM_GUIDANCE = [
   'You are being used through the EAS CLI in a terminal, not the web dashboard.',
   'The user cannot see the interactive tables the dashboard renders from tool results, so include the important details directly in your text answer instead of assuming a table is shown.',
@@ -26,13 +21,6 @@ const CHAT_SYSTEM_GUIDANCE = [
   'Use only simple markdown: bold, inline code, and bullet or numbered lists.',
 ].join(' ');
 
-/**
- * The Expo dashboard AI chat lives in a Next.js API route on the website (`/api/chat`), not on the
- * GraphQL API server. It authenticates by reading the session secret from a cookie named after the
- * website's auth storage key and forwarding it to the GraphQL API as the `expo-session` header
- * (see `getAuthStorageKey` / `createServerGraphQLClient` in the website). We mirror that cookie name
- * here so the CLI's stored session secret authenticates exactly like a browser session would.
- */
 function getWebsiteAuthCookieName(): string {
   if (process.env.EXPO_STAGING) {
     return 'staging.expo.auth.sessionSecret';
@@ -43,10 +31,6 @@ function getWebsiteAuthCookieName(): string {
   }
 }
 
-/**
- * Human-readable labels for the assistant's tools, shown while it works so the terminal user has
- * the same transparency the dashboard gives with its structured tables.
- */
 const TOOL_LABELS: Record<string, string> = {
   get_projects: 'Looking up your projects',
   get_latest_builds: 'Looking up builds',
@@ -74,12 +58,9 @@ function describeTool(toolName: string): string {
   return TOOL_LABELS[toolName] ?? `Using ${toolName.replace(/_/g, ' ')}`;
 }
 
-// The assistant's reply is labeled "Expo > " and continuation lines are indented to align under it,
-// mirroring the "Chat > " prompt the user types into.
 const ASSISTANT_LABEL_TEXT = 'Expo';
 const ASSISTANT_LABEL = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${chalk.dim(' > ')}`;
 const ASSISTANT_INDENT = ' '.repeat(`${ASSISTANT_LABEL_TEXT} > `.length);
-// ora renders "prefixText + ' ' + spinner", so this omits the trailing space to read "Expo > ⠋".
 const ASSISTANT_SPINNER_PREFIX = `${chalk.bold.magenta(ASSISTANT_LABEL_TEXT)}${chalk.dim(' >')}`;
 
 type UIMessageStreamFrame = {
@@ -105,7 +86,6 @@ type ChatMessagePart =
       errorText?: string;
     };
 
-/** A single turn in the conversation, in the AI SDK `UIMessage` shape the endpoint expects. */
 export type ChatMessage = {
   id: string;
   role: 'system' | 'user' | 'assistant';
@@ -132,23 +112,11 @@ export type ChatToolCall = {
 };
 
 export type ChatResult = {
-  /** The assistant's full text answer (may be empty when it only returned tool data). */
   text: string;
-  /** Tools the assistant invoked, in call order, with their inputs and outputs. */
   toolCalls: ChatToolCall[];
-  /** Complete UI message, including tool results, to retain in the next request's history. */
   assistantMessage: ChatMessage;
 };
 
-/**
- * Sends the conversation so far to the dashboard AI chat endpoint and returns the assistant's reply.
- * The full `messages` history is sent every turn (the endpoint is stateless for model context), so
- * the caller appends each assistant reply and follow-up before calling again.
- *
- * When `stream` is true, the assistant's text is written to stdout incrementally and tool calls are
- * surfaced as brief status lines. When false (e.g. `--json` mode), nothing is written to stdout and
- * the full result is returned for the caller to serialize.
- */
 export async function streamChatResponseAsync({
   messages,
   accountName,
@@ -180,14 +148,10 @@ export async function streamChatResponseAsync({
     throw new Error('The chat service returned an empty response.');
   }
 
-  // discardStdin: false so the spinner does not pause stdin, which the interactive readline prompt
-  // relies on staying open between turns. prefixText renders the "Expo >" label before the spinner
-  // ("Expo > ⠋ Thinking…"), so it is already aligned from the first frame and reads as the reply.
   const spinner = stream
     ? ora({ text: 'Thinking…', discardStdin: false, prefixText: ASSISTANT_SPINNER_PREFIX }).start()
     : undefined;
 
-  // Reset the cursor to the line start after clearing the spinner, so the reply begins at column 0.
   const stopSpinner = (): void => {
     if (!spinner) {
       return;
@@ -246,9 +210,6 @@ export async function streamChatResponseAsync({
     return part;
   };
 
-  // Prefixes the first written line with the "Expo > " label and every following line with a matching
-  // indent, so the whole reply lines up under the label. Long lines are wrapped to the terminal
-  // width (minus the indent) so terminal soft-wrapping does not drop wrapped text back to column 0.
   const writeAssistantLine = (rendered: string, withNewline: boolean): void => {
     const columns = process.stdout.columns ?? 0;
     const width = columns > 0 ? columns - ASSISTANT_INDENT.length : 0;
@@ -262,8 +223,6 @@ export async function streamChatResponseAsync({
     });
   };
 
-  // Render markdown one completed line at a time: the assistant streams token by token, but markdown
-  // markers (e.g. **bold**) can span several tokens, so we can only style a line once it is whole.
   const flushDisplayLines = (flushRemainder: boolean): void => {
     let newlineIndex: number;
     while ((newlineIndex = displayBuffer.indexOf('\n')) !== -1) {
@@ -408,8 +367,6 @@ export async function streamChatResponseAsync({
     }
   };
 
-  // Decode incrementally so a multi-byte character split across two chunks is not corrupted: the
-  // decoder holds an incomplete trailing byte sequence until the next chunk completes it.
   const decoder = new StringDecoder('utf8');
   try {
     for await (const chunk of response.body) {

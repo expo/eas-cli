@@ -1,12 +1,6 @@
 import readline from 'node:readline';
 
-/**
- * A minimal line-editor for the interactive chat loop, built on Node's built-in `readline`. Reusing
- * a single interface across turns gives arrow-key history for free. It stays in the normal scrolling
- * terminal buffer (no alternate screen), so the transcript remains selectable and scrollable.
- */
 export type ChatReplInput = {
-  /** Prompts for a line. Resolves the entered text, or `null` when the input closes (Ctrl-D/Ctrl-C). */
   askAsync(prompt: string): Promise<string | null>;
   close(): void;
 };
@@ -15,7 +9,6 @@ export function createChatReplInput(options?: {
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
   terminal?: boolean;
-  /** Initial arrow-key history (most recent first), e.g. the message passed on the command line. */
   history?: string[];
 }): ChatReplInput {
   const inputStream = options?.input ?? process.stdin;
@@ -31,7 +24,6 @@ export function createChatReplInput(options?: {
   rl.on('close', () => {
     closed = true;
   });
-  // Ctrl-C at the prompt ends the session cleanly instead of leaving the terminal in a raw state.
   rl.on('SIGINT', () => {
     rl.close();
   });
@@ -41,8 +33,6 @@ export function createChatReplInput(options?: {
       if (closed) {
         return null;
       }
-      // A spinner (ora) or a previous reader can leave stdin paused; resuming it recovers input and
-      // keeps the event loop alive while we wait, so the prompt does not exit immediately.
       inputStream.resume();
       return await new Promise<string | null>(resolve => {
         let settled = false;

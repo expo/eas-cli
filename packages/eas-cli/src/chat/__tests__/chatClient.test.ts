@@ -147,7 +147,6 @@ describe(streamChatResponseAsync, () => {
     expect(cookie).toContain('io.expo.auth.sessionSecret=');
     expect(cookie).toContain(encodeURIComponent('{"id":"abc","version":"1"}'));
     expect([capturedHeaders['x-account-name']].flat()[0]).toBe('my-account');
-    // A steering system message is prepended, followed by the caller's messages.
     expect(capturedBody.messages[0].role).toBe('system');
     expect(capturedBody.messages[0].parts[0].text).toContain('https://expo.dev');
     expect(capturedBody.messages[1]).toEqual(

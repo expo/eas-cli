@@ -40,7 +40,6 @@ function makeChatResult(text: string, toolCalls: ChatResult['toolCalls'] = []): 
 
 const emptyResult = makeChatResult('ok');
 
-/** Builds a ChatReplInput whose askAsync yields the given lines in order, then `null`. */
 function mockReplInput(lines: (string | null)[]): { askAsync: jest.Mock; close: jest.Mock } {
   const askAsync = jest.fn();
   for (const line of lines) {
@@ -52,7 +51,6 @@ function mockReplInput(lines: (string | null)[]): { askAsync: jest.Mock; close: 
   return input;
 }
 
-/** Forces interactive mode (jest runs without a TTY, which otherwise defaults to non-interactive). */
 function forceInteractive(): void {
   jest
     .spyOn(flagsModule, 'resolveNonInteractiveAndJsonFlags')
@@ -191,7 +189,6 @@ describe(Chat, () => {
     expect(secondCall.messages[2].role).toBe('user');
     expect(secondCall.messages[2].parts[0]).toEqual({ type: 'text', text: 'and my updates?' });
     expect(input.close).toHaveBeenCalled();
-    // The command-line message seeds history so Up recalls it at the first prompt.
     expect(mockCreateChatReplInput).toHaveBeenCalledWith(
       expect.objectContaining({ history: ['how are my builds?'] })
     );
