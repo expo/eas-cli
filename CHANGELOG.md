@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] add sandbox detection to analytics events. ([#4038](https://github.com/expo/eas-cli/pull/4038) by [@davidmokos](https://github.com/davidmokos))
+
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
 
 ### 🐛 Bug fixes
