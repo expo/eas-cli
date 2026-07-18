@@ -360,7 +360,7 @@ USAGE
   $ eas billing:subscribe PLAN [-a <value>] [--open] [--json] [--non-interactive]
 
 ARGUMENTS
-  PLAN  (starter|agent|production-plus|enterprise) plan to subscribe to (starter, agent, production-plus, enterprise)
+  PLAN  (starter|production-plus) plan to subscribe to (starter, production-plus)
 
 FLAGS
   -a, --account=<value>  Account to subscribe. Defaults to your account when you only have one.

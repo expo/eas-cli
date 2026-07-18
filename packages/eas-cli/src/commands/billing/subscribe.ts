@@ -5,7 +5,10 @@ import { openOrPrintUrlAsync } from '../../billing/openUrl';
 import { FREE_PLAN_PRICE_ID, PLAN_SLUGS, PlanSlug, SUBSCRIBABLE_PLANS } from '../../billing/plans';
 import { resolveBillingAccountAsync } from '../../billing/resolveAccount';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
@@ -46,8 +49,7 @@ export default class BillingSubscribe extends EasCommand {
       flags,
     } = await this.parse(BillingSubscribe);
     const planSlug = PLAN as PlanSlug;
-    const nonInteractive = flags['non-interactive'];
-    const json = flags.json || nonInteractive;
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
     }

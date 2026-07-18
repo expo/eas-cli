@@ -4,7 +4,7 @@ import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { BillingClient } from '../../../billing/billingClient';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountQuery } from '../../../graphql/queries/AccountQuery';
-import Log from '../../../log';
+import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
 import { printJsonOnlyOutput } from '../../../utils/json';
 import BillingSubscribe from '../subscribe';
@@ -88,7 +88,7 @@ describe(BillingSubscribe, () => {
       willCancel: false,
     });
 
-    await createCommand(['agent', '--json']).runAsync();
+    await createCommand(['production-plus', '--json']).runAsync();
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
@@ -113,13 +113,26 @@ describe(BillingSubscribe, () => {
     expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', ['STARTER']);
   });
 
-  it('prints the checkout URL without opening a browser in non-interactive mode', async () => {
+  it('prints the checkout URL as text without opening a browser in non-interactive mode', async () => {
     jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({
       id: 'cs',
       url: 'https://checkout.stripe.com/pay',
     });
     await createCommand(['starter', '--non-interactive']).runAsync();
+
+    expect(open).not.toHaveBeenCalled();
+    expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
+  });
+
+  it('returns structured JSON with the checkout URL and does not open a browser', async () => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
+    createCheckoutSessionAsync.mockResolvedValue({
+      id: 'cs',
+      url: 'https://checkout.stripe.com/pay',
+    });
+    await createCommand(['starter', '--json']).runAsync();
 
     expect(open).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
