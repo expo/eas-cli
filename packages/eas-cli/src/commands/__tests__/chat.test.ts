@@ -312,4 +312,37 @@ describe(Chat, () => {
     const command = createCommand(['--non-interactive']);
     await expect(command.runAsync()).rejects.toThrow();
   });
+
+  it('opens an interactive prompt when no message is given', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    const input = mockReplInput(['how are my builds?', '/exit']);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockCreateChatReplInput).toHaveBeenCalledWith(expect.objectContaining({ history: [] }));
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.messages).toHaveLength(1);
+    expect(call.messages[0].parts[0]).toEqual({ type: 'text', text: 'how are my builds?' });
+    expect(input.close).toHaveBeenCalled();
+  });
+
+  it('frames the first typed message with the auto-detected project when no message is given', async () => {
+    forceInteractive();
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['is my build ok?', '/exit']);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('acme');
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
+  });
 });

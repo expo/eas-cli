@@ -32,8 +32,8 @@ export default class Chat extends EasCommand {
 
   static override args = {
     message: Args.string({
-      required: true,
-      description: 'Message to send to the assistant',
+      required: false,
+      description: 'Message to send to the assistant (omit to open an interactive prompt)',
     }),
   };
 
@@ -59,6 +59,10 @@ export default class Chat extends EasCommand {
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
+    }
+
+    if (!args.message && (json || nonInteractive)) {
+      throw new Error('Provide a message, e.g. `eas chat "how are my builds?"`.');
     }
 
     const {
@@ -89,10 +93,11 @@ export default class Chat extends EasCommand {
       }
     }
 
-    const firstMessageText = scopeMessageToProject(args.message, projectLabel);
-    const messages: ChatMessage[] = [makeUserMessage(firstMessageText)];
-
     if (json) {
+      // args.message is guaranteed here: JSON mode without a message throws above.
+      const messages: ChatMessage[] = [
+        makeUserMessage(scopeMessageToProject(args.message as string, projectLabel)),
+      ];
       const result = await streamChatResponseAsync({
         messages: [...messages],
         accountName,
@@ -121,13 +126,43 @@ export default class Chat extends EasCommand {
     if (!nonInteractive) {
       Log.log(chalk.dim('Use /help for commands, or /exit to quit.'));
     }
-    Log.log(`${USER_LABEL}${args.message}`);
-    Log.newLine();
 
-    // Seed history with the message from the command line so Up recalls it at the first prompt.
-    const input = nonInteractive ? undefined : createChatReplInput({ history: [args.message] });
+    // Seed history with the command-line message so Up recalls it at the first prompt.
+    const input = nonInteractive
+      ? undefined
+      : createChatReplInput({ history: args.message ? [args.message] : [] });
+
+    const messages: ChatMessage[] = [];
+    if (args.message) {
+      Log.log(`${USER_LABEL}${args.message}`);
+      Log.newLine();
+      messages.push(makeUserMessage(scopeMessageToProject(args.message, projectLabel)));
+    }
+
     try {
       for (;;) {
+        // Prompt for a message whenever there is no pending user turn to send: at the very start when
+        // no command-line message was given, and after each assistant reply.
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage || lastMessage.role === 'assistant') {
+          if (!input) {
+            break;
+          }
+          // Scope the first typed message to the project when nothing was passed on the command line.
+          const scopeNextMessage = messages.length === 0;
+          const nextMessage = await readNextUserMessageAsync(
+            input,
+            messages,
+            projectLabel,
+            scopeNextMessage
+          );
+          if (nextMessage === null) {
+            Log.log(chalk.dim('Ending chat.'));
+            break;
+          }
+          messages.push(makeUserMessage(nextMessage));
+        }
+
         const result = await streamChatResponseAsync({
           messages: [...messages],
           accountName,
@@ -135,17 +170,6 @@ export default class Chat extends EasCommand {
           stream: true,
         });
         messages.push(result.assistantMessage);
-
-        if (!input) {
-          break;
-        }
-
-        const nextMessage = await readNextUserMessageAsync(input, messages, projectLabel);
-        if (nextMessage === null) {
-          Log.log(chalk.dim('Ending chat.'));
-          break;
-        }
-        messages.push(makeUserMessage(nextMessage));
       }
     } finally {
       input?.close();
@@ -156,13 +180,15 @@ export default class Chat extends EasCommand {
 /**
  * Prompts for the next message, handling slash commands. Returns the message text to send, or `null`
  * to end the chat. `messages` is mutated in place by conversation-affecting commands (e.g. /clear).
+ * When `scopeFirstMessage` is set (or after a /clear), the next message is framed to the project.
  */
 async function readNextUserMessageAsync(
   input: ChatReplInput,
   messages: ChatMessage[],
-  projectLabel: string | undefined
+  projectLabel: string | undefined,
+  scopeFirstMessage = false
 ): Promise<string | null> {
-  let shouldRestoreProjectScope = false;
+  let shouldRestoreProjectScope = scopeFirstMessage;
   for (;;) {
     Log.newLine();
     const line = await input.askAsync(USER_LABEL);
