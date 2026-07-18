@@ -58,6 +58,7 @@ describe(uploadServeSimMetricsFileAsync, () => {
       deviceRunSessionId: 'session-id',
       udid: 'AAAA',
       filePath,
+      meta: { hostCores: 8, sampleIntervalMs: 1000, schemaVersion: 1 },
       logger: createLoggerMock(),
     });
 
@@ -67,7 +68,16 @@ describe(uploadServeSimMetricsFileAsync, () => {
       expect.objectContaining({
         deviceRunSessionId: 'session-id',
         artifactId: 'metrics-AAAA',
+        name: 'Performance metrics (AAAA)',
         filename: 'metrics.ndjson',
+        kind: 'performance-metrics',
+        metadata: {
+          __eas_type: 'performance-metrics',
+          udid: 'AAAA',
+          hostCores: 8,
+          sampleIntervalMs: 1000,
+          schemaVersion: 1,
+        },
         size: Buffer.byteLength(NDJSON),
       })
     );

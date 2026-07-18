@@ -40,8 +40,8 @@ const SSE_STREAM = [
   '',
 ].join('\n');
 
+// The `event: meta` frame is skipped; only sample frames are written.
 const EXPECTED_NDJSON =
-  '{"schemaVersion":1,"udid":"U","hostCores":8,"sampleIntervalMs":1000}\n' +
   '{"t":1000,"bundleId":"dev.expo.MyApp","cpuPct":0,"memBytes":100}\n' +
   '{"t":2000,"bundleId":"dev.expo.MyApp","cpuPct":40,"memBytes":120}\n';
 
@@ -174,7 +174,7 @@ describe(streamServeSimMetricsToFileAsync, () => {
         signal: new AbortController().signal,
         logger,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ receivedData: false, meta: undefined });
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
       expect.stringContaining('stream ended')
@@ -196,6 +196,13 @@ describe('ServeSimMetricsRecorder', () => {
     expect(collected).toHaveLength(1);
     expect(collected[0].udid).toBe('AAAA');
     expect(await readFile(collected[0].filePath, 'utf-8')).toBe(EXPECTED_NDJSON);
+    // The meta frame is captured for the artifact metadata, not written to the NDJSON.
+    expect(collected[0].meta).toEqual({
+      schemaVersion: 1,
+      udid: 'U',
+      hostCores: 8,
+      sampleIntervalMs: 1000,
+    });
   });
 
   it('reconnects a device whose first /metrics attempt fails', async () => {
@@ -246,6 +253,50 @@ describe('ServeSimMetricsRecorder', () => {
     await ServeSimMetricsRecorder.finishAsync({ logger: createLoggerMock() });
 
     expect(jest.mocked(fetch)).toHaveBeenCalledTimes(10);
+  });
+
+  it('keeps reconnecting past the failure cap while streams keep yielding data', async () => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(stateDir, { recursive: true });
+    await writeServerStateAsync('FFFF', { device: 'FFFF', url: 'https://sim-f.example' });
+    // Each connection yields a sample then ends, forcing a reconnect every tick. A data-yielding
+    // stream resets the failure count, so the per-device cap must never trip on a healthy session.
+    jest.mocked(fetch).mockImplementation(async () => sseResponse());
+
+    await ServeSimMetricsRecorder.startAsync({
+      logger: createLoggerMock(),
+      stateDir,
+      pollIntervalMs: 5,
+    });
+    await delay(200);
+    await ServeSimMetricsRecorder.finishAsync({ logger: createLoggerMock() });
+
+    expect(jest.mocked(fetch).mock.calls.length).toBeGreaterThan(10);
+  });
+
+  it('forgets the failure count for a device that leaves the registry', async () => {
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(stateDir, { recursive: true });
+    await writeServerStateAsync('GGGG', { device: 'GGGG', url: 'https://sim-g.example' });
+    // Fail fast until it trips the cap, then remove it from the registry.
+    jest.mocked(fetch).mockResolvedValue(new Response('nope', { status: 502 }));
+
+    await ServeSimMetricsRecorder.startAsync({
+      logger: createLoggerMock(),
+      stateDir,
+      pollIntervalMs: 5,
+    });
+    await delay(120);
+    await rm(path.join(stateDir, 'server-GGGG.json'));
+    await delay(60);
+    // The same device returns and now streams: it's retried only because leaving the
+    // registry cleared its (capped-out) failure count.
+    jest.mocked(fetch).mockImplementation(async () => sseResponse());
+    await writeServerStateAsync('GGGG', { device: 'GGGG', url: 'https://sim-g.example' });
+    await delay(120);
+
+    const collected = await ServeSimMetricsRecorder.finishAsync({ logger: createLoggerMock() });
+    expect(collected.some(entry => entry.udid === 'GGGG')).toBe(true);
   });
 
   it('skips a device already streaming and aborts it on finish', async () => {

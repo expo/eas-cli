@@ -1,6 +1,7 @@
 import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { getDeviceRunSessionIdOrThrow } from '../utils/remoteDeviceRunSession';
 import { uploadServeSimMetricsFileAsync } from '../utils/serveSimMetricsArtifacts';
 import { ServeSimMetricsRecorder } from '../utils/serveSimMetricsRecorder';
@@ -20,11 +21,19 @@ export function createCollectServeSimMetricsBuildFunction(ctx: CustomBuildContex
       }
       try {
         const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-        for (const { udid, filePath } of collected) {
-          await uploadServeSimMetricsFileAsync(ctx, { deviceRunSessionId, udid, filePath, logger });
+        for (const { udid, filePath, meta } of collected) {
+          await uploadServeSimMetricsFileAsync(ctx, {
+            deviceRunSessionId,
+            udid,
+            filePath,
+            meta,
+            logger,
+          });
         }
       } catch (err) {
-        logger.warn({ err }, 'Could not upload serve-sim metrics.');
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sentry.capture('Could not upload serve-sim metrics', error);
+        logger.warn({ err: error }, 'Could not upload serve-sim metrics.');
       }
     },
   });

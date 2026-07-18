@@ -1,6 +1,6 @@
 import { type bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
-import { createWriteStream } from 'node:fs';
+import { type WriteStream, createWriteStream } from 'node:fs';
 import { mkdtemp, readFile, readdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,7 +9,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Sentry } from '../../sentry';
 
 const POLL_INTERVAL_MS = 2_000;
-const MAX_STREAM_ATTEMPTS_PER_DEVICE = 10;
+// Consecutive failed connects per device; reset once a stream yields a sample.
+const MAX_CONSECUTIVE_STREAM_FAILURES_PER_DEVICE = 10;
+const END_STREAM_TIMEOUT_MS = 2_000;
 // serve-sim's own per-device registry while serving: `${tmpdir}/serve-sim/server-<udid>.json`.
 const SERVE_SIM_STATE_DIR = path.join(os.tmpdir(), 'serve-sim');
 
@@ -22,6 +24,7 @@ type ServeSimMetricsSession = {
   outputDirectory: string;
   files: Map<string, string>;
   attempts: Map<string, number>;
+  meta: Map<string, Record<string, unknown>>;
   activeStreams: Map<string, { abortController: AbortController; donePromise: Promise<void> }>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -51,6 +54,7 @@ export namespace ServeSimMetricsRecorder {
       outputDirectory,
       files: new Map(),
       attempts: new Map(),
+      meta: new Map(),
       activeStreams: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -69,7 +73,7 @@ export namespace ServeSimMetricsRecorder {
     logger,
   }: {
     logger: bunyan;
-  }): Promise<{ udid: string; filePath: string }[]> {
+  }): Promise<{ udid: string; filePath: string; meta: Record<string, unknown> | undefined }[]> {
     const session = activeSession;
     if (!session) {
       logger.info('No serve-sim metrics polling is running.');
@@ -85,22 +89,35 @@ export namespace ServeSimMetricsRecorder {
         await stream.donePromise;
       })
     );
-    return [...session.files.entries()].map(([udid, filePath]) => ({ udid, filePath }));
+    return [...session.files.entries()].map(([udid, filePath]) => ({
+      udid,
+      filePath,
+      meta: session.meta.get(udid),
+    }));
   }
 }
 
 async function pollServeSimMetricsAsync(session: ServeSimMetricsSession): Promise<void> {
   const { abortController, logger } = session;
   while (!abortController.signal.aborted) {
-    for (const server of await readServeSimServersAsync(session.stateDir)) {
+    const servers = await readServeSimServersAsync(session.stateDir);
+    // Forget the failure count for a device that has left the registry, so a
+    // serve-sim that restarts for the same udid is retried (mirrors the recordings poller).
+    const present = new Set(servers.map(server => server.udid));
+    for (const udid of session.attempts.keys()) {
+      if (!present.has(udid)) {
+        session.attempts.delete(udid);
+      }
+    }
+    for (const server of servers) {
       if (session.activeStreams.has(server.udid)) {
         continue;
       }
-      const attempts = session.attempts.get(server.udid) ?? 0;
-      if (attempts >= MAX_STREAM_ATTEMPTS_PER_DEVICE) {
+      const failures = session.attempts.get(server.udid) ?? 0;
+      if (failures >= MAX_CONSECUTIVE_STREAM_FAILURES_PER_DEVICE) {
         continue;
       }
-      session.attempts.set(server.udid, attempts + 1);
+      session.attempts.set(server.udid, failures + 1);
 
       let filePath = session.files.get(server.udid);
       if (!filePath) {
@@ -111,16 +128,23 @@ async function pollServeSimMetricsAsync(session: ServeSimMetricsSession): Promis
       const streamAbortController = new AbortController();
       const streamSignal = AbortSignal.any([abortController.signal, streamAbortController.signal]);
       logger.info(`Collecting serve-sim metrics for ${server.udid}.`);
-      // Free the slot when the stream ends so the poller reconnects if the server is still up (an
-      // early race or a mid-session drop), up to the per-device attempt cap.
       const donePromise = streamServeSimMetricsToFileAsync({
         serveSimUrl: server.url,
         filePath,
         signal: streamSignal,
         logger,
-      }).finally(() => {
-        session.activeStreams.delete(server.udid);
-      });
+      })
+        .then(({ receivedData, meta }) => {
+          if (receivedData) {
+            session.attempts.set(server.udid, 0);
+          }
+          if (meta) {
+            session.meta.set(server.udid, meta);
+          }
+        })
+        .finally(() => {
+          session.activeStreams.delete(server.udid);
+        });
       session.activeStreams.set(server.udid, {
         abortController: streamAbortController,
         donePromise,
@@ -169,28 +193,46 @@ export async function streamServeSimMetricsToFileAsync({
   filePath: string;
   signal: AbortSignal;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<{ receivedData: boolean; meta: Record<string, unknown> | undefined }> {
   const file = createWriteStream(filePath, { flags: 'a' });
   file.on('error', err => {
     logger.warn({ err }, `serve-sim metrics file write failed for ${filePath}.`);
   });
+  let receivedData = false;
+  let meta: Record<string, unknown> | undefined;
   try {
     const response = await fetch(new URL('/metrics', serveSimUrl).toString(), { signal });
     if (!response.ok || !response.body) {
       logger.warn(`serve-sim /metrics responded ${response.status} for ${serveSimUrl}.`);
-      return;
+      return { receivedData, meta };
     }
+    // One decoder so a multi-byte character split across chunks isn't corrupted.
+    const decoder = new TextDecoder();
     let buffer = '';
+    let event = 'message';
     for await (const chunk of response.body) {
-      buffer += chunk.toString();
+      buffer += decoder.decode(chunk as Buffer, { stream: true });
       let newline: number;
       while ((newline = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, newline);
         buffer = buffer.slice(newline + 1);
-        if (line.startsWith('data:')) {
+        if (line === '') {
+          event = 'message';
+        } else if (line.startsWith('event:')) {
+          event = line.slice('event:'.length).trim();
+        } else if (line.startsWith('data:')) {
           const payload = line.slice('data:'.length).trim();
-          if (payload) {
+          if (payload && event === 'meta') {
+            // Keep the meta out of the NDJSON (so it stays homogeneous and reconnects
+            // don't re-append it) but hold onto it for the artifact metadata.
+            try {
+              meta = JSON.parse(payload) as Record<string, unknown>;
+            } catch {
+              // ignore a malformed meta frame
+            }
+          } else if (payload) {
             file.write(payload + '\n');
+            receivedData = true;
           }
         }
       }
@@ -202,6 +244,28 @@ export async function streamServeSimMetricsToFileAsync({
       logger.warn({ err }, `serve-sim /metrics stream ended for ${serveSimUrl}.`);
     }
   } finally {
-    await new Promise<void>(resolve => file.end(() => resolve()));
+    await endWriteStreamAsync(file);
   }
+  return { receivedData, meta };
+}
+
+// An errored write stream may never fire `end`'s callback, so also settle on
+// close/error and a timeout to avoid hanging teardown.
+async function endWriteStreamAsync(file: WriteStream): Promise<void> {
+  await new Promise<void>(resolve => {
+    let settled = false;
+    const done = (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(done, END_STREAM_TIMEOUT_MS);
+    timer.unref();
+    file.once('close', done);
+    file.once('error', done);
+    file.end(done);
+  });
 }
