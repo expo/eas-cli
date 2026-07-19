@@ -17,6 +17,7 @@ import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../../graphql/queries/BuildQuery';
 import { SubmissionQuery } from '../../../graphql/queries/SubmissionQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
+import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ProjectStatus from '../status';
 
@@ -178,6 +179,17 @@ describe(ProjectStatus, () => {
 
     expect(mockEnableJsonOutput).not.toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+  });
+
+  it('renders build statuses unknown to this CLI version', async () => {
+    mockViewBuildsOnAppAsync.mockResolvedValue([
+      makeBuild({ status: 'WAITING_FOR_CAPACITY' as BuildStatus }),
+    ]);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('waiting for capacity'));
   });
 
   it('handles a project with no activity in any section', async () => {
