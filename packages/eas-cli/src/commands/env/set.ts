@@ -37,8 +37,8 @@ import {
 } from '../../utils/prompts';
 
 interface RawSetFlags {
-  'variable-name'?: string;
-  'variable-value'?: string;
+  name?: string;
+  value?: string;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EASEnvironmentVariableScopeFlagValue;
@@ -48,8 +48,8 @@ interface RawSetFlags {
 }
 
 interface SetFlags {
-  'variable-name'?: string;
-  'variable-value'?: string;
+  name?: string;
+  value?: string;
   type?: 'string' | 'file';
   visibility?: 'plaintext' | 'sensitive' | 'secret';
   scope: EnvironmentVariableScope;
@@ -78,13 +78,13 @@ export default class EnvSet extends EasCommand {
   };
 
   static override flags = {
-    'variable-name': Flags.string({
+    name: Flags.string({
       description: 'Name of the variable',
-      aliases: ['name'],
+      aliases: ['variable-name'],
     }),
-    'variable-value': Flags.string({
+    value: Flags.string({
       description: 'Text value of the variable',
-      aliases: ['value'],
+      aliases: ['variable-value'],
     }),
     type: Flags.option({
       description: 'The type of variable',
@@ -106,8 +106,8 @@ export default class EnvSet extends EasCommand {
     const { args, flags } = await this.parse(EnvSet);
 
     const {
-      'variable-name': nameFlag,
-      'variable-value': value,
+      name: nameFlag,
+      value,
       type,
       visibility,
       scope,
