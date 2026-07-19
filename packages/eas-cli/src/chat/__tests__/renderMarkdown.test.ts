@@ -17,13 +17,7 @@ describe(renderInlineMarkdown, () => {
     expect(renderInlineMarkdown('run `eas build` now')).toBe(`run ${chalk.cyan('eas build')} now`);
   });
 
-  it('renders italic with chalk.italic', () => {
-    expect(renderInlineMarkdown('an *emphasized* word')).toBe(
-      `an ${chalk.italic('emphasized')} word`
-    );
-  });
-
-  it('does not treat underscores inside a word as italic', () => {
+  it('leaves underscores inside a word untouched', () => {
     expect(renderInlineMarkdown('my_project_name')).toBe('my_project_name');
   });
 
@@ -35,11 +29,6 @@ describe(renderInlineMarkdown, () => {
 });
 
 describe(renderMarkdownLine, () => {
-  it('renders headings as bold and strips the marker', () => {
-    const state = createMarkdownRenderState();
-    expect(renderMarkdownLine('## Builds', state)).toBe(chalk.bold('Builds'));
-  });
-
   it('renders bullet lines with a bullet glyph', () => {
     const state = createMarkdownRenderState();
     expect(renderMarkdownLine('- first', state)).toBe(`${chalk.dim('•')} first`);

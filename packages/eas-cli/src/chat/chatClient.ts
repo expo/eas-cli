@@ -163,7 +163,6 @@ export async function streamChatResponseAsync({
       process.stdout.write('\r');
     }
   };
-  const toolCallsById = new Map<string, ChatToolCall>();
   const toolMessagePartsById = new Map<string, Extract<ChatMessagePart, { toolCallId: string }>>();
   const textMessagePartsById = new Map<string, Extract<ChatMessagePart, { type: 'text' }>>();
   const assistantMessageParts: ChatMessagePart[] = [];
@@ -296,19 +295,14 @@ export async function streamChatResponseAsync({
         if (!toolCallId || !toolName) {
           return;
         }
-        const existing = toolCallsById.get(toolCallId);
-        toolCallsById.set(toolCallId, {
-          toolName,
-          input: frame.input ?? existing?.input,
-          output: existing?.output,
-          errorText: existing?.errorText,
-        });
         const toolPart = getOrCreateToolMessagePart(toolCallId, toolName);
         if (frame.type === 'tool-input-available') {
           toolPart.state = 'input-available';
           toolPart.input = frame.input;
           delete toolPart.output;
           delete toolPart.errorText;
+        } else if (frame.input !== undefined) {
+          toolPart.input = frame.input;
         }
         announceTool(toolName);
         break;
@@ -318,11 +312,6 @@ export async function streamChatResponseAsync({
         if (!toolCallId || !toolName || typeof frame.errorText !== 'string') {
           return;
         }
-        toolCallsById.set(toolCallId, {
-          toolName,
-          input: frame.input,
-          errorText: frame.errorText,
-        });
         const toolPart = getOrCreateToolMessagePart(toolCallId, toolName);
         toolPart.state = 'output-error';
         toolPart.input = frame.input;
@@ -336,11 +325,8 @@ export async function streamChatResponseAsync({
         if (!toolCallId) {
           return;
         }
-        const existing = toolCallsById.get(toolCallId);
-        if (existing) {
-          existing.output = frame.output;
-          delete existing.errorText;
-          const toolPart = getOrCreateToolMessagePart(toolCallId, existing.toolName);
+        const toolPart = toolMessagePartsById.get(toolCallId);
+        if (toolPart) {
           toolPart.state = 'output-available';
           toolPart.output = frame.output;
           delete toolPart.errorText;
@@ -349,11 +335,11 @@ export async function streamChatResponseAsync({
       }
       case 'tool-output-error': {
         const { toolCallId } = frame;
-        if (toolCallId && toolCallsById.has(toolCallId) && typeof frame.errorText === 'string') {
-          const toolCall = toolCallsById.get(toolCallId)!;
-          delete toolCall.output;
-          toolCall.errorText = frame.errorText;
-          const toolPart = getOrCreateToolMessagePart(toolCallId, toolCall.toolName);
+        if (!toolCallId || typeof frame.errorText !== 'string') {
+          return;
+        }
+        const toolPart = toolMessagePartsById.get(toolCallId);
+        if (toolPart) {
           toolPart.state = 'output-error';
           delete toolPart.output;
           toolPart.errorText = frame.errorText;
@@ -404,7 +390,16 @@ export async function streamChatResponseAsync({
     throw new Error(errorText);
   }
 
-  const toolCalls = [...toolCallsById.values()];
+  const toolCalls: ChatToolCall[] = assistantMessageParts
+    .filter((part): part is Extract<ChatMessagePart, { toolCallId: string }> =>
+      part.type.startsWith('tool-')
+    )
+    .map(part => ({
+      toolName: part.type.slice('tool-'.length),
+      input: part.input,
+      output: part.output,
+      errorText: part.errorText,
+    }));
   const assistantMessage = makeAssistantMessage(
     assistantMessageParts.filter(
       part =>

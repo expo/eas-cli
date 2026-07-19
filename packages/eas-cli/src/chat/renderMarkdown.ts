@@ -15,9 +15,6 @@ export function createMarkdownRenderState(): MarkdownRenderState {
 }
 
 const FENCE_REGEX = /^\s*```/;
-const HEADING_REGEX = /^(#{1,6})\s+(.*)$/;
-const BLOCKQUOTE_REGEX = /^\s*>\s?(.*)$/;
-const HORIZONTAL_RULE_REGEX = /^\s*([-*_])\1{2,}\s*$/;
 const BULLET_REGEX = /^(\s*)[-*+]\s+(.*)$/;
 const ORDERED_REGEX = /^(\s*)(\d+)\.\s+(.*)$/;
 
@@ -28,20 +25,6 @@ export function renderMarkdownLine(line: string, state: MarkdownRenderState): st
   }
   if (state.inCodeBlock) {
     return chalk.gray(line);
-  }
-
-  const heading = line.match(HEADING_REGEX);
-  if (heading) {
-    return chalk.bold(renderInlineMarkdown(heading[2]));
-  }
-
-  if (HORIZONTAL_RULE_REGEX.test(line)) {
-    return chalk.dim('─'.repeat(24));
-  }
-
-  const blockquote = line.match(BLOCKQUOTE_REGEX);
-  if (blockquote) {
-    return chalk.dim(`│ ${renderInlineMarkdown(blockquote[1])}`);
   }
 
   const bullet = line.match(BULLET_REGEX);
@@ -64,9 +47,5 @@ export function renderInlineMarkdown(text: string): string {
       /\[([^\]]+)\]\(([^)]+)\)/g,
       (_match, label, url) => `${chalk.underline(label)} ${chalk.dim(`(${url})`)}`
     )
-    .replace(/(\*\*|__)(.+?)\1/g, (_match, _marker, content) => chalk.bold(content))
-    .replace(/(?<!\*)\*(?!\s)([^*\n]+?)\*(?!\*)/g, (_match, content) => chalk.italic(content))
-    .replace(/(?<![A-Za-z0-9_])_(?!\s)([^_\n]+?)_(?![A-Za-z0-9_])/g, (_match, content) =>
-      chalk.italic(content)
-    );
+    .replace(/(\*\*|__)(.+?)\1/g, (_match, _marker, content) => chalk.bold(content));
 }
