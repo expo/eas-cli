@@ -2,6 +2,8 @@ import nock from 'nock';
 
 import { makeUserMessage, streamChatResponseAsync } from '../chatClient';
 
+const mockSpinners: { isSpinning: boolean; text: string }[] = [];
+
 jest.mock('../../log');
 jest.mock('../../ora', () => ({
   ora: () => {
@@ -14,6 +16,7 @@ jest.mock('../../ora', () => ({
         return spinner;
       },
     };
+    mockSpinners.push(spinner);
     return spinner;
   },
 }));
@@ -31,6 +34,7 @@ describe(streamChatResponseAsync, () => {
 
   beforeEach(() => {
     nock.cleanAll();
+    mockSpinners.length = 0;
     writeSpy = jest.spyOn(process.stdout, 'write').mockReturnValue(true);
   });
 
@@ -65,6 +69,38 @@ describe(streamChatResponseAsync, () => {
     expect(written).toContain('Your latest ');
     expect(written).toContain('build passed.');
     expect(result.text).toBe('Your latest build passed.');
+  });
+
+  it('keeps the spinner active until a full line is ready instead of clearing it on the first delta', async () => {
+    nock(WEBSITE_ORIGIN)
+      .post('/api/chat')
+      .reply(
+        200,
+        sseBody([
+          { type: 'text-start', id: '0' },
+          { type: 'text-delta', id: '0', delta: 'Looking good' },
+          { type: 'tool-input-available', toolCallId: 't1', toolName: 'get_latest_builds' },
+          { type: 'text-delta', id: '0', delta: ' so far.' },
+          { type: 'finish' },
+        ]),
+        { 'content-type': 'text/event-stream' }
+      );
+
+    const result = await streamChatResponseAsync({
+      messages: [makeUserMessage('how are my builds?')],
+      accountName: 'my-account',
+      sessionSecret: '{"id":"abc","version":"1"}',
+      stream: true,
+    });
+
+    const written = writeSpy.mock.calls.map(call => call[0]).join('');
+    // No newline arrives until the end, so nothing is flushed mid-stream: the tool activity
+    // is shown on the still-running spinner rather than being printed inline.
+    expect(mockSpinners[0].text).toContain('Looking up builds');
+    expect(written).not.toContain('Looking up builds');
+    // The buffered text is rendered in one go once the response completes.
+    expect(written).toContain('Looking good so far.');
+    expect(result.text).toBe('Looking good so far.');
   });
 
   it('captures tool calls with inputs and outputs without writing to stdout when not streaming', async () => {

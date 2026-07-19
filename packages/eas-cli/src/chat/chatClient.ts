@@ -152,10 +152,12 @@ export async function streamChatResponseAsync({
     ? ora({ text: 'Thinking…', discardStdin: false, prefixText: ASSISTANT_SPINNER_PREFIX }).start()
     : undefined;
 
+  let spinnerStopped = false;
   const stopSpinner = (): void => {
-    if (!spinner) {
+    if (!spinner || spinnerStopped) {
       return;
     }
+    spinnerStopped = true;
     spinner.stop();
     if (process.stdout.isTTY) {
       process.stdout.write('\r');
@@ -211,6 +213,10 @@ export async function streamChatResponseAsync({
   };
 
   const writeAssistantLine = (rendered: string, withNewline: boolean): void => {
+    if (!streamingText) {
+      stopSpinner();
+      streamingText = true;
+    }
     const columns = process.stdout.columns ?? 0;
     const width = columns > 0 ? columns - ASSISTANT_INDENT.length : 0;
     const segments = wrapToWidth(rendered, width);
@@ -275,10 +281,6 @@ export async function streamChatResponseAsync({
         fullText += delta;
         getOrCreateTextMessagePart(frame.id).text += delta;
         if (stream) {
-          if (!streamingText) {
-            stopSpinner();
-            streamingText = true;
-          }
           displayBuffer += delta;
           flushDisplayLines(false);
         }
@@ -392,10 +394,10 @@ export async function streamChatResponseAsync({
       }
     }
   } finally {
-    stopSpinner();
     if (stream) {
       flushDisplayLines(true);
     }
+    stopSpinner();
   }
 
   if (errorText) {
