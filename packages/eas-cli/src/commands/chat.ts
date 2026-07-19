@@ -1,7 +1,12 @@
 import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
-import { ChatMessage, makeUserMessage, streamChatResponseAsync } from '../chat/chatClient';
+import {
+  ChatMessage,
+  ChatResult,
+  makeUserMessage,
+  streamChatResponseAsync,
+} from '../chat/chatClient';
 import { detectCurrentProjectAsync } from '../chat/detectProject';
 import { ChatReplInput, createChatReplInput } from '../chat/replInput';
 import EasCommand from '../commandUtils/EasCommand';
@@ -156,12 +161,22 @@ export default class Chat extends EasCommand {
           messages.push(makeUserMessage(nextMessage));
         }
 
-        const result = await streamChatResponseAsync({
-          messages: [...messages],
-          accountName,
-          sessionSecret,
-          stream: true,
-        });
+        let result: ChatResult;
+        try {
+          result = await streamChatResponseAsync({
+            messages: [...messages],
+            accountName,
+            sessionSecret,
+            stream: true,
+          });
+        } catch (error) {
+          if (!input) {
+            throw error;
+          }
+          Log.error(error instanceof Error ? error.message : String(error));
+          messages.pop();
+          continue;
+        }
         messages.push(result.assistantMessage);
       }
     } finally {

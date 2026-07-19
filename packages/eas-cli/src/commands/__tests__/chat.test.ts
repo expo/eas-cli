@@ -231,6 +231,31 @@ describe(Chat, () => {
     expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the interactive session alive when a request fails and re-prompts', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync
+      .mockRejectedValueOnce(new Error('You have reached your chat usage limit.'))
+      .mockResolvedValue(makeChatResult('answer'));
+    const input = mockReplInput(['try again', '/exit']);
+
+    const command = createCommand(['how are my builds?']);
+    await expect(command.runAsync()).resolves.toBeUndefined();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0]).toEqual({ type: 'text', text: 'try again' });
+    expect(input.close).toHaveBeenCalled();
+  });
+
+  it('propagates a request failure in non-interactive mode without retrying', async () => {
+    mockStreamChatResponseAsync.mockRejectedValue(new Error('boom'));
+
+    const command = createCommand(['hi', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('boom');
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('starts a new conversation with /clear', async () => {
     forceInteractive();
     mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
