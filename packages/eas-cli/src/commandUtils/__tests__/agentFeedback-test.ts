@@ -25,7 +25,7 @@ it.each([['--non-interactive'], ['--json']])(
     printAgentFeedbackIfNeeded('build:list', [flag]);
 
     expect(stderrWriteSpy).toHaveBeenCalledWith(
-      '\nEAS CLI issue? Report it: npx --yes submit-expo-feedback --category eas-cli --subject "build:list" "<what happened and how to reproduce>"\n'
+      '\nEAS CLI issue? Report it: npx --yes submit-expo-feedback@latest --category eas-cli --subject "build:list" "<what happened and how to reproduce>"\n'
     );
   }
 );

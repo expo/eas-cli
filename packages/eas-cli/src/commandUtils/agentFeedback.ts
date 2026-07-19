@@ -13,7 +13,7 @@ export function printAgentFeedbackIfNeeded(
   }
 
   process.stderr.write(
-    `\nEAS CLI issue? Report it: npx --yes submit-expo-feedback --category eas-cli --subject "${
+    `\nEAS CLI issue? Report it: npx --yes submit-expo-feedback@latest --category eas-cli --subject "${
       commandId ?? 'unknown'
     }" "<what happened and how to reproduce>"\n`
   );
