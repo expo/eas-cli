@@ -80,9 +80,9 @@ describe(EnvSet, () => {
   it('creates a project variable when none exists', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -114,12 +114,48 @@ describe(EnvSet, () => {
     expect(EnvironmentVariableMutation.updateAsync).not.toHaveBeenCalled();
   });
 
-  it('updates an existing project variable in the same environment without --force', async () => {
+  it('accepts --name and --value aliases', async () => {
     const command = new EnvSet(
       [
         '--name',
         'VarName',
         '--value',
+        'VarValue',
+        '--environment',
+        'production',
+        '--visibility',
+        'secret',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    await command.runAsync();
+
+    expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      {
+        name: 'VarName',
+        value: 'VarValue',
+        environments: [DefaultEnvironment.Production],
+        visibility: EnvironmentVariableVisibility.Secret,
+        type: EnvironmentSecretType.String,
+      },
+      testProjectId
+    );
+  });
+
+  it('updates an existing project variable in the same environment without --force', async () => {
+    const command = new EnvSet(
+      [
+        '--variable-name',
+        'VarName',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -170,9 +206,9 @@ describe(EnvSet, () => {
   it('preserves other environments when updating an existing project variable', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -216,9 +252,9 @@ describe(EnvSet, () => {
   it('creates an account-wide variable when none exists', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -252,9 +288,9 @@ describe(EnvSet, () => {
   it('updates an existing account-wide variable without --force', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -299,9 +335,9 @@ describe(EnvSet, () => {
   it('preserves other environments when updating an existing account-wide variable', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
@@ -346,9 +382,9 @@ describe(EnvSet, () => {
     const command = new EnvSet(
       [
         'development',
-        '--name',
+        '--variable-name',
         'TEST_VAR',
-        '--value',
+        '--variable-value',
         'test-value',
         '--visibility',
         'plaintext',
@@ -442,9 +478,9 @@ describe(EnvSet, () => {
 
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         testFilePath,
         '--environment',
         'production',
@@ -497,9 +533,9 @@ describe(EnvSet, () => {
 
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         plainStringValue,
         '--environment',
         'production',
@@ -525,9 +561,9 @@ describe(EnvSet, () => {
   it('outputs the created variable as JSON with --json and does not print a tick', async () => {
     const command = new EnvSet(
       [
-        '--name',
+        '--variable-name',
         'VarName',
-        '--value',
+        '--variable-value',
         'VarValue',
         '--environment',
         'production',
