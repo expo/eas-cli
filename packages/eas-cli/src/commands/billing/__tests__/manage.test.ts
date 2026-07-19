@@ -3,6 +3,7 @@ import open from 'open';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { BillingClient } from '../../../billing/billingClient';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { Role } from '../../../graphql/generated';
 import { ora } from '../../../ora';
 import { printJsonOnlyOutput } from '../../../utils/json';
 import BillingManage from '../manage';
@@ -22,7 +23,11 @@ jest.mock('../../../ora', () => ({
 describe(BillingManage, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
-  const account = { id: 'account-id', name: 'testaccount' };
+  const account = {
+    id: 'account-id',
+    name: 'testaccount',
+    users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
+  };
 
   const createCustomerPortalSessionAsync = jest.fn();
 
@@ -31,7 +36,7 @@ describe(BillingManage, () => {
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
       loggedIn: {
         graphqlClient,
-        actor: { accounts: [account] },
+        actor: { id: 'actor-id', accounts: [account] },
         authenticationInfo: { accessToken: 'token', sessionSecret: null },
       },
     } as never);
