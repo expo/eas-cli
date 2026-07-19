@@ -14,15 +14,15 @@ export function createMarkdownRenderState(): MarkdownRenderState {
   return { inCodeBlock: false };
 }
 
-const FENCE_RE = /^\s*```/;
-const HEADING_RE = /^(#{1,6})\s+(.*)$/;
-const BLOCKQUOTE_RE = /^\s*>\s?(.*)$/;
-const HORIZONTAL_RULE_RE = /^\s*([-*_])\1{2,}\s*$/;
-const BULLET_RE = /^(\s*)[-*+]\s+(.*)$/;
-const ORDERED_RE = /^(\s*)(\d+)\.\s+(.*)$/;
+const FENCE_REGEX = /^\s*```/;
+const HEADING_REGEX = /^(#{1,6})\s+(.*)$/;
+const BLOCKQUOTE_REGEX = /^\s*>\s?(.*)$/;
+const HORIZONTAL_RULE_REGEX = /^\s*([-*_])\1{2,}\s*$/;
+const BULLET_REGEX = /^(\s*)[-*+]\s+(.*)$/;
+const ORDERED_REGEX = /^(\s*)(\d+)\.\s+(.*)$/;
 
 export function renderMarkdownLine(line: string, state: MarkdownRenderState): string | null {
-  if (FENCE_RE.test(line)) {
+  if (FENCE_REGEX.test(line)) {
     state.inCodeBlock = !state.inCodeBlock;
     return null;
   }
@@ -30,26 +30,26 @@ export function renderMarkdownLine(line: string, state: MarkdownRenderState): st
     return chalk.gray(line);
   }
 
-  const heading = line.match(HEADING_RE);
+  const heading = line.match(HEADING_REGEX);
   if (heading) {
     return chalk.bold(renderInlineMarkdown(heading[2]));
   }
 
-  if (HORIZONTAL_RULE_RE.test(line)) {
+  if (HORIZONTAL_RULE_REGEX.test(line)) {
     return chalk.dim('─'.repeat(24));
   }
 
-  const blockquote = line.match(BLOCKQUOTE_RE);
+  const blockquote = line.match(BLOCKQUOTE_REGEX);
   if (blockquote) {
     return chalk.dim(`│ ${renderInlineMarkdown(blockquote[1])}`);
   }
 
-  const bullet = line.match(BULLET_RE);
+  const bullet = line.match(BULLET_REGEX);
   if (bullet) {
     return `${bullet[1]}${chalk.dim('•')} ${renderInlineMarkdown(bullet[2])}`;
   }
 
-  const ordered = line.match(ORDERED_RE);
+  const ordered = line.match(ORDERED_REGEX);
   if (ordered) {
     return `${ordered[1]}${chalk.dim(`${ordered[2]}.`)} ${renderInlineMarkdown(ordered[3])}`;
   }

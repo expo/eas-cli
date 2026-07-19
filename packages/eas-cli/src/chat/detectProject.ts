@@ -25,8 +25,8 @@ export async function detectCurrentProjectAsync(
 
   let projectId: unknown;
   try {
-    const exp = await getPrivateExpoConfigAsync(projectDir);
-    projectId = exp.extra?.eas?.projectId;
+    const expoConfig = await getPrivateExpoConfigAsync(projectDir);
+    projectId = expoConfig.extra?.eas?.projectId;
   } catch {
     return null;
   }

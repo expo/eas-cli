@@ -12,7 +12,7 @@ export function createChatReplInput(options?: {
   history?: string[];
 }): ChatReplInput {
   const inputStream = options?.input ?? process.stdin;
-  const rl = readline.createInterface({
+  const readlineInterface = readline.createInterface({
     input: inputStream,
     output: options?.output ?? process.stdout,
     terminal: options?.terminal ?? true,
@@ -21,11 +21,11 @@ export function createChatReplInput(options?: {
   });
 
   let closed = false;
-  rl.on('close', () => {
+  readlineInterface.on('close', () => {
     closed = true;
   });
-  rl.on('SIGINT', () => {
-    rl.close();
+  readlineInterface.on('SIGINT', () => {
+    readlineInterface.close();
   });
 
   return {
@@ -42,11 +42,11 @@ export function createChatReplInput(options?: {
             resolve(null);
           }
         };
-        rl.once('close', onClose);
-        rl.question(prompt, answer => {
+        readlineInterface.once('close', onClose);
+        readlineInterface.question(prompt, answer => {
           if (!settled) {
             settled = true;
-            rl.removeListener('close', onClose);
+            readlineInterface.removeListener('close', onClose);
             resolve(answer);
           }
         });
@@ -54,7 +54,7 @@ export function createChatReplInput(options?: {
     },
     close(): void {
       if (!closed) {
-        rl.close();
+        readlineInterface.close();
       }
     },
   };
