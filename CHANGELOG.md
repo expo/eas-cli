@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Handle new server-side errors thrown when observe features are blocked. ([#4042](https://github.com/expo/eas-cli/pull/4042) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
