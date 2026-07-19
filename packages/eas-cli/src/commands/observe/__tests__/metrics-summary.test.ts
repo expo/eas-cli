@@ -1,7 +1,11 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppPlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetricsSummary from '../metrics-summary';
@@ -51,6 +55,24 @@ describe(ObserveMetricsSummary, () => {
     });
     return command;
   }
+
+  it('surfaces the server plan-gate message when a metric is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveMetricsSummaryAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand(['--metric', 'nav_tti']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
 
   it('fetches metrics with default parameters (both platforms)', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
