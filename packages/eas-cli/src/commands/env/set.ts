@@ -336,8 +336,6 @@ export default class EnvSet extends EasCommand {
       );
     }
 
-    // When a value is provided without an explicit --type, keep the existing variable's type so
-    // that updating a file variable does not silently convert it to a plain string.
     if (value && !newType) {
       newType = existingVariable?.type;
     }
