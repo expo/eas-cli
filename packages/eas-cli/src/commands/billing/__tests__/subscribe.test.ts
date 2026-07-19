@@ -67,7 +67,7 @@ describe(BillingSubscribe, () => {
 
     await createCommand(['starter', '--json']).runAsync();
 
-    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', ['STARTER']);
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'STARTER');
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_123',
       alreadySubscribed: false,
@@ -81,7 +81,7 @@ describe(BillingSubscribe, () => {
 
     await createCommand(['production-plus', '--json']).runAsync();
 
-    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', ['PRODUCTION_PLUS']);
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'PRODUCTION_PLUS');
   });
 
   it('does not create a checkout session when the account already has a paid subscription', async () => {
@@ -115,7 +115,7 @@ describe(BillingSubscribe, () => {
 
     await createCommand(['starter', '--json']).runAsync();
 
-    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', ['STARTER']);
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'STARTER');
   });
 
   it('prints the checkout URL as text without opening a browser in non-interactive mode', async () => {

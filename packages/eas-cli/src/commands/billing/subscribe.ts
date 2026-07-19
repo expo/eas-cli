@@ -97,7 +97,7 @@ export default class BillingSubscribe extends EasCommand {
     const spinner = ora(`Creating a checkout session for the ${plan.label} plan`).start();
     let checkoutUrl: string;
     try {
-      const session = await billingClient.createCheckoutSessionAsync(account.id, [plan.planType]);
+      const session = await billingClient.createCheckoutSessionAsync(account.id, plan.planType);
       if (!session.url) {
         throw new Error('The checkout session did not include a URL.');
       }

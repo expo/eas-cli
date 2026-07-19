@@ -15,11 +15,11 @@ describe(BillingClient, () => {
     postAsync.mockResolvedValue({ data: { id: 'cs_123', url: 'https://checkout.stripe.com/pay' } });
 
     const client = new BillingClient({ accessToken: 'token', sessionSecret: null });
-    const session = await client.createCheckoutSessionAsync('account-id', ['STARTER']);
+    const session = await client.createCheckoutSessionAsync('account-id', 'STARTER');
 
     expect(session).toEqual({ id: 'cs_123', url: 'https://checkout.stripe.com/pay' });
     expect(postAsync).toHaveBeenCalledWith('stripe-auth/checkout', {
-      body: { accountId: 'account-id', planTypes: ['STARTER'] },
+      body: { accountId: 'account-id', planType: 'STARTER' },
     });
   });
 
