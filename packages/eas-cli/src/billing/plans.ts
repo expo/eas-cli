@@ -18,3 +18,7 @@ export const PLAN_SLUGS = Object.keys(SUBSCRIBABLE_PLANS) as PlanSlug[];
  * use as a sentinel for "this account has no paid subscription".
  */
 export const FREE_PLAN_PRICE_ID = 'price_free';
+
+export function formatStarterSubscribeCommand(accountName?: string): string {
+  return `eas billing:subscribe starter${accountName ? ` --account ${accountName}` : ''}`;
+}

@@ -291,39 +291,41 @@ describe(Build.name, () => {
       describe('for EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED', () => {
         it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.ANDROID;
+          const accountName = 'test-account';
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
 
           const handleBuildRequestErrorThrownError = getError<EasBuildFreeTierLimitExceededError>(
             () => {
-              handleBuildRequestError(error, platform);
+              handleBuildRequestError(error, platform, accountName);
             }
           );
 
           assertReThrownError(
             handleBuildRequestErrorThrownError,
             EasBuildFreeTierLimitExceededError,
-            'Error 1'
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
           );
         });
       });
       describe('for EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED', () => {
         it('throws correct EasCommandError subclass', async () => {
           const platform = Platform.ANDROID;
+          const accountName = 'test-account';
           const graphQLError = getGraphQLError('Error 1', 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED');
           const graphQLErrors = [graphQLError];
           const error = new CombinedError({ graphQLErrors });
 
           const handleBuildRequestErrorThrownError =
             getError<EasBuildFreeTierIosLimitExceededError>(() => {
-              handleBuildRequestError(error, platform);
+              handleBuildRequestError(error, platform, accountName);
             });
 
           assertReThrownError(
             handleBuildRequestErrorThrownError,
             EasBuildFreeTierIosLimitExceededError,
-            'Error 1'
+            'Error 1\nRun eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
           );
         });
       });
