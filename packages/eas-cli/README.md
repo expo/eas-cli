@@ -2326,7 +2326,7 @@ ALIASES
   $ eas status
 ```
 
-_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/project/status.ts)_
+_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v21.0.2/packages/eas-cli/src/commands/project/status.ts)_
 
 ## `eas status`
 

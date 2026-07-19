@@ -288,6 +288,8 @@ function colorBuildStatus(status: BuildStatus): string {
     case BuildStatus.InQueue:
     case BuildStatus.InProgress:
       return chalk.blue(status.toLowerCase().replace(/_/g, ' '));
+    default:
+      return String(status).toLowerCase().replace(/_/g, ' ');
   }
 }
 
