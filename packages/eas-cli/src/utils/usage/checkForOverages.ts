@@ -33,7 +33,12 @@ export async function maybeWarnAboutUsageOveragesAsync({
       return;
     }
 
-    const overageCount = buildMetrics.overageMetrics.reduce((sum, o) => sum + o.value, 0);
+    // Count only genuine per-worker build overage rows. `overageMetrics` can also
+    // contain rows without build metadata (e.g. rollups), which must not be summed
+    // in — otherwise the displayed "N builds beyond your credits" count is inflated.
+    const overageCount = buildMetrics.overageMetrics
+      .filter(o => o.metadata?.billingResourceClass && o.metadata?.platform)
+      .reduce((sum, o) => sum + o.value, 0);
     const overageCostCents = buildMetrics.totalCost;
     const hasFreePlan = subscription.name === 'Free';
     const tier = classifyUsageTier({

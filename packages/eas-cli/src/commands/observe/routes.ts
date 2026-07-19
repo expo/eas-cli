@@ -1,7 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigationRoutes';
@@ -81,16 +84,17 @@ export default class ObserveRoutes extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveRoutes);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveRoutes,
       loggedInOnlyContextDefinition: ObserveRoutes.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -125,7 +129,7 @@ export default class ObserveRoutes extends EasCommand {
       }
     );
 
-    if (flags.json) {
+    if (json) {
       const stats = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
         buildObserveNavigationRoutesJson(routes, metricNames, stats, pageInfoByPlatform)

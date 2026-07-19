@@ -59,8 +59,15 @@ public struct FirstFrameWallClock: Codable, Sendable {
     public let iso8601: String
 }
 
+public enum RecordingFinalizationStage: Sendable {
+    case captureStopped
+    case videoSaved
+}
+
 public struct RecordingManifest: Codable, Sendable {
     public let firstFrameWallClock: FirstFrameWallClock
+    public let width: Int
+    public let height: Int
     public let hlsVersion: Int?
     public let hlsTargetDurationSeconds: Int?
     public let hlsMediaSequence: Int?

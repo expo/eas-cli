@@ -264,6 +264,14 @@ describe(ObserveMetrics, () => {
       'metric argument is required in non-interactive mode'
     );
   });
+
+  it('treats --json as non-interactive when no metric is provided', async () => {
+    const command = createCommand(['--json']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'metric argument is required in non-interactive mode'
+    );
+  });
 });
 
 describe(resolveOrderBy, () => {

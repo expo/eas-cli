@@ -1,9 +1,10 @@
 import { RuntimeSettings } from '@expo/build-tools';
 import { Platform, Workflow } from '@expo/eas-build-job';
 import os from 'os';
+import v8 from 'v8';
 
 import config from '../config';
-import { getBuildEnv, getGradleMemoryOptions } from '../env';
+import { getBuildEnv, getGradleMemoryOptions, getNodeMemoryOptions } from '../env';
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
@@ -19,6 +20,7 @@ describe(getBuildEnv.name, () => {
     EAS_BUILD_MAVEN_CACHE_URL: process.env.EAS_BUILD_MAVEN_CACHE_URL,
     EAS_BUILD_COCOAPODS_CACHE_URL: process.env.EAS_BUILD_COCOAPODS_CACHE_URL,
     NPM_CONFIG_REGISTRY: process.env.NPM_CONFIG_REGISTRY,
+    NODE_OPTIONS: process.env.NODE_OPTIONS,
   };
 
   beforeEach(() => {
@@ -28,6 +30,7 @@ describe(getBuildEnv.name, () => {
     delete process.env.EAS_BUILD_MAVEN_CACHE_URL;
     delete process.env.EAS_BUILD_COCOAPODS_CACHE_URL;
     delete process.env.NPM_CONFIG_REGISTRY;
+    delete process.env.NODE_OPTIONS;
     jest.spyOn(RuntimeSettings, 'getNpmCacheUrl').mockReturnValue(null);
     jest.spyOn(RuntimeSettings, 'getNodeJsCacheUrl').mockReturnValue(null);
     jest.spyOn(RuntimeSettings, 'getMavenCacheUrl').mockReturnValue(null);
@@ -47,6 +50,7 @@ describe(getBuildEnv.name, () => {
     restoreEnv('EAS_BUILD_MAVEN_CACHE_URL', originalCacheUrls.EAS_BUILD_MAVEN_CACHE_URL);
     restoreEnv('EAS_BUILD_COCOAPODS_CACHE_URL', originalCacheUrls.EAS_BUILD_COCOAPODS_CACHE_URL);
     restoreEnv('NPM_CONFIG_REGISTRY', originalCacheUrls.NPM_CONFIG_REGISTRY);
+    restoreEnv('NODE_OPTIONS', originalCacheUrls.NODE_OPTIONS);
     mockProcessPlatform(originalPlatform);
     jest.restoreAllMocks();
   });
@@ -298,6 +302,63 @@ describe(getBuildEnv.name, () => {
     expect(getGradleMemoryOptions()).toEqual({
       maxHeapSize: '1g',
     });
+  });
+
+  it('increases the Node.js heap limit on workers with enough memory', () => {
+    jest.spyOn(process, 'constrainedMemory').mockReturnValue(6 * 1024 ** 3);
+    jest.spyOn(v8, 'getHeapStatistics').mockReturnValue({
+      heap_size_limit: 2 * 1024 ** 3,
+    } as ReturnType<typeof v8.getHeapStatistics>);
+
+    expect(getNodeMemoryOptions()).toBe('--max-old-space-size=3072');
+  });
+
+  it('does not increase the Node.js heap limit on workers with less than 6 GiB of memory', () => {
+    jest.spyOn(process, 'constrainedMemory').mockReturnValue(6 * 1024 ** 3 - 1);
+    jest.spyOn(v8, 'getHeapStatistics').mockReturnValue({
+      heap_size_limit: 2 * 1024 ** 3,
+    } as ReturnType<typeof v8.getHeapStatistics>);
+
+    expect(getNodeMemoryOptions()).toBeUndefined();
+  });
+
+  it('does not increase an existing Node.js heap limit of at least 3 GiB', () => {
+    jest.spyOn(process, 'constrainedMemory').mockReturnValue(6 * 1024 ** 3);
+    jest.spyOn(v8, 'getHeapStatistics').mockReturnValue({
+      heap_size_limit: 3 * 1024 ** 3,
+    } as ReturnType<typeof v8.getHeapStatistics>);
+
+    expect(getNodeMemoryOptions()).toBeUndefined();
+  });
+
+  it('keeps Node.js options inherited from the worker environment in override position', () => {
+    process.env.NODE_OPTIONS = '--max-old-space-size=2048 --enable-source-maps';
+    jest.spyOn(process, 'constrainedMemory').mockReturnValue(6 * 1024 ** 3);
+    jest.spyOn(v8, 'getHeapStatistics').mockReturnValue({
+      heap_size_limit: 2 * 1024 ** 3,
+    } as ReturnType<typeof v8.getHeapStatistics>);
+
+    const env = getBuildEnv({
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.MANAGED,
+        builderEnvironment: {
+          env: {},
+        },
+        username: 'expo-user',
+      } as any,
+      projectId: 'project-id',
+      metadata: {
+        buildProfile: 'production',
+        gitCommitHash: 'abc123',
+        username: 'expo-user',
+      } as any,
+      buildId: 'build-id',
+    });
+
+    expect(env.NODE_OPTIONS).toBe(
+      '--max-old-space-size=3072 --max-old-space-size=2048 --enable-source-maps'
+    );
   });
 });
 

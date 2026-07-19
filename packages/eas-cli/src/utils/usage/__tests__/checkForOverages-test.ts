@@ -1,6 +1,8 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
   AccountUsageForOverageWarningQuery,
+  AppPlatform,
+  EasBuildBillingResourceClass,
   EasService,
   EasServiceMetric,
   EstimatedUsage,
@@ -40,6 +42,30 @@ function createMockPlanMetric({
   };
 }
 
+type MockOverageMetric =
+  AccountUsageForOverageWarningQuery['account']['byId']['usageMetrics']['EAS_BUILD']['overageMetrics'][number];
+
+// A genuine per-worker build overage row, i.e. one carrying build metadata. Only rows
+// shaped like this should be counted toward the "N builds beyond your credits" total.
+function createMockBuildOverage({
+  id = 'overage-id',
+  value = 1,
+  platform = AppPlatform.Ios,
+  billingResourceClass = EasBuildBillingResourceClass.Medium,
+}: {
+  id?: string;
+  value?: number;
+  platform?: AppPlatform;
+  billingResourceClass?: EasBuildBillingResourceClass;
+} = {}): MockOverageMetric {
+  return {
+    __typename: 'EstimatedOverageAndCost',
+    id,
+    value,
+    metadata: { __typename: 'AccountUsageEASBuildMetadata', billingResourceClass, platform },
+  };
+}
+
 function createMockAccountUsage({
   id = 'account-id',
   name = 'test-account',
@@ -52,7 +78,7 @@ function createMockAccountUsage({
   name?: string;
   subscriptionName?: string;
   buildPlanMetrics?: EstimatedUsage[];
-  overageMetrics?: { __typename: 'EstimatedOverageAndCost'; id: string; value: number }[];
+  overageMetrics?: MockOverageMetric[];
   totalCost?: number;
 } = {}): AccountUsageForOverageWarningQuery['account']['byId'] {
   return {
@@ -184,7 +210,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     mockGetUsageForOverageWarningAsync.mockResolvedValue(
       createMockAccountUsage({
         buildPlanMetrics: [createMockPlanMetric({ value: 105 })],
-        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 5 }],
+        overageMetrics: [createMockBuildOverage({ id: 'o1', value: 5 })],
         totalCost: 0,
       })
     );
@@ -207,7 +233,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
       createMockAccountUsage({
         subscriptionName: 'Starter',
         buildPlanMetrics: [createMockPlanMetric({ value: 110 })],
-        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 10 }],
+        overageMetrics: [createMockBuildOverage({ id: 'o1', value: 10 })],
         totalCost: 1500,
       })
     );
@@ -242,6 +268,32 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
     expect(mockWarn).not.toHaveBeenCalled();
   });
 
+  it('counts only per-worker build overage rows, ignoring rows without build metadata', async () => {
+    mockGetUsageForOverageWarningAsync.mockResolvedValue(
+      createMockAccountUsage({
+        subscriptionName: 'Starter',
+        buildPlanMetrics: [createMockPlanMetric({ value: 103 })],
+        overageMetrics: [
+          createMockBuildOverage({ id: 'real', value: 3 }),
+          // A rollup/summary row with no build metadata - must not be summed in.
+          { __typename: 'EstimatedOverageAndCost', id: 'rollup', value: 50 },
+        ],
+        totalCost: 450,
+      })
+    );
+
+    await maybeWarnAboutUsageOveragesAsync({
+      graphqlClient: mockGraphqlClient,
+      accountId: 'account-id',
+    });
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "You've used 3 builds beyond your included credits this billing period ($4.50 in overages so far)."
+      )
+    );
+  });
+
   it('does not warn a Free plan below its limit even if the usage API reports an overage', async () => {
     // Regression: free users with only a handful of builds were told they'd reached
     // their limit because a nonzero overage row was treated as billable usage.
@@ -249,7 +301,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
       createMockAccountUsage({
         subscriptionName: 'Free',
         buildPlanMetrics: [createMockPlanMetric({ value: 6, limit: 30 })],
-        overageMetrics: [{ __typename: 'EstimatedOverageAndCost', id: 'o1', value: 5 }],
+        overageMetrics: [createMockBuildOverage({ id: 'o1', value: 5 })],
         totalCost: 0,
       })
     );

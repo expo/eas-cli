@@ -1,15 +1,18 @@
 import {
   FunctionStep,
-  ShellStep,
+  HookAnchorId,
+  Hooks,
   Step,
+  isHookAnchorId,
   isStepFunctionStep,
   isStepShellStep,
+  parseHookKey,
   validateSteps,
 } from '@expo/eas-build-job';
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
-import { BuildFunction, BuildFunctionById } from './BuildFunction';
+import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
 import {
   BuildFunctionGroup,
   BuildFunctionGroupById,
@@ -17,20 +20,31 @@ import {
 } from './BuildFunctionGroup';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepOutput } from './BuildStepOutput';
 import { BuildConfigError } from './errors';
+import {
+  AnchorHooks,
+  HookEntry,
+  constructHookEntriesFromValidatedSteps,
+  createBuildStepFromShellStep,
+  validateAllStepFunctionsExist,
+} from './hooks';
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
+  private readonly hooks: Hooks;
 
   constructor(
     ctx: BuildStepGlobalContext,
     {
       steps,
+      hooks,
       externalFunctions,
       externalFunctionGroups,
     }: {
       steps: Step[];
+      // Required (not `hooks?:`) so a call site cannot silently forget to pass
+      // the job's hooks — forgetting drops them without a trace.
+      hooks: Hooks | undefined;
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
     }
@@ -41,70 +55,173 @@ export class StepsConfigParser extends AbstractConfigParser {
     });
 
     this.steps = steps;
+    this.hooks = hooks ?? {};
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
     buildSteps: BuildStep[];
     buildFunctionById: BuildFunctionById;
+    hooksByAnchorStep: ReadonlyMap<BuildStep, AnchorHooks>;
   }> {
     const validatedSteps = validateSteps(this.steps);
-    StepsConfigParser.validateAllFunctionsExist(validatedSteps, {
+    const validatedHooks = this.validateHooks();
+    // Hook steps are validated like job steps: a hook `uses:` naming an
+    // unknown function must be a BuildConfigError, not an assertion crash.
+    validateAllStepFunctionsExist([...validatedSteps, ...Object.values(validatedHooks).flat()], {
       externalFunctionIds: this.getExternalFunctionFullIds(),
       externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
     });
 
-    const buildFunctionById = this.createBuildFunctionByIdMappingForExternalFunctions();
+    const buildFunctionById = createBuildFunctionByIdMapping(this.externalFunctions ?? []);
     const buildFunctionGroupById = createBuildFunctionGroupByIdMapping(
       this.externalFunctionGroups ?? []
     );
 
+    // Only the job's own steps are scanned — steps constructed from hooks are
+    // never treated as anchors (no nesting). Construction order (before →
+    // anchor → after per occurrence; groups expand first) keeps generated
+    // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
+    const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
+
     for (const stepConfig of validatedSteps) {
-      buildSteps.push(
-        ...this.createBuildStepsFromStepConfig(stepConfig, {
-          buildFunctionById,
-          buildFunctionGroupById,
-        })
-      );
+      const maybeFunctionGroup = isStepFunctionStep(stepConfig)
+        ? buildFunctionGroupById[stepConfig.uses]
+        : undefined;
+      if (maybeFunctionGroup !== undefined) {
+        // The group expands FIRST (its internal steps get their ids), then the
+        // anchors found among expanded steps get their hook steps constructed.
+        // TODO: allow to set id, name, working_directory, shell, env and if
+        // for function groups
+        const expandedSteps = maybeFunctionGroup.createBuildStepsFromFunctionGroupCall(this.ctx, {
+          callInputs: stepConfig.with,
+        });
+        buildSteps.push(...expandedSteps);
+        for (const expandedStep of expandedSteps) {
+          const anchorId = expandedStep.__hookId;
+          if (anchorId === undefined) {
+            continue;
+          }
+          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
+            buildFunctionById,
+            buildFunctionGroupById,
+          });
+          if (anchorHooks !== undefined) {
+            hooksByAnchorStep.set(expandedStep, anchorHooks);
+          }
+        }
+        continue;
+      }
+
+      const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
+      if (anchorId === undefined) {
+        buildSteps.push(this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById));
+        continue;
+      }
+      const maps = { buildFunctionById, buildFunctionGroupById };
+      const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
+      const anchorStep = this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById);
+      buildSteps.push(anchorStep);
+      const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+      if (before.length > 0 || after.length > 0) {
+        hooksByAnchorStep.set(anchorStep, { anchor: anchorId, before, after });
+      }
     }
 
     return {
       buildSteps,
       buildFunctionById,
+      hooksByAnchorStep,
     };
   }
 
-  private createBuildFunctionByIdMappingForExternalFunctions(): BuildFunctionById {
-    const result: BuildFunctionById = {};
-
-    if (this.externalFunctions === undefined) {
-      return result;
+  private validateHooks(): Record<string, Step[]> {
+    const validatedHooks: Record<string, Step[]> = {};
+    for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
+      // A worker must not fail on a hook key newer than itself, so unregistered
+      // keys skip validation entirely (their steps may reference functions this
+      // worker lacks).
+      if (parseHookKey(hookKey) === null) {
+        continue;
+      }
+      // An empty array is a deliberate no-op (e.g. opting out of a default);
+      // any other non-step-array shape falls through to validateSteps below so
+      // it errors instead of being dropped silently.
+      if (Array.isArray(hookSteps) && hookSteps.length === 0) {
+        continue;
+      }
+      try {
+        validatedHooks[hookKey] = validateSteps(hookSteps);
+      } catch (err) {
+        throw new BuildConfigError(
+          `Invalid steps in "hooks.${hookKey}": ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
     }
-
-    for (const buildFunction of this.externalFunctions) {
-      const fullId = buildFunction.getFullId();
-      result[fullId] = buildFunction;
-    }
-    return result;
+    return validatedHooks;
   }
 
-  private createBuildStepsFromStepConfig(
-    stepConfig: Step,
-    {
-      buildFunctionById,
-      buildFunctionGroupById,
-    }: {
+  /**
+   * Resolves a non-group step's anchor. Stamp PRESENCE wins, not stamp
+   * registration: an unregistered stamp value makes the step inert — it never
+   * falls through to the invoked function's declaration (a newer server
+   * stamping a function step with a future anchor must not silently rebind it
+   * to the function's older anchor on this worker). Only when the field is
+   * absent does a function step resolve via its function's own declaration.
+   */
+  private static resolveStepAnchor(
+    step: Step,
+    buildFunctionById: BuildFunctionById
+  ): HookAnchorId | undefined {
+    if (step.__hook_id !== undefined) {
+      return isHookAnchorId(step.__hook_id) ? step.__hook_id : undefined;
+    }
+    if (isStepFunctionStep(step)) {
+      return buildFunctionById[step.uses]?.__hookId;
+    }
+    return undefined;
+  }
+
+  private constructAnchorHooks(
+    anchorId: HookAnchorId,
+    validatedHooks: Record<string, Step[]>,
+    maps: {
       buildFunctionById: BuildFunctionById;
       buildFunctionGroupById: BuildFunctionGroupById;
     }
-  ): BuildStep[] {
+  ): AnchorHooks | undefined {
+    const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
+    const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+    if (before.length === 0 && after.length === 0) {
+      return undefined;
+    }
+    return { anchor: anchorId, before, after };
+  }
+
+  private constructHookSideEntries(
+    anchorId: HookAnchorId,
+    side: 'before' | 'after',
+    validatedHooks: Record<string, Step[]>,
+    maps: {
+      buildFunctionById: BuildFunctionById;
+      buildFunctionGroupById: BuildFunctionGroupById;
+    }
+  ): HookEntry[] {
+    const hookSteps = validatedHooks[`${side}_${anchorId}`];
+    if (hookSteps === undefined) {
+      return [];
+    }
+    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, maps);
+  }
+
+  private createBuildStepFromNonGroupStepConfig(
+    stepConfig: Step,
+    buildFunctionById: BuildFunctionById
+  ): BuildStep {
     if (isStepShellStep(stepConfig)) {
-      return [this.createBuildStepFromShellStepConfig(stepConfig)];
+      return createBuildStepFromShellStep(this.ctx, stepConfig);
     } else if (isStepFunctionStep(stepConfig)) {
-      return this.createBuildStepsFromFunctionStepConfig(stepConfig, {
-        buildFunctionById,
-        buildFunctionGroupById,
-      });
+      return this.createBuildStepFromFunctionStepConfig(stepConfig, buildFunctionById);
     } else {
       throw new BuildConfigError(
         'Invalid job step configuration detected. Step must be shell or function step'
@@ -112,113 +229,21 @@ export class StepsConfigParser extends AbstractConfigParser {
     }
   }
 
-  private createBuildStepFromShellStepConfig(step: ShellStep): BuildStep {
-    const id = BuildStep.getNewId(step.id);
-    const displayName =
-      step.name ??
-      step.id ??
-      step.run
-        .split('\n')
-        .find(line => line.trim())
-        ?.trim() ??
-      step.run;
-    const outputs =
-      step.outputs && this.createBuildStepOutputsFromDefinition(step.outputs, displayName);
-    return new BuildStep(this.ctx, {
-      id,
-      displayName,
-      outputs,
-      workingDirectory: step.working_directory,
-      shell: step.shell,
-      command: step.run,
-      env: step.env,
-      ifCondition: step.if,
-      __metricsId: step.__metrics_id,
-    });
-  }
-
-  private createBuildStepsFromFunctionStepConfig(
+  private createBuildStepFromFunctionStepConfig(
     step: FunctionStep,
-    {
-      buildFunctionById,
-      buildFunctionGroupById,
-    }: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
-  ): BuildStep[] {
-    const functionId = step.uses;
-    const maybeFunctionGroup = buildFunctionGroupById[functionId];
-    if (maybeFunctionGroup) {
-      // TODO: allow to set id, name, working_directory, shell, env and if for function groups
-      return maybeFunctionGroup.createBuildStepsFromFunctionGroupCall(this.ctx, {
-        callInputs: step.with,
-      });
-    }
-
-    const buildFunction = buildFunctionById[functionId];
+    buildFunctionById: BuildFunctionById
+  ): BuildStep {
+    const buildFunction = buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
 
-    return [
-      buildFunction.createBuildStepFromFunctionCall(this.ctx, {
-        id: step.id,
-        name: step.name,
-        callInputs: step.with,
-        workingDirectory: step.working_directory,
-        shell: step.shell,
-        env: step.env,
-        ifCondition: step.if,
-      }),
-    ];
-  }
-
-  private createBuildStepOutputsFromDefinition(
-    stepOutputs: Required<ShellStep>['outputs'],
-    stepDisplayName: string
-  ): BuildStepOutput[] {
-    return stepOutputs.map(
-      entry =>
-        new BuildStepOutput(this.ctx, {
-          id: entry.name,
-          stepDisplayName,
-          required: entry.required ?? true,
-        })
-    );
-  }
-
-  private static validateAllFunctionsExist(
-    steps: Step[],
-    {
-      externalFunctionIds,
-      externalFunctionGroupIds,
-    }: {
-      externalFunctionIds: string[];
-      externalFunctionGroupIds: string[];
-    }
-  ): void {
-    const calledFunctionsOrFunctionGroupsSet = new Set<string>();
-    for (const step of steps) {
-      if (step.uses) {
-        calledFunctionsOrFunctionGroupsSet.add(step.uses);
-      }
-    }
-    const calledFunctionsOrFunctionGroup = Array.from(calledFunctionsOrFunctionGroupsSet);
-    const externalFunctionIdsSet = new Set(externalFunctionIds);
-    const externalFunctionGroupsIdsSet = new Set(externalFunctionGroupIds);
-    const nonExistentFunctionsOrFunctionGroups = calledFunctionsOrFunctionGroup.filter(
-      calledFunctionOrFunctionGroup => {
-        return (
-          !externalFunctionIdsSet.has(calledFunctionOrFunctionGroup) &&
-          !externalFunctionGroupsIdsSet.has(calledFunctionOrFunctionGroup)
-        );
-      }
-    );
-    if (nonExistentFunctionsOrFunctionGroups.length > 0) {
-      throw new BuildConfigError(
-        `Calling non-existent functions: ${nonExistentFunctionsOrFunctionGroups
-          .map(f => `"${f}"`)
-          .join(', ')}.`
-      );
-    }
+    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+      id: step.id,
+      name: step.name,
+      callInputs: step.with,
+      workingDirectory: step.working_directory,
+      shell: step.shell,
+      env: step.env,
+      ifCondition: step.if,
+    });
   }
 }

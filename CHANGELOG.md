@@ -6,6 +6,46 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+- [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
+
+### 🐛 Bug fixes
+
+- [eas-cli] Remove temporary working directories after `eas build:inspect` copies inspect output, avoiding leftover disk usage after failed builds. ([#3981](https://github.com/expo/eas-cli/pull/3981) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🧹 Chores
+
+- [eas-cli] Bump `tmp` to `0.2.7` to resolve [Dependabot alert 423](https://github.com/expo/eas-cli/security/dependabot/423). ([#3965](https://github.com/expo/eas-cli/pull/3965) by [@szdziedzic](https://github.com/szdziedzic))
+- [worker] Bump `ws` to patched releases to resolve [Dependabot alert 462](https://github.com/expo/eas-cli/security/dependabot/462). ([#3963](https://github.com/expo/eas-cli/pull/3963) by [@szdziedzic](https://github.com/szdziedzic))
+- Bump `lodash` and `lodash-es` to `4.18.1` across workspaces and upgrade GraphQL Code Generator to remove the remaining vulnerable transitive copy for Dependabot alert 354. ([#4009](https://github.com/expo/eas-cli/pull/4009) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Bump `sigstore` to `4.1.1` to resolve [Dependabot alert 475](https://github.com/expo/eas-cli/security/dependabot/475). ([#3961](https://github.com/expo/eas-cli/pull/3961) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `axios` to patched releases to resolve [Dependabot alert 439](https://github.com/expo/eas-cli/security/dependabot/439). ([#3964](https://github.com/expo/eas-cli/pull/3964) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `handlebars` to `4.7.9` to resolve [Dependabot alert 334](https://github.com/expo/eas-cli/security/dependabot/334). ([#3958](https://github.com/expo/eas-cli/pull/3958) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [21.0.1](https://github.com/expo/eas-cli/releases/tag/v21.0.1) - 2026-07-15
+
+### 🎉 New features
+
+- [eas-cli] Add `eas project:delete` command to delete a project — the current directory's project by default, or any project passed as an argument (`@account/slug` or ID). Confirmation requires the project's full name, typed at the interactive prompt or passed via `--dangerously-confirm-deletion` (required in non-interactive mode). Deletion requires sudo mode: the command prompts for your password (and OTP) to upgrade the session when the server requires it. Deletion was previously only possible from the website. ([#4012](https://github.com/expo/eas-cli/pull/4012) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Add `eas browse` to open the project page on expo.dev in a web browser, with an optional page argument (e.g. `eas browse build`, `eas browse hosting`) for project subpages and a `--no-browser` flag to print the URL. `eas open` is now an alias of `eas browse`. ([#4003](https://github.com/expo/eas-cli/pull/4003) by [@jonsamp](https://github.com/jonsamp))
+- [eas-cli] Add `--dev-domain` flag to `eas deploy` to choose the project's preview URL (`<name>.expo.app`) without prompting, allowing first-time deploys with `--non-interactive`. ([#4004](https://github.com/expo/eas-cli/pull/4004) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Add `-p` as an alias for `--platform` in `eas simulator:start`. ([#3902](https://github.com/expo/eas-cli/pull/3902) by [@brentvatne](https://github.com/brentvatne))
+
+### 🧹 Chores
+
+- [eas-cli][build-tools][local-build-plugin][worker] Bump `tar` to `7.5.19`. ([#3971](https://github.com/expo/eas-cli/pull/3971) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [21.0.0](https://github.com/expo/eas-cli/releases/tag/v21.0.0) - 2026-07-13
+
+### 🛠 Breaking changes
+
 - [eas-cli] Remove `eas onboarding` command (aliases `init:onboarding`, `project:onboarding`). ([#3993](https://github.com/expo/eas-cli/pull/3993) by [@byronkarlen](https://github.com/byronkarlen))
 
 ### 🎉 New features
@@ -13,6 +53,12 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas project:status` (alias `eas status`) command that prints a snapshot of the project's recent builds, development builds, workflow runs, submissions, and updates, with `--json` and `--non-interactive` support. ([#4006](https://github.com/expo/eas-cli/pull/4006) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] Improve `eas workflow:create`: add a `--template` flag, generate a placeholder workflow when a file name is passed, use shorter default file names (`build.yml`, `update.yml`, `deploy.yml`), configure EAS Build and EAS Update automatically when the chosen template requires them, set default app identifiers without prompting for the development build and deploy templates, install `expo-dev-client` during development build setup, and tighten the generated comments and next steps. ([#3943](https://github.com/expo/eas-cli/pull/3943) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] `eas integrations:posthog:dashboard` now opens PostHog via a signed-in link, skipping the login prompt. ([#3975](https://github.com/expo/eas-cli/pull/3975) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_capture_event` workflow function to send PostHog events from workflow runs. ([#3934](https://github.com/expo/eas-cli/pull/3934) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_flag_rollout` workflow function to update PostHog feature flags from workflow runs. ([#3944](https://github.com/expo/eas-cli/pull/3944) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_wait_for_metric` workflow function to gate workflow runs on a PostHog metric. ([#3945](https://github.com/expo/eas-cli/pull/3945) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_upload_sourcemaps` workflow function to upload source maps to PostHog. ([#3947](https://github.com/expo/eas-cli/pull/3947) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_annotation` workflow function to create PostHog annotations from workflow runs. ([#3948](https://github.com/expo/eas-cli/pull/3948) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add `eas/posthog_wait_for_query` workflow function to gate workflow runs on a PostHog query. ([#3949](https://github.com/expo/eas-cli/pull/3949) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
@@ -23,14 +69,24 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- Upgrade Expo plist dependencies to use `@xmldom/xmldom` `0.8.13` without a root resolution, addressing Dependabot alert 372. ([#4010](https://github.com/expo/eas-cli/pull/4010) by [@sjchmiela](https://github.com/sjchmiela))
 - [eas-cli] add agent detection to analytics events. ([#3983](https://github.com/expo/eas-cli/pull/3983) by [@davidmokos](https://github.com/davidmokos))
 - Bump `glob` 10.x to a patched version in the root lockfile. ([#3979](https://github.com/expo/eas-cli/pull/3979) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Bump `jws` to a patched version in the root lockfile. ([#3978](https://github.com/expo/eas-cli/pull/3978) by [@szdziedzic](https://github.com/szdziedzic))
+- [worker] Bump `koa` to `3.1.2`. ([#3974](https://github.com/expo/eas-cli/pull/3974) by [@szdziedzic](https://github.com/szdziedzic))
+- [steps] Bump `cross-spawn` to a patched version in the TypeScript custom function fixture. ([#3977](https://github.com/expo/eas-cli/pull/3977) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `node-forge` to `1.4.0`. ([#3970](https://github.com/expo/eas-cli/pull/3970) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-builder` to `1.2.1` to resolve [Dependabot alert 400](https://github.com/expo/eas-cli/security/dependabot/400). ([#3966](https://github.com/expo/eas-cli/pull/3966) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `form-data` to patched releases to resolve [Dependabot alert 465](https://github.com/expo/eas-cli/security/dependabot/465). ([#3962](https://github.com/expo/eas-cli/pull/3962) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `fast-xml-parser` to `4.5.7` to resolve [Dependabot alert 286](https://github.com/expo/eas-cli/security/dependabot/286). ([#3960](https://github.com/expo/eas-cli/pull/3960) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Bump `shell-quote` to `1.9.0` to resolve [Dependabot alert 440](https://github.com/expo/eas-cli/security/dependabot/440). ([#3959](https://github.com/expo/eas-cli/pull/3959) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [20.5.1](https://github.com/expo/eas-cli/releases/tag/v20.5.1) - 2026-07-01
 
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix Free plan users being warned they had reached their build limit while still well below it. Overage warnings are now shown only for paid plans with an actual billable overage cost. ([#3882](https://github.com/expo/eas-cli/pull/3882) by [@sarahlane8](https://github.com/sarahlane8))
+- [eas-cli] Count only genuine per-worker build overages in the pre-build usage warning, so the reported number of builds beyond included credits is accurate. ([#3932](https://github.com/expo/eas-cli/pull/3932) by [@sarahlane8](https://github.com/sarahlane8))
 - [eas-cli] Select correct tvOS build target for non-interactive Apple builds when EXPO_TV env variable is set. ([#3907](https://github.com/expo/eas-cli/pull/3907) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores

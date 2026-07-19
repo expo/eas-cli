@@ -49,6 +49,7 @@ export default class SimulatorStart extends EasCommand {
 
   static override flags = {
     platform: Flags.option({
+      char: 'p',
       description: 'Device platform',
       options: ['android', 'ios'] as const,
       required: true,
