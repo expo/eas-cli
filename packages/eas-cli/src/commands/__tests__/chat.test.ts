@@ -1,0 +1,370 @@
+import { getMockOclifConfig } from '../../__tests__/commands/utils';
+import { ChatResult, streamChatResponseAsync } from '../../chat/chatClient';
+import { detectCurrentProjectAsync } from '../../chat/detectProject';
+import { ChatReplInput, createChatReplInput } from '../../chat/replInput';
+import * as flagsModule from '../../commandUtils/flags';
+import { AppQuery } from '../../graphql/queries/AppQuery';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+import Chat from '../chat';
+
+jest.mock('../../chat/chatClient', () => ({
+  ...jest.requireActual('../../chat/chatClient'),
+  streamChatResponseAsync: jest.fn(),
+}));
+jest.mock('../../chat/replInput');
+jest.mock('../../chat/detectProject');
+jest.mock('../../log');
+jest.mock('../../utils/json');
+jest.mock('../../graphql/queries/AppQuery', () => ({
+  AppQuery: { byFullNameAsync: jest.fn() },
+}));
+
+const mockStreamChatResponseAsync = jest.mocked(streamChatResponseAsync);
+const mockCreateChatReplInput = jest.mocked(createChatReplInput);
+const mockDetectCurrentProjectAsync = jest.mocked(detectCurrentProjectAsync);
+const mockAppByFullNameAsync = jest.mocked(AppQuery.byFullNameAsync);
+const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
+const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+function makeChatResult(text: string, toolCalls: ChatResult['toolCalls'] = []): ChatResult {
+  return {
+    text,
+    toolCalls,
+    assistantMessage: {
+      id: 'assistant-message',
+      role: 'assistant',
+      parts: [{ type: 'text', text }],
+    },
+  };
+}
+
+const emptyResult = makeChatResult('ok');
+
+function mockReplInput(lines: (string | null)[]): { askAsync: jest.Mock; close: jest.Mock } {
+  const askAsync = jest.fn();
+  for (const line of lines) {
+    askAsync.mockResolvedValueOnce(line);
+  }
+  askAsync.mockResolvedValue(null);
+  const input = { askAsync, close: jest.fn() };
+  mockCreateChatReplInput.mockReturnValue(input as ChatReplInput);
+  return input;
+}
+
+function forceInteractive(): void {
+  jest
+    .spyOn(flagsModule, 'resolveNonInteractiveAndJsonFlags')
+    .mockReturnValue({ json: false, nonInteractive: false });
+}
+
+describe(Chat, () => {
+  const mockConfig = getMockOclifConfig();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+    mockStreamChatResponseAsync.mockResolvedValue(emptyResult);
+    mockDetectCurrentProjectAsync.mockResolvedValue(null);
+  });
+
+  function createCommand(
+    argv: string[],
+    {
+      sessionSecret = '{"id":"session-id","version":"1"}',
+      primaryAccountName = 'my-account',
+    }: { sessionSecret?: string | null; primaryAccountName?: string } = {}
+  ): Chat {
+    const command = new Chat(argv, mockConfig);
+    // @ts-expect-error getContextAsync is protected
+    jest.spyOn(command, 'getContextAsync').mockResolvedValue({
+      loggedIn: {
+        actor: {
+          __typename: 'User',
+          id: 'user-id',
+          primaryAccount: { id: 'account-id', name: primaryAccountName },
+          accounts: [{ id: 'account-id', name: primaryAccountName }],
+        },
+        graphqlClient: {},
+        authenticationInfo: sessionSecret
+          ? { accessToken: null, sessionSecret }
+          : { accessToken: 'token', sessionSecret: null },
+      },
+    });
+    return command;
+  }
+
+  it('sends the message for the primary account and does not prompt in non-interactive mode', async () => {
+    const command = createCommand(['how are my builds?', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('my-account');
+    expect(call.sessionSecret).toBe('{"id":"session-id","version":"1"}');
+    expect(call.stream).toBe(true);
+    expect(call.messages).toHaveLength(1);
+    expect(call.messages[0].parts[0]).toEqual({ type: 'text', text: 'how are my builds?' });
+    expect(mockCreateChatReplInput).not.toHaveBeenCalled();
+  });
+
+  it('prefers the --account flag over the primary account and skips project auto-detection', async () => {
+    const command = createCommand(['hi', '--account', 'other-account', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync.mock.calls[0][0].accountName).toBe('other-account');
+    expect(mockDetectCurrentProjectAsync).not.toHaveBeenCalled();
+  });
+
+  it('auto-scopes to the current directory project when no scope flags are given', async () => {
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+
+    const command = createCommand(['is my build ok?', '--non-interactive']);
+    await command.runAsync();
+
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('acme');
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
+  });
+
+  it('does not auto-detect when --project is given', async () => {
+    mockAppByFullNameAsync.mockResolvedValue({
+      id: 'app1',
+      fullName: '@acme/mobile',
+      slug: 'mobile',
+      ownerAccount: { id: 'acc', name: 'acme' },
+    } as any);
+
+    const command = createCommand(['hi', '--project', 'acme/mobile', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockDetectCurrentProjectAsync).not.toHaveBeenCalled();
+  });
+
+  it('resolves --project to its owner account and frames the message', async () => {
+    mockAppByFullNameAsync.mockResolvedValue({
+      id: 'app1',
+      fullName: '@acme/mobile',
+      slug: 'mobile',
+      ownerAccount: { id: 'acc', name: 'acme' },
+    } as any);
+
+    const command = createCommand([
+      'is my build ok?',
+      '--project',
+      'acme/mobile',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockAppByFullNameAsync).toHaveBeenCalledWith(expect.anything(), '@acme/mobile');
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('acme');
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
+  });
+
+  it('throws a friendly error when --project cannot be found', async () => {
+    mockAppByFullNameAsync.mockRejectedValue(new Error('not found'));
+    const command = createCommand(['hi', '--project', 'acme/ghost', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow(/@acme\/ghost was not found/);
+  });
+
+  it('continues the conversation with follow-up replies until the user types /exit', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    const input = mockReplInput(['and my updates?', '/exit']);
+
+    const command = createCommand(['how are my builds?']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(3);
+    expect(secondCall.messages[1].role).toBe('assistant');
+    expect(secondCall.messages[2].role).toBe('user');
+    expect(secondCall.messages[2].parts[0]).toEqual({ type: 'text', text: 'and my updates?' });
+    expect(input.close).toHaveBeenCalled();
+    expect(mockCreateChatReplInput).toHaveBeenCalledWith(
+      expect.objectContaining({ history: ['how are my builds?'] })
+    );
+  });
+
+  it('retains tool results in the conversation history for follow-up questions', async () => {
+    forceInteractive();
+    const result = makeChatResult('The latest build passed.', [
+      { toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: ['b1'] } },
+    ]);
+    result.assistantMessage.parts = [
+      { type: 'step-start' },
+      {
+        type: 'tool-get_latest_builds',
+        toolCallId: 't1',
+        state: 'output-available',
+        input: { limit: 1 },
+        output: { builds: ['b1'] },
+      },
+      { type: 'step-start' },
+      { type: 'text', text: result.text },
+    ];
+    mockStreamChatResponseAsync.mockResolvedValue(result);
+    mockReplInput(['what SDK did it use?', '/exit']);
+
+    const command = createCommand(['how are my builds?']);
+    await command.runAsync();
+
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages[1]).toEqual(result.assistantMessage);
+  });
+
+  it('exits when the input stream closes (Ctrl-D)', async () => {
+    forceInteractive();
+    mockReplInput([null]);
+
+    const command = createCommand(['how are my builds?']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the interactive session alive when a request fails and re-prompts', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync
+      .mockRejectedValueOnce(new Error('You have reached your chat usage limit.'))
+      .mockResolvedValue(makeChatResult('answer'));
+    const input = mockReplInput(['try again', '/exit']);
+
+    const command = createCommand(['how are my builds?']);
+    await expect(command.runAsync()).resolves.toBeUndefined();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0]).toEqual({ type: 'text', text: 'try again' });
+    expect(input.close).toHaveBeenCalled();
+  });
+
+  it('propagates a request failure in non-interactive mode without retrying', async () => {
+    mockStreamChatResponseAsync.mockRejectedValue(new Error('boom'));
+
+    const command = createCommand(['hi', '--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow('boom');
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts a new conversation with /clear', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['/clear', 'fresh question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0]).toEqual({ type: 'text', text: 'fresh question' });
+  });
+
+  it('restores project scope after /clear', async () => {
+    forceInteractive();
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['/clear', 'fresh question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    const secondCall = mockStreamChatResponseAsync.mock.calls[1][0];
+    expect(secondCall.messages).toHaveLength(1);
+    expect(secondCall.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: fresh question',
+    });
+  });
+
+  it('ignores unknown slash commands and keeps prompting', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['/bogus', 'a real question', '/exit']);
+
+    const command = createCommand(['first question']);
+    await command.runAsync();
+
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(2);
+    expect(mockStreamChatResponseAsync.mock.calls[1][0].messages[2].parts[0]).toEqual({
+      type: 'text',
+      text: 'a real question',
+    });
+  });
+
+  it('emits structured JSON and does not stream or prompt when --json is passed', async () => {
+    mockStreamChatResponseAsync.mockResolvedValue(
+      makeChatResult('Your latest build passed.', [
+        { toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: [] } },
+      ])
+    );
+
+    const command = createCommand(['how are my builds?', '--json']);
+    await command.runAsync();
+
+    expect(mockEnableJsonOutput).toHaveBeenCalled();
+    expect(mockStreamChatResponseAsync.mock.calls[0][0].stream).toBe(false);
+    expect(mockCreateChatReplInput).not.toHaveBeenCalled();
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      message: 'how are my builds?',
+      account: 'my-account',
+      project: null,
+      response: 'Your latest build passed.',
+      toolCalls: [{ toolName: 'get_latest_builds', input: { limit: 1 }, output: { builds: [] } }],
+    });
+  });
+
+  it('throws when authenticated with an access token instead of a session secret', async () => {
+    const command = createCommand(['hi', '--non-interactive'], { sessionSecret: null });
+    await expect(command.runAsync()).rejects.toThrow(/requires an interactive login/);
+    expect(mockStreamChatResponseAsync).not.toHaveBeenCalled();
+  });
+
+  it('requires a message argument', async () => {
+    const command = createCommand(['--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow();
+  });
+
+  it('opens an interactive prompt when no message is given', async () => {
+    forceInteractive();
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    const input = mockReplInput(['how are my builds?', '/exit']);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockCreateChatReplInput).toHaveBeenCalledWith(expect.objectContaining({ history: [] }));
+    expect(mockStreamChatResponseAsync).toHaveBeenCalledTimes(1);
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.messages).toHaveLength(1);
+    expect(call.messages[0].parts[0]).toEqual({ type: 'text', text: 'how are my builds?' });
+    expect(input.close).toHaveBeenCalled();
+  });
+
+  it('frames the first typed message with the auto-detected project when no message is given', async () => {
+    forceInteractive();
+    mockDetectCurrentProjectAsync.mockResolvedValue({ accountName: 'acme', label: '@acme/mobile' });
+    mockStreamChatResponseAsync.mockResolvedValue(makeChatResult('answer'));
+    mockReplInput(['is my build ok?', '/exit']);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    const call = mockStreamChatResponseAsync.mock.calls[0][0];
+    expect(call.accountName).toBe('acme');
+    expect(call.messages[0].parts[0]).toEqual({
+      type: 'text',
+      text: 'Regarding the EAS project @acme/mobile: is my build ok?',
+    });
+  });
+});
