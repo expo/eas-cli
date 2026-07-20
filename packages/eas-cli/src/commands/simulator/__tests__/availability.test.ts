@@ -99,7 +99,9 @@ describe(SimulatorAvailability, () => {
     await command.runAsync();
 
     expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
-    expect(mockLog).toHaveBeenCalledWith('EAS Simulator is not enabled for testuser.');
+    expect(mockLog).toHaveBeenCalledWith(
+      "EAS Simulator isn't available on testuser yet — it's coming soon."
+    );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 });

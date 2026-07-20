@@ -59,11 +59,6 @@ export default class SimulatorAvailability extends EasCommand {
       return;
     }
 
-    Log.log(`EAS Simulator is not enabled for ${account.name}.`);
-    Log.newLine();
-    Log.log(
-      'EAS Simulator is a limited-access EAS feature that is still rolling out. ' +
-        'To register interest, visit https://expo.dev/eas.'
-    );
+    Log.log(`EAS Simulator isn't available on ${account.name} yet — it's coming soon.`);
   }
 }
