@@ -1,4 +1,4 @@
-import { BuildContext, GCS } from '@expo/build-tools';
+import { BuildContext, uploadWithSignedUrl } from '@expo/build-tools';
 import { Job, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { randomBytes, randomUUID } from 'crypto';
@@ -143,7 +143,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
       logger: ctx.logger,
     });
 
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -225,7 +225,7 @@ describe(uploadApplicationArchiveAsync.name, () => {
         }),
       } as Response;
     });
-    jest.mocked(GCS.uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
+    jest.mocked(uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
 
     let thrownError: unknown;
     try {
@@ -354,8 +354,8 @@ describe(uploadBuildArtifactsAsync.name, () => {
       buildId: randomUUID(),
       logger: ctx.logger,
     });
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledTimes(1);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledTimes(1);
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -433,7 +433,7 @@ describe(uploadBuildArtifactsAsync.name, () => {
         }),
       } as Response;
     });
-    jest.mocked(GCS.uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
+    jest.mocked(uploadWithSignedUrl).mockRejectedValueOnce(uploadError);
 
     let thrownError: unknown;
     try {
@@ -525,7 +525,7 @@ describe('with signed upload url provided via www', () => {
       logger: ctx.logger,
     });
 
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,
@@ -624,8 +624,8 @@ describe(uploadWorkflowArtifactAsync.name, () => {
       logger: ctx.logger,
     });
     expect(artifactId).toBe(expectedArtifactId);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledTimes(1);
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledTimes(1);
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,

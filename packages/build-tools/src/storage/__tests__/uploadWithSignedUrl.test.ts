@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import fetch, { RequestInit, Response } from 'node-fetch';
 import { Readable } from 'stream';
 
-import { GCS } from '../client';
+import { type SignedUrl, uploadWithSignedUrl } from '../uploadWithSignedUrl';
 
 jest.mock('node-fetch');
 
@@ -27,14 +27,14 @@ class DNSError extends ErrorWithCode {
 
 const TEST_BUCKET = 'turtle-v2-test';
 
-function createSignedUrl(key: string, contentType: string): GCS.SignedUrl {
+function createSignedUrl(key: string, contentType: string): SignedUrl {
   return {
     url: `https://storage.googleapis.com/${TEST_BUCKET}/${key}?signature=test`,
     headers: { 'content-type': contentType },
   };
 }
 
-describe('GCS client', () => {
+describe('signed URL uploader', () => {
   describe('uploadWithSignedUrl', () => {
     it('should throw an error if upload fails', async () => {
       const fetchMock = jest.mocked(fetch);
@@ -49,7 +49,7 @@ describe('GCS client', () => {
 
       fetchMock.mockImplementation(async () => res);
       await expect(
-        GCS.uploadWithSignedUrl({
+        uploadWithSignedUrl({
           signedUrl,
           srcGeneratorAsync: async () => Readable.from('image'),
           retryIntervalMs: 0,
@@ -69,7 +69,7 @@ describe('GCS client', () => {
       const signedUrl = createSignedUrl(key, 'image/jpeg');
 
       fetchMock.mockImplementation(async () => res);
-      const result = await GCS.uploadWithSignedUrl({
+      const result = await uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from('image'),
         retryIntervalMs: 0,
@@ -96,7 +96,7 @@ describe('GCS client', () => {
           throw new DNSError('failed twice', 'EAI_AGAIN');
         })
         .mockImplementation(async () => res);
-      const result = await GCS.uploadWithSignedUrl({
+      const result = await uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from('image'),
         retryIntervalMs: 0,
@@ -130,7 +130,7 @@ describe('GCS client', () => {
           } as Response;
         })
         .mockImplementation(async () => res);
-      const result = await GCS.uploadWithSignedUrl({
+      const result = await uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from('image'),
         retryIntervalMs: 0,
@@ -161,7 +161,7 @@ describe('GCS client', () => {
           throw new DNSError('failed once');
         })
         .mockImplementation(async () => res);
-      const result = await GCS.uploadWithSignedUrl({
+      const result = await uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from('image'),
         retryIntervalMs: 0,
@@ -194,7 +194,7 @@ describe('GCS client', () => {
         })
         .mockImplementation(async () => res);
       await expect(
-        GCS.uploadWithSignedUrl({
+        uploadWithSignedUrl({
           signedUrl,
           srcGeneratorAsync: async () => Readable.from('image'),
           retryIntervalMs: 0,
@@ -235,7 +235,7 @@ describe('GCS client', () => {
         })
         .mockImplementation(async () => res);
       await expect(
-        GCS.uploadWithSignedUrl({
+        uploadWithSignedUrl({
           signedUrl,
           srcGeneratorAsync: async () => Readable.from('image'),
           retryIntervalMs: 0,
@@ -262,7 +262,7 @@ describe('GCS client', () => {
         })
         .mockImplementation(async () => res);
       await expect(
-        GCS.uploadWithSignedUrl({
+        uploadWithSignedUrl({
           signedUrl,
           srcGeneratorAsync: async () => Readable.from('image'),
           retryIntervalMs: 0,
@@ -305,7 +305,7 @@ describe('GCS client', () => {
 
       const bufferToUpload = randomBytes(16);
 
-      const result = await GCS.uploadWithSignedUrl({
+      const result = await uploadWithSignedUrl({
         signedUrl,
         srcGeneratorAsync: async () => Readable.from(bufferToUpload),
         retryIntervalMs: 0,
