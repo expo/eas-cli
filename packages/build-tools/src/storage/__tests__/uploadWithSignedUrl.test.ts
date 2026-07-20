@@ -36,30 +36,6 @@ function createSignedUrl(key: string, contentType: string): SignedUrl {
 
 describe('signed URL uploader', () => {
   describe('uploadWithSignedUrl', () => {
-    it('includes an explicit content length when provided', async () => {
-      const fetchMock = jest.mocked(fetch);
-      fetchMock.mockResolvedValue({ ok: true, status: 200 } as Response);
-      const src = Buffer.from('logs');
-
-      await uploadWithSignedUrl({
-        signedUrl: {
-          url: 'https://uploads.expo.test/logs.ndjson?signature',
-          headers: { 'Content-Type': 'application/x-ndjson' },
-        },
-        srcGeneratorAsync: async () => Readable.from(src),
-        contentLength: src.length,
-      });
-
-      expect(fetchMock).toHaveBeenCalledWith('https://uploads.expo.test/logs.ndjson?signature', {
-        method: 'PUT',
-        headers: {
-          'Content-Length': src.length.toString(),
-          'Content-Type': 'application/x-ndjson',
-        },
-        body: expect.any(Readable),
-      });
-    });
-
     it('should throw an error if upload fails', async () => {
       const fetchMock = jest.mocked(fetch);
       const res = {

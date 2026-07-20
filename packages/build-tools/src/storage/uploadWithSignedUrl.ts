@@ -2,7 +2,7 @@ import fetch, { FetchError } from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
 
-import { RetryOptions, retryOnUploadFailure } from './retry';
+import { retryOnUploadFailure } from './retry';
 
 export type SignedUrl = {
   url: string;
@@ -12,51 +12,43 @@ export type SignedUrl = {
 export type UploadWithSignedUrlParams = {
   signedUrl: SignedUrl;
   srcGeneratorAsync: () => Promise<Readable>;
-  contentLength?: number;
-  retryIntervalMs?: RetryOptions['retryIntervalMs'];
-  retries?: RetryOptions['retries'];
+  retryIntervalMs?: number;
+  retries?: number;
 };
 
 export async function uploadWithSignedUrl({
   signedUrl,
   srcGeneratorAsync,
-  contentLength,
   retries = 2,
   retryIntervalMs = 30_000,
 }: UploadWithSignedUrlParams): Promise<string> {
-  let response;
+  let resp;
   try {
-    response = await retryOnUploadFailure(
+    resp = await retryOnUploadFailure(
       async () => {
         const src = await srcGeneratorAsync();
         return await fetch(signedUrl.url, {
           method: 'PUT',
-          headers: {
-            ...signedUrl.headers,
-            ...(contentLength !== undefined ? { 'Content-Length': contentLength.toString() } : {}),
-          },
+          headers: signedUrl.headers,
           body: src,
         });
       },
-      {
-        retries,
-        retryIntervalMs,
-      }
+      { retries, retryIntervalMs }
     );
-  } catch (error: unknown) {
-    if (error instanceof FetchError) {
-      throw new Error(`Failed to upload the file, reason: ${error.code}`);
+  } catch (err: unknown) {
+    if (err instanceof FetchError) {
+      throw new Error(`Failed to upload the file, reason: ${err.code}`);
     }
-    throw error;
+    throw err;
   }
 
-  if (!response.ok) {
+  if (!resp.ok) {
     let body: string | undefined;
     try {
-      body = await response.text();
+      body = await resp.text();
     } catch {}
     throw new Error(
-      `Failed to upload file: status: ${response.status} status text: ${response.statusText}, body: ${body}`
+      `Failed to upload file: status: ${resp.status} status text: ${resp.statusText}, body: ${body}`
     );
   }
 

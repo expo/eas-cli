@@ -1,34 +1,35 @@
 import { Response } from 'node-fetch';
 
-export type RetryOptions = {
+type RetryOptions = {
   retries: number;
   retryIntervalMs: number;
-};
-
-interface RetryPolicy extends RetryOptions {
   shouldRetryOnError: (error: unknown) => boolean;
   shouldRetryOnResponse: (response: Response) => boolean;
-}
+};
 
+// based on https://github.com/googleapis/nodejs-storage/blob/8ab50804fc7bae3bbd159bbb4adf65c02215b11b/src/storage.ts#L284-L320
 export async function retryOnUploadFailure(
   fn: (attemptCount: number) => Promise<Response>,
-  { retries, retryIntervalMs }: RetryOptions
+  {
+    retries,
+    retryIntervalMs,
+  }: { retries: RetryOptions['retries']; retryIntervalMs: RetryOptions['retryIntervalMs'] }
 ): Promise<Response> {
   return await retry(fn, {
     retries,
     retryIntervalMs,
-    shouldRetryOnError: error => {
+    shouldRetryOnError: err => {
       return (
-        isErrorWithCode(error) &&
-        (error.code === 'ENOTFOUND' ||
-          error.code === 'EAI_AGAIN' ||
-          error.code === 'ECONNRESET' ||
-          error.code === 'ETIMEDOUT' ||
-          error.code === 'EPIPE')
+        isErrorWithCode(err) &&
+        (err.code === 'ENOTFOUND' ||
+          err.code === 'EAI_AGAIN' ||
+          err.code === 'ECONNRESET' ||
+          err.code === 'ETIMEDOUT' ||
+          err.code === 'EPIPE')
       );
     },
-    shouldRetryOnResponse: response => {
-      return [408, 429, 500, 502, 503, 504].includes(response.status);
+    shouldRetryOnResponse: resp => {
+      return [408, 429, 500, 502, 503, 504].includes(resp.status);
     },
   });
 }
@@ -37,25 +38,33 @@ function isErrorWithCode(error: unknown): error is { code: string } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
 
+/**
+ * Wrapper used to execute an inner function and possibly retry it if it throws an error
+ * @param fn Function to be executed and retried in case of error
+ * @param retries How many times at most should the function be retried
+ * @param retryIntervalMs Time interval between the retries
+ * @param shouldRetryOnError Function that determines if the function should be retried based on the error thrown
+ * @param shouldRetryOnResponse Function that determines if the function should be retried based on the response
+ */
 async function retry(
   fn: (attemptCount: number) => Promise<Response>,
-  { retries, retryIntervalMs, shouldRetryOnError, shouldRetryOnResponse }: RetryPolicy
+  { retries, retryIntervalMs, shouldRetryOnError, shouldRetryOnResponse }: RetryOptions
 ): Promise<Response> {
   let attemptCount = -1;
   for (;;) {
     try {
       attemptCount += 1;
-      const response = await fn(attemptCount);
-      if (attemptCount < retries && shouldRetryOnResponse(response)) {
-        await new Promise(resolve => setTimeout(resolve, retryIntervalMs));
+      const resp = await fn(attemptCount);
+      if (attemptCount < retries && shouldRetryOnResponse(resp)) {
+        await new Promise(res => setTimeout(res, retryIntervalMs));
       } else {
-        return response;
+        return resp;
       }
-    } catch (error: unknown) {
-      if (attemptCount === retries || !shouldRetryOnError(error)) {
-        throw error;
+    } catch (err: unknown) {
+      if (attemptCount === retries || !shouldRetryOnError(err)) {
+        throw err;
       }
-      await new Promise(resolve => setTimeout(resolve, retryIntervalMs));
+      await new Promise(res => setTimeout(res, retryIntervalMs));
     }
   }
 }

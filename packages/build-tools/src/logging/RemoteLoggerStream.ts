@@ -8,7 +8,7 @@ import { Readable, Writable, pipeline } from 'stream';
 import { promisify } from 'util';
 import zlib from 'zlib';
 
-import { SignedUrl as RemoteSignedUrl, uploadWithSignedUrl } from '../storage/uploadWithSignedUrl';
+import { type SignedUrl, uploadWithSignedUrl } from '../storage/uploadWithSignedUrl';
 
 type PromiseResolveFn = (value?: void | PromiseLike<void> | undefined) => void;
 
@@ -19,7 +19,6 @@ class RemoteLoggerStream extends Writable {
   private readonly logger: bunyan;
   private readonly uploadMethod?: RemoteLoggerStream.UploadMethod;
   private readonly options: RemoteLoggerStream.Options;
-  private readonly onError?: RemoteLoggerStream.ErrorHandler;
   private readonly temporaryLogsPath: string;
   private readonly temporaryCompressedLogsPath: string;
   private readonly compress: string | null;
@@ -31,12 +30,11 @@ class RemoteLoggerStream extends Writable {
   private writePromise?: Promise<any>;
   private cleanUpCalled: boolean = false;
 
-  constructor({ logger, uploadMethod, options, onError }: RemoteLoggerStream.Config) {
+  constructor({ logger, uploadMethod, options }: RemoteLoggerStream.Config) {
     super();
     this.logger = logger;
     this.uploadMethod = uploadMethod;
     this.options = options;
-    this.onError = onError;
     this.compress = options?.compress ?? this.findNormalizedHeader('contentencoding');
     this.temporaryLogsPath = path.join(os.tmpdir(), `logs-${randomUUID()}`);
     this.temporaryCompressedLogsPath = `${this.temporaryLogsPath}.compressed`;
@@ -117,9 +115,7 @@ class RemoteLoggerStream extends Writable {
       this.buffer = this.buffer.slice(buffer.length);
       this.hasChangesToUpload = true;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      this.onError?.(error, 'write');
-      this.logger.error({ err: error, origin: 'remote-logger' }, 'Failed to write logs to file');
+      this.logger.error({ err, origin: 'remote-logger' }, 'Failed to write logs to file');
     } finally {
       this.writePromise = undefined;
     }
@@ -148,9 +144,7 @@ class RemoteLoggerStream extends Writable {
         return result;
       })
       .catch(err => {
-        const error = err instanceof Error ? err : new Error(String(err));
-        this.onError?.(error, 'upload');
-        this.logger.error({ err: error }, 'Failed to upload logs file');
+        this.logger.error({ err }, 'Failed to upload logs file');
       })
       .then(result => {
         this.uploadingPromise = undefined;
@@ -166,18 +160,14 @@ class RemoteLoggerStream extends Writable {
 
     const { size } = await fs.stat(this.temporaryLogsPath);
     const srcGeneratorAsync = async (): Promise<Readable> => {
-      // Writes may continue during an upload, so read exactly the snapshot whose size is sent.
       return await this.createCompressedStream(
-        size === 0
-          ? Readable.from([])
-          : fs.createReadStream(this.temporaryLogsPath, { start: 0, end: size - 1 })
+        fs.createReadStream(this.temporaryLogsPath, { end: size })
       );
     };
 
     return await uploadWithSignedUrl({
       signedUrl: this.uploadMethod.signedUrl,
       srcGeneratorAsync,
-      ...(this.compress === null ? { contentLength: size } : {}),
     });
   }
 
@@ -222,15 +212,10 @@ namespace RemoteLoggerStream {
     signedUrl: SignedUrl;
   };
 
-  export type SignedUrl = RemoteSignedUrl;
-
-  export type ErrorHandler = (error: Error, operation: 'write' | 'upload') => void;
-
   export interface Config {
     logger: bunyan;
     uploadMethod?: UploadMethod;
     options: Options;
-    onError?: ErrorHandler;
   }
 }
 
