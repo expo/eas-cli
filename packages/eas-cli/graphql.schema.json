@@ -327,6 +327,22 @@
             "deprecationReason": null
           },
           {
+            "name": "deviceRunSessionsEnabled",
+            "description": "Whether EAS Simulator (remote device run sessions) is available for this account.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "activityTimelineProjectActivities",
             "description": "Coalesced project activity for all apps belonging to this account.",
             "args": [
