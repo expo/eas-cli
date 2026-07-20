@@ -57,7 +57,9 @@ interface CreateFlags {
 }
 
 export default class EnvCreate extends EasCommand {
-  static override description = 'create an environment variable for the current project or account';
+  static override description =
+    'create an environment variable for the current project or account (deprecated, use eas env:set)';
+  static override hidden = true;
 
   static override args = {
     environment: Args.string({
@@ -95,6 +97,9 @@ export default class EnvCreate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:set instead.');
+    Log.newLine();
+
     const { args, flags } = await this.parse(EnvCreate);
 
     const validatedFlags = this.sanitizeFlags(flags);
