@@ -28,6 +28,7 @@ import { setTimeout as setTimeoutAsync } from 'timers/promises';
 import { build } from './build';
 import config from './config';
 import { createBuildContext } from './context';
+import { EasJobType } from './env';
 import { Analytics } from './external/analytics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
@@ -108,7 +109,8 @@ export default class BuildService {
     this.state.buildStarted();
     this._startBuildTime = Date.now();
 
-    this.startBuildInternal({ job, metadata, initiatingUserId, projectId });
+    const jobType: EasJobType = rest.jobType ?? 'build';
+    this.startBuildInternal({ job, metadata, initiatingUserId, projectId, jobType });
   }
 
   public async finishError(err: errors.ExpoError, artifacts: Artifacts | null): Promise<void> {
@@ -264,11 +266,13 @@ export default class BuildService {
     metadata,
     projectId,
     initiatingUserId,
+    jobType,
   }: {
     job: Job;
     metadata: Metadata | undefined;
     projectId: string;
     initiatingUserId: string;
+    jobType: EasJobType;
   }): Promise<void> {
     try {
       const {
@@ -299,6 +303,7 @@ export default class BuildService {
         metadata: metadata ?? {},
         projectId,
         buildId: this.buildId,
+        jobType,
         buildLogger,
       });
       this.buildContext = ctx;

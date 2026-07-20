@@ -5,7 +5,7 @@ import assert from 'assert';
 
 import { GCSCacheManager } from './CacheManager';
 import config from './config';
-import { getBuildEnv } from './env';
+import { EasJobType, getBuildEnv } from './env';
 import { Analytics } from './external/analytics';
 import { uploadXcodeBuildLogs } from './ios/xcodeLogs';
 import { prepareRuntimeEnvironmentConfigFiles } from './runtimeEnvironment';
@@ -24,6 +24,7 @@ export async function createBuildContext<TJob extends Job>({
   metadata,
   projectId,
   buildId,
+  jobType,
   buildLogger,
 }: {
   job: TJob;
@@ -32,6 +33,7 @@ export async function createBuildContext<TJob extends Job>({
   metadata: Metadata;
   projectId: string;
   buildId: string;
+  jobType: EasJobType;
   buildLogger: bunyan;
 }): Promise<BuildContext<TJob>> {
   const childLogger = buildLogger.child({ buildId });
@@ -40,7 +42,7 @@ export async function createBuildContext<TJob extends Job>({
     env: job.builderEnvironment?.env,
   });
   await prepareRuntimeEnvironmentConfigFiles();
-  const env = getBuildEnv({ job, projectId, metadata, buildId });
+  const env = getBuildEnv({ job, projectId, metadata, buildId, jobType });
 
   const uploadArtifact: BuildContextOptions['uploadArtifact'] = async ({ artifact, logger }) => {
     const { paths, type } = artifact;

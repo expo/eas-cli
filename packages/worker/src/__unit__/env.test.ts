@@ -1,5 +1,5 @@
 import { RuntimeSettings } from '@expo/build-tools';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import os from 'os';
 import v8 from 'v8';
 
@@ -74,9 +74,23 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.EAS_CLI_SENTRY_DSN).toBe(config.sentry.dsn);
+    expect(env.EAS_JOB_TYPE).toBe('build');
+  });
+
+  it('sets EAS_JOB_TYPE to jobRun for a job run', () => {
+    const env = getBuildEnv({
+      job: {} as unknown as Job,
+      projectId: 'project-id',
+      metadata: {} as unknown as Metadata,
+      buildId: 'job-run-id',
+      jobType: 'jobRun',
+    });
+
+    expect(env.EAS_JOB_TYPE).toBe('jobRun');
   });
 
   it('does not add precompiled modules env vars to flagged iOS jobs', () => {
@@ -97,6 +111,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.EAS_USE_PRECOMPILED_MODULES).toBeUndefined();
@@ -123,6 +138,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.EAS_USE_PRECOMPILED_MODULES).toBe('1');
@@ -147,6 +163,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.EAS_USE_PRECOMPILED_MODULES).toBeUndefined();
@@ -173,6 +190,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect({ ...baseEnv, ...job.builderEnvironment.env }.EAS_USE_PRECOMPILED_MODULES).toBe('0');
@@ -200,6 +218,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.NPM_CACHE_URL).toBeUndefined();
@@ -233,6 +252,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.NPM_CACHE_URL).toBeUndefined();
@@ -270,6 +290,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.NPM_CACHE_URL).toBeUndefined();
@@ -354,6 +375,7 @@ describe(getBuildEnv.name, () => {
         username: 'expo-user',
       } as any,
       buildId: 'build-id',
+      jobType: 'build',
     });
 
     expect(env.NODE_OPTIONS).toBe(

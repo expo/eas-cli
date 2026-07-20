@@ -13,6 +13,8 @@ import { getAccessedEnvs } from './utils/env';
 
 const GIB_IN_BYTES = 1024 ** 3;
 
+export type EasJobType = 'build' | 'jobRun';
+
 // keep in sync with local-build-plugin env vars
 // see packages/local-build-plugin/src/build.ts
 export function getBuildEnv({
@@ -20,11 +22,13 @@ export function getBuildEnv({
   projectId,
   metadata,
   buildId,
+  jobType,
 }: {
   job: Job;
   projectId: string;
   metadata: Metadata;
   buildId: string;
+  jobType: EasJobType;
 }): Env {
   const env = getFilteredEnv();
 
@@ -49,6 +53,7 @@ export function getBuildEnv({
   setEnv(env, 'EAS_BUILD_PROFILE', metadata.buildProfile);
   setEnv(env, 'EAS_BUILD_GIT_COMMIT_HASH', metadata.gitCommitHash);
   setEnv(env, 'EAS_BUILD_ID', buildId);
+  setEnv(env, 'EAS_JOB_TYPE', jobType);
   setEnv(env, 'LANG', 'en_US.UTF-8');
   setEnv(env, 'EAS_BUILD_WORKINGDIR', path.join(config.workingdir, 'build'));
   setEnv(env, 'EAS_BUILD_PROJECT_ID', projectId);

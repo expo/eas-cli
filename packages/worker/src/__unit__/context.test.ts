@@ -31,6 +31,7 @@ describe(createBuildContext.name, () => {
     metadata: {},
     projectId: 'project-id',
     buildId: 'build-id',
+    jobType: 'build' as const,
     buildLogger,
   };
 

@@ -6,6 +6,7 @@ import path from 'path';
 
 import { build } from '../build';
 import { createBuildContext } from '../context';
+import { LauncherMessage } from '../external/turtle';
 import { createBuildLoggerWithSecretsFilter } from '../logger';
 import BuildService, { getExpoPackageVersionAsync } from '../service';
 
@@ -179,5 +180,53 @@ describe('BuildService Datadog setup', () => {
     });
 
     expect(datadogSetupMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('BuildService startBuild job type', () => {
+  function spyOnStartBuildInternal(service: BuildService): jest.SpyInstance {
+    return jest
+      .spyOn(
+        service as unknown as { startBuildInternal: () => Promise<void> },
+        'startBuildInternal'
+      )
+      .mockResolvedValue(undefined);
+  }
+
+  it('forwards jobRun as the job type for a job run dispatch', () => {
+    const service = new BuildService();
+    const startBuildInternalSpy = spyOnStartBuildInternal(service);
+
+    service.startBuild({
+      type: LauncherMessage.MessageType.DISPATCH,
+      job: {},
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+      jobType: 'jobRun',
+      jobRunId: 'build-id',
+    } as unknown as LauncherMessage.Dispatch);
+
+    expect(startBuildInternalSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ jobType: 'jobRun' })
+    );
+  });
+
+  it('forwards build as the job type for a build dispatch', () => {
+    const service = new BuildService();
+    const startBuildInternalSpy = spyOnStartBuildInternal(service);
+
+    service.startBuild({
+      type: LauncherMessage.MessageType.DISPATCH,
+      job: {},
+      metadata: {},
+      projectId: 'project-id',
+      initiatingUserId: 'user-id',
+      buildId: 'build-id',
+    } as unknown as LauncherMessage.Dispatch);
+
+    expect(startBuildInternalSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ jobType: 'build' })
+    );
   });
 });

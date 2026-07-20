@@ -32,6 +32,7 @@ export async function buildAsync(job: BuildJob, metadata: Metadata): Promise<voi
       EAS_BUILD: '1',
       EAS_BUILD_RUNNER: 'local-build-plugin',
       EAS_BUILD_PLATFORM: job.platform,
+      EAS_JOB_TYPE: 'build',
       EAS_BUILD_WORKINGDIR: path.join(workingdir, 'build'),
       EAS_BUILD_PROFILE: metadata.buildProfile,
       EAS_BUILD_GIT_COMMIT_HASH: metadata.gitCommitHash,
