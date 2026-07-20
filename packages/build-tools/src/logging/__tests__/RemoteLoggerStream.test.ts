@@ -37,37 +37,6 @@ describe(RemoteLoggerStream, () => {
     const expectedBody = `${JSON.stringify(record)}\n`;
     expect(contentLengths).toEqual([0, Buffer.byteLength(expectedBody)]);
   });
-
-  it('drops records after reaching the configured size limit', async () => {
-    jest
-      .spyOn(signedUrlUploader, 'uploadWithSignedUrl')
-      .mockResolvedValue('https://uploads.expo.test/logs.ndjson');
-    const onError = jest.fn();
-    const stream = new RemoteLoggerStream({
-      logger: createLogger(),
-      uploadMethod: {
-        signedUrl: {
-          url: 'https://uploads.expo.test/logs.ndjson',
-          headers: { 'Content-Type': 'application/x-ndjson' },
-        },
-      },
-      options: { uploadIntervalMs: 60_000, maxSizeBytes: 1 },
-      onError,
-    });
-
-    await stream.init();
-    stream.write({ summary: 'too large' });
-    stream.write({ summary: 'also too large' });
-    await stream.cleanUp();
-
-    expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Log stream exceeded its maximum size of 1 bytes.',
-      }),
-      'write'
-    );
-  });
 });
 
 function createLogger(): bunyan {

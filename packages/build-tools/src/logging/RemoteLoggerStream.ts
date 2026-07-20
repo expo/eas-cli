@@ -30,8 +30,6 @@ class RemoteLoggerStream extends Writable {
   private buffer: string[] = [];
   private writePromise?: Promise<any>;
   private cleanUpCalled: boolean = false;
-  private bytesAccepted = 0;
-  private didExceedMaxSize = false;
 
   constructor({ logger, uploadMethod, options, onError }: RemoteLoggerStream.Config) {
     super();
@@ -96,25 +94,6 @@ class RemoteLoggerStream extends Writable {
       return true;
     }
     const logLine = `${JSON.stringify(rec)}\n`;
-    const logLineSize = Buffer.byteLength(logLine);
-    if (
-      this.options.maxSizeBytes !== undefined &&
-      this.bytesAccepted + logLineSize > this.options.maxSizeBytes
-    ) {
-      if (!this.didExceedMaxSize) {
-        this.didExceedMaxSize = true;
-        const error = new Error(
-          `Log stream exceeded its maximum size of ${this.options.maxSizeBytes} bytes.`
-        );
-        this.onError?.(error, 'write');
-        this.logger.error(
-          { err: error, origin: 'remote-logger' },
-          'Log stream size limit exceeded'
-        );
-      }
-      return true;
-    }
-    this.bytesAccepted += logLineSize;
     this.buffer.push(logLine);
     void this.safeWriteToFile();
     return true;
@@ -237,7 +216,6 @@ namespace RemoteLoggerStream {
   export interface Options {
     uploadIntervalMs: number;
     compress?: CompressionMethod;
-    maxSizeBytes?: number;
   }
 
   export type UploadMethod = {
