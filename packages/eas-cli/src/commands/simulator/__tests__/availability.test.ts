@@ -104,4 +104,21 @@ describe(SimulatorAvailability, () => {
     );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
+
+  it('logs the enabled message when available', async () => {
+    mockByAppIdAsync.mockResolvedValue(makeOwnerAccount(true));
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(mockLog).toHaveBeenCalledWith('✅ EAS Simulator is enabled for testuser.');
+    expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+  });
+
+  it('propagates a query failure', async () => {
+    mockByAppIdAsync.mockRejectedValue(new Error('network down'));
+
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow('network down');
+  });
 });
