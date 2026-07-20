@@ -71,6 +71,29 @@ describe(streamChatResponseAsync, () => {
     expect(result.text).toBe('Your latest build passed.');
   });
 
+  it('neutralizes terminal control characters in streamed text deltas', async () => {
+    const delta = 'Safe \u001b[2Jtext\u009b31m\u0007.';
+    nock(WEBSITE_ORIGIN)
+      .post('/api/chat')
+      .reply(200, sseBody([{ type: 'text-delta', id: '0', delta }]), {
+        'content-type': 'text/event-stream',
+      });
+
+    const result = await streamChatResponseAsync({
+      messages: [makeUserMessage('show the build log')],
+      accountName: 'my-account',
+      sessionSecret: '{"id":"abc","version":"1"}',
+      stream: true,
+    });
+
+    const written = writeSpy.mock.calls.map(call => call[0]).join('');
+    expect(written).toContain('Safe [2Jtext31m.');
+    expect(written).not.toContain('\u001b[2J');
+    expect(written).not.toContain('\u009b31m');
+    expect(written).not.toContain('\u0007');
+    expect(result.text).toBe(delta);
+  });
+
   it('keeps the spinner active until a full line is ready instead of clearing it on the first delta', async () => {
     nock(WEBSITE_ORIGIN)
       .post('/api/chat')

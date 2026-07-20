@@ -17,27 +17,29 @@ export function createMarkdownRenderState(): MarkdownRenderState {
 const FENCE_REGEX = /^\s*```/;
 const BULLET_REGEX = /^(\s*)[-*+]\s+(.*)$/;
 const ORDERED_REGEX = /^(\s*)(\d+)\.\s+(.*)$/;
+const TERMINAL_CONTROL_CHARACTERS_REGEX = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 
 export function renderMarkdownLine(line: string, state: MarkdownRenderState): string | null {
-  if (FENCE_REGEX.test(line)) {
+  const sanitizedLine = line.replace(TERMINAL_CONTROL_CHARACTERS_REGEX, '');
+  if (FENCE_REGEX.test(sanitizedLine)) {
     state.inCodeBlock = !state.inCodeBlock;
     return null;
   }
   if (state.inCodeBlock) {
-    return chalk.gray(line);
+    return chalk.gray(sanitizedLine);
   }
 
-  const bullet = line.match(BULLET_REGEX);
+  const bullet = sanitizedLine.match(BULLET_REGEX);
   if (bullet) {
     return `${bullet[1]}${chalk.dim('•')} ${renderInlineMarkdown(bullet[2])}`;
   }
 
-  const ordered = line.match(ORDERED_REGEX);
+  const ordered = sanitizedLine.match(ORDERED_REGEX);
   if (ordered) {
     return `${ordered[1]}${chalk.dim(`${ordered[2]}.`)} ${renderInlineMarkdown(ordered[3])}`;
   }
 
-  return renderInlineMarkdown(line);
+  return renderInlineMarkdown(sanitizedLine);
 }
 
 export function renderInlineMarkdown(text: string): string {
