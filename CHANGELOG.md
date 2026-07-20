@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-build-job] Extend `app_store_connect.build_upload` workflow interpolation context with optional `cf_bundle_short_version_string`, `platform`, `uploaded_date`, and `created_date`. (by [@sswrk](https://github.com/sswrk))
+- [eas-build-job] Extend `app_store_connect.build_upload` workflow interpolation context with optional `cf_bundle_short_version_string`, `platform`, `uploaded_date`, and `created_date`. ([#4037](https://github.com/expo/eas-cli/pull/4037) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
