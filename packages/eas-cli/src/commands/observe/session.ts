@@ -14,6 +14,7 @@ import {
   fetchObserveSessionEventsAsync,
   fetchSessionLogCandidatesAsync,
   fetchSessionMetricCandidatesAsync,
+  verifyObserveSessionAccessAsync,
 } from '../../observe/fetchSessions';
 import { ObserveProjectIdFlag, ObserveTimeRangeFlags } from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
@@ -113,6 +114,13 @@ export default class ObserveSession extends EasCommand {
         'A session ID argument is required in non-interactive mode. In interactive mode, you can omit the session ID to pick one from a list of events.'
       );
     } else {
+      // Session timelines are a paid feature. Verify access before walking the
+      // user through the interactive picker so a blocked plan gets the upgrade
+      // prompt immediately, rather than after selecting an event (or a
+      // misleading "No events found" when there are no candidates).
+      await withObservePlanGateHandlingAsync(() =>
+        verifyObserveSessionAccessAsync(graphqlClient, projectId)
+      );
       sessionId = await pickSessionIdInteractivelyAsync({
         graphqlClient,
         projectId,
