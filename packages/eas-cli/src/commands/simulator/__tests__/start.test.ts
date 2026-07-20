@@ -14,6 +14,7 @@ import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSe
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
+import { promptAsync } from '../../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -42,6 +43,7 @@ jest.mock('../../../simulator/env', () => ({
   loadSimulatorEnvAsync: jest.fn(),
   resetSimulatorEnvAsync: jest.fn(),
 }));
+jest.mock('../../../prompts');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -71,6 +73,7 @@ const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockOra = jest.mocked(ora);
+const mockPromptAsync = jest.mocked(promptAsync);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -320,5 +323,33 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+  });
+
+  it('prompts to select the platform when --platform is omitted', async () => {
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'select', message: 'Select platform' })
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ platform: AppPlatform.Android })
+    );
+  });
+
+  it('throws instead of prompting when --platform is omitted in non-interactive mode', async () => {
+    const { command } = createCommand(['--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --platform flag must be set when running in non-interactive mode.'
+    );
+
+    expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 });

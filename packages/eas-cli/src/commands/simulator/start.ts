@@ -18,6 +18,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { promptAsync } from '../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -52,7 +53,6 @@ export default class SimulatorStart extends EasCommand {
       char: 'p',
       description: 'Device platform',
       options: ['android', 'ios'] as const,
-      required: true,
     })(),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -120,7 +120,7 @@ export default class SimulatorStart extends EasCommand {
       Log.newLine();
     }
 
-    const platform = flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
+    const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
@@ -241,6 +241,30 @@ export default class SimulatorStart extends EasCommand {
       projectDir,
     });
   }
+}
+
+async function resolvePlatformAsync(
+  platform: 'android' | 'ios' | undefined,
+  nonInteractive: boolean
+): Promise<AppPlatform> {
+  if (platform) {
+    return platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
+  }
+
+  if (nonInteractive) {
+    throw new Error('The --platform flag must be set when running in non-interactive mode.');
+  }
+
+  const { selectedPlatform } = await promptAsync({
+    type: 'select',
+    message: 'Select platform',
+    name: 'selectedPlatform',
+    choices: [
+      { title: 'Android', value: AppPlatform.Android },
+      { title: 'iOS', value: AppPlatform.Ios },
+    ],
+  });
+  return selectedPlatform;
 }
 
 async function writeSimulatorEnvSafelyAsync(
