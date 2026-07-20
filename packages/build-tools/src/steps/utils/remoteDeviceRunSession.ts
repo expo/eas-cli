@@ -80,11 +80,8 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
   return authtoken;
 }
 
-export function getMetricsCorsOrigin(env: BuildStepEnv): string | undefined {
-  return env.EAS_SIMULATOR_METRICS_CORS_ORIGIN || undefined;
-}
-
-export function metricsCorsOriginToServeSimArgs(origin: string | undefined): string[] {
+export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
+  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
   if (!origin) {
     return [];
   }
@@ -364,7 +361,7 @@ export async function startServeSimWithTunnelAsync(
 ): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
-  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(getMetricsCorsOrigin(env));
+  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
     args: [

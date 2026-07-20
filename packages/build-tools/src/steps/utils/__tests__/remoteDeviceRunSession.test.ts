@@ -8,7 +8,6 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
   fetchServeSimTurnArgsAsync,
-  getMetricsCorsOrigin,
   metricsCorsOriginToServeSimArgs,
   startServeSimWithTunnelAsync,
   turnIceServersToServeSimArgs,
@@ -85,32 +84,25 @@ function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
 
-describe(getMetricsCorsOrigin, () => {
-  it('returns the env origin, or undefined when unset/empty', () => {
-    expect(
-      getMetricsCorsOrigin({
-        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
-      } as BuildStepEnv)
-    ).toBe('https://expo.dev');
-    expect(getMetricsCorsOrigin({} as BuildStepEnv)).toBeUndefined();
-    expect(
-      getMetricsCorsOrigin({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
-    ).toBeUndefined();
-  });
-});
-
 describe(metricsCorsOriginToServeSimArgs, () => {
-  it('returns no args when no origin is set', () => {
-    expect(metricsCorsOriginToServeSimArgs(undefined)).toEqual([]);
-    expect(metricsCorsOriginToServeSimArgs('')).toEqual([]);
+  it('returns no args when the origin is unset or empty', () => {
+    expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
+    expect(
+      metricsCorsOriginToServeSimArgs({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
+    ).toEqual([]);
   });
 
   it('builds one flag per comma-separated origin', () => {
-    expect(metricsCorsOriginToServeSimArgs('https://expo.dev')).toEqual([
-      '--metrics-cors-origin',
-      'https://expo.dev',
-    ]);
-    expect(metricsCorsOriginToServeSimArgs('https://expo.dev, https://staging.expo.dev')).toEqual([
+    expect(
+      metricsCorsOriginToServeSimArgs({
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
+      } as BuildStepEnv)
+    ).toEqual(['--metrics-cors-origin', 'https://expo.dev']);
+    expect(
+      metricsCorsOriginToServeSimArgs({
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev, https://staging.expo.dev',
+      } as BuildStepEnv)
+    ).toEqual([
       '--metrics-cors-origin',
       'https://expo.dev',
       '--metrics-cors-origin',
@@ -322,6 +314,12 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 describe(startServeSimWithTunnelAsync, () => {
   const baseDomain = 'sim.expo.test';
 
+  beforeEach(() => {
+    jest.mocked(turtleFetch).mockResolvedValue({
+      json: async () => ({ data: { iceServers: [{ urls: ['stun:stun.cloudflare.com:3478'] }] } }),
+    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+  });
+
   function mockServeSimSpawn(tunnelOutput: string): void {
     const stdout = {
       on: (event: string, cb: (chunk: Buffer) => void): void => {
@@ -340,7 +338,10 @@ describe(startServeSimWithTunnelAsync, () => {
 
     const { previewUrl } = await startServeSimWithTunnelAsync(createCtxMock(), {
       baseDomain,
-      env: { EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev' } as BuildStepEnv,
+      env: {
+        ...createEnvMock(),
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
+      } as BuildStepEnv,
       logger: createLoggerMock(),
       timeoutMs: 1_000,
     });
@@ -356,7 +357,7 @@ describe(startServeSimWithTunnelAsync, () => {
 
     await startServeSimWithTunnelAsync(createCtxMock(), {
       baseDomain,
-      env: {} as BuildStepEnv,
+      env: createEnvMock(),
       logger: createLoggerMock(),
       timeoutMs: 1_000,
     });
