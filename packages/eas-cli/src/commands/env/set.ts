@@ -331,7 +331,7 @@ export default class EnvSet extends EasCommand {
       newType = await promptVariableTypeAsync(nonInteractive, existingVariable?.type);
     }
 
-    if (!newVisibility) {
+    if (!newVisibility && !nonInteractive) {
       newVisibility = await promptVariableVisibilityAsync(
         nonInteractive,
         existingVariable?.visibility
@@ -350,7 +350,8 @@ export default class EnvSet extends EasCommand {
       });
     }
 
-    newVisibility = newVisibility ?? EnvironmentVariableVisibility.Public;
+    newVisibility =
+      newVisibility ?? existingVariable?.visibility ?? EnvironmentVariableVisibility.Public;
 
     let fileName: string | undefined;
     if (newType === EnvironmentSecretType.FileBase64) {

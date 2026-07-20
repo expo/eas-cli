@@ -19,6 +19,7 @@ import {
   promptVariableNameAsync,
   promptVariableTypeAsync,
   promptVariableValueAsync,
+  promptVariableVisibilityAsync,
 } from '../../../utils/prompts';
 import EnvSet from '../set';
 
@@ -201,6 +202,54 @@ describe(EnvSet, () => {
       fileName: undefined,
     });
     expect(EnvironmentVariableMutation.createForAppAsync).not.toHaveBeenCalled();
+  });
+
+  it('preserves visibility when updating non-interactively without --visibility', async () => {
+    const command = new EnvSet(
+      [
+        '--name',
+        'VarName',
+        '--value',
+        'VarValue',
+        '--environment',
+        'production',
+        '--non-interactive',
+      ],
+      mockConfig
+    );
+
+    // @ts-expect-error
+    jest.spyOn(command, 'getContextAsync').mockReturnValue({
+      loggedIn: { graphqlClient },
+      projectId: testProjectId,
+    });
+
+    const otherVariableId = 'otherId';
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdAsync)
+      // @ts-expect-error
+      .mockImplementation(async () => [
+        {
+          id: otherVariableId,
+          environments: [DefaultEnvironment.Production],
+          scope: EnvironmentVariableScope.Project,
+          type: EnvironmentSecretType.String,
+          visibility: EnvironmentVariableVisibility.Sensitive,
+        },
+      ]);
+
+    await command.runAsync();
+
+    expect(promptVariableVisibilityAsync).not.toHaveBeenCalled();
+    expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(graphqlClient, {
+      id: otherVariableId,
+      name: 'VarName',
+      value: 'VarValue',
+      environments: [DefaultEnvironment.Production],
+      visibility: EnvironmentVariableVisibility.Sensitive,
+      type: EnvironmentSecretType.String,
+      fileName: undefined,
+    });
   });
 
   it('preserves other environments when updating an existing project variable', async () => {
