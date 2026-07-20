@@ -2,10 +2,7 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
-import {
-  SimulatorAvailabilityQuery,
-  SimulatorAvailabilityQueryVariables,
-} from '../generated';
+import { SimulatorAvailabilityQuery, SimulatorAvailabilityQueryVariables } from '../generated';
 
 export const DeviceRunSessionAvailabilityQuery = {
   async byAppIdAsync(
