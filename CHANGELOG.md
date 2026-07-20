@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Pass a metrics CORS origin to serve-sim so the dashboard can read a session's live CPU/memory stream cross-origin. ([#3990](https://github.com/expo/eas-cli/pull/3990) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Collect each iOS session's serve-sim CPU/memory `/metrics` to a file and upload it as a device run session artifact at teardown. ([#3995](https://github.com/expo/eas-cli/pull/3995) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
