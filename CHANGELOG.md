@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Prompt for the account that should own a not-yet-configured EAS project when linking it from commands like `eas build`, `eas submit`, and `eas update`, instead of silently defaulting to the personal account. ([#4054](https://github.com/expo/eas-cli/pull/4054) by [@williamgrosset](https://github.com/williamgrosset))
+
 ### 🧹 Chores
 
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
