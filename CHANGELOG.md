@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas update:republish` showing the `update:rollback` description ("roll back to an existing update") in its help output. ([#3888](https://github.com/expo/eas-cli/pull/3888) by [@patrickwehbe](https://github.com/patrickwehbe))
+
 ### 🧹 Chores
 
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
