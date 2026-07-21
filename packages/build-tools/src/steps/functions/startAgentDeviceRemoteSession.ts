@@ -17,8 +17,8 @@ import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
 import {
   type DetachedProcessHandle,
+  fetchNgrokCredentialAsync,
   getDeviceRunSessionIdOrThrow,
-  getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -55,13 +55,14 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
-      // Fail fast before any expensive setup if the injected env
-      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
-      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
-      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
+      // Fail fast before any expensive setup if the session context is
+      // incomplete: DEVICE_RUN_SESSION_ID (to report the remote config back to
+      // the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain for our
+      // ngrok tunnels), and a session-scoped ngrok authtoken minted by the API
+      // server (to authenticate them).
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      const ngrokCredential = await fetchNgrokCredentialAsync(ctx, { env, logger });
 
       const packageVersion = inputs.package_version.value as string | undefined;
       const { runtimePlatform } = global;
@@ -86,7 +87,8 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         port: daemonPort,
         subdomainPrefix: 'agent-device',
         baseDomain: ngrokTunnelDomain,
-        authtoken: ngrokAuthtoken,
+        hostname: ngrokCredential.remoteSessionHostname,
+        authtoken: ngrokCredential.authtoken,
         logger,
       });
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
@@ -97,6 +99,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
         const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
           baseDomain: ngrokTunnelDomain,
+          ngrokCredential,
           env,
           logger,
           timeoutMs: STARTUP_TIMEOUT_MS,

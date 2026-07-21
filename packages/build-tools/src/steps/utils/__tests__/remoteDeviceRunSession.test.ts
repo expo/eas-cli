@@ -6,6 +6,7 @@ import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import {
+  fetchNgrokCredentialAsync,
   fetchServeSimTurnArgsAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
@@ -194,6 +195,91 @@ describe(fetchServeSimTurnArgsAsync, () => {
     expect(args).toEqual([]);
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+});
+
+describe(fetchNgrokCredentialAsync, () => {
+  beforeEach(() => {
+    jest.mocked(turtleFetch).mockReset();
+    jest.mocked(Sentry).capture.mockReset();
+  });
+
+  it('fetches a session-scoped credential with its exact ACL hostnames', async () => {
+    jest.mocked(turtleFetch).mockResolvedValue({
+      json: async () => ({
+        data: {
+          authtoken: 'scoped-authtoken',
+          hostnames: {
+            remoteSession: 'agent-device-abc123.tunnels.test',
+            serveSim: 'serve-sim-abc123.tunnels.test',
+          },
+        },
+      }),
+    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+
+    const credential = await fetchNgrokCredentialAsync(createCtxMock(), {
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(credential).toEqual({
+      authtoken: 'scoped-authtoken',
+      remoteSessionHostname: 'agent-device-abc123.tunnels.test',
+      serveSimHostname: 'serve-sim-abc123.tunnels.test',
+    });
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledWith(
+      'https://api.expo.test/v2/device-run-sessions/drs-id/ngrok-credential',
+      'POST',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer robot-token' },
+        json: { supportsProvidedHostnames: true },
+      })
+    );
+  });
+
+  it('returns no hostnames when the server does not provide them', async () => {
+    jest.mocked(turtleFetch).mockResolvedValue({
+      json: async () => ({ data: { authtoken: 'scoped-authtoken' } }),
+    } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+
+    const credential = await fetchNgrokCredentialAsync(createCtxMock(), {
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(credential).toEqual({
+      authtoken: 'scoped-authtoken',
+      remoteSessionHostname: undefined,
+      serveSimHostname: undefined,
+    });
+  });
+
+  it('falls back to the shared NGROK_AUTHTOKEN job secret when the request fails', async () => {
+    jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
+    const logger = createLoggerMock();
+
+    const credential = await fetchNgrokCredentialAsync(createCtxMock(), {
+      env: {
+        ...createEnvMock(),
+        NGROK_AUTHTOKEN: 'shared-authtoken',
+      } as unknown as BuildStepEnv,
+      logger,
+    });
+
+    expect(credential).toEqual({ authtoken: 'shared-authtoken' });
+    expect(logger.warn).toHaveBeenCalled();
+    expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
+
+  it('throws when the request fails and no shared NGROK_AUTHTOKEN is available', async () => {
+    jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
+
+    await expect(
+      fetchNgrokCredentialAsync(createCtxMock(), {
+        env: createEnvMock(),
+        logger: createLoggerMock(),
+      })
+    ).rejects.toThrow('Could not fetch an ngrok authtoken for this device run session: boom.');
   });
 });
 
