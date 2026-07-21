@@ -10,11 +10,11 @@ import {
   resolveGradleCommand,
   runGradleCommand,
 } from '../android/gradle';
-import { parseGradleProfile, formatGradleProfileReport } from '../android/gradleProfile';
+import { formatGradleProfileReport, parseGradleProfile } from '../android/gradleProfile';
 import { Sentry } from '../sentry';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
-import { setupAsync } from '../common/setup';
+import { JobHooksRef, setupAsync } from '../common/setup';
 import { Artifacts, BuildContext, SkipNativeBuildError } from '../context';
 import {
   cacheStatsAsync,
@@ -50,7 +50,21 @@ export default async function androidBuilder(ctx: BuildContext<Android.Job>): Pr
 }
 
 async function buildAsync(ctx: BuildContext<Android.Job>): Promise<void> {
-  await setupAsync(ctx);
+  const jobHooksRef: JobHooksRef = { current: null };
+  try {
+    await buildInnerAsync(ctx, jobHooksRef);
+  } finally {
+    // Native builds have no other drain path for the hook context's queued
+    // step-metric uploads.
+    await jobHooksRef.current?.customBuildContext.drainPendingMetricUploads();
+  }
+}
+
+async function buildInnerAsync(
+  ctx: BuildContext<Android.Job>,
+  jobHooksRef: JobHooksRef
+): Promise<void> {
+  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
   const evictUsedBefore = new Date();
   const workingDirectory = ctx.getReactNativeProjectDirectory();
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
