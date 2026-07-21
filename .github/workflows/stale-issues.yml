@@ -8,7 +8,7 @@ jobs:
   close-issues:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@a20b814fb01b71def3bd6f56e7494d667ddf28da # v4
+      - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0
         with:
           ascending: false
           operations-per-run: 300
