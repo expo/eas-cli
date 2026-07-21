@@ -15,6 +15,7 @@
     "**/dist/**",
     "**/coverage/**",
     "**/node_modules/**",
-    "packages/eas-cli/src/graphql/generated.ts"
+    "packages/eas-cli/src/graphql/generated.ts",
+    "packages/expo-code-review-cli/**"
   ]
 }

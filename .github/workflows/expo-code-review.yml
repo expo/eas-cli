@@ -1,0 +1,54 @@
+name: AI code review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Comment-only: needs to read the repo and write PR comments.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # A reviewer failure must never fail the PR's checks in phase 1.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build reviewer
+        run: yarn workspace expo-code-review build
+
+      - name: Run AI review
+        # node_modules/.bin holds the `opencode` binary the SDK spawns.
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          node packages/expo-code-review-cli/build/cli.js ci
+        continue-on-error: true
+        env:
+          # GitHub token scoped by the permissions block above (PR comments only).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # OpenCode reads ANTHROPIC_API_KEY; source it from a dedicated,
+          # code-review-scoped secret so it can't clobber a general key.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_FOR_CODE_REVIEW }}
+          # Optional: override the model used by every agent.
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}

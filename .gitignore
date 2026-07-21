@@ -28,4 +28,5 @@ node_modules
 coverage
 
 # AI reviewer run logs / per-run patch workspaces
-tools/reviewer/.runs
+.expo-code-review/.runs
+packages/expo-code-review-cli/build
