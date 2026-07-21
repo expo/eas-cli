@@ -20,6 +20,11 @@
   // *.min.js, *.map, __snapshots__/*.snap, @generated markers).
   "noise": { "additionalIgnores": [] },
 
+  // Large diffs are split into focused chunks by changed-line count, plus a
+  // cross-cutting pass for multi-file issues. Diffs under maxChangedLines are one
+  // full-context pass. Defaults shown; raise/lower per your model + PR sizes.
+  // "chunk": { "maxChangedLines": 1000, "maxFiles": 20, "concurrency": 4 },
+
   // A maintainer comment containing this marker skips the CI review.
   "breakGlass": { "marker": "/skip-review" },
 

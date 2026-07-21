@@ -7,6 +7,7 @@ import { coordinate } from './coordinator.js';
 import { writeRunLog } from './log.js';
 import type { RunLogRecord } from './log.js';
 import { filterNoise, writePatchWorkspace } from './noise.js';
+import type { PatchWorkspaceFile } from './noise.js';
 import { buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
 import type { OpencodeHandle } from './opencode.js';
 import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
@@ -103,7 +104,11 @@ export async function runReview(
     // Split the diff into focused chunks so each reviewer call sees a small file
     // set (better recall than one giant blob), and run all agent×chunk calls
     // concurrently up to a cap.
-    const chunks = chunkArray(workspace.files, config.chunk.maxFiles);
+    const chunks = chunkByLines(
+      workspace.files,
+      config.chunk.maxChangedLines,
+      config.chunk.maxFiles
+    );
     // Only chunk (and add a cross-cutting pass) when the diff exceeds one chunk.
     const chunked = chunks.length > 1;
     progress(
@@ -236,10 +241,31 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
+/**
+ * Greedily pack files into chunks bounded by total changed lines (primary) and
+ * file count (secondary guard). A single file larger than maxChangedLines becomes
+ * its own chunk (a file is never split).
+ */
+function chunkByLines(
+  files: PatchWorkspaceFile[],
+  maxChangedLines: number,
+  maxFiles: number
+): PatchWorkspaceFile[][] {
+  const chunks: PatchWorkspaceFile[][] = [];
+  let current: PatchWorkspaceFile[] = [];
+  let lines = 0;
+  for (const file of files) {
+    const wouldOverflow = lines + file.changedLines > maxChangedLines;
+    if (current.length > 0 && (wouldOverflow || current.length >= maxFiles)) {
+      chunks.push(current);
+      current = [];
+      lines = 0;
+    }
+    current.push(file);
+    lines += file.changedLines;
+  }
+  if (current.length > 0) {
+    chunks.push(current);
   }
   return chunks;
 }
