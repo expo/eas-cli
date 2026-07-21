@@ -23,6 +23,7 @@ import {
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
@@ -110,27 +111,29 @@ export default class ObserveMetrics extends EasCommand {
     const platform = appObservePlatformFromFlag(flags.platform);
     const platforms = appPlatformsFromFlag(flags.platform);
 
-    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
-      fetchObserveEventsAsync(graphqlClient, projectId, {
-        metricName,
-        orderBy,
-        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-        ...(flags.after && { after: flags.after }),
-        startTime,
-        endTime,
-        platform,
-        appVersion: flags['app-version'],
-        updateId: flags['update-id'],
-      }),
-      fetchTotalEventCountAsync(
-        graphqlClient,
-        projectId,
-        metricName,
-        platforms,
-        startTime,
-        endTime
-      ),
-    ]);
+    const [{ events, pageInfo }, totalEventCount] = await withObservePlanGateHandlingAsync(() =>
+      Promise.all([
+        fetchObserveEventsAsync(graphqlClient, projectId, {
+          metricName,
+          orderBy,
+          limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+          ...(flags.after && { after: flags.after }),
+          startTime,
+          endTime,
+          platform,
+          appVersion: flags['app-version'],
+          updateId: flags['update-id'],
+        }),
+        fetchTotalEventCountAsync(
+          graphqlClient,
+          projectId,
+          metricName,
+          platforms,
+          startTime,
+          endTime
+        ),
+      ])
+    );
 
     if (json) {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
