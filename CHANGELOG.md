@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Quote `eas env:pull` values that contain `#`, whitespace or newlines so they are no longer truncated when the generated `.env` file is read back by dotenv. ([#3911](https://github.com/expo/eas-cli/pull/3911) by [@ryanda9910](https://github.com/ryanda9910))
+
 ### 🧹 Chores
 
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
