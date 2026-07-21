@@ -1,18 +1,14 @@
 {
-  // Default model for every agent. Override per-agent below, or at runtime with
-  // the REVIEWER_MODEL env var (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini-fast).
+  // Default model for every agent. Override per-agent via frontmatter in the
+  // agent's markdown, or at runtime with the REVIEWER_MODEL env var
+  // (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini-fast).
   "model": "anthropic/claude-sonnet-4-5",
 
-  // Prepended to every agent + the coordinator prompt.
-  "sharedPrompt": "prompts/shared.md",
-
-  "coordinator": { "prompt": "prompts/coordinator.md" },
-
-  // Add, remove, or re-scope agents freely. Each id must be unique.
-  "agents": [
-    { "id": "correctness", "prompt": "prompts/correctness.md" },
-    { "id": "security", "prompt": "prompts/security.md" }
-  ],
+  // Agents: every markdown file in agents/ is one reviewer (id = filename).
+  // Add or remove files to change the roster — no list needed here.
+  // shared.md (prepended to every agent + coordinator) and coordinator.md are
+  // reserved filenames. Per-agent overrides go in each file's YAML frontmatter,
+  // e.g. `---\nmodel: anthropic/claude-opus-4-1\n---`.
 
   "policy": {
     // Phase 1: keep signal high by surfacing only critical/warning.

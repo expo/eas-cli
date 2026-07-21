@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -48,28 +48,46 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
   const raw = await readFile(configPath, 'utf8');
   const parsed = ReviewConfigSchema.parse(JSON.parse(stripJsonComments(raw)));
 
-  const readPrompt = async (relativePath: string): Promise<string> => {
-    const promptPath = path.join(dir, relativePath);
-    try {
-      return await readFile(promptPath, 'utf8');
-    } catch {
-      throw new Error(`Prompt file not found: ${promptPath} (referenced from ${configPath})`);
-    }
-  };
-
   const override = process.env.REVIEWER_MODEL;
   const defaultModel = override ?? parsed.model;
+  const resolveModel = (frontmatterModel?: string): string =>
+    override ?? frontmatterModel ?? defaultModel;
+  const resolveTemp = (value: string | undefined, fallback: number): number => {
+    const n = value == null ? NaN : Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
 
-  const sharedPromptText = parsed.sharedPrompt ? await readPrompt(parsed.sharedPrompt) : '';
+  // shared.md is optional; the coordinator is required.
+  const sharedPath = path.join(dir, 'shared.md');
+  const sharedPromptText = existsSync(sharedPath)
+    ? parseFrontmatter(await readFile(sharedPath, 'utf8')).body
+    : '';
+
+  const coordinatorPath = path.join(dir, 'coordinator.md');
+  if (!existsSync(coordinatorPath)) {
+    throw new Error(`Missing ${CONFIG_DIRNAME}/coordinator.md`);
+  }
+  const coordinatorMd = parseFrontmatter(await readFile(coordinatorPath, 'utf8'));
+
+  // Every markdown file in agents/ is a reviewer agent (id = filename).
+  const agentsDir = path.join(dir, 'agents');
+  if (!existsSync(agentsDir)) {
+    throw new Error(`Missing ${CONFIG_DIRNAME}/agents/ directory. Run \`ecr init\`.`);
+  }
+  const agentFiles = (await readdir(agentsDir)).filter(name => name.endsWith('.md')).sort();
+  if (agentFiles.length === 0) {
+    throw new Error(`No agent markdown files in ${CONFIG_DIRNAME}/agents/.`);
+  }
 
   const agents: LoadedAgent[] = [];
-  for (const agent of parsed.agents) {
+  for (const file of agentFiles) {
+    const md = parseFrontmatter(await readFile(path.join(agentsDir, file), 'utf8'));
     agents.push({
-      id: agent.id,
-      model: override ?? agent.model ?? defaultModel,
-      temperature: agent.temperature ?? 0.1,
-      tools: { ...DEFAULT_AGENT_TOOLS, ...(agent.tools ?? {}) },
-      promptText: await readPrompt(agent.prompt),
+      id: file.replace(/\.md$/, ''),
+      model: resolveModel(md.data.model),
+      temperature: resolveTemp(md.data.temperature, 0.1),
+      tools: DEFAULT_AGENT_TOOLS,
+      promptText: md.body,
     });
   }
 
@@ -78,9 +96,9 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
     sharedPromptText,
     agents,
     coordinator: {
-      model: override ?? parsed.coordinator.model ?? defaultModel,
-      temperature: parsed.coordinator.temperature ?? 0,
-      promptText: await readPrompt(parsed.coordinator.prompt),
+      model: resolveModel(coordinatorMd.data.model),
+      temperature: resolveTemp(coordinatorMd.data.temperature, 0),
+      promptText: coordinatorMd.body,
     },
     policy: parsed.policy,
     chunk: parsed.chunk,
@@ -93,6 +111,31 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
       tokenEnv: parsed.auth.tokenEnv,
     },
   };
+}
+
+/**
+ * Parse optional YAML-ish frontmatter (simple `key: value` scalars) from the top
+ * of a markdown file. Returns the parsed keys and the body with frontmatter
+ * stripped. Supports per-agent overrides like `model:` and `temperature:`.
+ */
+export function parseFrontmatter(md: string): { data: Record<string, string>; body: string } {
+  if (!md.startsWith('---')) {
+    return { data: {}, body: md };
+  }
+  const end = md.indexOf('\n---', 3);
+  if (end === -1) {
+    return { data: {}, body: md };
+  }
+  const header = md.slice(3, end).trim();
+  const body = md.slice(end + 4).replace(/^\r?\n/, '');
+  const data: Record<string, string> = {};
+  for (const line of header.split('\n')) {
+    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (match) {
+      data[match[1]!] = match[2]!.trim().replace(/^["']|["']$/g, '');
+    }
+  }
+  return { data, body };
 }
 
 /**

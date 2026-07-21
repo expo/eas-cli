@@ -1,29 +1,9 @@
 import { z } from 'zod';
 
-/** One reviewer agent, as declared in a repo's config.jsonc. */
-export const AgentConfigSchema = z.object({
-  id: z.string(),
-  /** Path to the role prompt, relative to the config dir. */
-  prompt: z.string(),
-  /** Overrides the top-level default model for this agent. */
-  model: z.string().optional(),
-  /** OpenCode tool toggles; merged over the read-only defaults. */
-  tools: z.record(z.string(), z.boolean()).optional(),
-  temperature: z.number().optional(),
-});
-export type AgentConfig = z.infer<typeof AgentConfigSchema>;
-
 export const ReviewConfigSchema = z.object({
-  /** Default model for every agent (override per-agent or via REVIEWER_MODEL). */
+  /** Default model for every agent + the coordinator. Override per-agent via
+   * frontmatter in the agent's markdown, or globally via REVIEWER_MODEL. */
   model: z.string().default('anthropic/claude-sonnet-4-5'),
-  /** Optional shared prompt prepended to every agent + the coordinator. */
-  sharedPrompt: z.string().optional(),
-  coordinator: z.object({
-    prompt: z.string(),
-    model: z.string().optional(),
-    temperature: z.number().optional(),
-  }),
-  agents: z.array(AgentConfigSchema).min(1),
   policy: z
     .object({
       includeSuggestions: z.boolean().default(false),

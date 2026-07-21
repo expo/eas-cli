@@ -37,7 +37,9 @@ export async function initCommand(argv: string[]): Promise<void> {
   const skipped: string[] = [];
 
   await copyInto(path.join(TEMPLATES_DIR, 'config.jsonc'), path.join(configDir, 'config.jsonc'), force, created, skipped, root);
-  await copyInto(path.join(TEMPLATES_DIR, 'prompts'), path.join(configDir, 'prompts'), force, created, skipped, root);
+  await copyInto(path.join(TEMPLATES_DIR, 'shared.md'), path.join(configDir, 'shared.md'), force, created, skipped, root);
+  await copyInto(path.join(TEMPLATES_DIR, 'coordinator.md'), path.join(configDir, 'coordinator.md'), force, created, skipped, root);
+  await copyInto(path.join(TEMPLATES_DIR, 'agents'), path.join(configDir, 'agents'), force, created, skipped, root);
 
   const gitignorePath = path.join(configDir, '.gitignore');
   if (force || !existsSync(gitignorePath)) {
@@ -70,7 +72,7 @@ export async function initCommand(argv: string[]): Promise<void> {
     [
       '',
       'Next steps:',
-      `  1. Customize ${CONFIG_DIRNAME}/prompts/*.md for this repo.`,
+      `  1. Customize ${CONFIG_DIRNAME}/agents/*.md (and shared.md, coordinator.md) for this repo.`,
       '  2. Configure a model provider in OpenCode (or set REVIEWER_MODEL).',
       '  3. Run `ecr doctor`, then `ecr review`.',
       withWorkflow
