@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas channel:pause` and `eas channel:resume` showing the channel argument description as "Name of the channel to edit". ([#3887](https://github.com/expo/eas-cli/pull/3887) by [@patrickwehbe](https://github.com/patrickwehbe))
+
 ### 🧹 Chores
 
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
