@@ -89,7 +89,14 @@ const MAX_WAIT_MS = 20 * 60 * 1000;
  */
 export async function promptAgent(
   handle: OpencodeHandle,
-  args: { agent: string; system: string; text: string; title: string }
+  args: {
+    agent: string;
+    system: string;
+    text: string;
+    title: string;
+    /** Called once per tool the agent runs, for live progress (e.g. "read foo.ts"). */
+    onActivity?: (line: string) => void;
+  }
 ): Promise<PromptResult> {
   const session = unwrap<{ id: string }>(
     await handle.client.session.create({ body: { title: args.title } })
@@ -106,6 +113,7 @@ export async function promptAgent(
     })
   );
 
+  const reportedTools = new Set<string>();
   const deadline = Date.now() + MAX_WAIT_MS;
   for (;;) {
     if (Date.now() > deadline) {
@@ -116,7 +124,14 @@ export async function promptAgent(
     const messages = unwrap<
       Array<{
         info?: { role?: string; error?: unknown; cost?: number; time?: { completed?: number } };
-        parts?: Array<{ type?: string; text?: string }>;
+        parts?: Array<{
+          id?: string;
+          type?: string;
+          text?: string;
+          tool?: string;
+          callID?: string;
+          state?: { status?: string; title?: string };
+        }>;
       }>
     >(await handle.client.session.messages({ path: { id: session.id } }));
 
@@ -124,6 +139,25 @@ export async function promptAgent(
     if (!assistant) {
       continue;
     }
+
+    // Emit a live line the first time each tool call starts, so a long run shows
+    // what the agent is actually doing instead of going silent.
+    if (args.onActivity) {
+      for (const part of assistant.parts ?? []) {
+        if (part?.type !== 'tool') {
+          continue;
+        }
+        const key = part.callID ?? part.id;
+        const status = part.state?.status;
+        if (key && status && status !== 'pending' && !reportedTools.has(key)) {
+          reportedTools.add(key);
+          const tool = part.tool ?? 'tool';
+          const title = part.state?.title;
+          args.onActivity(title ? `${tool}: ${title}` : tool);
+        }
+      }
+    }
+
     if (assistant.info?.error) {
       throw new Error(
         `Agent "${args.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
@@ -153,7 +187,13 @@ const CORRECTIVE =
  */
 export async function promptAndParse<T>(
   handle: OpencodeHandle,
-  args: { agent: string; system: string; text: string; title: string },
+  args: {
+    agent: string;
+    system: string;
+    text: string;
+    title: string;
+    onActivity?: (line: string) => void;
+  },
   parse: (text: string) => T
 ): Promise<{ value: T; cost: number }> {
   let cost = 0;

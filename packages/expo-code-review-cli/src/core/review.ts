@@ -112,6 +112,7 @@ export async function runReview(
             system: buildReviewerSystem(config, agent),
             text: task,
             title: `review-${agent.id}`,
+            onActivity: line => progress(`  ${agent.id}: ${line}`),
           },
           parseReviewerOutput
         );
