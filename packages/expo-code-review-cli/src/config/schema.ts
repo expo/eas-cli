@@ -30,6 +30,15 @@ export const ReviewConfigSchema = z.object({
       maxFindings: z.number().int().positive().optional(),
     })
     .default({ includeSuggestions: false }),
+  chunk: z
+    .object({
+      // Files per focused reviewer call. Large diffs are split so each agent
+      // reviews a small, focused set (better recall) instead of one huge blob.
+      maxFiles: z.number().int().positive().default(10),
+      // Max concurrent reviewer calls across all agents/chunks.
+      concurrency: z.number().int().positive().default(4),
+    })
+    .default({ maxFiles: 10, concurrency: 4 }),
   noise: z
     .object({
       additionalIgnores: z.array(z.string()).default([]),
@@ -77,6 +86,10 @@ export interface LoadedConfig {
   policy: {
     includeSuggestions: boolean;
     maxFindings?: number;
+  };
+  chunk: {
+    maxFiles: number;
+    concurrency: number;
   };
   noise: {
     additionalIgnores: string[];

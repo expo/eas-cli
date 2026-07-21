@@ -1,6 +1,6 @@
 import type { LoadedAgent, LoadedConfig } from '../config/schema.js';
 import type { Finding, ReviewMetadata } from './schema.js';
-import type { PatchWorkspace } from './noise.js';
+import type { PatchWorkspaceFile } from './noise.js';
 
 const CONTROL_CHARS = new RegExp('[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]', 'g');
 
@@ -33,20 +33,25 @@ export function buildReviewerSystem(config: LoadedConfig, agent: LoadedAgent): s
   return withShared(config, agent.promptText);
 }
 
-/** The per-run task message pointing a reviewer at the patch workspace. */
-export function buildReviewerTask(workspace: PatchWorkspace): string {
-  const fileList = workspace.files
+/**
+ * The per-run task message. The reviewer reports issues only in `files` (one
+ * chunk of the diff) but may read anything in the repo for context.
+ */
+export function buildReviewerTask(files: PatchWorkspaceFile[]): string {
+  const fileList = files
     .map(file => `- \`${file.path}\` (${file.status ?? 'M'}) — patch: \`${file.patchPath}\``)
     .join('\n');
 
   return [
-    'A pull request changed the files listed below. Review ONLY these changes.',
-    '',
-    `A manifest is at \`${workspace.manifestPath}\`. For each file, read its patch`,
+    'A pull request changed the files listed below. For each one, read its patch',
     'file to see what changed, then read the surrounding source in the repository',
     'to confirm any finding in context before reporting it.',
     '',
-    'Changed files:',
+    '**Report issues only in these files.** You may read any other file in the repo',
+    'for context, but do not report findings located outside this list — another',
+    'reviewer covers the rest of the diff.',
+    '',
+    'Files to review:',
     fileList,
     '',
     'Return the single JSON object described in your instructions and nothing else.',

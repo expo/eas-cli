@@ -100,31 +100,47 @@ export async function runReview(
 
   try {
     const workspace = await writePatchWorkspace(kept, metadata, runDir);
-    const task = buildReviewerTask(workspace);
+    // Split the diff into focused chunks so each reviewer call sees a small file
+    // set (better recall than one giant blob), and run all agent×chunk calls
+    // concurrently up to a cap.
+    const chunks = chunkArray(workspace.files, config.chunk.maxFiles);
+    progress(
+      `Running ${config.agents.length} reviewer(s) over ${chunks.length} chunk(s) ` +
+        `(${kept.length} files, concurrency ${config.chunk.concurrency})…`
+    );
 
-    progress(`Running ${config.agents.length} reviewer(s): ${config.agents.map(a => a.id).join(', ')}…`);
-    const reviewerResults = await Promise.all(
-      config.agents.map(async agent => {
+    const agentFindings: Record<string, Finding[]> = {};
+    for (const agent of config.agents) {
+      agentFindings[agent.id] = [];
+      agentCosts[agent.id] = 0;
+    }
+
+    const tasks = config.agents.flatMap(agent =>
+      chunks.map((chunk, chunkIndex) => ({ agent, chunk, chunkIndex }))
+    );
+
+    await mapWithConcurrency(tasks, config.chunk.concurrency, async ({ agent, chunk, chunkIndex }) => {
+      const label =
+        chunks.length > 1 ? `${agent.id} [${chunkIndex + 1}/${chunks.length}]` : agent.id;
+      try {
         const { value, cost } = await promptAndParse(
           handle!,
           {
             agent: agent.id,
             system: buildReviewerSystem(config, agent),
-            text: task,
-            title: `review-${agent.id}`,
-            onActivity: line => progress(`  ${agent.id}: ${line}`),
+            text: buildReviewerTask(chunk),
+            title: `review-${agent.id}-${chunkIndex}`,
+            onActivity: line => progress(`  ${label}: ${line}`),
           },
           parseReviewerOutput
         );
-        agentCosts[agent.id] = cost;
-        return { id: agent.id, findings: value.findings };
-      })
-    );
-
-    const agentFindings: Record<string, Finding[]> = {};
-    for (const { id, findings } of reviewerResults) {
-      agentFindings[id] = findings;
-    }
+        agentCosts[agent.id] = (agentCosts[agent.id] ?? 0) + cost;
+        (agentFindings[agent.id] ??= []).push(...value.findings);
+      } catch (error) {
+        // One chunk failing must not sink the whole review.
+        progress(`  ${label}: FAILED (${errorMessage(error)})`);
+      }
+    });
 
     progress('Coordinating findings…');
     const { output: rawOutput, cost } = await coordinate(handle, config, metadata, agentFindings);
@@ -180,6 +196,31 @@ function applyReviewPolicy(
       ? 'approve'
       : output.decision;
   return { ...output, findings, decision };
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/** Run `fn` over items with at most `limit` in flight at once. */
+async function mapWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const item = items[next++]!;
+      await fn(item);
+    }
+  };
+  const count = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(Array.from({ length: count }, () => worker()));
 }
 
 function sum(costs: Record<string, number>): number {

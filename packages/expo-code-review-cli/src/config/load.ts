@@ -83,6 +83,7 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
       promptText: await readPrompt(parsed.coordinator.prompt),
     },
     policy: parsed.policy,
+    chunk: parsed.chunk,
     noise: parsed.noise,
     breakGlassMarker: parsed.breakGlass.marker,
     commentTag: parsed.commentTag,
