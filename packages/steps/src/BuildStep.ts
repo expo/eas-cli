@@ -28,7 +28,7 @@ import { evaluateIfCondition as evaluateIfConditionExpression } from './utils/js
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
-import { interpolateWithInputs, interpolateWithOutputs, parseOutputPath } from './utils/template';
+import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -518,8 +518,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private getLegacyStepOutputValue(path: string): string {
-    const { stepId, outputId } = parseOutputPath(path);
-    return this.ctx.global.getStepOutputValue(`steps.${stepId}.${outputId}`) ?? '';
+    return this.ctx.global.getStepOutputValue(path) ?? '';
   }
 
   private async collectAndValidateOutputsAsync(outputsDir: string): Promise<void> {
