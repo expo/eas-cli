@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import type { LoadedConfig } from '../config/schema.js';
+import type { LoadedAgent, LoadedConfig } from '../config/schema.js';
 import type { ReviewSource } from '../sources/source.js';
 import { prepareAuth } from './auth.js';
 import { coordinate } from './coordinator.js';
@@ -9,7 +9,7 @@ import type { RunLogRecord } from './log.js';
 import { filterNoise, writePatchWorkspace } from './noise.js';
 import { buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
 import type { OpencodeHandle } from './opencode.js';
-import { buildReviewerSystem, buildReviewerTask } from './prompts.js';
+import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
 import { parseReviewerOutput } from './schema.js';
 import type { CoordinatorOutput, Finding, Severity } from './schema.js';
 
@@ -104,8 +104,11 @@ export async function runReview(
     // set (better recall than one giant blob), and run all agent×chunk calls
     // concurrently up to a cap.
     const chunks = chunkArray(workspace.files, config.chunk.maxFiles);
+    // Only chunk (and add a cross-cutting pass) when the diff exceeds one chunk.
+    const chunked = chunks.length > 1;
     progress(
-      `Running ${config.agents.length} reviewer(s) over ${chunks.length} chunk(s) ` +
+      `Running ${config.agents.length} reviewer(s) over ${chunks.length} chunk(s)` +
+        `${chunked ? ' + cross-cutting pass' : ''} ` +
         `(${kept.length} files, concurrency ${config.chunk.concurrency})…`
     );
 
@@ -115,37 +118,59 @@ export async function runReview(
       agentCosts[agent.id] = 0;
     }
 
-    const tasks = config.agents.flatMap(agent =>
-      chunks.map((chunk, chunkIndex) => ({ agent, chunk, chunkIndex }))
-    );
+    interface ReviewTask {
+      agent: LoadedAgent;
+      label: string;
+      title: string;
+      text: string;
+    }
+    const tasks: ReviewTask[] = [];
+    for (const agent of config.agents) {
+      chunks.forEach((chunk, index) => {
+        tasks.push({
+          agent,
+          label: chunked ? `${agent.id} [${index + 1}/${chunks.length}]` : agent.id,
+          title: `review-${agent.id}-c${index}`,
+          text: buildReviewerTask(chunk, workspace.files),
+        });
+      });
+      // On a large diff, one extra pass per agent looks for issues that span
+      // multiple changed files, which the focused per-chunk passes can't see.
+      if (chunked) {
+        tasks.push({
+          agent,
+          label: `${agent.id} [cross-file]`,
+          title: `review-${agent.id}-xcut`,
+          text: buildCrossCuttingTask(workspace.files),
+        });
+      }
+    }
 
     const MAX_CHUNK_ATTEMPTS = 3;
-    await mapWithConcurrency(tasks, config.chunk.concurrency, async ({ agent, chunk, chunkIndex }) => {
-      const label =
-        chunks.length > 1 ? `${agent.id} [${chunkIndex + 1}/${chunks.length}]` : agent.id;
+    await mapWithConcurrency(tasks, config.chunk.concurrency, async task => {
       for (let attempt = 1; attempt <= MAX_CHUNK_ATTEMPTS; attempt++) {
         try {
           const { value, cost } = await promptAndParse(
             handle!,
             {
-              agent: agent.id,
-              system: buildReviewerSystem(config, agent),
-              text: buildReviewerTask(chunk),
-              title: `review-${agent.id}-${chunkIndex}-a${attempt}`,
-              onActivity: line => progress(`  ${label}: ${line}`),
+              agent: task.agent.id,
+              system: buildReviewerSystem(config, task.agent),
+              text: task.text,
+              title: `${task.title}-a${attempt}`,
+              onActivity: line => progress(`  ${task.label}: ${line}`),
             },
             parseReviewerOutput
           );
-          agentCosts[agent.id] = (agentCosts[agent.id] ?? 0) + cost;
-          (agentFindings[agent.id] ??= []).push(...value.findings);
+          agentCosts[task.agent.id] = (agentCosts[task.agent.id] ?? 0) + cost;
+          (agentFindings[task.agent.id] ??= []).push(...value.findings);
           return;
         } catch (error) {
           if (attempt < MAX_CHUNK_ATTEMPTS) {
-            progress(`  ${label}: retrying (attempt ${attempt} failed: ${errorMessage(error)})`);
+            progress(`  ${task.label}: retrying (attempt ${attempt} failed: ${errorMessage(error)})`);
             await sleep(2000 * attempt);
           } else {
-            // Give up on this chunk only after retries; must not sink the review.
-            progress(`  ${label}: FAILED after ${MAX_CHUNK_ATTEMPTS} attempts (${errorMessage(error)})`);
+            // Give up on this task only after retries; must not sink the review.
+            progress(`  ${task.label}: FAILED after ${MAX_CHUNK_ATTEMPTS} attempts (${errorMessage(error)})`);
           }
         }
       }

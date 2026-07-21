@@ -35,23 +35,67 @@ export function buildReviewerSystem(config: LoadedConfig, agent: LoadedAgent): s
 
 /**
  * The per-run task message. The reviewer reports issues only in `files` (one
- * chunk of the diff) but may read anything in the repo for context.
+ * chunk of the diff) but may read anything in the repo for context. `allFiles`
+ * lists every file the PR changed, so the reviewer is aware of related changes
+ * elsewhere and can read them without those diffs diluting its focus.
  */
-export function buildReviewerTask(files: PatchWorkspaceFile[]): string {
+export function buildReviewerTask(
+  files: PatchWorkspaceFile[],
+  allFiles: PatchWorkspaceFile[]
+): string {
   const fileList = files
     .map(file => `- \`${file.path}\` (${file.status ?? 'M'}) — patch: \`${file.patchPath}\``)
     .join('\n');
+
+  const assigned = new Set(files.map(file => file.path));
+  const others = allFiles.filter(file => !assigned.has(file.path));
+  const contextSection =
+    others.length > 0
+      ? [
+          '',
+          'Other files this PR changed (context only — read any if relevant to',
+          'judging your files, but do NOT report findings located in them; another',
+          'reviewer covers them):',
+          others.map(file => `- \`${file.path}\` — patch: \`${file.patchPath}\``).join('\n'),
+        ]
+      : [];
 
   return [
     'A pull request changed the files listed below. For each one, read its patch',
     'file to see what changed, then read the surrounding source in the repository',
     'to confirm any finding in context before reporting it.',
     '',
-    '**Report issues only in these files.** You may read any other file in the repo',
-    'for context, but do not report findings located outside this list — another',
-    'reviewer covers the rest of the diff.',
+    '**Report issues only in these files.**',
     '',
     'Files to review:',
+    fileList,
+    ...contextSection,
+    '',
+    'Return the single JSON object described in your instructions and nothing else.',
+  ].join('\n');
+}
+
+/**
+ * The cross-cutting pass: run once per agent after the focused chunk reviews on a
+ * large diff. It sees the whole change set and reports ONLY issues that span
+ * multiple changed files, which per-chunk reviews can't see.
+ */
+export function buildCrossCuttingTask(allFiles: PatchWorkspaceFile[]): string {
+  const fileList = allFiles
+    .map(file => `- \`${file.path}\` (${file.status ?? 'M'}) — patch: \`${file.patchPath}\``)
+    .join('\n');
+
+  return [
+    'This PR changed the files below, and each was already reviewed on its own.',
+    'Now look ONLY for issues that span MULTIPLE changed files — interactions the',
+    'per-file reviews cannot see. Examples: a changed function or signature in one',
+    'file that breaks a caller in another; inconsistent or mismatched contracts',
+    'across files; a data/taint flow that crosses files. Do NOT re-report',
+    'single-file issues.',
+    '',
+    'Read each patch and the surrounding source as needed to trace across files.',
+    '',
+    'Changed files:',
     fileList,
     '',
     'Return the single JSON object described in your instructions and nothing else.',

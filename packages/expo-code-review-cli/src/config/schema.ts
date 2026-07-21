@@ -12,13 +12,14 @@ export const ReviewConfigSchema = z.object({
     .default({ includeSuggestions: false }),
   chunk: z
     .object({
-      // Files per focused reviewer call. Large diffs are split so each agent
-      // reviews a small, focused set (better recall) instead of one huge blob.
-      maxFiles: z.number().int().positive().default(10),
+      // Files per focused reviewer call. A diff with <= maxFiles files is one
+      // full-context pass (no chunking). Larger diffs are split into focused
+      // chunks, and a cross-cutting pass then covers diff-spanning issues.
+      maxFiles: z.number().int().positive().default(15),
       // Max concurrent reviewer calls across all agents/chunks.
       concurrency: z.number().int().positive().default(4),
     })
-    .default({ maxFiles: 10, concurrency: 4 }),
+    .default({ maxFiles: 15, concurrency: 4 }),
   noise: z
     .object({
       additionalIgnores: z.array(z.string()).default([]),
