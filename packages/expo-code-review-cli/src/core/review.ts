@@ -119,26 +119,35 @@ export async function runReview(
       chunks.map((chunk, chunkIndex) => ({ agent, chunk, chunkIndex }))
     );
 
+    const MAX_CHUNK_ATTEMPTS = 3;
     await mapWithConcurrency(tasks, config.chunk.concurrency, async ({ agent, chunk, chunkIndex }) => {
       const label =
         chunks.length > 1 ? `${agent.id} [${chunkIndex + 1}/${chunks.length}]` : agent.id;
-      try {
-        const { value, cost } = await promptAndParse(
-          handle!,
-          {
-            agent: agent.id,
-            system: buildReviewerSystem(config, agent),
-            text: buildReviewerTask(chunk),
-            title: `review-${agent.id}-${chunkIndex}`,
-            onActivity: line => progress(`  ${label}: ${line}`),
-          },
-          parseReviewerOutput
-        );
-        agentCosts[agent.id] = (agentCosts[agent.id] ?? 0) + cost;
-        (agentFindings[agent.id] ??= []).push(...value.findings);
-      } catch (error) {
-        // One chunk failing must not sink the whole review.
-        progress(`  ${label}: FAILED (${errorMessage(error)})`);
+      for (let attempt = 1; attempt <= MAX_CHUNK_ATTEMPTS; attempt++) {
+        try {
+          const { value, cost } = await promptAndParse(
+            handle!,
+            {
+              agent: agent.id,
+              system: buildReviewerSystem(config, agent),
+              text: buildReviewerTask(chunk),
+              title: `review-${agent.id}-${chunkIndex}-a${attempt}`,
+              onActivity: line => progress(`  ${label}: ${line}`),
+            },
+            parseReviewerOutput
+          );
+          agentCosts[agent.id] = (agentCosts[agent.id] ?? 0) + cost;
+          (agentFindings[agent.id] ??= []).push(...value.findings);
+          return;
+        } catch (error) {
+          if (attempt < MAX_CHUNK_ATTEMPTS) {
+            progress(`  ${label}: retrying (attempt ${attempt} failed: ${errorMessage(error)})`);
+            await sleep(2000 * attempt);
+          } else {
+            // Give up on this chunk only after retries; must not sink the review.
+            progress(`  ${label}: FAILED after ${MAX_CHUNK_ATTEMPTS} attempts (${errorMessage(error)})`);
+          }
+        }
       }
     });
 
@@ -196,6 +205,10 @@ function applyReviewPolicy(
       ? 'approve'
       : output.decision;
   return { ...output, findings, decision };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {

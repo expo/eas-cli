@@ -75,7 +75,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_WAIT_MS = 20 * 60 * 1000;
+// Per-attempt ceiling. A focused chunk should finish well under this; hitting it
+// means the session stalled (e.g. provider rate-limiting), so we abort and let the
+// caller retry rather than sitting for many minutes.
+const MAX_WAIT_MS = 8 * 60 * 1000;
 
 /**
  * Run a single prompt against the named agent in a fresh session and return the
@@ -117,6 +120,12 @@ export async function promptAgent(
   const deadline = Date.now() + MAX_WAIT_MS;
   for (;;) {
     if (Date.now() > deadline) {
+      // Free the stalled session server-side before giving up.
+      try {
+        await handle.client.session.abort({ path: { id: session.id } });
+      } catch {
+        // best effort
+      }
       throw new Error(`Agent "${args.agent}" timed out after ${MAX_WAIT_MS / 60000} minutes`);
     }
     await sleep(POLL_INTERVAL_MS);
