@@ -185,5 +185,9 @@ export function truncateGitCommitMessage(
   if (msg === undefined) {
     return undefined;
   }
-  return msg.length > maxLength ? `${msg.substring(0, maxLength - 3)}...` : msg;
+  if (msg.length <= maxLength) {
+    return msg;
+  }
+  const truncated = msg.substring(0, maxLength - 3).replace(/[\uD800-\uDBFF]$/, '');
+  return `${truncated}...`;
 }

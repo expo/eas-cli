@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Fix `eas update` failing with a server error when run inside an EAS Build. ([#4048](https://github.com/expo/eas-cli/pull/4048) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Avoid splitting an emoji when truncating a long git commit message, which produced an invalid commit message the build server rejected. ([#4055](https://github.com/expo/eas-cli/pull/4055) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
 
