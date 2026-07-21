@@ -557,6 +557,55 @@ describe('StepsConfigParser hooks with composite functions', () => {
       'after-hook',
     ]);
   });
+
+  it('rejects a REGISTERED stamp on a composite call even when it expands into a single step', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'install_node_modules' }],
+        hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            runs: { steps: [{ run: 'echo setup' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toBe('Hook anchors are not supported on local composite function steps.');
+  });
+
+  it('rejects a REGISTERED stamp on a composite call that expands into multiple steps', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'install_node_modules' }],
+        hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            runs: { steps: [{ run: 'echo one' }, { run: 'echo two' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toBe('Hook anchors are not supported on local composite function steps.');
+  });
+
+  it('treats an UNREGISTERED-stamped composite call as an inert ordinary step (skew tolerance)', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'some_future_anchor' }],
+      hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          runs: { steps: [{ uses: 'eas/install_node_modules' }] },
+        },
+      }),
+    });
+    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
+  });
 });
 
 describe('StepsConfigParser hook validation view', () => {

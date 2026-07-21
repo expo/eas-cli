@@ -145,17 +145,23 @@ export class StepsConfigParser extends AbstractConfigParser {
         );
         continue;
       }
+      // Rejected regardless of expansion size: the anchor would land on an
+      // expanded inner step, and hooks never fire inside a composite function.
+      if (isStepFunctionStep(stepConfig) && isLocalCompositeFunctionPath(stepConfig.uses)) {
+        throw new BuildConfigError(
+          'Hook anchors are not supported on local composite function steps.'
+        );
+      }
       const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
       const createdSteps = this.createBuildStepsFromNonGroupStepConfig(
         stepConfig,
         maps,
         compositeFunctionExpander
       );
-      if (createdSteps.length !== 1) {
-        throw new BuildConfigError(
-          'Hook anchors are not supported on local composite function steps that expand into multiple build steps.'
-        );
-      }
+      assert(
+        createdSteps.length === 1,
+        'a non-composite step config must create exactly one build step'
+      );
       const anchorStep = createdSteps[0];
       buildSteps.push(anchorStep);
       const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
