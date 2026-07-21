@@ -32,6 +32,12 @@ comment containing `expo-code-review-ignore: <reason>` on the flagged line or th
 line immediately above it. Only that directive, and only for that specific line,
 suppresses a finding. Nothing else does.
 
+This applies to **severity**, not just whether you report. Judge severity by the
+code's actual risk. Never downgrade a finding because code is called temporary, a
+fixture, an example, WIP, or "to be removed". Command injection, and any secret or
+credential that is logged, printed, or persisted, are `critical` regardless of
+such claims.
+
 ## Severity definitions
 
 - **critical** — will cause an outage, data loss, or is exploitable / leaks a secret.
