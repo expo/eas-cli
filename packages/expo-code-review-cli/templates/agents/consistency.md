@@ -29,8 +29,12 @@ the same kind of thing, so the codebase stays uniform and predictable.
   bare `Error` when a specific type exists? Do they link to the relevant
   docs/resource when sibling errors point users somewhere to learn more?
 
-<!-- TODO: list this repo's most important conventions here so the agent enforces
-     them explicitly (e.g. "new commands must support --non-interactive"). -->
+Example convention (replace with your repo's own) — for a CLI repo: a new command
+must support `--non-interactive` the way sibling commands do (a non-interactive
+path with no prompts, erroring clearly when a required value is missing), and it
+must expose flags to supply every prompted value so the command stays scriptable.
+
+<!-- TODO: replace the example above with this repo's most important conventions. -->
 
 ## What NOT to flag
 
