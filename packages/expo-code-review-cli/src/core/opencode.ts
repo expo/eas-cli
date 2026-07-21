@@ -70,9 +70,22 @@ export async function startOpencode(config: unknown): Promise<OpencodeHandle> {
   return { client, url: server.url, close: () => server.close() };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_WAIT_MS = 20 * 60 * 1000;
+
 /**
  * Run a single prompt against the named agent in a fresh session and return the
  * concatenated assistant text.
+ *
+ * Uses the async prompt + polling rather than the synchronous `session.prompt`:
+ * a large diff can keep an agent busy well past undici's 300s headers timeout,
+ * which would kill a long-held synchronous request. promptAsync returns
+ * immediately and we poll the message list (quick GETs) until the assistant
+ * message completes.
  */
 export async function promptAgent(
   handle: OpencodeHandle,
@@ -82,11 +95,8 @@ export async function promptAgent(
     await handle.client.session.create({ body: { title: args.title } })
   );
 
-  const response = unwrap<{
-    info?: { cost?: number; error?: unknown };
-    parts?: Array<{ type?: string; text?: string }>;
-  }>(
-    await handle.client.session.prompt({
+  unwrap(
+    await handle.client.session.promptAsync({
       path: { id: session.id },
       body: {
         agent: args.agent,
@@ -96,19 +106,40 @@ export async function promptAgent(
     })
   );
 
-  if (response.info?.error) {
-    throw new Error(
-      `Agent "${args.agent}" returned an error: ${JSON.stringify(response.info.error)}`
-    );
+  const deadline = Date.now() + MAX_WAIT_MS;
+  for (;;) {
+    if (Date.now() > deadline) {
+      throw new Error(`Agent "${args.agent}" timed out after ${MAX_WAIT_MS / 60000} minutes`);
+    }
+    await sleep(POLL_INTERVAL_MS);
+
+    const messages = unwrap<
+      Array<{
+        info?: { role?: string; error?: unknown; cost?: number; time?: { completed?: number } };
+        parts?: Array<{ type?: string; text?: string }>;
+      }>
+    >(await handle.client.session.messages({ path: { id: session.id } }));
+
+    const assistant = [...messages].reverse().find(message => message.info?.role === 'assistant');
+    if (!assistant) {
+      continue;
+    }
+    if (assistant.info?.error) {
+      throw new Error(
+        `Agent "${args.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
+      );
+    }
+    if (assistant.info?.time?.completed == null) {
+      continue;
+    }
+
+    const text = (assistant.parts ?? [])
+      .filter(part => part?.type === 'text' && typeof part.text === 'string')
+      .map(part => part.text as string)
+      .join('\n')
+      .trim();
+    return { text, cost: assistant.info?.cost ?? 0, sessionID: session.id };
   }
-
-  const text = (response.parts ?? [])
-    .filter(part => part?.type === 'text' && typeof part.text === 'string')
-    .map(part => part.text as string)
-    .join('\n')
-    .trim();
-
-  return { text, cost: response.info?.cost ?? 0, sessionID: session.id };
 }
 
 const CORRECTIVE =
