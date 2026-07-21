@@ -29,13 +29,15 @@ export async function initCommand(argv: string[]): Promise<void> {
 
   const root = (await repoRoot()) ?? process.cwd();
   const configDir = path.join(root, CONFIG_DIRNAME);
-  await mkdir(path.join(configDir, 'prompts'), { recursive: true });
+  // Create only the config dir; let copyInto create prompts/ so it reports
+  // accurately as created vs skipped.
+  await mkdir(configDir, { recursive: true });
 
   const created: string[] = [];
   const skipped: string[] = [];
 
-  await copyInto(path.join(TEMPLATES_DIR, 'config.jsonc'), path.join(configDir, 'config.jsonc'), force, created, skipped);
-  await copyInto(path.join(TEMPLATES_DIR, 'prompts'), path.join(configDir, 'prompts'), force, created, skipped);
+  await copyInto(path.join(TEMPLATES_DIR, 'config.jsonc'), path.join(configDir, 'config.jsonc'), force, created, skipped, root);
+  await copyInto(path.join(TEMPLATES_DIR, 'prompts'), path.join(configDir, 'prompts'), force, created, skipped, root);
 
   const gitignorePath = path.join(configDir, '.gitignore');
   if (force || !existsSync(gitignorePath)) {
@@ -53,7 +55,8 @@ export async function initCommand(argv: string[]): Promise<void> {
       path.join(workflowDir, 'expo-code-review.yml'),
       force,
       created,
-      skipped
+      skipped,
+      root
     );
   }
 
@@ -83,13 +86,10 @@ async function copyInto(
   dest: string,
   force: boolean,
   created: string[],
-  skipped: string[]
+  skipped: string[],
+  root: string
 ): Promise<void> {
   const existed = existsSync(dest);
   await cp(src, dest, { recursive: true, force, errorOnExist: false });
-  if (existed && !force) {
-    skipped.push(dest);
-  } else {
-    created.push(dest);
-  }
+  (existed && !force ? skipped : created).push(path.relative(root, dest));
 }
