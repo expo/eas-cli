@@ -48,7 +48,7 @@ jobs:
           # GitHub token scoped by the permissions block above (PR comments only).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # OpenCode reads ANTHROPIC_API_KEY; source it from a dedicated,
-          # code-review-scoped secret so it can't clobber a general key.
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_FOR_CODE_REVIEW }}
+          # namespaced secret so it can't clobber a general-purpose key.
+          ANTHROPIC_API_KEY: ${{ secrets.EXPO_CODE_REVIEW_EXPERIMENT_ANTHROPIC_API_KEY }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
