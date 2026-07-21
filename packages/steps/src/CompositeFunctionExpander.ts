@@ -110,7 +110,7 @@ export class CompositeFunctionExpander {
       syntheticStepId,
       compositeFunctionPath
     );
-    const { inputs, providedInputKeys } = this.buildActionInputs(
+    const { inputs, providedInputKeys } = this.buildCompositeFunctionInputs(
       compositeFunction,
       compositeFunctionPath,
       call.callWith
@@ -163,13 +163,13 @@ export class CompositeFunctionExpander {
   }
 
   private lookupCompositeFunction(compositeFunctionPath: string): CompositeFunctionConfig {
-    const action = this.compositeFunctionCatalog[compositeFunctionPath];
-    if (!action) {
+    const compositeFunction = this.compositeFunctionCatalog[compositeFunctionPath];
+    if (!compositeFunction) {
       throw new BuildConfigError(
         `Local composite function "${compositeFunctionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${compositeFunctionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
       );
     }
-    return action;
+    return compositeFunction;
   }
 
   private expandInnerStep(
@@ -361,14 +361,14 @@ export class CompositeFunctionExpander {
   }
 
   // Nullish `with` values are treated as absent so defaults resolve in the composite function's own scope.
-  private buildActionInputs(
-    action: CompositeFunctionConfig,
+  private buildCompositeFunctionInputs(
+    compositeFunction: CompositeFunctionConfig,
     compositeFunctionPath: string,
     callWith: Record<string, unknown> | undefined
   ): { inputs: Map<string, BuildStepInput>; providedInputKeys: Set<string> } {
     const inputs = new Map<string, BuildStepInput>();
     const providedInputKeys = new Set<string>();
-    for (const declared of action.inputs ?? []) {
+    for (const declared of compositeFunction.inputs ?? []) {
       const definition =
         typeof declared === 'string'
           ? {
