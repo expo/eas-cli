@@ -40,6 +40,17 @@ export const ReviewConfigSchema = z.object({
     .object({ marker: z.string().default('/skip-review') })
     .default({ marker: '/skip-review' }),
   commentTag: z.string().default('expo-ai-code-reviewer'),
+  auth: z
+    .object({
+      // "api-key": the token env is sent as the provider's API key (x-api-key).
+      // "oauth": the token env is a Claude Pro/Max style OAuth token, injected
+      // into an isolated OpenCode auth.json so it's sent as a Bearer token.
+      mode: z.enum(['api-key', 'oauth']).default('api-key'),
+      provider: z.string().default('anthropic'),
+      /** Env var holding the key/token. */
+      tokenEnv: z.string().optional(),
+    })
+    .default({ mode: 'api-key', provider: 'anthropic' }),
 });
 export type RawReviewConfig = z.infer<typeof ReviewConfigSchema>;
 
@@ -73,4 +84,9 @@ export interface LoadedConfig {
   };
   breakGlassMarker: string;
   commentTag: string;
+  auth: {
+    mode: 'api-key' | 'oauth';
+    provider: string;
+    tokenEnv?: string;
+  };
 }

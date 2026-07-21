@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import type { LoadedConfig } from '../config/schema.js';
 import type { ReviewSource } from '../sources/source.js';
+import { prepareAuth } from './auth.js';
 import { coordinate } from './coordinator.js';
 import { writeRunLog } from './log.js';
 import type { RunLogRecord } from './log.js';
@@ -81,11 +82,14 @@ export async function runReview(
     return output;
   }
 
+  const auth = await prepareAuth(config);
+
   progress('Starting OpenCode server…');
   let handle: OpencodeHandle | null = null;
   try {
     handle = await startOpencode(buildOpencodeConfig(config));
   } catch (error) {
+    await auth.cleanup();
     throw new Error(
       `Failed to start the OpenCode server. Ensure the \`opencode\` CLI is installed and ` +
         `model credentials are configured.\n${errorMessage(error)}`
@@ -151,6 +155,7 @@ export async function runReview(
     throw error;
   } finally {
     handle?.close();
+    await auth.cleanup();
   }
 }
 

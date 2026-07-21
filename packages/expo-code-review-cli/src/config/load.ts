@@ -86,6 +86,11 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
     noise: parsed.noise,
     breakGlassMarker: parsed.breakGlass.marker,
     commentTag: parsed.commentTag,
+    auth: {
+      mode: parsed.auth.mode,
+      provider: parsed.auth.provider,
+      tokenEnv: parsed.auth.tokenEnv,
+    },
   };
 }
 

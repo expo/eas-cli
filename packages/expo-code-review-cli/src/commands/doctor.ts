@@ -29,26 +29,34 @@ export async function doctorCommand(): Promise<void> {
   } else {
     try {
       const config = await loadReviewConfig(root);
-      line(true, `config valid: ${config.agents.length} agent(s) [${config.agents.map(a => a.id).join(', ')}], coordinator model ${config.coordinator.model}`);
+      line(
+        true,
+        `config valid: ${config.agents.length} agent(s) [${config.agents.map(a => a.id).join(', ')}], coordinator model ${config.coordinator.model}`
+      );
       line(
         config.agents.every(a => Boolean(a.promptText.trim())),
         'all agent prompt files resolved and non-empty'
       );
+
+      const { mode, provider, tokenEnv } = config.auth;
+      if (tokenEnv) {
+        const present = Boolean(process.env[tokenEnv]);
+        line(
+          present,
+          present
+            ? `auth: ${mode} for ${provider}; token env ${tokenEnv} is set`
+            : `auth: ${mode} for ${provider}; token env ${tokenEnv} is NOT set`
+        );
+      } else {
+        line(
+          true,
+          `auth: ${mode} for ${provider}; no tokenEnv configured — relying on OpenCode's own login or REVIEWER_MODEL`
+        );
+      }
     } catch (error) {
       line(false, `config invalid: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-
-  const hasModelEnv =
-    Boolean(process.env.REVIEWER_MODEL) ||
-    Boolean(process.env.ANTHROPIC_API_KEY) ||
-    Boolean(process.env.OPENAI_API_KEY);
-  line(
-    hasModelEnv,
-    hasModelEnv
-      ? 'a model credential/override is present in the environment'
-      : 'no obvious model credential in env — ensure OpenCode is authenticated or set REVIEWER_MODEL + provider key'
-  );
 
   process.stdout.write(ok ? '\nAll good.\n' : '\nIssues found (see ✗ above).\n');
   process.exitCode = ok ? 0 : 1;

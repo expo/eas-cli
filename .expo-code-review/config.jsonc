@@ -19,5 +19,14 @@
   },
 
   "breakGlass": { "marker": "/skip-review" },
-  "commentTag": "expo-ai-code-reviewer"
+  "commentTag": "expo-ai-code-reviewer",
+
+  // Use a Claude Pro/Max OAuth token (from `claude setup-token`) rather than an
+  // x-api-key. The token is read from this env var and injected into an isolated
+  // OpenCode auth.json as a bearer credential.
+  "auth": {
+    "mode": "oauth",
+    "provider": "anthropic",
+    "tokenEnv": "DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY"
+  }
 }

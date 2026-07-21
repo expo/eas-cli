@@ -28,5 +28,16 @@
   "breakGlass": { "marker": "/skip-review" },
 
   // HTML marker used to find + update the single PR comment. Keep it stable.
-  "commentTag": "expo-ai-code-reviewer"
+  "commentTag": "expo-ai-code-reviewer",
+
+  // How model credentials are provided.
+  //   "api-key": tokenEnv holds a provider API key (sent as x-api-key). If you
+  //              omit `auth`, OpenCode's own login / ANTHROPIC_API_KEY is used.
+  //   "oauth":   tokenEnv holds a Claude Pro/Max OAuth token (from
+  //              `claude setup-token`); it's injected as a bearer credential.
+  "auth": {
+    "mode": "api-key",
+    "provider": "anthropic",
+    "tokenEnv": "ANTHROPIC_API_KEY"
+  }
 }
