@@ -67,17 +67,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api -X POST "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
 
-      - name: Checkout
+      # SECURITY: `issue_comment` is NOT fork-restricted by GitHub — it always
+      # runs in the base-repo context with full secrets and a write-scoped token,
+      # regardless of whether the commented-on PR is from a fork. We therefore
+      # check out and build ONLY the trusted base ref (the default branch) and
+      # never `gh pr checkout` the PR head. Running attacker-controlled PR-head
+      # code here (build scripts, edited cli.ts, install hooks) with
+      # DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY and GH_TOKEN in the environment
+      # would be a secret-exfiltration RCE that a maintainer typing `/review` on
+      # a malicious PR triggers. The reviewer only needs the diff + PR metadata,
+      # which it fetches over the API (`gh pr diff`/`gh pr view`), not a local
+      # checkout of the PR branch.
+      - name: Checkout (base ref only — never the PR head)
         if: steps.cmd.outputs.run == 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-
-      - name: Check out the PR head
-        if: steps.cmd.outputs.run == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr checkout ${{ github.event.issue.number }}
 
       - name: Enable Corepack
         if: steps.cmd.outputs.run == 'true'

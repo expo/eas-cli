@@ -24,6 +24,31 @@ those areas with extra care.
 - Missing validation on untrusted input at a trust boundary.
 - Insecure file permissions, or writing secrets to world-readable paths.
 
+## CI / workflow supply-chain (changes under `.github/workflows/**`)
+
+Treat any changed workflow as high-risk and reason about the *trigger*, not just
+the code. Flag:
+
+- **Untrusted code + secrets in the same job.** A workflow that checks out or
+  builds PR-controlled code (`gh pr checkout`, `actions/checkout` of a PR/head
+  ref, `ref: ${{ github.event.pull_request.head.sha }}`) and also exposes secrets
+  or a write-scoped `GITHUB_TOKEN` in that job's environment is a
+  secret-exfiltration RCE. The attacker controls build scripts, source, and
+  install-time lifecycle hooks.
+- **Trigger fork semantics.** `pull_request` from a fork runs with secrets
+  withheld and a read-only token; `issue_comment`, `workflow_run`, and
+  `pull_request_target` are **NOT** fork-restricted — they run in the base-repo
+  context with full secrets regardless of PR origin. An `author_association` /
+  maintainer gate controls *who triggers* the run, not *what code* runs, so it is
+  not a substitute for withholding secrets from untrusted code.
+- **Over-broad `permissions:`** — a token scoped wider than the job needs.
+- **Unpinned actions** — `uses:` on a floating tag/branch instead of a commit SHA.
+- **Untrusted input into `run:`** interpolated as `${{ … }}` (e.g. a PR title,
+  branch name, or comment body) rather than passed via `env:` — shell injection.
+
+Do not accept a PR description's claim that a risk is "mitigated for forks"
+without verifying which workflow and trigger that mitigation actually applies to.
+
 ## What NOT to flag
 
 - Theoretical risks that require unlikely preconditions to exploit.

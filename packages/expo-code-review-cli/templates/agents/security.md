@@ -21,6 +21,25 @@ average severity.
 <!-- TODO: customize for this repo — name the sensitive surfaces specific to this
      codebase (credential stores, tokens, arbitrary-command features, etc.). -->
 
+## CI / workflow supply-chain (changes under `.github/workflows/**`)
+
+Treat any changed workflow as high-risk and reason about the *trigger*, not just
+the code. Flag:
+
+- **Untrusted code + secrets in the same job.** A workflow that checks out or
+  builds PR-controlled code (`gh pr checkout`, `actions/checkout` of a PR/head
+  ref) and also exposes secrets or a write-scoped `GITHUB_TOKEN` in that job's
+  environment is a secret-exfiltration RCE — the attacker controls build scripts,
+  source, and install-time lifecycle hooks.
+- **Trigger fork semantics.** `pull_request` from a fork runs with secrets
+  withheld and a read-only token; `issue_comment`, `workflow_run`, and
+  `pull_request_target` are **NOT** fork-restricted. An `author_association` /
+  maintainer gate controls *who triggers* a run, not *what code* runs, so it does
+  not substitute for withholding secrets from untrusted code.
+- **Over-broad `permissions:`**, **unpinned actions** (floating tag vs commit
+  SHA), and **untrusted input interpolated into `run:`** as `${{ … }}` (PR title,
+  branch name, comment body) rather than passed via `env:` — shell injection.
+
 ## What NOT to flag
 
 - Theoretical risks requiring unlikely preconditions.
