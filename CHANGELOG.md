@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Prompt detected coding agents to report actionable feedback after non-interactive commands. ([#4039](https://github.com/expo/eas-cli/pull/4039) by [@davidmokos](https://github.com/davidmokos))
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
