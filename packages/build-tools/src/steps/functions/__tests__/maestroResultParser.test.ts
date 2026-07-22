@@ -7,12 +7,40 @@ import {
   isFileAttrRun,
   junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowNamesFromJUnitFile,
   parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
   parseJUnitTestCases,
   parseMaestroResults,
   parseMaestroResultsFromFileAttrs,
 } from '../maestroResultParser';
+
+describe(parseFailedFlowNamesFromJUnitFile, () => {
+  it('returns the names of failed testcases, keeping slashes', async () => {
+    vol.fromJSON({
+      '/attempt/android-maestro-junit-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="3" failures="2">',
+        '    <testcase name="home" status="SUCCESS"/>',
+        '    <testcase name="sub/login" status="ERROR"><failure>boom</failure></testcase>',
+        '    <testcase name="checkout" status="ERROR"><failure>boom</failure></testcase>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+    });
+
+    const failed = await parseFailedFlowNamesFromJUnitFile(
+      '/attempt/android-maestro-junit-attempt-0.xml'
+    );
+
+    expect([...failed].sort()).toEqual(['checkout', 'sub/login']);
+  });
+
+  it('returns an empty set when the file cannot be read', async () => {
+    expect((await parseFailedFlowNamesFromJUnitFile('/missing.xml')).size).toBe(0);
+  });
+});
 
 describe(parseMaestroResults, () => {
   it('parses JUnit results and enriches with name→path map', async () => {
