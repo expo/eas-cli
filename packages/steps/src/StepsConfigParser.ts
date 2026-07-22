@@ -282,11 +282,13 @@ export class StepsConfigParser extends AbstractConfigParser {
     compositeFunctionExpander: CompositeFunctionExpander
   ): BuildStep[] {
     if (isLocalCompositeFunctionPath(step.uses)) {
-      return compositeFunctionExpander.expandCompositeFunctionStep(
-        step,
-        parseCompositeFunctionPath(step.uses),
-        BuildStep.getNewId(step.id)
-      );
+      return compositeFunctionExpander
+        .expandCompositeFunctionStep(
+          step,
+          parseLocalCompositeFunctionPath(step.uses),
+          BuildStep.getNewId(step.id)
+        )
+        .getFlattenedSteps();
     }
 
     const buildFunction = buildFunctionById[step.uses];
