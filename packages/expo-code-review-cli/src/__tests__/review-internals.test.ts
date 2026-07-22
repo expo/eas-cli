@@ -3,7 +3,7 @@ import { test, expect } from 'bun:test';
 import {
   chunkByLines,
   applyReviewPolicy,
-  mapWithConcurrency,
+  runGrowableQueue,
   decisionAfterVerification,
 } from '../core/review.js';
 import type { PatchWorkspaceFile } from '../core/noise.js';
@@ -63,11 +63,11 @@ test('applyReviewPolicy: approve_with_comments + no findings → approve', () =>
   expect(result.decision).toBe('approve');
 });
 
-test('mapWithConcurrency: runs every ELEMENT once, bounded (guards the index-vs-element FP)', async () => {
+test('runGrowableQueue: runs every ELEMENT once, bounded (guards the index-vs-element FP)', async () => {
   const seen: number[] = [];
   let inFlight = 0;
   let maxInFlight = 0;
-  await mapWithConcurrency([1, 2, 3, 4, 5], 2, async n => {
+  await runGrowableQueue([1, 2, 3, 4, 5], 2, async n => {
     inFlight++;
     maxInFlight = Math.max(maxInFlight, inFlight);
     await new Promise(r => setTimeout(r, 5));
@@ -75,6 +75,26 @@ test('mapWithConcurrency: runs every ELEMENT once, bounded (guards the index-vs-
     inFlight--;
   });
   expect([...seen].sort()).toEqual([1, 2, 3, 4, 5]); // the values, not indices 0..4
+  expect(maxInFlight).toBeLessThanOrEqual(2);
+});
+
+test('runGrowableQueue: processes items enqueued DURING the run (subdivision), still bounded', async () => {
+  const seen: number[] = [];
+  let inFlight = 0;
+  let maxInFlight = 0;
+  await runGrowableQueue([1, 2, 3], 2, async (n, enqueue) => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise(r => setTimeout(r, 5));
+    seen.push(n);
+    // Item 3 "times out" and subdivides into two smaller units mid-run.
+    if (n === 3) {
+      enqueue(30);
+      enqueue(31);
+    }
+    inFlight--;
+  });
+  expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 30, 31]);
   expect(maxInFlight).toBeLessThanOrEqual(2);
 });
 

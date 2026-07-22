@@ -27,10 +27,12 @@ jobs:
     # step below decides the exact agents (and honors :skip).
     if: contains(join(github.event.pull_request.labels.*.name, ','), 'ai-review')
     # Backstop so a stalled review fails fast instead of hanging toward the 6h
-    # default. Must exceed the worst-case internal chain: cross-cutting cap (25m) +
-    # finalize (~1.5m) + coordinator cap (10m) + finalize + CI setup. Keep in sync
-    # with the per-task caps in review.ts / coordinator.ts.
-    timeout-minutes: 50
+    # default. This is the ONE cap with no soft-landing (GitHub hard-kills the job),
+    # so keep comfortable margin over the worst-case internal chain: the passes
+    # budget (PASSES_BUDGET_MS, 32m — includes subdivision/fallback waves) +
+    # coordinator cap (10m) + verification + CI setup. Keep in sync with the caps in
+    # review.ts / coordinator.ts.
+    timeout-minutes: 60
     # A reviewer failure must never fail the PR's checks in phase 1.
     continue-on-error: true
     steps:

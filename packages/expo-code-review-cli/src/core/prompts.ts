@@ -107,6 +107,18 @@ export function buildCrossCuttingSystem(config: LoadedConfig, agents: LoadedAgen
  * lists every file the PR changed, so the reviewer is aware of related changes
  * elsewhere and can read them without those diffs diluting its focus.
  */
+/**
+ * Appended to a fallback reviewer task: a last-resort pass over a chunk whose full
+ * agentic review didn't converge in time even after being subdivided. The chunk's
+ * diffs are already inlined, so the agent needs no tools — forbidding them
+ * guarantees a fast, bounded reply (a lighter review, but never nothing).
+ */
+export const NO_TOOLS_INSTRUCTION = [
+  'TIME-CRITICAL FALLBACK: Do NOT use any tools — do not read, grep, glob, or list,',
+  'and do not open any files. Everything you need is already inlined above. Base',
+  'your review ONLY on the inlined diff and reply with the single JSON object now.',
+].join('\n');
+
 export function buildReviewerTask(
   files: PatchWorkspaceFile[],
   allFiles: PatchWorkspaceFile[],

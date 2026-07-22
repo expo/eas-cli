@@ -182,13 +182,23 @@ A review must never hang, silently produce nothing, or present an unreviewed
 change as "looks good":
 
 - **Per-task time caps** — focused chunk passes get 15 min; the cross-cutting pass
-  gets 25 min; the coordinator gets 10 min. These are sized to fit inside the CI
-  job's `timeout-minutes` (50), since the coordinator runs after the passes.
-- **Soft landing on timeout** — at the cap, the run is interrupted and the agent
+  gets 25 min; the coordinator gets 10 min. A global passes budget (32 min) bounds
+  all passes incl. the subdivision waves below, so everything fits inside the CI
+  job's `timeout-minutes` (60), since the coordinator + verification run afterward.
+- **Tool-call cap** — a pass that makes too many `read`/`grep` calls without
+  finishing is *wandering*, not converging (the usual cause of a non-convergent
+  timeout). Hitting the cap trips the same soft landing as the time cap.
+- **Soft landing on timeout** — at either cap, the run is interrupted and the agent
   is asked to return the findings it already has, rather than discarding its work.
-- **No retry on a timeout** — retrying just repeats a non-convergent run; the task
-  is abandoned instead. Parse failures *are* retried (same session, then once in a
-  bounded fresh session); a task is never re-run beyond that.
+- **Subdivide-on-timeout — the reviewer never silently drops work.** If a pass
+  times out with nothing to show, its chunk is split in half and the halves are
+  re-reviewed (recursively, down to a single file). A chunk that won't converge at
+  13 files almost always converges at 6. If even a single file won't converge, a
+  fast **no-tools fallback** reviews just its inlined diff (a lighter review, but
+  never nothing). Only if *that* can't finish inside the budget is a coverage gap
+  reported — and it is always reported, never silent.
+- **Parse failures are retried** (same session, then once in a bounded fresh
+  session); that is separate from the timeout path above.
 - **A failed run never reads as "Approve"** — if every pass fails, the review says
   it could not complete (treat as unreviewed); if some passes fail, the decision
   is never a clean approve, and the coordinator is told coverage was reduced.

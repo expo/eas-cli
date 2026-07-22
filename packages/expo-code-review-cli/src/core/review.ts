@@ -23,11 +23,12 @@ import {
   buildCrossCuttingTask,
   buildReviewerSystem,
   buildReviewerTask,
+  NO_TOOLS_INSTRUCTION,
 } from './prompts.js';
 import { fingerprintFinding, parseReviewerOutput } from './schema.js';
 import type { CoordinatorOutput, Finding } from './schema.js';
 import { sortFindings } from './render.js';
-import { errorMessage } from './util.js';
+import { errorMessage, sleep } from './util.js';
 import { verifyFindings } from './verify.js';
 import { applyInlineIgnores } from './suppress.js';
 
@@ -170,34 +171,64 @@ export async function runReview(
       // Bucket the findings land in (agent id, or "cross-cutting" for the one
       // combined multi-file pass).
       bucket: string;
+      kind: 'reviewer' | 'cross-cutting';
       system: string;
       label: string;
       title: string;
-      text: string;
+      // The files this task reviews. Kept (not a prebuilt prompt) so a timed-out
+      // task can be SUBDIVIDED into smaller file sets that converge.
+      files: PatchWorkspaceFile[];
       // Human label for coverage notes (no internal [i/n]/[cross-file] jargon).
       coverageLabel: string;
       // Per-task time ceiling. The cross-cutting pass legitimately does more work
       // (tracing across every changed file), so it gets more than a focused chunk.
       maxWaitMs: number;
+      // Soft tool-call ceiling; hitting it triggers the same soft-landing as the
+      // time cap. Bounds an agent that wanders instead of converging.
+      maxToolCalls: number;
+      // Subdivision depth (0 = an original chunk); a backstop on recursion.
+      depth: number;
+      // A last-resort no-tools pass over a chunk that wouldn't converge even after
+      // being subdivided — reviews the inlined diff only, so it always returns.
+      fallback: boolean;
     }
-    // These caps must fit inside the CI job's timeout-minutes (currently 50): the
-    // coordinator runs AFTER the passes, so worst case ≈ cross-cutting cap + a
-    // finalize window + the coordinator cap (10m) + CI setup. Bump the workflow
-    // timeout if you raise these.
+    // These caps must fit inside PASSES_BUDGET_MS (below), which in turn fits inside
+    // the CI job's timeout-minutes.
     const CHUNK_TIMEOUT_MS = 15 * 60 * 1000;
     const CROSS_CUTTING_TIMEOUT_MS = 25 * 60 * 1000;
+    // A subdivided sub-chunk is smaller, so it gets a shorter cap (halved per level,
+    // floored) — enough to converge without letting the recursion balloon.
+    const SUBDIVIDE_MIN_TIMEOUT_MS = 6 * 60 * 1000;
+    const MAX_SUBDIVIDE_DEPTH = 6;
+    // The no-tools fallback reviews an inlined diff with no exploration, so it's fast.
+    const FALLBACK_TIMEOUT_MS = 4 * 60 * 1000;
+    // Tool-call ceilings — generous for a legitimate pass, low enough to catch
+    // runaway roaming (the root cause of the non-convergent timeouts).
+    const CHUNK_MAX_TOOL_CALLS = 50;
+    const CROSS_CUTTING_MAX_TOOL_CALLS = 120;
+    // Global ceiling for ALL passes incl. subdivision/fallback waves, sized to
+    // leave room for the coordinator (10m) + verification + overhead inside the CI
+    // job timeout. Past this, a timed-out pass is reported as a gap rather than
+    // broken down further, so total wall-clock stays bounded.
+    const PASSES_BUDGET_MS = 32 * 60 * 1000;
+    const passesDeadline = started + PASSES_BUDGET_MS;
+
     const tasks: ReviewTask[] = [];
     for (const agent of selectedAgents) {
       const system = buildReviewerSystem(config, agent);
       chunks.forEach((chunk, index) => {
         tasks.push({
           bucket: agent.id,
+          kind: 'reviewer',
           system,
           label: chunked ? `${agent.id} [${index + 1}/${chunks.length}]` : agent.id,
           title: `review-${agent.id}-c${index}`,
-          text: buildReviewerTask(chunk, workspace.files, filtered),
+          files: chunk,
           coverageLabel: `the ${agent.id} review${chunked ? ` (part ${index + 1} of ${chunks.length})` : ''}`,
           maxWaitMs: CHUNK_TIMEOUT_MS,
+          maxToolCalls: CHUNK_MAX_TOOL_CALLS,
+          depth: 0,
+          fallback: false,
         });
       });
     }
@@ -206,12 +237,16 @@ export async function runReview(
     if (chunked) {
       tasks.push({
         bucket: CROSS_CUTTING_AGENT,
+        kind: 'cross-cutting',
         system: buildCrossCuttingSystem(config, selectedAgents),
         label: 'cross-file',
         title: 'review-xcut',
-        text: buildCrossCuttingTask(workspace.files, filtered),
+        files: workspace.files,
         coverageLabel: 'the cross-file review (issues spanning multiple changed files)',
         maxWaitMs: CROSS_CUTTING_TIMEOUT_MS,
+        maxToolCalls: CROSS_CUTTING_MAX_TOOL_CALLS,
+        depth: 0,
+        fallback: false,
       });
     }
 
@@ -219,16 +254,45 @@ export async function runReview(
     // ahead of short ones so they don't dominate the tail of the makespan.
     tasks.sort((a, b) => b.maxWaitMs - a.maxWaitMs);
 
+    // Build the task prompt on demand (so a subdivided task rebuilds over its
+    // smaller file set); a fallback task forbids tools and reviews the inlined diff.
+    const buildTaskText = (task: ReviewTask): string => {
+      const base =
+        task.kind === 'cross-cutting'
+          ? buildCrossCuttingTask(task.files, filtered)
+          : buildReviewerTask(task.files, workspace.files, filtered);
+      return task.fallback ? `${base}\n\n${NO_TOOLS_INSTRUCTION}` : base;
+    };
+    const filesLabel = (files: PatchWorkspaceFile[]): string =>
+      files.length === 1
+        ? `\`${files[0]!.path}\``
+        : `${files.length} files (e.g. \`${files[0]!.path}\`)`;
+    const humanBucket = (bucket: string): string =>
+      bucket === CROSS_CUTTING_AGENT ? 'cross-file' : bucket;
+    const childTask = (
+      parent: ReviewTask,
+      files: PatchWorkspaceFile[],
+      labelSuffix: string,
+      overrides: Partial<ReviewTask>
+    ): ReviewTask => ({
+      ...parent,
+      files,
+      label: `${parent.label} ${labelSuffix}`,
+      coverageLabel: `the ${humanBucket(parent.bucket)} review of ${filesLabel(files)}`,
+      ...overrides,
+    });
+
     // Coverage notes for passes that hit their time limit or failed, surfaced in
     // the final review so a cut-short run is never presented as complete.
     const incomplete: string[] = [];
     let completedPasses = 0;
     let failedPasses = 0;
     // promptAndParse already retries internally (same-session corrective, then a
-    // bounded fresh session). We do NOT wrap it in another retry loop — that
-    // compounded into ~9 model runs per task and could blow the job budget. A
-    // thrown error here means the task genuinely failed; record it and move on.
-    await mapWithConcurrency(tasks, config.chunk.concurrency, async task => {
+    // bounded fresh session). We do NOT wrap it in another retry loop. On a genuine
+    // TIMEOUT, instead of dropping the work we break it into units that converge:
+    // subdivide the chunk, then a fast no-tools pass, and only report a coverage gap
+    // when even that can't finish inside the budget — so dropped work is never silent.
+    await runGrowableQueue(tasks, config.chunk.concurrency, async (task, enqueue) => {
       const minutes = Math.round(task.maxWaitMs / 60000);
       try {
         const { value, cost, truncated, tokens } = await promptAndParse(
@@ -236,10 +300,11 @@ export async function runReview(
           {
             agent: task.bucket,
             system: task.system,
-            text: task.text,
+            text: buildTaskText(task),
             title: task.title,
             onActivity: line => progress(`  ${task.label}: ${line}`),
             maxWaitMs: task.maxWaitMs,
+            maxToolCalls: task.maxToolCalls,
             finalizeOnTimeout: true,
           },
           parseReviewerOutput
@@ -249,30 +314,67 @@ export async function runReview(
         (agentFindings[task.bucket] ??= []).push(...value.findings);
         completedPasses++;
         if (truncated) {
-          progress(`  ${task.label}: hit ${minutes}m limit — returned partial findings`);
+          progress(`  ${task.label}: hit its budget — returned partial findings`);
           incomplete.push(
-            `${capitalize(task.coverageLabel)} ran out of time (${minutes}-minute limit); its findings may be incomplete.`
+            `${capitalize(task.coverageLabel)} ran out of time; its findings may be incomplete.`
           );
         }
+        return;
       } catch (error) {
-        failedPasses++;
-        // A timeout means the agent did not converge even after being asked to
-        // wrap up; other errors are genuine failures. Either way, don't retry the
-        // whole task — record the coverage gap and continue.
-        if (error instanceof AgentTimeoutError) {
-          // Still account for the spend of the abandoned investigation.
-          agentCosts[task.bucket] = (agentCosts[task.bucket] ?? 0) + error.cost;
-          addTokenUsage(tokenTotals, error.tokens);
-          progress(`  ${task.label}: exceeded ${minutes}m limit — skipping (no retry)`);
-          incomplete.push(
-            `${capitalize(task.coverageLabel)} exceeded its ${minutes}-minute limit and did not complete; those changes were not fully reviewed.`
-          );
-        } else {
+        // Non-timeout errors are genuine failures — record and move on.
+        if (!(error instanceof AgentTimeoutError)) {
+          failedPasses++;
           progress(`  ${task.label}: FAILED (${errorMessage(error)})`);
           incomplete.push(
             `${capitalize(task.coverageLabel)} failed to run; those changes were not reviewed.`
           );
+          return;
         }
+        // Account for the abandoned investigation's spend regardless of what's next.
+        agentCosts[task.bucket] = (agentCosts[task.bucket] ?? 0) + error.cost;
+        addTokenUsage(tokenTotals, error.tokens);
+
+        const remaining = passesDeadline - Date.now();
+        // Cross-file analysis needs ≥2 files to be meaningful; a single-file
+        // reviewer chunk can't be split further.
+        const minFiles = task.kind === 'cross-cutting' ? 2 : 1;
+        const childCap = Math.max(SUBDIVIDE_MIN_TIMEOUT_MS, Math.floor(task.maxWaitMs / 2));
+        if (task.files.length > minFiles && task.depth < MAX_SUBDIVIDE_DEPTH && remaining > childCap) {
+          const mid = Math.ceil(task.files.length / 2);
+          const left = task.files.slice(0, mid);
+          const right = task.files.slice(mid);
+          progress(
+            `  ${task.label}: exceeded ${minutes}m — splitting into 2 smaller passes (${left.length} + ${right.length} files)`
+          );
+          const over: Partial<ReviewTask> = { depth: task.depth + 1, maxWaitMs: childCap };
+          enqueue(childTask(task, left, `↳${left.length}f`, over));
+          enqueue(childTask(task, right, `↳${right.length}f`, over));
+          return;
+        }
+        // Can't subdivide further: try a fast no-tools pass over the inlined diff
+        // (reviewer only — cross-file analysis fundamentally needs to read files).
+        if (task.kind === 'reviewer' && !task.fallback && remaining > FALLBACK_TIMEOUT_MS) {
+          progress(
+            `  ${task.label}: exceeded ${minutes}m — retrying ${filesLabel(task.files)} with a fast no-tools pass`
+          );
+          enqueue(
+            childTask(task, task.files, '(no-tools fallback)', {
+              fallback: true,
+              maxWaitMs: FALLBACK_TIMEOUT_MS,
+              maxToolCalls: 0,
+            })
+          );
+          return;
+        }
+        // Genuine, reported gap — the only way work is ever left unreviewed, and
+        // never silent.
+        failedPasses++;
+        progress(
+          `  ${task.label}: exceeded its budget and could not be reduced further — reporting a coverage gap`
+        );
+        incomplete.push(
+          `${capitalize(task.coverageLabel)} exceeded its time budget even after being broken down into smaller passes; those changes were not fully reviewed.`
+        );
       }
     });
 
@@ -301,10 +403,18 @@ export async function runReview(
           output: rawOutput,
           cost,
           tokens: coordinatorTokens,
+          truncated: coordinatorTruncated,
         } = await coordinate(handle, config, metadata, agentFindings, coverageNotes);
         agentCosts['coordinator'] = cost;
         addTokenUsage(tokenTotals, coordinatorTokens);
         consolidated = applyReviewPolicy(rawOutput, config.policy);
+        if (coordinatorTruncated) {
+          // The coordinator ran out of time and returned partial findings — flag it
+          // like any other truncated pass so reduced coverage is never silent.
+          coverageNotes.push(
+            'The consolidation step ran out of time and returned partial findings; some findings may have been dropped or not fully de-duplicated.'
+          );
+        }
       } catch (error) {
         // The coordinator is the last step; if it fails we must not throw away all
         // the findings the agents already produced. Fall back to a deterministic
@@ -513,21 +623,46 @@ export function chunkByLines(
   return chunks;
 }
 
-/** Run `fn` over items with at most `limit` in flight at once. */
-export async function mapWithConcurrency<T>(
-  items: T[],
+const QUEUE_IDLE_POLL_MS = 100;
+
+/**
+ * Run tasks with at most `limit` in flight, from a queue that workers may GROW
+ * while running: a timed-out chunk enqueues smaller sub-tasks, which free workers
+ * then pick up. Workers stay alive until the queue is empty AND no worker is still
+ * running (a running worker might yet enqueue more), so dynamically-added work is
+ * never lost. `fn` receives the item and an `enqueue` callback.
+ */
+export async function runGrowableQueue<T>(
+  initial: T[],
   limit: number,
-  fn: (item: T) => Promise<void>
+  fn: (item: T, enqueue: (next: T) => void) => Promise<void>
 ): Promise<void> {
-  let next = 0;
+  const queue: T[] = [...initial];
+  let active = 0;
+  const enqueue = (next: T): void => {
+    queue.push(next);
+  };
   const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const item = items[next++]!;
-      await fn(item);
+    for (;;) {
+      const item = queue.shift();
+      if (item === undefined) {
+        // Nothing queued: done only once no other worker is still running (which
+        // could enqueue more); otherwise wait briefly and re-check.
+        if (active === 0) {
+          return;
+        }
+        await sleep(QUEUE_IDLE_POLL_MS);
+        continue;
+      }
+      active++;
+      try {
+        await fn(item, enqueue);
+      } finally {
+        active--;
+      }
     }
   };
-  const count = Math.min(Math.max(1, limit), items.length);
-  await Promise.all(Array.from({ length: count }, () => worker()));
+  await Promise.all(Array.from({ length: Math.max(1, limit) }, () => worker()));
 }
 
 function sum(costs: Record<string, number>): number {

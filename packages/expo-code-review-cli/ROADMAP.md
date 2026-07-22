@@ -6,6 +6,12 @@ are roughly ordered by priority.
 
 ## Recently shipped
 
+- **Never-drop-work on timeout (2026-07-22)** — a hard-timed-out chunk is now
+  subdivided (halved recursively down to a single file) and re-reviewed instead of
+  dropped; a single file that still won't converge gets a fast no-tools fallback
+  over its inlined diff; only a genuinely un-reducible pass reports a coverage gap,
+  never silently. Plus a tool-call cap (catches an agent that wanders instead of
+  converging) and a global 32m passes budget. See §3 guarantees 1/2/5.
 - Auto-discovered agents from `.expo-code-review/agents/*.md` + frontmatter.
 - Adaptive-hybrid chunking (per-chunk + cross-cutting pass), chunk retry.
 - LLM router (`--route`) and `/review` comment command.
@@ -118,27 +124,46 @@ the 8-min per-attempt cap. **Retry-on-timeout then made it 3× worse**: each ret
 restarts the same unbounded wander (8 min × 3 = 24 min on that one task). There is
 also **no global wall-clock budget**, so nothing bounded the total.
 
-Guarantees (priority order; ✅ = shipped in the 2026-07-22 audit follow-up):
+Guarantees (priority order; ✅ = shipped):
 
-1. ✅ **Don't retry on timeout**, and removed the per-task 3× retry wrapper (it
-   compounded with promptAndParse's internal retries into ~9 runs/task).
-2. ✅ **Bound the cross-cutting pass** — collapsed to one combined pass and
-   tightened its prompt to stay within the changed files. *(Still open: split/skip
-   above a hard size threshold — see "size guard" below.)*
-3. ✅ **Always post a result** — a failed run reports "could not complete"; CI
+1. ✅ **Never silently drop work on timeout (subdivide-on-timeout).** *(Shipped
+   2026-07-22.)* This supersedes the earlier "don't retry on timeout" rule, which
+   only avoided compounding a non-convergent run but left the chunk's work dropped
+   and merely reported as a gap — which is not acceptable for a review tool. Now a
+   hard-timed-out chunk is **split in half and the halves re-reviewed** (recursively,
+   down to a single file); a single file that still won't converge gets a fast
+   **no-tools fallback** over its inlined diff; only if that can't finish inside the
+   budget is a coverage gap reported (and it is always reported). See
+   `runGrowableQueue` + the timeout branch in `review.ts`. Motivation: the auto-review
+   of our own PR still dropped `correctness [4/7]` even after the finalize soft-landing.
+   *(The per-task 3× retry wrapper stays removed; promptAndParse's internal parse
+   retries are unchanged.)*
+2. ✅ **Tool-call cap.** *(Shipped 2026-07-22.)* A pass that makes too many
+   `read`/`grep` calls without converging is wandering; the cap (chunk 50,
+   cross-cutting 120) trips the same soft-landing as the time cap. This attacks the
+   root cause (roaming) directly — the cheap, self-contained version of Greptile's
+   pre-indexed retrieval, without an index or an external dependency.
+3. ✅ **Bound the cross-cutting pass** — collapsed to one combined pass and
+   tightened its prompt to stay within the changed files.
+4. ✅ **Always post a result** — a failed run reports "could not complete"; CI
    posts a terminal state on any failure; the coordinator has a deterministic
    fallback so its failure can't discard findings; and a failed/timed-out run
    never renders as a clean "Approve".
-4. **Global time budget.** *(Open — deprioritized.)* We now use per-task caps +
-   an aligned job cap instead (per-task caps: chunk 15m, cross-cutting 25m,
-   coordinator 10m; CI `timeout-minutes: 50`). A single `maxTotalMs` that stops scheduling
-   new work when exhausted is still a cleaner backstop.
-5. **Size guard / degraded mode.** *(Partial.)* Filtered files now appear in the
-   coverage note. Still open: a hard "diff too large → skip / review only the
-   highest-signal subset" ceiling.
-6. ✅ **Bound the coordinator** — 5-min cap + soft-landing + deterministic fallback.
-7. ✅ **Concurrency** default raised 4→6 (quality-neutral within rate limits).
-8. **Publish + run via `npx` (both workflows).** The `init` template already runs
+5. ✅ **Global time budget.** *(Shipped 2026-07-22.)* `PASSES_BUDGET_MS` (32m) is a
+   hard wall-clock ceiling for all passes incl. subdivision/fallback waves: past it,
+   a timed-out pass is reported as a gap rather than broken down further. Sits under
+   per-task caps (chunk 15m, cross-cutting 25m, coordinator 10m) and the CI job cap
+   (`timeout-minutes: 60`, the one hard-kill with no soft-landing).
+6. ✅ **Size guard / degraded mode.** *(Largely addressed by #1.)* Subdivide-on-timeout
+   is a *reactive* size guard: an oversized/dense chunk that can't converge is split
+   until it does, rather than skipped. A *proactive* up-front "diff too large → review
+   only the highest-signal subset" ceiling is still possible but no longer needed to
+   prevent drops. The bigger remaining lever is **incremental review** (only review
+   the delta since the last review, CodeRabbit-style) — see §5.
+7. ✅ **Bound the coordinator** — 10-min cap + soft-landing + deterministic fallback;
+   its `truncated` status now flows to a coverage note.
+8. ✅ **Concurrency** default raised 4→6 (quality-neutral within rate limits).
+9. **Publish + run via `npx` (both workflows).** The `init` template already runs
    the *published* package via `npx` (only the diff is PR-controlled) — strictly
    safer than our in-repo workflows that `yarn build` from source. Once published,
    switch both in-repo workflows to the published binary and stop building from a

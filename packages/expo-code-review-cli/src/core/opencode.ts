@@ -199,6 +199,14 @@ export async function promptAgent(
     /** Per-attempt time ceiling. Defaults to DEFAULT_MAX_WAIT_MS. */
     maxWaitMs?: number;
     /**
+     * Soft ceiling on the number of distinct tool calls the investigation may make.
+     * Exceeding it trips the same soft-landing as the wall-clock cap (interrupt +
+     * ask for findings so far). This bounds an agent that WANDERS — reads/greps
+     * without converging — which is the root cause of the non-convergent 15-minute
+     * timeouts. Undefined = no tool-call cap.
+     */
+    maxToolCalls?: number;
+    /**
      * On hitting the ceiling, interrupt the run and ask the agent to return the
      * findings it has so far (a soft landing) instead of throwing immediately.
      */
@@ -223,6 +231,7 @@ export async function promptAgent(
       deadline: Date.now() + maxWaitMs,
       onActivity: args.onActivity,
       reportedTools,
+      maxToolCalls: args.maxToolCalls,
     });
   } catch (error) {
     if (!(error instanceof DeadlineReached)) {
@@ -302,6 +311,7 @@ export async function promptAndParse<T>(
     title: string;
     onActivity?: (line: string) => void;
     maxWaitMs?: number;
+    maxToolCalls?: number;
     finalizeOnTimeout?: boolean;
   },
   parse: (text: string) => T
@@ -423,6 +433,7 @@ async function pollForCompletion(
     deadline: number;
     onActivity?: (line: string) => void;
     reportedTools: Set<string>;
+    maxToolCalls?: number;
   }
 ): Promise<PromptResult> {
   // Best-effort usage of the in-progress assistant message, so a task that times
@@ -460,43 +471,51 @@ async function pollForCompletion(
       lastTokens = assistant.info.tokens;
     }
 
-    // Emit a live line the first time each tool call starts, so a long run shows
-    // what the agent is actually doing instead of going silent.
-    if (opts.onActivity) {
-      for (const part of assistant.parts ?? []) {
-        if (part?.type !== 'tool') {
-          continue;
-        }
-        const key = part.callID ?? part.id;
-        const status = part.state?.status;
-        if (key && status && status !== 'pending' && !opts.reportedTools.has(key)) {
-          opts.reportedTools.add(key);
+    // Track each distinct tool call once (for the tool-call cap) and, the first
+    // time it starts, emit a live line so a long run shows what the agent is doing.
+    for (const part of assistant.parts ?? []) {
+      if (part?.type !== 'tool') {
+        continue;
+      }
+      const key = part.callID ?? part.id;
+      const status = part.state?.status;
+      if (key && status && status !== 'pending' && !opts.reportedTools.has(key)) {
+        opts.reportedTools.add(key);
+        if (opts.onActivity) {
           const tool = part.tool ?? 'tool';
           const title = part.state?.title;
           emit(title ? `${tool}: ${title}` : tool);
         }
       }
     }
-
     if (assistant.info?.error) {
       throw new Error(
         `Agent "${opts.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
       );
     }
-    if (assistant.info?.time?.completed == null) {
-      continue;
+
+    // A completed message ALWAYS wins — return it regardless of tool count; the
+    // work is done, so there's nothing to finalize.
+    if (assistant.info?.time?.completed != null) {
+      const text = (assistant.parts ?? [])
+        .filter(part => part?.type === 'text' && typeof part.text === 'string')
+        .map(part => part.text as string)
+        .join('\n')
+        .trim();
+      return {
+        text,
+        cost: assistant.info?.cost ?? 0,
+        sessionID,
+        tokens: assistant.info?.tokens,
+      };
     }
 
-    const text = (assistant.parts ?? [])
-      .filter(part => part?.type === 'text' && typeof part.text === 'string')
-      .map(part => part.text as string)
-      .join('\n')
-      .trim();
-    return {
-      text,
-      cost: assistant.info?.cost ?? 0,
-      sessionID,
-      tokens: assistant.info?.tokens,
-    };
+    // Still in progress: enforce the tool-call cap. An agent that has made this
+    // many tool calls without finishing is wandering, not converging — trip the
+    // same soft-landing as the wall-clock deadline so it returns what it has.
+    if (opts.maxToolCalls != null && opts.reportedTools.size > opts.maxToolCalls) {
+      emit(`made ${opts.reportedTools.size} tool calls — wrapping up to stay on budget`);
+      throw new DeadlineReached(lastCost, lastTokens);
+    }
   }
 }

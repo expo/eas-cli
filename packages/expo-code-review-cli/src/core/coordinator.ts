@@ -9,6 +9,10 @@ export interface CoordinationResult {
   output: CoordinatorOutput;
   cost: number;
   tokens: TokenUsage;
+  // True when the coordinator hit its time budget and returned partial findings
+  // via the finalize path — so the caller can flag reduced coverage rather than
+  // silently presenting a truncated consolidation as complete.
+  truncated: boolean;
 }
 
 /**
@@ -29,7 +33,7 @@ export async function coordinate(
 ): Promise<CoordinationResult> {
   const system = buildCoordinatorSystem(config);
   const text = buildCoordinatorTask(metadata, agentFindings, coverageNotes);
-  const { value, cost, tokens } = await promptAndParse(
+  const { value, cost, tokens, truncated } = await promptAndParse(
     handle,
     {
       agent: 'coordinator',
@@ -41,5 +45,5 @@ export async function coordinate(
     },
     parseCoordinatorOutput
   );
-  return { output: value, cost, tokens };
+  return { output: value, cost, tokens, truncated };
 }
