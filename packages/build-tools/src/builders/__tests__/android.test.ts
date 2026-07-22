@@ -9,6 +9,7 @@ import { restoreCredentials } from '../../android/credentials';
 import { uploadEmbeddedBundleAsync } from '../../utils/expoUpdatesEmbedded';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
+import { setupAsync } from '../../common/setup';
 import {
   injectConfigureVersionGradleConfig,
   injectCredentialsGradleConfig,
@@ -87,6 +88,48 @@ describe(androidBuilder, () => {
       },
       '/'
     );
+  });
+
+  it('passes the install_node_modules anchor and a hooks ref to setupAsync', async () => {
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: { __API_SERVER_URL: 'http://api.expo.test' },
+      uploadArtifact: jest.fn(),
+    });
+
+    await androidBuilder(ctx);
+
+    expect(setupAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        wrappedAnchors: ['install_node_modules'],
+        jobHooksRef: expect.objectContaining({ current: null }),
+      })
+    );
+  });
+
+  it('drains queued hook metric uploads even when setup fails after assigning the ref', async () => {
+    const drainPendingMetricUploads = jest.fn();
+    jest.mocked(setupAsync).mockImplementationOnce(async (_ctx, { jobHooksRef }) => {
+      // A before-hook can queue a metric upload and then fail setup; the drain
+      // must still run.
+      jobHooksRef.current = {
+        customBuildContext: { drainPendingMetricUploads },
+      } as never;
+      throw new Error('setup boom');
+    });
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: { __API_SERVER_URL: 'http://api.expo.test' },
+      uploadArtifact: jest.fn(),
+    });
+
+    await expect(androidBuilder(ctx)).rejects.toThrow('setup boom');
+    expect(drainPendingMetricUploads).toHaveBeenCalled();
   });
 
   it('injects Android version config without build credentials', async () => {

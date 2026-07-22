@@ -1,8 +1,9 @@
 import * as Builders from './builders';
-import GCSLoggerStream from './gcs/LoggerStream';
-import { GCS } from './gcs/client';
+import RemoteLoggerStream from './logging/RemoteLoggerStream';
 
-export { Builders, GCS, GCSLoggerStream };
+export { Builders, RemoteLoggerStream };
+export { uploadWithSignedUrl } from './storage/uploadWithSignedUrl';
+export type { SignedUrl, UploadWithSignedUrlParams } from './storage/uploadWithSignedUrl';
 
 export {
   ArtifactToUpload,

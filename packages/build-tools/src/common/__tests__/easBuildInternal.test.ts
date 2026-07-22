@@ -196,4 +196,67 @@ describe('easBuildInternal', () => {
 
     expect((newJob as any).refreshAdHocProvisioningProfile).toBe(true);
   });
+
+  describe('hooks retention', () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), child: jest.fn() } as any;
+    const originalHooks = { before_install_node_modules: [{ run: 'echo original' }] };
+
+    function mockRegeneratedJob(hooks?: object): void {
+      const internalJob = {
+        platform: Platform.IOS,
+        type: Workflow.GENERIC,
+        triggeredBy: 'EAS_CLI',
+        projectArchive: { type: ArchiveSourceType.URL, url: 'https://example.com' },
+        projectRootDirectory: '.',
+        secrets: {
+          buildCredentials: {
+            testapp: {
+              distributionCertificate: {
+                dataBase64: 'YmluYXJ5Y29udGVudDE=',
+                password: 'distCertPassword',
+              },
+              provisioningProfileBase64: 'MnRuZXRub2N5cmFuaWI=',
+            },
+          },
+        },
+        initiatingUserId: 'user-id',
+        appId: 'app-id',
+        ...(hooks ? { hooks } : null),
+      };
+      jest.mocked(spawn).mockResolvedValue({
+        stdout: Buffer.from(JSON.stringify({ job: internalJob, metadata: {} })),
+        stderr: Buffer.from(''),
+      } as any);
+    }
+
+    function runWith(jobHooks?: object): Promise<{ newJob: BuildJob }> {
+      const job = {
+        platform: Platform.IOS,
+        buildProfile: 'preview',
+        appId: 'app-id',
+        initiatingUserId: 'user-id',
+        secrets: { robotAccessToken: 'token' },
+        ...(jobHooks ? { hooks: jobHooks } : null),
+      } as unknown as BuildJob;
+      return runEasBuildInternalAsync({ job, logger, env: {}, cwd: '/tmp/project' });
+    }
+
+    it('keeps the original hooks when the regenerated job has none', async () => {
+      mockRegeneratedJob();
+      const { newJob } = await runWith(originalHooks);
+      expect((newJob as any).hooks).toEqual(originalHooks);
+    });
+
+    it('lets the original hooks win over hooks in the regenerated job', async () => {
+      mockRegeneratedJob({ after_install_node_modules: [{ run: 'echo from-eas-json' }] });
+      const { newJob } = await runWith(originalHooks);
+      expect((newJob as any).hooks).toEqual(originalHooks);
+    });
+
+    it('carries no hooks when the original had none, even if the regenerated job adds some', async () => {
+      mockRegeneratedJob({ before_install_node_modules: [{ run: 'echo from-eas-json' }] });
+      const { newJob } = await runWith(undefined);
+      expect((newJob as any).hooks).toBeUndefined();
+    });
+  });
 });
