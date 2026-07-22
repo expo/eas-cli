@@ -8,12 +8,23 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Prompt to select a platform in `eas simulator:start` when `--platform` is omitted, instead of erroring out. ([#4043](https://github.com/expo/eas-cli/pull/4043) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-build-job] Extend `app_store_connect.build_upload` workflow interpolation context with optional `cf_bundle_short_version_string`, `platform`, `uploaded_date`, and `created_date`. ([#4037](https://github.com/expo/eas-cli/pull/4037) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Allow `eas simulator` as a shorthand for `eas simulator:start`. ([#4053](https://github.com/expo/eas-cli/pull/4053) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add `--account` flag to `eas init` to choose the account that should own the project, enabling non-interactive project creation (`eas init --account <name> --non-interactive`), and improve unconfigured-project error messages to list the accounts you can create projects in. ([#4057](https://github.com/expo/eas-cli/pull/4057) by [@williamgrosset](https://github.com/williamgrosset))
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas update` failing with a server error when run inside an EAS Build. ([#4048](https://github.com/expo/eas-cli/pull/4048) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Avoid splitting an emoji when truncating a long git commit message, which produced an invalid commit message the build server rejected. ([#4055](https://github.com/expo/eas-cli/pull/4055) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
+
+## [21.0.3](https://github.com/expo/eas-cli/releases/tag/v21.0.3) - 2026-07-22
+
+### 🎉 New features
+
+- [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 
 ## [21.0.2](https://github.com/expo/eas-cli/releases/tag/v21.0.2) - 2026-07-17
 

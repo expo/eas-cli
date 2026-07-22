@@ -18,6 +18,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { promptAsync } from '../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -41,9 +42,16 @@ const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
 } as const;
+const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
+type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
+  static override aliases = ['simulator'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -51,8 +59,7 @@ export default class SimulatorStart extends EasCommand {
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
-      options: ['android', 'ios'] as const,
-      required: true,
+      options: PLATFORM_FLAG_VALUES,
     })(),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -111,6 +118,9 @@ export default class SimulatorStart extends EasCommand {
         `Existing simulator session in environment. Use --force to create a new simulator session.`
       );
     }
+
+    const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+
     if (existingDeviceRunSessionId) {
       Log.warn(
         `  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}). ` +
@@ -119,8 +129,6 @@ export default class SimulatorStart extends EasCommand {
       );
       Log.newLine();
     }
-
-    const platform = flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
@@ -241,6 +249,30 @@ export default class SimulatorStart extends EasCommand {
       projectDir,
     });
   }
+}
+
+async function resolvePlatformAsync(
+  platform: PlatformFlagValue | undefined,
+  nonInteractive: boolean
+): Promise<AppPlatform> {
+  if (platform) {
+    return APP_PLATFORM_BY_FLAG_VALUE[platform];
+  }
+
+  if (nonInteractive) {
+    throw new Error('The --platform flag must be set when running in non-interactive mode.');
+  }
+
+  const { selectedPlatform } = await promptAsync({
+    type: 'select',
+    message: 'Select platform',
+    name: 'selectedPlatform',
+    choices: [
+      { title: 'Android', value: AppPlatform.Android },
+      { title: 'iOS', value: AppPlatform.Ios },
+    ],
+  });
+  return selectedPlatform;
 }
 
 async function writeSimulatorEnvSafelyAsync(

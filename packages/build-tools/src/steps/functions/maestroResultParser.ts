@@ -122,6 +122,18 @@ async function parseJUnitFile(filePath: string): Promise<JUnitTestCaseResult[]> 
   }
 }
 
+// Raw names (slashes kept) of the testcases a single JUnit file marks failed. Best-effort: an
+// unreadable or malformed file yields an empty set rather than throwing.
+export async function parseFailedFlowNamesFromJUnitFile(junitFile: string): Promise<Set<string>> {
+  const failed = new Set<string>();
+  for (const testcase of await parseJUnitFile(junitFile)) {
+    if (testcase.status === 'failed') {
+      failed.add(testcase.name);
+    }
+  }
+  return failed;
+}
+
 export async function parseJUnitTestCases(junitDirectory: string): Promise<JUnitTestCaseResult[]> {
   let entries: string[];
   try {

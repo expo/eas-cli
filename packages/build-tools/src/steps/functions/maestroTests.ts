@@ -18,6 +18,7 @@ import {
   copyLatestAttemptXml,
   junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowNamesFromJUnitFile,
   parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
   parseJUnitTestCases,
@@ -276,11 +277,15 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         // junit: test-case-result rows (and therefore the summary icons) only exist for junit
         // runs, so harvesting other formats would just create orphan artifacts the website hides.
         if (outputFormat === 'junit') {
+          const failedFlowNames = outputPath
+            ? await parseFailedFlowNamesFromJUnitFile(outputPath)
+            : new Set<string>();
           harvested.push(
             ...(await harvestFailureScreenshotsAsync({
               testsDirectory,
               capturedSinceMs: attemptStartedAtMs,
               attemptIndex: attempt,
+              failedFlowNames,
               logger,
             }))
           );
