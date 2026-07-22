@@ -29,7 +29,26 @@ async function resolvePrNumber(): Promise<number | null> {
   return match ? Number(match[1]) : null;
 }
 
+const CI_USAGE = `ecr ci — review the current GitHub PR and post/update one comment.
+
+For GitHub Actions: reads the PR number + repo from the event/env, gets the diff
+via \`gh pr diff\`, runs the reviewer, and upserts a single PR comment. Comment-only
+and non-blocking (a reviewer failure never fails the PR's checks).
+
+Options:
+  --agents <a,b>   Run only these agents (comma-separated ids); default: all
+  --route          Let the router pick relevant agents from the diff
+  -h, --help       Show this help
+
+Env: GITHUB_REPOSITORY, GITHUB_EVENT_PATH/GITHUB_REF (PR number), GH_TOKEN,
+and model credentials per .expo-code-review/config.jsonc (or REVIEWER_MODEL).
+`;
+
 export async function ciCommand(argv: string[] = []): Promise<void> {
+  if (argv.includes('-h') || argv.includes('--help')) {
+    process.stdout.write(CI_USAGE);
+    return;
+  }
   const agents = parseAgents(argv);
   const route = argv.includes('--route');
   const root = await repoRoot();

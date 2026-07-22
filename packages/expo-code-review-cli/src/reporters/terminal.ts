@@ -45,7 +45,9 @@ export class TerminalReporter implements Reporter {
     if (this.options.json) {
       process.stdout.write(`${JSON.stringify(review, null, 2)}\n`);
     } else {
-      process.stderr.write(this.renderPretty(review));
+      // The review is the primary artifact → stdout (progress goes to stderr), so
+      // `ecr review > out.txt` captures the report and redirection works.
+      process.stdout.write(this.renderPretty(review));
     }
     process.exitCode = this.options.noFail ? 0 : decisionExitCode(review.decision);
   }
@@ -53,6 +55,7 @@ export class TerminalReporter implements Reporter {
   private renderPretty(review: CoordinatorOutput): string {
     const out: string[] = [''];
     out.push(this.paint(BOLD, `AI code review — ${decisionLabel(review.decision)}`));
+    out.push(this.tally(review.findings), '');
     out.push(review.summary, '');
 
     if (review.incomplete.length > 0) {
@@ -68,7 +71,15 @@ export class TerminalReporter implements Reporter {
     } else {
       const groups = groupBySeverity(sortFindings(review.findings));
       for (const severity of SEVERITIES) {
-        for (const finding of groups[severity]) {
+        const findings = groups[severity];
+        if (findings.length === 0) {
+          continue;
+        }
+        out.push(
+          this.paint(`${BOLD}${COLORS[severity]}`, `${SEVERITY_LABEL[severity]} (${findings.length})`),
+          ''
+        );
+        for (const finding of findings) {
           out.push(this.renderFinding(finding));
         }
       }
@@ -76,11 +87,19 @@ export class TerminalReporter implements Reporter {
     return `${out.join('\n')}\n`;
   }
 
+  /** One-line count headline, e.g. "2 critical · 5 warning". */
+  private tally(findings: Finding[]): string {
+    const parts = SEVERITIES.map(severity => {
+      const n = findings.filter(finding => finding.severity === severity).length;
+      return n > 0 ? this.paint(COLORS[severity], `${n} ${severity}`) : null;
+    }).filter((part): part is string => part !== null);
+    return parts.length > 0 ? parts.join(this.paint(DIM, ' · ')) : this.paint(DIM, 'no findings');
+  }
+
   private renderFinding(finding: Finding): string {
     const loc = finding.line != null ? `${finding.file}:${finding.line}` : finding.file;
-    const tag = this.paint(`${BOLD}${COLORS[finding.severity]}`, SEVERITY_LABEL[finding.severity]);
     const lines = [
-      `${tag} ${finding.title} ${this.paint(DIM, `(${finding.category})`)}`,
+      `  ${finding.title} ${this.paint(DIM, `(${finding.category})`)}`,
       `  ${this.paint(DIM, loc)}`,
       `  ${finding.rationale}`,
     ];

@@ -1,5 +1,5 @@
 import { loadReviewConfig, hasConfig } from '../config/load.js';
-import { onPath, repoRoot } from '../core/exec.js';
+import { onPath, repoRoot, run } from '../core/exec.js';
 
 /** Preflight checks so a broken setup surfaces clearly instead of silently no-opping. */
 export async function doctorCommand(): Promise<void> {
@@ -23,6 +23,28 @@ export async function doctorCommand(): Promise<void> {
   );
 
   line(await onPath('git'), 'git found on PATH');
+
+  // `gh` is only needed for `ecr ci` (posting PR comments), so treat it as
+  // informational (ℹ) rather than a hard failure for local `ecr review` users.
+  const info = (message: string): void => {
+    process.stdout.write(`  ℹ ${message}\n`);
+  };
+  if (await onPath('gh')) {
+    let authed = false;
+    try {
+      await run('gh', ['auth', 'status'], { cwd: root });
+      authed = true;
+    } catch {
+      authed = false;
+    }
+    if (authed) {
+      line(true, 'gh CLI found and authenticated (used by `ecr ci`)');
+    } else {
+      info('gh CLI found but not authenticated — run `gh auth login` before `ecr ci`');
+    }
+  } else {
+    info('gh CLI not on PATH — only needed for `ecr ci` (posting PR comments)');
+  }
 
   if (!hasConfig(root)) {
     line(false, `no ${'.expo-code-review'}/config.jsonc (run \`ecr init\`)`);
