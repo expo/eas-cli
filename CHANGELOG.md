@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas project:status` (alias `eas status`) command that prints a snapshot of the project's recent builds, development builds, workflow runs, submissions, and updates, with `--json` and `--non-interactive` support. ([#4006](https://github.com/expo/eas-cli/pull/4006) by [@jonsamp](https://github.com/jonsamp))
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
