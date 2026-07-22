@@ -50,15 +50,12 @@ const CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION = graphql(`
 type AgentDeviceEvent = z.infer<typeof AgentDeviceEventSchema>;
 
 export type DeviceRunSessionEvent = {
-  schemaVersion: 1;
+  v: 1;
   eventId: string;
-  deviceRunSessionId: string;
-  occurredAt: string;
+  ts: string;
   producer: string;
-  producerVersion?: string;
   type: string;
   operationId?: string;
-  name?: string;
   outcome?: 'success' | 'failure';
   durationMs?: number;
   summary: string;
@@ -83,14 +80,12 @@ export async function startAgentDeviceEventCollectionAsync({
   ctx,
   deviceRunSessionId,
   stateDir,
-  producerVersion,
   logger,
   pollIntervalMs = POLL_INTERVAL_MS,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   stateDir: string;
-  producerVersion?: string;
   logger: bunyan;
   pollIntervalMs?: number;
 }): Promise<{ stopAsync: () => Promise<void> }> {
@@ -149,7 +144,6 @@ export async function startAgentDeviceEventCollectionAsync({
           eventFile,
           state,
           deviceRunSessionId,
-          producerVersion,
           writeEvent: event => eventLogStream.write(event),
           onParseFailure: ({ failure, lineNumber }) => {
             parseFailureCount += 1;
@@ -274,14 +268,12 @@ async function collectEventFileAsync({
   eventFile,
   state,
   deviceRunSessionId,
-  producerVersion,
   writeEvent,
   onParseFailure,
 }: {
   eventFile: string;
   state: EventFileState;
   deviceRunSessionId: string;
-  producerVersion?: string;
   writeEvent: (event: DeviceRunSessionEvent) => void;
   onParseFailure: (failure: { failure: AgentDeviceEventParseFailure; lineNumber: number }) => void;
 }): Promise<void> {
@@ -328,7 +320,6 @@ async function collectEventFileAsync({
         sequenceNumber,
         sourceSessionDirectory: path.basename(path.dirname(eventFile)),
         deviceRunSessionId,
-        producerVersion,
       });
       writeEvent(deviceRunSessionEvent);
     }
@@ -354,13 +345,11 @@ function normalizeAgentDeviceEvent({
   sequenceNumber,
   sourceSessionDirectory,
   deviceRunSessionId,
-  producerVersion,
 }: {
   event: AgentDeviceEvent;
   sequenceNumber: number;
   sourceSessionDirectory: string;
   deviceRunSessionId: string;
-  producerVersion?: string;
 }): DeviceRunSessionEvent {
   const type = AGENT_DEVICE_EVENT_KIND_TO_TYPE[event.kind] ?? event.kind;
   const durationMs = event.details?.durationMs;
@@ -377,17 +366,14 @@ function normalizeAgentDeviceEvent({
           : `${event.kind}${event.command ? `: ${event.command}` : ''}`);
 
   return {
-    schemaVersion: 1,
+    v: 1,
     // Consumers use eventId to deduplicate events across polls. Keep the per-file sequence
     // monotonic across source-file truncations so an ID is never reused during collection.
     eventId: `agent-device:${deviceRunSessionId}:${sourceSessionDirectory}:${sequenceNumber}`,
-    deviceRunSessionId,
-    occurredAt: event.ts,
+    ts: event.ts,
     producer: 'agent-device',
-    ...(producerVersion ? { producerVersion } : {}),
     type,
     ...(event.requestId ? { operationId: event.requestId } : {}),
-    ...(event.command ? { name: event.command } : {}),
     ...(outcome ? { outcome } : {}),
     ...(typeof durationMs === 'number' ? { durationMs } : {}),
     summary,

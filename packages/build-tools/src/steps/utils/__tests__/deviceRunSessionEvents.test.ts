@@ -48,7 +48,6 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       ctx,
       deviceRunSessionId: 'session-id',
       stateDir,
-      producerVersion: '0.19.1',
       logger,
       pollIntervalMs: 10,
     });
@@ -99,15 +98,12 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     expect(mockEventLogStream.init).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.write).toHaveBeenNthCalledWith(2, {
-      schemaVersion: 1,
+      v: 1,
       eventId: 'agent-device:session-id:default:2',
-      deviceRunSessionId: 'session-id',
-      occurredAt: '2026-07-10T12:00:01.000Z',
+      ts: '2026-07-10T12:00:01.000Z',
       producer: 'agent-device',
-      producerVersion: '0.19.1',
       type: 'operation.completed',
       operationId: 'request-1',
-      name: 'tap',
       outcome: 'success',
       durationMs: 25,
       summary: 'Finished tap',
@@ -161,10 +157,9 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     }
 
     expect(mockEventLogStream.write).toHaveBeenCalledWith({
-      schemaVersion: 1,
+      v: 1,
       eventId: 'agent-device:session-id:default:1',
-      deviceRunSessionId: 'session-id',
-      occurredAt: '2026-07-10T12:00:00.000Z',
+      ts: '2026-07-10T12:00:00.000Z',
       producer: 'agent-device',
       type: 'snapshot.recorded',
       summary: 'snapshot.recorded',

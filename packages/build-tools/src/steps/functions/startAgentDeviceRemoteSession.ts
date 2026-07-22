@@ -128,7 +128,6 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         ctx,
         deviceRunSessionId,
         stateDir: AGENT_DEVICE_STATE_DIR,
-        producerVersion: packageVersion,
         logger,
       });
 
