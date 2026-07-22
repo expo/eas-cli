@@ -25,6 +25,11 @@ are roughly ordered by priority.
   per-task retry explosion (up to ~9 model runs/task) was removed.
 - **Cross-cutting collapsed to ONE combined pass** (was one per agent — 3
   redundant full-diff passes), the biggest large-PR latency win.
+- **Cross-file pass no longer wanders the whole repo** — the collapsed pass ran
+  under an *undefined* agent id, so OpenCode fell back to a default agent with
+  full tools and it crawled unrelated packages until its 15-min cap (contributing
+  nothing). Now defined as a real agent with a restricted tool set (`read`+`grep`,
+  no `glob`/`list` crawling), so it converges instead of burning its budget.
 - **Speed knobs** — longest-processing-time-first task scheduling;
   `maxChangedLines` 1000→1500, `concurrency` 4→6; CI job timeout 20→30 min (so the
   worst-case internal cap chain fits with headroom).
@@ -263,26 +268,24 @@ and §3. What remains, by tier:
   `AgentTimeoutError`), so abandoned/finalized tasks contribute their spend.
   `opencode.ts`, `review.ts`
 
-### Speed (quality-neutral, cheap)
-- **CI fixed cost**: `fetch-depth: 1` (agents read the working tree; the diff comes
-  from `gh pr diff`) + `cache: yarn` / cache the build — saves tens of seconds to
-  minutes per run.
-- **Lower `POLL_INTERVAL_MS`** 2s→~1s, or subscribe to the OpenCode event stream
-  instead of re-fetching the growing message list every 2s.
-- **Faster model for the coordinator** (it uses no repo tools) — low risk.
+### Speed — ✅ shipped (2026-07-22)
+- ✅ **CI fixed cost**: `fetch-depth: 1` + `cache: yarn` in both workflows.
+- ✅ **`POLL_INTERVAL_MS`** 2s→1s.
+- **Faster coordinator model** — *(left to config, not hardcoded)*: set
+  `model:` in `coordinator.md` frontmatter (it uses no repo tools). Not forced so
+  repos keep one model unless they opt in. *(Open: OpenCode event-stream instead
+  of polling — larger change, deferred.)*
 
-### UX
-- **Report → stdout, progress → stderr** (both are on stderr today, so
-  `ecr review > out.txt` captures nothing). `reporters/terminal.ts:48`.
-- **Terminal: per-severity headers + counts + a one-line tally**, mirroring the PR
-  comment. `reporters/terminal.ts`.
-- **Clickable `file:line`** links in the comment (precursor to inline comments,
-  §1). `render.ts`.
-- **Progress heartbeat** during long model "thinking" (no tool calls = silent
-  today) + CI `::group::` per pass.
-- **`doctor` checks `gh` + `gh auth status`**; add `ci --help`; map auth-shaped
-  (401/403) agent errors to one actionable "check your token" message.
-- **Docs/scaffold**: README uses `ecr` throughout but the package is unpublished
-  (real invocation is `yarn workspace expo-code-review dev …`); `init` next-steps
-  should match the scaffolded `auth.mode`.
-- **`--staged` silently ignores `--base`/`--head`** — warn on conflicting flags.
+### UX — ✅ mostly shipped (2026-07-22)
+- ✅ **Report → stdout, progress → stderr** (`ecr review > out.txt` now works).
+- ✅ **Terminal: per-severity headers + counts + a one-line tally.**
+- ✅ **Progress heartbeat** during silent model "thinking" (poll loop emits
+  "still working… Ns elapsed" after 45s idle).
+- ✅ **`doctor` checks `gh` + `gh auth status`**; **`ci --help`** added.
+- **Clickable `file:line`** — *(deferred, folded into §1 inline comments)*: robust
+  links need the PR head SHA threaded into the renderer (branch links 404 for
+  forks); the inline-comment work solves locations properly, so do it there.
+- **Auth-shaped (401/403) agent errors → one actionable message** — still open.
+- **Minor**: README uses `ecr` though unpublished (note once that real invocation
+  is `yarn workspace expo-code-review dev …`); `init` next-steps vs scaffolded
+  `auth.mode`; warn when `--staged` is combined with `--base`/`--head`.
