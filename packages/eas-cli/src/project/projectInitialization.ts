@@ -241,7 +241,7 @@ export async function initializeWithoutExplicitIDAsync(
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --force --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
             actor
           ).join(
             ', '
@@ -276,13 +276,18 @@ export async function initializeWithoutExplicitIDAsync(
   const projectName = validSlugName(exp.slug); // This filters out invalid characters
   const projectFullName = `@${accountName}/${projectName}`;
   validateFullNameAndSlug(projectFullName, projectName);
+
+  // An explicit --account fully specifies the intended project (@account/slug), so linking or
+  // creating it requires no confirmation in non-interactive mode.
+  const skipConfirmation = force || (nonInteractive && accountNameArgument !== undefined);
+
   const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
     graphqlClient,
     accountName,
     projectName
   );
   if (existingProjectIdOnServer) {
-    if (!force) {
+    if (!skipConfirmation) {
       if (nonInteractive) {
         throw new Error(
           `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
@@ -309,7 +314,7 @@ export async function initializeWithoutExplicitIDAsync(
     );
   }
 
-  if (!force) {
+  if (!skipConfirmation) {
     if (nonInteractive) {
       throw new Error(
         `Project does not exist: ${projectFullName}. Use --force flag to create this project.`

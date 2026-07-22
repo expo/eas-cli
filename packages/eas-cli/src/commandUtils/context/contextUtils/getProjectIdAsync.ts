@@ -227,7 +227,7 @@ async function chooseAccountNameForEASProjectAsync(
 
   if (actor.__typename === 'Robot') {
     throw new Error(
-      `Project is not configured. When using a robot access token, run "eas init --account <name> --force --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: ${getCreatableAccountNamesNewestFirst(
+      `Project is not configured. When using a robot access token, run "eas init --account <name> --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: ${getCreatableAccountNamesNewestFirst(
         actor
       ).join(', ')}`
     );
