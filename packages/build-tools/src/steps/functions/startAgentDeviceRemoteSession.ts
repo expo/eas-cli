@@ -139,10 +139,36 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           signal,
         });
       } finally {
-        await eventCollection.stopAsync();
+        await stopAgentDeviceEventCollectionSafelyAsync({
+          eventCollection,
+          deviceRunSessionId,
+          logger,
+        });
       }
     },
   });
+}
+
+export async function stopAgentDeviceEventCollectionSafelyAsync({
+  eventCollection,
+  deviceRunSessionId,
+  logger,
+}: {
+  eventCollection: { stopAsync: () => Promise<void> };
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await eventCollection.stopAsync();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finish agent-device session event collection', error, {
+      level: 'warning',
+      tags: { phase: 'agent-device-event-collection', operation: 'stop' },
+      extras: { deviceRunSessionId },
+    });
+    logger.warn({ err: error }, 'Could not finish agent-device session event collection.');
+  }
 }
 
 async function startAgentDeviceDaemonAsync({
