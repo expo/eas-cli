@@ -17,6 +17,17 @@ are roughly ordered by priority.
 - **Command-workflow hardening** — `expo-code-review-command.yml` no longer
   `gh pr checkout`s the PR head; it builds/runs only the trusted base ref. See
   "Reliability & security" below for the residual work.
+- **Failure-path hardening (audit 2026-07-22)** — a failed/timed-out run never
+  renders as a clean "Approve"; the coordinator has its own 5-min cap +
+  soft-landing and a deterministic local-merge fallback (a coordinator hiccup no
+  longer discards all findings); CI always posts a terminal state on failure;
+  coverage notes now include filtered (binary/generated/ignored) files; the
+  per-task retry explosion (up to ~9 model runs/task) was removed.
+- **Cross-cutting collapsed to ONE combined pass** (was one per agent — 3
+  redundant full-diff passes), the biggest large-PR latency win.
+- **Speed knobs** — longest-processing-time-first task scheduling;
+  `maxChangedLines` 1000→1500, `concurrency` 4→6; CI job timeout 20→30 min (so the
+  worst-case internal cap chain fits with headroom).
 
 ## 1. Post a real PR review with inline comments (not one bottom comment)
 
@@ -73,35 +84,25 @@ the 8-min per-attempt cap. **Retry-on-timeout then made it 3× worse**: each ret
 restarts the same unbounded wander (8 min × 3 = 24 min on that one task). There is
 also **no global wall-clock budget**, so nothing bounded the total.
 
-Guarantees to add (in priority order):
+Guarantees (priority order; ✅ = shipped in the 2026-07-22 audit follow-up):
 
-1. **Don't retry on timeout.** A timeout means the agent didn't converge; re-running
-   restarts the identical unbounded wander. Distinguish a timeout from a transient
-   / parse error and abandon the task after the first timeout instead of retrying.
-   This alone caps a stalled task at one `MAX_WAIT_MS` (8 min) instead of 24 —
-   smallest change, biggest win, directly fixes the observed incident.
-2. **Bound the cross-cutting pass so it converges.** This is the task that actually
-   hung. It is unbounded today (lists all files, free `read`/`grep`/`glob`/`list`
-   over the whole repo). Constrain it to the changed patches (drop free glob/grep
-   for this pass, or cap total reads), tighten the prompt ("trace across the
-   *changed* files; do not audit the whole repo"), and **split or skip it above a
-   size threshold** — 49 files in a single pass is too much for one agent.
-3. **Always post a result (try/finally).** Wrap the run so we ALWAYS post a
-   comment/review — even on total failure or budget exhaustion, post "review
-   incomplete: reviewed K/N tasks (reason)". Never a silent 28-min hang with zero
-   output. Cause-agnostic safety net.
-4. **Global time budget.** A single `maxTotalMs` (default ~15 min, < the 20 min
-   job timeout). Check remaining budget before each task/attempt; when exhausted,
-   stop scheduling new work and coordinate whatever findings exist. Bounds
-   wall-clock regardless of per-task behavior.
-5. **Size guard / degraded mode.** Above a hard ceiling (files or changed lines),
-   don't attempt a full review: post a note ("diff too large: N files / M lines;
-   full review skipped") or review only the highest-signal subset.
-6. **Bound the coordinator** with the same budget/timeout as agents.
-7. **Concurrency (minor — NOT the cause here).** Rate-limiting was not implicated
-   in the incident (the agent made tool calls throughout, never throttled). Keep
-   `concurrency` configurable; only revisit an OAuth-specific default if a real
-   429/backoff pattern shows up in a future run.
+1. ✅ **Don't retry on timeout**, and removed the per-task 3× retry wrapper (it
+   compounded with promptAndParse's internal retries into ~9 runs/task).
+2. ✅ **Bound the cross-cutting pass** — collapsed to one combined pass and
+   tightened its prompt to stay within the changed files. *(Still open: split/skip
+   above a hard size threshold — see "size guard" below.)*
+3. ✅ **Always post a result** — a failed run reports "could not complete"; CI
+   posts a terminal state on any failure; the coordinator has a deterministic
+   fallback so its failure can't discard findings; and a failed/timed-out run
+   never renders as a clean "Approve".
+4. **Global time budget.** *(Open — deprioritized.)* We now use per-task caps +
+   an aligned 30-min job cap instead. A single `maxTotalMs` that stops scheduling
+   new work when exhausted is still a cleaner backstop.
+5. **Size guard / degraded mode.** *(Partial.)* Filtered files now appear in the
+   coverage note. Still open: a hard "diff too large → skip / review only the
+   highest-signal subset" ceiling.
+6. ✅ **Bound the coordinator** — 5-min cap + soft-landing + deterministic fallback.
+7. ✅ **Concurrency** default raised 4→6 (quality-neutral within rate limits).
 8. **Publish + run via `npx` (both workflows).** The `init` template already runs
    the *published* package via `npx` (only the diff is PR-controlled) — strictly
    safer than our in-repo workflows that `yarn build` from source. Once published,
@@ -241,3 +242,50 @@ archaeology (`git show`/`od`), not by trusting the unified diff. Improvements:
 against its own PRs at a size it can handle (the 49-file mega-PR defeated it —
 see reliability items). A completed, non-degraded self-review would likely have
 surfaced at least #2 once the parser/working-tree gaps above are closed.
+
+## Audit follow-ups (2026-07-22) — remaining items
+
+Three parallel audits (reliability / UX / speed) ran on 2026-07-22. The
+failure-path cluster (never-approve-on-failure, coordinator fallback, always-post,
+cross-cutting collapse, retry-explosion removal, LPT scheduling, timeout
+alignment, concurrency + maxChangedLines bumps) shipped — see "Recently shipped"
+and §3. What remains, by tier:
+
+### Correctness bugs (do next)
+- **GitHub comment lookup is wrong + unpaginated** (`reporters/github.ts:60-104`).
+  It passes `sort`/`direction` to the issue-comments endpoint, which ignores them,
+  so it reads the **oldest** 100 comments. On PRs with >100 comments this causes
+  duplicate reviewer comments every run and missed `/skip-review`. Fix: paginate
+  (or use `since`) and select the newest marked comment. *(Verify the endpoint's
+  supported params first; pagination fixes it either way.)*
+- **Temp-dir leak** in `withBodyFile` (`reporters/github.ts:106-111`) — never
+  `rm`s its `mkdtemp` dir (the earlier Claude-bot finding, still open). Wrap in
+  try/finally. `auth.ts` already does this correctly.
+- **Cost/token metrics undercount timed-out runs** — the aborted investigation's
+  cost is dropped before `DeadlineReached` throws (`opencode.ts` poll loop), so the
+  new cache/cost metrics understate the priciest tasks. Capture in-progress
+  `info.cost`/`info.tokens` before throwing.
+
+### Speed (quality-neutral, cheap)
+- **CI fixed cost**: `fetch-depth: 1` (agents read the working tree; the diff comes
+  from `gh pr diff`) + `cache: yarn` / cache the build — saves tens of seconds to
+  minutes per run.
+- **Lower `POLL_INTERVAL_MS`** 2s→~1s, or subscribe to the OpenCode event stream
+  instead of re-fetching the growing message list every 2s.
+- **Faster model for the coordinator** (it uses no repo tools) — low risk.
+
+### UX
+- **Report → stdout, progress → stderr** (both are on stderr today, so
+  `ecr review > out.txt` captures nothing). `reporters/terminal.ts:48`.
+- **Terminal: per-severity headers + counts + a one-line tally**, mirroring the PR
+  comment. `reporters/terminal.ts`.
+- **Clickable `file:line`** links in the comment (precursor to inline comments,
+  §1). `render.ts`.
+- **Progress heartbeat** during long model "thinking" (no tool calls = silent
+  today) + CI `::group::` per pass.
+- **`doctor` checks `gh` + `gh auth status`**; add `ci --help`; map auth-shaped
+  (401/403) agent errors to one actionable "check your token" message.
+- **Docs/scaffold**: README uses `ecr` throughout but the package is unpublished
+  (real invocation is `yarn workspace expo-code-review dev …`); `init` next-steps
+  should match the scaffolded `auth.mode`.
+- **`--staged` silently ignores `--base`/`--head`** — warn on conflicting flags.

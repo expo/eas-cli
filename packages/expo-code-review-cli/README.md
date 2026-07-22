@@ -27,8 +27,8 @@ diff source ─▶ noise filter ─▶ chunk ─▶ agents (parallel) ─▶ coo
   matching the repo's `additionalIgnores`, and binary files (no textual diff to
   review). Filtered files are recorded, not silently dropped.
 - **Chunking** — small PRs run in a single pass; large PRs are split into chunks
-  bounded by changed lines, plus one **cross-cutting pass** per agent that looks
-  for issues spanning multiple changed files.
+  bounded by changed lines, plus one combined **cross-cutting pass** that looks
+  for issues spanning multiple changed files across every agent's concern.
 - **Agents** — every `.md` file in `.expo-code-review/agents/` is an agent. They
   run in parallel with read-only repo tools (`read`/`grep`/`glob`/`list`).
 - **Coordinator** — a single pass that dedupes, re-judges severity, and produces
@@ -98,7 +98,7 @@ temperature: 0.1
 {
   "model": "anthropic/claude-sonnet-4-5",     // default model for all agents
   "policy": { "includeSuggestions": false },  // suppress suggestion-severity findings
-  "chunk": { "maxChangedLines": 1000, "maxFiles": 20, "concurrency": 4 },
+  "chunk": { "maxChangedLines": 1500, "maxFiles": 20, "concurrency": 6 },
   "noise": { "additionalIgnores": ["packages/*/build/**"] },
   "breakGlass": { "marker": "/skip-review" }, // PR body marker that skips the review
   "commentTag": "expo-ai-code-reviewer",      // hidden tag used to find/update the comment
@@ -128,17 +128,25 @@ Run `ecr doctor` to diagnose setup.
 
 ## Reliability
 
-A review must never hang or silently produce nothing:
+A review must never hang, silently produce nothing, or present an unreviewed
+change as "looks good":
 
 - **Per-task time caps** — focused chunk passes get 8 min; the cross-cutting pass
-  gets 15 min (it legitimately does more work).
+  gets 15 min; the coordinator gets 5 min. Worst-case fits inside the CI job cap.
 - **Soft landing on timeout** — at the cap, the run is interrupted and the agent
   is asked to return the findings it already has, rather than discarding its work.
 - **No retry on a timeout** — retrying just repeats a non-convergent run; the task
-  is abandoned instead. (Parse failures *are* retried — first in the same session,
-  then once in a fresh one.)
-- **Coverage notes** — if any pass is cut short or skipped, the review output says
-  so, so a partial review is never presented as complete.
+  is abandoned instead. Parse failures *are* retried (same session, then once in a
+  bounded fresh session); a task is never re-run beyond that.
+- **A failed run never reads as "Approve"** — if every pass fails, the review says
+  it could not complete (treat as unreviewed); if some passes fail, the decision
+  is never a clean approve, and the coordinator is told coverage was reduced.
+- **The coordinator can't sink the run** — if the consolidation step fails, findings
+  are merged deterministically and still posted, rather than thrown away.
+- **Coverage notes** — passes that were cut short/skipped, and files filtered out
+  (binary/generated/ignored), are listed, so a coverage gap is never silent.
+- **CI always gets a terminal state** — on any failure the PR gets a comment saying
+  the reviewer didn't run, not a stuck reaction and silence.
 
 ## CI usage
 
