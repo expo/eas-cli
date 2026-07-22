@@ -42,6 +42,12 @@ const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
 } as const;
+const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
+type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
@@ -52,7 +58,7 @@ export default class SimulatorStart extends EasCommand {
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
-      options: ['android', 'ios'] as const,
+      options: PLATFORM_FLAG_VALUES,
     })(),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -111,6 +117,9 @@ export default class SimulatorStart extends EasCommand {
         `Existing simulator session in environment. Use --force to create a new simulator session.`
       );
     }
+
+    const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+
     if (existingDeviceRunSessionId) {
       Log.warn(
         `  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}). ` +
@@ -119,8 +128,6 @@ export default class SimulatorStart extends EasCommand {
       );
       Log.newLine();
     }
-
-    const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
 
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
@@ -244,11 +251,11 @@ export default class SimulatorStart extends EasCommand {
 }
 
 async function resolvePlatformAsync(
-  platform: 'android' | 'ios' | undefined,
+  platform: PlatformFlagValue | undefined,
   nonInteractive: boolean
 ): Promise<AppPlatform> {
   if (platform) {
-    return platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
+    return APP_PLATFORM_BY_FLAG_VALUE[platform];
   }
 
   if (nonInteractive) {

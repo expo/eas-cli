@@ -343,6 +343,23 @@ describe(SimulatorStart, () => {
     );
   });
 
+  it('prompts for the platform before warning about overwriting an existing session', async () => {
+    process.env[EAS_SIMULATOR_SESSION_ID] = 'existing-session';
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Ios });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Overwriting previous'));
+    expect(mockPromptAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(Log.warn).mock.invocationCallOrder[0]
+    );
+  });
+
   it('throws instead of prompting when --platform is omitted in non-interactive mode', async () => {
     const { command } = createCommand(['--non-interactive']);
     await expect(command.runAsync()).rejects.toThrow(
