@@ -33,6 +33,14 @@ export async function prepareAuth(config: LoadedConfig): Promise<PreparedAuth> {
   const noop: PreparedAuth = { cleanup: async () => {} };
   const { mode, provider, tokenEnv } = config.auth;
 
+  // REVIEWER_MODEL is an explicit "use this model with my own creds" override — a
+  // common local case (e.g. the repo config targets Claude OAuth in CI, but a dev
+  // runs against their own OpenAI login). Don't inject the configured provider's
+  // auth; let OpenCode use whatever it's logged into for the override model.
+  if (process.env.REVIEWER_MODEL) {
+    return noop;
+  }
+
   if (mode === 'api-key') {
     if (tokenEnv) {
       const value = process.env[tokenEnv];
