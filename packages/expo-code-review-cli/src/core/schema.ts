@@ -46,8 +46,25 @@ export const FindingSchema = z.object({
   title: z.string(),
   rationale: z.string(),
   suggestion: z.string().optional(),
+  /**
+   * Verbatim snippet of the flagged code, copied from the file. Used to
+   * quote-ground the finding: if this text isn't actually present in the file,
+   * the finding is treated as hallucinated and dropped.
+   */
+  evidence: z.string().optional(),
 });
 export type Finding = z.infer<typeof FindingSchema>;
+
+/** A verifier's verdict on whether a finding is real (adversarial refute pass). */
+export const VerdictSchema = z.object({
+  verified: z.boolean(),
+  reason: z.string().default(''),
+});
+export type Verdict = z.infer<typeof VerdictSchema>;
+
+export function parseVerdict(text: string): Verdict {
+  return VerdictSchema.parse(extractJsonObject(text));
+}
 
 /** Shape each sub-reviewer must emit. */
 export const ReviewerOutputSchema = z.object({

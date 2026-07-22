@@ -373,3 +373,58 @@ Wanted instead:
   review output** ("primary X unavailable; this pass ran on fallback Y") — never
   silent. Would need to be tier-aware given the mixed-model setup (a single global
   fallback would flatten the specialist-vs-coordinator model distinction).
+
+## Review trustworthiness — false positives + finding stability
+
+Two related problems observed on #4022: a **hallucinated critical** (claimed
+`mapWithConcurrency` did `const item = next++` and was "uncompilable"; the code is
+`items[next++]!` and builds fine), and a **hamster wheel** where each run surfaces
+"new" issues that existed before. Both erode trust; both need addressing before this
+is dependable.
+
+### A. Validate findings before surfacing (especially criticals)
+
+Root cause: the reviewer runs one pass per agent with no verification, so an LLM's
+plausible-but-wrong claim ships as-is. Fixes, cheapest/highest-leverage first:
+
+1. ✅ **Quote-grounding (deterministic) — shipped.** Findings now carry an
+   `evidence` field (the flagged code, copied verbatim); `verifyFindings` checks it
+   against the real file and drops any finding whose evidence isn't there. Verified:
+   a hallucinated critical quoting `const item = next++` is dropped because that
+   text isn't in the file. Fails safe — `unknown` (too little evidence / file not on
+   disk) never drops.
+2. ✅ **Adversarial verify pass for criticals — shipped.** A restricted `verifier`
+   agent (read+grep) re-reads the cited file and must confirm each surviving critical
+   is genuine (biased to reject; refuted criticals dropped). Runs in parallel, 3-min
+   cap, fails open (keeps a critical if verification itself errors). Decision is
+   re-derived after drops (no criticals left → soften `request_changes`).
+3. **Oracle checks.** A finding that asserts "won't compile / type error" can be
+   validated against `tsc`; "crashes"/"breaks tests" against the test suite. At
+   minimum, never surface a compile-error claim when the package compiles.
+4. **Severity-gated effort:** criticals get the most scrutiny — they carry the most
+   weight and are the most damaging when wrong.
+
+### B. Finding stability (stop the hamster wheel)
+
+Why "new" issues appear every run, roughly in order of impact:
+
+1. **Partial coverage from timeouts** — the dominant cause. When passes time out,
+   each run reviews a *different subset*, so pre-existing issues surface only when a
+   completing pass happens to reach that file. Every recent comment carries a
+   "coverage note." **Full coverage per run** (the chunk-1000 + cap work, and the
+   size guard for the extreme tail) is the #1 fix — with complete coverage the
+   finding set converges.
+2. **Findings not fixed when first raised** re-surface every subsequent run. Fix (or
+   explicitly `expo-code-review-ignore`) them when raised.
+3. **LLM nondeterminism** — some run-to-run variance is inherent (temp already 0.1);
+   the high-signal findings recur, noise doesn't.
+4. **Moving-target self-PR** — #4022 is the reviewer reviewing its own constantly
+   growing PR, so some "new" issues are genuinely new code. A normal, stable PR with
+   full coverage would not churn like this.
+5. Full-diff-every-run re-evaluates the whole backlog each push; fingerprint dedup +
+   the single updated comment already mitigate, but a future option is reviewing the
+   incremental delta and/or persisting resolved-finding state.
+
+Bottom line: most of the churn is an artifact of (1) partial coverage + (4) a
+self-referential moving target, plus FPs from missing validation (§A). Closing
+coverage and adding quote-grounded verification should make runs boringly stable.

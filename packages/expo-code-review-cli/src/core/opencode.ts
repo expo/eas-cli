@@ -57,6 +57,11 @@ export const CROSS_CUTTING_AGENT = 'cross-cutting';
 // among the changed files) are enough to trace interactions.
 const CROSS_CUTTING_TOOLS = toolMap(['read', 'grep']);
 
+// Verifies a finding by re-reading the actual file (adversarial refute pass). Same
+// restricted tool set — it opens the cited file and checks the claim.
+export const VERIFIER_AGENT = 'verifier';
+const VERIFIER_TOOLS = toolMap(['read', 'grep']);
+
 /** Build the inline OpenCode config (agents + coordinator) from a repo config. */
 export function buildOpencodeConfig(config: LoadedConfig): Record<string, unknown> {
   const agent: Record<string, unknown> = {};
@@ -79,6 +84,15 @@ export function buildOpencodeConfig(config: LoadedConfig): Record<string, unknow
     prompt:
       'You are the cross-file code reviewer. Follow the user message exactly and return only the requested JSON.',
     tools: CROSS_CUTTING_TOOLS,
+  };
+  agent[VERIFIER_AGENT] = {
+    description: 'Verifies a finding against the real file (adversarial refute pass).',
+    mode: 'all',
+    model: config.agents[0]?.model ?? config.coordinator.model,
+    temperature: config.agents[0]?.temperature ?? 0.1,
+    prompt:
+      'You verify code-review findings against the actual source. Follow the user message exactly and return only the requested JSON.',
+    tools: VERIFIER_TOOLS,
   };
   agent['coordinator'] = {
     description: 'Consolidates specialist findings into one decision.',

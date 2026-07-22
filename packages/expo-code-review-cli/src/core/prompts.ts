@@ -187,6 +187,59 @@ export function buildCrossCuttingTask(
   ].join('\n');
 }
 
+/**
+ * Adversarial verifier: given ONE finding, decide whether it's real by reading the
+ * actual source. Deliberately NOT wrapped in shared rules (it emits a verdict, not
+ * findings) and biased toward distrust, to catch hallucinated/misread findings.
+ */
+export function buildVerifierSystem(): string {
+  return [
+    'You are a skeptical verifier of a single code-review finding. Your default is',
+    'DISTRUST. Using your read/grep tools, open the cited file, locate the code, and',
+    'confirm the finding against what the source ACTUALLY says.',
+    '',
+    'Mark verified=false (reject) if any of these hold:',
+    '- the code the finding describes or quotes is not actually present as claimed',
+    '  (it misread or invented the code),',
+    '- the described failure/exploit cannot actually occur,',
+    "- the claim is internally contradictory (e.g. asserts a type error in code that",
+    '  compiles), or',
+    '- you cannot substantiate it after reading the file.',
+    '',
+    'Only mark verified=true when you have CONFIRMED, from the real source, that the',
+    'flagged code exists as described and the problem is genuine. When unsure, reject.',
+    '',
+    'Return ONLY this JSON object and nothing else:',
+    '{"verified": true|false, "reason": "one concise sentence grounded in the file"}',
+  ].join('\n');
+}
+
+export function buildVerifierTask(finding: Finding): string {
+  const lines = [
+    'Verify this finding by reading the real source (do not trust its wording):',
+    '',
+    `- file: \`${sanitizeUntrusted(finding.file)}\``,
+    `- line: ${finding.line ?? '(unspecified)'}`,
+    `- severity: ${finding.severity}`,
+    `- category: ${finding.category}`,
+    `- title: ${finding.title}`,
+    `- rationale: ${finding.rationale}`,
+  ];
+  if (finding.evidence) {
+    lines.push(
+      '- code the finding claims is present (UNTRUSTED — verify it against the file):',
+      '<<<EVIDENCE',
+      finding.evidence,
+      'EVIDENCE'
+    );
+  }
+  lines.push(
+    '',
+    'Open the file, find the relevant code, and return the single verdict JSON object.'
+  );
+  return lines.join('\n');
+}
+
 /** Router: decides which agents are relevant to a change. */
 export function buildRouterSystem(): string {
   return [

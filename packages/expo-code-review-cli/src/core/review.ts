@@ -28,6 +28,7 @@ import { fingerprintFinding, parseReviewerOutput } from './schema.js';
 import type { CoordinatorOutput, Finding } from './schema.js';
 import { sortFindings } from './render.js';
 import { errorMessage } from './util.js';
+import { verifyFindings } from './verify.js';
 
 export interface ReviewRunOptions {
   config: LoadedConfig;
@@ -326,6 +327,24 @@ export async function runReview(
       output = { ...consolidated, decision, incomplete: [...new Set(coverageNotes)] };
     }
 
+    // Guard against hallucinated findings before surfacing: quote-ground every
+    // finding against the real file, and adversarially verify criticals. This is
+    // what stops a confident but wrong critical from shipping.
+    if (output.findings.length > 0) {
+      progress('Verifying findings…');
+      const verification = await verifyFindings(handle!, output.findings, process.cwd(), progress);
+      agentCosts['verifier'] = verification.cost;
+      addTokenUsage(tokenTotals, verification.tokens);
+      if (verification.dropped.length > 0) {
+        progress(`Verification dropped ${verification.dropped.length} unverified finding(s).`);
+        output = {
+          ...output,
+          findings: verification.kept,
+          decision: decisionAfterVerification(output.decision, verification.kept),
+        };
+      }
+    }
+
     await safeLog(logPath, {
       ...baseRecord,
       agentCosts,
@@ -416,6 +435,24 @@ function fallbackConsolidation(
     },
     policy
   );
+}
+
+/**
+ * Re-derive the decision after verification dropped findings: nothing left → approve;
+ * a `request_changes` with no criticals remaining → soften to approve_with_comments;
+ * otherwise keep the coordinator's decision.
+ */
+function decisionAfterVerification(
+  previous: CoordinatorOutput['decision'],
+  kept: Finding[]
+): CoordinatorOutput['decision'] {
+  if (kept.length === 0) {
+    return 'approve';
+  }
+  if (previous === 'request_changes' && !kept.some(finding => finding.severity === 'critical')) {
+    return 'approve_with_comments';
+  }
+  return previous;
 }
 
 /** Capitalize the first letter (coverage notes read as sentences). */

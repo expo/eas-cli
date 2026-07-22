@@ -66,6 +66,7 @@ Return **only** a single fenced ```json code block of this exact shape:
       "line": 142,
       "title": "short one-line summary",
       "rationale": "why this is a problem, with the concrete failure/exploit path",
+      "evidence": "carry through the reviewer's verbatim code snippet, unchanged",
       "suggestion": "optional concrete fix, or omit"
     }
   ],
@@ -75,4 +76,6 @@ Return **only** a single fenced ```json code block of this exact shape:
 
 `findings` is the deduped, re-categorized list. **Emit only `critical` and
 `warning` findings — drop every `suggestion`-level item.** Use `null` for `line`
-when a finding is not tied to a specific line. Emit no prose outside the JSON block.
+when a finding is not tied to a specific line. **Preserve each kept finding's
+`evidence` exactly as the reviewer provided it** (it is used downstream to verify
+the finding) — do not rewrite or drop it. Emit no prose outside the JSON block.

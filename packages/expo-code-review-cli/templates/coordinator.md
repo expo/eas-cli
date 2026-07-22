@@ -57,4 +57,6 @@ Return **only** a single fenced ```json code block:
 ```
 
 **Emit only `critical` and `warning` findings — drop every `suggestion`.** Use
-`null` for `line` when not line-specific. Emit no prose outside the JSON block.
+`null` for `line` when not line-specific. **Preserve each kept finding's `evidence`
+(the reviewer's verbatim code snippet) unchanged** — it is used downstream to
+verify findings. Emit no prose outside the JSON block.

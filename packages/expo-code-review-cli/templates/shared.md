@@ -65,6 +65,7 @@ Return **only** a single fenced ```json code block, an object of this shape:
       "line": 142,
       "title": "short one-line summary",
       "rationale": "why this is a problem, with the concrete failure/exploit path",
+      "evidence": "the exact line(s) of code you are flagging, copied VERBATIM",
       "suggestion": "optional concrete fix, or omit"
     }
   ]
@@ -72,5 +73,7 @@ Return **only** a single fenced ```json code block, an object of this shape:
 ```
 
 `line` is the start line in the new version of the file, or `null` if not
-line-specific. If you have nothing to report, return `{ "findings": [] }`. Emit
-no prose outside the JSON block.
+line-specific. `evidence` MUST be the flagged code copied **verbatim** from the
+file — it is used to verify the finding, and a finding whose evidence isn't found
+in the file is discarded (don't paraphrase or invent it). If you have nothing to
+report, return `{ "findings": [] }`. Emit no prose outside the JSON block.
