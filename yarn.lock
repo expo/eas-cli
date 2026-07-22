@@ -10454,6 +10454,7 @@ __metadata:
     qrcode-terminal: "npm:0.12.0"
     resolve-from: "npm:5.0.0"
     rimraf: "npm:3.0.2"
+    sandbox-cli-detector: "npm:0.2.0"
     semver: "npm:7.5.4"
     set-interval-async: "npm:3.0.3"
     slash: "npm:3.0.0"
@@ -17323,6 +17324,15 @@ __metadata:
   version: 2.1.2
   resolution: "safer-buffer@npm:2.1.2"
   checksum: 10c0/7e3c8b2e88a1841c9671094bbaeebd94448111dd90a81a1f606f3f67708a6ec57763b3b47f06da09fc6054193e0e6709e77325415dc8422b04497a8070fa02d4
+  languageName: node
+  linkType: hard
+
+"sandbox-cli-detector@npm:0.2.0":
+  version: 0.2.0
+  resolution: "sandbox-cli-detector@npm:0.2.0"
+  bin:
+    sandbox-cli-detector: dist/cli.js
+  checksum: 10c0/e70964918150079a3183948a8adadcde736823da2ad1135b4ccead2baa8d24d6487ddd222c030f94c9ef54e84bc41aa525a5452ef4cb9239f6f64b2ac03337bc
   languageName: node
   linkType: hard
 
