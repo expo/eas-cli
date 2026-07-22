@@ -19,7 +19,7 @@ import {
 
 import { BuildFunctionById } from './BuildFunction';
 import { BuildFunctionGroupById } from './BuildFunctionGroup';
-import { BuildStep } from './BuildStep';
+import { BuildStep, BuildStepOutputAccessor } from './BuildStep';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
@@ -105,7 +105,7 @@ export class CompositeFunctionExpander {
       call.name ?? compositeFunction.name ?? compositeFunctionPath;
     const innerSteps = compositeFunction.runs.steps;
 
-    const { stepIdMap, newIds } = this.buildInnerStepIdMap(
+    const innerStepIds = this.buildInnerStepIdMap(
       innerSteps,
       syntheticStepId,
       compositeFunctionPath
@@ -118,6 +118,7 @@ export class CompositeFunctionExpander {
 
     const nestedVisited = new Set(visited).add(compositeFunctionPath);
 
+    const childrenByLocalId = new Map<string, BuildStepOutputAccessor>();
     const scope = new BuildStepCompositeFunctionScope({
       ctx: this.ctx,
       parent: call.parentScope,
@@ -126,16 +127,23 @@ export class CompositeFunctionExpander {
       compositeFunctionPath,
       inputs,
       providedInputKeys,
-      stepIdAliases: stepIdMap,
+      childrenByLocalId,
     });
 
-    const children = innerSteps.map((innerStep, index) =>
-      this.expandInnerStep(innerStep, newIds[index], {
+    const children = innerSteps.map((innerStep, index) => {
+      const { localId, newId } = innerStepIds[index];
+      const child = this.expandInnerStep(innerStep, newId, {
         compositeFunctionPath,
         scope,
         nestedVisited,
-      })
-    );
+      });
+      // Omit output-less nested nodes: `${{ steps.mid }}` is undefined today,
+      // and `{ outputs: {} }` would make it truthy.
+      if (!(child instanceof CompositeBuildStep) || child.hasDeclaredOutputs) {
+        childrenByLocalId.set(localId, child);
+      }
+      return child;
+    });
 
     return new CompositeBuildStep(this.ctx, {
       id: syntheticStepId,
@@ -325,16 +333,14 @@ export class CompositeFunctionExpander {
   }
 
   /**
-   * Maps composite-function-local step ids to globally unique ids and builds the alias table for scope.
-   * Without namespacing, two composite function calls with inner step `read` would collide in the workflow.
+   * Assigns globally unique ids to inner steps. Without namespacing, two
+   * composite function calls with inner step `read` would collide.
    */
   private buildInnerStepIdMap(
     innerSteps: Step[],
     syntheticStepId: string,
     compositeFunctionPath: string
-  ): { stepIdMap: Map<string, string>; newIds: string[] } {
-    const stepIdMap = new Map<string, string>();
-    const newIds: string[] = [];
+  ): Array<{ localId: string; newId: string }> {
     const declaredIdList = innerSteps.map(step => step.id).filter((id): id is string => !!id);
     const duplicatedIds = duplicates(declaredIdList);
     if (duplicatedIds.length > 0) {
@@ -346,18 +352,15 @@ export class CompositeFunctionExpander {
     }
     const declaredIds = new Set(declaredIdList);
     let generatedStepIdCounter = 0;
-    for (const innerStep of innerSteps) {
-      let sourceId = innerStep.id;
-      if (!sourceId) {
+    return innerSteps.map(innerStep => {
+      let localId = innerStep.id;
+      if (!localId) {
         do {
-          sourceId = `composite_function_step_${++generatedStepIdCounter}`;
-        } while (declaredIds.has(sourceId));
+          localId = `composite_function_step_${++generatedStepIdCounter}`;
+        } while (declaredIds.has(localId));
       }
-      const newId = `${syntheticStepId}__${sourceId}`;
-      stepIdMap.set(sourceId, newId);
-      newIds.push(newId);
-    }
-    return { stepIdMap, newIds };
+      return { localId, newId: `${syntheticStepId}__${localId}` };
+    });
   }
 
   // Nullish `with` values are treated as absent so defaults resolve in the composite function's own scope.

@@ -639,7 +639,7 @@ describe(BuildStep, () => {
           compositeFunctionPath: 'test-action',
           inputs: new Map(),
           providedInputKeys: new Set(),
-          stepIdAliases: new Map(),
+          childrenByLocalId: new Map(),
         });
 
         const firstStep = new BuildStep(baseStepCtx, {
