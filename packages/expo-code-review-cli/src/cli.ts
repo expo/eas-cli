@@ -34,7 +34,7 @@ async function main(): Promise<void> {
       await reviewCommand(rest);
       break;
     case 'ci':
-      await ciCommand();
+      await ciCommand(rest);
       break;
     case 'init':
       await initCommand(rest);

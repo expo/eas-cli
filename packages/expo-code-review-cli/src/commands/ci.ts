@@ -27,7 +27,8 @@ async function resolvePrNumber(): Promise<number | null> {
   return match ? Number(match[1]) : null;
 }
 
-export async function ciCommand(): Promise<void> {
+export async function ciCommand(argv: string[] = []): Promise<void> {
+  const agents = parseAgents(argv);
   const root = await repoRoot();
   if (root && root !== process.cwd()) {
     process.chdir(root);
@@ -73,6 +74,7 @@ export async function ciCommand(): Promise<void> {
     const review = await runReview(new GitHubPRSource({ prNumber, repo, cwd: process.cwd() }), {
       config,
       mode: 'ci',
+      agents,
       onProgress: message => process.stderr.write(`${message}\n`),
     });
     await reporter.report(review);
@@ -85,4 +87,20 @@ export async function ciCommand(): Promise<void> {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Parse `--agents a,b,c` from argv (undefined = all agents). */
+function parseAgents(argv: string[]): string[] | undefined {
+  const index = argv.indexOf('--agents');
+  if (index === -1) {
+    return undefined;
+  }
+  const value = argv[index + 1];
+  if (!value) {
+    return undefined;
+  }
+  return value
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
 }

@@ -11,12 +11,13 @@ Usage:
   ecr review [options]
 
 Options:
-  --base <ref>   Base ref to diff against (default: merge-base with default branch)
-  --head <ref>   Head ref to diff (default: working tree, incl. uncommitted changes)
-  --staged       Review only staged changes
-  --json         Emit machine-readable JSON on stdout
-  --no-fail      Always exit 0, even on request-changes
-  -h, --help     Show this help
+  --base <ref>       Base ref to diff against (default: merge-base with default branch)
+  --head <ref>       Head ref to diff (default: working tree, incl. uncommitted changes)
+  --staged           Review only staged changes
+  --agents <a,b>     Run only these agents (comma-separated ids); default: all
+  --json             Emit machine-readable JSON on stdout
+  --no-fail          Always exit 0, even on request-changes
+  -h, --help         Show this help
 
 Exit codes: 0 approve / approve-with-comments, 1 request-changes, 2 error.
 `;
@@ -25,6 +26,7 @@ interface ReviewArgs {
   base?: string;
   head?: string;
   staged: boolean;
+  agents?: string[];
   json: boolean;
   noFail: boolean;
   help: boolean;
@@ -50,6 +52,12 @@ function parseArgs(argv: string[]): ReviewArgs {
         break;
       case '--staged':
         args.staged = true;
+        break;
+      case '--agents':
+        args.agents = requireValue(arg, argv[++i])
+          .split(',')
+          .map(id => id.trim())
+          .filter(Boolean);
         break;
       case '--json':
         args.json = true;
@@ -101,6 +109,7 @@ export async function reviewCommand(argv: string[]): Promise<void> {
     const review = await runReview(new LocalGitSource(sourceOptions), {
       config,
       mode: 'local',
+      agents: args.agents,
       onProgress: message => process.stderr.write(`${message}\n`),
     });
     await new TerminalReporter({ json: args.json, noFail: args.noFail }).report(review);

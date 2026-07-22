@@ -18,6 +18,8 @@ export interface ReviewRunOptions {
   config: LoadedConfig;
   mode: 'ci' | 'local';
   onProgress?: (message: string) => void;
+  /** Run only these agent ids (by filename). Omit/empty = all agents. */
+  agents?: string[];
 }
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
@@ -43,12 +45,15 @@ export async function runReview(
   const runDir = path.join(runsRoot, runId);
   const logPath = path.join(runsRoot, 'reviews.jsonl');
 
+  // Fail fast on an invalid agent selection before doing any work.
+  const selectedAgents = selectAgents(config.agents, options.agents);
+
   const [metadata, changedFiles] = await Promise.all([
     source.getMetadata(),
     source.getChangedFiles(),
   ]);
 
-  const { kept, filtered } = filterNoise(changedFiles, {
+  const { kept, filtered } = await filterNoise(changedFiles, {
     additionalIgnores: config.noise.additionalIgnores,
     additionalMarkers: config.noise.additionalMarkers,
   });
@@ -112,13 +117,13 @@ export async function runReview(
     // Only chunk (and add a cross-cutting pass) when the diff exceeds one chunk.
     const chunked = chunks.length > 1;
     progress(
-      `Running ${config.agents.length} reviewer(s) over ${chunks.length} chunk(s)` +
+      `Running ${selectedAgents.length} reviewer(s) [${selectedAgents.map(a => a.id).join(', ')}] over ${chunks.length} chunk(s)` +
         `${chunked ? ' + cross-cutting pass' : ''} ` +
         `(${kept.length} files, concurrency ${config.chunk.concurrency})…`
     );
 
     const agentFindings: Record<string, Finding[]> = {};
-    for (const agent of config.agents) {
+    for (const agent of selectedAgents) {
       agentFindings[agent.id] = [];
       agentCosts[agent.id] = 0;
     }
@@ -130,7 +135,7 @@ export async function runReview(
       text: string;
     }
     const tasks: ReviewTask[] = [];
-    for (const agent of config.agents) {
+    for (const agent of selectedAgents) {
       chunks.forEach((chunk, index) => {
         tasks.push({
           agent,
@@ -235,6 +240,20 @@ function applyReviewPolicy(
       ? 'approve'
       : output.decision;
   return { ...output, findings, decision };
+}
+
+function selectAgents(all: LoadedAgent[], filter?: string[]): LoadedAgent[] {
+  if (!filter?.length) {
+    return all;
+  }
+  const known = new Set(all.map(agent => agent.id));
+  const unknown = filter.filter(id => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown agent(s): ${unknown.join(', ')}. Available: ${all.map(a => a.id).join(', ')}`
+    );
+  }
+  return all.filter(agent => filter.includes(agent.id));
 }
 
 function sleep(ms: number): Promise<void> {
