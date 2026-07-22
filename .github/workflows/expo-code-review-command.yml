@@ -30,7 +30,7 @@ jobs:
       contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     # Bound the run so a slow/stalled review fails fast rather than hanging.
-    timeout-minutes: 20
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - name: Parse command
