@@ -82,7 +82,7 @@ export default class SimulatorEvents extends EasCommand {
           artifact => artifact.metadata?.__eas_type === 'session-events'
         );
         const events = eventArtifact
-          ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl, deviceRunSessionId)
+          ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl)
           : [];
 
         if (jsonFlag) {
@@ -115,6 +115,6 @@ export default class SimulatorEvents extends EasCommand {
 
 function printEvents(events: DeviceRunSessionEvent[]): void {
   for (const event of events) {
-    Log.log(`${event.occurredAt}  ${event.producer}  ${event.summary}`);
+    Log.log(`${event.ts}  ${event.producer}  ${event.summary}`);
   }
 }

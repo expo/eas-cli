@@ -11,29 +11,22 @@ describe(parseDeviceRunSessionEvents, () => {
   it('parses, deduplicates, and sorts events from the dedicated event log', () => {
     const first = createEvent({
       eventId: 'first',
-      occurredAt: '2026-07-10T12:00:00.000Z',
+      ts: '2026-07-10T12:00:00.000Z',
     });
     const second = createEvent({
       eventId: 'second',
-      occurredAt: '2026-07-10T12:00:01.000Z',
+      ts: '2026-07-10T12:00:01.000Z',
     });
 
     expect(
-      parseDeviceRunSessionEvents(`${second}\nplain text\n${first}\n${second}`, 'session-id').map(
+      parseDeviceRunSessionEvents(`${second}\nplain text\n${first}\n${second}`).map(
         ({ eventId }) => eventId
       )
     ).toEqual(['first', 'second']);
   });
 
-  it('ignores malformed events and events belonging to another session', () => {
-    expect(
-      parseDeviceRunSessionEvents(
-        `${createEvent({ deviceRunSessionId: 'another-session' })}\n${JSON.stringify({
-          schemaVersion: 1,
-        })}`,
-        'session-id'
-      )
-    ).toEqual([]);
+  it('ignores malformed events', () => {
+    expect(parseDeviceRunSessionEvents(`plain text\n${JSON.stringify({ v: 1 })}`)).toEqual([]);
   });
 });
 
@@ -47,7 +40,7 @@ describe(downloadDeviceRunSessionEventsAsync, () => {
     jest.mocked(fetch).mockRejectedValue(new RequestError('not found', response));
 
     await expect(
-      downloadDeviceRunSessionEventsAsync('https://example.test/events', 'session-id')
+      downloadDeviceRunSessionEventsAsync('https://example.test/events')
     ).resolves.toEqual([]);
   });
 });
@@ -55,15 +48,13 @@ describe(downloadDeviceRunSessionEventsAsync, () => {
 function createEvent(
   overrides: Partial<{
     eventId: string;
-    deviceRunSessionId: string;
-    occurredAt: string;
+    ts: string;
   }> = {}
 ): string {
   return JSON.stringify({
-    schemaVersion: 1,
+    v: 1,
     eventId: 'event-id',
-    deviceRunSessionId: 'session-id',
-    occurredAt: '2026-07-10T12:00:00.000Z',
+    ts: '2026-07-10T12:00:00.000Z',
     producer: 'agent-device',
     type: 'operation.started',
     summary: 'Started tap',

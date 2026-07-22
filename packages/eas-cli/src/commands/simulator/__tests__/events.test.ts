@@ -55,10 +55,9 @@ describe(SimulatorEvents, () => {
     };
     const events = [
       {
-        schemaVersion: 1 as const,
+        v: 1 as const,
         eventId: 'event-id',
-        deviceRunSessionId: 'session-id',
-        occurredAt: '2026-07-10T12:00:00.000Z',
+        ts: '2026-07-10T12:00:00.000Z',
         producer: 'agent-device',
         type: 'operation.started',
         summary: 'Started tap',
@@ -78,10 +77,7 @@ describe(SimulatorEvents, () => {
     expect(mockEnableJsonOutput).toHaveBeenCalled();
     expect(mockLoadSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
     expect(mockEventsByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-id');
-    expect(mockDownloadEventsAsync).toHaveBeenCalledWith(
-      'https://example.test/events',
-      'session-id'
-    );
+    expect(mockDownloadEventsAsync).toHaveBeenCalledWith('https://example.test/events');
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       deviceRunSessionId: 'session-id',
       events,
