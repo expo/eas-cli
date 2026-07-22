@@ -421,6 +421,53 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     );
   });
 
+  it('handles a polling rejection even when reporting it fails', async () => {
+    const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
+    await fs.promises.writeFile(path.join(stateDir, 'sessions'), 'not a directory');
+    const reportingError = new Error('Sentry unavailable');
+    jest
+      .mocked(Sentry.capture)
+      .mockImplementationOnce(() => {
+        throw reportingError;
+      })
+      .mockImplementationOnce(() => {
+        throw reportingError;
+      });
+    const logger = createLogger();
+    const collection = await startAgentDeviceEventCollectionAsync({
+      ctx: createContext(),
+      deviceRunSessionId: 'session-id',
+      stateDir,
+      logger,
+      pollIntervalMs: 10,
+    });
+
+    try {
+      await waitForAsync(() =>
+        expect(logger.warn).toHaveBeenCalledWith(
+          { err: reportingError },
+          'Agent-device event collection poller failed.'
+        )
+      );
+      await expect(collection.stopAsync()).resolves.toBeUndefined();
+    } finally {
+      await fs.promises.rm(stateDir, { recursive: true, force: true });
+    }
+
+    expect(Sentry.capture).toHaveBeenCalledTimes(2);
+    expect(Sentry.capture).toHaveBeenNthCalledWith(
+      2,
+      'Agent-device event collection poller failed',
+      reportingError,
+      {
+        level: 'warning',
+        tags: { phase: 'agent-device-event-collection', operation: 'poll' },
+        extras: { deviceRunSessionId: 'session-id' },
+      }
+    );
+    expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
+  });
+
   it('does not fail the session when event log setup fails', async () => {
     const error = new Error('WWW unavailable');
     const ctx = createContext();

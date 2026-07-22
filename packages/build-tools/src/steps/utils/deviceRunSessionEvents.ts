@@ -197,7 +197,19 @@ export async function startAgentDeviceEventCollectionAsync({
         }
       }
     }
-  })();
+  })()
+    .catch(err => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.warn({ err: error }, 'Agent-device event collection poller failed.');
+      Sentry.capture('Agent-device event collection poller failed', error, {
+        level: 'warning',
+        tags: { phase: 'agent-device-event-collection', operation: 'poll' },
+        extras: { deviceRunSessionId },
+      });
+    })
+    .catch(() => {
+      // A diagnostics failure must not recreate an unhandled rejection in this best-effort poller.
+    });
 
   return {
     stopAsync: async () => {
