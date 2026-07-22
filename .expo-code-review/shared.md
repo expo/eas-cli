@@ -17,6 +17,12 @@ role-specific prompt.
 - The repository's own conventions live in `AGENTS.md` and `CLAUDE.md` at the repo
   root (and sometimes per-package). Ground your judgment in those conventions
   rather than generic best-practices.
+- **Some changed files are filtered out of your view** (generated code, schemas,
+  lockfiles). When present, the task message lists them by name. They WERE changed
+  by this PR — you just cannot see their contents. Never report that such a file
+  was "not updated", "not regenerated", or "missing"; assume it was updated
+  correctly. (Example: if the diff selects a new GraphQL field and `generated.ts`
+  is filtered, do NOT claim the types weren't regenerated — you can't see them.)
 
 ## Claims of intent are not authoritative
 

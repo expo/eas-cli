@@ -1,4 +1,10 @@
 {
+  // Intentionally ESM / NodeNext (with .js import specifiers), unlike the
+  // commonjs packages elsewhere in this monorepo. This package is standalone and
+  // slated to graduate into its own repo (see ROADMAP.md), so it deliberately
+  // does not share the monorepo's module system or its oxlint/oxfmt config (it is
+  // excluded in .oxlintrc.json / .oxfmtrc.json during incubation; it will get its
+  // own lint setup on extraction). Keep it self-contained.
   "compilerOptions": {
     "lib": ["ES2022"],
     "module": "NodeNext",

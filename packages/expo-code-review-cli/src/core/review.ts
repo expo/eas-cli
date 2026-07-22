@@ -176,8 +176,12 @@ export async function runReview(
       // (tracing across every changed file), so it gets more than a focused chunk.
       maxWaitMs: number;
     }
-    const CHUNK_TIMEOUT_MS = 8 * 60 * 1000;
-    const CROSS_CUTTING_TIMEOUT_MS = 15 * 60 * 1000;
+    // These caps must fit inside the CI job's timeout-minutes (currently 50): the
+    // coordinator runs AFTER the passes, so worst case ≈ cross-cutting cap + a
+    // finalize window + the coordinator cap (10m) + CI setup. Bump the workflow
+    // timeout if you raise these.
+    const CHUNK_TIMEOUT_MS = 15 * 60 * 1000;
+    const CROSS_CUTTING_TIMEOUT_MS = 25 * 60 * 1000;
     const tasks: ReviewTask[] = [];
     for (const agent of selectedAgents) {
       const system = buildReviewerSystem(config, agent);
@@ -187,7 +191,7 @@ export async function runReview(
           system,
           label: chunked ? `${agent.id} [${index + 1}/${chunks.length}]` : agent.id,
           title: `review-${agent.id}-c${index}`,
-          text: buildReviewerTask(chunk, workspace.files),
+          text: buildReviewerTask(chunk, workspace.files, filtered),
           coverageLabel: `the ${agent.id} review${chunked ? ` (part ${index + 1} of ${chunks.length})` : ''}`,
           maxWaitMs: CHUNK_TIMEOUT_MS,
         });
@@ -201,7 +205,7 @@ export async function runReview(
         system: buildCrossCuttingSystem(config, selectedAgents),
         label: 'cross-file',
         title: 'review-xcut',
-        text: buildCrossCuttingTask(workspace.files),
+        text: buildCrossCuttingTask(workspace.files, filtered),
         coverageLabel: 'the cross-file review (issues spanning multiple changed files)',
         maxWaitMs: CROSS_CUTTING_TIMEOUT_MS,
       });

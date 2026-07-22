@@ -15,9 +15,10 @@ export interface CoordinationResult {
  * Single LLM call that dedupes, re-judges severity, and decides. Structured so it
  * could later own a spawn tool, but for now stays a plain consolidation pass.
  */
-// The coordinator only re-judges text (no repo tools), so it should be quick.
-// A soft-landing finalize + a modest cap keep it from blowing the job budget.
-const COORDINATOR_TIMEOUT_MS = 5 * 60 * 1000;
+// The coordinator only re-judges text (no repo tools), so it's usually quick; the
+// cap is a backstop. It runs AFTER all passes, so this adds to the worst-case
+// serial chain — keep it within the CI job timeout (see review.ts / workflows).
+const COORDINATOR_TIMEOUT_MS = 10 * 60 * 1000;
 
 export async function coordinate(
   handle: OpencodeHandle,

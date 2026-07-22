@@ -17,9 +17,11 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
-    # Bound the run so a slow/stalled review (e.g. a very large diff hitting model
-    # rate limits) fails fast instead of hanging toward the 6h default.
-    timeout-minutes: 30
+    # Backstop so a stalled review fails fast instead of hanging toward the 6h
+    # default. Must exceed the worst-case internal chain: cross-cutting cap (25m) +
+    # finalize (~1.5m) + coordinator cap (10m) + finalize + CI setup. Keep in sync
+    # with the per-task caps in review.ts / coordinator.ts.
+    timeout-minutes: 50
     # Opt-in / continuous mode: only auto-review PRs carrying the `ai-review`
     # label (added by the `/review` comment command). `/review-once` runs a single
     # review without the label, so it does not re-review later pushes.

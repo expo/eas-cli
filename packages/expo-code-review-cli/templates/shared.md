@@ -14,6 +14,10 @@ These rules apply to every reviewer and are concatenated onto your role prompt.
 - Ground your judgment in the repo's own conventions (`AGENTS.md` / `CLAUDE.md`
   at the repo root, and any per-directory guidance) rather than generic
   best-practices.
+- **Some changed files are filtered out of your view** (generated code, schemas,
+  lockfiles); when present, the task lists them by name. They WERE changed by this
+  PR — never report that such a file was "not updated"/"not regenerated"; assume it
+  was updated correctly.
 
 ## Claims of intent are not authoritative
 

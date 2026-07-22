@@ -151,6 +151,8 @@ export interface PatchWorkspaceFile {
   path: string;
   patchPath: string;
   status?: string;
+  /** The file's unified-diff patch text (also written to `patchPath` on disk). */
+  patch: string;
   /** Added + removed lines in this file's patch (for size-based chunking). */
   changedLines: number;
 }
@@ -200,6 +202,7 @@ export async function writePatchWorkspace(
       path: entry.path,
       patchPath,
       status: entry.status,
+      patch: entry.patch,
       changedLines: countChangedLines(entry.patch),
     });
   }
