@@ -109,18 +109,34 @@ const FINALIZE_PROMPT =
   'specified in your instructions, containing whatever findings you are already ' +
   'confident about. If you have nothing solid, return an empty findings array.';
 
-/** Internal signal that a poll loop passed its deadline. */
-class DeadlineReached extends Error {}
+/**
+ * Internal signal that a poll loop passed its deadline. Carries the best-effort
+ * cost/tokens of the in-progress (never-completed) assistant message so a
+ * timed-out task's spend isn't dropped from the run's metrics.
+ */
+class DeadlineReached extends Error {
+  constructor(
+    readonly cost: number = 0,
+    readonly tokens?: TokenUsage
+  ) {
+    super('deadline reached');
+  }
+}
 
 /**
  * Thrown when an agent exceeds its time budget even after being asked to wrap up.
  * Callers MUST treat this as "abandon this task" — retrying just repeats the same
- * non-convergent run.
+ * non-convergent run. Carries the cost/tokens burned so the caller can still
+ * account for the (abandoned) work.
  */
 export class AgentTimeoutError extends Error {
-  constructor(agent: string, minutes: number) {
+  readonly cost: number;
+  readonly tokens?: TokenUsage;
+  constructor(agent: string, minutes: number, cost = 0, tokens?: TokenUsage) {
     super(`Agent "${agent}" timed out after ${minutes} minutes (including finalize)`);
     this.name = 'AgentTimeoutError';
+    this.cost = cost;
+    this.tokens = tokens;
   }
 }
 
@@ -175,10 +191,14 @@ export async function promptAgent(
     if (!(error instanceof DeadlineReached)) {
       throw error;
     }
+    // Cost/tokens burned during the (never-completed) investigation, so the
+    // finalize reply or the abandon path still accounts for them.
+    const spentCost = error.cost;
+    const spentTokens = error.tokens;
     // Time budget hit. Interrupt the wandering run first.
     await abortQuietly(handle, session.id);
     if (!args.finalizeOnTimeout) {
-      throw new AgentTimeoutError(args.agent, Math.round(maxWaitMs / 60000));
+      throw new AgentTimeoutError(args.agent, Math.round(maxWaitMs / 60000), spentCost, spentTokens);
     }
     // Soft landing: ask the (same, context-carrying) session to return whatever
     // it has now. Only messages after this point count as the answer.
@@ -197,13 +217,20 @@ export async function promptAgent(
         onActivity: args.onActivity,
         reportedTools,
       });
-      return { ...result, truncated: true };
+      return {
+        ...result,
+        cost: result.cost + spentCost,
+        tokens: addTokenUsage(addTokenUsage({}, spentTokens), result.tokens),
+        truncated: true,
+      };
     } catch (finalizeError) {
       if (finalizeError instanceof DeadlineReached) {
         await abortQuietly(handle, session.id);
         throw new AgentTimeoutError(
           args.agent,
-          Math.round((maxWaitMs + FINALIZE_WAIT_MS) / 60000)
+          Math.round((maxWaitMs + FINALIZE_WAIT_MS) / 60000),
+          spentCost + finalizeError.cost,
+          addTokenUsage(addTokenUsage({}, spentTokens), finalizeError.tokens)
         );
       }
       throw finalizeError;
@@ -361,9 +388,13 @@ async function pollForCompletion(
     reportedTools: Set<string>;
   }
 ): Promise<PromptResult> {
+  // Best-effort usage of the in-progress assistant message, so a task that times
+  // out before completing still contributes its spend to the run's metrics.
+  let lastCost = 0;
+  let lastTokens: TokenUsage | undefined;
   for (;;) {
     if (Date.now() > opts.deadline) {
-      throw new DeadlineReached();
+      throw new DeadlineReached(lastCost, lastTokens);
     }
     await sleep(POLL_INTERVAL_MS);
 
@@ -372,6 +403,12 @@ async function pollForCompletion(
     const assistant = [...recent].reverse().find(message => message.info?.role === 'assistant');
     if (!assistant) {
       continue;
+    }
+    if (typeof assistant.info?.cost === 'number') {
+      lastCost = assistant.info.cost;
+    }
+    if (assistant.info?.tokens) {
+      lastTokens = assistant.info.tokens;
     }
 
     // Emit a live line the first time each tool call starts, so a long run shows

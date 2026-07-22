@@ -251,20 +251,17 @@ cross-cutting collapse, retry-explosion removal, LPT scheduling, timeout
 alignment, concurrency + maxChangedLines bumps) shipped — see "Recently shipped"
 and §3. What remains, by tier:
 
-### Correctness bugs (do next)
-- **GitHub comment lookup is wrong + unpaginated** (`reporters/github.ts:60-104`).
-  It passes `sort`/`direction` to the issue-comments endpoint, which ignores them,
-  so it reads the **oldest** 100 comments. On PRs with >100 comments this causes
-  duplicate reviewer comments every run and missed `/skip-review`. Fix: paginate
-  (or use `since`) and select the newest marked comment. *(Verify the endpoint's
-  supported params first; pagination fixes it either way.)*
-- **Temp-dir leak** in `withBodyFile` (`reporters/github.ts:106-111`) — never
-  `rm`s its `mkdtemp` dir (the earlier Claude-bot finding, still open). Wrap in
-  try/finally. `auth.ts` already does this correctly.
-- **Cost/token metrics undercount timed-out runs** — the aborted investigation's
-  cost is dropped before `DeadlineReached` throws (`opencode.ts` poll loop), so the
-  new cache/cost metrics understate the priciest tasks. Capture in-progress
-  `info.cost`/`info.tokens` before throwing.
+### Correctness bugs — ✅ shipped (2026-07-22)
+- ✅ **GitHub comment lookup** now paginates all comments (manual paging; the
+  issue-comments endpoint ignores `sort`/`direction` and returns oldest-first) and
+  keeps the **newest** marked comment. Fixes duplicate reviewer comments and missed
+  `/skip-review` on PRs with >100 comments. `reporters/github.ts`
+- ✅ **Temp-dir leak** in `withBodyFile` fixed — try/finally `rm` of the `mkdtemp`
+  dir, matching `auth.ts`. `reporters/github.ts`
+- ✅ **Cost/token metrics** now capture the in-progress assistant's `cost`/`tokens`
+  on timeout (threaded through `DeadlineReached` → the finalize result or
+  `AgentTimeoutError`), so abandoned/finalized tasks contribute their spend.
+  `opencode.ts`, `review.ts`
 
 ### Speed (quality-neutral, cheap)
 - **CI fixed cost**: `fetch-depth: 1` (agents read the working tree; the diff comes

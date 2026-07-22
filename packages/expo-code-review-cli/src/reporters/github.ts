@@ -1,4 +1,4 @@
-import { writeFile, mkdtemp } from 'node:fs/promises';
+import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -36,7 +36,7 @@ export class GitHubReporter implements Reporter {
   }
 
   async checkBreakGlass(): Promise<boolean> {
-    const comments = await this.fetchRecentComments();
+    const comments = await this.fetchAllComments();
     return comments.some(
       comment =>
         typeof comment.body === 'string' &&
@@ -55,39 +55,59 @@ export class GitHubReporter implements Reporter {
     await this.upsertComment(renderMarkdown(review, this.options.commentTag));
   }
 
-  /** Most recent 100 issue comments as a single JSON array (no --paginate, which
-   * concatenates one array per page into invalid JSON). */
-  private async fetchRecentComments(): Promise<IssueComment[]> {
-    const { stdout } = await run(
-      'gh',
-      [
-        'api',
-        '-X',
-        'GET',
-        `repos/${this.options.repo}/issues/${this.options.prNumber}/comments`,
-        '-f',
-        'per_page=100',
-        '-f',
-        'sort=created',
-        '-f',
-        'direction=desc',
-      ],
-      { cwd: this.options.cwd }
-    );
-    try {
-      return JSON.parse(stdout) as IssueComment[];
-    } catch {
-      return [];
+  // Safety cap on pagination (100/page): 30 pages = 3000 comments. Bounds a
+  // pathological PR; virtually every real PR exits far earlier.
+  private static readonly MAX_COMMENT_PAGES = 30;
+
+  /**
+   * Fetch ALL issue comments, paginating manually (a single page's array is valid
+   * JSON; `--paginate` concatenates arrays into invalid JSON). The issue-comments
+   * endpoint does NOT honor `sort`/`direction`, so results come back oldest-first
+   * — we must page to the end to see the newest comments (our own prior comment or
+   * a recent `/skip-review` can otherwise fall outside a single 100-comment window,
+   * causing duplicate comments and missed break-glass).
+   */
+  private async fetchAllComments(): Promise<IssueComment[]> {
+    const all: IssueComment[] = [];
+    for (let page = 1; page <= GitHubReporter.MAX_COMMENT_PAGES; page++) {
+      const { stdout } = await run(
+        'gh',
+        [
+          'api',
+          '-X',
+          'GET',
+          `repos/${this.options.repo}/issues/${this.options.prNumber}/comments`,
+          '-f',
+          'per_page=100',
+          '-f',
+          `page=${page}`,
+        ],
+        { cwd: this.options.cwd }
+      );
+      let batch: IssueComment[];
+      try {
+        batch = JSON.parse(stdout) as IssueComment[];
+      } catch {
+        break;
+      }
+      if (!Array.isArray(batch) || batch.length === 0) {
+        break;
+      }
+      all.push(...batch);
+      if (batch.length < 100) {
+        break;
+      }
     }
+    return all;
   }
 
   /**
    * Update the reviewer's existing comment if present (deleting older duplicates),
-   * otherwise create it. Comments are fetched newest-first, so the first marked
-   * one is the keeper.
+   * otherwise create it. Comments come back oldest-first, so the LAST marked one
+   * is the newest and is the keeper.
    */
   private async upsertComment(body: string): Promise<void> {
-    const marked = (await this.fetchRecentComments()).filter(comment =>
+    const marked = (await this.fetchAllComments()).filter(comment =>
       comment.body?.includes(this.marker)
     );
 
@@ -96,8 +116,9 @@ export class GitHubReporter implements Reporter {
       return;
     }
 
-    const [keep, ...duplicates] = marked;
-    await this.patchComment(keep!.id, body);
+    const keep = marked[marked.length - 1]!;
+    const duplicates = marked.slice(0, -1);
+    await this.patchComment(keep.id, body);
     for (const duplicate of duplicates) {
       await this.deleteComment(duplicate.id);
     }
@@ -106,8 +127,12 @@ export class GitHubReporter implements Reporter {
   private async withBodyFile<T>(body: string, fn: (jsonPath: string) => Promise<T>): Promise<T> {
     const dir = await mkdtemp(path.join(tmpdir(), 'ecr-'));
     const jsonPath = path.join(dir, 'comment.json');
-    await writeFile(jsonPath, JSON.stringify({ body }), 'utf8');
-    return fn(jsonPath);
+    try {
+      await writeFile(jsonPath, JSON.stringify({ body }), 'utf8');
+      return await fn(jsonPath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 
   private async createComment(body: string): Promise<void> {

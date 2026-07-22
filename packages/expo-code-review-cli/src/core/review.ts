@@ -251,6 +251,9 @@ export async function runReview(
         // wrap up; other errors are genuine failures. Either way, don't retry the
         // whole task — record the coverage gap and continue.
         if (error instanceof AgentTimeoutError) {
+          // Still account for the spend of the abandoned investigation.
+          agentCosts[task.bucket] = (agentCosts[task.bucket] ?? 0) + error.cost;
+          addTokenUsage(tokenTotals, error.tokens);
           progress(`  ${task.label}: exceeded ${minutes}m limit — skipping (no retry)`);
           incomplete.push(
             `${capitalize(task.coverageLabel)} exceeded its ${minutes}-minute limit and did not complete; those changes were not fully reviewed.`
