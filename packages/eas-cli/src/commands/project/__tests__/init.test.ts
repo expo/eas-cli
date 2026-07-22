@@ -562,7 +562,7 @@ describe(ProjectInit.name, () => {
       expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
     });
 
-    it('creates the project non-interactively when --force is also provided', async () => {
+    it('creates the project non-interactively without requiring --force', async () => {
       mockTestProject({});
       jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
       jest
@@ -576,23 +576,40 @@ describe(ProjectInit.name, () => {
         ownerAccount: jester.accounts[0],
       });
 
-      await new ProjectInit(
-        ['--account', 'jester', '--force', '--non-interactive'],
-        commandOptions
-      ).run();
+      await new ProjectInit(['--account', 'jester', '--non-interactive'], commandOptions).run();
 
       expect(promptAsync).not.toHaveBeenCalled();
       expect(confirmAsync).not.toHaveBeenCalled();
       expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
     });
 
-    it('throws non-interactively without --force when the project does not exist', async () => {
+    it('links an existing project non-interactively without requiring --force', async () => {
+      mockTestProject({});
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('123456');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '123456',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(['--account', 'jester', '--non-interactive'], commandOptions).run();
+
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
+    });
+
+    it('throws non-interactively without --account when no owner is set', async () => {
       mockTestProject({});
 
       await expect(
-        new ProjectInit(['--account', 'jester', '--non-interactive'], commandOptions).run()
+        new ProjectInit(['--non-interactive'], commandOptions).run()
       ).rejects.toThrowError(
-        'Project does not exist: @jester/testing-123. Use --force flag to create this project.'
+        'You have access to multiple accounts. Choose the account that should own this project with the --account flag:'
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();

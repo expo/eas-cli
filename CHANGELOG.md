@@ -9,7 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Support drill-down from event lists in observe:session. ([#3987](https://github.com/expo/eas-cli/pull/3987) by [@douglowder](https://github.com/douglowder))
-- [eas-cli] Add `--account` flag to `eas init` to choose the account that should own the project, enabling non-interactive project creation (`eas init --account <name> --force --non-interactive`), and improve unconfigured-project error messages to list the accounts you can create projects in. ([#4057](https://github.com/expo/eas-cli/pull/4057) by [@williamgrosset](https://github.com/williamgrosset))
+- [eas-cli] Add `--account` flag to `eas init` to choose the account that should own the project, enabling non-interactive project creation (`eas init --account <name> --non-interactive`), and improve unconfigured-project error messages to list the accounts you can create projects in. ([#4057](https://github.com/expo/eas-cli/pull/4057) by [@williamgrosset](https://github.com/williamgrosset))
 
 ### 🐛 Bug fixes
 
