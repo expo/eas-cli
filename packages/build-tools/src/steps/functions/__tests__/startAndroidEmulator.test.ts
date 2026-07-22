@@ -25,6 +25,8 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     createAsync: jest.fn(),
     cloneAsync: jest.fn(),
     startAsync: jest.fn(),
+    startLogcatStreamingAsync: jest.fn(),
+    getLogcatStagingDirectoryPath: jest.fn(),
     waitForReadyAsync: jest.fn(),
     disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
@@ -59,6 +61,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-default'));
+    mockedAndroidUtils.startLogcatStreamingAsync.mockResolvedValue({
+      outputPath: '/non/existent/dir/android-emulator-logcat/emulator-default.log',
+    });
+    mockedAndroidUtils.getLogcatStagingDirectoryPath.mockReturnValue(
+      '/non/existent/dir/android-emulator-logcat'
+    );
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
@@ -105,6 +113,23 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       expect.objectContaining({
         serialId: 'emulator-2222',
       })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        serialId: 'emulator-1111',
+        outputDir: '/non/existent/dir/android-emulator-logcat',
+      })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        serialId: 'emulator-2222',
+        outputDir: '/non/existent/dir/android-emulator-logcat',
+      })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedAndroidUtils.waitForReadyAsync.mock.invocationCallOrder[0]
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,6 +199,26 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
         serialId: 'emulator-clone-2-attempt-1',
       })
     );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-base',
+      })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-clone-1-attempt-1',
+      })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-clone-1-attempt-2',
+      })
+    );
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-clone-2-attempt-1',
+      })
+    );
 
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,6 +245,24 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledTimes(3);
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledTimes(3);
+  });
+
+  it('continues emulator startup when logcat streaming fails', async () => {
+    mockedAndroidUtils.startLogcatStreamingAsync.mockResolvedValue(null);
+
+    await createStep().executeAsync();
+
+    expect(mockedAndroidUtils.startLogcatStreamingAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-default',
+      })
+    );
+    expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serialId: 'emulator-default',
+      })
+    );
   });
 
   it('skips animation scale adjustments when opt out env var is disabled', async () => {
