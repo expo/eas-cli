@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import { loadReviewConfig } from '../config/load.js';
 import { repoRoot } from '../core/exec.js';
+import { errorMessage } from '../core/util.js';
 import { runReview } from '../core/review.js';
 import { GitHubPRSource } from '../sources/github-pr.js';
 import { GitHubReporter } from '../reporters/github.js';
@@ -122,9 +123,6 @@ export async function ciCommand(argv: string[] = []): Promise<void> {
   }
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 /** Parse `--agents a,b,c` from argv (undefined = all agents). */
 function parseAgents(argv: string[]): string[] | undefined {

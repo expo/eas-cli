@@ -24,8 +24,10 @@ import {
   buildReviewerSystem,
   buildReviewerTask,
 } from './prompts.js';
-import { fingerprintFinding, parseReviewerOutput, SEVERITY_RANK } from './schema.js';
+import { fingerprintFinding, parseReviewerOutput } from './schema.js';
 import type { CoordinatorOutput, Finding } from './schema.js';
+import { sortFindings } from './render.js';
+import { errorMessage } from './util.js';
 
 export interface ReviewRunOptions {
   config: LoadedConfig;
@@ -366,7 +368,7 @@ function applyReviewPolicy(
   let findings = policy.includeSuggestions
     ? output.findings
     : output.findings.filter(finding => finding.severity !== 'suggestion');
-  findings = [...findings].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+  findings = sortFindings(findings);
   if (policy.maxFindings != null) {
     findings = findings.slice(0, policy.maxFindings);
   }
@@ -486,9 +488,6 @@ function sum(costs: Record<string, number>): number {
   return Object.values(costs).reduce((total, value) => total + value, 0);
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 async function safeLog(logPath: string, record: RunLogRecord): Promise<void> {
   try {

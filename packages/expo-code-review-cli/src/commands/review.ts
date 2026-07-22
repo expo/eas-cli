@@ -1,5 +1,6 @@
 import { loadReviewConfig } from '../config/load.js';
 import { repoRoot, run } from '../core/exec.js';
+import { errorMessage } from '../core/util.js';
 import { runReview } from '../core/review.js';
 import { LocalGitSource } from '../sources/local-git.js';
 import { GitHubPRSource } from '../sources/github-pr.js';
@@ -215,6 +216,3 @@ async function resolveRepo(cwd: string): Promise<string> {
   throw new Error('Could not determine the repository for --post; pass --repo owner/repo.');
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
