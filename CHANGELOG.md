@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas update` failing with a server error when run inside an EAS Build. ([#4048](https://github.com/expo/eas-cli/pull/4048) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [21.0.3](https://github.com/expo/eas-cli/releases/tag/v21.0.3) - 2026-07-22

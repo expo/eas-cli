@@ -17,7 +17,9 @@ import {
 } from '../generated';
 import { UpdateFragmentNode } from '../types/Update';
 
-const turtleJobRunId = process.env.EAS_BUILD_ID;
+function getTurtleJobRunId(): string | undefined {
+  return process.env.EAS_BUILD_PLATFORM ? undefined : process.env.EAS_BUILD_ID;
+}
 
 export const PublishMutation = {
   async getUploadURLsAsync(
@@ -48,6 +50,7 @@ export const PublishMutation = {
     graphqlClient: ExpoGraphqlClient,
     publishUpdateGroupsInput: PublishUpdateGroupInput[]
   ): Promise<UpdateFragment[]> {
+    const turtleJobRunId = getTurtleJobRunId();
     const data = await withErrorHandlingAsync(
       graphqlClient
         .mutation<UpdatePublishMutation>(
