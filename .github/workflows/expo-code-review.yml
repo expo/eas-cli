@@ -17,6 +17,9 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # Bound the run so a slow/stalled review (e.g. a very large diff hitting model
+    # rate limits) fails fast instead of hanging toward the 6h default.
+    timeout-minutes: 20
     # Opt-in / continuous mode: only auto-review PRs carrying the `ai-review`
     # label (added by the `/review` comment command). `/review-once` runs a single
     # review without the label, so it does not re-review later pushes.
