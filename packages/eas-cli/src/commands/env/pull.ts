@@ -1,5 +1,4 @@
 import { Args, Flags } from '@oclif/core';
-import dotenv from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
@@ -12,6 +11,10 @@ import {
 } from '../../graphql/queries/EnvironmentVariablesQuery';
 import Log from '../../log';
 import { confirmAsync } from '../../prompts';
+import {
+  formatEnvironmentVariableDiffAsync,
+  getEnvironmentVariableNamesFromEnvFile,
+} from '../../utils/environmentVariableDiff';
 import { promptVariableEnvironmentAsync } from '../../utils/prompts';
 
 export default class EnvPull extends EasCommand {
@@ -76,7 +79,8 @@ export default class EnvPull extends EasCommand {
       }
     );
 
-    if (!nonInteractive && (await fs.exists(targetPath))) {
+    const targetExists = await fs.exists(targetPath);
+    if (!nonInteractive && targetExists) {
       const result = await confirmAsync({
         message: `File ${targetPath} already exists. Do you want to overwrite it?`,
       });
@@ -87,9 +91,12 @@ export default class EnvPull extends EasCommand {
     }
 
     let currentEnvLocal: Record<string, string> = {};
+    let existingVariableNames = new Set<string>();
 
-    if (await fs.exists(targetPath)) {
-      currentEnvLocal = dotenv.parse(await fs.readFile(targetPath, 'utf8'));
+    if (targetExists) {
+      const currentEnvFile = await fs.readFile(targetPath, 'utf8');
+      ({ values: currentEnvLocal, variableNames: existingVariableNames } =
+        getEnvironmentVariableNamesFromEnvFile(currentEnvFile));
     }
 
     const filePrefix = `# Environment: ${environment.toLocaleLowerCase()}\n\n`;
@@ -103,14 +110,22 @@ export default class EnvPull extends EasCommand {
       await fs.mkdir(envDir, { recursive: true });
     }
 
+    const diffLog = await formatEnvironmentVariableDiffAsync({
+      environmentVariables,
+      currentEnvValues: currentEnvLocal,
+      existingVariableNames,
+      envDir,
+      targetExists,
+    });
+
     const skippedSecretVariables: string[] = [];
-    const overridenSecretVariables: string[] = [];
+    const overriddenSecretVariables: string[] = [];
 
     const envFileContentLines = await Promise.all(
       environmentVariables.map(async (variable: EnvironmentVariableWithFileContent) => {
         if (variable.visibility === EnvironmentVariableVisibility.Secret) {
-          if (currentEnvLocal[variable.name]) {
-            overridenSecretVariables.push(variable.name);
+          if (Object.hasOwn(currentEnvLocal, variable.name)) {
+            overriddenSecretVariables.push(variable.name);
             return `${variable.name}=${currentEnvLocal[variable.name]}`;
           }
           skippedSecretVariables.push(variable.name);
@@ -131,9 +146,11 @@ export default class EnvPull extends EasCommand {
       `Pulled plain text and sensitive environment variables from "${environment.toLowerCase()}" environment to ${targetPath}.`
     );
 
-    if (overridenSecretVariables.length > 0) {
+    if (overriddenSecretVariables.length > 0) {
       Log.addNewLineIfNone();
-      Log.log(`Reused local values for following secrets: ${overridenSecretVariables.join('\n')}.`);
+      Log.log(
+        `Reused local values for following secrets: ${overriddenSecretVariables.join('\n')}.`
+      );
     }
 
     if (skippedSecretVariables.length > 0) {
@@ -143,6 +160,13 @@ export default class EnvPull extends EasCommand {
           ', '
         )}.`
       );
+    }
+
+    if (diffLog.length > 0) {
+      Log.addNewLineIfNone();
+      for (const line of diffLog) {
+        Log.log(line);
+      }
     }
   }
 }

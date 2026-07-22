@@ -352,8 +352,8 @@ describe(EnvPull, () => {
   });
 
   describe('existing .env.local file handling', () => {
-    it('preserves existing secret values when they exist', async () => {
-      const existingEnvContent = 'SECRET_KEY=existing-secret-value\nOTHER_VAR=other-value';
+    it.each(['existing-secret-value', ''])('preserves an existing secret value %j', async value => {
+      const existingEnvContent = `SECRET_KEY=${value}\nOTHER_VAR=other-value`;
       jest.mocked(fs.exists).mockImplementation(() => Promise.resolve(true));
       jest.mocked(fs.readFile).mockImplementation(() => Promise.resolve(existingEnvContent));
       jest.mocked(confirmAsync).mockResolvedValue(true);
@@ -376,7 +376,7 @@ describe(EnvPull, () => {
       const fileContent = envFileCall![1] as string;
 
       // Should use existing secret value instead of placeholder
-      expect(fileContent).toContain('SECRET_KEY=existing-secret-value');
+      expect(fileContent).toContain(`SECRET_KEY=${value}`);
       expect(fileContent).not.toContain('# SECRET_KEY=***** (secret)');
 
       // Should log that it reused the local value
