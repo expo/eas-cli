@@ -142,6 +142,40 @@ if a run fails for lack of credentials, authenticate a provider in OpenCode.
 
 Run `ecr doctor` to diagnose setup.
 
+## Model selection
+
+Models are resolved with this precedence: **`REVIEWER_MODEL` env** (global override)
+→ per-file **frontmatter `model:`** → **`config.jsonc` `model`** (the default). So a
+repo can run a mixed setup, and a developer can override everything locally.
+
+Rules of thumb for the reviewer's workload:
+
+- **Specialist agents** (correctness/security/consistency) do the real bug-finding
+  and benefit from a reasoning-tier model — **Sonnet** is the quality/speed sweet
+  spot (the default). **Opus** finds more but is slower and more rate-limited, which
+  makes large-PR timeouts worse; reserve it for a narrow deep pass if at all.
+- **The coordinator** only consolidates text (no repo tools), so a fast, cheap
+  model — **Haiku** — fits well and keeps the serial tail short. Set it in
+  `coordinator.md` frontmatter.
+- If latency/timeouts dominate on big PRs, moving the specialists to a faster model
+  is the most direct lever (a real recall tradeoff — measure it).
+
+Example mixed setup:
+
+```jsonc
+// config.jsonc
+"model": "anthropic/claude-sonnet-5"        // specialists + cross-file pass
+```
+```markdown
+<!-- coordinator.md frontmatter -->
+---
+model: anthropic/claude-haiku-4-5-20251001
+---
+```
+
+There is no automatic cross-provider "equivalent" fallback — that would silently
+change which model reviewed your code. Use an explicit override instead.
+
 ## Reliability
 
 A review must never hang, silently produce nothing, or present an unreviewed
