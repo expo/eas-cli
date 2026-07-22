@@ -275,10 +275,17 @@ archaeology (`git show`/`od`), not by trusting the unified diff. Improvements:
 - Give agents (or a pre-pass) the ability to read the **working tree**, not only
   the unified diff, for files git can't diff cleanly — the bot's edge was exactly
   this.
-- **Test infrastructure (currently none in this package).** Add a lightweight
-  suite with regression fixtures for: NUL-byte source stays text/diffable; binary
-  marker → filtered; glob matcher parity; fingerprint dedup. These two bugs are
-  precisely the kind a fixture locks down cheaply.
+- ✅ **Unit test suite (shipped).** `bun test` (`yarn test:unit`) — 36 tests / 8
+  files over the deterministic core: diff parsing incl. binary detection, noise
+  filtering incl. header-only markers + glob (`?` escaping, no-NUL), JSONC config
+  parsing, JSON extraction, fingerprinting, prompt sanitization, render +
+  fingerprint round-trip + coverage-note gating, quote-grounding, and
+  chunking/policy/concurrency (incl. a guard for the index-vs-element FP). Each
+  test guards a real regression from this session. Excluded from tsc (bun runs
+  them). **Follow-up:** wire into CI — a small dedicated workflow on
+  `packages/expo-code-review-cli/**` (needs bun), or the package's own CI on
+  extraction; the monorepo's jest-based `lerna run test` doesn't pick it up (script
+  is `test:unit`, and files are `*.test.ts` not the repo's `-test.ts`).
 
 **Cross-cutting: self-review coverage.** The reviewer should be reliably run
 against its own PRs at a size it can handle (the 49-file mega-PR defeated it —
@@ -428,3 +435,51 @@ Why "new" issues appear every run, roughly in order of impact:
 Bottom line: most of the churn is an artifact of (1) partial coverage + (4) a
 self-referential moving target, plus FPs from missing validation (§A). Closing
 coverage and adding quote-grounded verification should make runs boringly stable.
+
+## Telling the reviewer "I don't care about this" (suppression)
+
+Design from a focused investigation. Principle for everything below: **suppression is
+a display filter, never a review skip; dismissed items collapse into an auditable,
+reversible section rather than vanishing; and a `critical`/`secrets` finding is never
+silently erased** (it escalates to a "needs human sign-off" note).
+
+**Two latent bugs found while designing this:**
+- **Fingerprint is unstable.** `fingerprintFinding` (`schema.ts`) keys on the
+  LLM-written `title`, which varies run-to-run at temp 0.1 — so any *persistent*
+  dismissal keyed on it would silently lapse and the finding re-surfaces. Must fix
+  before building dismissal.
+- **The inline `expo-code-review-ignore` directive is prompt-only** — grep finds zero
+  code references; suppression today depends entirely on the model choosing to obey.
+  Needs a deterministic backstop.
+- Also: `parseEmbeddedFingerprints` (`render.ts`) has no callers — the embedded
+  `fingerprints=[…]` comment block is a built-but-unused substrate, ideal for storing
+  dismissals.
+
+**Build order:**
+1. **Fingerprint v2 (prerequisite, small).** Re-key on the verbatim `evidence`
+   snippet (which we now require + quote-ground) instead of `title`:
+   `sha1("v2"|file|category|normalizeCode(evidence))`; fall back to title only when
+   evidence is too short. Nice semantics: if the author later changes that code the
+   hash changes and the dismissal *lapses* (re-evaluated), which is correct. Surface
+   a short `id:` per finding so users know what to reference.
+2. **Per-PR `/dismiss <id>` (flagship).** Maintainer-gated `issue_comment` command
+   (reuse the break-glass author_association gate + base-ref-only checkout). Store
+   dismissed fingerprints as a `dismissed=[{fp,by,reason,sha}]` block **in the bot's
+   own comment body** — the auth boundary is GitHub's (only the bot/maintainers can
+   edit it); read it ONLY from the bot's comment, never an author comment. The
+   reporter filters dismissed findings into a collapsed `<details>` "Dismissed on this
+   PR" section. `/undismiss` reverses it.
+3. **Repo config `policy.suppress`** (persistent, cross-PR, itself code-reviewed):
+   `byCategory` / `byPathGlob` (reuse `matchesIgnore`) / `byTitlePattern` /
+   `severityFloor`. Distinct from `noise.additionalIgnores` (that drops files before
+   review; this filters findings the agent still reasoned about).
+4. **Harden the inline directive:** deterministic backstop (read the flagged line ±1
+   in the working tree; drop on directive) + the critical/secrets carve-out.
+
+**Precedence** (only #1 is a true skip): `/skip-review` (skip) > inline directive >
+config `policy.suppress` > per-PR `/dismiss`. #2–#4 are display filters.
+
+**Fits §1 (inline comments):** dismissal is the first real consumer of the fingerprint
+substrate; after §1, a 👎/reply on an inline thread maps to the same `dismissed[]`
+store (thread↔fp gives the identity a single comment can't), so this design is forward
+work, not throwaway.

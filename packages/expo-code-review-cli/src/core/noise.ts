@@ -106,7 +106,7 @@ async function noiseReason(
 const HEADER_LINES = 5;
 
 /** Minimal glob: supports `**` (crosses `/`) and `*` (within a segment). */
-function matchesIgnore(filePath: string, pattern: string): boolean {
+export function matchesIgnore(filePath: string, pattern: string): boolean {
   // Translate the glob to a regex in a single pass, escaping metacharacters
   // inline. We deliberately use NO placeholder character: an earlier version
   // stashed a literal NUL byte as a sentinel, which made git classify this

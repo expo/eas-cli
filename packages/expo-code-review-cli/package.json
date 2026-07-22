@@ -16,7 +16,8 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rimraf build",
     "typecheck": "tsc --noEmit",
-    "dev": "bun run src/cli.ts"
+    "dev": "bun run src/cli.ts",
+    "test:unit": "bun test"
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.18.2",

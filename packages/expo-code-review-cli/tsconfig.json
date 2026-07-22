@@ -20,5 +20,8 @@
     "rootDir": "src",
     "noEmit": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  // Tests run under `bun test` (its own TS + `bun:test` types); tsc doesn't build
+  // or type-check them. Inherited by tsconfig.build.json.
+  "exclude": ["src/**/__tests__/**"]
 }

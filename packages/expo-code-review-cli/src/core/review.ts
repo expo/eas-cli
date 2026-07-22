@@ -375,7 +375,7 @@ export async function runReview(
  * Policy backstop: drop suggestions unless opted in, cap by count (most severe
  * first), and downgrade approve_with_comments to approve when nothing remains.
  */
-function applyReviewPolicy(
+export function applyReviewPolicy(
   output: CoordinatorOutput,
   policy: LoadedConfig['policy']
 ): CoordinatorOutput {
@@ -437,7 +437,7 @@ function fallbackConsolidation(
  * a `request_changes` with no criticals remaining → soften to approve_with_comments;
  * otherwise keep the coordinator's decision.
  */
-function decisionAfterVerification(
+export function decisionAfterVerification(
   previous: CoordinatorOutput['decision'],
   kept: Finding[]
 ): CoordinatorOutput['decision'] {
@@ -475,7 +475,7 @@ function selectAgents(all: LoadedAgent[], filter?: string[]): LoadedAgent[] {
  * file count (secondary guard). A single file larger than maxChangedLines becomes
  * its own chunk (a file is never split).
  */
-function chunkByLines(
+export function chunkByLines(
   files: PatchWorkspaceFile[],
   maxChangedLines: number,
   maxFiles: number
@@ -500,7 +500,7 @@ function chunkByLines(
 }
 
 /** Run `fn` over items with at most `limit` in flight at once. */
-async function mapWithConcurrency<T>(
+export async function mapWithConcurrency<T>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<void>
