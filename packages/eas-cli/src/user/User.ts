@@ -1,6 +1,17 @@
-import { CurrentUserQuery, PartnerActor, Robot, SsoUser, User } from '../graphql/generated';
+import { CurrentUserQuery, PartnerActor, Robot, Role, SsoUser, User } from '../graphql/generated';
 
 export type Actor = NonNullable<CurrentUserQuery['meActor']>;
+
+/**
+ * Names of the accounts where the actor can create projects (non-ViewOnly role),
+ * sorted by account creation date from newest to oldest. Used for display in error messages.
+ */
+export function getCreatableAccountNamesNewestFirst(actor: Actor): string[] {
+  return [...actor.accounts]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
+    .map(it => it.name);
+}
 
 /**
  * Resolve the name of the actor, either normal user, sso user or robot user.

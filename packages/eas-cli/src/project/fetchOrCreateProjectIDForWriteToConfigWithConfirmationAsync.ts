@@ -8,7 +8,7 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import { link } from '../log';
 import { ora } from '../ora';
 import { confirmAsync } from '../prompts';
-import { Actor } from '../user/User';
+import { Actor, getCreatableAccountNamesNewestFirst } from '../user/User';
 
 /**
  * 1. Looks for an existing project on EAS servers. If found, ask the user whether this is the
@@ -30,18 +30,22 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
-  if (options.nonInteractive) {
-    throw new Error(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
-    );
-  }
-
   const allAccounts = actor.accounts;
   const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
     allAccounts
       .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
       .map(it => it.name)
   );
+
+  if (options.nonInteractive) {
+    throw new Error(
+      `EAS project not configured. To configure it non-interactively, choose the account that should own the project and run:\n\n  eas init --account <name> --force --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+        actor
+      ).join(
+        ', '
+      )}\n\nAlternatively, set the "owner" field in your app config, or run "eas init" for interactive setup.`
+    );
+  }
   const account = allAccounts.find(a => a.name === accountName);
   if (!account) {
     throw new Error(

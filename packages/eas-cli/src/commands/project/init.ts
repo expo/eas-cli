@@ -16,6 +16,10 @@ export default class ProjectInit extends EasCommand {
     id: Flags.string({
       description: 'ID of the EAS project to link',
     }),
+    account: Flags.string({
+      description: 'Name of the account that should own the project',
+      exclusive: ['id'],
+    }),
     force: Flags.boolean({
       description:
         'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
@@ -30,7 +34,7 @@ export default class ProjectInit extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      flags: { id: idArgument, force, 'non-interactive': nonInteractive },
+      flags: { id: idArgument, account: accountArgument, force, 'non-interactive': nonInteractive },
     } = await this.parse(ProjectInit);
     const {
       loggedIn: { actor, graphqlClient },
@@ -48,6 +52,7 @@ export default class ProjectInit extends EasCommand {
       idForConsistency = await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
         force,
         nonInteractive,
+        accountName: accountArgument,
       });
     }
 
