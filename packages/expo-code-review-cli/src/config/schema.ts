@@ -69,6 +69,10 @@ export type RawReviewConfig = z.infer<typeof ReviewConfigSchema>;
 /** A single agent after prompt files are read and models are resolved. */
 export interface LoadedAgent {
   id: string;
+  /** One-line summary from frontmatter, used by the router to pick agents. */
+  description: string;
+  /** Frontmatter `alwaysRun: true` — router always includes it (e.g. security). */
+  alwaysRun: boolean;
   model: string;
   temperature: number;
   tools: Record<string, boolean>;

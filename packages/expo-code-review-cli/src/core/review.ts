@@ -10,6 +10,7 @@ import { filterNoise, writePatchWorkspace } from './noise.js';
 import type { PatchWorkspaceFile } from './noise.js';
 import { buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
 import type { OpencodeHandle } from './opencode.js';
+import { routeAgents } from './router.js';
 import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
 import { parseReviewerOutput } from './schema.js';
 import type { CoordinatorOutput, Finding, Severity } from './schema.js';
@@ -18,8 +19,10 @@ export interface ReviewRunOptions {
   config: LoadedConfig;
   mode: 'ci' | 'local';
   onProgress?: (message: string) => void;
-  /** Run only these agent ids (by filename). Omit/empty = all agents. */
+  /** Run only these agent ids (by filename). Takes precedence over `route`. */
   agents?: string[];
+  /** Let the router pick relevant agents from the diff (ignored if `agents` set). */
+  route?: boolean;
 }
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
@@ -45,8 +48,11 @@ export async function runReview(
   const runDir = path.join(runsRoot, runId);
   const logPath = path.join(runsRoot, 'reviews.jsonl');
 
-  // Fail fast on an invalid agent selection before doing any work.
-  const selectedAgents = selectAgents(config.agents, options.agents);
+  // Fail fast on an invalid explicit selection before doing any work. Routing
+  // (if requested) is resolved later, once the server is up.
+  const explicitAgents = options.agents?.length
+    ? selectAgents(config.agents, options.agents)
+    : null;
 
   const [metadata, changedFiles] = await Promise.all([
     source.getMetadata(),
@@ -106,6 +112,21 @@ export async function runReview(
 
   try {
     const workspace = await writePatchWorkspace(kept, metadata, runDir);
+
+    // Resolve which agents run: an explicit list wins; otherwise route (LLM picks
+    // relevant agents + always-run) when asked, else all.
+    let selectedAgents = explicitAgents ?? config.agents;
+    if (!explicitAgents && options.route) {
+      progress('Routing: selecting relevant agents…');
+      const routed = await routeAgents(handle!, config, workspace.files);
+      selectedAgents = routed.agents;
+      progress(
+        routed.routed
+          ? `Router selected: ${selectedAgents.map(a => a.id).join(', ')}`
+          : 'Router unavailable; running all agents.'
+      );
+    }
+
     // Split the diff into focused chunks so each reviewer call sees a small file
     // set (better recall than one giant blob), and run all agent×chunk calls
     // concurrently up to a cap.

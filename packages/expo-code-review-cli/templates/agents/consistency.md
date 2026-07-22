@@ -1,3 +1,7 @@
+---
+description: Consistency with the repo's existing patterns and conventions for the same kind of change (flags, error messages and types, structure).
+---
+
 # Consistency & conventions
 
 You are the consistency reviewer. When a PR adds or changes code, your job is to

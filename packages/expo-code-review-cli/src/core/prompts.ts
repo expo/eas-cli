@@ -102,6 +102,38 @@ export function buildCrossCuttingTask(allFiles: PatchWorkspaceFile[]): string {
   ].join('\n');
 }
 
+/** Router: decides which agents are relevant to a change. */
+export function buildRouterSystem(): string {
+  return [
+    "You are the review router. Given a pull request's changed files and a set of",
+    'available reviewer agents (each with an id and a description), decide which',
+    'agents are relevant to review this change.',
+    '',
+    'Rules:',
+    '- Return ONLY a JSON object of the form {"agents": ["id", ...]} using ids from',
+    '  the provided list. Never invent ids.',
+    '- Include an agent if there is ANY plausible relevance to its focus. Err toward',
+    '  inclusion — a missed reviewer is worse than an extra one. When unsure, include.',
+    '- Including all of them is acceptable.',
+  ].join('\n');
+}
+
+export function buildRouterTask(agents: LoadedAgent[], files: PatchWorkspaceFile[]): string {
+  const agentList = agents
+    .map(agent => `- ${agent.id}: ${agent.description || '(no description)'}`)
+    .join('\n');
+  const fileList = files.map(file => `- ${file.path} (${file.status ?? 'M'})`).join('\n');
+  return [
+    'Available agents:',
+    agentList,
+    '',
+    'Changed files:',
+    fileList,
+    '',
+    'Which agents should review this change? Return {"agents": ["id", ...]} and nothing else.',
+  ].join('\n');
+}
+
 export function buildCoordinatorSystem(config: LoadedConfig): string {
   return withShared(config, config.coordinator.promptText);
 }

@@ -100,6 +100,16 @@ export function extractJsonObject(text: string): unknown {
   );
 }
 
+/** The router's choice of which agent ids to run. */
+export const RouteOutputSchema = z.object({
+  agents: z.array(z.string()).default([]),
+});
+export type RouteOutput = z.infer<typeof RouteOutputSchema>;
+
+export function parseRouteOutput(text: string): RouteOutput {
+  return RouteOutputSchema.parse(extractJsonObject(text));
+}
+
 export function parseReviewerOutput(text: string): ReviewerOutput {
   return ReviewerOutputSchema.parse(extractJsonObject(text));
 }

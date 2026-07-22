@@ -45,14 +45,19 @@ jobs:
             /review-once) once=true ;;
             *) echo "run=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
           esac
+          # Bare "/review" -> router picks; "all" -> every agent; names -> subset.
           # Sanitize agent ids to [a-z0-9,_-] to keep the value shell-safe.
           agents=""
-          if [ -n "$rest" ] && [ "$rest" != "all" ]; then
+          route=false
+          if [ -z "$rest" ]; then
+            route=true
+          elif [ "$rest" != "all" ]; then
             agents=$(printf '%s' "$rest" | tr ' ' ',' | tr -cd 'a-zA-Z0-9,_-')
           fi
           echo "run=true" >> "$GITHUB_OUTPUT"
           echo "once=$once" >> "$GITHUB_OUTPUT"
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
+          echo "route=$route" >> "$GITHUB_OUTPUT"
 
       - name: Acknowledge
         if: steps.cmd.outputs.run == 'true'
@@ -98,11 +103,14 @@ jobs:
           DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.cmd.outputs.agents }}
+          ROUTE: ${{ steps.cmd.outputs.route }}
         run: |
           export PATH="$PWD/node_modules/.bin:$PATH"
           ARGS=""
           if [ -n "$AGENTS" ]; then
             ARGS="--agents $AGENTS"
+          elif [ "$ROUTE" = "true" ]; then
+            ARGS="--route"
           fi
           node packages/expo-code-review-cli/build/cli.js ci $ARGS
 

@@ -31,6 +31,7 @@ async function resolvePrNumber(): Promise<number | null> {
 
 export async function ciCommand(argv: string[] = []): Promise<void> {
   const agents = parseAgents(argv);
+  const route = argv.includes('--route');
   const root = await repoRoot();
   if (root && root !== process.cwd()) {
     process.chdir(root);
@@ -77,6 +78,7 @@ export async function ciCommand(argv: string[] = []): Promise<void> {
       config,
       mode: 'ci',
       agents,
+      route,
       onProgress: message => process.stderr.write(`${message}\n`),
     });
     await reporter.report(review);

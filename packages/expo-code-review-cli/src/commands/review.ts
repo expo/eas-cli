@@ -15,6 +15,7 @@ Options:
   --head <ref>       Head ref to diff (default: working tree, incl. uncommitted changes)
   --staged           Review only staged changes
   --agents <a,b>     Run only these agents (comma-separated ids); default: all
+  --route            Let the router pick relevant agents from the diff
   --json             Emit machine-readable JSON on stdout
   --no-fail          Always exit 0, even on request-changes
   -h, --help         Show this help
@@ -27,6 +28,7 @@ interface ReviewArgs {
   head?: string;
   staged: boolean;
   agents?: string[];
+  route: boolean;
   json: boolean;
   noFail: boolean;
   help: boolean;
@@ -40,7 +42,13 @@ function requireValue(flag: string, value: string | undefined): string {
 }
 
 function parseArgs(argv: string[]): ReviewArgs {
-  const args: ReviewArgs = { staged: false, json: false, noFail: false, help: false };
+  const args: ReviewArgs = {
+    staged: false,
+    route: false,
+    json: false,
+    noFail: false,
+    help: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     switch (arg) {
@@ -58,6 +66,9 @@ function parseArgs(argv: string[]): ReviewArgs {
           .split(',')
           .map(id => id.trim())
           .filter(Boolean);
+        break;
+      case '--route':
+        args.route = true;
         break;
       case '--json':
         args.json = true;
@@ -110,6 +121,7 @@ export async function reviewCommand(argv: string[]): Promise<void> {
       config,
       mode: 'local',
       agents: args.agents,
+      route: args.route,
       onProgress: message => process.stderr.write(`${message}\n`),
     });
     await new TerminalReporter({ json: args.json, noFail: args.noFail }).report(review);

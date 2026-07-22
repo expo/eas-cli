@@ -13,7 +13,9 @@ First interpret `$ARGUMENTS`:
 - **Bare words** naming agents (they match files in `.expo-code-review/agents/`,
   e.g. `correctness`, `security`, `consistency`) → run only those. Pass them as
   `--agents <comma,separated>`.
-- **`all`** or **no agent words** → run every agent (omit `--agents`).
+- **`all`** → run every agent (pass neither `--agents` nor `--route`).
+- **No agent words** → let the router pick relevant agents from the diff: pass
+  `--route`.
 - **`--flags`** (`--staged`, `--base <ref>`, `--head <ref>`, `--json`,
   `--no-fail`) → pass through unchanged.
 - (There is no once-vs-continuous distinction locally; a local run is always

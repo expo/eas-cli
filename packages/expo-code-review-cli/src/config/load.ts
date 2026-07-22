@@ -82,8 +82,11 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
   const agents: LoadedAgent[] = [];
   for (const file of agentFiles) {
     const md = parseFrontmatter(await readFile(path.join(agentsDir, file), 'utf8'));
+    const id = file.replace(/\.md$/, '');
     agents.push({
-      id: file.replace(/\.md$/, ''),
+      id,
+      description: md.data.description ?? '',
+      alwaysRun: /^(true|yes|1)$/i.test(md.data.alwaysRun ?? ''),
       model: resolveModel(md.data.model),
       temperature: resolveTemp(md.data.temperature, 0.1),
       tools: DEFAULT_AGENT_TOOLS,
