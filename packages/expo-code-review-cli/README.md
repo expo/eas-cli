@@ -55,15 +55,31 @@ or as the `ecr` / `expo-code-review` binary once built/installed.
 ### `ecr review` options
 
 ```
---base <ref>     Base ref to diff against (default: merge-base with default branch)
---head <ref>     Head ref to diff (default: working tree, incl. uncommitted changes)
---staged         Review only staged changes
---agents <a,b>   Run only these agents (comma-separated ids); default: all
---route          Let an LLM router pick the relevant agents from the diff
---json           Emit machine-readable JSON on stdout
---no-fail        Always exit 0 (otherwise a request_changes decision exits non-zero)
--h, --help       Show help
+--base <ref>       Base ref to diff against (default: merge-base with default branch)
+--head <ref>       Head ref to diff (default: working tree, incl. uncommitted changes)
+--staged           Review only staged changes
+--pr <n>           Review GitHub PR #n by number (diff fetched via gh, no checkout);
+                   not combinable with --base/--head/--staged
+--repo <owner/repo>  Repo for --pr (default: inferred from the current checkout)
+--post             With --pr: also post the result as the PR comment (needs gh auth).
+                   Omit to preview only; re-run with --post to publish.
+--agents <a,b>     Run only these agents (comma-separated ids); default: all
+--route            Let an LLM router pick the relevant agents from the diff
+--json             Emit machine-readable JSON on stdout
+--no-fail          Always exit 0 (otherwise a request_changes decision exits non-zero)
+-h, --help         Show help
 ```
+
+Reviewing a PR without checking it out — preview, then optionally post:
+
+```bash
+ecr review --pr 4057            # print the review here; posts nothing
+ecr review --pr 4057 --post     # re-run and post it as the PR comment
+```
+
+`--pr` uses the PR's diff (authoritative) but reads your checked-out files for
+surrounding context; for full fidelity, `gh pr checkout <n>` first and run a plain
+`ecr review`.
 
 ## Configuration — `.expo-code-review/`
 
@@ -85,7 +101,7 @@ or as the `ecr` / `expo-code-review` binary once built/installed.
 ---
 description: One line the router uses to decide relevance.
 alwaysRun: true        # run even when the router would skip this agent
-model: anthropic/claude-sonnet-4-5   # override the default model
+model: anthropic/claude-sonnet-5     # override the default model (e.g. haiku for the coordinator)
 temperature: 0.1
 ---
 
@@ -96,7 +112,7 @@ temperature: 0.1
 
 ```jsonc
 {
-  "model": "anthropic/claude-sonnet-4-5",     // default model for all agents
+  "model": "anthropic/claude-sonnet-5",       // default model for the specialists
   "policy": { "includeSuggestions": false },  // suppress suggestion-severity findings
   "chunk": { "maxChangedLines": 1500, "maxFiles": 20, "concurrency": 6 },
   "noise": { "additionalIgnores": ["packages/*/build/**"] },
@@ -131,8 +147,9 @@ Run `ecr doctor` to diagnose setup.
 A review must never hang, silently produce nothing, or present an unreviewed
 change as "looks good":
 
-- **Per-task time caps** — focused chunk passes get 8 min; the cross-cutting pass
-  gets 15 min; the coordinator gets 5 min. Worst-case fits inside the CI job cap.
+- **Per-task time caps** — focused chunk passes get 15 min; the cross-cutting pass
+  gets 25 min; the coordinator gets 10 min. These are sized to fit inside the CI
+  job's `timeout-minutes` (50), since the coordinator runs after the passes.
 - **Soft landing on timeout** — at the cap, the run is interrupted and the agent
   is asked to return the findings it already has, rather than discarding its work.
 - **No retry on a timeout** — retrying just repeats a non-convergent run; the task

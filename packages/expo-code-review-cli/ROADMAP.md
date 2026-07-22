@@ -33,6 +33,14 @@ are roughly ordered by priority.
 - **Speed knobs** — longest-processing-time-first task scheduling;
   `maxChangedLines` 1000→1500, `concurrency` 4→6; CI job timeout 20→30 min (so the
   worst-case internal cap chain fits with headroom).
+- **Inlined chunk diffs** — the reviewer task now embeds the assigned files' diffs
+  (fenced as untrusted) instead of making the agent `read` each patch file, cutting
+  per-pass tool round-trips. (Other files + cross-cutting still read on demand.)
+- **Extended caps** — chunk 8→15m, cross-cutting 15→25m, coordinator 5→10m, CI job
+  30→50m (kept the invariant: worst-case serial chain < job timeout). Gives
+  slow-but-progressing passes room to converge instead of finalizing partial;
+  cost is longer max runs + more tokens. Still model-generation-bound on the
+  largest PRs — see §3 size guard / faster-model levers.
 
 ## 1. Post a real PR review with inline comments (not one bottom comment)
 
@@ -101,7 +109,8 @@ Guarantees (priority order; ✅ = shipped in the 2026-07-22 audit follow-up):
    fallback so its failure can't discard findings; and a failed/timed-out run
    never renders as a clean "Approve".
 4. **Global time budget.** *(Open — deprioritized.)* We now use per-task caps +
-   an aligned 30-min job cap instead. A single `maxTotalMs` that stops scheduling
+   an aligned job cap instead (per-task caps: chunk 15m, cross-cutting 25m,
+   coordinator 10m; CI `timeout-minutes: 50`). A single `maxTotalMs` that stops scheduling
    new work when exhausted is still a cleaner backstop.
 5. **Size guard / degraded mode.** *(Partial.)* Filtered files now appear in the
    coverage note. Still open: a hard "diff too large → skip / review only the
@@ -289,3 +298,50 @@ and §3. What remains, by tier:
 - **Minor**: README uses `ecr` though unpublished (note once that real invocation
   is `yarn workspace expo-code-review dev …`); `init` next-steps vs scaffolded
   `auth.mode`; warn when `--staged` is combined with `--base`/`--head`.
+
+## On extraction to its own repo (deferred cleanup)
+
+The package is intentionally standalone ESM/NodeNext (with `.js` import specifiers)
+and is deliberately excluded from this monorepo's oxlint/oxfmt during incubation
+(see the rationale comment in `tsconfig.json`). That trades away lint/format
+coverage for the package right now — an accepted, temporary gap. Resolve it at
+extraction time rather than bending the monorepo around an experimental package:
+
+- **Give the extracted repo its own lint + format setup** (oxlint/oxfmt or ESLint
+  + Prettier) and wire it into that repo's CI. This closes the current "no lint
+  coverage" gap, and the ESM/NodeNext choice stops being a *divergence* (it's just
+  the new repo's standard).
+- **Remove the monorepo exclusions** once the code no longer lives here
+  (`.oxlintrc.json`, `.oxfmtrc.json`, `tsconfig.oxlint.json` all list it).
+- **Publish + run via `npx`** (see §3.8) and drop the in-repo `yarn build`-from-
+  source workflows.
+- Net: the reviewer's own "NodeNext vs commonjs / no oxlint coverage" warning on
+  its PR is an artifact of incubating an ESM package inside a commonjs monorepo,
+  and disappears on extraction — no CommonJS refactor needed.
+
+## Model selection & fallback
+
+Current: `config.jsonc` `model` is the default; per-agent and `coordinator.md`
+frontmatter `model:` override it; `REVIEWER_MODEL` env is a global override.
+Precedence: env > frontmatter > config default. In use: Sonnet 5 for the
+specialists + cross-file pass, Haiku for the coordinator.
+
+**Decision (2026-07-22): do NOT auto-map to a cross-provider "equivalent"** (e.g.
+silently swapping `anthropic/claude-sonnet-5` for an OpenAI model when only OpenAI
+is authed). Reasons: "equivalent" is subjective and drifts with every lineup
+change (an ongoing, frequently-wrong mapping table); and silently running a review
+on a different model than configured hides *why* findings changed — for a review
+tool, a clear failure beats an invisible substitution. Explicit overrides
+(`REVIEWER_MODEL`, frontmatter `model:`) are the portability primitive.
+
+Wanted instead:
+- **Fail-fast provider-auth check** (in `doctor` and at run start): if the
+  configured model's provider isn't authenticated, say so up front ("configured
+  `anthropic/…` but only OpenAI is logged in — set `REVIEWER_MODEL` or
+  authenticate Anthropic") instead of surfacing as N failed passes mid-run. This
+  removes most of the perceived need for a fallback. Small, clearly good.
+- **Optional, opt-in `fallbackModel`** for availability only: fires ONLY on the
+  primary being unavailable / rate-limited / errored, and is **surfaced in the
+  review output** ("primary X unavailable; this pass ran on fallback Y") — never
+  silent. Would need to be tier-aware given the mixed-model setup (a single global
+  fallback would flatten the specialist-vs-coordinator model distinction).
