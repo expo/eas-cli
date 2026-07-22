@@ -152,6 +152,9 @@ function validateEasBuildInternalResult<TJob extends BuildJob>({
     // We want to retain values that we have set on the job.
     appId: oldJob.appId,
     initiatingUserId: oldJob.initiatingUserId,
+    // Hooks are resolved server-side at submit; the mid-build eas.json
+    // regeneration must not add, drop, or change them (the original wins).
+    hooks: oldJob.hooks,
     ...(oldJob.platform === Platform.IOS && oldJob.refreshAdHocProvisioningProfile === true
       ? { refreshAdHocProvisioningProfile: true }
       : null),
