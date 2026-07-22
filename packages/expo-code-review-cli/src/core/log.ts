@@ -15,6 +15,14 @@ export interface RunLogRecord {
   filteredFiles: FilteredFile[];
   agentCosts: Record<string, number>;
   totalCost: number;
+  // Aggregate token usage across all agent + coordinator requests, for cache
+  // metrics (cache.read/write reveal how much prompt-cache reuse we're getting).
+  tokens?: {
+    input?: number;
+    output?: number;
+    reasoning?: number;
+    cache?: { read?: number; write?: number };
+  };
   durationMs: number;
   decision: CoordinatorOutput['decision'] | null;
   findingCount: number;

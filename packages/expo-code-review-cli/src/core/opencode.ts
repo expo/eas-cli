@@ -10,6 +10,14 @@ export interface OpencodeHandle {
   close: () => void;
 }
 
+/** Token usage as reported on an OpenCode assistant message's `info.tokens`. */
+export interface TokenUsage {
+  input?: number;
+  output?: number;
+  reasoning?: number;
+  cache?: { read?: number; write?: number };
+}
+
 export interface PromptResult {
   text: string;
   cost: number;
@@ -17,6 +25,23 @@ export interface PromptResult {
   /** True when this reply came from the finalize ("wrap up now") path — i.e. the
    * agent ran out of time and returned partial findings rather than converging. */
   truncated?: boolean;
+  /** Token usage for the model request that produced this reply (for cache metrics). */
+  tokens?: TokenUsage;
+}
+
+/** Sum token usage across attempts (for per-task/run totals). */
+export function addTokenUsage(into: TokenUsage, from?: TokenUsage): TokenUsage {
+  if (!from) {
+    return into;
+  }
+  into.input = (into.input ?? 0) + (from.input ?? 0);
+  into.output = (into.output ?? 0) + (from.output ?? 0);
+  into.reasoning = (into.reasoning ?? 0) + (from.reasoning ?? 0);
+  into.cache = {
+    read: (into.cache?.read ?? 0) + (from.cache?.read ?? 0),
+    write: (into.cache?.write ?? 0) + (from.cache?.write ?? 0),
+  };
+  return into;
 }
 
 // The coordinator consolidates findings; it needs no repo tools.
@@ -130,122 +155,52 @@ export async function promptAgent(
   const session = unwrap<{ id: string }>(
     await handle.client.session.create({ body: { title: args.title } })
   );
-
-  const sendPrompt = async (text: string): Promise<void> => {
-    unwrap(
-      await handle.client.session.promptAsync({
-        path: { id: session.id },
-        body: {
-          agent: args.agent,
-          system: args.system,
-          parts: [{ type: 'text', text }],
-        },
-      })
-    );
-  };
-
-  await sendPrompt(args.text);
-
   const reportedTools = new Set<string>();
-  const getMessages = async () =>
-    unwrap<
-      Array<{
-        info?: { role?: string; error?: unknown; cost?: number; time?: { completed?: number } };
-        parts?: Array<{
-          id?: string;
-          type?: string;
-          text?: string;
-          tool?: string;
-          callID?: string;
-          state?: { status?: string; title?: string };
-        }>;
-      }>
-    >(await handle.client.session.messages({ path: { id: session.id } }));
-
-  // Poll for the first assistant message at or after `fromIndex` to complete.
-  // `fromIndex` lets the finalize phase ignore the (aborted) first response and
-  // wait for the summary reply instead. Throws DeadlineReached past `deadline`.
-  const collect = async (fromIndex: number, deadline: number): Promise<PromptResult> => {
-    for (;;) {
-      if (Date.now() > deadline) {
-        throw new DeadlineReached();
-      }
-      await sleep(POLL_INTERVAL_MS);
-
-      const messages = await getMessages();
-      const recent = messages.slice(fromIndex);
-      const assistant = [...recent].reverse().find(message => message.info?.role === 'assistant');
-      if (!assistant) {
-        continue;
-      }
-
-      // Emit a live line the first time each tool call starts, so a long run
-      // shows what the agent is actually doing instead of going silent.
-      if (args.onActivity) {
-        for (const part of assistant.parts ?? []) {
-          if (part?.type !== 'tool') {
-            continue;
-          }
-          const key = part.callID ?? part.id;
-          const status = part.state?.status;
-          if (key && status && status !== 'pending' && !reportedTools.has(key)) {
-            reportedTools.add(key);
-            const tool = part.tool ?? 'tool';
-            const title = part.state?.title;
-            args.onActivity(title ? `${tool}: ${title}` : tool);
-          }
-        }
-      }
-
-      if (assistant.info?.error) {
-        throw new Error(
-          `Agent "${args.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
-        );
-      }
-      if (assistant.info?.time?.completed == null) {
-        continue;
-      }
-
-      const text = (assistant.parts ?? [])
-        .filter(part => part?.type === 'text' && typeof part.text === 'string')
-        .map(part => part.text as string)
-        .join('\n')
-        .trim();
-      return { text, cost: assistant.info?.cost ?? 0, sessionID: session.id };
-    }
-  };
+  await sendSessionPrompt(handle, session.id, {
+    agent: args.agent,
+    system: args.system,
+    text: args.text,
+  });
 
   const maxWaitMs = args.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
   try {
-    return await collect(0, Date.now() + maxWaitMs);
+    return await pollForCompletion(handle, session.id, {
+      agent: args.agent,
+      fromIndex: 0,
+      deadline: Date.now() + maxWaitMs,
+      onActivity: args.onActivity,
+      reportedTools,
+    });
   } catch (error) {
     if (!(error instanceof DeadlineReached)) {
       throw error;
     }
     // Time budget hit. Interrupt the wandering run first.
-    try {
-      await handle.client.session.abort({ path: { id: session.id } });
-    } catch {
-      // best effort
-    }
+    await abortQuietly(handle, session.id);
     if (!args.finalizeOnTimeout) {
       throw new AgentTimeoutError(args.agent, Math.round(maxWaitMs / 60000));
     }
     // Soft landing: ask the (same, context-carrying) session to return whatever
-    // it has now. Only the messages after this point count as the answer.
-    const baseline = (await getMessages()).length;
+    // it has now. Only messages after this point count as the answer.
+    const baseline = (await fetchMessages(handle, session.id)).length;
     args.onActivity?.('time budget reached — asking for findings so far');
-    await sendPrompt(FINALIZE_PROMPT);
+    await sendSessionPrompt(handle, session.id, {
+      agent: args.agent,
+      system: args.system,
+      text: FINALIZE_PROMPT,
+    });
     try {
-      const result = await collect(baseline, Date.now() + FINALIZE_WAIT_MS);
+      const result = await pollForCompletion(handle, session.id, {
+        agent: args.agent,
+        fromIndex: baseline,
+        deadline: Date.now() + FINALIZE_WAIT_MS,
+        onActivity: args.onActivity,
+        reportedTools,
+      });
       return { ...result, truncated: true };
     } catch (finalizeError) {
       if (finalizeError instanceof DeadlineReached) {
-        try {
-          await handle.client.session.abort({ path: { id: session.id } });
-        } catch {
-          // best effort
-        }
+        await abortQuietly(handle, session.id);
         throw new AgentTimeoutError(
           args.agent,
           Math.round((maxWaitMs + FINALIZE_WAIT_MS) / 60000)
@@ -260,10 +215,19 @@ const CORRECTIVE =
   '\n\nIMPORTANT: your previous reply could not be parsed. Reply with ONLY the single ' +
   'JSON object described above — no prose, no code fences, no partial output.';
 
+// Budget for a corrective "re-emit the JSON" reply — no fresh investigation, so
+// it should return almost immediately.
+const CORRECTIVE_WAIT_MS = 2 * 60 * 1000;
+
 /**
- * Prompt an agent and parse its reply, retrying once with a corrective nudge in a
- * fresh session if parsing fails. Models occasionally emit malformed or truncated
- * JSON; this keeps an intermittent bad reply from failing the whole review.
+ * Prompt an agent and parse its reply. On a JSON-parse failure, first retry in
+ * the SAME session: the model still holds all the file context it read, so the
+ * corrective is a cache read and a cheap re-emit — and better for recall than
+ * re-investigating from scratch (the usual failure is a truncated/malformed reply
+ * after a sound investigation). Only if that also fails do we fall back to a fresh
+ * session as a clean-slate last resort. A timeout is NOT a parse failure:
+ * promptAgent throws AgentTimeoutError, which propagates so the caller abandons
+ * the task instead of retrying a non-convergent run.
  */
 export async function promptAndParse<T>(
   handle: OpencodeHandle,
@@ -277,24 +241,176 @@ export async function promptAndParse<T>(
     finalizeOnTimeout?: boolean;
   },
   parse: (text: string) => T
-): Promise<{ value: T; cost: number; truncated: boolean }> {
+): Promise<{ value: T; cost: number; truncated: boolean; tokens: TokenUsage }> {
   let cost = 0;
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await promptAgent(handle, {
-      ...args,
-      text: attempt === 0 ? args.text : args.text + CORRECTIVE,
-    });
+  let truncated = false;
+  const tokens: TokenUsage = {};
+  const record = (result: PromptResult): void => {
     cost += result.cost;
+    truncated = truncated || (result.truncated ?? false);
+    addTokenUsage(tokens, result.tokens);
+  };
+
+  const first = await promptAgent(handle, args);
+  record(first);
+  try {
+    return { value: parse(first.text), cost, truncated, tokens };
+  } catch {
+    // Same-session corrective retry: send the nudge as a follow-up and wait for
+    // the NEW assistant message (past the current message count).
     try {
-      return { value: parse(result.text), cost, truncated: result.truncated ?? false };
-    } catch (error) {
-      lastError = error;
+      const baseline = (await fetchMessages(handle, first.sessionID)).length;
+      await sendSessionPrompt(handle, first.sessionID, {
+        agent: args.agent,
+        system: args.system,
+        text: CORRECTIVE,
+      });
+      const retry = await pollForCompletion(handle, first.sessionID, {
+        agent: args.agent,
+        fromIndex: baseline,
+        deadline: Date.now() + CORRECTIVE_WAIT_MS,
+        onActivity: args.onActivity,
+        reportedTools: new Set<string>(),
+      });
+      record(retry);
+      return { value: parse(retry.text), cost, truncated, tokens };
+    } catch {
+      // Fresh-session last resort: a clean slate for a genuinely confused run.
+      const fresh = await promptAgent(handle, {
+        ...args,
+        text: args.text + CORRECTIVE,
+        finalizeOnTimeout: false,
+      });
+      record(fresh);
+      try {
+        return { value: parse(fresh.text), cost, truncated, tokens };
+      } catch (finalError) {
+        throw new Error(
+          `Agent "${args.agent}" did not return parseable JSON after retries: ${
+            finalError instanceof Error ? finalError.message : String(finalError)
+          }`
+        );
+      }
     }
   }
-  throw new Error(
-    `Agent "${args.agent}" did not return parseable JSON after a retry: ${
-      lastError instanceof Error ? lastError.message : String(lastError)
-    }`
+}
+
+// ---- session helpers (shared by promptAgent + promptAndParse) ----
+
+interface RawMessage {
+  info?: {
+    role?: string;
+    error?: unknown;
+    cost?: number;
+    tokens?: TokenUsage;
+    time?: { completed?: number };
+  };
+  parts?: Array<{
+    id?: string;
+    type?: string;
+    text?: string;
+    tool?: string;
+    callID?: string;
+    state?: { status?: string; title?: string };
+  }>;
+}
+
+async function fetchMessages(handle: OpencodeHandle, sessionID: string): Promise<RawMessage[]> {
+  return unwrap<RawMessage[]>(await handle.client.session.messages({ path: { id: sessionID } }));
+}
+
+async function sendSessionPrompt(
+  handle: OpencodeHandle,
+  sessionID: string,
+  args: { agent: string; system: string; text: string }
+): Promise<void> {
+  unwrap(
+    await handle.client.session.promptAsync({
+      path: { id: sessionID },
+      body: {
+        agent: args.agent,
+        system: args.system,
+        parts: [{ type: 'text', text: args.text }],
+      },
+    })
   );
+}
+
+async function abortQuietly(handle: OpencodeHandle, sessionID: string): Promise<void> {
+  try {
+    await handle.client.session.abort({ path: { id: sessionID } });
+  } catch {
+    // best effort — the session may already be gone
+  }
+}
+
+/**
+ * Poll a session for the first assistant message at or after `fromIndex` to
+ * complete. `fromIndex` lets a follow-up prompt (finalize, corrective retry)
+ * skip the earlier completed message and wait for the NEW reply instead. Throws
+ * DeadlineReached once `deadline` passes.
+ */
+async function pollForCompletion(
+  handle: OpencodeHandle,
+  sessionID: string,
+  opts: {
+    agent: string;
+    fromIndex: number;
+    deadline: number;
+    onActivity?: (line: string) => void;
+    reportedTools: Set<string>;
+  }
+): Promise<PromptResult> {
+  for (;;) {
+    if (Date.now() > opts.deadline) {
+      throw new DeadlineReached();
+    }
+    await sleep(POLL_INTERVAL_MS);
+
+    const messages = await fetchMessages(handle, sessionID);
+    const recent = messages.slice(opts.fromIndex);
+    const assistant = [...recent].reverse().find(message => message.info?.role === 'assistant');
+    if (!assistant) {
+      continue;
+    }
+
+    // Emit a live line the first time each tool call starts, so a long run shows
+    // what the agent is actually doing instead of going silent.
+    if (opts.onActivity) {
+      for (const part of assistant.parts ?? []) {
+        if (part?.type !== 'tool') {
+          continue;
+        }
+        const key = part.callID ?? part.id;
+        const status = part.state?.status;
+        if (key && status && status !== 'pending' && !opts.reportedTools.has(key)) {
+          opts.reportedTools.add(key);
+          const tool = part.tool ?? 'tool';
+          const title = part.state?.title;
+          opts.onActivity(title ? `${tool}: ${title}` : tool);
+        }
+      }
+    }
+
+    if (assistant.info?.error) {
+      throw new Error(
+        `Agent "${opts.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
+      );
+    }
+    if (assistant.info?.time?.completed == null) {
+      continue;
+    }
+
+    const text = (assistant.parts ?? [])
+      .filter(part => part?.type === 'text' && typeof part.text === 'string')
+      .map(part => part.text as string)
+      .join('\n')
+      .trim();
+    return {
+      text,
+      cost: assistant.info?.cost ?? 0,
+      sessionID,
+      tokens: assistant.info?.tokens,
+    };
+  }
 }

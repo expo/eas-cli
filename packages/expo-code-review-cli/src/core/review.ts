@@ -8,8 +8,14 @@ import { writeRunLog } from './log.js';
 import type { RunLogRecord } from './log.js';
 import { filterNoise, writePatchWorkspace } from './noise.js';
 import type { PatchWorkspaceFile } from './noise.js';
-import { AgentTimeoutError, buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
-import type { OpencodeHandle } from './opencode.js';
+import {
+  addTokenUsage,
+  AgentTimeoutError,
+  buildOpencodeConfig,
+  promptAndParse,
+  startOpencode,
+} from './opencode.js';
+import type { OpencodeHandle, TokenUsage } from './opencode.js';
 import { routeAgents } from './router.js';
 import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
 import { parseReviewerOutput, SEVERITY_RANK } from './schema.js';
@@ -110,6 +116,7 @@ export async function runReview(
   }
 
   const agentCosts: Record<string, number> = {};
+  const tokenTotals: TokenUsage = {};
 
   try {
     const workspace = await writePatchWorkspace(kept, metadata, runDir);
@@ -193,7 +200,7 @@ export async function runReview(
       const minutes = Math.round(task.maxWaitMs / 60000);
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          const { value, cost, truncated } = await promptAndParse(
+          const { value, cost, truncated, tokens } = await promptAndParse(
             handle!,
             {
               agent: task.agent.id,
@@ -207,6 +214,7 @@ export async function runReview(
             parseReviewerOutput
           );
           agentCosts[task.agent.id] = (agentCosts[task.agent.id] ?? 0) + cost;
+          addTokenUsage(tokenTotals, tokens);
           (agentFindings[task.agent.id] ??= []).push(...value.findings);
           if (truncated) {
             progress(`  ${task.label}: hit ${minutes}m limit — returned partial findings`);
@@ -241,14 +249,20 @@ export async function runReview(
     });
 
     progress('Coordinating findings…');
-    const { output: rawOutput, cost } = await coordinate(handle, config, metadata, agentFindings);
+    const {
+      output: rawOutput,
+      cost,
+      tokens: coordinatorTokens,
+    } = await coordinate(handle, config, metadata, agentFindings);
     agentCosts['coordinator'] = cost;
+    addTokenUsage(tokenTotals, coordinatorTokens);
     const output = { ...applyReviewPolicy(rawOutput, config.policy), incomplete: [...new Set(incomplete)] };
 
     await safeLog(logPath, {
       ...baseRecord,
       agentCosts,
       totalCost: sum(agentCosts),
+      tokens: tokenTotals,
       durationMs: Date.now() - started,
       decision: output.decision,
       findingCount: output.findings.length,
@@ -261,6 +275,7 @@ export async function runReview(
       ...baseRecord,
       agentCosts,
       totalCost: sum(agentCosts),
+      tokens: tokenTotals,
       durationMs: Date.now() - started,
       decision: null,
       findingCount: 0,
