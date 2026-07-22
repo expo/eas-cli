@@ -6,6 +6,9 @@ import { z } from 'zod';
 export const SEVERITIES = ['critical', 'warning', 'suggestion'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
+/** Sort rank for severities (0 = most severe). Single source of truth. */
+export const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
+
 export const CATEGORIES = ['correctness', 'quality', 'security', 'secrets'] as const;
 export type Category = (typeof CATEGORIES)[number];
 

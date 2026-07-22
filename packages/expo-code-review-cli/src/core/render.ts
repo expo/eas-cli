@@ -1,7 +1,5 @@
-import { fingerprintFinding, SEVERITIES } from './schema.js';
+import { fingerprintFinding, SEVERITIES, SEVERITY_RANK } from './schema.js';
 import type { CoordinatorOutput, Decision, Finding, Severity } from './schema.js';
-
-const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
 
 const DECISION_LABEL: Record<Decision, string> = {
   approve: 'Approve',
@@ -76,7 +74,9 @@ export function renderMarkdown(review: CoordinatorOutput, tag: string): string {
 
 /** Parse the fingerprints embedded in a previously-posted comment body. */
 export function parseEmbeddedFingerprints(body: string, tag: string): string[] {
-  const match = body.match(new RegExp(`<!-- ${tag}:fingerprints=(\\[.*?\\]) -->`));
+  // Escape the (config-controlled) tag so regex metacharacters can't break the match.
+  const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = body.match(new RegExp(`<!-- ${escapedTag}:fingerprints=(\\[.*?\\]) -->`));
   if (!match) {
     return [];
   }

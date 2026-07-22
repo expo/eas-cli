@@ -4,20 +4,12 @@ import path from 'node:path';
 
 import { ReviewConfigSchema } from './schema.js';
 import type { LoadedAgent, LoadedConfig } from './schema.js';
+import { toolMap } from '../core/tools.js';
 
 export const CONFIG_DIRNAME = '.expo-code-review';
 
 /** Default OpenCode tool toggles for a reviewer: read the repo, never mutate it. */
-const DEFAULT_AGENT_TOOLS: Record<string, boolean> = {
-  read: true,
-  grep: true,
-  glob: true,
-  list: true,
-  bash: false,
-  write: false,
-  edit: false,
-  patch: false,
-};
+const DEFAULT_AGENT_TOOLS = toolMap(['read', 'grep', 'glob', 'list']);
 
 export function configDirFor(repoRoot: string): string {
   return path.join(repoRoot, CONFIG_DIRNAME);

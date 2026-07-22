@@ -12,8 +12,9 @@ import { buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.j
 import type { OpencodeHandle } from './opencode.js';
 import { routeAgents } from './router.js';
 import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
-import { parseReviewerOutput } from './schema.js';
-import type { CoordinatorOutput, Finding, Severity } from './schema.js';
+import { parseReviewerOutput, SEVERITY_RANK } from './schema.js';
+import type { CoordinatorOutput, Finding } from './schema.js';
+import { sleep } from './util.js';
 
 export interface ReviewRunOptions {
   config: LoadedConfig;
@@ -25,7 +26,6 @@ export interface ReviewRunOptions {
   route?: boolean;
 }
 
-const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, suggestion: 2 };
 
 function makeRunId(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
@@ -277,9 +277,6 @@ function selectAgents(all: LoadedAgent[], filter?: string[]): LoadedAgent[] {
   return all.filter(agent => filter.includes(agent.id));
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /**
  * Greedily pack files into chunks bounded by total changed lines (primary) and

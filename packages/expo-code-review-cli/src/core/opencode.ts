@@ -1,6 +1,8 @@
 import { createOpencode } from '@opencode-ai/sdk';
 
 import type { LoadedConfig } from '../config/schema.js';
+import { toolMap } from './tools.js';
+import { sleep } from './util.js';
 
 export interface OpencodeHandle {
   client: any;
@@ -14,16 +16,8 @@ export interface PromptResult {
   sessionID: string;
 }
 
-const COORDINATOR_TOOLS: Record<string, boolean> = {
-  read: false,
-  grep: false,
-  glob: false,
-  list: false,
-  bash: false,
-  write: false,
-  edit: false,
-  patch: false,
-};
+// The coordinator consolidates findings; it needs no repo tools.
+const COORDINATOR_TOOLS = toolMap([]);
 
 /** Build the inline OpenCode config (agents + coordinator) from a repo config. */
 export function buildOpencodeConfig(config: LoadedConfig): Record<string, unknown> {
@@ -68,10 +62,6 @@ export async function startOpencode(config: unknown): Promise<OpencodeHandle> {
     config: config as any,
   });
   return { client, url: server.url, close: () => server.close() };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 const POLL_INTERVAL_MS = 2000;
