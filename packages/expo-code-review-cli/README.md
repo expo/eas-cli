@@ -114,7 +114,7 @@ temperature: 0.1
 {
   "model": "anthropic/claude-sonnet-5",       // default model for the specialists
   "policy": { "includeSuggestions": false },  // suppress suggestion-severity findings
-  "chunk": { "maxChangedLines": 1500, "maxFiles": 20, "concurrency": 6 },
+  "chunk": { "maxChangedLines": 1000, "maxFiles": 20, "concurrency": 6 },
   "noise": { "additionalIgnores": ["packages/*/build/**"] },
   "breakGlass": { "marker": "/skip-review" }, // PR body marker that skips the review
   "commentTag": "expo-ai-code-reviewer",      // hidden tag used to find/update the comment

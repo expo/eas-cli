@@ -37,7 +37,7 @@ are roughly ordered by priority.
   nothing). Now defined as a real agent with a restricted tool set (`read`+`grep`,
   no `glob`/`list` crawling), so it converges instead of burning its budget.
 - **Speed knobs** — longest-processing-time-first task scheduling;
-  `maxChangedLines` 1000→1500, `concurrency` 4→6; CI job timeout 20→30 min (so the
+  `concurrency` 4→6; CI job timeout 20→30 min (so the
   worst-case internal cap chain fits with headroom).
 - **Inlined chunk diffs** — the reviewer task now embeds the assigned files' diffs
   (fenced as untrusted) instead of making the agent `read` each patch file, cutting
@@ -47,6 +47,21 @@ are roughly ordered by priority.
   slow-but-progressing passes room to converge instead of finalizing partial;
   cost is longer max runs + more tokens. Still model-generation-bound on the
   largest PRs — see §3 size guard / faster-model levers.
+- **Generation-marker false-filter fix** — the noise filter matched generation
+  markers (`@generated`, `do not edit`, …) anywhere in the first 40 added lines /
+  4 KB, so hand-written files that merely *mention* those strings were wrongly
+  skipped — including `noise.ts` itself (it lists them as `DEFAULT_MARKERS`) and a
+  template comment. Now only the first few lines (a real header) count. Filtering
+  on the #4022 diff dropped from 3 files → 1 (just `yarn.lock`).
+- **`init` error handling** — wrapped in try/catch with a clean stderr message +
+  exit code, matching the other commands (was the one command that could crash raw).
+- **Chunk-size retune** — `maxChangedLines` 1500→1000. On the 51-file self-PR the
+  reasoning-heavy `correctness` agent was the lone straggler at 15m with 1500-line
+  chunks; smaller/more chunks (each finishing faster, run in parallel) reduce
+  per-pass generation time. Reverses the earlier 1000→1500 bump.
+  - *Observation to watch:* on that run the Haiku coordinator also ran ~10m (near
+    its cap) — likely a large findings payload. If it recurs, trim the coordinator
+    input (dedupe/cap findings before consolidation) or revisit its model.
 
 ## 1. Post a real PR review with inline comments (not one bottom comment)
 

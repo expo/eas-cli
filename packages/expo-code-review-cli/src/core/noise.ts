@@ -87,15 +87,23 @@ async function noiseReason(
   const markers = [...DEFAULT_MARKERS, ...(options.additionalMarkers ?? [])].map(marker =>
     marker.toLowerCase()
   );
-  if (hasMarkerInPatch(entry.patch, markers)) {
-    return 'contains generation marker';
+  // A generation marker only counts as a HEADER — real generated files carry it
+  // in their first few lines (e.g. `// @generated`, `# ... DO NOT EDIT.`). Only
+  // checking the top avoids false positives on hand-written files that merely
+  // mention these strings (e.g. this module lists them as DEFAULT_MARKERS, and a
+  // config comment references "@generated"), which were being wrongly filtered.
+  if (hasMarkerHeaderInPatch(entry.patch, markers)) {
+    return 'generated file header';
   }
-  const head = (await readFileHead(path.resolve(cwd, entry.path)))?.toLowerCase();
-  if (head && markers.some(marker => head.includes(marker))) {
+  const head = await readFileHead(path.resolve(cwd, entry.path));
+  if (head && hasMarkerInHead(head, markers)) {
     return 'generated file header';
   }
   return null;
 }
+
+/** How many leading lines of a file count as its (generation) header. */
+const HEADER_LINES = 5;
 
 /** Minimal glob: supports `**` (crosses `/`) and `*` (within a segment). */
 function matchesIgnore(filePath: string, pattern: string): boolean {
@@ -122,13 +130,20 @@ function matchesIgnore(filePath: string, pattern: string): boolean {
   return new RegExp(`^${out}$`).test(filePath);
 }
 
-function hasMarkerInPatch(patch: string, markers: string[]): boolean {
-  const addedLines = patch
+/** A generation marker in the first few ADDED lines (i.e. the top of a new file). */
+function hasMarkerHeaderInPatch(patch: string, markers: string[]): boolean {
+  const topAddedLines = patch
     .split('\n')
     .filter(line => line.startsWith('+') && !line.startsWith('+++'))
-    .slice(0, 40)
+    .slice(0, HEADER_LINES)
     .map(line => line.toLowerCase());
-  return addedLines.some(line => markers.some(marker => line.includes(marker)));
+  return topAddedLines.some(line => markers.some(marker => line.includes(marker)));
+}
+
+/** A generation marker in the first few lines of the on-disk file. */
+function hasMarkerInHead(head: string, markers: string[]): boolean {
+  const topLines = head.split('\n').slice(0, HEADER_LINES).join('\n').toLowerCase();
+  return markers.some(marker => topLines.includes(marker));
 }
 
 /** Read the first `bytes` of a file (default 4 KB) without loading the whole thing. */

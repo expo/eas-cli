@@ -21,27 +21,27 @@ export const ReviewConfigSchema = z.object({
       // split into focused chunks, plus a cross-cutting pass for diff-spanning
       // issues.
       //
-      // Why 1500: it's a heuristic, not a measured optimum. Most real PRs change
-      // well under ~1500 lines, so they get a single full-context pass and skip
-      // chunking entirely; only genuinely large PRs split. It stays below the
-      // ~2k-line range where we saw a single pass start to dilute and miss issues,
-      // while cutting cost/latency vs the old 1000 default (fewer chunks, and the
-      // cross-cutting pass triggers less often). Coupled to `model`.
+      // Why 1000: it's a heuristic, not a measured optimum. Most real PRs change
+      // well under ~1000 lines, so they get a single full-context pass and skip
+      // chunking; only genuinely large PRs split. It also keeps each chunk small
+      // enough that the reasoning-heavy correctness agent finishes within its time
+      // cap — on real 50-file PRs a 1500-line chunk pushed correctness past 15 min,
+      // so smaller/more chunks (each finishing faster, run in parallel) beat fewer/
+      // larger ones. Coupled to `model`.
       //
       // When to tweak:
-      //  - LOWER it if the reviewer misses issues on larger PRs, or if you switch
-      //    to a cheaper/smaller/faster model (those dilute sooner).
-      //  - RAISE it to cut cost/latency (fewer chunks, cross-cutting triggers less
-      //    often) when the model handles big diffs well, when you move to a
-      //    stronger model, or when PRs are mostly mechanical/low-density changes.
-      //  - Re-tune from real-PR data (false-negative rate vs threshold), not guesses.
-      maxChangedLines: z.number().int().positive().default(1500),
+      //  - LOWER it if passes hit their time cap on large PRs, if the reviewer
+      //    misses issues, or if you use a cheaper/smaller/faster model.
+      //  - RAISE it to cut the number of passes when the model handles big diffs
+      //    well and passes finish comfortably within their caps.
+      //  - Re-tune from real-PR data (cap-hit rate + false-negative rate), not guesses.
+      maxChangedLines: z.number().int().positive().default(1000),
       // Secondary guard so a chunk isn't an absurd number of tiny-diff files.
       maxFiles: z.number().int().positive().default(20),
       // Max concurrent reviewer calls across all agents/chunks.
       concurrency: z.number().int().positive().default(6),
     })
-    .default({ maxChangedLines: 1500, maxFiles: 20, concurrency: 6 }),
+    .default({ maxChangedLines: 1000, maxFiles: 20, concurrency: 6 }),
   noise: z
     .object({
       additionalIgnores: z.array(z.string()).default([]),

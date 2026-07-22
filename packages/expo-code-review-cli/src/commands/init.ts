@@ -24,6 +24,16 @@ export async function initCommand(argv: string[]): Promise<void> {
     process.stdout.write(USAGE);
     return;
   }
+  try {
+    await scaffold(argv);
+  } catch (error) {
+    process.stderr.write(`init failed: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 2;
+  }
+}
+
+/** Scaffold .expo-code-review/ (and optionally the CI workflow) into the repo. */
+async function scaffold(argv: string[]): Promise<void> {
   const force = argv.includes('--force');
   const withWorkflow = argv.includes('--with-workflow');
 
