@@ -1,5 +1,6 @@
 import { loadReviewConfig, hasConfig } from '../config/load.js';
 import { onPath, repoRoot, run } from '../core/exec.js';
+import { errorMessage } from '../core/util.js';
 
 const USAGE = `ecr doctor — check environment, config, and credentials
 
@@ -89,7 +90,7 @@ export async function doctorCommand(argv: string[] = []): Promise<void> {
         );
       }
     } catch (error) {
-      line(false, `config invalid: ${error instanceof Error ? error.message : String(error)}`);
+      line(false, `config invalid: ${errorMessage(error)}`);
     }
   }
 

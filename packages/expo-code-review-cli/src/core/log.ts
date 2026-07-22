@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type { CoordinatorOutput, ReviewMetadata } from './schema.js';
 import type { FilteredFile } from './noise.js';
+import type { TokenUsage } from './opencode.js';
 
 export interface RunLogRecord {
   timestamp: string;
@@ -17,12 +18,8 @@ export interface RunLogRecord {
   totalCost: number;
   // Aggregate token usage across all agent + coordinator requests, for cache
   // metrics (cache.read/write reveal how much prompt-cache reuse we're getting).
-  tokens?: {
-    input?: number;
-    output?: number;
-    reasoning?: number;
-    cache?: { read?: number; write?: number };
-  };
+  // Reuses TokenUsage so the log schema can't silently diverge from what's collected.
+  tokens?: TokenUsage;
   durationMs: number;
   decision: CoordinatorOutput['decision'] | null;
   findingCount: number;

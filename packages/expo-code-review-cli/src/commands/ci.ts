@@ -131,7 +131,10 @@ function parseAgents(argv: string[]): string[] | undefined {
     return undefined;
   }
   const value = argv[index + 1];
-  if (!value) {
+  // A missing value, or the next token being another flag (e.g. `--agents --route`),
+  // means no agent list was given — treat as "all" rather than misparsing `--route`
+  // as an agent id. Mirrors review.ts's requireValue.
+  if (!value || value.startsWith('--')) {
     return undefined;
   }
   return value

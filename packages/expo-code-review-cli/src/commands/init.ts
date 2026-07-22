@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { CONFIG_DIRNAME } from '../config/load.js';
 import { repoRoot } from '../core/exec.js';
+import { errorMessage } from '../core/util.js';
 
 const TEMPLATES_DIR = fileURLToPath(new URL('../../templates/', import.meta.url));
 
@@ -27,7 +28,7 @@ export async function initCommand(argv: string[]): Promise<void> {
   try {
     await scaffold(argv);
   } catch (error) {
-    process.stderr.write(`init failed: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`init failed: ${errorMessage(error)}\n`);
     process.exitCode = 2;
   }
 }
