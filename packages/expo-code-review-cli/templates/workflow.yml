@@ -28,6 +28,8 @@ jobs:
           node-version: 20
 
       - name: Run AI review
+        # Requires the `expo-code-review` package to be published to npm. Until
+        # then, vendor the CLI or run it from a checkout instead of via npx.
         # npx installs the CLI and its bundled `opencode` binary and puts them on
         # PATH for this process.
         run: npx --yes expo-code-review@latest ci

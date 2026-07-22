@@ -106,7 +106,8 @@ export class LocalGitSource implements ReviewSource {
 
     const chunks: string[] = [];
     for (const file of files) {
-      const { stdout } = await run('git', ['diff', '--no-index', '/dev/null', file], {
+      // `--` so a filename beginning with `-` can't be read as a git option.
+      const { stdout } = await run('git', ['diff', '--no-index', '--', '/dev/null', file], {
         cwd: this.cwd,
         check: false,
       });

@@ -45,7 +45,9 @@ export async function prepareAuth(config: LoadedConfig): Promise<PreparedAuth> {
     if (tokenEnv) {
       const value = process.env[tokenEnv];
       const target = PROVIDER_KEY_ENV[provider] ?? 'ANTHROPIC_API_KEY';
-      if (value && !process.env[target]) {
+      // The explicitly-configured tokenEnv is authoritative — set it even if the
+      // provider env is already present, so config wins over ambient env.
+      if (value) {
         process.env[target] = value;
       }
     }

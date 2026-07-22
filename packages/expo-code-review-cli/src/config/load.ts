@@ -38,7 +38,7 @@ export async function loadReviewConfig(repoRoot: string): Promise<LoadedConfig> 
   }
 
   const raw = await readFile(configPath, 'utf8');
-  const parsed = ReviewConfigSchema.parse(JSON.parse(stripJsonComments(raw)));
+  const parsed = ReviewConfigSchema.parse(JSON.parse(stripTrailingCommas(stripJsonComments(raw))));
 
   const override = process.env.REVIEWER_MODEL;
   const defaultModel = override ?? parsed.model;
@@ -181,6 +181,41 @@ export function stripJsonComments(input: string): string {
     } else {
       out += char;
     }
+  }
+  return out;
+}
+
+/** Remove trailing commas before `}`/`]` (JSONC), ignoring string contents. */
+export function stripTrailingCommas(input: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i]!;
+    if (inString) {
+      out += char;
+      if (char === '\\') {
+        out += input[i + 1] ?? '';
+        i++;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      out += char;
+      continue;
+    }
+    if (char === ',') {
+      let j = i + 1;
+      while (j < input.length && /\s/.test(input[j]!)) {
+        j++;
+      }
+      if (input[j] === '}' || input[j] === ']') {
+        continue; // drop the trailing comma
+      }
+    }
+    out += char;
   }
   return out;
 }
