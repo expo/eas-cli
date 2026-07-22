@@ -1,4 +1,7 @@
-import { isLocalCompositeFunctionPath, parseLocalCompositeFunctionPath } from '../localCompositeFunctions';
+import {
+  isLocalCompositeFunctionPath,
+  parseLocalCompositeFunctionPath,
+} from '../localCompositeFunctions';
 
 describe(isLocalCompositeFunctionPath, () => {
   it('recognizes relative paths as local composite function paths', () => {

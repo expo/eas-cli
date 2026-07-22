@@ -1,11 +1,11 @@
 /**
- * Expands local composite functions (`uses: ./path/to/function`) into concrete {@link BuildStep}s
- * at parse time.
+ * Expands local composite functions (`uses: ./path/to/function`) into a
+ * {@link CompositeBuildStep} tree at parse time.
  *
- * A composite function call is not executed as a single step. Its `runs.steps` are flattened into the
- * workflow with prefixed ids (`caller__inner`) so the existing step runner can execute them.
- * Each expanded step carries a {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and
- * `${{ inputs.* }}` inside the composite function resolve against composite-function-local names, not global ones.
+ * Each call becomes a node with prefixed child ids (`caller__inner`); the parser
+ * flattens the tree into the workflow. Expanded steps carry a
+ * {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and `${{ inputs.* }}`
+ * resolve against composite-function-local names.
  */
 import {
   CompositeFunctionCatalog,
@@ -23,6 +23,7 @@ import { BuildStep } from './BuildStep';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
+import { CompositeBuildStep } from './CompositeBuildStep';
 import { BuildConfigError } from './errors';
 import { duplicates } from './utils/expodash/duplicates';
 import {
@@ -41,7 +42,7 @@ export type FunctionMaps = {
 
 type CompositeFunctionCall = {
   compositeFunctionPath: string;
-  /** Caller-assigned id used as prefix for all inner step ids and the composite function outputs step. */
+  /** Caller-assigned id used as prefix for all inner step ids. */
   syntheticStepId: string;
   /** Caller-provided input values, consumed when composite function inputs are interpolated. */
   callWith?: Record<string, unknown>;
@@ -67,7 +68,7 @@ export class CompositeFunctionExpander {
     step: FunctionStep,
     compositeFunctionPath: string,
     syntheticStepId: string
-  ): BuildStep[] {
+  ): CompositeBuildStep {
     this.rejectCompositeFunctionCallWorkingDirectory(step);
     return this.expand(
       {
@@ -89,11 +90,12 @@ export class CompositeFunctionExpander {
   }
 
   // `visited.size` is the current composite function nesting depth.
-  private expand(call: CompositeFunctionCall, visited: ReadonlySet<string>): BuildStep[] {
+  private expand(call: CompositeFunctionCall, visited: ReadonlySet<string>): CompositeBuildStep {
     const { compositeFunctionPath, syntheticStepId } = call;
     this.guardAgainstRunawayRecursion(compositeFunctionPath, visited);
 
     const compositeFunction = this.lookupCompositeFunction(compositeFunctionPath);
+    const compositeFunctionDisplayName = compositeFunction.name ?? compositeFunctionPath;
     const innerSteps = compositeFunction.runs.steps;
 
     const { stepIdMap, newIds } = this.buildInnerStepIdMap(
@@ -112,7 +114,7 @@ export class CompositeFunctionExpander {
       stepIdAliases: stepIdMap,
     });
 
-    const buildSteps = innerSteps.flatMap((innerStep, index) =>
+    const children = innerSteps.map((innerStep, index) =>
       this.expandInnerStep(innerStep, newIds[index], {
         compositeFunctionPath,
         scope,
@@ -120,7 +122,12 @@ export class CompositeFunctionExpander {
       })
     );
 
-    return buildSteps;
+    return new CompositeBuildStep(this.ctx, {
+      id: syntheticStepId,
+      displayName: compositeFunctionDisplayName,
+      scope,
+      children,
+    });
   }
 
   private guardAgainstRunawayRecursion(
@@ -162,7 +169,7 @@ export class CompositeFunctionExpander {
       scope: BuildStepCompositeFunctionScope;
       nestedVisited: ReadonlySet<string>;
     }
-  ): BuildStep[] {
+  ): BuildStep {
     const overrides = this.resolveStepOverrides(innerStep);
 
     if (isStepFunctionStep(innerStep)) {
@@ -176,7 +183,7 @@ export class CompositeFunctionExpander {
           visited: nestedVisited,
         });
       }
-      return this.createExpandedFunctionSteps(innerStep, {
+      return this.createExpandedFunctionStep(innerStep, {
         newId,
         overrides,
         scope,
@@ -184,7 +191,7 @@ export class CompositeFunctionExpander {
       });
     }
     if (isStepShellStep(innerStep)) {
-      return [this.createExpandedShellStep(innerStep, { newId, overrides, scope })];
+      return this.createExpandedShellStep(innerStep, { newId, overrides, scope });
     }
     throw new BuildConfigError(
       `Invalid step configuration in composite function "${compositeFunctionPath}". Step must be a shell or function step.`
@@ -214,7 +221,7 @@ export class CompositeFunctionExpander {
       scope: BuildStepCompositeFunctionScope;
       visited: ReadonlySet<string>;
     }
-  ): BuildStep[] {
+  ): CompositeBuildStep {
     return this.expand(
       {
         compositeFunctionPath,
@@ -254,12 +261,11 @@ export class CompositeFunctionExpander {
       env: overrides.env,
       ifCondition: overrides.ifCondition,
       compositeFunctionScope: scope,
-      isCompositeFunctionInternal: true,
       __metricsId: step.__metrics_id,
     });
   }
 
-  private createExpandedFunctionSteps(
+  private createExpandedFunctionStep(
     step: FunctionStep,
     {
       newId,
@@ -272,7 +278,7 @@ export class CompositeFunctionExpander {
       scope: BuildStepCompositeFunctionScope;
       compositeFunctionPath: string;
     }
-  ): BuildStep[] {
+  ): BuildStep {
     const functionId = step.uses;
     const { buildFunctionById, buildFunctionGroupById } = this.functionMaps;
     const maybeFunctionGroup = buildFunctionGroupById[functionId];
@@ -291,19 +297,16 @@ export class CompositeFunctionExpander {
 
     const callInputs = step.with as Record<string, unknown> | undefined;
 
-    return [
-      buildFunction.createBuildStepFromFunctionCall(this.ctx, {
-        id: newId,
-        name: step.name,
-        callInputs,
-        workingDirectory: overrides.workingDirectory,
-        shell: step.shell,
-        env: overrides.env,
-        ifCondition: overrides.ifCondition,
-        compositeFunctionScope: scope,
-        isCompositeFunctionInternal: true,
-      }),
-    ];
+    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+      id: newId,
+      name: step.name,
+      callInputs,
+      workingDirectory: overrides.workingDirectory,
+      shell: step.shell,
+      env: overrides.env,
+      ifCondition: overrides.ifCondition,
+      compositeFunctionScope: scope,
+    });
   }
 
   /**

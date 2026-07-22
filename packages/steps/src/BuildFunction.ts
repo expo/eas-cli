@@ -119,7 +119,6 @@ export class BuildFunction {
       env,
       ifCondition,
       compositeFunctionScope,
-      isCompositeFunctionInternal,
       timeoutMs,
     }: {
       id?: string;
@@ -130,7 +129,6 @@ export class BuildFunction {
       env?: BuildStepEnv;
       ifCondition?: string;
       compositeFunctionScope?: BuildStepCompositeFunctionScope;
-      isCompositeFunctionInternal?: boolean;
       timeoutMs?: number;
     } = {}
   ): BuildStep {
@@ -164,7 +162,6 @@ export class BuildFunction {
       env,
       ifCondition,
       compositeFunctionScope,
-      isCompositeFunctionInternal,
       timeoutMs,
       __metricsId: this.__metricsId,
       // The declaration does not survive composite function expansion: hooks
