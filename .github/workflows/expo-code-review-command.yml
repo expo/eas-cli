@@ -81,8 +81,10 @@ jobs:
       - name: Checkout (base ref only — never the PR head)
         if: steps.cmd.outputs.run == 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        # Shallow is enough: the reviewer reads the working tree and gets the diff
+        # from the API (`gh pr diff`), not from local history.
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Enable Corepack
         if: steps.cmd.outputs.run == 'true'
@@ -93,6 +95,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: 24
+          cache: yarn
 
       - name: Install dependencies
         if: steps.cmd.outputs.run == 'true'

@@ -29,8 +29,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        # The reviewer reads the working tree at HEAD and gets the diff from the
+        # API (`gh pr diff`), so a shallow checkout is enough — no full history.
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Enable Corepack
         run: corepack enable
@@ -39,6 +41,7 @@ jobs:
         uses: actions/setup-node@7c12f8017d5436eb855f1ed4399f037a36fbd9e8 # v2
         with:
           node-version: 24
+          cache: yarn
 
       - name: Install dependencies
         run: yarn install --immutable

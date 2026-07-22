@@ -46,6 +46,16 @@ export function addTokenUsage(into: TokenUsage, from?: TokenUsage): TokenUsage {
 
 // The coordinator consolidates findings; it needs no repo tools.
 const COORDINATOR_TOOLS = toolMap([]);
+// Agent id for the single combined cross-cutting pass (see review.ts). It MUST be
+// defined here so OpenCode uses this restricted tool set — otherwise the model
+// falls back to a default agent with full tools and crawls the whole repo, which
+// is why the cross-file pass used to wander for its entire time budget.
+export const CROSS_CUTTING_AGENT = 'cross-cutting';
+// Deliberately NO `glob`/`list`: the cross-file pass is given the changed files'
+// patch paths already, and directory crawling is exactly what made it wander into
+// unrelated packages. `read` (open a known file) + `grep` (find a cross-reference
+// among the changed files) are enough to trace interactions.
+const CROSS_CUTTING_TOOLS = toolMap(['read', 'grep']);
 
 /** Build the inline OpenCode config (agents + coordinator) from a repo config. */
 export function buildOpencodeConfig(config: LoadedConfig): Record<string, unknown> {
@@ -60,6 +70,16 @@ export function buildOpencodeConfig(config: LoadedConfig): Record<string, unknow
       tools: reviewer.tools,
     };
   }
+  agent[CROSS_CUTTING_AGENT] = {
+    description: 'Cross-file reviewer: issues spanning multiple changed files.',
+    mode: 'all',
+    // Use the default reviewing model (agents share it unless overridden).
+    model: config.agents[0]?.model ?? config.coordinator.model,
+    temperature: config.agents[0]?.temperature ?? 0.1,
+    prompt:
+      'You are the cross-file code reviewer. Follow the user message exactly and return only the requested JSON.',
+    tools: CROSS_CUTTING_TOOLS,
+  };
   agent['coordinator'] = {
     description: 'Consolidates specialist findings into one decision.',
     mode: 'all',
@@ -92,7 +112,10 @@ export async function startOpencode(config: unknown): Promise<OpencodeHandle> {
   return { client, url: server.url, close: () => server.close() };
 }
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 1000;
+// Emit a "still working" heartbeat if this long passes with no tool activity, so
+// a long model-thinking stretch doesn't look hung in the logs.
+const HEARTBEAT_MS = 45_000;
 // Default per-attempt ceiling. Focused chunk passes finish well under this; the
 // cross-cutting pass is given more (see review.ts). Hitting the cap does NOT mean
 // "retry" — we first interrupt the run and ask the agent to return whatever
@@ -392,11 +415,23 @@ async function pollForCompletion(
   // out before completing still contributes its spend to the run's metrics.
   let lastCost = 0;
   let lastTokens: TokenUsage | undefined;
+  const startedAt = Date.now();
+  let lastEmitAt = startedAt;
+  const emit = (line: string): void => {
+    lastEmitAt = Date.now();
+    opts.onActivity?.(line);
+  };
   for (;;) {
     if (Date.now() > opts.deadline) {
       throw new DeadlineReached(lastCost, lastTokens);
     }
     await sleep(POLL_INTERVAL_MS);
+
+    // Heartbeat if nothing has been reported for a while (e.g. the model is
+    // reasoning without calling tools), so a long pass doesn't look hung.
+    if (opts.onActivity && Date.now() - lastEmitAt >= HEARTBEAT_MS) {
+      emit(`still working… ${Math.round((Date.now() - startedAt) / 1000)}s elapsed`);
+    }
 
     const messages = await fetchMessages(handle, sessionID);
     const recent = messages.slice(opts.fromIndex);
@@ -424,7 +459,7 @@ async function pollForCompletion(
           opts.reportedTools.add(key);
           const tool = part.tool ?? 'tool';
           const title = part.state?.title;
-          opts.onActivity(title ? `${tool}: ${title}` : tool);
+          emit(title ? `${tool}: ${title}` : tool);
         }
       }
     }

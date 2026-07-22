@@ -12,6 +12,7 @@ import {
   addTokenUsage,
   AgentTimeoutError,
   buildOpencodeConfig,
+  CROSS_CUTTING_AGENT,
   promptAndParse,
   startOpencode,
 } from './opencode.js';
@@ -196,7 +197,7 @@ export async function runReview(
     // span multiple changed files, covering every agent's concern at once.
     if (chunked) {
       tasks.push({
-        bucket: 'cross-cutting',
+        bucket: CROSS_CUTTING_AGENT,
         system: buildCrossCuttingSystem(config, selectedAgents),
         label: 'cross-file',
         title: 'review-xcut',
