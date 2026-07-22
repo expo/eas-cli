@@ -19,6 +19,7 @@ import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
+import { uploadJobOutputsToWwwAsync } from '../utils/outputs';
 import { retryAsync } from '../utils/retry';
 
 export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<Artifacts> {
@@ -103,7 +104,16 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
           // do nothing, it's a non-breaking error.
         }
       }
-      await customBuildCtx.drainPendingMetricUploads();
+      const results = await Promise.allSettled([
+        uploadJobOutputsToWwwAsync(globalContext, {
+          logger: ctx.logger,
+          expoApiV2BaseUrl: ctx.expoApiV2BaseUrl,
+        }),
+        customBuildCtx.drainPendingMetricUploads(),
+      ]);
+      if (results[0].status === 'rejected') {
+        throw results[0].reason;
+      }
     }
   } catch (err: any) {
     err.artifacts = ctx.artifacts;
