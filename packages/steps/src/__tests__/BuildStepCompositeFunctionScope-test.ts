@@ -14,14 +14,11 @@ describe(BuildStepCompositeFunctionScope, () => {
   function makeScope(): BuildStepCompositeFunctionScope {
     const ctx = createGlobalContextMock();
 
-    // Aliases resolve against registered global steps, not base.
     const versionOutput = mock<BuildStepOutput>();
     when(versionOutput.id).thenReturn('version');
     when(versionOutput.rawValue).thenReturn('1.0.0');
     const innerStep = mock<BuildStep>();
-    when(innerStep.id).thenReturn('setup__build');
     when(innerStep.outputs).thenReturn([instance(versionOutput)]);
-    ctx.registerStep(instance(innerStep));
 
     const greeting = new BuildStepInput(ctx, {
       id: 'greeting',
@@ -35,7 +32,7 @@ describe(BuildStepCompositeFunctionScope, () => {
       compositeFunctionPath: 'test-action',
       inputs: new Map([['greeting', greeting]]),
       providedInputKeys: new Set(['greeting']),
-      stepIdAliases: new Map([['build', 'setup__build']]),
+      childrenByLocalId: new Map([['build', instance(innerStep)]]),
     });
   }
 

@@ -95,23 +95,14 @@ export class BuildStepGlobalContext {
   public get staticContext(): StaticJobInterpolationContext {
     return {
       ...this.provider.staticContext(),
-      steps: this.buildStepsInterpolationMap({ includeInternal: false }),
+      steps: this.buildStepsInterpolationMap(),
     };
   }
 
-  /** Includes internal ids for {@link BuildStepCompositeFunctionScope}; workflow uses {@link staticContext}. */
-  public getFullStepsInterpolationView(): StaticJobInterpolationContext['steps'] {
-    return this.buildStepsInterpolationMap({ includeInternal: true });
-  }
-
-  private buildStepsInterpolationMap({
-    includeInternal,
-  }: {
-    includeInternal: boolean;
-  }): StaticJobInterpolationContext['steps'] {
+  private buildStepsInterpolationMap(): StaticJobInterpolationContext['steps'] {
     return Object.fromEntries(
       Object.values(this.stepById)
-        .filter(step => includeInternal || !this.internalStepIds.has(step.id))
+        .filter(step => !this.internalStepIds.has(step.id))
         .map(step => [
           step.id,
           {

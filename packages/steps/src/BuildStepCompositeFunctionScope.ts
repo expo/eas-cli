@@ -3,11 +3,12 @@
  *
  * Composite functions are flattened into the workflow, but inner steps still need composite-function-local semantics:
  * `${{ steps.read }}` must mean the inner `read` step, not a workflow step with the same id.
- * This class overlays a short-id `steps` view on top of the global interpolation context.
+ * This class overlays a `steps` view built from the call's own children on top of the global interpolation context.
  * success()/failure() use global workflow status (GitHub composite action parity).
  */
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
+import type { BuildStepOutputAccessor } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput } from './BuildStepInput';
@@ -32,7 +33,8 @@ export class BuildStepCompositeFunctionScope {
   private readonly compositeFunctionPath: string;
   private readonly inputs: Map<string, BuildStepInput>;
   private readonly providedInputKeys: ReadonlySet<string>;
-  private readonly stepIdAliases: Map<string, string>;
+  // Filled by the expander after construction; children and scope need each other.
+  private readonly childrenByLocalId: Map<string, BuildStepOutputAccessor>;
   private cachedIsActive?: boolean;
   // Detects cycles while resolving input default values.
   private readonly resolvingInputs = new Set<string>();
@@ -45,7 +47,7 @@ export class BuildStepCompositeFunctionScope {
     compositeFunctionPath,
     inputs,
     providedInputKeys,
-    stepIdAliases,
+    childrenByLocalId,
   }: {
     ctx: BuildStepGlobalContext;
     parent?: BuildStepCompositeFunctionScope;
@@ -54,7 +56,7 @@ export class BuildStepCompositeFunctionScope {
     compositeFunctionPath: string;
     inputs: Map<string, BuildStepInput>;
     providedInputKeys: ReadonlySet<string>;
-    stepIdAliases: Map<string, string>;
+    childrenByLocalId: Map<string, BuildStepOutputAccessor>;
   }) {
     this.ctx = ctx;
     this.parent = parent;
@@ -63,7 +65,7 @@ export class BuildStepCompositeFunctionScope {
     this.compositeFunctionPath = compositeFunctionPath;
     this.inputs = inputs;
     this.providedInputKeys = providedInputKeys;
-    this.stepIdAliases = stepIdAliases;
+    this.childrenByLocalId = childrenByLocalId;
   }
 
   /**
@@ -97,10 +99,6 @@ export class BuildStepCompositeFunctionScope {
       ? this.parent.getScopedInterpolationContext(baseContext)
       : baseContext;
     return evaluate(this.ifCondition, context);
-  }
-
-  public resolveStepId(shortId: string): string | undefined {
-    return this.stepIdAliases.get(shortId);
   }
 
   public getScopedInterpolationContext(base: JobInterpolationContext): JobInterpolationContext {
@@ -138,15 +136,13 @@ export class BuildStepCompositeFunctionScope {
     return { ...parentEnv, ...this.resolveScopeEnv(base) };
   }
 
-  // Workflow hides prefixed ids; re-expose them under short aliases.
+  // Workflow hides prefixed ids; re-expose the call's children under their local ids.
   private buildStepsView(): JobInterpolationContext['steps'] {
-    const fullSteps = this.ctx.getFullStepsInterpolationView();
     const view: JobInterpolationContext['steps'] = {};
-    for (const [shortId, prefixedId] of this.stepIdAliases) {
-      const step = fullSteps[prefixedId];
-      if (step !== undefined) {
-        view[shortId] = step;
-      }
+    for (const [localId, child] of this.childrenByLocalId) {
+      view[localId] = {
+        outputs: Object.fromEntries(child.outputs.map(output => [output.id, output.rawValue])),
+      };
     }
     return view;
   }
