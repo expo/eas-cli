@@ -17,10 +17,14 @@ import {
 } from './opencode.js';
 import type { OpencodeHandle, TokenUsage } from './opencode.js';
 import { routeAgents } from './router.js';
-import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
-import { parseReviewerOutput, SEVERITY_RANK } from './schema.js';
+import {
+  buildCrossCuttingSystem,
+  buildCrossCuttingTask,
+  buildReviewerSystem,
+  buildReviewerTask,
+} from './prompts.js';
+import { fingerprintFinding, parseReviewerOutput, SEVERITY_RANK } from './schema.js';
 import type { CoordinatorOutput, Finding } from './schema.js';
-import { sleep } from './util.js';
 
 export interface ReviewRunOptions {
   config: LoadedConfig;
@@ -158,10 +162,15 @@ export async function runReview(
     }
 
     interface ReviewTask {
-      agent: LoadedAgent;
+      // Bucket the findings land in (agent id, or "cross-cutting" for the one
+      // combined multi-file pass).
+      bucket: string;
+      system: string;
       label: string;
       title: string;
       text: string;
+      // Human label for coverage notes (no internal [i/n]/[cross-file] jargon).
+      coverageLabel: string;
       // Per-task time ceiling. The cross-cutting pass legitimately does more work
       // (tracing across every changed file), so it gets more than a focused chunk.
       maxWaitMs: number;
@@ -170,93 +179,142 @@ export async function runReview(
     const CROSS_CUTTING_TIMEOUT_MS = 15 * 60 * 1000;
     const tasks: ReviewTask[] = [];
     for (const agent of selectedAgents) {
+      const system = buildReviewerSystem(config, agent);
       chunks.forEach((chunk, index) => {
         tasks.push({
-          agent,
+          bucket: agent.id,
+          system,
           label: chunked ? `${agent.id} [${index + 1}/${chunks.length}]` : agent.id,
           title: `review-${agent.id}-c${index}`,
           text: buildReviewerTask(chunk, workspace.files),
+          coverageLabel: `the ${agent.id} review${chunked ? ` (part ${index + 1} of ${chunks.length})` : ''}`,
           maxWaitMs: CHUNK_TIMEOUT_MS,
         });
       });
-      // On a large diff, one extra pass per agent looks for issues that span
-      // multiple changed files, which the focused per-chunk passes can't see.
-      if (chunked) {
-        tasks.push({
-          agent,
-          label: `${agent.id} [cross-file]`,
-          title: `review-${agent.id}-xcut`,
-          text: buildCrossCuttingTask(workspace.files),
-          maxWaitMs: CROSS_CUTTING_TIMEOUT_MS,
-        });
-      }
     }
+    // On a large diff, ONE combined pass (not one per agent) looks for issues that
+    // span multiple changed files, covering every agent's concern at once.
+    if (chunked) {
+      tasks.push({
+        bucket: 'cross-cutting',
+        system: buildCrossCuttingSystem(config, selectedAgents),
+        label: 'cross-file',
+        title: 'review-xcut',
+        text: buildCrossCuttingTask(workspace.files),
+        coverageLabel: 'the cross-file review (issues spanning multiple changed files)',
+        maxWaitMs: CROSS_CUTTING_TIMEOUT_MS,
+      });
+    }
+
+    // Longest-processing-time-first: schedule the long cross-cutting/large chunks
+    // ahead of short ones so they don't dominate the tail of the makespan.
+    tasks.sort((a, b) => b.maxWaitMs - a.maxWaitMs);
 
     // Coverage notes for passes that hit their time limit or failed, surfaced in
     // the final review so a cut-short run is never presented as complete.
     const incomplete: string[] = [];
-    const MAX_ATTEMPTS = 3;
+    let completedPasses = 0;
+    let failedPasses = 0;
+    // promptAndParse already retries internally (same-session corrective, then a
+    // bounded fresh session). We do NOT wrap it in another retry loop — that
+    // compounded into ~9 model runs per task and could blow the job budget. A
+    // thrown error here means the task genuinely failed; record it and move on.
     await mapWithConcurrency(tasks, config.chunk.concurrency, async task => {
       const minutes = Math.round(task.maxWaitMs / 60000);
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-          const { value, cost, truncated, tokens } = await promptAndParse(
-            handle!,
-            {
-              agent: task.agent.id,
-              system: buildReviewerSystem(config, task.agent),
-              text: task.text,
-              title: `${task.title}-a${attempt}`,
-              onActivity: line => progress(`  ${task.label}: ${line}`),
-              maxWaitMs: task.maxWaitMs,
-              finalizeOnTimeout: true,
-            },
-            parseReviewerOutput
+      try {
+        const { value, cost, truncated, tokens } = await promptAndParse(
+          handle!,
+          {
+            agent: task.bucket,
+            system: task.system,
+            text: task.text,
+            title: task.title,
+            onActivity: line => progress(`  ${task.label}: ${line}`),
+            maxWaitMs: task.maxWaitMs,
+            finalizeOnTimeout: true,
+          },
+          parseReviewerOutput
+        );
+        agentCosts[task.bucket] = (agentCosts[task.bucket] ?? 0) + cost;
+        addTokenUsage(tokenTotals, tokens);
+        (agentFindings[task.bucket] ??= []).push(...value.findings);
+        completedPasses++;
+        if (truncated) {
+          progress(`  ${task.label}: hit ${minutes}m limit — returned partial findings`);
+          incomplete.push(
+            `${capitalize(task.coverageLabel)} ran out of time (${minutes}-minute limit); its findings may be incomplete.`
           );
-          agentCosts[task.agent.id] = (agentCosts[task.agent.id] ?? 0) + cost;
-          addTokenUsage(tokenTotals, tokens);
-          (agentFindings[task.agent.id] ??= []).push(...value.findings);
-          if (truncated) {
-            progress(`  ${task.label}: hit ${minutes}m limit — returned partial findings`);
-            incomplete.push(
-              `The \`${task.label}\` pass hit its ${minutes}-minute limit; its findings may be incomplete.`
-            );
-          }
-          return;
-        } catch (error) {
-          // A timeout means the agent did not converge even after being asked to
-          // wrap up. Retrying just repeats the same non-convergent run, so we
-          // abandon this task rather than looping on it.
-          if (error instanceof AgentTimeoutError) {
-            progress(`  ${task.label}: exceeded ${minutes}m limit — skipping (no retry)`);
-            incomplete.push(
-              `The \`${task.label}\` pass exceeded its ${minutes}-minute limit and was skipped; it contributed no findings.`
-            );
-            return;
-          }
-          if (attempt < MAX_ATTEMPTS) {
-            progress(`  ${task.label}: retrying (attempt ${attempt} failed: ${errorMessage(error)})`);
-            await sleep(2000 * attempt);
-          } else {
-            // Give up on this task only after retries; must not sink the review.
-            progress(`  ${task.label}: FAILED after ${MAX_ATTEMPTS} attempts (${errorMessage(error)})`);
-            incomplete.push(
-              `The \`${task.label}\` pass failed after ${MAX_ATTEMPTS} attempts; it contributed no findings.`
-            );
-          }
+        }
+      } catch (error) {
+        failedPasses++;
+        // A timeout means the agent did not converge even after being asked to
+        // wrap up; other errors are genuine failures. Either way, don't retry the
+        // whole task — record the coverage gap and continue.
+        if (error instanceof AgentTimeoutError) {
+          progress(`  ${task.label}: exceeded ${minutes}m limit — skipping (no retry)`);
+          incomplete.push(
+            `${capitalize(task.coverageLabel)} exceeded its ${minutes}-minute limit and did not complete; those changes were not fully reviewed.`
+          );
+        } else {
+          progress(`  ${task.label}: FAILED (${errorMessage(error)})`);
+          incomplete.push(
+            `${capitalize(task.coverageLabel)} failed to run; those changes were not reviewed.`
+          );
         }
       }
     });
 
-    progress('Coordinating findings…');
-    const {
-      output: rawOutput,
-      cost,
-      tokens: coordinatorTokens,
-    } = await coordinate(handle, config, metadata, agentFindings);
-    agentCosts['coordinator'] = cost;
-    addTokenUsage(tokenTotals, coordinatorTokens);
-    const output = { ...applyReviewPolicy(rawOutput, config.policy), incomplete: [...new Set(incomplete)] };
+    // Also surface files that were filtered out entirely (binary/generated/etc.),
+    // so a coverage gap is never silent.
+    if (filtered.length > 0) {
+      incomplete.push(
+        `${filtered.length} file(s) were not reviewed (filtered as binary/generated/ignored).`
+      );
+    }
+
+    const coverageNotes = [...new Set(incomplete)];
+
+    let output: CoordinatorOutput;
+    if (completedPasses === 0) {
+      // Nothing succeeded — do NOT let this render as a clean "approve".
+      progress('All review passes failed — reporting an incomplete review.');
+      output = {
+        decision: 'approve_with_comments',
+        findings: [],
+        summary:
+          '⚠️ The AI review could not complete: every review pass failed or timed out, ' +
+          'so these changes were effectively NOT reviewed. Treat this as "no review", not "looks good".',
+        incomplete: coverageNotes,
+      };
+    } else {
+      progress('Coordinating findings…');
+      let consolidated: CoordinatorOutput;
+      try {
+        const {
+          output: rawOutput,
+          cost,
+          tokens: coordinatorTokens,
+        } = await coordinate(handle, config, metadata, agentFindings, coverageNotes);
+        agentCosts['coordinator'] = cost;
+        addTokenUsage(tokenTotals, coordinatorTokens);
+        consolidated = applyReviewPolicy(rawOutput, config.policy);
+      } catch (error) {
+        // The coordinator is the last step; if it fails we must not throw away all
+        // the findings the agents already produced. Fall back to a deterministic
+        // merge so a comment is still posted.
+        progress(`Coordinator failed (${errorMessage(error)}); consolidating findings locally.`);
+        consolidated = fallbackConsolidation(agentFindings, config.policy);
+        coverageNotes.push(
+          'The consolidation step failed, so findings are shown merged but not de-duplicated or re-judged.'
+        );
+      }
+      // A run with any failed/timed-out pass must never present as a clean approve.
+      const decision =
+        failedPasses > 0 && consolidated.decision === 'approve'
+          ? 'approve_with_comments'
+          : consolidated.decision;
+      output = { ...consolidated, decision, incomplete: [...new Set(coverageNotes)] };
+    }
 
     await safeLog(logPath, {
       ...baseRecord,
@@ -309,6 +367,50 @@ function applyReviewPolicy(
       ? 'approve'
       : output.decision;
   return { ...output, findings, decision };
+}
+
+/**
+ * Deterministic consolidation used when the coordinator step itself fails, so a
+ * coordinator hiccup never discards the findings the agents already produced.
+ * Merges + de-dupes (by fingerprint), applies the same policy, and picks a
+ * conservative decision (never a clean approve when there are findings).
+ */
+function fallbackConsolidation(
+  agentFindings: Record<string, Finding[]>,
+  policy: LoadedConfig['policy']
+): CoordinatorOutput {
+  const seen = new Set<string>();
+  const merged: Finding[] = [];
+  for (const findings of Object.values(agentFindings)) {
+    for (const finding of findings) {
+      const key = fingerprintFinding(finding);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(finding);
+      }
+    }
+  }
+  const decision = merged.some(finding => finding.severity === 'critical')
+    ? 'request_changes'
+    : merged.length > 0
+      ? 'approve_with_comments'
+      : 'approve';
+  return applyReviewPolicy(
+    {
+      decision,
+      findings: merged,
+      summary:
+        'Consolidation step failed; showing the specialist reviewers’ findings ' +
+        'merged and de-duplicated, but not re-judged.',
+      incomplete: [],
+    },
+    policy
+  );
+}
+
+/** Capitalize the first letter (coverage notes read as sentences). */
+function capitalize(text: string): string {
+  return text.length > 0 ? text[0]!.toUpperCase() + text.slice(1) : text;
 }
 
 function selectAgents(all: LoadedAgent[], filter?: string[]): LoadedAgent[] {

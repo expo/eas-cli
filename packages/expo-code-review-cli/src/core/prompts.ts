@@ -34,6 +34,32 @@ export function buildReviewerSystem(config: LoadedConfig, agent: LoadedAgent): s
 }
 
 /**
+ * System prompt for the single cross-cutting pass. The per-file chunks were
+ * already reviewed by each specialist; this one generalist pass covers all of
+ * their concerns at once, looking only for issues that span multiple changed
+ * files (running it once instead of once-per-agent is a large latency win — the
+ * task text was already identical across agents).
+ */
+export function buildCrossCuttingSystem(config: LoadedConfig, agents: LoadedAgent[]): string {
+  const lenses = agents
+    .map(agent => `- ${agent.id}: ${agent.description || agent.id}`)
+    .join('\n');
+  const role = [
+    'You are the cross-cutting reviewer. Each changed file was already reviewed on',
+    'its own by specialist reviewers covering these concerns:',
+    '',
+    lenses,
+    '',
+    'Your job is to catch issues that span MULTIPLE changed files — interactions the',
+    'per-file reviews cannot see — across ALL of those concerns. Examples: a changed',
+    'function or signature in one file that breaks a caller in another; inconsistent',
+    'or mismatched contracts across files; a data/taint flow that crosses files.',
+    'Do NOT re-report single-file issues.',
+  ].join('\n');
+  return withShared(config, role);
+}
+
+/**
  * The per-run task message. The reviewer reports issues only in `files` (one
  * chunk of the diff) but may read anything in the repo for context. `allFiles`
  * lists every file the PR changed, so the reviewer is aware of related changes
@@ -148,11 +174,25 @@ export function buildCoordinatorSystem(config: LoadedConfig): string {
 /** The coordinator task: sanitized metadata + each reviewer's raw findings. */
 export function buildCoordinatorTask(
   metadata: ReviewMetadata,
-  agentFindings: Record<string, Finding[]>
+  agentFindings: Record<string, Finding[]>,
+  coverageNotes: string[] = []
 ): string {
   const title = sanitizeUntrusted(metadata.title) || '(none)';
   const body = sanitizeUntrusted(metadata.body) || '(none)';
   const findingsJson = JSON.stringify(agentFindings, null, 2);
+
+  const coverageSection =
+    coverageNotes.length > 0
+      ? [
+          '',
+          'IMPORTANT — coverage was reduced this run (some review passes did not',
+          'finish). The findings below are therefore INCOMPLETE. Do NOT imply the',
+          'change is fully reviewed or clean; your summary must acknowledge that',
+          'parts were not reviewed, and you must not conclude "no issues" from an',
+          'absence of findings in the areas that failed:',
+          ...coverageNotes.map(note => `- ${note}`),
+        ]
+      : [];
 
   return [
     'Consolidate the specialist reviewers into one decision.',
@@ -164,6 +204,7 @@ export function buildCoordinatorTask(
     '<<<PR_BODY',
     body,
     'PR_BODY',
+    ...coverageSection,
     '',
     'Raw findings from each reviewer (keyed by reviewer id):',
     '```json',

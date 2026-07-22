@@ -84,8 +84,22 @@ export async function ciCommand(argv: string[] = []): Promise<void> {
     await reporter.report(review);
     process.stderr.write(`CI reviewer: posted review (${review.decision}).\n`);
   } catch (error) {
-    // A reviewer failure must never fail the PR's checks.
-    process.stderr.write(`CI reviewer: run failed (non-blocking): ${errorMessage(error)}\n`);
+    // A reviewer failure must never fail the PR's checks — but it must also not be
+    // silent. Post a terminal state to the PR so the maintainer who triggered it
+    // (e.g. a `/review` with a typo'd agent name, or a crash) gets feedback
+    // instead of a stuck 👀 reaction and nothing else.
+    const reason = errorMessage(error);
+    process.stderr.write(`CI reviewer: run failed (non-blocking): ${reason}\n`);
+    try {
+      await reporter.report({
+        decision: 'approve_with_comments',
+        findings: [],
+        summary: `⚠️ The AI reviewer failed to run, so this change was **not** reviewed:\n\n> ${reason}`,
+        incomplete: [],
+      });
+    } catch (postError) {
+      process.stderr.write(`CI reviewer: also failed to post the failure notice: ${errorMessage(postError)}\n`);
+    }
   }
 }
 
