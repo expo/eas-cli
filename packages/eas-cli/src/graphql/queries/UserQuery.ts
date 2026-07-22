@@ -31,6 +31,7 @@ export const UserQuery = {
                 }
                 accounts {
                   id
+                  createdAt
                   ...AccountFragment
                 }
                 ... on PartnerActor {

@@ -14795,7 +14795,7 @@ export type CurrentUserQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
-    | { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'PartnerActor', username: string, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, createdAt: any, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor:
@@ -14804,7 +14804,7 @@ export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
             | { __typename?: 'SSOUser', id: string }
             | { __typename?: 'User', id: string }
            }> }> }
-    | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+    | { __typename: 'Robot', firstName?: string | null, id: string, featureGates: any, isExpoAdmin: boolean, accounts: Array<{ __typename?: 'Account', id: string, createdAt: any, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor:
@@ -14821,7 +14821,7 @@ export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
             | { __typename?: 'Robot', id: string }
             | { __typename?: 'SSOUser', id: string }
             | { __typename?: 'User', id: string }
-           }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+           }> }, accounts: Array<{ __typename?: 'Account', id: string, createdAt: any, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor:
@@ -14838,7 +14838,7 @@ export type CurrentUserQuery = { __typename?: 'RootQuery', meActor?:
             | { __typename?: 'Robot', id: string }
             | { __typename?: 'SSOUser', id: string }
             | { __typename?: 'User', id: string }
-           }> }, accounts: Array<{ __typename?: 'Account', id: string, name: string, ownerUserActor?:
+           }> }, accounts: Array<{ __typename?: 'Account', id: string, createdAt: any, name: string, ownerUserActor?:
           | { __typename?: 'SSOUser', id: string, username: string }
           | { __typename?: 'User', id: string, username: string }
          | null, users: Array<{ __typename?: 'UserPermission', role: Role, actor:

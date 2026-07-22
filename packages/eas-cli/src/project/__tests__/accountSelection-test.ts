@@ -19,18 +19,21 @@ const userActor: Actor = {
     {
       id: 'account-id-org',
       name: 'acme',
+      createdAt: '2022-06-15T00:00:00.000Z',
       ownerUserActor: null,
       users: [{ role: Role.ViewOnly, actor: { id: 'user-id' } }],
     },
     {
       id: 'account-id-personal',
       name: 'jane',
+      createdAt: '2020-01-01T00:00:00.000Z',
       ownerUserActor: { id: 'user-id' },
       users: [{ role: Role.Owner, actor: { id: 'user-id' } }],
     },
     {
       id: 'account-id-team',
       name: 'bob',
+      createdAt: '2024-03-01T00:00:00.000Z',
       ownerUserActor: { id: 'other-user-id' },
       users: [{ role: Role.Admin, actor: { id: 'user-id' } }],
     },
@@ -46,11 +49,13 @@ const robotActor: Actor = {
     {
       id: 'account-id-1',
       name: 'acme',
+      createdAt: '2021-01-01T00:00:00.000Z',
       users: [{ role: Role.Admin, actor: { id: 'robot-id' } }],
     },
     {
       id: 'account-id-2',
       name: 'other-org',
+      createdAt: '2023-01-01T00:00:00.000Z',
       users: [{ role: Role.ViewOnly, actor: { id: 'robot-id' } }],
     },
   ],
@@ -67,16 +72,16 @@ describe(getAccountNamesWhereUserHasSufficientPermissionsToCreateApp, () => {
 });
 
 describe(getAccountChoices, () => {
-  it('lists the personal account first and annotates account types for users', () => {
+  it('lists accounts from newest to oldest and annotates account types for users', () => {
     const choices = getAccountChoices(
       userActor,
       getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(userActor)
     );
 
-    expect(choices.map(choice => choice.title)).toEqual(['jane', 'bob', 'acme']);
-    expect(choices[0].description).toEqual('(Personal)');
-    expect(choices[1].description).toEqual('(Team)');
-    expect(choices[2].description).toEqual('(Organization) (Viewer Role)');
+    expect(choices.map(choice => choice.title)).toEqual(['bob', 'acme', 'jane']);
+    expect(choices[0].description).toEqual('(Team)');
+    expect(choices[1].description).toEqual('(Organization) (Viewer Role)');
+    expect(choices[2].description).toEqual('(Personal)');
   });
 
   it('annotates viewer role on the personal account when the user cannot create apps on it', () => {
@@ -101,14 +106,14 @@ describe(getAccountChoices, () => {
     expect(choices[0].description).toEqual('(Personal) (Viewer Role)');
   });
 
-  it('lists accounts without personal/team/organization annotations for robots', () => {
+  it('lists accounts from newest to oldest without personal/team/organization annotations for robots', () => {
     const choices = getAccountChoices(
       robotActor,
       getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(robotActor)
     );
 
-    expect(choices.map(choice => choice.title)).toEqual(['acme', 'other-org']);
-    expect(choices[0].description).toBeUndefined();
-    expect(choices[1].description).toEqual('(Viewer Role)');
+    expect(choices.map(choice => choice.title)).toEqual(['other-org', 'acme']);
+    expect(choices[0].description).toEqual('(Viewer Role)');
+    expect(choices[1].description).toBeUndefined();
   });
 });
