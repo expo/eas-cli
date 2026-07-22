@@ -275,14 +275,9 @@ export async function runReview(
       }
     });
 
-    // Also surface files that were filtered out entirely (binary/generated/etc.),
-    // so a coverage gap is never silent.
-    if (filtered.length > 0) {
-      incomplete.push(
-        `${filtered.length} file(s) were not reviewed (filtered as binary/generated/ignored).`
-      );
-    }
-
+    // Note: routine noise filtering (lockfiles, generated, binary) is expected and
+    // NOT a coverage gap — it stays in the run log (filteredFiles), not the
+    // user-facing coverage note, which is reserved for passes that didn't finish.
     const coverageNotes = [...new Set(incomplete)];
 
     let output: CoordinatorOutput;

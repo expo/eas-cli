@@ -40,7 +40,7 @@ async function main(): Promise<void> {
       await initCommand(rest);
       break;
     case 'doctor':
-      await doctorCommand();
+      await doctorCommand(rest);
       break;
     default:
       process.stderr.write(`Unknown command: ${sub}\n\n${USAGE}`);

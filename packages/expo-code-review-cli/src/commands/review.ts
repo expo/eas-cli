@@ -175,14 +175,28 @@ export async function reviewCommand(argv: string[]): Promise<void> {
     // Then, only if asked, publish the same result to the PR.
     if (args.post && args.pr != null) {
       const repo = args.repo ?? (await resolveRepo(cwd));
-      await new GitHubReporter({
+      const reporter = new GitHubReporter({
         prNumber: args.pr,
         repo,
         commentTag: config.commentTag,
         breakGlassMarker: config.breakGlassMarker,
         cwd,
-      }).report(review);
-      process.stderr.write(`\nPosted review to ${repo}#${args.pr}.\n`);
+      });
+      // Respect the author's break-glass opt-out, same as the CI path.
+      let breakGlass = false;
+      try {
+        breakGlass = await reporter.checkBreakGlass();
+      } catch {
+        breakGlass = false;
+      }
+      if (breakGlass) {
+        process.stderr.write(
+          `\nNot posting: ${config.breakGlassMarker} is set on ${repo}#${args.pr} (break-glass).\n`
+        );
+      } else {
+        await reporter.report(review);
+        process.stderr.write(`\nPosted review to ${repo}#${args.pr}.\n`);
+      }
     }
   } catch (error) {
     process.stderr.write(`AI review failed: ${errorMessage(error)}\n`);

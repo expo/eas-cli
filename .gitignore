@@ -29,4 +29,3 @@ coverage
 
 # AI reviewer run logs / per-run patch workspaces
 .expo-code-review/.runs
-packages/expo-code-review-cli/build

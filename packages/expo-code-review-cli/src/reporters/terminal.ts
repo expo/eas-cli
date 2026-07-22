@@ -59,7 +59,7 @@ export class TerminalReporter implements Reporter {
     out.push(review.summary, '');
 
     if (review.incomplete.length > 0) {
-      out.push(this.paint(BOLD, '⏱️  Coverage note: review cut short (partial coverage):'));
+      out.push(this.paint(BOLD, '⏱️  Coverage note: some passes did not finish (partial coverage):'));
       for (const note of review.incomplete) {
         out.push(this.paint(DIM, `  - ${note}`));
       }

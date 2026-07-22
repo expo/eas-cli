@@ -121,7 +121,7 @@ function matchesIgnore(filePath: string, pattern: string): boolean {
       } else {
         out += '[^/]*';
       }
-    } else if (/[.+^${}()|[\]\\]/.test(ch)) {
+    } else if (/[.+^${}()|[\]\\?]/.test(ch)) {
       out += '\\' + ch;
     } else {
       out += ch;

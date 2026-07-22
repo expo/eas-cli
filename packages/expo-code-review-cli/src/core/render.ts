@@ -44,8 +44,8 @@ export function renderMarkdown(review: CoordinatorOutput, tag: string): string {
 
   if (review.incomplete.length > 0) {
     lines.push(
-      '> ⏱️ **Coverage note:** this review was cut short — some passes hit their',
-      '> time limit, so coverage is partial:',
+      '> ⏱️ **Coverage note:** coverage is partial — some review passes did not',
+      '> finish (timed out or failed), so issues may exist in areas not fully reviewed:',
       ...review.incomplete.map(note => `> - ${note}`),
       ''
     );

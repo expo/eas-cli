@@ -1,8 +1,21 @@
 import { loadReviewConfig, hasConfig } from '../config/load.js';
 import { onPath, repoRoot, run } from '../core/exec.js';
 
+const USAGE = `ecr doctor — check environment, config, and credentials
+
+Usage:
+  ecr doctor
+
+Verifies: opencode + git (+ gh for \`ecr ci\`) on PATH, .expo-code-review/ config is
+valid, agent prompts resolve, and the configured model's token env is set.
+`;
+
 /** Preflight checks so a broken setup surfaces clearly instead of silently no-opping. */
-export async function doctorCommand(): Promise<void> {
+export async function doctorCommand(argv: string[] = []): Promise<void> {
+  if (argv.includes('-h') || argv.includes('--help')) {
+    process.stdout.write(USAGE);
+    return;
+  }
   const root = (await repoRoot()) ?? process.cwd();
   let ok = true;
   const line = (pass: boolean, message: string): void => {

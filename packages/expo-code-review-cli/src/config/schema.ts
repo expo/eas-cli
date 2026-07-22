@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ReviewConfigSchema = z.object({
   /** Default model for every agent + the coordinator. Override per-agent via
    * frontmatter in the agent's markdown, or globally via REVIEWER_MODEL. */
-  model: z.string().default('anthropic/claude-sonnet-4-5'),
+  model: z.string().default('anthropic/claude-sonnet-5'),
   policy: z
     .object({
       includeSuggestions: z.boolean().default(false),
