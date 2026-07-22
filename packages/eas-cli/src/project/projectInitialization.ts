@@ -14,7 +14,7 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Actor } from '../user/User';
+import { Actor, getCreatableAccountNamesNewestFirst } from '../user/User';
 
 export type InitializeMethodOptions = {
   force: boolean;
@@ -193,7 +193,11 @@ export async function initializeWithoutExplicitIDAsync(
   graphqlClient: ExpoGraphqlClient,
   actor: Actor,
   projectDir: string,
-  { force, nonInteractive }: InitializeMethodOptions
+  {
+    force,
+    nonInteractive,
+    accountName: accountNameArgument,
+  }: InitializeMethodOptions & { accountName?: string }
 ): Promise<string> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
@@ -214,21 +218,36 @@ export async function initializeWithoutExplicitIDAsync(
       .map(it => it.name)
   );
 
-  // if no owner field, ask the user which account they want to use to create/link the project
-  let accountName = exp.owner;
+  if (accountNameArgument) {
+    if (exp.owner && exp.owner !== accountNameArgument) {
+      throw new Error(
+        `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Pass a matching --account or update the "owner" field.`
+      );
+    }
+    if (!allAccounts.some(a => a.name === accountNameArgument)) {
+      throw new Error(
+        `You don't have access to an account named "${accountNameArgument}". Accounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+          actor
+        ).join(', ')}`
+      );
+    }
+  }
+
+  // if no --account flag or owner field, ask the user which account they want to use to create/link the project
+  let accountName = accountNameArgument ?? exp.owner;
   if (!accountName) {
     if (allAccounts.length === 1) {
       accountName = allAccounts[0].name;
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `There are multiple accounts that you have access to: ${allAccounts
-            .map(a => a.name)
-            .join(
-              ', '
-            )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --force --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+            actor
+          ).join(
+            ', '
+          )}\n\nAlternatively, set the "owner" field in your app config. (Deprecated: --force without --account will proceed with the default account ${
             allAccounts[0].name
-          }.`
+          }.)`
         );
       }
       accountName = allAccounts[0].name;

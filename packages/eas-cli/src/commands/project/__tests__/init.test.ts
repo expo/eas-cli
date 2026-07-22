@@ -535,4 +535,91 @@ describe(ProjectInit.name, () => {
       });
     });
   });
+
+  describe('when account flag is provided', () => {
+    it('uses the specified account without prompting', async () => {
+      mockTestProject({});
+      jest.mocked(confirmAsync).mockResolvedValue(true);
+      jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '0129',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(['--account', 'jester'], commandOptions).run();
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(jest.mocked(AppMutation.createAppAsync).mock.calls[0][1]).toEqual({
+        accountId: jester.accounts[0].id,
+        projectName: 'testing-123',
+      });
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
+    });
+
+    it('creates the project non-interactively when --force is also provided', async () => {
+      mockTestProject({});
+      jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '0129',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(
+        ['--account', 'jester', '--force', '--non-interactive'],
+        commandOptions
+      ).run();
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '0129');
+    });
+
+    it('throws non-interactively without --force when the project does not exist', async () => {
+      mockTestProject({});
+
+      await expect(
+        new ProjectInit(['--account', 'jester', '--non-interactive'], commandOptions).run()
+      ).rejects.toThrowError(
+        'Project does not exist: @jester/testing-123. Use --force flag to create this project.'
+      );
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws when the account does not exist or is not accessible', async () => {
+      mockTestProject({});
+
+      await expect(
+        new ProjectInit(['--account', 'nonexistent'], commandOptions).run()
+      ).rejects.toThrowError(
+        `You don't have access to an account named "nonexistent". Accounts you can create projects in: jester`
+      );
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws when the account conflicts with the owner field in the app config', async () => {
+      mockTestProject({ configuredOwner: jester.accounts[0].name });
+
+      await expect(
+        new ProjectInit(['--account', 'other'], commandOptions).run()
+      ).rejects.toThrowError(
+        `The account specified with --account (other) does not match the "owner" field in your app config (jester). Pass a matching --account or update the "owner" field.`
+      );
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+  });
 });

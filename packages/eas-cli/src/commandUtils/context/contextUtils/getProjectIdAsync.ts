@@ -14,7 +14,7 @@ import {
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import SessionManager from '../../../user/SessionManager';
-import { Actor, getActorUsername } from '../../../user/User';
+import { Actor, getActorUsername, getCreatableAccountNamesNewestFirst } from '../../../user/User';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
@@ -193,7 +193,9 @@ export async function validateOrSetProjectIdAsync({
         return user.username;
       case 'Robot':
         throw new Error(
-          'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
+          `Project is not configured. When using a robot access token, run "eas init --account <name> --force --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: ${getCreatableAccountNamesNewestFirst(
+            user
+          ).join(', ')}`
         );
     }
   };
