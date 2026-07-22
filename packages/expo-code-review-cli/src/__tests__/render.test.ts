@@ -1,6 +1,7 @@
 import { test, expect } from 'bun:test';
 
-import { renderMarkdown, parseEmbeddedFingerprints } from '../core/render.js';
+import { renderMarkdown, parseEmbeddedFingerprints, parseReviewState } from '../core/render.js';
+import { fingerprintFinding } from '../core/schema.js';
 import type { CoordinatorOutput, Finding } from '../core/schema.js';
 
 const base: CoordinatorOutput = { decision: 'approve', findings: [], summary: 'ok', incomplete: [] };
@@ -23,6 +24,24 @@ test('parseEmbeddedFingerprints round-trips even with a regex-metachar comment t
 test('coverage note only renders when incomplete is non-empty (no more wolf-crying)', () => {
   expect(renderMarkdown(base, 'tag')).not.toContain('Coverage note');
   expect(renderMarkdown({ ...base, incomplete: ['a pass timed out'] }, 'tag')).toContain('Coverage note');
+});
+
+test('a dismissed finding moves to the collapsed section, not the main list', () => {
+  const f = finding({ title: 'W', evidence: 'const somethingLongEnough = 1;' });
+  const fp = fingerprintFinding(f);
+  const out = renderMarkdown({ ...base, findings: [f] }, 'tag', [{ fp, by: 'x', reason: 'intentional' }]);
+  expect(out).toContain('Dismissed on this PR (1)');
+  expect(out).toContain(`id:${fp}`);
+  expect(out).not.toMatch(/###.*Warning/); // not shown as an active warning
+});
+
+test('review state (review + dismissals) round-trips via parseReviewState', () => {
+  const dismissed = [{ fp: 'abc123def456', by: 'x' }];
+  const body = renderMarkdown({ ...base, findings: [finding()] }, 'tag', dismissed);
+  const state = parseReviewState(body, 'tag');
+  expect(state).not.toBeNull();
+  expect(state!.dismissed).toEqual(dismissed);
+  expect(state!.review.findings.length).toBe(1);
 });
 
 test('renders per-severity headers with counts', () => {

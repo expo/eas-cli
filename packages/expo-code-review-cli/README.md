@@ -194,8 +194,9 @@ change as "looks good":
   is never a clean approve, and the coordinator is told coverage was reduced.
 - **The coordinator can't sink the run** — if the consolidation step fails, findings
   are merged deterministically and still posted, rather than thrown away.
-- **Coverage notes** — passes that were cut short/skipped, and files filtered out
-  (binary/generated/ignored), are listed, so a coverage gap is never silent.
+- **Coverage notes** — passes that timed out or failed are listed so a real
+  coverage gap is never silent (routine noise filtering is *not* flagged — it's
+  expected and stays in the run log).
 - **CI always gets a terminal state** — on any failure the PR gets a comment saying
   the reviewer didn't run, not a stuck reaction and silence.
 
@@ -217,10 +218,20 @@ actions, labels = persistent configuration.**
   - `ai-review:<agent>` — auto-review with only those agents (e.g.
     `ai-review:security`); combine several to widen the set
   - `ai-review:skip` — never auto-review this PR (opt-out)
+- **`expo-code-review-dismiss.yml`** — dismiss/restore a finding on a PR (maintainers):
+  - `/dismiss <id> [<id> …] [-- reason]` — hide finding(s); they move to a collapsed
+    "Dismissed" section and stay dismissed across re-reviews
+  - `/undismiss <id> …` — restore them
 
-Both are comment-only (they never fail the PR's checks). For security, the command
-workflow builds/runs only the trusted base ref (never the PR head) — see the
-comment at the top of that file.
+  Each finding shows a short `` `id:…` `` in the comment. Dismissal is a **display
+  filter only** — the reviewer still analyzes the code every run, and a `critical`
+  or `secrets` finding can never be hidden this way. (Also: an inline
+  `expo-code-review-ignore` comment on/above a line suppresses that line's findings,
+  same critical/secrets carve-out.)
+
+These workflows are comment-only (they never fail the PR's checks). For security,
+they build/run only the trusted base ref (never the PR head) — see the comment at
+the top of each file.
 
 ## Run logs
 

@@ -455,29 +455,34 @@ silently erased** (it escalates to a "needs human sign-off" note).
   `fingerprints=[…]` comment block is a built-but-unused substrate, ideal for storing
   dismissals.
 
-**Build order:**
-1. **Fingerprint v2 (prerequisite, small).** Re-key on the verbatim `evidence`
-   snippet (which we now require + quote-ground) instead of `title`:
-   `sha1("v2"|file|category|normalizeCode(evidence))`; fall back to title only when
-   evidence is too short. Nice semantics: if the author later changes that code the
-   hash changes and the dismissal *lapses* (re-evaluated), which is correct. Surface
-   a short `id:` per finding so users know what to reference.
-2. **Per-PR `/dismiss <id>` (flagship).** Maintainer-gated `issue_comment` command
-   (reuse the break-glass author_association gate + base-ref-only checkout). Store
-   dismissed fingerprints as a `dismissed=[{fp,by,reason,sha}]` block **in the bot's
-   own comment body** — the auth boundary is GitHub's (only the bot/maintainers can
-   edit it); read it ONLY from the bot's comment, never an author comment. The
-   reporter filters dismissed findings into a collapsed `<details>` "Dismissed on this
-   PR" section. `/undismiss` reverses it.
-3. **Repo config `policy.suppress`** (persistent, cross-PR, itself code-reviewed):
-   `byCategory` / `byPathGlob` (reuse `matchesIgnore`) / `byTitlePattern` /
-   `severityFloor`. Distinct from `noise.additionalIgnores` (that drops files before
-   review; this filters findings the agent still reasoned about).
-4. **Harden the inline directive:** deterministic backstop (read the flagged line ±1
-   in the working tree; drop on directive) + the critical/secrets carve-out.
+**Build order (✅ = shipped):**
+1. ✅ **Fingerprint v2.** Re-keyed on the verbatim `evidence` snippet
+   (`sha1("v2"|file|category|normalizeCode(evidence))`), falling back to title only
+   when evidence is too short. Each finding now shows a short `` `id:…` `` in the
+   comment. Dismissals lapse when the code changes — correct.
+2. ✅ **Per-PR `/dismiss <id>` (+ `/undismiss`).** Maintainer-gated `issue_comment`
+   workflow (`expo-code-review-dismiss.yml`, base-ref-only, no model secret) → `ecr
+   dismiss/undismiss`. Dismissals stored as embedded state **in the bot's own comment**
+   (read only from there); the reporter re-renders dismissed findings into a collapsed
+   `<details>` section and carries them forward across re-reviews. The comment embeds
+   the full review state (base64) so `/dismiss` re-renders without re-running.
+3. **Repo config `policy.suppress`** — *(skipped for now, deliberately.)* Persistent
+   cross-PR class-level opt-outs (byCategory / byPathGlob / byTitlePattern /
+   severityFloor). Revisit if per-repo class suppression is wanted.
+4. ✅ **Inline-directive backstop.** `expo-code-review-ignore` on/above a line now
+   deterministically drops that finding (was prompt-only), with a **critical/secrets
+   carve-out** (never suppressed this way).
 
-**Precedence** (only #1 is a true skip): `/skip-review` (skip) > inline directive >
-config `policy.suppress` > per-PR `/dismiss`. #2–#4 are display filters.
+**Precedence** (only `/skip-review` truly skips): `/skip-review` > inline directive >
+(config `policy.suppress`, when built) > per-PR `/dismiss`. All but `/skip-review` are
+display filters; agents always analyze everything.
+
+**Not fed to agents (by design):** prior comments/findings are NOT threaded back into
+the review agents — each run is stateless (diff + repo + PR title/body only).
+Suppression/dedup is a post-agent display concern (fingerprints), so agents can't be
+anchored by, or biased into hiding via, a previous run or a dismissal. Cross-run
+*context* feedback would be a deliberate future feature with real anchoring/echo/
+security tradeoffs.
 
 **Fits §1 (inline comments):** dismissal is the first real consumer of the fingerprint
 substrate; after §1, a 👎/reply on an inline thread maps to the same `dismissed[]`

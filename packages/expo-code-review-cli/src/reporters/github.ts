@@ -3,9 +3,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { run } from '../core/exec.js';
-import { commentMarker, renderMarkdown } from '../core/render.js';
-import type { CoordinatorOutput } from '../core/schema.js';
+import { commentMarker, parseReviewState, renderMarkdown } from '../core/render.js';
+import { fingerprintFinding } from '../core/schema.js';
+import type { CoordinatorOutput, DismissalRecord } from '../core/schema.js';
 import type { Reporter } from './reporter.js';
+
+export interface DismissalResult {
+  dismissedCount: number;
+  matched: string[];
+  unmatched: string[];
+}
 
 export interface GitHubReporterOptions {
   prNumber: number;
@@ -52,7 +59,55 @@ export class GitHubReporter implements Reporter {
   }
 
   async report(review: CoordinatorOutput): Promise<void> {
-    await this.upsertComment(renderMarkdown(review, this.options.commentTag));
+    // Carry forward any per-PR dismissals recorded in the existing comment so they
+    // survive re-reviews (a dismissed finding stays in the collapsed section).
+    const existing = await this.findExistingComment();
+    const dismissed = existing
+      ? (parseReviewState(existing.body, this.options.commentTag)?.dismissed ?? [])
+      : [];
+    await this.upsertComment(renderMarkdown(review, this.options.commentTag, dismissed));
+  }
+
+  /**
+   * Add or remove per-PR finding dismissals in the reviewer's comment and re-render
+   * it in place — no re-review needed (the comment embeds the full review state).
+   */
+  async applyDismissal(
+    add: string[],
+    remove: string[],
+    by?: string,
+    reason?: string
+  ): Promise<DismissalResult> {
+    const existing = await this.findExistingComment();
+    if (!existing) {
+      throw new Error('No reviewer comment found on this PR yet — run a review first.');
+    }
+    const state = parseReviewState(existing.body, this.options.commentTag);
+    if (!state) {
+      throw new Error(
+        'The reviewer comment has no embedded state (posted before dismissals existed); re-run a review first.'
+      );
+    }
+    const validFps = new Set(state.review.findings.map(fingerprintFinding));
+    const matched = add.filter(fp => validFps.has(fp));
+    const unmatched = add.filter(fp => !validFps.has(fp));
+
+    let dismissed: DismissalRecord[] = state.dismissed.filter(record => !remove.includes(record.fp));
+    for (const fp of matched) {
+      if (!dismissed.some(record => record.fp === fp)) {
+        dismissed.push({ fp, by, reason });
+      }
+    }
+
+    await this.patchComment(existing.id, renderMarkdown(state.review, this.options.commentTag, dismissed));
+    return { dismissedCount: dismissed.length, matched, unmatched };
+  }
+
+  /** Newest reviewer-tagged comment (id + body), or null if none posted yet. */
+  private async findExistingComment(): Promise<{ id: number; body: string } | null> {
+    const marked = (await this.fetchAllComments()).filter(comment => comment.body?.includes(this.marker));
+    const keep = marked[marked.length - 1];
+    return keep ? { id: keep.id, body: keep.body ?? '' } : null;
   }
 
   // Safety cap on pagination (100/page): 30 pages = 3000 comments. Bounds a

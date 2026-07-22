@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { z } from 'zod';
 
+import { normalizeCode } from './util.js';
+
 /** Severity levels, ordered most→least severe for sorting/rendering. */
 export const SEVERITIES = ['critical', 'warning', 'suggestion'] as const;
 export type Severity = (typeof SEVERITIES)[number];
@@ -87,17 +89,30 @@ export const CoordinatorOutputSchema = z.object({
 });
 export type CoordinatorOutput = z.infer<typeof CoordinatorOutputSchema>;
 
+/** A per-PR dismissal ("I don't care about this finding"), keyed by fingerprint. */
+export interface DismissalRecord {
+  fp: string;
+  by?: string;
+  reason?: string;
+}
+
+/** Minimum normalized evidence length to key a fingerprint on the code (below
+ * this we fall back to the title). */
+const MIN_FP_EVIDENCE_LEN = 12;
+
 /**
- * Stable identifier for a finding, used to dedupe across re-reviews and update a
- * single comment in place. Deliberately excludes the line number (which shifts as
- * a PR grows) so the same issue keeps the same fingerprint across commits.
+ * Stable identifier for a finding — dedupes across re-reviews and is the key for
+ * dismissals. Excludes the line number (which shifts as a PR grows). Keys on the
+ * verbatim `evidence` snippet (v2) rather than the LLM-written `title`, which
+ * varies run-to-run and would make a dismissal silently lapse. When the flagged
+ * code later changes, the hash changes and the dismissal lapses — which is correct
+ * (you dismissed that code, not a blank check). Falls back to `title` only when
+ * there's too little evidence to key on.
  */
 export function fingerprintFinding(finding: Finding): string {
-  const normalized = [
-    finding.file,
-    finding.category,
-    finding.title.toLowerCase().replace(/\s+/g, ' ').trim(),
-  ].join('|');
+  const evidence = normalizeCode(finding.evidence ?? '');
+  const key = evidence.length >= MIN_FP_EVIDENCE_LEN ? evidence : normalizeCode(finding.title);
+  const normalized = ['v2', finding.file, finding.category, key].join('|');
   return createHash('sha1').update(normalized).digest('hex').slice(0, 12);
 }
 

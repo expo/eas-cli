@@ -6,7 +6,7 @@ import { parseVerdict } from './schema.js';
 import { addTokenUsage, promptAndParse, VERIFIER_AGENT } from './opencode.js';
 import type { OpencodeHandle, TokenUsage } from './opencode.js';
 import { buildVerifierSystem, buildVerifierTask } from './prompts.js';
-import { errorMessage } from './util.js';
+import { errorMessage, normalizeCode } from './util.js';
 
 // Verification runs after coordination (a serial tail step); keep it short. It
 // runs criticals in parallel, so this bounds the added latency regardless of count.
@@ -21,11 +21,6 @@ export interface VerificationResult {
   tokens: TokenUsage;
 }
 
-/** Collapse whitespace + lowercase, for tolerant substring matching. */
-function normalize(text: string): string {
-  return text.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
 /**
  * Deterministic quote-grounding: does the finding's `evidence` snippet actually
  * appear in the file? Returns `unknown` (don't judge) when there's too little
@@ -36,7 +31,7 @@ async function evidencePresence(
   finding: Finding,
   cwd: string
 ): Promise<'present' | 'absent' | 'unknown'> {
-  const evidence = normalize(finding.evidence ?? '');
+  const evidence = normalizeCode(finding.evidence ?? '');
   if (evidence.length < MIN_EVIDENCE_LEN) {
     return 'unknown';
   }
@@ -46,7 +41,7 @@ async function evidencePresence(
   } catch {
     return 'unknown';
   }
-  return normalize(content).includes(evidence) ? 'present' : 'absent';
+  return normalizeCode(content).includes(evidence) ? 'present' : 'absent';
 }
 
 /**

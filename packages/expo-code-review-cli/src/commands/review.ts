@@ -1,5 +1,5 @@
 import { loadReviewConfig } from '../config/load.js';
-import { repoRoot, run } from '../core/exec.js';
+import { repoRoot, resolveRepo } from '../core/exec.js';
 import { errorMessage } from '../core/util.js';
 import { runReview } from '../core/review.js';
 import { LocalGitSource } from '../sources/local-git.js';
@@ -215,18 +215,4 @@ function validateArgs(args: ReviewArgs): void {
 }
 
 /** Resolve owner/repo from the current checkout via gh (for --post). */
-async function resolveRepo(cwd: string): Promise<string> {
-  try {
-    const { stdout } = await run('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], {
-      cwd,
-    });
-    const repo = stdout.trim();
-    if (repo) {
-      return repo;
-    }
-  } catch {
-    // fall through to a clear error
-  }
-  throw new Error('Could not determine the repository for --post; pass --repo owner/repo.');
-}
 

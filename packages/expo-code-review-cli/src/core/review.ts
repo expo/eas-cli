@@ -29,6 +29,7 @@ import type { CoordinatorOutput, Finding } from './schema.js';
 import { sortFindings } from './render.js';
 import { errorMessage } from './util.js';
 import { verifyFindings } from './verify.js';
+import { applyInlineIgnores } from './suppress.js';
 
 export interface ReviewRunOptions {
   config: LoadedConfig;
@@ -336,6 +337,19 @@ export async function runReview(
           ...output,
           findings: verification.kept,
           decision: decisionAfterVerification(output.decision, verification.kept),
+        };
+      }
+    }
+
+    // Inline `expo-code-review-ignore` directives suppress non-critical findings.
+    if (output.findings.length > 0) {
+      const { kept, suppressed } = await applyInlineIgnores(output.findings, process.cwd(), progress);
+      if (suppressed.length > 0) {
+        progress(`Suppressed ${suppressed.length} finding(s) via inline directives.`);
+        output = {
+          ...output,
+          findings: kept,
+          decision: decisionAfterVerification(output.decision, kept),
         };
       }
     }

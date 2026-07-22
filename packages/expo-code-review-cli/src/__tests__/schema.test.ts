@@ -29,7 +29,17 @@ test('fingerprint is line-independent and stable', () => {
   expect(fingerprintFinding(finding({ line: 1 }))).toBe(fingerprintFinding(finding({ line: 99 })));
 });
 
-test('fingerprint differs by file / category / title', () => {
+test('fingerprint (evidence-less) falls back to title', () => {
   expect(fingerprintFinding(finding({ title: 'A' }))).not.toBe(fingerprintFinding(finding({ title: 'B' })));
   expect(fingerprintFinding(finding({ file: 'a.ts' }))).not.toBe(fingerprintFinding(finding({ file: 'b.ts' })));
+});
+
+test('fingerprint v2: keys on evidence, not the (nondeterministic) title', () => {
+  const a = finding({ title: 'Null deref here', evidence: 'return items[next++]!;' });
+  const b = finding({ title: 'Possible null dereference', evidence: 'return items[next++]!;' });
+  // Same code, different LLM wording → same fingerprint (so a dismissal is stable).
+  expect(fingerprintFinding(a)).toBe(fingerprintFinding(b));
+  // Different code → different fingerprint (dismissal lapses when the code changes).
+  const c = finding({ title: 'Null deref here', evidence: 'const totally = different();' });
+  expect(fingerprintFinding(a)).not.toBe(fingerprintFinding(c));
 });

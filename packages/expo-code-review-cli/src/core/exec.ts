@@ -49,6 +49,22 @@ export async function git(args: string[], cwd?: string): Promise<string> {
   return stdout;
 }
 
+/** Resolve owner/repo from the current checkout via gh (for PR-targeting commands). */
+export async function resolveRepo(cwd?: string): Promise<string> {
+  try {
+    const { stdout } = await run('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], {
+      cwd,
+    });
+    const repo = stdout.trim();
+    if (repo) {
+      return repo;
+    }
+  } catch {
+    // fall through to a clear error
+  }
+  throw new Error('Could not determine the repository; pass --repo owner/repo.');
+}
+
 /** Absolute path of the git working-tree root, or null if not in a repo. */
 export async function repoRoot(cwd?: string): Promise<string | null> {
   try {
