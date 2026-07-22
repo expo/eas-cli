@@ -2,7 +2,7 @@
   // Default model for every agent. Override per-agent via frontmatter in the
   // agent's markdown, or at runtime with the REVIEWER_MODEL env var
   // (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini-fast).
-  "model": "anthropic/claude-sonnet-4-5",
+  "model": "anthropic/claude-sonnet-5",
 
   // Agents: every markdown file in agents/ is one reviewer (id = filename).
   // Add or remove files to change the roster — no list needed here.

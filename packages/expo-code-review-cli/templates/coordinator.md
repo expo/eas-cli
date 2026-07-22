@@ -1,3 +1,9 @@
+---
+# The coordinator only consolidates text (no repo tools), so a fast, cheap model
+# fits and keeps this serial step from adding latency. Override as you like.
+model: anthropic/claude-haiku-4-5-20251001
+---
+
 # Coordinator — consolidation & decision
 
 You receive the raw findings from the specialist reviewers plus lightweight PR

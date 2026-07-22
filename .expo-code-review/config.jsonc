@@ -1,7 +1,10 @@
 {
-  // Default model for every agent. Override at runtime with REVIEWER_MODEL
+  // Default model for the specialist reviewers (and the cross-file pass). Sonnet
+  // is the quality/speed sweet spot for finding real bugs. Per-agent frontmatter
+  // can override this; the coordinator runs on Haiku (see coordinator.md) since it
+  // only consolidates text. Override everything at runtime with REVIEWER_MODEL
   // (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini-fast for a cheaper local run).
-  "model": "anthropic/claude-sonnet-4-5",
+  "model": "anthropic/claude-sonnet-5",
 
   // Agents are every markdown file in agents/. shared.md (prepended to all) and
   // coordinator.md are reserved. Per-agent overrides go in each file's frontmatter.
