@@ -10,7 +10,7 @@ import { BuildStepStatus } from '../BuildStep';
 
 describe('StepsConfigParser local composite functions', () => {
   describe('outputs', () => {
-    it('creates a synthetic outputs step that exposes declared composite function outputs', async () => {
+    it('creates a CompositeBuildStep that exposes declared composite function outputs', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
           [SETUP]: {
@@ -43,7 +43,7 @@ describe('StepsConfigParser local composite functions', () => {
       expect(Object.keys(outputsStep.outputById)).toEqual(['version']);
     });
 
-    it('uses a generated synthetic id for the outputs step when the caller has no id', async () => {
+    it('uses a generated call id for the outputs node when the caller has no id', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
           [SETUP]: {
@@ -61,15 +61,15 @@ describe('StepsConfigParser local composite functions', () => {
       });
 
       const [readStep, echoStep, outputsStep] = workflow.buildSteps;
-      const syntheticStepId = readStep.id.split('__')[0];
+      const callStepId = readStep.id.split('__')[0];
 
-      expect(syntheticStepId).toMatch(/^step-\d{3,}$/);
-      expect(readStep.id).toBe(`${syntheticStepId}__read`);
+      expect(callStepId).toMatch(/^step-\d{3,}$/);
+      expect(readStep.id).toBe(`${callStepId}__read`);
       expect(echoStep.command).toBe('echo "${{ steps.read.outputs.version }}"');
-      expect(outputsStep.id).toBe(syntheticStepId);
+      expect(outputsStep.id).toBe(callStepId);
     });
 
-    it('uses the caller step name for the synthetic outputs step display name', async () => {
+    it('uses the caller step name for the CompositeBuildStep display name', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
           [SETUP]: {
