@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { type CustomBuildContext } from '../../customBuildContext';
 import RemoteLoggerStream from '../../logging/RemoteLoggerStream';
 import { Sentry } from '../../sentry';
+import { type SignedUrl } from '../../storage/uploadWithSignedUrl';
 
 const POLL_INTERVAL_MS = 1_000;
 const UPLOAD_INTERVAL_MS = 5_000;
@@ -228,7 +229,7 @@ export async function startAgentDeviceEventCollectionAsync({
 async function createEventLogUploadSessionAsync(
   ctx: CustomBuildContext,
   deviceRunSessionId: string
-): Promise<{ url: string; headers: Record<string, string> }> {
+): Promise<SignedUrl> {
   const result = await ctx.graphqlClient
     .mutation(CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION, {
       deviceRunSessionId,
