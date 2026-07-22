@@ -1,12 +1,12 @@
 name: AI code review (command)
 
-# On-demand reviewer triggered by a PR comment:
-#   /review                     run now (all agents) and enable continuous review
-#   /review all                 same as /review
-#   /review correctness security   run now with just those agents (+ continuous)
-#   /review-once [agents...]    run once; do NOT enable continuous review
-# Maintainers only. Continuous mode = the `ai-review` label, which gates the
-# expo-code-review.yml auto-run on every subsequent push.
+# On-demand, ONE-SHOT reviewer triggered by a PR comment (maintainers only):
+#   /review                        run once now; the router picks the agents
+#   /review all                    run once with every agent
+#   /review correctness security   run once with just those agents
+# This never changes configuration. CONTINUOUS review is configured by labels
+# (see expo-code-review.yml): add `ai-review` (or `ai-review:all` /
+# `ai-review:<agent>`) to auto-review every push; `ai-review:skip` opts out.
 
 on:
   issue_comment:
@@ -42,11 +42,11 @@ jobs:
           line=$(printf '%s' "$COMMENT" | head -n1 | tr -d '\r')
           verb=$(printf '%s' "$line" | awk '{print $1}')
           rest=$(printf '%s' "$line" | cut -s -d' ' -f2-)
-          case "$verb" in
-            /review) once=false ;;
-            /review-once) once=true ;;
-            *) echo "run=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
-          esac
+          # Only /review (one-shot). Continuous review is label-driven, not a
+          # comment; /review no longer changes any configuration.
+          if [ "$verb" != "/review" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           # Bare "/review" -> router picks; "all" -> every agent; names -> subset.
           # Sanitize agent ids to [a-z0-9,_-] to keep the value shell-safe.
           agents=""
@@ -57,7 +57,6 @@ jobs:
             agents=$(printf '%s' "$rest" | tr ' ' ',' | tr -cd 'a-zA-Z0-9,_-')
           fi
           echo "run=true" >> "$GITHUB_OUTPUT"
-          echo "once=$once" >> "$GITHUB_OUTPUT"
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
           echo "route=$route" >> "$GITHUB_OUTPUT"
 
@@ -123,9 +122,3 @@ jobs:
             ARGS="--route"
           fi
           node packages/expo-code-review-cli/build/cli.js ci $ARGS
-
-      - name: Enable continuous review
-        if: steps.cmd.outputs.run == 'true' && steps.cmd.outputs.once == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api -X POST "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels" -f "labels[]=ai-review"

@@ -2,7 +2,7 @@ name: AI code review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # Comment-only: needs to read the repo and write PR comments (issue comments API).
 permissions:
@@ -17,19 +17,60 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # Continuous mode is configured by LABELS (declarative, visible, survives
+    # pushes). One-off runs are done via the `/review` comment command instead.
+    #   ai-review           -> auto-review every push; router picks the agents
+    #   ai-review:all        -> auto-review with every agent
+    #   ai-review:<agent>    -> auto-review with only those agents (e.g. ai-review:security)
+    #   ai-review:skip       -> never auto-review this PR (opt-out)
+    # Coarse gate: only spin up when some `ai-review*` label is present; the resolve
+    # step below decides the exact agents (and honors :skip).
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'ai-review')
     # Backstop so a stalled review fails fast instead of hanging toward the 6h
     # default. Must exceed the worst-case internal chain: cross-cutting cap (25m) +
     # finalize (~1.5m) + coordinator cap (10m) + finalize + CI setup. Keep in sync
     # with the per-task caps in review.ts / coordinator.ts.
     timeout-minutes: 50
-    # Opt-in / continuous mode: only auto-review PRs carrying the `ai-review`
-    # label (added by the `/review` comment command). `/review-once` runs a single
-    # review without the label, so it does not re-review later pushes.
-    if: contains(github.event.pull_request.labels.*.name, 'ai-review')
     # A reviewer failure must never fail the PR's checks in phase 1.
     continue-on-error: true
     steps:
+      - name: Resolve agents from labels
+        id: resolve
+        env:
+          # JSON array of label names, via env so a label can't inject shell.
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          names=$(printf '%s' "$LABELS" | jq -r '.[]')
+          # ai-review:skip is a hard opt-out.
+          if printf '%s\n' "$names" | grep -qx 'ai-review:skip'; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          has_any=false; all=false; scoped=""
+          while IFS= read -r name; do
+            case "$name" in
+              ai-review) has_any=true ;;
+              ai-review:all) has_any=true; all=true ;;
+              ai-review:*) has_any=true; scoped="$scoped,${name#ai-review:}" ;;
+            esac
+          done <<< "$names"
+          if [ "$has_any" != true ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          agents=""; route=false
+          if [ "$all" = true ]; then
+            : # no --agents, no --route => every agent
+          elif [ -n "$scoped" ]; then
+            # Sanitize to keep the value shell-safe; strip the leading comma.
+            agents=$(printf '%s' "${scoped#,}" | tr -cd 'a-zA-Z0-9,_-')
+          else
+            route=true # bare `ai-review` => let the router pick
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+          echo "route=$route" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: steps.resolve.outputs.run == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         # The reviewer reads the working tree at HEAD and gets the diff from the
         # API (`gh pr diff`), so a shallow checkout is enough — no full history.
@@ -37,25 +78,27 @@ jobs:
           fetch-depth: 1
 
       - name: Enable Corepack
+        if: steps.resolve.outputs.run == 'true'
         run: corepack enable
 
       - name: Set up Node
+        if: steps.resolve.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: yarn
 
       - name: Install dependencies
+        if: steps.resolve.outputs.run == 'true'
         run: yarn install --immutable
 
       - name: Build reviewer
+        if: steps.resolve.outputs.run == 'true'
         run: yarn workspace expo-code-review build
 
       - name: Run AI review
+        if: steps.resolve.outputs.run == 'true'
         # node_modules/.bin holds the `opencode` binary the SDK spawns.
-        run: |
-          export PATH="$PWD/node_modules/.bin:$PATH"
-          node packages/expo-code-review-cli/build/cli.js ci
         continue-on-error: true
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
@@ -65,3 +108,14 @@ jobs:
           DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
+          AGENTS: ${{ steps.resolve.outputs.agents }}
+          ROUTE: ${{ steps.resolve.outputs.route }}
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          ARGS=""
+          if [ -n "$AGENTS" ]; then
+            ARGS="--agents $AGENTS"
+          elif [ "$ROUTE" = "true" ]; then
+            ARGS="--route"
+          fi
+          node packages/expo-code-review-cli/build/cli.js ci $ARGS
