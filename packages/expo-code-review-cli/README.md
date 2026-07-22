@@ -168,17 +168,23 @@ change as "looks good":
 ## CI usage
 
 `ecr init --with-workflow` scaffolds a `pull_request` workflow. In this repo the
-reviewer runs via two workflows:
+reviewer runs via two workflows, split along a clean line: **comments = one-shot
+actions, labels = persistent configuration.**
 
-- **`expo-code-review.yml`** — auto-reviews a PR on every push, gated on the
-  `ai-review` label (continuous mode).
-- **`expo-code-review-command.yml`** — maintainer comment commands:
-  - `/review` — run now (router picks agents) and enable continuous review
-  - `/review all` — run now with every agent
-  - `/review correctness security` — run now with just those agents
-  - `/review-once [agents…]` — run once; do **not** enable continuous review
+- **`expo-code-review-command.yml`** — one-shot `/review` comments (maintainers):
+  - `/review` — run once now; the router picks the agents
+  - `/review all` — run once with every agent
+  - `/review correctness security` — run once with just those agents
 
-Both are comment-only and never fail the PR's checks. For security, the command
+  These never change configuration.
+- **`expo-code-review.yml`** — continuous review, configured by **labels**:
+  - `ai-review` — auto-review every push; the router picks the agents
+  - `ai-review:all` — auto-review with every agent
+  - `ai-review:<agent>` — auto-review with only those agents (e.g.
+    `ai-review:security`); combine several to widen the set
+  - `ai-review:skip` — never auto-review this PR (opt-out)
+
+Both are comment-only (they never fail the PR's checks). For security, the command
 workflow builds/runs only the trusted base ref (never the PR head) — see the
 comment at the top of that file.
 

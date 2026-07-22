@@ -8,8 +8,14 @@ are roughly ordered by priority.
 
 - Auto-discovered agents from `.expo-code-review/agents/*.md` + frontmatter.
 - Adaptive-hybrid chunking (per-chunk + cross-cutting pass), chunk retry.
-- LLM router (`--route`) and comment-command rollout (`/review`, `/review-once`).
+- LLM router (`--route`) and `/review` comment command.
 - Noise filtering (lockfiles, generated markers, repo `additionalIgnores`).
+- **Comment/label split** — `/review[ all|<agents>]` comments are now purely
+  one-shot (imperative "review now", no config side effect); continuous review is
+  configured by **labels** (declarative, visible, UI-toggleable): `ai-review`
+  (router), `ai-review:all`, `ai-review:<agent>` (scoped to auto-discovered
+  agents), `ai-review:skip` (opt-out). The auto workflow resolves `--agents`/
+  `--route` from the labels; `/review-once` retired (all comments are one-shot).
 - **Binary-diff blind-spot fix** — the parser now flags `Binary files … differ`
   entries and noise-filters them instead of handing agents an empty patch; and
   `noise.ts` no longer stashes a literal NUL byte as a glob sentinel (which had
@@ -156,6 +162,13 @@ What's left is at our layer, in suggested order:
      in the tool loop, not the cumulative session total — verify how OpenCode
      accumulates it before reading it as a per-task total. Fine either way for
      answering the breakpoint-placement question.
+   - **Confirmed working (2026-07-22)** from local #4057 runs (OpenAI): cache
+     reads ~106–110k tokens/run vs ~10–18k fresh input — provider prompt caching
+     is clearly active. `cache.write: 0` there is an OpenAI reporting quirk (it
+     reports cached-reads only). **Follow-up:** `.runs/reviews.jsonl` is ephemeral
+     in CI, so the Anthropic (default) cache numbers aren't visible after a run —
+     surface the token/cache totals into the CI job log or the run summary so CI
+     caching can be confirmed the same way (Anthropic reports write + read).
 2. **Retry in the same session, not a fresh one.** `promptAndParse` retries a
    JSON-parse failure by replaying `text + CORRECTIVE` in a **new session**,
    discarding the first attempt's entire tool-call context (all the patch reads).
