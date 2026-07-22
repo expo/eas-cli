@@ -2,7 +2,7 @@ name: AI code review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
 
 # Comment-only: needs to read the repo and write PR comments.
 permissions:
@@ -16,6 +16,10 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # Opt-in / continuous mode: only auto-review PRs carrying the `ai-review`
+    # label (added by the `/review` comment command). `/review-once` runs a single
+    # review without the label, so it does not re-review later pushes.
+    if: contains(github.event.pull_request.labels.*.name, 'ai-review')
     # A reviewer failure must never fail the PR's checks in phase 1.
     continue-on-error: true
     steps:

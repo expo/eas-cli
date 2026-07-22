@@ -13,9 +13,11 @@ async function resolvePrNumber(): Promise<number | null> {
     try {
       const event = JSON.parse(await readFile(eventPath, 'utf8')) as {
         pull_request?: { number?: number };
+        // issue_comment events carry the PR number under issue.number.
+        issue?: { number?: number };
         number?: number;
       };
-      const number = event.pull_request?.number ?? event.number;
+      const number = event.pull_request?.number ?? event.issue?.number ?? event.number;
       if (typeof number === 'number') {
         return number;
       }

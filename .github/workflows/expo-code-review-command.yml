@@ -1,0 +1,113 @@
+name: AI code review (command)
+
+# On-demand reviewer triggered by a PR comment:
+#   /review                     run now (all agents) and enable continuous review
+#   /review all                 same as /review
+#   /review correctness security   run now with just those agents (+ continuous)
+#   /review-once [agents...]    run once; do NOT enable continuous review
+# Maintainers only. Continuous mode = the `ai-review` label, which gates the
+# expo-code-review.yml auto-run on every subsequent push.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ai-code-review-cmd-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  command:
+    # Only PR comments starting with /review, from a maintainer.
+    if: >-
+      github.event.issue.pull_request != null &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Parse command
+        id: cmd
+        env:
+          # Via env (never inline ${{ }}) so an untrusted comment can't inject shell.
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          line=$(printf '%s' "$COMMENT" | head -n1 | tr -d '\r')
+          verb=$(printf '%s' "$line" | awk '{print $1}')
+          rest=$(printf '%s' "$line" | cut -s -d' ' -f2-)
+          case "$verb" in
+            /review) once=false ;;
+            /review-once) once=true ;;
+            *) echo "run=false" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+          # Sanitize agent ids to [a-z0-9,_-] to keep the value shell-safe.
+          agents=""
+          if [ -n "$rest" ] && [ "$rest" != "all" ]; then
+            agents=$(printf '%s' "$rest" | tr ' ' ',' | tr -cd 'a-zA-Z0-9,_-')
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "once=$once" >> "$GITHUB_OUTPUT"
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge
+        if: steps.cmd.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
+
+      - name: Checkout
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out the PR head
+        if: steps.cmd.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr checkout ${{ github.event.issue.number }}
+
+      - name: Enable Corepack
+        if: steps.cmd.outputs.run == 'true'
+        run: corepack enable
+
+      - name: Set up Node
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        if: steps.cmd.outputs.run == 'true'
+        run: yarn install --immutable
+
+      - name: Build reviewer
+        if: steps.cmd.outputs.run == 'true'
+        run: yarn workspace expo-code-review build
+
+      - name: Run AI review
+        if: steps.cmd.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
+          AGENTS: ${{ steps.cmd.outputs.agents }}
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          ARGS=""
+          if [ -n "$AGENTS" ]; then
+            ARGS="--agents $AGENTS"
+          fi
+          node packages/expo-code-review-cli/build/cli.js ci $ARGS
+
+      - name: Enable continuous review
+        if: steps.cmd.outputs.run == 'true' && steps.cmd.outputs.once == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels" -f "labels[]=ai-review"
