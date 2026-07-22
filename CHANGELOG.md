@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Prompt to select a platform in `eas simulator:start` when `--platform` is omitted, instead of erroring out. ([#4043](https://github.com/expo/eas-cli/pull/4043) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-build-job] Extend `app_store_connect.build_upload` workflow interpolation context with optional `cf_bundle_short_version_string`, `platform`, `uploaded_date`, and `created_date`. ([#4037](https://github.com/expo/eas-cli/pull/4037) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
