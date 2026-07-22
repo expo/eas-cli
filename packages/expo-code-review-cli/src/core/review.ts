@@ -8,7 +8,7 @@ import { writeRunLog } from './log.js';
 import type { RunLogRecord } from './log.js';
 import { filterNoise, writePatchWorkspace } from './noise.js';
 import type { PatchWorkspaceFile } from './noise.js';
-import { buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
+import { AgentTimeoutError, buildOpencodeConfig, promptAndParse, startOpencode } from './opencode.js';
 import type { OpencodeHandle } from './opencode.js';
 import { routeAgents } from './router.js';
 import { buildCrossCuttingTask, buildReviewerSystem, buildReviewerTask } from './prompts.js';
@@ -81,6 +81,7 @@ export async function runReview(
       decision: 'approve',
       findings: [],
       summary: 'No reviewable changes after noise filtering.',
+      incomplete: [],
     };
     await safeLog(logPath, {
       ...baseRecord,
@@ -154,7 +155,12 @@ export async function runReview(
       label: string;
       title: string;
       text: string;
+      // Per-task time ceiling. The cross-cutting pass legitimately does more work
+      // (tracing across every changed file), so it gets more than a focused chunk.
+      maxWaitMs: number;
     }
+    const CHUNK_TIMEOUT_MS = 8 * 60 * 1000;
+    const CROSS_CUTTING_TIMEOUT_MS = 15 * 60 * 1000;
     const tasks: ReviewTask[] = [];
     for (const agent of selectedAgents) {
       chunks.forEach((chunk, index) => {
@@ -163,6 +169,7 @@ export async function runReview(
           label: chunked ? `${agent.id} [${index + 1}/${chunks.length}]` : agent.id,
           title: `review-${agent.id}-c${index}`,
           text: buildReviewerTask(chunk, workspace.files),
+          maxWaitMs: CHUNK_TIMEOUT_MS,
         });
       });
       // On a large diff, one extra pass per agent looks for issues that span
@@ -173,15 +180,20 @@ export async function runReview(
           label: `${agent.id} [cross-file]`,
           title: `review-${agent.id}-xcut`,
           text: buildCrossCuttingTask(workspace.files),
+          maxWaitMs: CROSS_CUTTING_TIMEOUT_MS,
         });
       }
     }
 
-    const MAX_CHUNK_ATTEMPTS = 3;
+    // Coverage notes for passes that hit their time limit or failed, surfaced in
+    // the final review so a cut-short run is never presented as complete.
+    const incomplete: string[] = [];
+    const MAX_ATTEMPTS = 3;
     await mapWithConcurrency(tasks, config.chunk.concurrency, async task => {
-      for (let attempt = 1; attempt <= MAX_CHUNK_ATTEMPTS; attempt++) {
+      const minutes = Math.round(task.maxWaitMs / 60000);
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          const { value, cost } = await promptAndParse(
+          const { value, cost, truncated } = await promptAndParse(
             handle!,
             {
               agent: task.agent.id,
@@ -189,19 +201,40 @@ export async function runReview(
               text: task.text,
               title: `${task.title}-a${attempt}`,
               onActivity: line => progress(`  ${task.label}: ${line}`),
+              maxWaitMs: task.maxWaitMs,
+              finalizeOnTimeout: true,
             },
             parseReviewerOutput
           );
           agentCosts[task.agent.id] = (agentCosts[task.agent.id] ?? 0) + cost;
           (agentFindings[task.agent.id] ??= []).push(...value.findings);
+          if (truncated) {
+            progress(`  ${task.label}: hit ${minutes}m limit — returned partial findings`);
+            incomplete.push(
+              `The \`${task.label}\` pass hit its ${minutes}-minute limit; its findings may be incomplete.`
+            );
+          }
           return;
         } catch (error) {
-          if (attempt < MAX_CHUNK_ATTEMPTS) {
+          // A timeout means the agent did not converge even after being asked to
+          // wrap up. Retrying just repeats the same non-convergent run, so we
+          // abandon this task rather than looping on it.
+          if (error instanceof AgentTimeoutError) {
+            progress(`  ${task.label}: exceeded ${minutes}m limit — skipping (no retry)`);
+            incomplete.push(
+              `The \`${task.label}\` pass exceeded its ${minutes}-minute limit and was skipped; it contributed no findings.`
+            );
+            return;
+          }
+          if (attempt < MAX_ATTEMPTS) {
             progress(`  ${task.label}: retrying (attempt ${attempt} failed: ${errorMessage(error)})`);
             await sleep(2000 * attempt);
           } else {
             // Give up on this task only after retries; must not sink the review.
-            progress(`  ${task.label}: FAILED after ${MAX_CHUNK_ATTEMPTS} attempts (${errorMessage(error)})`);
+            progress(`  ${task.label}: FAILED after ${MAX_ATTEMPTS} attempts (${errorMessage(error)})`);
+            incomplete.push(
+              `The \`${task.label}\` pass failed after ${MAX_ATTEMPTS} attempts; it contributed no findings.`
+            );
           }
         }
       }
@@ -210,7 +243,7 @@ export async function runReview(
     progress('Coordinating findings…');
     const { output: rawOutput, cost } = await coordinate(handle, config, metadata, agentFindings);
     agentCosts['coordinator'] = cost;
-    const output = applyReviewPolicy(rawOutput, config.policy);
+    const output = { ...applyReviewPolicy(rawOutput, config.policy), incomplete: [...new Set(incomplete)] };
 
     await safeLog(logPath, {
       ...baseRecord,

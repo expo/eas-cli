@@ -14,6 +14,9 @@ export interface PromptResult {
   text: string;
   cost: number;
   sessionID: string;
+  /** True when this reply came from the finalize ("wrap up now") path — i.e. the
+   * agent ran out of time and returned partial findings rather than converging. */
+  truncated?: boolean;
 }
 
 // The coordinator consolidates findings; it needs no repo tools.
@@ -65,10 +68,36 @@ export async function startOpencode(config: unknown): Promise<OpencodeHandle> {
 }
 
 const POLL_INTERVAL_MS = 2000;
-// Per-attempt ceiling. A focused chunk should finish well under this; hitting it
-// means the session stalled (e.g. provider rate-limiting), so we abort and let the
-// caller retry rather than sitting for many minutes.
-const MAX_WAIT_MS = 8 * 60 * 1000;
+// Default per-attempt ceiling. Focused chunk passes finish well under this; the
+// cross-cutting pass is given more (see review.ts). Hitting the cap does NOT mean
+// "retry" — we first interrupt the run and ask the agent to return whatever
+// findings it already has (finalizeOnTimeout), and only fail if that also runs
+// over. Callers must treat AgentTimeoutError as "abandon", never "retry".
+const DEFAULT_MAX_WAIT_MS = 8 * 60 * 1000;
+// Extra budget for the "stop and summarize what you have" finalization prompt.
+const FINALIZE_WAIT_MS = 90 * 1000;
+
+const FINALIZE_PROMPT =
+  'You have reached your time budget. STOP investigating now — do NOT read, grep, ' +
+  'glob, list, or open any more files, and do not call any tools. Based ONLY on ' +
+  'what you have already examined, reply with the single JSON object exactly as ' +
+  'specified in your instructions, containing whatever findings you are already ' +
+  'confident about. If you have nothing solid, return an empty findings array.';
+
+/** Internal signal that a poll loop passed its deadline. */
+class DeadlineReached extends Error {}
+
+/**
+ * Thrown when an agent exceeds its time budget even after being asked to wrap up.
+ * Callers MUST treat this as "abandon this task" — retrying just repeats the same
+ * non-convergent run.
+ */
+export class AgentTimeoutError extends Error {
+  constructor(agent: string, minutes: number) {
+    super(`Agent "${agent}" timed out after ${minutes} minutes (including finalize)`);
+    this.name = 'AgentTimeoutError';
+  }
+}
 
 /**
  * Run a single prompt against the named agent in a fresh session and return the
@@ -89,38 +118,37 @@ export async function promptAgent(
     title: string;
     /** Called once per tool the agent runs, for live progress (e.g. "read foo.ts"). */
     onActivity?: (line: string) => void;
+    /** Per-attempt time ceiling. Defaults to DEFAULT_MAX_WAIT_MS. */
+    maxWaitMs?: number;
+    /**
+     * On hitting the ceiling, interrupt the run and ask the agent to return the
+     * findings it has so far (a soft landing) instead of throwing immediately.
+     */
+    finalizeOnTimeout?: boolean;
   }
 ): Promise<PromptResult> {
   const session = unwrap<{ id: string }>(
     await handle.client.session.create({ body: { title: args.title } })
   );
 
-  unwrap(
-    await handle.client.session.promptAsync({
-      path: { id: session.id },
-      body: {
-        agent: args.agent,
-        system: args.system,
-        parts: [{ type: 'text', text: args.text }],
-      },
-    })
-  );
+  const sendPrompt = async (text: string): Promise<void> => {
+    unwrap(
+      await handle.client.session.promptAsync({
+        path: { id: session.id },
+        body: {
+          agent: args.agent,
+          system: args.system,
+          parts: [{ type: 'text', text }],
+        },
+      })
+    );
+  };
+
+  await sendPrompt(args.text);
 
   const reportedTools = new Set<string>();
-  const deadline = Date.now() + MAX_WAIT_MS;
-  for (;;) {
-    if (Date.now() > deadline) {
-      // Free the stalled session server-side before giving up.
-      try {
-        await handle.client.session.abort({ path: { id: session.id } });
-      } catch {
-        // best effort
-      }
-      throw new Error(`Agent "${args.agent}" timed out after ${MAX_WAIT_MS / 60000} minutes`);
-    }
-    await sleep(POLL_INTERVAL_MS);
-
-    const messages = unwrap<
+  const getMessages = async () =>
+    unwrap<
       Array<{
         info?: { role?: string; error?: unknown; cost?: number; time?: { completed?: number } };
         parts?: Array<{
@@ -134,44 +162,97 @@ export async function promptAgent(
       }>
     >(await handle.client.session.messages({ path: { id: session.id } }));
 
-    const assistant = [...messages].reverse().find(message => message.info?.role === 'assistant');
-    if (!assistant) {
-      continue;
-    }
+  // Poll for the first assistant message at or after `fromIndex` to complete.
+  // `fromIndex` lets the finalize phase ignore the (aborted) first response and
+  // wait for the summary reply instead. Throws DeadlineReached past `deadline`.
+  const collect = async (fromIndex: number, deadline: number): Promise<PromptResult> => {
+    for (;;) {
+      if (Date.now() > deadline) {
+        throw new DeadlineReached();
+      }
+      await sleep(POLL_INTERVAL_MS);
 
-    // Emit a live line the first time each tool call starts, so a long run shows
-    // what the agent is actually doing instead of going silent.
-    if (args.onActivity) {
-      for (const part of assistant.parts ?? []) {
-        if (part?.type !== 'tool') {
-          continue;
-        }
-        const key = part.callID ?? part.id;
-        const status = part.state?.status;
-        if (key && status && status !== 'pending' && !reportedTools.has(key)) {
-          reportedTools.add(key);
-          const tool = part.tool ?? 'tool';
-          const title = part.state?.title;
-          args.onActivity(title ? `${tool}: ${title}` : tool);
+      const messages = await getMessages();
+      const recent = messages.slice(fromIndex);
+      const assistant = [...recent].reverse().find(message => message.info?.role === 'assistant');
+      if (!assistant) {
+        continue;
+      }
+
+      // Emit a live line the first time each tool call starts, so a long run
+      // shows what the agent is actually doing instead of going silent.
+      if (args.onActivity) {
+        for (const part of assistant.parts ?? []) {
+          if (part?.type !== 'tool') {
+            continue;
+          }
+          const key = part.callID ?? part.id;
+          const status = part.state?.status;
+          if (key && status && status !== 'pending' && !reportedTools.has(key)) {
+            reportedTools.add(key);
+            const tool = part.tool ?? 'tool';
+            const title = part.state?.title;
+            args.onActivity(title ? `${tool}: ${title}` : tool);
+          }
         }
       }
-    }
 
-    if (assistant.info?.error) {
-      throw new Error(
-        `Agent "${args.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
-      );
-    }
-    if (assistant.info?.time?.completed == null) {
-      continue;
-    }
+      if (assistant.info?.error) {
+        throw new Error(
+          `Agent "${args.agent}" returned an error: ${JSON.stringify(assistant.info.error)}`
+        );
+      }
+      if (assistant.info?.time?.completed == null) {
+        continue;
+      }
 
-    const text = (assistant.parts ?? [])
-      .filter(part => part?.type === 'text' && typeof part.text === 'string')
-      .map(part => part.text as string)
-      .join('\n')
-      .trim();
-    return { text, cost: assistant.info?.cost ?? 0, sessionID: session.id };
+      const text = (assistant.parts ?? [])
+        .filter(part => part?.type === 'text' && typeof part.text === 'string')
+        .map(part => part.text as string)
+        .join('\n')
+        .trim();
+      return { text, cost: assistant.info?.cost ?? 0, sessionID: session.id };
+    }
+  };
+
+  const maxWaitMs = args.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
+  try {
+    return await collect(0, Date.now() + maxWaitMs);
+  } catch (error) {
+    if (!(error instanceof DeadlineReached)) {
+      throw error;
+    }
+    // Time budget hit. Interrupt the wandering run first.
+    try {
+      await handle.client.session.abort({ path: { id: session.id } });
+    } catch {
+      // best effort
+    }
+    if (!args.finalizeOnTimeout) {
+      throw new AgentTimeoutError(args.agent, Math.round(maxWaitMs / 60000));
+    }
+    // Soft landing: ask the (same, context-carrying) session to return whatever
+    // it has now. Only the messages after this point count as the answer.
+    const baseline = (await getMessages()).length;
+    args.onActivity?.('time budget reached — asking for findings so far');
+    await sendPrompt(FINALIZE_PROMPT);
+    try {
+      const result = await collect(baseline, Date.now() + FINALIZE_WAIT_MS);
+      return { ...result, truncated: true };
+    } catch (finalizeError) {
+      if (finalizeError instanceof DeadlineReached) {
+        try {
+          await handle.client.session.abort({ path: { id: session.id } });
+        } catch {
+          // best effort
+        }
+        throw new AgentTimeoutError(
+          args.agent,
+          Math.round((maxWaitMs + FINALIZE_WAIT_MS) / 60000)
+        );
+      }
+      throw finalizeError;
+    }
   }
 }
 
@@ -192,9 +273,11 @@ export async function promptAndParse<T>(
     text: string;
     title: string;
     onActivity?: (line: string) => void;
+    maxWaitMs?: number;
+    finalizeOnTimeout?: boolean;
   },
   parse: (text: string) => T
-): Promise<{ value: T; cost: number }> {
+): Promise<{ value: T; cost: number; truncated: boolean }> {
   let cost = 0;
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -204,7 +287,7 @@ export async function promptAndParse<T>(
     });
     cost += result.cost;
     try {
-      return { value: parse(result.text), cost };
+      return { value: parse(result.text), cost, truncated: result.truncated ?? false };
     } catch (error) {
       lastError = error;
     }

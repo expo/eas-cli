@@ -42,6 +42,15 @@ export function renderMarkdown(review: CoordinatorOutput, tag: string): string {
   const lines: string[] = [commentMarker(tag), '## 🤖 AI code review', ''];
   lines.push(`**Decision:** ${decisionLabel(review.decision)}`, '', review.summary, '');
 
+  if (review.incomplete.length > 0) {
+    lines.push(
+      '> ⏱️ **Coverage note:** this review was cut short — some passes hit their',
+      '> time limit, so coverage is partial:',
+      ...review.incomplete.map(note => `> - ${note}`),
+      ''
+    );
+  }
+
   if (review.findings.length === 0) {
     lines.push('No findings.', '');
   } else {

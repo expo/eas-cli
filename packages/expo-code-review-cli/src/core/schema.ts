@@ -23,6 +23,12 @@ export interface DiffEntry {
   patch: string;
   /** git status letter (A/M/D/R...) when the source can provide it. */
   status?: string;
+  /**
+   * True when git emitted a binary-diff marker ("Binary files ... differ") for
+   * this file instead of a textual patch. Such an entry has no reviewable diff
+   * content, so it is filtered as noise rather than handed to an agent.
+   */
+  binary?: boolean;
 }
 
 export interface ReviewMetadata {
@@ -54,6 +60,13 @@ export const CoordinatorOutputSchema = z.object({
   decision: z.enum(DECISIONS),
   findings: z.array(FindingSchema).default([]),
   summary: z.string(),
+  /**
+   * Human-readable notes about reduced coverage (e.g. a review pass that hit its
+   * time limit and returned partial findings, or was skipped). Populated by the
+   * engine after coordination, not by the model. Reporters surface these so a
+   * cut-short review is never presented as complete.
+   */
+  incomplete: z.array(z.string()).default([]),
 });
 export type CoordinatorOutput = z.infer<typeof CoordinatorOutputSchema>;
 

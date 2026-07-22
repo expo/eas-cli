@@ -55,6 +55,14 @@ export class TerminalReporter implements Reporter {
     out.push(this.paint(BOLD, `AI code review — ${decisionLabel(review.decision)}`));
     out.push(review.summary, '');
 
+    if (review.incomplete.length > 0) {
+      out.push(this.paint(BOLD, '⏱️  Coverage note: review cut short (partial coverage):'));
+      for (const note of review.incomplete) {
+        out.push(this.paint(DIM, `  - ${note}`));
+      }
+      out.push('');
+    }
+
     if (review.findings.length === 0) {
       out.push(this.paint(DIM, 'No findings.'), '');
     } else {

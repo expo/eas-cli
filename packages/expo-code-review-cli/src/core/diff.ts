@@ -45,6 +45,7 @@ function patchToEntry(patch: string): DiffEntry | null {
   let newPath: string | null = null;
   let oldPath: string | null = null;
   let status: string | undefined;
+  let binary = false;
 
   for (const line of lines) {
     if (line.startsWith('+++ ')) {
@@ -57,6 +58,10 @@ function patchToEntry(patch: string): DiffEntry | null {
       status = 'D';
     } else if (line.startsWith('rename ')) {
       status = 'R';
+    } else if (line.startsWith('Binary files ') || line === 'GIT binary patch') {
+      // git emits one of these instead of +++/---/@@ hunks for a binary file.
+      // There is no textual diff to review; flag it so noise filtering drops it.
+      binary = true;
     }
   }
 
@@ -67,7 +72,7 @@ function patchToEntry(patch: string): DiffEntry | null {
   if (!path) {
     return null;
   }
-  return { path, patch, status: status ?? 'M' };
+  return { path, patch, status: status ?? 'M', binary };
 }
 
 function stripDiffPathPrefix(raw: string): string {
