@@ -80,6 +80,21 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
   return authtoken;
 }
 
+export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
+  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
+  if (!origin) {
+    return [];
+  }
+  const args: string[] = [];
+  for (const value of origin.split(',')) {
+    const trimmed = value.trim();
+    if (trimmed) {
+      args.push('--metrics-cors-origin', trimmed);
+    }
+  }
+  return args;
+}
+
 const TurnIceServersSchema = z.array(
   z.object({
     urls: z.array(z.string()),
@@ -346,6 +361,7 @@ export async function startServeSimWithTunnelAsync(
 ): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
+  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
     args: [
@@ -362,6 +378,7 @@ export async function startServeSimWithTunnelAsync(
       '--codec',
       'webrtc',
       ...turnArgs,
+      ...metricsCorsArgs,
     ],
     env,
   });
