@@ -1,6 +1,6 @@
 {
   "name": "@expo/worker",
-  "version": "21.0.2",
+  "version": "21.0.3",
   "private": true,
   "scripts": {
     "start": "yarn watch",
@@ -19,16 +19,16 @@
   },
   "dependencies": {
     "@babel/core": "7.24.7",
-    "@expo/build-tools": "21.0.2",
+    "@expo/build-tools": "21.0.3",
     "@expo/config-plugins": "55.0.7",
     "@expo/config-types": "55.0.5",
     "@expo/downloader": "21.0.0",
-    "@expo/eas-build-job": "21.0.2",
+    "@expo/eas-build-job": "21.0.3",
     "@expo/logger": "21.0.0",
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "21.0.2",
+    "@expo/steps": "21.0.3",
     "@expo/template-file": "21.0.2",
     "@expo/turtle-spawn": "21.0.0",
     "@hapi/boom": "10.0.1",
