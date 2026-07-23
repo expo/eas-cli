@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--client-id` flag to `eas observe:events` and `eas observe:metrics` to filter by EAS client ID. ([#4060](https://github.com/expo/eas-cli/pull/4060) by [@keith-kurak](https://github.com/keith-kurak))
+- [eas-cli] Add `--all-metrics` flag to `eas observe:metrics` to return samples across all metrics instead of a single one (e.g. all metrics for one `--client-id`). When no metric is provided in non-interactive/`--json` mode, all metrics are now returned instead of erroring. ([#4060](https://github.com/expo/eas-cli/pull/4060) by [@keith-kurak](https://github.com/keith-kurak))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
@@ -16,7 +19,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add `--client-id` flag to `eas observe:events` and `eas observe:metrics` to filter by EAS client ID, `--all-metrics` flag to `eas observe:metrics`. ([#4060](https://github.com/expo/eas-cli/pull/4060) by [@keith-kurak](https://github.com/keith-kurak))
 - [eas-cli] Prompt to select a platform in `eas simulator:start` when `--platform` is omitted, instead of erroring out. ([#4043](https://github.com/expo/eas-cli/pull/4043) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-build-job] Extend `app_store_connect.build_upload` workflow interpolation context with optional `cf_bundle_short_version_string`, `platform`, `uploaded_date`, and `created_date`. ([#4037](https://github.com/expo/eas-cli/pull/4037) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Allow `eas simulator` as a shorthand for `eas simulator:start`. ([#4053](https://github.com/expo/eas-cli/pull/4053) by [@szdziedzic](https://github.com/szdziedzic))

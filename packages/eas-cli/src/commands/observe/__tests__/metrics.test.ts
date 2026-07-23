@@ -298,20 +298,22 @@ describe(ObserveMetrics, () => {
     });
   });
 
-  it('throws in non-interactive mode when no metric is provided', async () => {
+  it('defaults to all metrics in non-interactive mode when no metric is provided', async () => {
     const command = createCommand(['--non-interactive']);
+    await command.runAsync();
 
-    await expect(command.runAsync()).rejects.toThrow(
-      'metric argument is required in non-interactive mode'
-    );
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
   });
 
-  it('treats --json as non-interactive when no metric is provided', async () => {
+  it('defaults to all metrics with --json (non-interactive) when no metric is provided', async () => {
     const command = createCommand(['--json']);
+    await command.runAsync();
 
-    await expect(command.runAsync()).rejects.toThrow(
-      'metric argument is required in non-interactive mode'
-    );
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
   });
 });
 

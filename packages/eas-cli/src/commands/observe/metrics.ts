@@ -105,13 +105,10 @@ export default class ObserveMetrics extends EasCommand {
     let metricName: string | undefined;
     if (args.metric) {
       metricName = resolveMetricName(args.metric);
-    } else if (flags['all-metrics']) {
+    } else if (flags['all-metrics'] || nonInteractive) {
+      // With no metric argument we can't show the picker in non-interactive /
+      // JSON mode, so default to all metrics rather than erroring out.
       metricName = undefined;
-    } else if (nonInteractive) {
-      throw new EasCommandError(
-        'A metric argument is required in non-interactive mode (or pass --all-metrics for all metrics). Available metrics: ' +
-          Object.keys(METRIC_ALIASES).join(', ')
-      );
     } else {
       const choices = [
         { title: 'All metrics', value: ALL_METRICS },
