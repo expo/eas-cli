@@ -53,4 +53,21 @@ describe(BuildStepCompositeFunctionScope, () => {
       interpolateJobContext({ target: '${{ steps.checkout.outputs.sha }}', context })
     ).toBeUndefined();
   });
+
+  describe('isActive', () => {
+    const neverEvaluate = (): boolean => {
+      throw new Error('a call without an if: must not evaluate an expression');
+    };
+
+    it('resolves a call without an if: with the provided run-by-default policy', () => {
+      expect(makeScope().isActive(neverEvaluate, () => false)).toBe(false);
+      expect(makeScope().isActive(neverEvaluate, () => true)).toBe(true);
+    });
+
+    it('memoizes the first evaluation; a later policy flip cannot re-gate the call', () => {
+      const scope = makeScope();
+      expect(scope.isActive(neverEvaluate, () => true)).toBe(true);
+      expect(scope.isActive(neverEvaluate, () => false)).toBe(true);
+    });
+  });
 });
