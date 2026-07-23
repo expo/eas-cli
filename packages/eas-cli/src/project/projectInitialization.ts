@@ -230,7 +230,8 @@ export async function initializeWithoutExplicitIDAsync(
   );
 
   if (accountNameArgument) {
-    if (exp.owner && exp.owner !== accountNameArgument) {
+    // with --force, a conflicting "owner" field is rewritten after linking
+    if (exp.owner && exp.owner !== accountNameArgument && !force) {
       throw new Error(
         `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Provide a matching --account or update the "owner" field.`
       );
