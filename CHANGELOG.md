@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [steps] Declare the `fast-glob` dependency, fixing `MODULE_NOT_FOUND` when eas-cli is installed with pnpm. ([#4050](https://github.com/expo/eas-cli/pull/4050) by [@ifeanyi-ugwu](https://github.com/ifeanyi-ugwu))
+
 ### 🧹 Chores
 
 - [eas-cli] Calibrate the experimental AI code reviewer's agent prompts and noise config to eas-cli's conventions. ([#4065](https://github.com/expo/eas-cli/pull/4065) by [@brentvatne](https://github.com/brentvatne))
