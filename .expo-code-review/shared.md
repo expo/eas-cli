@@ -84,7 +84,7 @@ JSON object of this exact shape:
       "line": 142,
       "title": "short one-line summary",
       "rationale": "why this is a problem, with the concrete failure/exploit path",
-      "evidence": "the exact line(s) of code you are flagging, copied VERBATIM",
+      "evidence": "one contiguous line of the flagged code, copied VERBATIM",
       "suggestion": "optional concrete fix, or omit"
     }
   ]
@@ -95,10 +95,11 @@ Rules for the output:
 
 - `line` is the start line in the **new** version of the file, or `null` if the
   finding is not tied to a specific line.
-- `evidence` MUST be the real code you are flagging, copied **verbatim** from the
-  file (a short snippet — the offending line(s)). It is used to verify the finding:
-  **a finding whose evidence is not actually found in the file is discarded.** Do
-  not paraphrase, summarize, or invent it. If you cannot quote real code for it,
-  do not report the finding.
+- `evidence` helps verify the finding, so make it easy to locate: copy **one
+  contiguous line** of the flagged code **verbatim** from the file — not spanning
+  multiple lines, no `…` elisions, no paraphrasing. For a structural/"missing" issue,
+  quote the single most relevant real line (e.g. the early `return` that skips the
+  handling). Don't invent code; if you truly cannot point at any real line, don't
+  report the finding.
 - If you have nothing to report, return `{ "findings": [] }`.
 - Do not wrap the block in prose. Do not emit more than one JSON block.

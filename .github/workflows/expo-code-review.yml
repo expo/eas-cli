@@ -14,7 +14,7 @@ env:
   # The reviewer is the published @expo/code-review-cli package, run via npx — the
   # repo only carries the `.expo-code-review/` config, not the engine source.
   # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.2.x.
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.0' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.1' }}
 
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
