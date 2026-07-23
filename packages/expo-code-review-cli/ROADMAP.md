@@ -4,6 +4,25 @@ Working notes for the experimental reviewer. This package is incubated in
 `eas-cli` for fast iteration and is intended to graduate into its own repo. Items
 are roughly ordered by priority.
 
+## Merge boundary — phase 1 vs follow-ups
+
+PR #4022 lands a self-contained **phase 1** (opt-in, comment-only, non-blocking)
+that is meant to merge and then iterate in follow-up PRs. What's **in** phase 1 is
+under "Recently shipped" below. The highest-value work **deferred to follow-up
+PRs** (do these first, in this order):
+
+1. **Incremental / delta review** — review only what changed since the last review
+   (persistent per-file-version state). Biggest speed + cost + reliability win on
+   re-pushes; the last remaining lever for the monster-PR case. See §5.
+2. **Cross-cutting pass parallelization / bounding** — it's the serial long-pole on
+   large PRs (one pass over every changed file). Chunk it by package/proximity.
+3. **Transient-error retry with backoff** — a non-timeout, non-parse API error
+   (one-off 429/5xx/network) currently drops that pass with no retry. It's distinct
+   from the timeout→subdivide and parse→retry paths and deserves its own bounded
+   retry. Real reliability hole, small fix.
+4. **Inline PR comments** (§1) and **publish + run via `npx`** (§3.9, removes
+   building the PR ref in CI).
+
 ## Recently shipped
 
 - **Never-drop-work on timeout (2026-07-22)** — a hard-timed-out chunk is now
