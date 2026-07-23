@@ -15,7 +15,7 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
-import { startAgentDeviceEventCollectionAsync } from '../utils/deviceRunSessionEvents';
+import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,

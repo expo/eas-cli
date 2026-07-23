@@ -18,6 +18,7 @@ import { Sentry } from '../../sentry';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
+import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -31,9 +32,17 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
-export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+// 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
+// here lets us enable it (and the artifacts list endpoint) unconditionally below.
+export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
+// Tells the tool-server to write its structured event log so we can collect session events.
+const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
+// Pin the event log path explicitly and hand the same value to the tool-server (via
+// ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
+// Argent's default can never make the two disagree.
+const ARGENT_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, ARGENT_EVENT_LOG_FILENAME);
 const STARTUP_TIMEOUT_MS = 60_000;
 
 const ArgentToolServerStateSchema = z.object({
@@ -87,6 +96,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         { env, logger }
       );
 
+      logger.info('Enabling the Argent tool-server event log flag.');
+      await spawn(
+        'bunx',
+        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+        { env, logger }
+      );
+
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
       // Keep Argent itself in foreground mode under the detached bunx process. This preserves
       // the bunx -> Argent CLI -> tool-server ancestry used to identify the matching state file.
@@ -102,7 +118,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           '0',
           '--force',
         ],
-        env,
+        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
@@ -140,6 +156,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         toolsAuthToken: toolServerToken,
         logger,
         signal: artifactPollSignal,
+      });
+
+      const eventCollection = await startArgentEventCollectionAsync({
+        ctx,
+        deviceRunSessionId,
+        eventLogPath: ARGENT_EVENT_LOG_PATH,
+        logger,
       });
 
       try {
@@ -184,6 +207,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           signal,
         });
       } finally {
+        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
         artifactPollAbortController.abort();
         try {
           await artifactPollingPromise;
@@ -195,6 +219,28 @@ export function createStartArgentRemoteSessionBuildFunction(
       }
     },
   });
+}
+
+export async function stopArgentEventCollectionSafelyAsync({
+  eventCollection,
+  deviceRunSessionId,
+  logger,
+}: {
+  eventCollection: { stopAsync: () => Promise<void> };
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await eventCollection.stopAsync();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finish argent session event collection', error, {
+      level: 'warning',
+      tags: { phase: 'argent-event-collection', operation: 'stop' },
+      extras: { deviceRunSessionId },
+    });
+    logger.warn({ err: error }, 'Could not finish argent session event collection.');
+  }
 }
 
 export function warnIfArgentPackageVersionCannotBeVerified({
