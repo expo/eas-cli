@@ -14,7 +14,7 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Actor } from '../user/User';
+import { Actor, getCreatableAccountNamesNewestFirst } from '../user/User';
 
 export type InitializeMethodOptions = {
   force: boolean;
@@ -193,18 +193,33 @@ export async function initializeWithoutExplicitIDAsync(
   graphqlClient: ExpoGraphqlClient,
   actor: Actor,
   projectDir: string,
-  { force, nonInteractive }: InitializeMethodOptions
+  {
+    force,
+    nonInteractive,
+    accountName: accountNameArgument,
+  }: InitializeMethodOptions & { accountName?: string }
 ): Promise<string> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
 
   if (existingProjectId) {
-    Log.succeed(
-      `Project already linked (ID: ${chalk.bold(
-        existingProjectId
-      )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
-    );
-    return existingProjectId;
+    const ownerAccountName = accountNameArgument
+      ? (await AppQuery.byIdAsync(graphqlClient, existingProjectId)).ownerAccount.name
+      : undefined;
+    if (!accountNameArgument || ownerAccountName === accountNameArgument) {
+      Log.succeed(
+        `Project already linked (ID: ${chalk.bold(
+          existingProjectId
+        )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
+      );
+      return existingProjectId;
+    }
+    if (!force) {
+      throw new Error(
+        `This project is already linked to @${ownerAccountName} (ID: ${existingProjectId}). Pass --force to re-link it to a project owned by ${accountNameArgument}, or remove the "extra.eas.projectId" field from your app config.`
+      );
+    }
+    // --force with a different --account: fall through to re-link under the new account
   }
 
   const allAccounts = actor.accounts;
@@ -214,21 +229,37 @@ export async function initializeWithoutExplicitIDAsync(
       .map(it => it.name)
   );
 
-  // if no owner field, ask the user which account they want to use to create/link the project
-  let accountName = exp.owner;
+  if (accountNameArgument) {
+    // with --force, a conflicting "owner" field is rewritten after linking
+    if (exp.owner && exp.owner !== accountNameArgument && !force) {
+      throw new Error(
+        `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Provide a matching --account or update the "owner" field.`
+      );
+    }
+    if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountNameArgument)) {
+      throw new Error(
+        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
+          actor
+        ).join(', ')}`
+      );
+    }
+  }
+
+  // if no --account flag or owner field, ask the user which account they want to use to create/link the project
+  let accountName = accountNameArgument ?? exp.owner;
   if (!accountName) {
     if (allAccounts.length === 1) {
       accountName = allAccounts[0].name;
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `There are multiple accounts that you have access to: ${allAccounts
-            .map(a => a.name)
-            .join(
-              ', '
-            )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
+            actor
+          ).join(
+            ', '
+          )}\n\nAlternatively, set the "owner" field in your app config. (Deprecated: --force without --account will proceed with the default account ${
             allAccounts[0].name
-          }.`
+          }.)`
         );
       }
       accountName = allAccounts[0].name;
@@ -257,13 +288,18 @@ export async function initializeWithoutExplicitIDAsync(
   const projectName = validSlugName(exp.slug); // This filters out invalid characters
   const projectFullName = `@${accountName}/${projectName}`;
   validateFullNameAndSlug(projectFullName, projectName);
+
+  // An explicit --account fully specifies the intended project (@account/slug), so linking or
+  // creating it requires no confirmation in non-interactive mode.
+  const skipConfirmation = force || (nonInteractive && accountNameArgument !== undefined);
+
   const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
     graphqlClient,
     accountName,
     projectName
   );
   if (existingProjectIdOnServer) {
-    if (!force) {
+    if (!skipConfirmation) {
       if (nonInteractive) {
         throw new Error(
           `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
@@ -290,7 +326,7 @@ export async function initializeWithoutExplicitIDAsync(
     );
   }
 
-  if (!force) {
+  if (!skipConfirmation) {
     if (nonInteractive) {
       throw new Error(
         `Project does not exist: ${projectFullName}. Use --force flag to create this project.`
