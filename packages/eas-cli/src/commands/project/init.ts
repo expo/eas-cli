@@ -17,7 +17,7 @@ export default class ProjectInit extends EasCommand {
       description: 'ID of the EAS project to link',
     }),
     account: Flags.string({
-      description: 'Name of the account that should own the project',
+      description: 'Name of the account that will own the project',
       exclusive: ['id'],
     }),
     force: Flags.boolean({

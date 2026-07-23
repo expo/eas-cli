@@ -39,11 +39,11 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
 
   if (options.nonInteractive) {
     throw new Error(
-      `EAS project not configured. To configure it non-interactively, choose the account that should own the project and run:\n\n  eas init --account <name> --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+      `EAS project not configured. To configure it non-interactively, choose the account that should own the project and run:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
         actor
       ).join(
         ', '
-      )}\n\nAlternatively, set the "owner" field in your app config, or run "eas init" for interactive setup.`
+      )}\n\nAlternatively, set the "owner" field in your app config, or run "eas init" to configure it interactively.`
     );
   }
   const account = allAccounts.find(a => a.name === accountName);

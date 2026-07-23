@@ -621,7 +621,19 @@ describe(ProjectInit.name, () => {
       await expect(
         new ProjectInit(['--account', 'nonexistent'], commandOptions).run()
       ).rejects.toThrowError(
-        `You don't have access to an account named "nonexistent". Accounts you can create projects in: jester`
+        `You are not able to create projects in the "nonexistent" account. Accounts you have permissions to create projects in: jester`
+      );
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws when the actor only has a view-only role in the account', async () => {
+      mockTestProject({});
+
+      await expect(
+        new ProjectInit(['--account', 'other'], commandOptions).run()
+      ).rejects.toThrowError(
+        `You are not able to create projects in the "other" account. Accounts you have permissions to create projects in: jester`
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
@@ -633,7 +645,7 @@ describe(ProjectInit.name, () => {
       await expect(
         new ProjectInit(['--account', 'other'], commandOptions).run()
       ).rejects.toThrowError(
-        `The account specified with --account (other) does not match the "owner" field in your app config (jester). Pass a matching --account or update the "owner" field.`
+        `The account specified with --account (other) does not match the "owner" field in your app config (jester). Provide a matching --account or update the "owner" field.`
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();

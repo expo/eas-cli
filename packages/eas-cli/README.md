@@ -1625,7 +1625,7 @@ USAGE
   $ eas init [--account <value> | --id <value>] [--force] [--non-interactive]
 
 FLAGS
-  --account=<value>  Name of the account that should own the project
+  --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link
@@ -2241,7 +2241,7 @@ USAGE
   $ eas project:init [--account <value> | --id <value>] [--force] [--non-interactive]
 
 FLAGS
-  --account=<value>  Name of the account that should own the project
+  --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link
