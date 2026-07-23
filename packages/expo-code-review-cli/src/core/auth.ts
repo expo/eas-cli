@@ -16,6 +16,30 @@ const PROVIDER_KEY_ENV: Record<string, string> = {
   openrouter: 'OPENROUTER_API_KEY',
 };
 
+/**
+ * Env vars that must NEVER be forwarded to a model provider. `auth.tokenEnv` names
+ * the env var whose value becomes the provider credential — but that config is
+ * loaded from the repo, and in the CI auto-review it can be PR-controlled. A PR
+ * that pointed `tokenEnv` at one of these would exfiltrate that secret to the
+ * external model provider. The provider credential must only ever be a token
+ * minted for that provider, so we hard-refuse these well-known unrelated secrets.
+ * Defense-in-depth alongside loading config only from the trusted base ref.
+ */
+const FORBIDDEN_TOKEN_ENVS = new Set([
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+  'ACTIONS_RUNTIME_TOKEN',
+  'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'GCP_SERVICE_ACCOUNT_KEY',
+  'NPM_TOKEN',
+  'NODE_AUTH_TOKEN',
+  'SSH_PRIVATE_KEY',
+]);
+
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 /**
@@ -39,6 +63,16 @@ export async function prepareAuth(config: LoadedConfig): Promise<PreparedAuth> {
   // auth; let OpenCode use whatever it's logged into for the override model.
   if (process.env.REVIEWER_MODEL) {
     return noop;
+  }
+
+  // Refuse to forward a well-known unrelated secret as the provider credential,
+  // even if the (repo/PR-controlled) config names one — that would leak it.
+  if (tokenEnv && FORBIDDEN_TOKEN_ENVS.has(tokenEnv)) {
+    throw new Error(
+      `auth.tokenEnv is set to "${tokenEnv}", a well-known non-provider secret. Refusing ` +
+        `to forward it to the model provider (that would leak the secret). Point auth.tokenEnv ` +
+        `at a token minted for the model provider instead.`
+    );
   }
 
   if (mode === 'api-key') {

@@ -152,8 +152,12 @@ Rules of thumb for the reviewer's workload:
 
 - **Specialist agents** (correctness/security/consistency) do the real bug-finding
   and benefit from a reasoning-tier model — **Sonnet** is the quality/speed sweet
-  spot (the default). **Opus** finds more but is slower and more rate-limited, which
-  makes large-PR timeouts worse; reserve it for a narrow deep pass if at all.
+  spot (the default for correctness/consistency). **Opus** finds more but is slower
+  and more rate-limited, which makes large-PR timeouts worse — so scope it to the
+  one agent where the extra threat-model reasoning pays off most: **security runs on
+  Opus** (set in `security.md` frontmatter), the rest on Sonnet. This keeps the
+  latency/rate-limit cost to a single agent, and the timeout handling (subdivide +
+  per-fetch deadline) keeps a slow Opus pass from hanging the run.
 - **The coordinator** only consolidates text (no repo tools), so a fast, cheap
   model — **Haiku** — fits well and keeps the serial tail short. Set it in
   `coordinator.md` frontmatter.
@@ -164,10 +168,15 @@ Example mixed setup:
 
 ```jsonc
 // config.jsonc
-"model": "anthropic/claude-sonnet-5"        // specialists + cross-file pass
+"model": "anthropic/claude-sonnet-5"        // default: specialists + cross-file pass
 ```
 ```markdown
-<!-- coordinator.md frontmatter -->
+<!-- security.md frontmatter -->  → Opus for the highest-stakes agent
+---
+model: anthropic/claude-opus-4-8
+---
+
+<!-- coordinator.md frontmatter --> → Haiku for the text-only consolidation
 ---
 model: anthropic/claude-haiku-4-5-20251001
 ---

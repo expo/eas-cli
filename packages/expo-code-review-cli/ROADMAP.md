@@ -20,8 +20,13 @@ PRs** (do these first, in this order):
    (one-off 429/5xx/network) currently drops that pass with no retry. It's distinct
    from the timeout→subdivide and parse→retry paths and deserves its own bounded
    retry. Real reliability hole, small fix.
-4. **Inline PR comments** (§1) and **publish + run via `npx`** (§3.9, removes
-   building the PR ref in CI).
+4. **Close the config/code injection vector (security)** — the auto-workflow builds
+   + loads config from the PR merge ref, so a same-repo PR can rewrite the reviewer's
+   prompts/config/code and it runs with secrets. Fix: build + load config from the
+   trusted base ref (diff still via `gh`), like the `/review` command workflow — or
+   switch to the published package via `npx`. Deferred only because the reviewer
+   isn't on `main` yet (nothing to build from base until this merges). See §3.9.
+5. **Inline PR comments** (§1).
 
 ## Recently shipped
 
@@ -190,6 +195,34 @@ Guarantees (priority order; ✅ = shipped):
    merge ref; fork PRs are protected (GitHub withholds secrets) but same-repo PRs
    run with secrets — acceptable for now (push access implies trust + label gate),
    but the npx switch removes the concern entirely.
+
+### Prompt-injection posture (and the structural fix)
+
+Untrusted input reaches the reviewer from three places; defenses by layer:
+
+- **Diff content, PR title/body, filenames, commit messages** — the biggest and
+  most obvious surface. Defended in-prompt: `shared.md` labels all reviewed content
+  untrusted DATA (never instructions), neutralizes "ignore your instructions"-style
+  injection, and rules that claims of intent ("this is safe/a fixture") carry no
+  weight; the engine also sanitizes PR title/body + file paths (`sanitizeUntrusted`)
+  and fences inlined diffs with BEGIN/END(untrusted) markers. This is mitigation,
+  not a hard guarantee — an LLM can still be swayed — so it's defense-in-depth, not
+  the last line.
+- **Prior comments / dismissal state** — NOT fed back to the review agents (runs are
+  stateless), so there is no injection path there. The embedded comment state is
+  only ever read from the bot's own comment (GitHub write perms are the boundary).
+- **The reviewer's OWN config, prompts, and code** — the sharpest vector, and the
+  one not fully closed. The `pull_request` auto-workflow checks out the PR *merge
+  ref*, so a same-repo PR can rewrite `.expo-code-review/` (agent prompts,
+  `config.jsonc`, `tokenEnv`) **or the CLI source itself** and it runs with secrets.
+  In-PR mitigations shipped: the `auth.ts` denylist refuses to forward well-known
+  non-provider secrets even if config names them, and the security agent is told to
+  treat PR-supplied config as attacker-controlled. **Structural fix (post-merge
+  follow-up):** have the auto-workflow build + load config from the **trusted base
+  ref** (the diff still comes from `gh pr diff`), exactly like the `/review` command
+  workflow already does — or switch to the published package via `npx` (item 9).
+  This can't land in *this* PR because the reviewer package isn't on `main` yet, so
+  the base ref has nothing to build; it becomes available the moment this merges.
 
 ## 4. Caching (LLM cost / quota / latency)
 
@@ -532,3 +565,34 @@ security tradeoffs.
 substrate; after §1, a 👎/reply on an inline thread maps to the same `dismissed[]`
 store (thread↔fp gives the identity a single comment can't), so this design is forward
 work, not throwaway.
+
+## Per-PR review guidelines (trusted-author-gated) — future
+
+Let a PR give the reviewer extra per-PR direction — e.g. a `## Review guidelines`
+section in the description with bullets like "ignore the `.md` files" or "focus on
+the API changes". Genuinely useful, but the PR description is the **untrusted**
+channel the injection defenses (`shared.md`) exist to neutralize, so this needs to
+be built as a *trusted, bounded* mechanism, never a free-text instruction pipe.
+
+Design constraints:
+
+- **Trusted-author gate.** Only honor the block when the PR author is
+  `OWNER|MEMBER|COLLABORATOR` — read `github.event.pull_request.author_association`
+  (zero API calls; already the pattern in `expo-code-review-dismiss.yml`) or the
+  collaborator-permission REST API for an authoritative check. `CONTRIBUTOR`/`NONE`
+  are **not** trusted (CONTRIBUTOR just means a prior merged PR, not push access).
+  For untrusted authors, ignore the block and note that it was skipped.
+- **Allowlisted, structured directives — not prose spliced into the agent prompt.**
+  Parse bullets into known actions applied *deterministically in code*: "ignore
+  `**/*.md`" → an `additionalIgnores` entry in the noise filter (not "please ignore"
+  sent to the LLM). A focus hint may be passed as clearly-fenced *context*, but the
+  parser decides what is a directive, so arbitrary text can't become an instruction.
+- **Same carve-outs as suppression.** Guidelines may narrow scope or add focus; they
+  may **never** suppress `critical`/`secrets` findings or force a decision.
+- **Repo-wide guidance belongs in trusted config**, not the description: a
+  `guidelines` field in `config.jsonc` (or a `guidelines.md`) is maintainer-owned and
+  side-steps the trust problem entirely. Do this first; the PR-description path is
+  only for *per-PR* direction and layers the author gate on top.
+- **Pairs with the base-ref checkout (§ merge-boundary #4):** once config loads from
+  the trusted base ref, repo-level guidelines are unambiguously trusted, and the
+  author gate is the only extra check the per-PR path needs.
