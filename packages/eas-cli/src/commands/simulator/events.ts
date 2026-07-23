@@ -16,11 +16,14 @@ import {
 import {
   type DeviceRunSessionEvent,
   downloadDeviceRunSessionEventsAsync,
+  formatDeviceRunSessionEvent,
+  projectDeviceRunSessionEventsForDisplay,
 } from '../../simulator/events';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import { sleepAsync } from '../../utils/promise';
 
 const POLL_INTERVAL_MS = 5_000;
+const POST_STOP_REFRESH_COUNT = 2;
 
 export default class SimulatorEvents extends EasCommand {
   static override hidden = true;
@@ -66,6 +69,8 @@ export default class SimulatorEvents extends EasCommand {
     }
 
     const printedEventIds = new Set<string>();
+    let observedRunningSession = false;
+    let remainingPostStopRefreshes = 0;
     let interrupted = false;
     const interruptHandler = (): void => {
       interrupted = true;
@@ -90,20 +95,35 @@ export default class SimulatorEvents extends EasCommand {
           return;
         }
 
-        const newEvents = events.filter(event => !printedEventIds.has(event.eventId));
-        printEvents(newEvents);
-        for (const event of newEvents) {
-          printedEventIds.add(event.eventId);
-        }
-
         const isRunning =
           session.status === DeviceRunSessionStatus.New ||
           session.status === DeviceRunSessionStatus.InProgress;
-        if (!flags.follow || !isRunning || interrupted) {
+        if (isRunning) {
+          observedRunningSession = true;
+          remainingPostStopRefreshes = 0;
+        } else if (observedRunningSession) {
+          observedRunningSession = false;
+          remainingPostStopRefreshes = POST_STOP_REFRESH_COUNT;
+        }
+
+        const shouldRefreshAgain = flags.follow && (isRunning || remainingPostStopRefreshes > 0);
+        const displayEvents = projectDeviceRunSessionEventsForDisplay(events, {
+          includeIncompleteOperations: interrupted || !shouldRefreshAgain,
+        });
+        const newDisplayEvents = displayEvents.filter(event => !printedEventIds.has(event.eventId));
+        printEvents(newDisplayEvents);
+        for (const event of newDisplayEvents) {
+          printedEventIds.add(event.eventId);
+        }
+
+        if (!shouldRefreshAgain || interrupted) {
           if (events.length === 0) {
             Log.log('No simulator session activity has been recorded.');
           }
           return;
+        }
+        if (!isRunning) {
+          remainingPostStopRefreshes -= 1;
         }
         await sleepAsync(POLL_INTERVAL_MS);
       } while (!interrupted);
@@ -115,6 +135,6 @@ export default class SimulatorEvents extends EasCommand {
 
 function printEvents(events: DeviceRunSessionEvent[]): void {
   for (const event of events) {
-    Log.log(`${event.ts}  ${event.producer}  ${event.summary}`);
+    Log.log(formatDeviceRunSessionEvent(event));
   }
 }
