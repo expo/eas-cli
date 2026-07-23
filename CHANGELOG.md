@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `eas simulator:availability` to check whether EAS Simulator is enabled for the current project account. ([#4045](https://github.com/expo/eas-cli/pull/4045) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Collect and upload Argent tool-server session events during remote simulator sessions, mirroring agent-device event collection. ([#4067](https://github.com/expo/eas-cli/pull/4067) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

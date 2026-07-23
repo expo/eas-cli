@@ -18,6 +18,7 @@ import { Sentry } from '../../sentry';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
+import { startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -33,6 +34,8 @@ import {
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
 export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
+// Tells the tool-server to write its structured event log; requires @swmansion/argent >= 0.16.0.
+const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 const STARTUP_TIMEOUT_MS = 60_000;
 
@@ -86,6 +89,27 @@ export function createStartArgentRemoteSessionBuildFunction(
         [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
         { env, logger }
       );
+
+      // Best-effort: the tool-server event log flag only exists in @swmansion/argent >= 0.16.0,
+      // and `argent enable` exits non-zero for an unknown flag on older pinned versions. Session
+      // event collection is additive, so a failure here must not fail the remote session.
+      logger.info('Enabling the Argent tool-server event log flag.');
+      try {
+        await spawn(
+          'bunx',
+          [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+          { env, logger }
+        );
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        Sentry.capture('Could not enable the Argent tool-server event log flag', error, {
+          level: 'warning',
+        });
+        logger.warn(
+          { err: error },
+          'Could not enable the Argent tool-server event log flag; session events may not be collected.'
+        );
+      }
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
       // Keep Argent itself in foreground mode under the detached bunx process. This preserves
@@ -142,6 +166,13 @@ export function createStartArgentRemoteSessionBuildFunction(
         signal: artifactPollSignal,
       });
 
+      const eventCollection = await startArgentEventCollectionAsync({
+        ctx,
+        deviceRunSessionId,
+        stateDir: ARGENT_STATE_DIR,
+        logger,
+      });
+
       try {
         const publicToolsUrl = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -184,6 +215,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           signal,
         });
       } finally {
+        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
         artifactPollAbortController.abort();
         try {
           await artifactPollingPromise;
@@ -195,6 +227,28 @@ export function createStartArgentRemoteSessionBuildFunction(
       }
     },
   });
+}
+
+export async function stopArgentEventCollectionSafelyAsync({
+  eventCollection,
+  deviceRunSessionId,
+  logger,
+}: {
+  eventCollection: { stopAsync: () => Promise<void> };
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await eventCollection.stopAsync();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finish argent session event collection', error, {
+      level: 'warning',
+      tags: { phase: 'argent-event-collection', operation: 'stop' },
+      extras: { deviceRunSessionId },
+    });
+    logger.warn({ err: error }, 'Could not finish argent session event collection.');
+  }
 }
 
 export function warnIfArgentPackageVersionCannotBeVerified({

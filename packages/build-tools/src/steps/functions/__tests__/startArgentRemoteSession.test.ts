@@ -4,11 +4,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { Sentry } from '../../../sentry';
 import {
   MIN_ARGENT_REMOTE_SESSION_VERSION,
+  stopArgentEventCollectionSafelyAsync,
   waitForArgentToolServerStateAsync,
   warnIfArgentPackageVersionCannotBeVerified,
 } from '../startArgentRemoteSession';
+
+jest.mock('../../../sentry');
 
 describe(warnIfArgentPackageVersionCannotBeVerified, () => {
   const warn = jest.fn();
@@ -141,5 +145,38 @@ describe(waitForArgentToolServerStateAsync, () => {
         pollIntervalMs: 1,
       })
     ).rejects.toThrow(`state file belonging to process ${process.pid}`);
+  });
+});
+
+describe(stopArgentEventCollectionSafelyAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('reports an unexpected stop failure without rejecting', async () => {
+    const error = new Error('stop failed');
+    const logger = { warn: jest.fn() } as unknown as bunyan;
+
+    await expect(
+      stopArgentEventCollectionSafelyAsync({
+        eventCollection: { stopAsync: jest.fn().mockRejectedValue(error) },
+        deviceRunSessionId: 'session-id',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not finish argent session event collection',
+      error,
+      {
+        level: 'warning',
+        tags: { phase: 'argent-event-collection', operation: 'stop' },
+        extras: { deviceRunSessionId: 'session-id' },
+      }
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      'Could not finish argent session event collection.'
+    );
   });
 });
