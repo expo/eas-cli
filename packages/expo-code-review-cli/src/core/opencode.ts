@@ -160,6 +160,34 @@ class DeadlineReached extends Error {
   }
 }
 
+const DEADLINE_SENTINEL = Symbol('deadline');
+
+/**
+ * Race a promise against the poll deadline. Without this, a stalled message fetch
+ * (a wedged/overloaded OpenCode server) blocks the poll loop past its deadline,
+ * because the deadline is only re-checked at the top of the loop — so a single
+ * hung fetch could let a task run minutes past its time cap. Returns the sentinel
+ * the instant the deadline passes, so the loop enforces the cap even mid-fetch.
+ */
+async function raceDeadline<T>(
+  work: Promise<T>,
+  deadline: number
+): Promise<T | typeof DEADLINE_SENTINEL> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    return DEADLINE_SENTINEL;
+  }
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<typeof DEADLINE_SENTINEL>(resolve => {
+    timer = setTimeout(() => resolve(DEADLINE_SENTINEL), remaining);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 /**
  * Thrown when an agent exceeds its time budget even after being asked to wrap up.
  * Callers MUST treat this as "abandon this task" — retrying just repeats the same
@@ -458,7 +486,12 @@ async function pollForCompletion(
       emit(`still working… ${Math.round((Date.now() - startedAt) / 1000)}s elapsed`);
     }
 
-    const messages = await fetchMessages(handle, sessionID);
+    // Bound the fetch by the deadline: a stalled server can't push the task past
+    // its time cap (the overshoot we saw when the server was overloaded).
+    const messages = await raceDeadline(fetchMessages(handle, sessionID), opts.deadline);
+    if (messages === DEADLINE_SENTINEL) {
+      throw new DeadlineReached(lastCost, lastTokens);
+    }
     const recent = messages.slice(opts.fromIndex);
     const assistant = [...recent].reverse().find(message => message.info?.role === 'assistant');
     if (!assistant) {

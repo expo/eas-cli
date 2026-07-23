@@ -5,6 +5,7 @@ import {
   applyReviewPolicy,
   runGrowableQueue,
   decisionAfterVerification,
+  reconcileSummary,
 } from '../core/review.js';
 import type { PatchWorkspaceFile } from '../core/noise.js';
 import type { CoordinatorOutput, Finding } from '../core/schema.js';
@@ -96,6 +97,18 @@ test('runGrowableQueue: processes items enqueued DURING the run (subdivision), s
   });
   expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 30, 31]);
   expect(maxInFlight).toBeLessThanOrEqual(2);
+});
+
+test('reconcileSummary: replaces summary when everything was dropped', () => {
+  const out = reconcileSummary('Three critical issues: a, b, c.', 0);
+  expect(out).toContain('no issues remain');
+  expect(out).not.toContain('Three critical'); // stale text is gone
+});
+
+test('reconcileSummary: prepends a caveat when some findings remain', () => {
+  const out = reconcileSummary('Three critical issues: a, b, c.', 2);
+  expect(out).toContain('some findings were removed'); // honest caveat
+  expect(out).toContain('Three critical issues: a, b, c.'); // original prose kept below
 });
 
 test('decisionAfterVerification: re-derives after drops', () => {

@@ -367,14 +367,28 @@ export async function runReview(
           return;
         }
         // Genuine, reported gap — the only way work is ever left unreviewed, and
-        // never silent.
+        // never silent. Distinguish WHY so the note doesn't overstate what happened:
+        // we could still have split/fallen back, but the global budget ran out first,
+        // vs. the task was already at its smallest reviewable unit and still failed.
         failedPasses++;
-        progress(
-          `  ${task.label}: exceeded its budget and could not be reduced further — reporting a coverage gap`
-        );
-        incomplete.push(
-          `${capitalize(task.coverageLabel)} exceeded its time budget even after being broken down into smaller passes; those changes were not fully reviewed.`
-        );
+        const couldStillReduce =
+          (task.files.length > minFiles && task.depth < MAX_SUBDIVIDE_DEPTH) ||
+          (task.kind === 'reviewer' && !task.fallback);
+        if (couldStillReduce) {
+          progress(
+            `  ${task.label}: exceeded ${minutes}m and the run's time budget is spent — reporting a coverage gap`
+          );
+          incomplete.push(
+            `${capitalize(task.coverageLabel)} timed out and the overall review budget was exhausted before it could be broken down further; those changes were not fully reviewed.`
+          );
+        } else {
+          progress(
+            `  ${task.label}: exceeded ${minutes}m even at its smallest reviewable unit — reporting a coverage gap`
+          );
+          incomplete.push(
+            `${capitalize(task.coverageLabel)} exceeded its time budget even after being reduced to its smallest reviewable unit; those changes were not fully reviewed.`
+          );
+        }
       }
     });
 
@@ -436,6 +450,7 @@ export async function runReview(
     // Guard against hallucinated findings before surfacing: quote-ground every
     // finding against the real file, and adversarially verify criticals. This is
     // what stops a confident but wrong critical from shipping.
+    const findingCountBeforeChecks = output.findings.length;
     if (output.findings.length > 0) {
       progress('Verifying findings…');
       const verification = await verifyFindings(handle!, output.findings, process.cwd(), progress);
@@ -462,6 +477,14 @@ export async function runReview(
           decision: decisionAfterVerification(output.decision, kept),
         };
       }
+    }
+
+    // The coordinator's summary was written against the pre-check finding set, so if
+    // verification/suppression removed anything it can now reference issues that are
+    // no longer listed. Reconcile the summary so it never contradicts the findings.
+    const removedAfterChecks = findingCountBeforeChecks - output.findings.length;
+    if (removedAfterChecks > 0) {
+      output = { ...output, summary: reconcileSummary(output.summary, output.findings.length) };
     }
 
     await safeLog(logPath, {
@@ -572,6 +595,24 @@ export function decisionAfterVerification(
     return 'approve_with_comments';
   }
   return previous;
+}
+
+/**
+ * The coordinator writes its summary before findings are verified/suppressed, so a
+ * post-coordination drop can leave the summary referencing issues no longer shown.
+ * Reconcile without a second LLM call: if everything was removed, replace it;
+ * otherwise prepend a short honest caveat so the prose can't be read as
+ * contradicting the (accurate) findings list below it.
+ */
+export function reconcileSummary(summary: string, remaining: number): string {
+  if (remaining === 0) {
+    return 'All candidate findings were removed by automated verification and suppression, so no issues remain to report.';
+  }
+  return (
+    '_Note: some findings were removed by automated verification/suppression after ' +
+    'this summary was written, so it may mention issues no longer listed below._\n\n' +
+    summary
+  );
 }
 
 /** Capitalize the first letter (coverage notes read as sentences). */
