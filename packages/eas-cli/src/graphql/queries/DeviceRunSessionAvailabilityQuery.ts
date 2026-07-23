@@ -15,20 +15,20 @@ export const DeviceRunSessionAvailabilityQuery = {
       graphqlClient
         .query<SimulatorAvailabilityQuery, SimulatorAvailabilityQueryVariables>(
           gql`
-            query SimulatorAvailabilityQuery($appId: String!) {
+            query SimulatorAvailabilityQuery($appId: String!, $filter: [String!]) {
               app {
                 byId(appId: $appId) {
                   id
                   ownerAccount {
                     id
                     name
-                    accountFeatureGates(filter: ["device-run-sessions"])
+                    accountFeatureGates(filter: $filter)
                   }
                 }
               }
             }
           `,
-          { appId },
+          { appId, filter: [DEVICE_RUN_SESSIONS_GATE] },
           { additionalTypenames: ['Account'] }
         )
         .toPromise()

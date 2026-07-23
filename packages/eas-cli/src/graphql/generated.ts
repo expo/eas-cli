@@ -14159,6 +14159,7 @@ export type AccountBillingPeriodQuery = { __typename?: 'RootQuery', account: { _
 
 export type SimulatorAvailabilityQueryVariables = Exact<{
   appId: Scalars['String']['input'];
+  filter?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
 }>;
 
 
