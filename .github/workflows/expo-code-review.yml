@@ -1,0 +1,165 @@
+name: AI code review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+# Comment-only: needs to read the repo and write PR comments (issue comments API).
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  # The reviewer is the published @expo/code-review-cli package, run via npx — the
+  # repo only carries the `.expo-code-review/` config, not the engine source.
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.2.x.
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.0' }}
+
+concurrency:
+  group: ai-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Continuous mode is configured by LABELS (declarative, visible, survives
+    # pushes). One-off runs are done via the `/review` comment command instead.
+    #   ai-review           -> auto-review every push; router picks the agents
+    #   ai-review:all        -> auto-review with every agent
+    #   ai-review:<agent>    -> auto-review with only those agents (e.g. ai-review:security)
+    #   ai-review:skip       -> never auto-review this PR (opt-out)
+    # Coarse gate: only spin up when some `ai-review*` label is present; the resolve
+    # step below decides the exact agents (and honors :skip).
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'ai-review')
+    # Backstop so a stalled review fails fast instead of hanging toward the 6h
+    # default. This is the ONE cap with no soft-landing (GitHub hard-kills the job),
+    # so keep comfortable margin over the worst-case internal chain: the passes
+    # budget (PASSES_BUDGET_MS, 32m — includes subdivision/fallback waves) +
+    # coordinator cap (10m) + verification + CI setup. Keep in sync with the caps in
+    # review.ts / coordinator.ts.
+    timeout-minutes: 60
+    # A reviewer failure must never fail the PR's checks in phase 1.
+    continue-on-error: true
+    steps:
+      - name: Resolve agents from labels
+        id: resolve
+        env:
+          # JSON array of label names, via env so a label can't inject shell.
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          names=$(printf '%s' "$LABELS" | jq -r '.[]')
+          # ai-review:skip is a hard opt-out.
+          if printf '%s\n' "$names" | grep -qx 'ai-review:skip'; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          has_any=false; all=false; scoped=""
+          while IFS= read -r name; do
+            case "$name" in
+              ai-review) has_any=true ;;
+              ai-review:all) has_any=true; all=true ;;
+              ai-review:*) has_any=true; scoped="$scoped,${name#ai-review:}" ;;
+            esac
+          done <<< "$names"
+          if [ "$has_any" != true ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          agents=""; route=false
+          if [ "$all" = true ]; then
+            : # no --agents, no --route => every agent
+          elif [ -n "$scoped" ]; then
+            # Sanitize to keep the value shell-safe; strip the leading comma.
+            agents=$(printf '%s' "${scoped#,}" | tr -cd 'a-zA-Z0-9,_-')
+          else
+            route=true # bare `ai-review` => let the router pick
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+          echo "route=$route" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: steps.resolve.outputs.run == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        # The reviewer reads the working tree at HEAD and gets the diff from the
+        # API (`gh pr diff`), so a shallow checkout is enough — no full history.
+        with:
+          fetch-depth: 1
+
+      # SECURITY: this pull_request workflow checks out the PR's code, which includes
+      # .expo-code-review/config.jsonc. Its `auth.tokenEnv` names the env var the CLI
+      # forwards as the model credential, so a PR could repoint it at another secret
+      # in the runner. Refuse to run unless tokenEnv is the expected value. That value
+      # comes from the workflow default / a repo variable — NOT from the PR's diff — so
+      # a config-only change can't move it, and the first PR that introduces the config
+      # passes because its tokenEnv already matches the default. (Backstop: the
+      # published CLI's own denylist refuses GITHUB_TOKEN/cloud-cred names regardless.
+      # Full fix: load config from the trusted base ref once this reviewer is on the
+      # default branch — see ROADMAP.)
+      - name: Guard config.jsonc tokenEnv
+        if: steps.resolve.outputs.run == 'true'
+        env:
+          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY' }}
+        run: |
+          values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
+          count=$(printf '%s\n' "$values" | grep -c .)
+          if [ "$count" != "1" ] || [ "$values" != "$EXPECTED" ]; then
+            echo "::error::.expo-code-review/config.jsonc auth.tokenEnv must be \"$EXPECTED\" (found: \"${values:-none}\"). Refusing to run so a PR can't redirect which secret is forwarded to the model provider."
+            exit 1
+          fi
+          echo "config tokenEnv OK: $values"
+
+      # eas-cli pins yarn@4 via package.json "packageManager", so actions/setup-node's
+      # environment probe runs `yarn` and the global yarn 1.x refuses unless corepack
+      # is enabled. We don't use yarn here (the reviewer runs via npx) — this just
+      # keeps setup-node's probe from erroring.
+      - name: Enable Corepack
+        if: steps.resolve.outputs.run == 'true'
+        run: corepack enable
+
+      - name: Set up Node
+        if: steps.resolve.outputs.run == 'true'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          # We install nothing with yarn (the reviewer runs via npx), so disable
+          # setup-node's automatic package-manager cache — otherwise its post step
+          # tries to save an empty yarn cache and errors ("path(s) ... do not exist").
+          package-manager-cache: false
+
+      - name: Run AI review
+        if: steps.resolve.outputs.run == 'true'
+        # npx installs @expo/code-review-cli and its deps (incl. the `opencode`
+        # binary the SDK spawns) into a temp prefix and runs the `ecr`/`ci` bin
+        # with that prefix's node_modules/.bin on PATH.
+        continue-on-error: true
+        env:
+          # GitHub token scoped by the permissions block above (PR comments only).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Claude Pro/Max OAuth token (auth.mode "oauth" in .expo-code-review/
+          # config.jsonc reads this env var). Not an x-api-key.
+          DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
+          # Optional: override the model used by every agent.
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
+          AGENTS: ${{ steps.resolve.outputs.agents }}
+          ROUTE: ${{ steps.resolve.outputs.route }}
+        run: |
+          ARGS=""
+          if [ -n "$AGENTS" ]; then
+            ARGS="--agents $AGENTS"
+          elif [ "$ROUTE" = "true" ]; then
+            ARGS="--route"
+          fi
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci $ARGS
+
+      # Persist the run log (decision, per-agent cost, duration, token/cache
+      # metrics) so cost/latency/cache reuse are observable over time — CI is
+      # otherwise ephemeral and we fly blind. `always()` so a timed-out/failed run
+      # still uploads whatever it logged (that's when the data matters most).
+      - name: Upload review run log
+        if: always() && steps.resolve.outputs.run == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: review-run-log-pr${{ github.event.pull_request.number }}
+          path: .expo-code-review/.runs/reviews.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
