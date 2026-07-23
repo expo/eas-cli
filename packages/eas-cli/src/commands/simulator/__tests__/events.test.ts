@@ -36,6 +36,7 @@ const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockProjectEvents = jest.mocked(projectDeviceRunSessionEventsForDisplay);
 const mockSleepAsync = jest.mocked(sleepAsync);
+const mockDebug = jest.mocked(Log.debug);
 const mockLog = jest.mocked(Log.log);
 
 function getMockOclifConfig(): Config {
@@ -163,23 +164,145 @@ describe(SimulatorEvents, () => {
     expect(mockLog).toHaveBeenCalledWith('formatted:event-id');
   });
 
-  it('removes its interrupt listener when follow mode is interrupted', async () => {
+  it('wakes from polling and flushes incomplete events when follow mode is interrupted', async () => {
+    const existingInterruptListeners = new Set(process.listeners('SIGINT'));
+    mockEventsByIdAsync.mockResolvedValue(createSession(DeviceRunSessionStatus.InProgress));
+    const events = [createEvent()];
+    mockDownloadEventsAsync.mockResolvedValue(events);
+    mockProjectEvents.mockImplementation((projectedEvents, options) =>
+      options?.includeIncompleteOperations ? projectedEvents : []
+    );
+    let notifySleepStarted: () => void;
+    const sleepStarted = new Promise<void>(resolve => {
+      notifySleepStarted = resolve;
+    });
+    mockSleepAsync.mockImplementationOnce(() => {
+      notifySleepStarted();
+      return new Promise<void>(() => {});
+    });
+    const command = createCommand(['--id', 'session-id', '--follow']);
+
+    const commandPromise = command.runAsync();
+    await sleepStarted;
+    const interruptHandler = process
+      .listeners('SIGINT')
+      .find(listener => !existingInterruptListeners.has(listener));
+    expect(interruptHandler).toBeDefined();
+    interruptHandler?.('SIGINT');
+    await commandPromise;
+
+    expect(mockEventsByIdAsync).toHaveBeenCalledTimes(1);
+    expect(
+      mockProjectEvents.mock.calls.map(([, options]) => options?.includeIncompleteOperations)
+    ).toEqual([false, true]);
+    expect(mockLog).toHaveBeenCalledWith('formatted:event-id');
+    expect(process.listeners('SIGINT')).toEqual([...existingInterruptListeners]);
+  });
+
+  it('force exits on a second interrupt', async () => {
     const existingInterruptListeners = new Set(process.listeners('SIGINT'));
     mockEventsByIdAsync.mockResolvedValue(createSession(DeviceRunSessionStatus.InProgress));
     mockDownloadEventsAsync.mockResolvedValue([]);
-    mockSleepAsync.mockImplementationOnce(async () => {
+    let notifySleepStarted: () => void;
+    const sleepStarted = new Promise<void>(resolve => {
+      notifySleepStarted = resolve;
+    });
+    mockSleepAsync.mockImplementationOnce(() => {
+      notifySleepStarted();
+      return new Promise<void>(() => {});
+    });
+    const exitSpy = jest
+      .spyOn(process, 'exit')
+      .mockImplementation((code?: string | number | null): never => {
+        throw new Error(`process.exit(${code})`);
+      });
+    const command = createCommand(['--id', 'session-id', '--follow']);
+
+    try {
+      const commandPromise = command.runAsync();
+      await sleepStarted;
       const interruptHandler = process
         .listeners('SIGINT')
         .find(listener => !existingInterruptListeners.has(listener));
       expect(interruptHandler).toBeDefined();
       interruptHandler?.('SIGINT');
-    });
+      expect(() => interruptHandler?.('SIGINT')).toThrow('process.exit(130)');
+      await commandPromise;
+
+      expect(exitSpy).toHaveBeenCalledWith(130);
+      expect(process.listeners('SIGINT')).toEqual([...existingInterruptListeners]);
+    } finally {
+      exitSpy.mockRestore();
+    }
+  });
+
+  it('retries transient query and artifact download errors in follow mode', async () => {
+    const events = [createEvent()];
+    mockEventsByIdAsync
+      .mockRejectedValueOnce(new Error('query unavailable'))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.InProgress))
+      .mockResolvedValueOnce(createSession(DeviceRunSessionStatus.Stopped));
+    mockDownloadEventsAsync
+      .mockRejectedValueOnce(new Error('artifact unavailable'))
+      .mockResolvedValueOnce(events);
     const command = createCommand(['--id', 'session-id', '--follow']);
 
     await command.runAsync();
 
-    expect(mockEventsByIdAsync).toHaveBeenCalledTimes(1);
-    expect(process.listeners('SIGINT')).toEqual([...existingInterruptListeners]);
+    expect(mockEventsByIdAsync).toHaveBeenCalledTimes(3);
+    expect(mockDownloadEventsAsync).toHaveBeenCalledTimes(2);
+    expect(mockSleepAsync).toHaveBeenCalledTimes(2);
+    expect(mockDebug).toHaveBeenNthCalledWith(
+      1,
+      'Failed to poll simulator session events: query unavailable'
+    );
+    expect(mockDebug).toHaveBeenNthCalledWith(
+      2,
+      'Failed to poll simulator session events: artifact unavailable'
+    );
+    expect(mockLog).toHaveBeenCalledWith('formatted:event-id');
+  });
+
+  it('does not retry query errors outside follow mode', async () => {
+    const existingInterruptListeners = process.listeners('SIGINT');
+    mockEventsByIdAsync.mockRejectedValue(new Error('query unavailable'));
+    const command = createCommand(['--id', 'session-id']);
+
+    await expect(command.runAsync()).rejects.toThrow('query unavailable');
+
+    expect(mockSleepAsync).not.toHaveBeenCalled();
+    expect(mockDebug).not.toHaveBeenCalled();
+    expect(process.listeners('SIGINT')).toEqual(existingInterruptListeners);
+  });
+
+  it('does not register an interrupt handler outside follow mode', async () => {
+    const existingInterruptListeners = process.listeners('SIGINT');
+    let notifyQueryStarted: () => void;
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    let resolveSession: (
+      session: DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId']
+    ) => void = () => {
+      throw new Error('Session promise was not initialized.');
+    };
+    const pendingSession = new Promise<
+      DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId']
+    >(resolve => {
+      resolveSession = resolve;
+    });
+    mockEventsByIdAsync.mockImplementationOnce(() => {
+      notifyQueryStarted();
+      return pendingSession;
+    });
+    mockDownloadEventsAsync.mockResolvedValue([]);
+    const command = createCommand(['--id', 'session-id']);
+
+    const commandPromise = command.runAsync();
+    await queryStarted;
+    expect(process.listeners('SIGINT')).toEqual(existingInterruptListeners);
+    resolveSession(createSession(DeviceRunSessionStatus.Stopped));
+    await commandPromise;
   });
 
   it('rejects combining JSON and follow output', async () => {

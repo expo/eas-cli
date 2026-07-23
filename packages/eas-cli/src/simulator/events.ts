@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from 'util';
+
 import { z } from 'zod';
 
 import fetch, { RequestError } from '../fetch';
@@ -124,7 +126,7 @@ export function formatDeviceRunSessionEvent(event: DeviceRunSessionEvent): strin
       : event.summary;
   const duration =
     event.durationMs === undefined ? '' : ` (${formatEventDuration(event.durationMs)})`;
-  return `${event.ts}  [${event.producer}] ${summary}${duration}`;
+  return stripTerminalControlCharacters(`${event.ts}  [${event.producer}] ${summary}${duration}`);
 }
 
 function getOperationKey(event: DeviceRunSessionEvent): string {
@@ -140,4 +142,13 @@ function getScreenshotFilename(event: DeviceRunSessionEvent): string | undefined
     return undefined;
   }
   return event.data.path.split(/[\\/]/).at(-1);
+}
+
+function stripTerminalControlCharacters(value: string): string {
+  return [...stripVTControlCharacters(value)]
+    .filter(character => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint >= 0x20 && !(codePoint >= 0x7f && codePoint <= 0x9f);
+    })
+    .join('');
 }

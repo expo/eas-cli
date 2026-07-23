@@ -5,7 +5,10 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { DeviceRunSessionStatus } from '../../graphql/generated';
+import {
+  type DeviceRunSessionEventsByIdQuery,
+  DeviceRunSessionStatus,
+} from '../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../log';
 import {
@@ -71,24 +74,53 @@ export default class SimulatorEvents extends EasCommand {
     const printedEventIds = new Set<string>();
     let observedRunningSession = false;
     let remainingPostStopRefreshes = 0;
-    let interrupted = false;
+    let latestEvents: DeviceRunSessionEvent[] = [];
+    const abortController = new AbortController();
+    const { signal } = abortController;
+    const abortPromise = new Promise<void>(resolve => {
+      signal.addEventListener(
+        'abort',
+        () => {
+          resolve();
+        },
+        { once: true }
+      );
+    });
     const interruptHandler = (): void => {
-      interrupted = true;
+      if (signal.aborted) {
+        process.exit(130);
+      }
+      abortController.abort();
     };
-    process.on('SIGINT', interruptHandler);
+    if (flags.follow) {
+      process.on('SIGINT', interruptHandler);
+    }
 
     try {
-      do {
-        const session = await DeviceRunSessionQuery.eventsByIdAsync(
-          graphqlClient,
-          deviceRunSessionId
-        );
-        const eventArtifact = session.artifacts.find(
-          artifact => artifact.metadata?.__eas_type === 'session-events'
-        );
-        const events = eventArtifact
-          ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl)
-          : [];
+      while (!signal.aborted) {
+        let session: DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId'];
+        let events: DeviceRunSessionEvent[];
+        try {
+          session = await DeviceRunSessionQuery.eventsByIdAsync(graphqlClient, deviceRunSessionId);
+          const eventArtifact = session.artifacts.find(
+            artifact => artifact.metadata?.__eas_type === 'session-events'
+          );
+          events = eventArtifact
+            ? await downloadDeviceRunSessionEventsAsync(eventArtifact.downloadUrl)
+            : [];
+        } catch (err) {
+          if (!flags.follow) {
+            throw err;
+          }
+          Log.debug(
+            `Failed to poll simulator session events: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+          await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+          continue;
+        }
+        latestEvents = events;
 
         if (jsonFlag) {
           printJsonOnlyOutput({ deviceRunSessionId, events });
@@ -106,17 +138,11 @@ export default class SimulatorEvents extends EasCommand {
           remainingPostStopRefreshes = POST_STOP_REFRESH_COUNT;
         }
 
-        const shouldRefreshAgain = flags.follow && (isRunning || remainingPostStopRefreshes > 0);
-        const displayEvents = projectDeviceRunSessionEventsForDisplay(events, {
-          includeIncompleteOperations: interrupted || !shouldRefreshAgain,
-        });
-        const newDisplayEvents = displayEvents.filter(event => !printedEventIds.has(event.eventId));
-        printEvents(newDisplayEvents);
-        for (const event of newDisplayEvents) {
-          printedEventIds.add(event.eventId);
-        }
+        const shouldRefreshAgain =
+          flags.follow && !signal.aborted && (isRunning || remainingPostStopRefreshes > 0);
+        printNewEvents(events, printedEventIds, !shouldRefreshAgain);
 
-        if (!shouldRefreshAgain || interrupted) {
+        if (!shouldRefreshAgain) {
           if (events.length === 0) {
             Log.log('No simulator session activity has been recorded.');
           }
@@ -125,16 +151,30 @@ export default class SimulatorEvents extends EasCommand {
         if (!isRunning) {
           remainingPostStopRefreshes -= 1;
         }
-        await sleepAsync(POLL_INTERVAL_MS);
-      } while (!interrupted);
+        await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+      }
+      printNewEvents(latestEvents, printedEventIds, true);
     } finally {
-      process.removeListener('SIGINT', interruptHandler);
+      if (flags.follow) {
+        process.removeListener('SIGINT', interruptHandler);
+      }
     }
   }
 }
 
-function printEvents(events: DeviceRunSessionEvent[]): void {
-  for (const event of events) {
+function printNewEvents(
+  events: DeviceRunSessionEvent[],
+  printedEventIds: Set<string>,
+  includeIncompleteOperations: boolean
+): void {
+  const displayEvents = projectDeviceRunSessionEventsForDisplay(events, {
+    includeIncompleteOperations,
+  });
+  for (const event of displayEvents) {
+    if (printedEventIds.has(event.eventId)) {
+      continue;
+    }
     Log.log(formatDeviceRunSessionEvent(event));
+    printedEventIds.add(event.eventId);
   }
 }

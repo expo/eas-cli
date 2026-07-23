@@ -190,6 +190,18 @@ describe(formatDeviceRunSessionEvent, () => {
       )
     ).toBe('2026-07-10T12:00:00.000Z  [agent-device] Ran screenshot screenshot.png');
   });
+
+  it('strips ANSI escape sequences and control characters from terminal output', () => {
+    expect(
+      formatDeviceRunSessionEvent(
+        createEventValue({
+          ts: '\u001B[31m2026-07-10T12:00:00.000Z\u001B[0m\n',
+          producer: 'agent\u0000-device',
+          summary: 'Found\r2\tdevices\u0007',
+        })
+      )
+    ).toBe('2026-07-10T12:00:00.000Z  [agent-device] Found2devices');
+  });
 });
 
 describe(downloadDeviceRunSessionEventsAsync, () => {
