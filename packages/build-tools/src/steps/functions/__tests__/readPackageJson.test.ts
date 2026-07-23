@@ -25,7 +25,7 @@ describe(createReadPackageJsonBuildFunction, () => {
       stepLogger,
       globalContext.defaultWorkingDirectory
     );
-    expect(buildStep.outputById.package_json.value).toBe(
+    expect(buildStep.outputById.get('package_json')!.value).toBe(
       JSON.stringify({ name: 'app', version: '1.0.0' })
     );
   });
@@ -45,6 +45,6 @@ describe(createReadPackageJsonBuildFunction, () => {
     expect(stepLogger.error).toHaveBeenCalledWith({
       err: expect.any(Error),
     });
-    expect(buildStep.outputById.package_json.value).toBeUndefined();
+    expect(buildStep.outputById.get('package_json')!.value).toBeUndefined();
   });
 });

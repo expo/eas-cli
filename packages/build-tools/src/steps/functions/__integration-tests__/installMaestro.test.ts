@@ -38,7 +38,7 @@ describe('createInstallMaestroBuildFunction', () => {
     );
 
     await expect(downgradeStep.executeAsync()).resolves.not.toThrow();
-    expect(downgradeStep.outputById.maestro_version.value).toBe('1.40.0');
+    expect(downgradeStep.outputById.get('maestro_version')!.value).toBe('1.40.0');
 
     const latestStep = installMaestro.createBuildStepFromFunctionCall(
       createGlobalContextMock({ logger }),

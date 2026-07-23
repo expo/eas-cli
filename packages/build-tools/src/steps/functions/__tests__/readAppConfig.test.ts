@@ -39,7 +39,7 @@ describe(createReadAppConfigBuildFunction, () => {
     expect(stepLogger.info).toHaveBeenCalledWith(
       JSON.stringify({ name: 'my-app', slug: 'my-app-slug', version: '1.2.3' }, null, 2)
     );
-    const firstOutput = buildStep.outputById.app_config.value;
+    const firstOutput = buildStep.outputById.get('app_config')!.value;
     expect(firstOutput).toBeDefined();
     expect(JSON.parse(firstOutput!)).toEqual({
       name: 'my-app',
@@ -67,7 +67,7 @@ describe(createReadAppConfigBuildFunction, () => {
 
     await buildStep.executeAsync();
 
-    const secondOutput = buildStep.outputById.app_config.value;
+    const secondOutput = buildStep.outputById.get('app_config')!.value;
     expect(secondOutput).toBeDefined();
     expect(JSON.parse(secondOutput!)).toEqual({
       name: 'my-app',

@@ -69,12 +69,14 @@ describe(createEasDeployBuildFunction, () => {
         logger: buildStep.ctx.logger,
       }),
     });
-    expect(buildStep.outputById.deploy_json.value).toBe(mockDeployStdout);
-    expect(buildStep.outputById.deploy_url.value).toBe('https://example.prod');
-    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.dev');
-    expect(buildStep.outputById.deploy_identifier.value).toBe('abc');
-    expect(buildStep.outputById.deploy_dashboard_url.value).toBe('https://expo.dev/dashboard');
-    expect(buildStep.outputById.deploy_alias_url.value).toBe('https://example.alias');
+    expect(buildStep.outputById.get('deploy_json')!.value).toBe(mockDeployStdout);
+    expect(buildStep.outputById.get('deploy_url')!.value).toBe('https://example.prod');
+    expect(buildStep.outputById.get('deploy_deployment_url')!.value).toBe('https://example.dev');
+    expect(buildStep.outputById.get('deploy_identifier')!.value).toBe('abc');
+    expect(buildStep.outputById.get('deploy_dashboard_url')!.value).toBe(
+      'https://expo.dev/dashboard'
+    );
+    expect(buildStep.outputById.get('deploy_alias_url')!.value).toBe('https://example.alias');
   });
 
   it('forwards workflow step env to the eas deploy process', async () => {
@@ -217,12 +219,12 @@ describe(createEasDeployBuildFunction, () => {
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
     await buildStep.executeAsync();
 
-    expect(buildStep.outputById.deploy_json.value).toBe('not-json');
+    expect(buildStep.outputById.get('deploy_json')!.value).toBe('not-json');
     expect(buildStep.ctx.logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.anything() }),
       expect.stringContaining('Failed to parse')
     );
-    expect(buildStep.outputById.deploy_url.value).toBeUndefined();
+    expect(buildStep.outputById.get('deploy_url')!.value).toBeUndefined();
   });
 
   it('sets outputs from partial deploy JSON and leaves missing fields undefined', async () => {
@@ -249,12 +251,16 @@ describe(createEasDeployBuildFunction, () => {
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
     await buildStep.executeAsync();
 
-    expect(buildStep.outputById.deploy_json.value).toBe(partialDeployStdout);
-    expect(buildStep.outputById.deploy_url.value).toBe('https://example.dev-only');
-    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.dev-only');
-    expect(buildStep.outputById.deploy_dashboard_url.value).toBe('https://expo.dev/dashboard-only');
-    expect(buildStep.outputById.deploy_identifier.value).toBeUndefined();
-    expect(buildStep.outputById.deploy_alias_url.value).toBeUndefined();
+    expect(buildStep.outputById.get('deploy_json')!.value).toBe(partialDeployStdout);
+    expect(buildStep.outputById.get('deploy_url')!.value).toBe('https://example.dev-only');
+    expect(buildStep.outputById.get('deploy_deployment_url')!.value).toBe(
+      'https://example.dev-only'
+    );
+    expect(buildStep.outputById.get('deploy_dashboard_url')!.value).toBe(
+      'https://expo.dev/dashboard-only'
+    );
+    expect(buildStep.outputById.get('deploy_identifier')!.value).toBeUndefined();
+    expect(buildStep.outputById.get('deploy_alias_url')!.value).toBeUndefined();
   });
 
   it('sets deploy_url from aliases[0].url when production is absent but aliases exist', async () => {
@@ -282,9 +288,11 @@ describe(createEasDeployBuildFunction, () => {
     const buildStep = createEasDeployBuildFunction().createBuildStepFromFunctionCall(globalCtx, {});
     await buildStep.executeAsync();
 
-    expect(buildStep.outputById.deploy_url.value).toBe('https://example.alias-first');
-    expect(buildStep.outputById.deploy_deployment_url.value).toBe('https://example.deployment');
-    expect(buildStep.outputById.deploy_alias_url.value).toBe('https://example.alias-first');
-    expect(buildStep.outputById.deploy_identifier.value).toBe('partial-alias');
+    expect(buildStep.outputById.get('deploy_url')!.value).toBe('https://example.alias-first');
+    expect(buildStep.outputById.get('deploy_deployment_url')!.value).toBe(
+      'https://example.deployment'
+    );
+    expect(buildStep.outputById.get('deploy_alias_url')!.value).toBe('https://example.alias-first');
+    expect(buildStep.outputById.get('deploy_identifier')!.value).toBe('partial-alias');
   });
 });

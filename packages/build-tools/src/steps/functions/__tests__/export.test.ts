@@ -47,7 +47,7 @@ describe(createEasExportBuildFunction, () => {
         stdio: 'pipe',
       },
     });
-    expect(buildStep.outputById.export_dir.value).toBe('dist');
+    expect(buildStep.outputById.get('export_dir')!.value).toBe('dist');
   });
 
   it('passes optional flags matching expo export CLI', async () => {
@@ -86,7 +86,7 @@ describe(createEasExportBuildFunction, () => {
         ],
       })
     );
-    expect(buildStep.outputById.export_dir.value).toBe('web-out');
+    expect(buildStep.outputById.get('export_dir')!.value).toBe('web-out');
   });
 
   it('uses resolved package manager (e.g. yarn)', async () => {
