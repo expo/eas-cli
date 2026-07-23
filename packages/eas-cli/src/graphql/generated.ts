@@ -14162,7 +14162,7 @@ export type SimulatorAvailabilityQueryVariables = Exact<{
 }>;
 
 
-export type SimulatorAvailabilityQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, name: string, deviceRunSessionsEnabled: boolean } } } };
+export type SimulatorAvailabilityQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, name: string, accountFeatureGates: any } } } };
 
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

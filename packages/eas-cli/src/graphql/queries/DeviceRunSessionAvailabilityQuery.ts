@@ -4,11 +4,13 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import { SimulatorAvailabilityQuery, SimulatorAvailabilityQueryVariables } from '../generated';
 
+const DEVICE_RUN_SESSIONS_GATE = 'device-run-sessions';
+
 export const DeviceRunSessionAvailabilityQuery = {
   async byAppIdAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string
-  ): Promise<SimulatorAvailabilityQuery['app']['byId']['ownerAccount']> {
+  ): Promise<{ accountName: string; available: boolean }> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<SimulatorAvailabilityQuery, SimulatorAvailabilityQueryVariables>(
@@ -20,7 +22,7 @@ export const DeviceRunSessionAvailabilityQuery = {
                   ownerAccount {
                     id
                     name
-                    deviceRunSessionsEnabled
+                    accountFeatureGates(filter: ["device-run-sessions"])
                   }
                 }
               }
@@ -32,6 +34,11 @@ export const DeviceRunSessionAvailabilityQuery = {
         .toPromise()
     );
 
-    return data.app.byId.ownerAccount;
+    const ownerAccount = data.app.byId.ownerAccount;
+    const gates: Record<string, boolean> = ownerAccount.accountFeatureGates;
+    return {
+      accountName: ownerAccount.name,
+      available: gates[DEVICE_RUN_SESSIONS_GATE] === true,
+    };
   },
 };

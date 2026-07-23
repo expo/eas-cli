@@ -38,27 +38,29 @@ export default class SimulatorAvailability extends EasCommand {
     });
 
     const fetchSpinner = jsonFlag ? null : ora('Checking EAS Simulator availability').start();
-    let account;
+    let accountName: string;
+    let available: boolean;
     try {
-      account = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(graphqlClient, projectId);
+      ({ accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
+        graphqlClient,
+        projectId
+      ));
       fetchSpinner?.stop();
     } catch (err) {
       fetchSpinner?.fail('Failed to check EAS Simulator availability');
       throw err;
     }
 
-    const available = account.deviceRunSessionsEnabled;
-
     if (jsonFlag) {
-      printJsonOnlyOutput({ available, accountName: account.name });
+      printJsonOnlyOutput({ available, accountName });
       return;
     }
 
     if (available) {
-      Log.log(`✅ EAS Simulator is enabled for ${account.name}.`);
+      Log.log(`✅ EAS Simulator is enabled for ${accountName}.`);
       return;
     }
 
-    Log.log(`EAS Simulator isn't available on ${account.name} yet — it's coming soon.`);
+    Log.log(`EAS Simulator isn't available on ${accountName} yet — it's coming soon.`);
   }
 }

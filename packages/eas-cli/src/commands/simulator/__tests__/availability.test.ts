@@ -1,7 +1,6 @@
 import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
-import { SimulatorAvailabilityQuery } from '../../../graphql/generated';
 import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
@@ -23,20 +22,10 @@ jest.mock('../../../ora', () => ({
 }));
 jest.mock('../../../utils/json');
 
-type OwnerAccount = SimulatorAvailabilityQuery['app']['byId']['ownerAccount'];
-
 const mockByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 const mockLog = jest.mocked(Log.log);
-
-function makeOwnerAccount(deviceRunSessionsEnabled: boolean): OwnerAccount {
-  return {
-    id: 'account-123',
-    name: 'testuser',
-    deviceRunSessionsEnabled,
-  };
-}
 
 function getMockOclifConfig(): Config {
   const config = new Config({ root: __dirname });
@@ -67,7 +56,7 @@ describe(SimulatorAvailability, () => {
   }
 
   it('emits JSON with available true when enabled', async () => {
-    mockByAppIdAsync.mockResolvedValue(makeOwnerAccount(true));
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
 
     const command = createCommand(['--json']);
     await command.runAsync();
@@ -81,7 +70,7 @@ describe(SimulatorAvailability, () => {
   });
 
   it('emits JSON with available false when not enabled', async () => {
-    mockByAppIdAsync.mockResolvedValue(makeOwnerAccount(false));
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand(['--json']);
     await command.runAsync();
@@ -93,7 +82,7 @@ describe(SimulatorAvailability, () => {
   });
 
   it('logs a graceful message when not enabled', async () => {
-    mockByAppIdAsync.mockResolvedValue(makeOwnerAccount(false));
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand([]);
     await command.runAsync();
@@ -106,7 +95,7 @@ describe(SimulatorAvailability, () => {
   });
 
   it('logs the enabled message when available', async () => {
-    mockByAppIdAsync.mockResolvedValue(makeOwnerAccount(true));
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
 
     const command = createCommand([]);
     await command.runAsync();
