@@ -3,6 +3,7 @@ import assert from 'assert';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction } from './BuildStep';
+import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputProvider } from './BuildStepInput';
@@ -117,6 +118,7 @@ export class BuildFunction {
       shell,
       env,
       ifCondition,
+      compositeFunctionScope,
       timeoutMs,
     }: {
       id?: string;
@@ -126,6 +128,7 @@ export class BuildFunction {
       shell?: string;
       env?: BuildStepEnv;
       ifCondition?: string;
+      compositeFunctionScope?: BuildStepCompositeFunctionScope;
       timeoutMs?: number;
     } = {}
   ): BuildStep {
@@ -158,9 +161,14 @@ export class BuildFunction {
       supportedRuntimePlatforms: this.supportedRuntimePlatforms,
       env,
       ifCondition,
+      compositeFunctionScope,
       timeoutMs,
       __metricsId: this.__metricsId,
-      __hookId: this.__hookId,
+      // The declaration does not survive composite function expansion: hooks
+      // never fire around steps inside a composite function, so an expanded
+      // step must not carry an anchor mark for any discovery mechanism
+      // (parse-time or a future runtime scan) to find.
+      __hookId: compositeFunctionScope === undefined ? this.__hookId : undefined,
     });
   }
 }

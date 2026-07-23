@@ -172,6 +172,7 @@ describe(BuildStepGlobalContext, () => {
 
       const mockStep = mock<BuildStep>();
       when(mockStep.id).thenReturn('abc');
+      when(mockStep.isCompositeFunctionInternal).thenReturn(false);
       when(mockStep.getOutputValueByName('def')).thenReturn('ghi');
       const step = instance(mockStep);
 

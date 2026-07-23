@@ -10,10 +10,12 @@ import { GENERATED_STEP_ID_REGEX } from './utils/stepId';
 import { BuildFunction } from '../BuildFunction';
 import { BuildRuntimePlatform } from '../BuildRuntimePlatform';
 import { BuildStep, BuildStepFunction, BuildStepStatus } from '../BuildStep';
+import { BuildStepCompositeFunctionScope } from '../BuildStepCompositeFunctionScope';
 import { BuildStepContext, BuildStepGlobalContext } from '../BuildStepContext';
 import { BuildStepEnv } from '../BuildStepEnv';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
+import { BuildWorkflow } from '../BuildWorkflow';
 import { BuildStepRuntimeError } from '../errors';
 import { nullthrows } from '../utils/nullthrows';
 import { spawnAsync } from '../utils/shell/spawn';
@@ -630,6 +632,43 @@ describe(BuildStep, () => {
         expect(error).toBeInstanceOf(BuildStepRuntimeError);
         expect(error.message).toMatch(/Some required outputs have not been set: "abc"/);
       });
+
+      it('skips a later default-gated inner step when a required output is missing on an earlier one', async () => {
+        const compositeFunctionScope = new BuildStepCompositeFunctionScope({
+          ctx: baseStepCtx,
+          stepIdAliases: new Map(),
+        });
+
+        const firstStep = new BuildStep(baseStepCtx, {
+          id: 'first',
+          displayName: 'first',
+          command: 'echo 123',
+          outputs: [
+            new BuildStepOutput(baseStepCtx, {
+              id: 'abc',
+              stepDisplayName: 'first',
+              required: true,
+            }),
+          ],
+          compositeFunctionScope,
+        });
+
+        const secondStep = new BuildStep(baseStepCtx, {
+          id: 'second',
+          displayName: 'second',
+          command: 'echo 456',
+          compositeFunctionScope,
+        });
+
+        // Via workflow so recordFailure marks global status; second step then skips.
+        const workflow = new BuildWorkflow(baseStepCtx, {
+          buildSteps: [firstStep, secondStep],
+          buildFunctions: {},
+        });
+        const error = await getErrorAsync<BuildStepRuntimeError>(() => workflow.executeAsync());
+        expect(error.message).toMatch(/Some required outputs have not been set: "abc"/);
+        expect(secondStep.status).toBe(BuildStepStatus.SKIPPED);
+      });
     });
 
     describe('fn', () => {
@@ -1120,6 +1159,26 @@ describe(BuildStep.deserialize, () => {
 });
 
 describe(BuildStep.prototype.shouldExecuteStep, () => {
+  it('does not evaluate inputs for a step without an if condition after a failure', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      inputs: [
+        new BuildStepInput(ctx, {
+          id: 'required',
+          stepDisplayName: 'Test 1',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+    });
+
+    expect(step.shouldExecuteStep()).toBe(false);
+  });
+
   it('returns true when if condition is always and previous steps failed', () => {
     const ctx = createGlobalContextMock();
     ctx.markAsFailed();
