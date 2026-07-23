@@ -72,6 +72,8 @@ holds a token, which model to call, or which commands to run). So flag:
 The question to ask is not "is this config normally set by a maintainer?" but
 "what happens if an attacker who can open a PR controls this value in the CI run?"
 
+## What NOT to flag
+
 - Theoretical risks that require unlikely preconditions to exploit.
 - Defense-in-depth suggestions when the primary defense is already adequate.
 - Issues in unchanged code the PR does not touch.

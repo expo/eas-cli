@@ -39,6 +39,19 @@ thing, so the codebase stays uniform and predictable.
   error classes it uses); and link users to the relevant docs (e.g.
   `docs.expo.dev`) or forums when comparable errors point somewhere to learn more.
 - Reinvented helpers when eas-cli already has an established utility for the job.
+- **Missing tests for new behavior.** eas-cli tests live in `__tests__/` next to the
+  source and use the repo's harness (`memfs` for the filesystem, `nock` for HTTP,
+  `ts-mockito`, `mockdate`). When a PR adds a command or non-trivial behavior and its
+  sibling code has tests, flag the absence of a corresponding test — or a new test
+  that ignores the established mocking harness. Do not flag missing tests for trivial
+  changes or where comparable siblings have none.
+- **Missing or malformed CHANGELOG entry.** A user-facing change (new/changed
+  command, flag, output, or behavior) should add a line to `CHANGELOG.md` matching
+  the existing format: `[<package>] <description>. ([#<PR>](url) by [@<user>](url))`,
+  under the right package/section. Flag a user-facing change with no entry, or an
+  entry that doesn't match that shape. (Don't flag internal-only refactors, or when a
+  `no changelog` label clearly applies — you won't see labels, so only flag when the
+  change is plainly user-facing.)
 
 ## What NOT to flag
 
