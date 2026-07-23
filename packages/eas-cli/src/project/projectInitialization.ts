@@ -221,12 +221,12 @@ export async function initializeWithoutExplicitIDAsync(
   if (accountNameArgument) {
     if (exp.owner && exp.owner !== accountNameArgument) {
       throw new Error(
-        `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Pass a matching --account or update the "owner" field.`
+        `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Provide a matching --account or update the "owner" field.`
       );
     }
-    if (!allAccounts.some(a => a.name === accountNameArgument)) {
+    if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountNameArgument)) {
       throw new Error(
-        `You don't have access to an account named "${accountNameArgument}". Accounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
           actor
         ).join(', ')}`
       );
@@ -241,7 +241,7 @@ export async function initializeWithoutExplicitIDAsync(
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you can create projects in: ${getCreatableAccountNamesNewestFirst(
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
             actor
           ).join(
             ', '
