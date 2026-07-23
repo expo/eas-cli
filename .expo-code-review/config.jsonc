@@ -21,7 +21,10 @@
       "packages/eas-cli/src/graphql/generated.ts",
       "packages/eas-cli/graphql.schema.json",
       "packages/eas-cli/schema/**",
-      "packages/build-tools/schema.graphql"
+      "packages/build-tools/schema.graphql",
+      // oclif-generated at release (`yarn oclif readme`), not hand-edited in
+      // feature PRs — reviewing its churn is noise.
+      "packages/eas-cli/README.md"
     ]
   },
 

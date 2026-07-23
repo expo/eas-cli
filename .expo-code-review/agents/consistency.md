@@ -39,6 +39,15 @@ thing, so the codebase stays uniform and predictable.
   error classes it uses); and link users to the relevant docs (e.g.
   `docs.expo.dev`) or forums when comparable errors point somewhere to learn more.
 - Reinvented helpers when eas-cli already has an established utility for the job.
+- **Logging goes through the right channel.** User-facing output uses the `Log`
+  module from `@expo/logger` (never `console.log`). In `worker`/`build-tools`, use
+  the Bunyan logger with the `Error` as the first argument (e.g.
+  `logger.error({ err }, 'message')`). Error *reporting* goes through Sentry rather
+  than a second ad-hoc log line.
+- **Over-abstraction.** A newly-introduced single-use helper/wrapper around a 3–4
+  line block that would read more clearly inlined — this repo prefers inline code.
+  (See the matching "do NOT suggest abstraction" rule below; this is the *inverse* —
+  flag needless new indirection, don't ask for more of it.)
 - **Missing tests for new behavior.** eas-cli tests live in `__tests__/` next to the
   source and use the repo's harness (`memfs` for the filesystem, `nock` for HTTP,
   `ts-mockito`, `mockdate`). When a PR adds a command or non-trivial behavior and its
@@ -61,6 +70,18 @@ thing, so the codebase stays uniform and predictable.
 - A deliberate deviation that is clearly reasonable or an improvement.
 - A "pattern" you saw only once — you need multiple existing examples to call
   something an established convention.
+
+## Repo-specific non-issues — do NOT flag (these are settled here)
+
+- **Do not suggest extracting or abstracting code.** This repo consistently rejects
+  "pull this into a helper / share this logic" suggestions; inline is preferred. Only
+  the *inverse* (needless new single-use abstraction) is worth flagging.
+- **Client-side validation of something the backend already owns.** The server is
+  the source of truth for many validations; don't ask for a redundant client check.
+- **`snake_case` fields that mirror an external/GraphQL JSON shape** — matching the
+  wire format is correct, not an inconsistency.
+- **Package-local filesystem choices** (`fs` vs `fs-extra`, etc.) — a package using
+  its own established choice is fine.
 
 Only flag when you can name the sibling(s) that establish the pattern and say why
 matching it matters. If you can't point to the precedent, don't report it.

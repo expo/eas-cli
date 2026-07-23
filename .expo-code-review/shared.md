@@ -65,6 +65,16 @@ such claims.
 - **warning** — a measurable regression or concrete risk, but not production-breaking.
 - **suggestion** — an improvement worth considering; no correctness or safety impact.
 
+House-calibrated anchors for this repo (use these to place borderline cases):
+
+- **critical** — a secret/credential logged, printed, or persisted; command injection.
+- **warning** — an exit-code regression (a failure that doesn't propagate, so CI/scripts
+  see success); a `--json`/`--non-interactive` contract violation (breaks scripting);
+  a `SystemError`/`UserError` misclassification (mis-bills the customer); a
+  missing/malformed CHANGELOG entry (breaks release automation). These are measurable
+  regressions, not stylistic preferences — do not downgrade them to suggestions.
+- **suggestion** — style, naming, and taste. (Currently dropped entirely — see below.)
+
 Bias toward restraint. A high-signal review reports roughly one finding, not a
 firehose. When in doubt, stay silent.
 
