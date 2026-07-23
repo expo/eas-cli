@@ -231,12 +231,17 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
 };
 
 export function handleBuildRequestError(error: any, platform: Platform): never {
-  Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
+  logBuildRequestErrorDebugInfo(error);
 
-  const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
-  if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
+  const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
+    ? error.graphQLErrors
+    : [];
+  const graphQLErrorCode: string | undefined = graphQLErrors[0]?.extensions?.errorCode as
+    | string
+    | undefined;
+  if (graphQLErrorCode && graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+    throw new ErrorClass(graphQLErrors[0]?.message);
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -247,23 +252,141 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
-  } else if (error?.graphQLErrors) {
-    const errorMessage = error.graphQLErrors
-      .map((graphQLError: GraphQLError) => {
-        const requestIdLine = graphQLError?.extensions?.requestId
-          ? `\nRequest ID: ${graphQLError.extensions.requestId}`
-          : '';
-        const errorMessageLine = graphQLError?.message
-          ? `\nError message: ${graphQLError.message}`
-          : '';
-        return `${requestIdLine}${errorMessageLine}`;
-      })
-      .join('');
+  } else if (Array.isArray(error?.graphQLErrors)) {
+    const errorMessage = formatBuildRequestErrorDetails(error);
     throw new Error(
       `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorMessage}`
     );
   }
   throw error;
+}
+
+function formatBuildRequestErrorDetails(error: any): string {
+  const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
+    ? error.graphQLErrors
+    : [];
+  const details: string[] = graphQLErrors
+    .map((graphQLError: GraphQLError) => {
+      const requestIdLine = graphQLError?.extensions?.requestId
+        ? `\nRequest ID: ${graphQLError.extensions.requestId}`
+        : '';
+      const errorMessageLine = graphQLError?.message
+        ? `\nError message: ${graphQLError.message}`
+        : '';
+      return `${requestIdLine}${errorMessageLine}`;
+    })
+    .filter(Boolean);
+
+  if (error?.networkError?.message) {
+    details.push(`\nNetwork error: ${error.networkError.message}`);
+  }
+
+  const responseStatusLine = formatResponseStatusLine(error?.response);
+  if (responseStatusLine) {
+    details.push(responseStatusLine);
+  }
+
+  const responseRequestIdLine = formatResponseRequestIdLine(error?.response);
+  if (responseRequestIdLine && !details.some(detail => detail.includes(responseRequestIdLine))) {
+    details.push(responseRequestIdLine);
+  }
+
+  if (details.length === 0 && error?.message) {
+    details.push(`\nError message: ${error.message}`);
+  }
+
+  return details.join('');
+}
+
+function logBuildRequestErrorDebugInfo(error: any): void {
+  const debugInfo = formatBuildRequestErrorDebugInfo(error);
+  if (debugInfo) {
+    Log.debug(`Build request error details:\n${JSON.stringify(debugInfo, null, 2)}`);
+  }
+}
+
+function formatBuildRequestErrorDebugInfo(error: any): Record<string, unknown> | null {
+  const hasGraphQLErrors = Array.isArray(error?.graphQLErrors);
+  const hasResponse = !!error?.response;
+  const hasNetworkError = !!error?.networkError;
+
+  if (!hasGraphQLErrors && !hasResponse && !hasNetworkError) {
+    return null;
+  }
+
+  const debugInfo: Record<string, unknown> = {};
+  if (hasGraphQLErrors) {
+    debugInfo.graphQLErrors = error.graphQLErrors;
+  }
+  if (error?.message && (error.graphQLErrors?.length === 0 || hasNetworkError || hasResponse)) {
+    debugInfo.message = error.message;
+  }
+  if (hasNetworkError) {
+    debugInfo.networkError = formatErrorForDebug(error.networkError);
+  }
+
+  const response = formatResponseForDebug(error?.response);
+  if (response) {
+    debugInfo.response = response;
+  }
+
+  return debugInfo;
+}
+
+function formatErrorForDebug(error: any): Record<string, unknown> {
+  const formattedError: Record<string, unknown> = {};
+  for (const property of ['name', 'message', 'code', 'type', 'errno', 'syscall', 'stack']) {
+    if (error?.[property]) {
+      formattedError[property] = error[property];
+    }
+  }
+  return formattedError;
+}
+
+function formatResponseForDebug(response: any): Record<string, unknown> | null {
+  if (!response) {
+    return null;
+  }
+
+  const formattedResponse: Record<string, unknown> = {};
+  for (const property of ['status', 'statusText', 'url']) {
+    if (response[property] !== undefined && response[property] !== '') {
+      formattedResponse[property] = response[property];
+    }
+  }
+
+  const headers = getResponseHeadersForDebug(response);
+  if (Object.keys(headers).length > 0) {
+    formattedResponse.headers = headers;
+  }
+
+  return Object.keys(formattedResponse).length > 0 ? formattedResponse : null;
+}
+
+function getResponseHeadersForDebug(response: any): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const headerName of ['expo-request-id', 'x-request-id', 'content-type']) {
+    const headerValue = response?.headers?.get?.(headerName);
+    if (headerValue) {
+      headers[headerName] = headerValue;
+    }
+  }
+  return headers;
+}
+
+function formatResponseStatusLine(response: any): string | null {
+  if (response?.status === undefined && !response?.statusText) {
+    return null;
+  }
+  return `\nResponse status: ${[response.status, response.statusText]
+    .filter(value => value !== undefined && value !== '')
+    .join(' ')}`;
+}
+
+function formatResponseRequestIdLine(response: any): string | null {
+  const responseRequestId =
+    response?.headers?.get?.('expo-request-id') ?? response?.headers?.get?.('x-request-id');
+  return responseRequestId ? `\nRequest ID: ${responseRequestId}` : null;
 }
 
 async function uploadProjectAsync<TPlatform extends Platform>(

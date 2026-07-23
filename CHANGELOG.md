@@ -87,6 +87,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Skip embedded bundle upload for development client builds instead of warning that the bundle is missing. ([#3940](https://github.com/expo/eas-cli/pull/3940) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Accept a navigation metric name in observe:metrics when passed in on the command line. ([#3973](https://github.com/expo/eas-cli/pull/3973) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Retry uploading assets that don't finish processing during `eas update`, instead of failing the update. ([#3918](https://github.com/expo/eas-cli/pull/3918) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Show network and HTTP response details for EAS Build request failures when GraphQL errors are empty. ([#3982](https://github.com/expo/eas-cli/pull/3982) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
