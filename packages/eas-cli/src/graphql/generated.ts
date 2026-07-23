@@ -14157,6 +14157,14 @@ export type AccountBillingPeriodQueryVariables = Exact<{
 
 export type AccountBillingPeriodQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any } } } };
 
+export type SimulatorAvailabilityQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  filter?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
+}>;
+
+
+export type SimulatorAvailabilityQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, ownerAccount: { __typename?: 'Account', id: string, name: string, accountFeatureGates: any } } } };
+
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
 }>;
