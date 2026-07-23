@@ -265,7 +265,7 @@ describe('StepsConfigParser hook construction', () => {
     expect(error.message).toMatch(/nonexistent_function/);
   });
 
-  it('rejects a hook step using a local composite function with BuildConfigError, not an assertion crash', async () => {
+  it('rejects a hook step using a composite function missing from the catalog with BuildConfigError', async () => {
     const error = await getErrorAsync<BuildConfigError>(async () => {
       await parseWorkflowAsync({
         ctx,
@@ -274,7 +274,7 @@ describe('StepsConfigParser hook construction', () => {
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toMatch(/not supported in hooks/);
+    expect(error.message).toMatch(/"\.\/\.eas\/functions\/setup" does not exist/);
   });
 });
 
@@ -605,6 +605,143 @@ describe('StepsConfigParser hooks with composite functions', () => {
     });
     expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
     expect(workflow.hooksByAnchorStep.size).toBe(0);
+  });
+
+  it('parses a composite hook step as ONE entry: namespaced children, outputs node last', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+          runs: {
+            steps: [{ id: 'read', run: 'set-output version "1.0.0"' }, { run: 'echo hi' }],
+          },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'setup__read',
+      'setup__composite_function_step_1',
+      'setup',
+    ]);
+    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+  });
+
+  it('keeps the authored if: of a composite hook step OFF the entry (it rides in the scope)', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [
+          { uses: './.eas/functions/setup', id: 'setup', if: '${{ failure() }}' },
+        ],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          runs: { steps: [{ run: 'echo hi' }] },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before[0].ifCondition).toBeUndefined();
+  });
+
+  it('rejects working_directory on a composite hook step (the call expands away)', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [
+            { uses: './.eas/functions/setup', id: 'setup', working_directory: 'app' },
+          ],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            runs: { steps: [{ run: 'echo hi' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/"working_directory" is not supported/);
+  });
+
+  it('flattens a nested composite call into the one hook entry', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/outer', id: 'top' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/outer': {
+          runs: {
+            steps: [{ uses: './.eas/functions/inner', id: 'mid' }, { run: 'echo done' }],
+          },
+        },
+        './.eas/functions/inner': {
+          runs: { steps: [{ run: 'echo inner' }] },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    // No declared outputs, so no outputs nodes appear in the expansion.
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'top__mid__composite_function_step_1',
+      'top__composite_function_step_1',
+    ]);
+  });
+
+  it('orders composite hook expansions in the execution view: before → anchor → after', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+        after_install_node_modules: [{ uses: './.eas/functions/teardown', id: 'teardown' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          runs: { steps: [{ id: 'prepare', run: 'echo prepare' }] },
+        },
+        './.eas/functions/teardown': {
+          runs: { steps: [{ id: 'clean', run: 'echo clean' }] },
+        },
+      }),
+    });
+    expect(workflow.getExecutionOrderedSteps().map(step => step.id)).toEqual([
+      'setup__prepare',
+      expect.stringMatching(/^step-\d{3,}$/),
+      'teardown__clean',
+    ]);
+  });
+
+  it('fails parseAsync when a composite hook call id collides with a job step id', async () => {
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }, { run: 'echo job', id: 'setup' }],
+        hooks: {
+          before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            // Outputs node reuses the call id, forcing the collision with the job step.
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: { steps: [{ id: 'read', run: 'set-output version "1.0.0"' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
   });
 });
 

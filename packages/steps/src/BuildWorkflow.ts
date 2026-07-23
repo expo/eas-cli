@@ -270,8 +270,8 @@ export async function executeHookStepsAsync(
   return { failedLocally, firstError };
 }
 
-// The one wording for an `if:` that could not be evaluated — anchor steps,
-// hook steps, and hook group entries all log through here.
+// Shared wording for unevaluable `if:` gates. `ifCondition` is omitted when the
+// failure is a composite call-site `if:` evaluated via the step's scope.
 function logConditionEvaluationError(
   logger: bunyan,
   err: unknown,
@@ -280,6 +280,8 @@ function logConditionEvaluationError(
 ): void {
   logger.error({ err });
   logger.error(
-    `Runner failed to evaluate if it should execute ${subject}, using its if condition "${ifCondition}". This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
+    `Runner failed to evaluate if it should execute ${subject}${
+      ifCondition ? `, using its if condition "${ifCondition}"` : ''
+    }. This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
   );
 }
