@@ -85,6 +85,29 @@ jobs:
         with:
           fetch-depth: 1
 
+      # SECURITY: this pull_request workflow checks out the PR's code, which includes
+      # .expo-code-review/config.jsonc. Its `auth.tokenEnv` names the env var the CLI
+      # forwards as the model credential, so a PR could repoint it at another secret
+      # in the runner. Refuse to run unless tokenEnv is the expected value. That value
+      # comes from the workflow default / a repo variable — NOT from the PR's diff — so
+      # a config-only change can't move it, and the first PR that introduces the config
+      # passes because its tokenEnv already matches the default. (Backstop: the
+      # published CLI's own denylist refuses GITHUB_TOKEN/cloud-cred names regardless.
+      # Full fix: load config from the trusted base ref once this reviewer is on the
+      # default branch — see ROADMAP.)
+      - name: Guard config.jsonc tokenEnv
+        if: steps.resolve.outputs.run == 'true'
+        env:
+          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY' }}
+        run: |
+          values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
+          count=$(printf '%s\n' "$values" | grep -c .)
+          if [ "$count" != "1" ] || [ "$values" != "$EXPECTED" ]; then
+            echo "::error::.expo-code-review/config.jsonc auth.tokenEnv must be \"$EXPECTED\" (found: \"${values:-none}\"). Refusing to run so a PR can't redirect which secret is forwarded to the model provider."
+            exit 1
+          fi
+          echo "config tokenEnv OK: $values"
+
       # eas-cli pins yarn@4 via package.json "packageManager", so actions/setup-node's
       # environment probe runs `yarn` and the global yarn 1.x refuses unless corepack
       # is enabled. We don't use yarn here (the reviewer runs via npx) — this just
