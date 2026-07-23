@@ -1,0 +1,118 @@
+name: AI code review (command)
+
+# On-demand, ONE-SHOT reviewer triggered by a PR comment (maintainers only):
+#   /review                        run once now; the router picks the agents
+#   /review all                    run once with every agent
+#   /review correctness security   run once with just those agents
+# This never changes configuration. CONTINUOUS review is configured by labels
+# (see expo-code-review.yml): add `ai-review` (or `ai-review:all` /
+# `ai-review:<agent>`) to auto-review every push; `ai-review:skip` opts out.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  # Published reviewer run via npx (override with repo variable ECR_VERSION).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.3' }}
+
+concurrency:
+  group: ai-code-review-cmd-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  command:
+    # Only PR comments starting with /review, from a maintainer.
+    if: >-
+      github.event.issue.pull_request != null &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    # Bound the run so a slow/stalled review fails fast rather than hanging.
+    timeout-minutes: 50
+    continue-on-error: true
+    steps:
+      - name: Parse command
+        id: cmd
+        env:
+          # Via env (never inline ${{ }}) so an untrusted comment can't inject shell.
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          line=$(printf '%s' "$COMMENT" | head -n1 | tr -d '\r')
+          verb=$(printf '%s' "$line" | awk '{print $1}')
+          rest=$(printf '%s' "$line" | cut -s -d' ' -f2-)
+          # Only /review (one-shot). Continuous review is label-driven, not a
+          # comment; /review no longer changes any configuration.
+          if [ "$verb" != "/review" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Bare "/review" -> router picks; "all" -> every agent; names -> subset.
+          # Sanitize agent ids to [a-z0-9,_-] to keep the value shell-safe.
+          agents=""
+          route=false
+          if [ -z "$rest" ]; then
+            route=true
+          elif [ "$rest" != "all" ]; then
+            agents=$(printf '%s' "$rest" | tr ' ' ',' | tr -cd 'a-zA-Z0-9,_-')
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+          echo "route=$route" >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge
+        if: steps.cmd.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
+
+      # SECURITY: `issue_comment` is NOT fork-restricted by GitHub — it always
+      # runs in the base-repo context with full secrets and a write-scoped token,
+      # regardless of whether the commented-on PR is from a fork. We check out ONLY
+      # the trusted base ref (the default branch) for the `.expo-code-review/`
+      # config, and never `gh pr checkout` the PR head. The reviewer engine itself
+      # is the PUBLISHED @expo/code-review-cli (fetched by npx), not built from any
+      # checkout, so attacker-controlled PR code never runs here. The diff + PR
+      # metadata come from the API (`gh pr diff`/`gh pr view`).
+      - name: Checkout (base ref only — never the PR head)
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 1
+
+      # Corepack so setup-node's yarn probe doesn't fail on the repo's yarn@4 pin
+      # (the reviewer runs via npx, not yarn).
+      - name: Enable Corepack
+        if: steps.cmd.outputs.run == 'true'
+        run: corepack enable
+
+      - name: Set up Node
+        if: steps.cmd.outputs.run == 'true'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          # No yarn install here (runs via npx) — disable the auto yarn cache so the
+          # post step doesn't error trying to save an empty cache.
+          package-manager-cache: false
+
+      - name: Run AI review
+        if: steps.cmd.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
+          REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
+          AGENTS: ${{ steps.cmd.outputs.agents }}
+          ROUTE: ${{ steps.cmd.outputs.route }}
+        run: |
+          ARGS=""
+          if [ -n "$AGENTS" ]; then
+            ARGS="--agents $AGENTS"
+          elif [ "$ROUTE" = "true" ]; then
+            ARGS="--route"
+          fi
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci $ARGS

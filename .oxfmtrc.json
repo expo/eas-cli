@@ -8,6 +8,8 @@
   "endOfLine": "lf",
   "ignorePatterns": [
     ".github",
+    ".claude",
+    ".expo-code-review",
     "lerna.json",
     "**/build/**",
     "**/dist/**",

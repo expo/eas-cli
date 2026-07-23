@@ -1,0 +1,39 @@
+{
+  // Default model for the specialist reviewers (and the cross-file pass). Sonnet
+  // is the quality/speed sweet spot for finding real bugs. Per-agent frontmatter
+  // can override this; the coordinator runs on Haiku (see coordinator.md) since it
+  // only consolidates text. Override everything at runtime with REVIEWER_MODEL
+  // (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini-fast for a cheaper local run).
+  "model": "anthropic/claude-sonnet-5",
+
+  // Agents are every markdown file in agents/. shared.md (prepended to all) and
+  // coordinator.md are reserved. Per-agent overrides go in each file's frontmatter.
+
+  "policy": { "includeSuggestions": false },
+
+  // eas-cli is yarn+lerna; skip built output and generated GraphQL artifacts that
+  // land in diffs (mirrors the oxlint/oxfmt ignore lists). generated.ts is caught
+  // by its codegen header too, but graphql.schema.json has no marker, so list them.
+  "noise": {
+    "additionalIgnores": [
+      "packages/*/build/**",
+      "packages/*/dist/**",
+      "packages/eas-cli/src/graphql/generated.ts",
+      "packages/eas-cli/graphql.schema.json",
+      "packages/eas-cli/schema/**",
+      "packages/build-tools/schema.graphql"
+    ]
+  },
+
+  "breakGlass": { "marker": "/skip-review" },
+  "commentTag": "expo-ai-code-reviewer",
+
+  // Use a Claude Pro/Max OAuth token (from `claude setup-token`) rather than an
+  // x-api-key. The token is read from this env var and injected into an isolated
+  // OpenCode auth.json as a bearer credential.
+  "auth": {
+    "mode": "oauth",
+    "provider": "anthropic",
+    "tokenEnv": "DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY"
+  }
+}

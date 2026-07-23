@@ -174,6 +174,46 @@ describe('StaticWorkflowInterpolationContextZ', () => {
     expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
   });
 
+  it('accepts app_store_connect build_upload with version, platform, and date fields', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'complete',
+          cf_bundle_version: '42',
+          cf_bundle_short_version_string: '1.2.3',
+          platform: 'ios',
+          uploaded_date: '2026-01-01T00:00:00.000Z',
+          created_date: '2026-01-01T00:00:00.000Z',
+          build: {
+            id: 'build-abc123',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
   it('accepts app_store_connect context without build_upload', () => {
     const context = {
       after: {},
