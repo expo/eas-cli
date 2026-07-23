@@ -85,6 +85,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      # eas-cli pins yarn@4 via package.json "packageManager", so actions/setup-node's
+      # environment probe runs `yarn` and the global yarn 1.x refuses unless corepack
+      # is enabled. We don't use yarn here (the reviewer runs via npx) — this just
+      # keeps setup-node's probe from erroring.
+      - name: Enable Corepack
+        if: steps.resolve.outputs.run == 'true'
+        run: corepack enable
+
       - name: Set up Node
         if: steps.resolve.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5

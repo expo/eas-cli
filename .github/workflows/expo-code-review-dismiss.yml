@@ -81,6 +81,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Corepack so setup-node's yarn probe doesn't fail on the repo's yarn@4 pin
+      # (dismiss runs the CLI via npx, not yarn).
+      - name: Enable Corepack
+        if: steps.cmd.outputs.run == 'true'
+        run: corepack enable
+
       - name: Set up Node
         if: steps.cmd.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
