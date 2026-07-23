@@ -91,5 +91,17 @@ function stepsFromWorkflow(parsedYaml: any): any[] {
   if (!jobs || typeof jobs !== 'object') {
     return [];
   }
-  return Object.values(jobs).flatMap((job: any) => (Array.isArray(job?.steps) ? job.steps : []));
+  return Object.values(jobs).flatMap((job: any) => [
+    ...(Array.isArray(job?.steps) ? job.steps : []),
+    ...hookStepsFromJob(job),
+  ]);
+}
+
+// All hook keys, not only ones this CLI registers: file existence cannot version-skew false-fail.
+function hookStepsFromJob(job: any): any[] {
+  const hooks = job?.hooks;
+  if (!hooks || typeof hooks !== 'object') {
+    return [];
+  }
+  return Object.values(hooks).flatMap((steps: any) => (Array.isArray(steps) ? steps : []));
 }
