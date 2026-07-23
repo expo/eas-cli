@@ -95,6 +95,9 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
+          # No yarn install here (runs via npx) — disable the auto yarn cache so the
+          # post step doesn't error trying to save an empty cache.
+          package-manager-cache: false
 
       - name: Run AI review
         if: steps.cmd.outputs.run == 'true'

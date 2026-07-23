@@ -98,6 +98,10 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
+          # We install nothing with yarn (the reviewer runs via npx), so disable
+          # setup-node's automatic package-manager cache — otherwise its post step
+          # tries to save an empty yarn cache and errors ("path(s) ... do not exist").
+          package-manager-cache: false
 
       - name: Run AI review
         if: steps.resolve.outputs.run == 'true'
