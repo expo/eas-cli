@@ -57,7 +57,7 @@ describe(createWaitForPosthogMetricFunction, () => {
       query: { kind: 'HogQLQuery' },
       refresh: 'blocking',
     });
-    expect(step.outputById.value.value).toBe('3');
+    expect(step.outputById.get('value')!.value).toBe('3');
   });
 
   it('throws when credentials are missing', async () => {

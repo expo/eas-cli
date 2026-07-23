@@ -462,7 +462,7 @@ describe(BuildStep, () => {
           command,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.abc);
+        const abc = nullthrows(step.outputById.get('abc'));
         expect(abc?.value).toBe('123');
       });
 
@@ -508,7 +508,7 @@ describe(BuildStep, () => {
           fn,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.abc);
+        const abc = nullthrows(step.outputById.get('abc'));
         expect(abc?.value).toBe('123');
       });
     });
@@ -605,7 +605,7 @@ describe(BuildStep, () => {
           command,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.abc);
+        const abc = nullthrows(step.outputById.get('abc'));
         expect(abc?.value).toBe('d o m i n i k');
       });
 
