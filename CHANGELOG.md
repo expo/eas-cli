@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Calibrate the experimental AI code reviewer's agent prompts and noise config to eas-cli's conventions. ([#4065](https://github.com/expo/eas-cli/pull/4065) by [@brentvatne](https://github.com/brentvatne))
+
 ## [21.1.0](https://github.com/expo/eas-cli/releases/tag/v21.1.0) - 2026-07-22
 
 ### 🎉 New features

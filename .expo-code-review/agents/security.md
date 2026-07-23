@@ -25,7 +25,13 @@ those areas with extra care.
 - Sensitive or secret environment-variable **values** being surfaced in output,
   logs, or error messages.
 - Unsafe shell command construction (command injection), especially anywhere near
-  `env:exec` or child-process spawning.
+  `env:exec` or child-process spawning. In shell snippets, interpolated values must
+  be POSIX-safe-quoted; unquoted interpolation of a name, URL, or user value is an
+  injection.
+- External or model-generated text written to stdout without stripping ANSI/control
+  characters first (terminal-escape injection / spoofed output).
+- A publicly-reachable tunnel URL (e.g. an ngrok/remote-device or serve-sim session
+  in `build-tools`) exposed without authentication — anyone with the URL can reach it.
 - Missing validation on untrusted input at a trust boundary.
 - Insecure file permissions, or writing secrets to world-readable paths.
 
