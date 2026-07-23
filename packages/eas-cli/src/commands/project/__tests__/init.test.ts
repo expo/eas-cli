@@ -639,6 +639,74 @@ describe(ProjectInit.name, () => {
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
     });
 
+    it('is a no-op when the project is already linked to the specified account', async () => {
+      mockTestProject({ configuredProjectId: '1234' });
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(['--account', 'jester'], commandOptions).run();
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('throws when the project is already linked to a different account without --force', async () => {
+      mockTestProject({ configuredProjectId: '1234' });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester2/testing-123',
+        ownerAccount: jester2.accounts[0],
+      });
+
+      await expect(
+        new ProjectInit(['--account', 'jester'], commandOptions).run()
+      ).rejects.toThrowError(
+        `This project is already linked to @jester2 (ID: 1234). Pass --force to re-link it to a project owned by jester, or remove the "extra.eas.projectId" field from your app config.`
+      );
+
+      expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('re-links to the specified account when the project is already linked to a different account with --force', async () => {
+      mockTestProject({ configuredProjectId: '1234' });
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('123456');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest
+        .mocked(AppQuery.byIdAsync)
+        // ownership check for the currently linked project
+        .mockResolvedValueOnce({
+          id: '1234',
+          slug: 'testing-123',
+          name: 'testing-123',
+          fullName: '@jester2/testing-123',
+          ownerAccount: jester2.accounts[0],
+        })
+        // owner/slug consistency check for the newly linked project
+        .mockResolvedValue({
+          id: '123456',
+          slug: 'testing-123',
+          name: 'testing-123',
+          fullName: '@jester/testing-123',
+          ownerAccount: jester.accounts[0],
+        });
+
+      await new ProjectInit(['--account', 'jester', '--force'], commandOptions).run();
+
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
+    });
+
     it('throws when the account conflicts with the owner field in the app config', async () => {
       mockTestProject({ configuredOwner: jester.accounts[0].name });
 

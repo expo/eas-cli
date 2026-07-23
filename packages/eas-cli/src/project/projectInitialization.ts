@@ -203,12 +203,23 @@ export async function initializeWithoutExplicitIDAsync(
   const existingProjectId = exp.extra?.eas?.projectId;
 
   if (existingProjectId) {
-    Log.succeed(
-      `Project already linked (ID: ${chalk.bold(
-        existingProjectId
-      )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
-    );
-    return existingProjectId;
+    const ownerAccountName = accountNameArgument
+      ? (await AppQuery.byIdAsync(graphqlClient, existingProjectId)).ownerAccount.name
+      : undefined;
+    if (!accountNameArgument || ownerAccountName === accountNameArgument) {
+      Log.succeed(
+        `Project already linked (ID: ${chalk.bold(
+          existingProjectId
+        )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
+      );
+      return existingProjectId;
+    }
+    if (!force) {
+      throw new Error(
+        `This project is already linked to @${ownerAccountName} (ID: ${existingProjectId}). Pass --force to re-link it to a project owned by ${accountNameArgument}, or remove the "extra.eas.projectId" field from your app config.`
+      );
+    }
+    // --force with a different --account: fall through to re-link under the new account
   }
 
   const allAccounts = actor.accounts;
