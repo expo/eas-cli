@@ -18,7 +18,7 @@ import { Sentry } from '../../sentry';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
-import { startArgentEventCollectionAsync } from '../utils/argentEvents';
+import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
@@ -39,6 +39,10 @@ const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
 // Tells the tool-server to write its structured event log so we can collect session events.
 const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
+// Pin the event log path explicitly and hand the same value to the tool-server (via
+// ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
+// Argent's default can never make the two disagree.
+const ARGENT_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, ARGENT_EVENT_LOG_FILENAME);
 const STARTUP_TIMEOUT_MS = 60_000;
 
 const ArgentToolServerStateSchema = z.object({
@@ -114,7 +118,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           '0',
           '--force',
         ],
-        env,
+        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
@@ -157,7 +161,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const eventCollection = await startArgentEventCollectionAsync({
         ctx,
         deviceRunSessionId,
-        stateDir: ARGENT_STATE_DIR,
+        eventLogPath: ARGENT_EVENT_LOG_PATH,
         logger,
       });
 

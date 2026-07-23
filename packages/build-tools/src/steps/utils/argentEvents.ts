@@ -62,13 +62,15 @@ type ParsedArgentEvent = {
 export async function startArgentEventCollectionAsync({
   ctx,
   deviceRunSessionId,
-  stateDir,
+  eventLogPath,
   logger,
   pollIntervalMs,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
-  stateDir: string;
+  // Absolute path Argent's tool-server writes its event log to (its `ARGENT_EVENT_LOG`).
+  // The caller pins this on both sides so the collector and the tool-server never disagree.
+  eventLogPath: string;
   logger: bunyan;
   pollIntervalMs?: number;
 }): Promise<{ stopAsync: () => Promise<void> }> {
@@ -79,7 +81,7 @@ export async function startArgentEventCollectionAsync({
     pollIntervalMs,
     source: {
       producer: ARGENT_PRODUCER,
-      findEventFilesAsync: () => findArgentEventFilesAsync(stateDir),
+      findEventFilesAsync: () => findArgentEventFilesAsync(eventLogPath),
       sourceKeyForFile: eventFile => path.basename(eventFile, path.extname(eventFile)),
       parseLine: ({ line, sourceKey, sequenceNumber, deviceRunSessionId }) => {
         const { event, failure } = parseArgentEvent(line);
@@ -94,13 +96,17 @@ export async function startArgentEventCollectionAsync({
   });
 }
 
-async function findArgentEventFilesAsync(stateDir: string): Promise<string[]> {
-  const eventLogPath = path.join(stateDir, ARGENT_EVENT_LOG_FILENAME);
+async function findArgentEventFilesAsync(eventLogPath: string): Promise<string[]> {
   try {
     await fs.promises.access(eventLogPath);
     return [eventLogPath];
-  } catch {
-    return [];
+  } catch (err) {
+    // The tool-server has not created the file yet — expected until the first event is written.
+    // Surface any other error (permissions, I/O) to the engine so it reaches Sentry.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    throw err;
   }
 }
 
