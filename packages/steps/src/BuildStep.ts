@@ -43,6 +43,8 @@ export enum BuildStepLogMarker {
   END_STEP = 'end-step',
 }
 
+export type BuildStepFunctionOutputs = Record<string, BuildStepOutput>;
+
 export type BuildStepFunction = (
   ctx: BuildStepContext,
   {
@@ -51,7 +53,7 @@ export type BuildStepFunction = (
     env,
   }: {
     inputs: { [key: string]: { value: unknown } };
-    outputs: BuildStepOutputById;
+    outputs: BuildStepFunctionOutputs;
     env: BuildStepEnv;
     signal?: AbortSignal;
   }
@@ -73,7 +75,7 @@ export class BuildStepOutputAccessor {
   ) {}
 
   public get outputs(): BuildStepOutput[] {
-    return Object.values(this.outputById);
+    return [...this.outputById.values()];
   }
 
   public getOutputValueByName(name: string): string | undefined {
@@ -85,11 +87,11 @@ export class BuildStepOutputAccessor {
     if (!this.hasOutputParameter(name)) {
       throw new BuildStepRuntimeError(`Step "${this.displayName}" does not have output "${name}".`);
     }
-    return this.outputById[name].value;
+    return this.outputById.get(name)!.value;
   }
 
   public hasOutputParameter(name: string): boolean {
-    return name in this.outputById;
+    return this.outputById.has(name);
   }
 
   public serialize(): SerializedBuildStepOutputAccessor {
@@ -97,7 +99,7 @@ export class BuildStepOutputAccessor {
       id: this.id,
       executed: this.executed,
       outputById: Object.fromEntries(
-        Object.entries(this.outputById).map(([key, value]) => [key, value.serialize()])
+        [...this.outputById].map(([key, value]) => [key, value.serialize()])
       ),
       displayName: this.displayName,
     };
@@ -106,7 +108,7 @@ export class BuildStepOutputAccessor {
   public static deserialize(
     serialized: SerializedBuildStepOutputAccessor
   ): BuildStepOutputAccessor {
-    const outputById = Object.fromEntries(
+    const outputById = new Map(
       Object.entries(serialized.outputById).map(([key, value]) => [
         key,
         BuildStepOutput.deserialize(value),
@@ -426,7 +428,7 @@ export class BuildStep extends BuildStepOutputAccessor {
           { value: input.getValue({ interpolationContext: this.getInterpolationContext() }) },
         ])
       ),
-      outputs: this.outputById,
+      outputs: Object.fromEntries(this.outputById),
       env: this.getScriptEnv(),
       signal: signal ?? undefined,
     });
@@ -463,23 +465,23 @@ export class BuildStep extends BuildStepOutputAccessor {
     const files = await fs.readdir(outputsDir);
 
     for (const outputId of files) {
-      if (!(outputId in this.outputById)) {
+      if (!this.outputById.has(outputId)) {
         const newOutput = new BuildStepOutput(this.ctx.global, {
           id: outputId,
           stepDisplayName: this.displayName,
           required: false,
         });
-        this.outputById[outputId] = newOutput;
+        this.outputById.set(outputId, newOutput);
       }
 
       const file = path.join(outputsDir, outputId);
       const rawContents = await fs.readFile(file, 'utf-8');
       const decodedContents = Buffer.from(rawContents, 'base64').toString('utf-8');
-      this.outputById[outputId].set(decodedContents);
+      this.outputById.get(outputId)!.set(decodedContents);
     }
 
     const nonSetRequiredOutputIds: string[] = [];
-    for (const output of Object.values(this.outputById)) {
+    for (const output of this.outputById.values()) {
       try {
         const value = output.value;
         this.ctx.logger.debug(`Output parameter "${output.id}" is set to "${value}"`);
