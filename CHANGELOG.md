@@ -9,6 +9,8 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Prompt to select a platform in `eas simulator:start` when `--platform` is omitted, instead of erroring out. ([#4043](https://github.com/expo/eas-cli/pull/4043) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add `--client-id` flag to `eas observe:events` and `eas observe:metrics` to filter by EAS client ID. ([#4059](https://github.com/expo/eas-cli/pull/4059) by [@keith-kurak](https://github.com/keith-kurak))
+- [eas-cli] Add `--all-metrics` flag to `eas observe:metrics` to return samples across all metrics instead of a single one (e.g. all metrics for one `--client-id`). ([#4059](https://github.com/expo/eas-cli/pull/4059) by [@keith-kurak](https://github.com/keith-kurak))
 
 ### 🐛 Bug fixes
 

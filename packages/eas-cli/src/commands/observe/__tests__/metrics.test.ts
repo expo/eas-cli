@@ -5,7 +5,11 @@ import {
   AppObserveEventsOrderByField,
   AppObservePlatform,
 } from '../../../graphql/generated';
-import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
+import {
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
@@ -15,6 +19,7 @@ jest.mock('../../../observe/fetchEvents', () => {
   return {
     ...actual,
     fetchObserveEventsAsync: jest.fn(),
+    fetchTotalEventCountAsync: jest.fn(),
   };
 });
 jest.mock('../../../observe/formatEvents', () => ({
@@ -25,6 +30,7 @@ jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
+const mockFetchTotalEventCountAsync = jest.mocked(fetchTotalEventCountAsync);
 const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -195,7 +201,15 @@ describe(ObserveMetrics, () => {
     expect(options.updateId).toBe('update-xyz');
   });
 
-  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
+  it('passes --client-id to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['tti', '--client-id', 'client-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.easClientId).toBe('client-xyz');
+  });
+
+  it('does not pass platform, appVersion, updateId, or easClientId when flags are not provided', async () => {
     const command = createCommand(['tti']);
     await command.runAsync();
 
@@ -203,6 +217,7 @@ describe(ObserveMetrics, () => {
     expect(options.platform).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
+    expect(options.easClientId).toBeUndefined();
   });
 
   it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
@@ -244,6 +259,32 @@ describe(ObserveMetrics, () => {
 
     expect(mockEnableJsonOutput).not.toHaveBeenCalled();
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
+  });
+
+  it('omits metricName and skips the total-event-count query with --all-metrics', async () => {
+    const command = createCommand(['--all-metrics']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
+  });
+
+  it('forwards --client-id together with --all-metrics', async () => {
+    const command = createCommand(['--all-metrics', '--client-id', 'client-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(options.easClientId).toBe('client-xyz');
+  });
+
+  it('throws when --all-metrics is combined with a metric argument', async () => {
+    const command = createCommand(['tti', '--all-metrics']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      '--all-metrics cannot be combined with a metric argument'
+    );
   });
 
   it('passes --sort flag through to fetchObserveEventsAsync', async () => {
