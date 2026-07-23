@@ -1,3 +1,7 @@
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
+
 import { BuildTrigger, ErrorCode, Hooks, Ios, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 
@@ -7,7 +11,10 @@ import { parseJobHooksAsync } from '../jobHooks';
 
 const INSTALL: ['install_node_modules'] = ['install_node_modules'];
 
-function createCtx(hooks: Hooks | undefined): {
+function createCtx(
+  hooks: Hooks | undefined,
+  { workingdir = '/tmp/wd' }: { workingdir?: string } = {}
+): {
   ctx: BuildContext<Ios.Job>;
   warn: jest.Mock;
 } {
@@ -26,10 +33,22 @@ function createCtx(hooks: Hooks | undefined): {
       logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
       logger,
       uploadArtifact: jest.fn(),
-      workingdir: '/tmp/wd',
+      workingdir,
     }
   );
   return { ctx, warn };
+}
+
+// Project checkout lives at <workingdir>/build (job projectRootDirectory is '.').
+async function makeWorkingdirWithCompositeFunctionAsync(
+  functionName: string,
+  contents: string
+): Promise<string> {
+  const workingdir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-hooks-composite-'));
+  const functionDir = path.join(workingdir, 'build', '.eas', 'functions', functionName);
+  await fs.mkdir(functionDir, { recursive: true });
+  await fs.writeFile(path.join(functionDir, 'function.yml'), contents, 'utf-8');
+  return workingdir;
 }
 
 describe(parseJobHooksAsync, () => {
@@ -122,6 +141,46 @@ describe(parseJobHooksAsync, () => {
     const after = parsed!.hookEntriesByKey.after_install_node_modules![0];
     expect(before.steps[0].ctx.global).toBe(parsed!.globalContext);
     expect(after.steps[0].ctx.global).toBe(parsed!.globalContext);
+  });
+
+  it('parses a composite function under a wrapped key into ONE entry with the expansion inside', async () => {
+    const workingdir = await makeWorkingdirWithCompositeFunctionAsync(
+      'setup',
+      [
+        'runs:',
+        '  steps:',
+        '    - id: prepare',
+        '      run: echo prepare',
+        '    - run: echo hi',
+      ].join('\n')
+    );
+    const { ctx } = createCtx(
+      { before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }] },
+      { workingdir }
+    );
+    const parsed = await parseJobHooksAsync(ctx, INSTALL);
+    expect(parsed!.hookEntriesByKey.before_install_node_modules).toHaveLength(1);
+    expect(
+      parsed!.hookEntriesByKey.before_install_node_modules![0].steps.map(step => step.id)
+    ).toEqual(['setup__prepare', 'setup__composite_function_step_1']);
+  });
+
+  it('fails with a hooks error when a wrapped key references a missing composite function', async () => {
+    const workingdir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-hooks-missing-'));
+    const { ctx } = createCtx(
+      { before_install_node_modules: [{ uses: './.eas/functions/missing' }] },
+      { workingdir }
+    );
+    const result = parseJobHooksAsync(ctx, INSTALL);
+    await expect(result).rejects.toThrow('no such composite function exists');
+    await expect(result).rejects.toMatchObject({ errorCode: ErrorCode.HOOKS_ERROR });
+  });
+
+  it('never loads a composite function referenced under a registered-but-unwrapped key', async () => {
+    const { ctx, warn } = createCtx({ before_submit: [{ uses: './.eas/functions/missing' }] });
+    const parsed = await parseJobHooksAsync(ctx, INSTALL);
+    expect(parsed!.hookEntriesByKey).toEqual({});
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('hooks.before_submit'));
   });
 
   it('wraps a cross-key duplicate step id in the aggregate error', async () => {

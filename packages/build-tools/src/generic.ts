@@ -48,7 +48,7 @@ export async function runGenericJobAsync(
     try {
       const compositeFunctionCatalog = await buildCompositeFunctionCatalogAsync(
         ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-        { steps: ctx.job.steps, logger: ctx.logger }
+        { steps: ctx.job.steps, hooks: ctx.job.hooks, logger: ctx.logger }
       );
 
       const parser = new StepsConfigParser(globalContext, {
