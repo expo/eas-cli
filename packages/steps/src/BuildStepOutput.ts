@@ -1,8 +1,7 @@
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
 
-export type BuildStepOutputById = Record<string, BuildStepOutput>;
-export type BuildStepOutputByIdMap = Map<string, BuildStepOutput>;
+export type BuildStepOutputById = Map<string, BuildStepOutput>;
 export type BuildStepOutputProvider = (
   ctx: BuildStepGlobalContext,
   stepDisplayName: string
@@ -93,6 +92,6 @@ export class BuildStepOutput<R extends boolean = boolean> {
   }
 }
 
-export function makeBuildStepOutputByIdMap(outputs?: BuildStepOutput[]): BuildStepOutputByIdMap {
+export function makeBuildStepOutputByIdMap(outputs?: BuildStepOutput[]): BuildStepOutputById {
   return new Map(outputs?.map(output => [output.id, output]));
 }

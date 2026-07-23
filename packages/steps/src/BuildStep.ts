@@ -12,7 +12,6 @@ import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from '.
 import {
   BuildStepOutput,
   BuildStepOutputById,
-  BuildStepOutputByIdMap,
   SerializedBuildStepOutput,
   makeBuildStepOutputByIdMap,
 } from './BuildStepOutput';
@@ -44,6 +43,8 @@ export enum BuildStepLogMarker {
   END_STEP = 'end-step',
 }
 
+export type BuildStepFunctionOutputs = Record<string, BuildStepOutput>;
+
 export type BuildStepFunction = (
   ctx: BuildStepContext,
   {
@@ -52,7 +53,7 @@ export type BuildStepFunction = (
     env,
   }: {
     inputs: { [key: string]: { value: unknown } };
-    outputs: BuildStepOutputById;
+    outputs: BuildStepFunctionOutputs;
     env: BuildStepEnv;
     signal?: AbortSignal;
   }
@@ -70,7 +71,7 @@ export class BuildStepOutputAccessor {
     public readonly id: string,
     public readonly displayName: string,
     protected readonly executed: boolean,
-    protected readonly outputById: BuildStepOutputByIdMap
+    protected readonly outputById: BuildStepOutputById
   ) {}
 
   public get outputs(): BuildStepOutput[] {
@@ -128,7 +129,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly displayName: string;
   public readonly supportedRuntimePlatforms?: BuildRuntimePlatform[];
   public readonly inputs?: BuildStepInput[];
-  public readonly outputById: BuildStepOutputByIdMap;
+  public readonly outputById: BuildStepOutputById;
   public readonly command?: string;
   public readonly fn?: BuildStepFunction;
   public readonly shell: string;
