@@ -44,6 +44,26 @@ test('review state (review + dismissals) round-trips via parseReviewState', () =
   expect(state!.review.findings.length).toBe(1);
 });
 
+test('links a finding location to the PR diff line when link context is given', () => {
+  const out = renderMarkdown({ ...base, findings: [finding({ file: 'src/a.ts', line: 12 })] }, 'tag', [], {
+    repo: 'expo/eas-cli',
+    prNumber: 42,
+  });
+  // Markdown link wrapping the `file:line`, pointing at the Files-changed diff anchor.
+  expect(out).toContain('[`src/a.ts:12`](https://github.com/expo/eas-cli/pull/42/files#diff-');
+  expect(out).toMatch(/R12\)/); // right-hand line anchor for line 12
+});
+
+test('location is plain (unlinked) code when no link context is given', () => {
+  const out = renderMarkdown({ ...base, findings: [finding({ file: 'src/a.ts', line: 12 })] }, 'tag');
+  expect(out).toContain('`src/a.ts:12`');
+  expect(out).not.toContain('https://github.com');
+});
+
+test('comment footer no longer says "Phase 1"', () => {
+  expect(renderMarkdown(base, 'tag')).not.toContain('Phase 1');
+});
+
 test('renders per-severity headers with counts', () => {
   const out = renderMarkdown(
     {

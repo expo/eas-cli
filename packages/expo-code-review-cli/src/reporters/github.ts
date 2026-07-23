@@ -65,7 +65,12 @@ export class GitHubReporter implements Reporter {
     const dismissed = existing
       ? (parseReviewState(existing.body, this.options.commentTag)?.dismissed ?? [])
       : [];
-    await this.upsertComment(renderMarkdown(review, this.options.commentTag, dismissed));
+    await this.upsertComment(renderMarkdown(review, this.options.commentTag, dismissed, this.linkContext()));
+  }
+
+  /** PR context for turning finding locations into diff-line links. */
+  private linkContext(): { repo: string; prNumber: number } {
+    return { repo: this.options.repo, prNumber: this.options.prNumber };
   }
 
   /**
@@ -99,7 +104,10 @@ export class GitHubReporter implements Reporter {
       }
     }
 
-    await this.patchComment(existing.id, renderMarkdown(state.review, this.options.commentTag, dismissed));
+    await this.patchComment(
+      existing.id,
+      renderMarkdown(state.review, this.options.commentTag, dismissed, this.linkContext())
+    );
     return { dismissedCount: dismissed.length, matched, unmatched };
   }
 

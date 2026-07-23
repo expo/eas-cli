@@ -1,5 +1,16 @@
+import { createHash } from 'node:crypto';
+
 import { fingerprintFinding, SEVERITIES, SEVERITY_RANK } from './schema.js';
 import type { CoordinatorOutput, Decision, DismissalRecord, Finding, Severity } from './schema.js';
+
+/**
+ * Enough PR context to turn a finding's `file:line` into a link to that line in
+ * the PR's "Files changed" diff. Omitted for terminal output (plain text).
+ */
+export interface LinkContext {
+  repo: string; // owner/repo
+  prNumber: number;
+}
 
 const DECISION_LABEL: Record<Decision, string> = {
   approve: 'Approve',
@@ -33,8 +44,24 @@ export function commentMarker(tag: string): string {
   return `<!-- ${tag} -->`;
 }
 
-function location(finding: Finding): string {
+function locationText(finding: Finding): string {
   return finding.line != null ? `${finding.file}:${finding.line}` : finding.file;
+}
+
+/**
+ * Render a finding's location as inline code, linked to the exact diff line in the
+ * PR's "Files changed" tab when PR context is available. GitHub anchors each file's
+ * diff as `diff-<sha256(path)>` and each right-hand (added/context) line as `…R<n>`.
+ */
+function location(finding: Finding, link?: LinkContext): string {
+  const text = locationText(finding);
+  if (!link) {
+    return `\`${text}\``;
+  }
+  const fileHash = createHash('sha256').update(finding.file).digest('hex');
+  const anchor = finding.line != null ? `diff-${fileHash}R${finding.line}` : `diff-${fileHash}`;
+  const url = `https://github.com/${link.repo}/pull/${link.prNumber}/files#${anchor}`;
+  return `[\`${text}\`](${url})`;
 }
 
 /**
@@ -45,7 +72,8 @@ function location(finding: Finding): string {
 export function renderMarkdown(
   review: CoordinatorOutput,
   tag: string,
-  dismissed: DismissalRecord[] = []
+  dismissed: DismissalRecord[] = [],
+  link?: LinkContext
 ): string {
   const dismissedByFp = new Map(dismissed.map(record => [record.fp, record]));
   const withFp = review.findings.map(finding => ({ finding, fp: fingerprintFinding(finding) }));
@@ -75,7 +103,7 @@ export function renderMarkdown(
       }
       lines.push(`### ${severityHeading(severity)} (${group.length})`, '');
       for (const finding of group) {
-        lines.push(...renderFindingLines(finding));
+        lines.push(...renderFindingLines(finding, link));
       }
       lines.push('');
     }
@@ -87,14 +115,14 @@ export function renderMarkdown(
       const record = dismissedByFp.get(fp)!;
       const who = record.by ? ` by @${record.by}` : '';
       const why = record.reason ? ` — ${record.reason}` : '';
-      lines.push(`- **${finding.title}** — \`${location(finding)}\` \`id:${fp}\`${who}${why}`);
+      lines.push(`- **${finding.title}** — ${location(finding, link)} \`id:${fp}\`${who}${why}`);
     }
     lines.push('', '_Re-add one with `/undismiss <id>`._', '</details>', '');
   }
 
   lines.push(
     '---',
-    '_Phase 1: comment-only. This review never blocks a merge and never auto-approves._'
+    '_This review is advisory — it never blocks a merge and never auto-approves._'
   );
   // Embedded, machine-readable state: fingerprints (back-compat) + the full review
   // and dismissals, so `/dismiss` can re-render this comment without re-running.
@@ -104,9 +132,9 @@ export function renderMarkdown(
   return lines.join('\n');
 }
 
-function renderFindingLines(finding: Finding): string[] {
+function renderFindingLines(finding: Finding, link?: LinkContext): string[] {
   const out = [
-    `- **${finding.title}** — \`${location(finding)}\` _(${finding.category})_ · \`id:${fingerprintFinding(finding)}\``,
+    `- **${finding.title}** — ${location(finding, link)} _(${finding.category})_ · \`id:${fingerprintFinding(finding)}\``,
     `  ${finding.rationale}`,
   ];
   if (finding.suggestion) {
