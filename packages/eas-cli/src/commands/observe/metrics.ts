@@ -17,6 +17,7 @@ import {
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveClientIdFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -44,6 +45,11 @@ export default class ObserveMetrics extends EasCommand {
   };
 
   static override flags = {
+    'all-metrics': Flags.boolean({
+      description:
+        'Return samples across all metrics instead of a single one. Cannot be combined with a metric argument.',
+      default: false,
+    }),
     sort: Flags.option({
       description: 'Sort order for events',
       options: Object.values(EventsOrderPreset).map(s => s.toLowerCase()),
@@ -59,6 +65,7 @@ export default class ObserveMetrics extends EasCommand {
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
     ...ObserveUpdateIdFlag,
+    ...ObserveClientIdFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -88,20 +95,33 @@ export default class ObserveMetrics extends EasCommand {
       enableJsonOutput();
     }
 
-    let metricName: string;
+    if (args.metric && flags['all-metrics']) {
+      throw new EasCommandError(
+        '--all-metrics cannot be combined with a metric argument. Pass a metric to filter by it, or pass --all-metrics to return samples across all metrics.'
+      );
+    }
+
+    const ALL_METRICS = '__all__';
+    let metricName: string | undefined;
     if (args.metric) {
       metricName = resolveMetricName(args.metric);
+    } else if (flags['all-metrics']) {
+      metricName = undefined;
     } else if (nonInteractive) {
       throw new EasCommandError(
-        'A metric argument is required in non-interactive mode. Available metrics: ' +
+        'A metric argument is required in non-interactive mode (or pass --all-metrics for all metrics). Available metrics: ' +
           Object.keys(METRIC_ALIASES).join(', ')
       );
     } else {
-      const choices = Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
-        title: `${displayName} (${fullName})`,
-        value: fullName,
-      }));
-      metricName = await selectAsync('Select a metric', choices);
+      const choices = [
+        { title: 'All metrics', value: ALL_METRICS },
+        ...Object.entries(METRIC_SHORT_NAMES).map(([fullName, displayName]) => ({
+          title: `${displayName} (${fullName})`,
+          value: fullName,
+        })),
+      ];
+      const selected = await selectAsync('Select a metric', choices);
+      metricName = selected === ALL_METRICS ? undefined : selected;
     }
     const orderBy = resolveOrderBy(flags.sort);
 
@@ -110,9 +130,11 @@ export default class ObserveMetrics extends EasCommand {
     const platform = appObservePlatformFromFlag(flags.platform);
     const platforms = appPlatformsFromFlag(flags.platform);
 
+    // The total-event-count query is per-metric, so it only applies when a
+    // single metric is requested.
     const [{ events, pageInfo }, totalEventCount] = await Promise.all([
       fetchObserveEventsAsync(graphqlClient, projectId, {
-        metricName,
+        ...(metricName && { metricName }),
         orderBy,
         limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
         ...(flags.after && { after: flags.after }),
@@ -121,15 +143,18 @@ export default class ObserveMetrics extends EasCommand {
         platform,
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
+        easClientId: flags['client-id'],
       }),
-      fetchTotalEventCountAsync(
-        graphqlClient,
-        projectId,
-        metricName,
-        platforms,
-        startTime,
-        endTime
-      ),
+      metricName
+        ? fetchTotalEventCountAsync(
+            graphqlClient,
+            projectId,
+            metricName,
+            platforms,
+            startTime,
+            endTime
+          )
+        : Promise.resolve(undefined),
     ]);
 
     if (json) {
