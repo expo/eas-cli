@@ -43,6 +43,7 @@ import {
 import { BuildEvent } from '../analytics/AnalyticsManager';
 import { withAnalyticsAsync } from '../analytics/common';
 import { getExpoWebsiteBaseUrl } from '../api';
+import { formatStarterSubscribeCommand } from '../billing/plans';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { EasCommandError } from '../commandUtils/errors';
 import { createFingerprintAsync } from '../fingerprint/cli';
@@ -209,7 +210,7 @@ export async function prepareBuildRequestForPlatformAsync<
         });
         return await sendBuildRequestAsync(builder, job, graphqlMetadata, buildParams);
       } catch (error: any) {
-        handleBuildRequestError(error, job.platform);
+        handleBuildRequestError(error, job.platform, ctx.accountName);
       }
     } else {
       throw new Error('Unknown localBuildMode.');
@@ -230,13 +231,25 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
   VALIDATION_ERROR: RequestValidationError,
 };
 
-export function handleBuildRequestError(error: any, platform: Platform): never {
+export function handleBuildRequestError(
+  error: any,
+  platform: Platform,
+  accountName?: string
+): never {
   Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
 
   const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
   if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+    const message = error?.graphQLErrors?.[0]?.message;
+    const isFreeTierLimitError =
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_LIMIT_EXCEEDED' ||
+      graphQLErrorCode === 'EAS_BUILD_FREE_TIER_IOS_LIMIT_EXCEEDED';
+    throw new ErrorClass(
+      isFreeTierLimitError
+        ? `${message}\nRun ${formatStarterSubscribeCommand(accountName)} to upgrade to the Starter plan.`
+        : message
+    );
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(

@@ -14129,7 +14129,7 @@ export type AccountByNameQueryVariables = Exact<{
 }>;
 
 
-export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string } } };
+export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string, viewerUserPermission: { __typename?: 'UserPermission', id: string, permissions: Array<Permission> } } } };
 
 export type AccountFullUsageQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -14156,6 +14156,13 @@ export type AccountBillingPeriodQueryVariables = Exact<{
 
 
 export type AccountBillingPeriodQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any } } } };
+
+export type AccountSubscriptionQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null, status?: string | null, willCancel?: boolean | null } | null } } };
 
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

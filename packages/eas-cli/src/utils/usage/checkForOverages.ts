@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { formatStarterSubscribeCommand } from '../../billing/plans';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
@@ -149,7 +150,8 @@ export function displayOverageWarning({
     Log.warn(
       hasFreePlan
         ? "You won't be able to start new builds once you reach the limit. " +
-            link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false })
+            link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false }) +
+            ` Run ${formatStarterSubscribeCommand(name)} to upgrade to the Starter plan.`
         : 'Additional usage beyond your limit will be charged at pay-as-you-go rates. ' +
             link(billingUrl, { text: 'See usage in billing.', dim: false })
     );
@@ -163,7 +165,8 @@ export function displayOverageWarning({
     Log.warn(
       hasFreePlan
         ? 'New builds are blocked until your billing period resets. ' +
-            link(billingUrl, { text: 'Upgrade your plan to continue building.', dim: false })
+            link(billingUrl, { text: 'Upgrade your plan to continue building.', dim: false }) +
+            ` Run ${formatStarterSubscribeCommand(name)} to upgrade to the Starter plan.`
         : 'Additional builds will be charged at pay-as-you-go rates. ' +
             link(billingUrl, { text: 'See usage in billing.', dim: false })
     );
