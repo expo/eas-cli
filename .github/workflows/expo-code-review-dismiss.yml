@@ -18,7 +18,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.1' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.2' }}
 
 concurrency:
   group: ai-code-review-dismiss-${{ github.event.issue.number }}
