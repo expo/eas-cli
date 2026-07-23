@@ -215,7 +215,7 @@ describe(configureIosVersionFunction, () => {
     }).executeAsync();
 
     expect(prepareSpy).toHaveBeenCalledTimes(1);
-    expect(configureIosCredentialsStep.outputById.target_names.value).toBe(
+    expect(configureIosCredentialsStep.outputById.get('target_names')!.value).toBe(
       JSON.stringify(['app', 'widget'])
     );
     expect(updateVersionsAsync).toHaveBeenCalledWith(

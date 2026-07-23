@@ -76,6 +76,6 @@ describe(configureIosCredentialsFunction, () => {
     await buildStep.executeAsync();
 
     expect(configureCredentialsAsync).toHaveBeenCalled();
-    expect(buildStep.outputById.target_names.value).toBe(JSON.stringify(['app', 'widget']));
+    expect(buildStep.outputById.get('target_names')!.value).toBe(JSON.stringify(['app', 'widget']));
   });
 });

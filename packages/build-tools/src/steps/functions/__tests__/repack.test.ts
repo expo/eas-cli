@@ -44,7 +44,7 @@ describe(createRepackBuildFunction, () => {
     );
 
     await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.ipa$/);
+    expect(repackStep.outputById.get('output_path')!.value).toMatch(/repacked-.*\.ipa$/);
   });
 
   it('should rename generated aab output path to apk', async () => {
@@ -64,7 +64,7 @@ describe(createRepackBuildFunction, () => {
     );
 
     await repackStep.executeAsync();
-    expect(repackStep.outputById['output_path'].value).toMatch(/repacked-.*\.apk$/);
+    expect(repackStep.outputById.get('output_path')!.value).toMatch(/repacked-.*\.apk$/);
   });
 
   it('should throw for unsupported platforms', async () => {
@@ -103,7 +103,7 @@ describe(createRepackBuildFunction, () => {
     );
 
     await repackStep.executeAsync();
-    const tmpDir = path.dirname(repackStep.outputById['output_path'].value as string);
+    const tmpDir = path.dirname(repackStep.outputById.get('output_path')!.value as string);
     const keystoreFiles = await fg(`${tmpDir}/keystore*`, { onlyFiles: true });
     expect(keystoreFiles.length).toBe(0);
   });

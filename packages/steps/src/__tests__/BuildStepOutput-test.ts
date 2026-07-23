@@ -77,11 +77,11 @@ describe(BuildStepOutput, () => {
 });
 
 describe(makeBuildStepOutputByIdMap, () => {
-  it('returns empty object when inputs are undefined', () => {
-    expect(makeBuildStepOutputByIdMap(undefined)).toEqual({});
+  it('returns empty map when inputs are undefined', () => {
+    expect(makeBuildStepOutputByIdMap(undefined)).toEqual(new Map());
   });
 
-  it('returns object with outputs indexed by their ids', () => {
+  it('returns map with outputs indexed by their ids', () => {
     const ctx = createGlobalContextMock();
     const outputs: BuildStepOutput[] = [
       new BuildStepOutput(ctx, {
@@ -96,8 +96,21 @@ describe(makeBuildStepOutputByIdMap, () => {
       }),
     ];
     const result = makeBuildStepOutputByIdMap(outputs);
-    expect(Object.keys(result).length).toBe(2);
-    expect(result.abc1).toBeDefined();
-    expect(result.abc2).toBeDefined();
+    expect(result.size).toBe(2);
+    expect(result.get('abc1')).toBeDefined();
+    expect(result.get('abc2')).toBeDefined();
+  });
+
+  it('supports output ids that are special object property names', () => {
+    const ctx = createGlobalContextMock();
+    const output = new BuildStepOutput(ctx, {
+      id: '__proto__',
+      stepDisplayName: 'test1',
+      required: true,
+    });
+
+    const result = makeBuildStepOutputByIdMap([output]);
+
+    expect(result.get('__proto__')).toBe(output);
   });
 });
