@@ -1,7 +1,8 @@
 ---
-# The coordinator only consolidates text (no repo tools), so a fast, cheap model
-# is the right fit and keeps this serial tail step from adding latency.
-model: anthropic/claude-haiku-4-5-20251001
+# The coordinator makes the final call — de-duping, re-judging severity, and
+# deciding — so it runs on Opus: consolidation quality matters more here than the
+# small serial-tail latency it adds (no repo tools, so it's a single bounded pass).
+model: anthropic/claude-opus-4-8
 ---
 
 # Coordinator — consolidation & decision

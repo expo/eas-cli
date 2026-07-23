@@ -16,7 +16,6 @@
     "**/fixtures/**",
     "**/__fixtures__/**",
     ".github/**",
-    "packages/expo-code-review-cli/**",
     "packages/eas-cli/schema/**",
     "packages/eas-cli/graphql.schema.json",
     "packages/build-tools/schema.graphql"

@@ -16,6 +16,10 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  # Published reviewer run via npx (override with repo variable ECR_VERSION).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.1.0' }}
+
 concurrency:
   group: ai-code-review-dismiss-${{ github.event.issue.number }}
   cancel-in-progress: false
@@ -68,32 +72,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api -X POST "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
 
-      # Base ref only (issue_comment runs with base-repo context); dismiss only needs
-      # the built CLI + gh, not the PR's code.
+      # Base ref only (issue_comment runs with base-repo context). Dismiss just edits
+      # the reviewer's comment via the published CLI + gh; it needs no repo code and
+      # no model secret.
       - name: Checkout (base ref only)
         if: steps.cmd.outputs.run == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 1
 
-      - name: Enable Corepack
-        if: steps.cmd.outputs.run == 'true'
-        run: corepack enable
-
       - name: Set up Node
         if: steps.cmd.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
-          cache: yarn
-
-      - name: Install dependencies
-        if: steps.cmd.outputs.run == 'true'
-        run: yarn install --immutable
-
-      - name: Build reviewer
-        if: steps.cmd.outputs.run == 'true'
-        run: yarn workspace expo-code-review build
 
       - name: Apply dismissal
         if: steps.cmd.outputs.run == 'true'
@@ -109,4 +101,4 @@ jobs:
           ARGS=(--pr "$PR" --repo "$REPO" --by "$BY")
           [ -n "$REASON" ] && ARGS+=(--reason "$REASON")
           for id in $IDS; do ARGS+=("$id"); done
-          node packages/expo-code-review-cli/build/cli.js "$SUB" "${ARGS[@]}"
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr "$SUB" "${ARGS[@]}"

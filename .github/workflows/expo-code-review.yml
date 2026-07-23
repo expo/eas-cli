@@ -10,6 +10,12 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  # The reviewer is the published @expo/code-review-cli package, run via npx — the
+  # repo only carries the `.expo-code-review/` config, not the engine source.
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.1.x.
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.1.0' }}
+
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -79,28 +85,17 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Enable Corepack
-        if: steps.resolve.outputs.run == 'true'
-        run: corepack enable
-
       - name: Set up Node
         if: steps.resolve.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
-          cache: yarn
-
-      - name: Install dependencies
-        if: steps.resolve.outputs.run == 'true'
-        run: yarn install --immutable
-
-      - name: Build reviewer
-        if: steps.resolve.outputs.run == 'true'
-        run: yarn workspace expo-code-review build
 
       - name: Run AI review
         if: steps.resolve.outputs.run == 'true'
-        # node_modules/.bin holds the `opencode` binary the SDK spawns.
+        # npx installs @expo/code-review-cli and its deps (incl. the `opencode`
+        # binary the SDK spawns) into a temp prefix and runs the `ecr`/`ci` bin
+        # with that prefix's node_modules/.bin on PATH.
         continue-on-error: true
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
@@ -113,14 +108,13 @@ jobs:
           AGENTS: ${{ steps.resolve.outputs.agents }}
           ROUTE: ${{ steps.resolve.outputs.route }}
         run: |
-          export PATH="$PWD/node_modules/.bin:$PATH"
           ARGS=""
           if [ -n "$AGENTS" ]; then
             ARGS="--agents $AGENTS"
           elif [ "$ROUTE" = "true" ]; then
             ARGS="--route"
           fi
-          node packages/expo-code-review-cli/build/cli.js ci $ARGS
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci $ARGS
 
       # Persist the run log (decision, per-agent cost, duration, token/cache
       # metrics) so cost/latency/cache reuse are observable over time — CI is

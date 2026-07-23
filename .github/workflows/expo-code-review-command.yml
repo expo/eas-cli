@@ -17,6 +17,10 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  # Published reviewer run via npx (override with repo variable ECR_VERSION).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.1.0' }}
+
 concurrency:
   group: ai-code-review-cmd-${{ github.event.issue.number }}
   cancel-in-progress: true
@@ -68,41 +72,23 @@ jobs:
 
       # SECURITY: `issue_comment` is NOT fork-restricted by GitHub — it always
       # runs in the base-repo context with full secrets and a write-scoped token,
-      # regardless of whether the commented-on PR is from a fork. We therefore
-      # check out and build ONLY the trusted base ref (the default branch) and
-      # never `gh pr checkout` the PR head. Running attacker-controlled PR-head
-      # code here (build scripts, edited cli.ts, install hooks) with
-      # DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY and GH_TOKEN in the environment
-      # would be a secret-exfiltration RCE that a maintainer typing `/review` on
-      # a malicious PR triggers. The reviewer only needs the diff + PR metadata,
-      # which it fetches over the API (`gh pr diff`/`gh pr view`), not a local
-      # checkout of the PR branch.
+      # regardless of whether the commented-on PR is from a fork. We check out ONLY
+      # the trusted base ref (the default branch) for the `.expo-code-review/`
+      # config, and never `gh pr checkout` the PR head. The reviewer engine itself
+      # is the PUBLISHED @expo/code-review-cli (fetched by npx), not built from any
+      # checkout, so attacker-controlled PR code never runs here. The diff + PR
+      # metadata come from the API (`gh pr diff`/`gh pr view`).
       - name: Checkout (base ref only — never the PR head)
         if: steps.cmd.outputs.run == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        # Shallow is enough: the reviewer reads the working tree and gets the diff
-        # from the API (`gh pr diff`), not from local history.
         with:
           fetch-depth: 1
-
-      - name: Enable Corepack
-        if: steps.cmd.outputs.run == 'true'
-        run: corepack enable
 
       - name: Set up Node
         if: steps.cmd.outputs.run == 'true'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
-          cache: yarn
-
-      - name: Install dependencies
-        if: steps.cmd.outputs.run == 'true'
-        run: yarn install --immutable
-
-      - name: Build reviewer
-        if: steps.cmd.outputs.run == 'true'
-        run: yarn workspace expo-code-review build
 
       - name: Run AI review
         if: steps.cmd.outputs.run == 'true'
@@ -114,11 +100,10 @@ jobs:
           AGENTS: ${{ steps.cmd.outputs.agents }}
           ROUTE: ${{ steps.cmd.outputs.route }}
         run: |
-          export PATH="$PWD/node_modules/.bin:$PATH"
           ARGS=""
           if [ -n "$AGENTS" ]; then
             ARGS="--agents $AGENTS"
           elif [ "$ROUTE" = "true" ]; then
             ARGS="--route"
           fi
-          node packages/expo-code-review-cli/build/cli.js ci $ARGS
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci $ARGS

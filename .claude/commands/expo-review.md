@@ -1,12 +1,13 @@
 ---
 description: Run the local AI code reviewer on your working changes or a specific GitHub PR, summarize the findings here, and optionally post them to the PR. Optionally pick which agents run.
 argument-hint: "[all | <agent...>] [<pr-number-or-url>] [--post] [--staged | --base <ref> --head <ref>]"
-allowed-tools: Bash(yarn:*), Bash(bun:*), Bash(node:*), Bash(cd:*)
+allowed-tools: Bash(npx:*), Bash(bun:*), Bash(node:*), Bash(cd:*)
 ---
 
 Run this repo's AI code reviewer and report its findings. It prints an advisory
-review; it only touches GitHub if you explicitly ask it to post. The engine lives
-in `packages/expo-code-review-cli`; this repo's agents live in `.expo-code-review/`.
+review; it only touches GitHub if you explicitly ask it to post. The engine is the
+published `@expo/code-review-cli` package (run via `npx`); this repo's agents live
+in `.expo-code-review/`.
 
 First interpret `$ARGUMENTS`:
 
@@ -35,8 +36,11 @@ First interpret `$ARGUMENTS`:
 Then run (adding flags only as interpreted above):
 
 ```
-yarn workspace expo-code-review dev review --json [--pr <n>] [--agents <ids>] [--post] [other flags]
+npx --yes @expo/code-review-cli review --json [--pr <n>] [--agents <ids>] [--post] [other flags]
 ```
+
+(If you're developing the CLI itself, run your local build instead:
+`node ~/code/expo-code-review-cli/build/cli.js review …`.)
 
 Notes:
 - `--pr` uses the PR's diff (authoritative) but reads your checked-out files for
@@ -46,11 +50,11 @@ Notes:
   for lack of credentials, tell the user to authenticate a provider in OpenCode
   and set `REVIEWER_MODEL` (e.g. `openai/gpt-5.4-mini-fast`) — there is no shared
   fallback key. `--post` additionally needs `gh` authenticated.
-- If setup looks off, `yarn workspace expo-code-review dev doctor` diagnoses it.
+- If setup looks off, `npx --yes @expo/code-review-cli doctor` diagnoses it.
 
 Then present the result grouped by severity (critical → warning → suggestion),
 each with `file:line`, the rationale, and any suggested fix. Lead with the
 `decision` and `summary`, and surface any coverage note (passes that were cut
-short). Treat the decision as advisory only — phase 1 never blocks or approves; a
-non-zero exit code means `request_changes` (unless `--no-fail`). If you posted,
-confirm the PR it was posted to.
+short). Treat the decision as advisory only — the reviewer never blocks or
+approves; a non-zero exit code means `request_changes` (unless `--no-fail`). If you
+posted, confirm the PR it was posted to.

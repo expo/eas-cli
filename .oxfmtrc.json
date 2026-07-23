@@ -10,7 +10,6 @@
     ".github",
     ".claude",
     ".expo-code-review",
-    "packages/expo-code-review-cli",
     "lerna.json",
     "**/build/**",
     "**/dist/**",
