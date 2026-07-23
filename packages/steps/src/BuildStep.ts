@@ -50,6 +50,9 @@ export enum BuildStepLogMarker {
   END_STEP = 'end-step',
 }
 
+/** Missing `if:` default for this execution context, hooks pass their own policy. */
+export type ShouldRunByDefault = () => boolean;
+
 export type BuildStepFunction = (
   ctx: BuildStepContext,
   {
@@ -333,15 +336,17 @@ export class BuildStep extends BuildStepOutputAccessor {
     );
   }
 
-  public shouldExecuteStep(): boolean {
+  public shouldExecuteStep(
+    shouldRunByDefault: ShouldRunByDefault = () => !this.ctx.global.hasAnyPreviousStepFailed
+  ): boolean {
     if (
       this.compositeFunctionScope &&
-      !this.compositeFunctionScope.isActive(evaluateIfConditionExpression)
+      !this.compositeFunctionScope.isActive(evaluateIfConditionExpression, shouldRunByDefault)
     ) {
       return false;
     }
     if (!this.ifCondition) {
-      return !this.ctx.global.hasAnyPreviousStepFailed;
+      return shouldRunByDefault();
     }
     return this.evaluateIfCondition(this.ifCondition, {
       scope: this.compositeFunctionScope,

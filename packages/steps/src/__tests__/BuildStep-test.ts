@@ -1333,4 +1333,30 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       expect(step.shouldExecuteStep()).toBe(false);
     }
   });
+
+  it('resolves a missing if condition with the provided run-by-default policy', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+    });
+    expect(step.shouldExecuteStep(() => false)).toBe(false);
+    ctx.markAsFailed();
+    expect(step.shouldExecuteStep(() => true)).toBe(true);
+  });
+
+  it('never consults the run-by-default policy when an if condition is present', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const policy = jest.fn(() => true);
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      ifCondition: '${ success() }',
+    });
+    expect(step.shouldExecuteStep(policy)).toBe(false);
+    expect(policy).not.toHaveBeenCalled();
+  });
 });

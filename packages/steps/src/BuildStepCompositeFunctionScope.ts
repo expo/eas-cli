@@ -8,7 +8,7 @@
  */
 import { JobInterpolationContext } from '@expo/eas-build-job';
 
-import type { BuildStepOutputAccessor } from './BuildStep';
+import type { BuildStepOutputAccessor, ShouldRunByDefault } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput } from './BuildStepInput';
@@ -73,18 +73,21 @@ export class BuildStepCompositeFunctionScope {
    * Memoized: global status can change mid-expansion, and re-evaluating would flip a passed
    * success() gate and skip remaining always()/failure() inner steps.
    */
-  public isActive(evaluate: EvaluateIfExpression): boolean {
-    if (this.parent && !this.parent.isActive(evaluate)) {
+  public isActive(evaluate: EvaluateIfExpression, shouldRunByDefault: ShouldRunByDefault): boolean {
+    if (this.parent && !this.parent.isActive(evaluate, shouldRunByDefault)) {
       return false;
     }
-    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate);
+    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate, shouldRunByDefault);
     return this.cachedIsActive;
   }
 
   // Call-site if uses caller env/inputs/steps, not expanded inner steps.
-  private evaluateCallIfCondition(evaluate: EvaluateIfExpression): boolean {
+  private evaluateCallIfCondition(
+    evaluate: EvaluateIfExpression,
+    shouldRunByDefault: ShouldRunByDefault
+  ): boolean {
     if (!this.ifCondition) {
-      return !this.ctx.hasAnyPreviousStepFailed;
+      return shouldRunByDefault();
     }
     const callerBase: JobInterpolationContext = {
       ...this.ctx.getInterpolationContext(),

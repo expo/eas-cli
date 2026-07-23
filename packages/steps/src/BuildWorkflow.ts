@@ -165,6 +165,7 @@ export class BuildWorkflow {
  *   failures predating the call are ignored — "runs iff the anchor runs".
  * - `after`: runs unconditionally — past the anchor's own failure AND past an
  *   earlier after-entry's failure.
+ * Passed as `shouldRunByDefault` so composite scopes share the same missing-`if:` rule.
  * A user `if:` is always evaluated against the real global context, so
  * `failure()` / `success()` keep their global meaning on both sides.
  */
@@ -220,29 +221,23 @@ export async function executeHookStepsAsync(
     }
 
     let entryFailed = false;
+    // Live over entryFailed/failedLocally: before skips on in-sequence failure;
+    // entry with a passed if: only skips on within-entry failure; after always runs.
+    const shouldRunByDefault = (): boolean =>
+      options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
     for (const step of entry.steps) {
       let shouldExecuteStep = false;
-      if (step.ifCondition) {
-        try {
-          shouldExecuteStep = step.shouldExecuteStep();
-        } catch (err) {
-          logConditionEvaluationError(
-            step.ctx.logger,
-            err,
-            `step "${step.displayName}"`,
-            step.ifCondition
-          );
-          recordFailure(err);
-          entryFailed = true;
-        }
-      } else {
-        // Before-side: a no-`if:` step runs unless this hook sequence has
-        // already failed. An entry whose explicit condition evaluated true
-        // behaves like a single step whose if: passed — the entry's no-`if:`
-        // steps ignore failures from EARLIER entries (only within-entry
-        // failures skip them).
-        shouldExecuteStep =
-          options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
+      try {
+        shouldExecuteStep = step.shouldExecuteStep(shouldRunByDefault);
+      } catch (err) {
+        logConditionEvaluationError(
+          step.ctx.logger,
+          err,
+          `step "${step.displayName}"`,
+          step.ifCondition
+        );
+        recordFailure(err);
+        entryFailed = true;
       }
       if (!shouldExecuteStep) {
         step.skip();
