@@ -102,6 +102,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
+    const maps = { buildFunctionById, buildFunctionGroupById, compositeFunctionExpander };
 
     for (const stepConfig of validatedSteps) {
       const maybeFunctionGroup =
@@ -122,10 +123,7 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
-            buildFunctionById,
-            buildFunctionGroupById,
-          });
+          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, maps);
           if (anchorHooks !== undefined) {
             hooksByAnchorStep.set(expandedStep, anchorHooks);
           }
@@ -133,7 +131,6 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
 
-      const maps = { buildFunctionById, buildFunctionGroupById };
       const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
       if (anchorId === undefined) {
         buildSteps.push(
@@ -227,10 +224,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   private constructAnchorHooks(
     anchorId: HookAnchorId,
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    maps: FunctionMaps & { compositeFunctionExpander: CompositeFunctionExpander }
   ): AnchorHooks | undefined {
     const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
     const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
@@ -244,10 +238,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     anchorId: HookAnchorId,
     side: 'before' | 'after',
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    maps: FunctionMaps & { compositeFunctionExpander: CompositeFunctionExpander }
   ): HookEntry[] {
     const hookSteps = validatedHooks[`${side}_${anchorId}`];
     if (hookSteps === undefined) {

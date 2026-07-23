@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Load local composite function catalogs at build time so custom builds and generic jobs can resolve local composite functions referenced via `uses:`. ([#3930](https://github.com/expo/eas-cli/pull/3930) by [@sswrk](https://github.com/sswrk))
+- [steps] Support local composite functions (`uses: ./...`) in hook steps. ([#4062](https://github.com/expo/eas-cli/pull/4062) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 

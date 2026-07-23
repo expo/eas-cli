@@ -1,4 +1,5 @@
 import {
+  CompositeFunctionCatalog,
   HookAnchorId,
   ShellStep,
   Step,
@@ -16,8 +17,12 @@ import {
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
+import { CompositeFunctionExpander } from './CompositeFunctionExpander';
 import { BuildConfigError, BuildWorkflowError } from './errors';
-import { isLocalCompositeFunctionPath } from './utils/localCompositeFunctions';
+import {
+  isLocalCompositeFunctionPath,
+  parseLocalCompositeFunctionPath,
+} from './utils/localCompositeFunctions';
 import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 /**
@@ -30,6 +35,11 @@ import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from '.
  * (2) An entry whose explicit `if:` passed behaves like a single step whose
  * `if:` passed: its no-`if:` steps run past earlier entries' failures, while
  * within-entry failures still skip later siblings.
+ *
+ * Composite calls are also one entry, but their call-site `if:` lives on the
+ * expansion scope (not `ifCondition`), matching main-workflow composites. A
+ * passing call `if:` therefore does not grant the group-entry `!entryFailed`
+ * shield; no-`if:` children follow the plain hook default.
  */
 export interface HookEntry {
   steps: BuildStep[];
@@ -64,9 +74,12 @@ export async function constructHookEntriesAsync(
   {
     externalFunctions,
     externalFunctionGroups,
+    compositeFunctionCatalog,
   }: {
     externalFunctions?: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
+    /** When omitted, composite `uses:` fail as missing from an empty catalog. */
+    compositeFunctionCatalog?: CompositeFunctionCatalog;
   }
 ): Promise<HookEntry[]> {
   // An empty array is a valid no-op (e.g. opting out of a default hook);
@@ -86,6 +99,10 @@ export async function constructHookEntriesAsync(
   return constructHookEntriesFromValidatedSteps(ctx, validatedSteps, {
     buildFunctionById,
     buildFunctionGroupById,
+    compositeFunctionExpander: new CompositeFunctionExpander(ctx, compositeFunctionCatalog ?? {}, {
+      buildFunctionById,
+      buildFunctionGroupById,
+    }),
   });
 }
 
@@ -113,9 +130,11 @@ export function constructHookEntriesFromValidatedSteps(
   {
     buildFunctionById,
     buildFunctionGroupById,
+    compositeFunctionExpander,
   }: {
     buildFunctionById: BuildFunctionById;
     buildFunctionGroupById: BuildFunctionGroupById;
+    compositeFunctionExpander: CompositeFunctionExpander;
   }
 ): HookEntry[] {
   const entries: HookEntry[] = [];
@@ -127,9 +146,16 @@ export function constructHookEntriesFromValidatedSteps(
       continue;
     }
     if (isLocalCompositeFunctionPath(step.uses)) {
-      throw new BuildConfigError(
-        `Local composite function steps ("uses: ${step.uses}") are not supported in hooks.`
-      );
+      entries.push({
+        steps: compositeFunctionExpander
+          .expandCompositeFunctionStep(
+            step,
+            parseLocalCompositeFunctionPath(step.uses),
+            BuildStep.getNewId(step.id)
+          )
+          .getFlattenedSteps(),
+      });
+      continue;
     }
     const maybeFunctionGroup = buildFunctionGroupById[step.uses];
     if (maybeFunctionGroup !== undefined) {
