@@ -1,5 +1,6 @@
 import {
   BuildJob,
+  CompositeFunctionCatalog,
   ErrorCode,
   HookAnchorId,
   HookKey,
@@ -17,6 +18,7 @@ import {
 
 import { BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
+import { buildCompositeFunctionCatalogAsync } from '../steps/compositeFunctions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 
@@ -89,6 +91,30 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
     }
   }
 
+  // Wrapped keys only: unwrapped keys warn-not-fail above, so their composite
+  // refs must not fail catalog loading either.
+  const catalogRootSteps = wrappedAnchors.flatMap(anchor =>
+    (['before', 'after'] as const).flatMap(side => {
+      const steps = hooks[`${side}_${anchor}`];
+      return Array.isArray(steps) ? steps : [];
+    })
+  );
+  let compositeFunctionCatalog: CompositeFunctionCatalog;
+  try {
+    compositeFunctionCatalog = await buildCompositeFunctionCatalogAsync(
+      ctx.getReactNativeProjectDirectory(),
+      { steps: catalogRootSteps, logger: ctx.logger }
+    );
+  } catch (err) {
+    throw new UserError(
+      ErrorCode.HOOKS_ERROR,
+      `Failed to load a local composite function referenced from the job's hooks: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      { cause: err }
+    );
+  }
+
   // Construct entries for the wrapped anchors in EXECUTION order (per anchor,
   // before_ then after_) so generated step ids and output references follow the
   // order steps actually run. All entries share one globalContext, so env and
@@ -107,6 +133,7 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
         entries = await constructHookEntriesAsync(globalContext, steps, {
           externalFunctions,
           externalFunctionGroups,
+          compositeFunctionCatalog,
         });
       } catch (err) {
         throw new UserError(
