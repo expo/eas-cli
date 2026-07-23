@@ -32,9 +32,11 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
-export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+// 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
+// here lets us enable it (and the artifacts list endpoint) unconditionally below.
+export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
-// Tells the tool-server to write its structured event log; requires @swmansion/argent >= 0.16.0.
+// Tells the tool-server to write its structured event log so we can collect session events.
 const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -90,26 +92,12 @@ export function createStartArgentRemoteSessionBuildFunction(
         { env, logger }
       );
 
-      // Best-effort: the tool-server event log flag only exists in @swmansion/argent >= 0.16.0,
-      // and `argent enable` exits non-zero for an unknown flag on older pinned versions. Session
-      // event collection is additive, so a failure here must not fail the remote session.
       logger.info('Enabling the Argent tool-server event log flag.');
-      try {
-        await spawn(
-          'bunx',
-          [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
-          { env, logger }
-        );
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        Sentry.capture('Could not enable the Argent tool-server event log flag', error, {
-          level: 'warning',
-        });
-        logger.warn(
-          { err: error },
-          'Could not enable the Argent tool-server event log flag; session events may not be collected.'
-        );
-      }
+      await spawn(
+        'bunx',
+        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
+        { env, logger }
+      );
 
       logger.info(`Launching ${ARGENT_PACKAGE_NAME}@${versionSpec} tool-server via bunx.`);
       // Keep Argent itself in foreground mode under the detached bunx process. This preserves
