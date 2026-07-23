@@ -14124,6 +14124,7 @@ export type CreateWorkflowRunFromGitRefMutationVariables = Exact<{
   workflowRevisionId: Scalars['ID']['input'];
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+  ssh?: InputMaybe<WorkflowRunSshInput>;
 }>;
 
 
