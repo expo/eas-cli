@@ -19,13 +19,10 @@ export function getProjectPageUrl(
 }
 
 export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
-  const { project } = build;
-  const url =
-    project.__typename !== 'App'
-      ? `/builds/${build.id}`
-      : `/accounts/${project.ownerAccount.name}/projects/${project.slug}/builds/${build.id}${
-          hash ? `#${hash}` : ''
-        }`;
+  const { app } = build;
+  const url = `/accounts/${app.ownerAccount.name}/projects/${app.slug}/builds/${build.id}${
+    hash ? `#${hash}` : ''
+  }`;
 
   return new URL(url, getExpoWebsiteBaseUrl()).toString();
 }
@@ -37,7 +34,7 @@ export function getArtifactUrl(artifactId: string): string {
 export function getInternalDistributionInstallUrl(build: BuildFragment): string {
   if (build.platform === AppPlatform.Ios) {
     return `itms-services://?action=download-manifest;url=${getExpoApiBaseUrl()}/v2/projects/${
-      build.project.id
+      build.app.id
     }/builds/${build.id}/manifest.plist`;
   }
 

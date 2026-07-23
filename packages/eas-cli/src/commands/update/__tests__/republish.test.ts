@@ -30,7 +30,7 @@ const updateStub: UpdateFragment = {
   group: 'group-1234',
   branch: { id: 'branch-1234', name: 'main' },
   message: 'test message',
-  runtimeVersion: 'exposdk:47.0.0',
+  runtime: { id: 'runtime-1234', version: 'exposdk:47.0.0' },
   platform: 'ios',
   gitCommitHash: 'commit',
   isGitWorkingTreeDirty: false,
@@ -154,7 +154,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -225,7 +225,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -270,7 +270,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -313,7 +313,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: updateStub.branch.id,
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -357,7 +357,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: 'other-id',
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),
@@ -401,7 +401,7 @@ describe(UpdateRepublish.name, () => {
       expect.arrayContaining([
         expect.objectContaining({
           branchId: 'blah-id',
-          runtimeVersion: updateStub.runtimeVersion,
+          runtimeVersion: updateStub.runtime.version,
           updateInfoGroup: expect.objectContaining({
             ios: expect.any(Object),
           }),

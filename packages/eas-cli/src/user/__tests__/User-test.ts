@@ -9,13 +9,13 @@ const userStub: Actor = {
   primaryAccount: {
     id: 'account_id_777',
     name: 'username',
-    users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+    viewerUserPermission: { role: Role.Owner },
   },
   accounts: [
     {
       id: 'account_id_777',
       name: 'username',
-      users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,
@@ -29,13 +29,13 @@ const ssoUserStub: Actor = {
   primaryAccount: {
     id: 'account_id_888',
     name: 'ssoUsername',
-    users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+    viewerUserPermission: { role: Role.Owner },
   },
   accounts: [
     {
       id: 'account_id_888',
       name: 'ssoUsername',
-      users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,

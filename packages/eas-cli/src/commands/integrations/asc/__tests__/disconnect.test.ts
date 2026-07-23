@@ -8,6 +8,7 @@ import { AscAppLinkQuery } from '../../../../graphql/queries/AscAppLinkQuery';
 import Log from '../../../../log';
 import { toggleConfirmAsync } from '../../../../prompts';
 import IntegrationsAscDisconnect from '../disconnect';
+import { Role } from '../../../../graphql/generated';
 
 jest.mock('../../../../graphql/queries/AscAppLinkQuery');
 jest.mock('../../../../graphql/mutations/AscAppLinkMutation');
@@ -19,7 +20,12 @@ const testProjectId = 'test-project-id';
 const mockMetadataConnected = {
   id: testProjectId,
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: {
     id: 'asc-app-link-id',
     ascAppIdentifier: '1234567890',
@@ -35,7 +41,12 @@ const mockMetadataConnected = {
 const mockMetadataDisconnected = {
   id: testProjectId,
   fullName: '@testuser/testapp',
-  ownerAccount: { id: 'account-id', name: 'testuser', ownerUserActor: null, users: [] },
+  ownerAccount: {
+    id: 'account-id',
+    name: 'testuser',
+    ownerUserActor: null,
+    viewerUserPermission: { role: Role.Owner },
+  },
   appStoreConnectApp: null,
 };
 

@@ -209,9 +209,7 @@ export async function initializeWithoutExplicitIDAsync(
 
   const allAccounts = actor.accounts;
   const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
-    allAccounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
+    allAccounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
   );
 
   // if no owner field, ask the user which account they want to use to create/link the project

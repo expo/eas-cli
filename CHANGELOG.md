@@ -6,6 +6,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+- [eas-cli] Build objects in `--json` output (`eas build`, `eas build:list`, `eas build:view`, `eas build:resign`) now have `app`, `updateChannel` (object with `id` and `name`), and `runtime` (object with `id` and `version`) instead of `project`, `channel`, and `runtimeVersion`. `eas update:republish --json` output likewise has `runtime` instead of `runtimeVersion`. Other update commands' `--json` output and `eas-update-metadata.json` are unchanged. ([#4021](https://github.com/expo/eas-cli/pull/4021) by [@tchayen](https://github.com/tchayen))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes

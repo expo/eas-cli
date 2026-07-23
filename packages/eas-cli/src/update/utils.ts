@@ -34,16 +34,9 @@ export type FormatUpdateParameter = Pick<Update, 'id' | 'createdAt' | 'message'>
     | null;
 };
 
-export type UpdateJsonInfo = { branch: string } & Pick<
+export type UpdateJsonInfo = { branch: string; runtimeVersion: string } & Pick<
   UpdateFragment,
-  | 'id'
-  | 'createdAt'
-  | 'group'
-  | 'message'
-  | 'runtimeVersion'
-  | 'platform'
-  | 'manifestPermalink'
-  | 'gitCommitHash'
+  'id' | 'createdAt' | 'group' | 'message' | 'platform' | 'manifestPermalink' | 'gitCommitHash'
 >;
 
 export type UpdateGroupDescription = FormatUpdateParameter & {
@@ -191,7 +184,7 @@ export function ensureValidVersions(exp: ExpoConfig, platform: RequestedPlatform
 }
 
 export function formatUpdateTitle(update: UpdateFragment): string {
-  const { message, createdAt, actor, runtimeVersion } = update;
+  const { message, createdAt, actor, runtime } = update;
 
   let actorName: string;
   switch (actor?.__typename) {
@@ -213,7 +206,7 @@ export function formatUpdateTitle(update: UpdateFragment): string {
   return `[${dateFormat(
     createdAt,
     'mmm dd HH:MM'
-  )} by ${actorName}, runtimeVersion: ${runtimeVersion}] ${message}`;
+  )} by ${actorName}, runtimeVersion: ${runtime.version}] ${message}`;
 }
 
 export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJsonInfo[] {
@@ -223,7 +216,7 @@ export function getUpdateJsonInfosForUpdates(updates: UpdateFragment[]): UpdateJ
     group: update.group,
     branch: update.branch.name,
     message: update.message,
-    runtimeVersion: update.runtimeVersion,
+    runtimeVersion: update.runtime.version,
     platform: update.platform,
     manifestPermalink: update.manifestPermalink,
     isRollBackToEmbedded: update.isRollBackToEmbedded,
@@ -236,7 +229,7 @@ export function getUpdateGroupDescriptions(
 ): FormattedUpdateGroupDescription[] {
   return updateGroups.map(updateGroup => ({
     message: formatUpdateMessage(updateGroup[0]),
-    runtimeVersion: updateGroup[0].runtimeVersion,
+    runtimeVersion: updateGroup[0].runtime.version,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
     rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
@@ -251,7 +244,7 @@ export function getUpdateGroupDescriptionsWithBranch(
   return updateGroups.map(updateGroup => ({
     branch: updateGroup[0].branch.name,
     message: formatUpdateMessage(updateGroup[0]),
-    runtimeVersion: updateGroup[0].runtimeVersion,
+    runtimeVersion: updateGroup[0].runtime.version,
     isRollBackToEmbedded: updateGroup[0].isRollBackToEmbedded,
     rolloutPercentage: updateGroup[0].rolloutPercentage ?? undefined,
     codeSigningKey: updateGroup[0].codeSigningInfo?.keyid,
@@ -270,7 +263,7 @@ export function getBranchDescription(branch: UpdateBranchFragment): FormattedBra
     branch: branch.name,
     update: {
       message: formatUpdateMessage(latestUpdate),
-      runtimeVersion: latestUpdate.runtimeVersion,
+      runtimeVersion: latestUpdate.runtime.version,
       isRollBackToEmbedded: latestUpdate.isRollBackToEmbedded,
       rolloutPercentage: latestUpdate.rolloutPercentage ?? undefined,
       codeSigningKey: latestUpdate.codeSigningInfo?.keyid,
@@ -322,7 +315,7 @@ export async function prewarmDiffingAsync(
           appId,
           branchName: update.branch.name,
           platform: updatePublishPlatformToAppPlatform[updatePublishPlatform],
-          runtimeVersion: update.runtimeVersion,
+          runtimeVersion: update.runtime.version,
           limit: 2,
         });
         if (updateIds.length !== 2) {

@@ -33,7 +33,7 @@ const updateGroup = [
     actor: null,
     createdAt: '2026-04-09T00:00:00.000Z',
     message: 'first',
-    runtimeVersion: '1.0.0',
+    runtime: { __typename: 'Runtime' as const, id: 'runtime-1', version: '1.0.0' },
     platform: 'ios',
     manifestPermalink: 'https://expo.dev/manifest/u1',
     isRollBackToEmbedded: false,
