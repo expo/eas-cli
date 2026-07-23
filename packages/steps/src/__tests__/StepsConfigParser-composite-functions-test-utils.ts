@@ -106,14 +106,14 @@ export function captureEnvFunction(
   });
 }
 
-export function echoInputAction(inputName: string, input: Record<string, unknown>) {
+export function echoInputCompositeFunction(inputName: string, input: Record<string, unknown>) {
   return {
     inputs: [input],
     runs: { steps: [{ run: `echo "\${{ inputs.${inputName} }}"` }] },
   };
 }
 
-export function actionReadingInput(input: Record<string, unknown>) {
+export function compositeFunctionReadingInput(input: Record<string, unknown>) {
   return {
     inputs: [input],
     runs: {
