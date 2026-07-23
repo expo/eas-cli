@@ -7,6 +7,8 @@ import {
   CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
+  Hooks,
+  parseHookKey,
 } from '@expo/eas-build-job';
 import {
   buildCompositeFunctionCatalogFromStepsAsync,
@@ -75,11 +77,22 @@ async function loadLocalCompositeFunctionConfigAsync(
 
 export async function buildCompositeFunctionCatalogAsync(
   projectRoot: string,
-  { steps, logger }: { steps: readonly unknown[]; logger?: bunyan }
+  { steps, hooks, logger }: { steps: readonly unknown[]; hooks?: Hooks; logger?: bunyan }
 ): Promise<CompositeFunctionCatalog> {
   return buildCompositeFunctionCatalogFromStepsAsync({
-    rootSteps: steps,
+    rootSteps: [...steps, ...hookCatalogRootSteps(hooks)],
     loadCompositeFunction: compositeFunctionPath =>
       loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger }),
   });
+}
+
+// Skip unregistered keys (newer-than-worker must not fail the job). Load
+// registered keys even when their anchor is absent; the parser validates them.
+function hookCatalogRootSteps(hooks: Hooks | undefined): unknown[] {
+  if (!hooks) {
+    return [];
+  }
+  return Object.entries(hooks).flatMap(([key, steps]) =>
+    parseHookKey(key) !== null && Array.isArray(steps) ? steps : []
+  );
 }

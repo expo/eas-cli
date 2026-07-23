@@ -69,7 +69,7 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
             hooks: ctx.job.hooks,
             compositeFunctionCatalog: await buildCompositeFunctionCatalogAsync(
               ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-              { steps: ctx.job.steps, logger: ctx.logger }
+              { steps: ctx.job.steps, hooks: ctx.job.hooks, logger: ctx.logger }
             ),
           })
         : new BuildConfigParser(globalContext, {

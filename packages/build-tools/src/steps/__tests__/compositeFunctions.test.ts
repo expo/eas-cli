@@ -159,6 +159,35 @@ describe(buildCompositeFunctionCatalogAsync, () => {
     );
   });
 
+  it('loads composite functions referenced from registered hook keys', async () => {
+    const projectRoot = await makeProjectWithCompositeFunctionAsync(
+      'setup',
+      setupCompositeFunctionContents
+    );
+
+    const catalog = await buildCompositeFunctionCatalogAsync(projectRoot, {
+      steps: [{ run: 'echo hi' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
+    });
+
+    expect(Object.keys(catalog)).toEqual(['./.eas/functions/setup']);
+  });
+
+  it('ignores composite references under unregistered hook keys and non-array hook values', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-hooks-'));
+
+    const catalog = await buildCompositeFunctionCatalogAsync(projectRoot, {
+      steps: [{ run: 'echo hi' }],
+      hooks: {
+        before_some_future_anchor: [{ uses: './.eas/functions/missing' }],
+        not_a_hook_key: [{ uses: './.eas/functions/missing' }],
+        before_install_node_modules: 'garbage' as never,
+      },
+    });
+
+    expect(catalog).toEqual({});
+  });
+
   it('throws a clear error for a malformed referenced composite function config', async () => {
     const projectRoot = await makeProjectWithCompositeFunctionAsync(
       'broken',
