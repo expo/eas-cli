@@ -2,18 +2,21 @@ import { ConfigError, ExpoConfig, getProjectConfigDescription } from '@expo/conf
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import {
+  getAccountChoices,
+  getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
+} from './accountSelection';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from './expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../commandUtils/context/contextUtils/getProjectIdAsync';
 import { validSlugName, validateFullNameAndSlug } from '../commandUtils/projectNameValidation';
-import { Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
-import { Choice, confirmAsync, promptAsync } from '../prompts';
+import { confirmAsync, promptAsync } from '../prompts';
 import { Actor } from '../user/User';
 
 export type InitializeMethodOptions = {
@@ -208,11 +211,8 @@ export async function initializeWithoutExplicitIDAsync(
   }
 
   const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
-    allAccounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
-  );
+  const accountNamesWhereUserHasSufficientPermissionsToCreateApp =
+    getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(actor);
 
   // if no owner field, ask the user which account they want to use to create/link the project
   let accountName = exp.owner;
@@ -324,64 +324,4 @@ export async function initializeWithoutExplicitIDAsync(
 
   await saveProjectIdAndLogSuccessAsync(projectDir, createdProjectId);
   return createdProjectId;
-}
-
-function getAccountChoices(actor: Actor, namesWithSufficientPermissions: Set<string>): Choice[] {
-  const allAccounts = actor.accounts;
-
-  const sortedAccounts =
-    actor.__typename === 'Robot'
-      ? allAccounts
-      : [...allAccounts].sort((a, _b) =>
-          actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-        );
-
-  if (actor.__typename !== 'Robot') {
-    const personalAccount = allAccounts?.find(account => account?.ownerUserActor?.id === actor.id);
-
-    const personalAccountChoice = personalAccount
-      ? {
-          title: personalAccount.name,
-          value: personalAccount,
-          description: !namesWithSufficientPermissions.has(personalAccount.name)
-            ? '(Personal) (Viewer Role)'
-            : '(Personal)',
-        }
-      : undefined;
-
-    const userAccounts = allAccounts
-      ?.filter(account => account.ownerUserActor && account.name !== actor.username)
-      .map(account => ({
-        title: account.name,
-        value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Team) (Viewer Role)'
-          : '(Team)',
-      }));
-
-    const organizationAccounts = allAccounts
-      ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
-      .map(account => ({
-        title: account.name,
-        value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Organization) (Viewer Role)'
-          : '(Organization)',
-      }));
-
-    let choices: Choice[] = [];
-    if (personalAccountChoice) {
-      choices = [personalAccountChoice];
-    }
-
-    return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
-      actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
-    );
-  }
-
-  return sortedAccounts.map(account => ({
-    title: account.name,
-    value: account,
-    description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
-  }));
 }

@@ -28,6 +28,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Fix `eas update` failing with a server error when run inside an EAS Build. ([#4048](https://github.com/expo/eas-cli/pull/4048) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Avoid splitting an emoji when truncating a long git commit message, which produced an invalid commit message the build server rejected. ([#4055](https://github.com/expo/eas-cli/pull/4055) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Prompt for the account that should own a not-yet-configured EAS project when linking it from commands like `eas build`, `eas submit`, and `eas update`, instead of silently defaulting to the personal account. ([#4054](https://github.com/expo/eas-cli/pull/4054) by [@williamgrosset](https://github.com/williamgrosset))
 
 ## [21.0.3](https://github.com/expo/eas-cli/releases/tag/v21.0.3) - 2026-07-22
 
