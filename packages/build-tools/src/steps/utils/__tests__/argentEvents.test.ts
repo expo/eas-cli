@@ -48,7 +48,7 @@ describe(startArgentEventCollectionAsync, () => {
     const collection = await startArgentEventCollectionAsync({
       ctx,
       deviceRunSessionId: 'session-id',
-      stateDir,
+      eventLogPath: eventLogFile,
       logger,
       pollIntervalMs: 10,
     });
@@ -202,15 +202,16 @@ describe(startArgentEventCollectionAsync, () => {
 
   it('reports an invalid record without emitting an event', async () => {
     const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'argent-events-'));
+    const eventLogPath = path.join(stateDir, EVENT_LOG_FILENAME);
     await fs.promises.writeFile(
-      path.join(stateDir, EVENT_LOG_FILENAME),
+      eventLogPath,
       // Missing the required `type` field.
       `${JSON.stringify({ time: '2026-07-10T12:00:00.000Z', msg: 'No type.' })}\n`
     );
     const collection = await startArgentEventCollectionAsync({
       ctx: createContext(),
       deviceRunSessionId: 'session-id',
-      stateDir,
+      eventLogPath,
       logger: createLogger(),
       pollIntervalMs: 10,
     });
@@ -229,20 +230,54 @@ describe(startArgentEventCollectionAsync, () => {
       extras: { deviceRunSessionId: 'session-id', lineNumber: 1 },
     });
   });
+
+  it('surfaces a non-ENOENT discovery error instead of treating it as no events', async () => {
+    // A regular file standing in for the state directory makes access() fail with ENOTDIR
+    // (not ENOENT), which must propagate to the collector's Sentry reporting.
+    const notADirectory = path.join(
+      await fs.promises.mkdtemp(path.join(os.tmpdir(), 'argent-events-')),
+      'regular-file'
+    );
+    await fs.promises.writeFile(notADirectory, '');
+    const eventLogPath = path.join(notADirectory, EVENT_LOG_FILENAME);
+    const collection = await startArgentEventCollectionAsync({
+      ctx: createContext(),
+      deviceRunSessionId: 'session-id',
+      eventLogPath,
+      logger: createLogger(),
+      pollIntervalMs: 10,
+    });
+
+    try {
+      await waitForAsync(() => expect(Sentry.capture).toHaveBeenCalledTimes(1));
+    } finally {
+      await collection.stopAsync();
+      await fs.promises.rm(notADirectory, { force: true });
+    }
+
+    expect(mockEventLogStream.write).not.toHaveBeenCalled();
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not collect argent events',
+      expect.objectContaining({ code: 'ENOTDIR' }),
+      {
+        level: 'warning',
+        tags: { phase: 'argent-event-collection' },
+        extras: { deviceRunSessionId: 'session-id' },
+      }
+    );
+  });
 });
 
 async function collectSingleEventAsync(
   record: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'argent-events-'));
-  await fs.promises.writeFile(
-    path.join(stateDir, EVENT_LOG_FILENAME),
-    `${JSON.stringify(record)}\n`
-  );
+  const eventLogPath = path.join(stateDir, EVENT_LOG_FILENAME);
+  await fs.promises.writeFile(eventLogPath, `${JSON.stringify(record)}\n`);
   const collection = await startArgentEventCollectionAsync({
     ctx: createContext(),
     deviceRunSessionId: 'session-id',
-    stateDir,
+    eventLogPath,
     logger: createLogger(),
     pollIntervalMs: 10,
   });
