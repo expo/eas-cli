@@ -11,6 +11,7 @@ import {
   resolveOrderBy,
 } from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
+import { selectAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
 
@@ -28,7 +29,9 @@ jest.mock('../../../observe/formatEvents', () => ({
 }));
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
+jest.mock('../../../prompts');
 
+const mockSelectAsync = jest.mocked(selectAsync);
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
 const mockFetchTotalEventCountAsync = jest.mocked(fetchTotalEventCountAsync);
 const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
@@ -305,15 +308,38 @@ describe(ObserveMetrics, () => {
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
     expect(options).not.toHaveProperty('metricName');
     expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
+    expect(mockSelectAsync).not.toHaveBeenCalled();
   });
 
-  it('defaults to all metrics with --json (non-interactive) when no metric is provided', async () => {
-    const command = createCommand(['--json']);
-    await command.runAsync();
+  it('defaults to all metrics when no metric is provided and stdin is not a TTY (piped/CI)', async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    process.stdin.isTTY = false;
+    try {
+      const command = createCommand(['--json']);
+      await command.runAsync();
+    } finally {
+      process.stdin.isTTY = originalIsTTY;
+    }
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
     expect(options).not.toHaveProperty('metricName');
-    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
+    expect(mockSelectAsync).not.toHaveBeenCalled();
+  });
+
+  it('shows the metric picker with --json in an interactive terminal', async () => {
+    mockSelectAsync.mockResolvedValueOnce('expo.app_startup.tti');
+    const originalIsTTY = process.stdin.isTTY;
+    process.stdin.isTTY = true;
+    try {
+      const command = createCommand(['--json']);
+      await command.runAsync();
+    } finally {
+      process.stdin.isTTY = originalIsTTY;
+    }
+
+    expect(mockSelectAsync).toHaveBeenCalledTimes(1);
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.metricName).toBe('expo.app_startup.tti');
   });
 });
 

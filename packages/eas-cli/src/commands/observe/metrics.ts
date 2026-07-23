@@ -101,13 +101,17 @@ export default class ObserveMetrics extends EasCommand {
       );
     }
 
+    // --json alone should not suppress the metric picker: only an explicit
+    // --non-interactive flag or a non-interactive terminal (e.g. piped output,
+    // CI) does. In those cases we can't prompt, so we default to all metrics
+    // rather than erroring out.
+    const canPromptForMetric = !flags['non-interactive'] && !!process.stdin.isTTY;
+
     const ALL_METRICS = '__all__';
     let metricName: string | undefined;
     if (args.metric) {
       metricName = resolveMetricName(args.metric);
-    } else if (flags['all-metrics'] || nonInteractive) {
-      // With no metric argument we can't show the picker in non-interactive /
-      // JSON mode, so default to all metrics rather than erroring out.
+    } else if (flags['all-metrics'] || !canPromptForMetric) {
       metricName = undefined;
     } else {
       const choices = [
