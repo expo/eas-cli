@@ -455,6 +455,53 @@ describe('BuildWorkflow hook execution', () => {
       ]);
     });
 
+    it('within a single after entry, a no-if step following a failed sibling still runs', async () => {
+      const failingChild = recordingFunction('failing-child', {
+        failWith: new Error('child failed'),
+      });
+      const okChild = recordingFunction('ok-child');
+      const group = new BuildFunctionGroup({
+        namespace: 'test',
+        id: 'group',
+        createBuildStepsFromFunctionGroupCall: globalCtx => [
+          failingChild.createBuildStepFromFunctionCall(globalCtx, { id: 'failing-child' }),
+          okChild.createBuildStepFromFunctionCall(globalCtx, { id: 'ok-child' }),
+        ],
+      });
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { after_install_node_modules: [{ uses: 'test/group' }] },
+        externalFunctions: [anchorFunction(), failingChild, okChild],
+        externalFunctionGroups: [group],
+      });
+      await expect(workflow.executeAsync()).rejects.toThrow('child failed');
+      expect(executionLog).toEqual(['anchor', 'failing-child', 'ok-child']);
+    });
+
+    it('within a before entry whose if: passed, a failed sibling skips later no-if siblings', async () => {
+      const failingChild = recordingFunction('failing-child', {
+        failWith: new Error('child failed'),
+      });
+      const okChild = recordingFunction('ok-child');
+      const group = new BuildFunctionGroup({
+        namespace: 'test',
+        id: 'group',
+        createBuildStepsFromFunctionGroupCall: globalCtx => [
+          failingChild.createBuildStepFromFunctionCall(globalCtx, { id: 'failing-child' }),
+          okChild.createBuildStepFromFunctionCall(globalCtx, { id: 'ok-child' }),
+        ],
+      });
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { before_install_node_modules: [{ uses: 'test/group', if: '${{ always() }}' }] },
+        externalFunctions: [anchorFunction(), failingChild, okChild],
+        externalFunctionGroups: [group],
+      });
+      await expect(workflow.executeAsync()).rejects.toThrow('child failed');
+      expect(executionLog).toEqual(['failing-child']);
+      expect(hookStepStatuses(workflow)['ok-child']).toBe(BuildStepStatus.SKIPPED);
+    });
+
     it('an entry-level condition evaluation error fails the hook (and the job), not silently ignored', async () => {
       const { group, functions } = createGroup('group', ['child-one']);
       const workflow = await parseAsync({

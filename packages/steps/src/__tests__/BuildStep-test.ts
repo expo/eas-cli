@@ -1333,4 +1333,28 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       expect(step.shouldExecuteStep()).toBe(false);
     }
   });
+
+  it('resolves a missing if condition with the provided run-by-default policy', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: false })).toBe(false);
+    ctx.markAsFailed();
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(true);
+  });
+
+  it('ignores the run-by-default value when an if condition is present', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      ifCondition: '${ success() }',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(false);
+  });
 });
