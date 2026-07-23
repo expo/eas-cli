@@ -6,7 +6,7 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../../customBuildContext';
 import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
 import { Sentry } from '../../../sentry';
-import { startAgentDeviceEventCollectionAsync } from '../deviceRunSessionEvents';
+import { startAgentDeviceEventCollectionAsync } from '../agentDeviceEvents';
 
 const mockEventLogStream = {
   init: jest.fn(async () => undefined),
@@ -370,7 +370,8 @@ describe(startAgentDeviceEventCollectionAsync, () => {
 
     expect(logger.warn).toHaveBeenCalledWith(
       {
-        agentDeviceEventParseFailures: { 'invalid-json': 1, 'invalid-event': 1 },
+        producer: 'agent-device',
+        eventParseFailures: { 'invalid-json': 1, 'invalid-event': 1 },
         parseFailureCount: 2,
       },
       'Could not parse 2 agent-device event log records.'
@@ -502,7 +503,11 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       }),
       {
         level: 'warning',
-        tags: { phase: 'device-run-session-event-collection', operation: 'setup' },
+        tags: {
+          phase: 'device-run-session-event-collection',
+          operation: 'setup',
+          producer: 'agent-device',
+        },
         extras: { deviceRunSessionId: 'session-id' },
       }
     );
