@@ -13,7 +13,7 @@ import {
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
-import { CompositeFunctionExpander, FunctionMaps } from './CompositeFunctionExpander';
+import { CompositeFunctionExpander, FunctionMapsWithExpander } from './CompositeFunctionExpander';
 import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
 import {
   BuildFunctionGroup,
@@ -102,6 +102,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
+    const maps = { buildFunctionById, buildFunctionGroupById, compositeFunctionExpander };
 
     for (const stepConfig of validatedSteps) {
       const maybeFunctionGroup =
@@ -122,10 +123,7 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
-            buildFunctionById,
-            buildFunctionGroupById,
-          });
+          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, maps);
           if (anchorHooks !== undefined) {
             hooksByAnchorStep.set(expandedStep, anchorHooks);
           }
@@ -133,16 +131,9 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
 
-      const maps = { buildFunctionById, buildFunctionGroupById };
       const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
       if (anchorId === undefined) {
-        buildSteps.push(
-          ...this.createBuildStepsFromNonGroupStepConfig(
-            stepConfig,
-            maps,
-            compositeFunctionExpander
-          )
-        );
+        buildSteps.push(...this.createBuildStepsFromNonGroupStepConfig(stepConfig, maps));
         continue;
       }
       // Rejected regardless of expansion size: the anchor would land on an
@@ -153,11 +144,7 @@ export class StepsConfigParser extends AbstractConfigParser {
         );
       }
       const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
-      const createdSteps = this.createBuildStepsFromNonGroupStepConfig(
-        stepConfig,
-        maps,
-        compositeFunctionExpander
-      );
+      const createdSteps = this.createBuildStepsFromNonGroupStepConfig(stepConfig, maps);
       assert(
         createdSteps.length === 1,
         'a non-composite step config must create exactly one build step'
@@ -227,10 +214,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   private constructAnchorHooks(
     anchorId: HookAnchorId,
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    maps: FunctionMapsWithExpander
   ): AnchorHooks | undefined {
     const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
     const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
@@ -244,10 +228,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     anchorId: HookAnchorId,
     side: 'before' | 'after',
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    maps: FunctionMapsWithExpander
   ): HookEntry[] {
     const hookSteps = validatedHooks[`${side}_${anchorId}`];
     if (hookSteps === undefined) {
@@ -258,18 +239,13 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepsFromNonGroupStepConfig(
     stepConfig: Step,
-    maps: FunctionMaps,
-    compositeFunctionExpander: CompositeFunctionExpander
+    maps: FunctionMapsWithExpander
   ): BuildStep[] {
     if (isStepShellStep(stepConfig)) {
       return [createBuildStepFromShellStep(this.ctx, stepConfig)];
     }
     if (isStepFunctionStep(stepConfig)) {
-      return this.createBuildStepsFromFunctionStepConfig(
-        stepConfig,
-        maps,
-        compositeFunctionExpander
-      );
+      return this.createBuildStepsFromFunctionStepConfig(stepConfig, maps);
     }
     throw new BuildConfigError(
       'Invalid job step configuration detected. Step must be shell or function step'
@@ -278,8 +254,7 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepsFromFunctionStepConfig(
     step: FunctionStep,
-    { buildFunctionById }: FunctionMaps,
-    compositeFunctionExpander: CompositeFunctionExpander
+    { buildFunctionById, compositeFunctionExpander }: FunctionMapsWithExpander
   ): BuildStep[] {
     if (isLocalCompositeFunctionPath(step.uses)) {
       return compositeFunctionExpander
