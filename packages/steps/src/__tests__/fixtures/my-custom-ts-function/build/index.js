@@ -25,6 +25,7 @@ function myTsFunction(ctx, { inputs, outputs, env, }) {
         outputs.name.set('Brent');
         outputs.num.set('123');
         outputs.obj.set(JSON.stringify({ foo: 'bar' })); // TODO: add support for other types of outputs then string
+        outputs.__proto__.set('prototype output');
         ctx.logger.info('Setting env vars');
         env['MY_ENV_VAR'] = 'my-value';
     });

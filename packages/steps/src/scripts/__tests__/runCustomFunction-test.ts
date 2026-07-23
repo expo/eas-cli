@@ -28,23 +28,16 @@ describe('runCustomFunction', () => {
       projectSourceDirectory,
       logger,
     });
-    const outputs = {
-      name: new BuildStepOutput(ctx.global, {
-        id: 'name',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-      num: new BuildStepOutput(ctx.global, {
-        id: 'num',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-      obj: new BuildStepOutput(ctx.global, {
-        id: 'obj',
-        stepDisplayName: 'test',
-        required: true,
-      }),
-    };
+    const outputs = Object.fromEntries(
+      ['name', 'num', 'obj', '__proto__'].map(id => [
+        id,
+        new BuildStepOutput(ctx.global, {
+          id,
+          stepDisplayName: 'test',
+          required: true,
+        }),
+      ])
+    );
     const inputs = {
       name: new BuildStepInput(ctx.global, {
         id: 'name',
@@ -101,6 +94,8 @@ describe('runCustomFunction', () => {
         outputs,
       });
       await expect(promise).resolves.not.toThrow();
+      const rawPrototypeOutput = await fs.readFile(path.join(outputsDir, '__proto__'), 'utf-8');
+      expect(Buffer.from(rawPrototypeOutput, 'base64').toString('utf-8')).toBe('prototype output');
     } finally {
       await cleanUpStepTemporaryDirectoriesAsync(ctx.global, 'test');
     }
