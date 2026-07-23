@@ -707,6 +707,40 @@ describe(ProjectInit.name, () => {
       expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
     });
 
+    it('re-links and overwrites a conflicting "owner" field with --force', async () => {
+      mockTestProject({ configuredProjectId: '1234', configuredOwner: 'jester2' });
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('123456');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest
+        .mocked(AppQuery.byIdAsync)
+        // ownership check for the currently linked project
+        .mockResolvedValueOnce({
+          id: '1234',
+          slug: 'testing-123',
+          name: 'testing-123',
+          fullName: '@jester2/testing-123',
+          ownerAccount: jester2.accounts[0],
+        })
+        // owner/slug consistency check for the newly linked project
+        .mockResolvedValue({
+          id: '123456',
+          slug: 'testing-123',
+          name: 'testing-123',
+          fullName: '@jester/testing-123',
+          ownerAccount: jester.accounts[0],
+        });
+
+      await new ProjectInit(['--account', 'jester', '--force'], commandOptions).run();
+
+      expect(confirmAsync).not.toHaveBeenCalled();
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '123456');
+      expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/test-project', {
+        owner: 'jester',
+      });
+    });
+
     it('throws when the account conflicts with the owner field in the app config', async () => {
       mockTestProject({ configuredOwner: jester.accounts[0].name });
 
