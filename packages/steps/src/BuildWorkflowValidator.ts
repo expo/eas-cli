@@ -3,7 +3,7 @@ import path from 'path';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep } from './BuildStep';
-import { BuildStepInputValueTypeName } from './BuildStepInput';
+import { BuildStepInputValueTypeName, getDisallowedInputValueError } from './BuildStepInput';
 // Type-only to keep the runtime module graph acyclic (BuildWorkflow imports
 // hooks.ts, which imports this module for the shared aggregate checks).
 import type { BuildWorkflow } from './BuildWorkflow';
@@ -128,17 +128,12 @@ function validateInputs(steps: readonly BuildStep[]): BuildConfigError[] {
       if (currentStepInput.defaultValue === undefined) {
         continue;
       }
-      if (!currentStepInput.isRawValueOneOfAllowedValues()) {
-        const error = new BuildConfigError(
-          `Input parameter "${currentStepInput.id}" for step "${
-            currentStep.displayName
-          }" is set to "${
-            currentStepInput.rawValue
-          }" which is not one of the allowed values: ${nullthrows(currentStepInput.allowedValues)
-            .map(i => `"${i}"`)
-            .join(', ')}.`
-        );
-        errors.push(error);
+      const disallowedValueError = getDisallowedInputValueError(
+        currentStepInput,
+        currentStep.displayName
+      );
+      if (disallowedValueError) {
+        errors.push(new BuildConfigError(disallowedValueError));
       }
       const paths =
         typeof currentStepInput.defaultValue === 'string'

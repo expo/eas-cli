@@ -19,10 +19,15 @@ import {
 
 import { BuildFunctionById } from './BuildFunction';
 import { BuildFunctionGroupById } from './BuildFunctionGroup';
-import { BuildStep } from './BuildStep';
+import { BuildStep, BuildStepOutputAccessor } from './BuildStep';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
+import {
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+  getDisallowedInputValueError,
+} from './BuildStepInput';
 import { CompositeBuildStep } from './CompositeBuildStep';
 import { BuildConfigError } from './errors';
 import { duplicates } from './utils/expodash/duplicates';
@@ -44,6 +49,7 @@ type CompositeFunctionCall = {
   compositeFunctionPath: string;
   /** Caller-assigned id used as prefix for all inner step ids. */
   syntheticStepId: string;
+  name?: string;
   /** Caller-provided input values, consumed when composite function inputs are interpolated. */
   callWith?: Record<string, unknown>;
   callIf?: string;
@@ -95,32 +101,49 @@ export class CompositeFunctionExpander {
     this.guardAgainstRunawayRecursion(compositeFunctionPath, visited);
 
     const compositeFunction = this.lookupCompositeFunction(compositeFunctionPath);
-    const compositeFunctionDisplayName = compositeFunction.name ?? compositeFunctionPath;
+    const compositeFunctionDisplayName =
+      call.name ?? compositeFunction.name ?? compositeFunctionPath;
     const innerSteps = compositeFunction.runs.steps;
 
-    const { stepIdMap, newIds } = this.buildInnerStepIdMap(
+    const innerStepIds = this.buildInnerStepIdMap(
       innerSteps,
       syntheticStepId,
       compositeFunctionPath
     );
+    const { inputs, providedInputKeys } = this.buildCompositeFunctionInputs(
+      compositeFunction,
+      compositeFunctionPath,
+      call.callWith
+    );
 
     const nestedVisited = new Set(visited).add(compositeFunctionPath);
 
+    const childrenByLocalId = new Map<string, BuildStepOutputAccessor>();
     const scope = new BuildStepCompositeFunctionScope({
       ctx: this.ctx,
       parent: call.parentScope,
       ifCondition: call.callIf,
       env: call.inheritedEnv,
-      stepIdAliases: stepIdMap,
+      compositeFunctionPath,
+      inputs,
+      providedInputKeys,
+      childrenByLocalId,
     });
 
-    const children = innerSteps.map((innerStep, index) =>
-      this.expandInnerStep(innerStep, newIds[index], {
+    const children = innerSteps.map((innerStep, index) => {
+      const { localId, newId } = innerStepIds[index];
+      const child = this.expandInnerStep(innerStep, newId, {
         compositeFunctionPath,
         scope,
         nestedVisited,
-      })
-    );
+      });
+      // Omit output-less nested nodes: `${{ steps.mid }}` is undefined today,
+      // and `{ outputs: {} }` would make it truthy.
+      if (!(child instanceof CompositeBuildStep) || child.hasDeclaredOutputs) {
+        childrenByLocalId.set(localId, child);
+      }
+      return child;
+    });
 
     return new CompositeBuildStep(this.ctx, {
       id: syntheticStepId,
@@ -310,16 +333,14 @@ export class CompositeFunctionExpander {
   }
 
   /**
-   * Maps composite-function-local step ids to globally unique ids and builds the alias table for scope.
-   * Without namespacing, two composite function calls with inner step `read` would collide in the workflow.
+   * Assigns globally unique ids to inner steps. Without namespacing, two
+   * composite function calls with inner step `read` would collide.
    */
   private buildInnerStepIdMap(
     innerSteps: Step[],
     syntheticStepId: string,
     compositeFunctionPath: string
-  ): { stepIdMap: Map<string, string>; newIds: string[] } {
-    const stepIdMap = new Map<string, string>();
-    const newIds: string[] = [];
+  ): Array<{ localId: string; newId: string }> {
     const declaredIdList = innerSteps.map(step => step.id).filter((id): id is string => !!id);
     const duplicatedIds = duplicates(declaredIdList);
     if (duplicatedIds.length > 0) {
@@ -331,17 +352,85 @@ export class CompositeFunctionExpander {
     }
     const declaredIds = new Set(declaredIdList);
     let generatedStepIdCounter = 0;
-    for (const innerStep of innerSteps) {
-      let sourceId = innerStep.id;
-      if (!sourceId) {
+    return innerSteps.map(innerStep => {
+      let localId = innerStep.id;
+      if (!localId) {
         do {
-          sourceId = `composite_function_step_${++generatedStepIdCounter}`;
-        } while (declaredIds.has(sourceId));
+          localId = `composite_function_step_${++generatedStepIdCounter}`;
+        } while (declaredIds.has(localId));
       }
-      const newId = `${syntheticStepId}__${sourceId}`;
-      stepIdMap.set(sourceId, newId);
-      newIds.push(newId);
+      return { localId, newId: `${syntheticStepId}__${localId}` };
+    });
+  }
+
+  // Nullish `with` values are treated as absent so defaults resolve in the composite function's own scope.
+  private buildCompositeFunctionInputs(
+    compositeFunction: CompositeFunctionConfig,
+    compositeFunctionPath: string,
+    callWith: Record<string, unknown> | undefined
+  ): { inputs: Map<string, BuildStepInput>; providedInputKeys: Set<string> } {
+    const inputs = new Map<string, BuildStepInput>();
+    const providedInputKeys = new Set<string>();
+    for (const declared of compositeFunction.inputs ?? []) {
+      const definition =
+        typeof declared === 'string'
+          ? {
+              name: declared,
+              type: 'string',
+              required: false,
+              allowedValues: undefined as unknown[] | undefined,
+              defaultValue: undefined as unknown,
+            }
+          : {
+              name: declared.name,
+              type: declared.type,
+              required: declared.required ?? false,
+              allowedValues: declared.allowed_values,
+              defaultValue: declared.default_value,
+            };
+      const input = new BuildStepInput(this.ctx, {
+        id: definition.name,
+        stepDisplayName: compositeFunctionPath,
+        defaultValue: definition.defaultValue,
+        required: definition.required,
+        allowedValues: definition.allowedValues,
+        allowedValueTypeName: this.toInputValueTypeName(
+          definition.type,
+          compositeFunctionPath,
+          definition.name
+        ),
+      });
+      if (callWith && Object.prototype.hasOwnProperty.call(callWith, definition.name)) {
+        const value = callWith[definition.name];
+        if (value !== undefined) {
+          input.set(value);
+        }
+        if (value != null) {
+          providedInputKeys.add(definition.name);
+        }
+      }
+      const disallowedValueError = getDisallowedInputValueError(input, compositeFunctionPath);
+      if (disallowedValueError) {
+        throw new BuildConfigError(disallowedValueError);
+      }
+      inputs.set(definition.name, input);
     }
-    return { stepIdMap, newIds };
+    return { inputs, providedInputKeys };
+  }
+
+  private toInputValueTypeName(
+    type: string,
+    compositeFunctionPath: string,
+    inputName: string
+  ): BuildStepInputValueTypeName {
+    const supported = Object.values(BuildStepInputValueTypeName) as string[];
+    if (!supported.includes(type)) {
+      throw new BuildConfigError(
+        `Composite function "${compositeFunctionPath}" input "${inputName}" has unsupported type "${type}". Supported types: ${supported.join(
+          ', '
+        )}.`
+      );
+    }
+    return type as BuildStepInputValueTypeName;
   }
 }

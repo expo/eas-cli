@@ -95,23 +95,14 @@ export class BuildStepGlobalContext {
   public get staticContext(): StaticJobInterpolationContext {
     return {
       ...this.provider.staticContext(),
-      steps: this.buildStepsInterpolationMap({ includeInternal: false }),
+      steps: this.buildStepsInterpolationMap(),
     };
   }
 
-  /** Includes internal ids for {@link BuildStepCompositeFunctionScope}; workflow uses {@link staticContext}. */
-  public getFullStepsInterpolationView(): StaticJobInterpolationContext['steps'] {
-    return this.buildStepsInterpolationMap({ includeInternal: true });
-  }
-
-  private buildStepsInterpolationMap({
-    includeInternal,
-  }: {
-    includeInternal: boolean;
-  }): StaticJobInterpolationContext['steps'] {
+  private buildStepsInterpolationMap(): StaticJobInterpolationContext['steps'] {
     return Object.fromEntries(
       Object.values(this.stepById)
-        .filter(step => includeInternal || !this.internalStepIds.has(step.id))
+        .filter(step => !this.internalStepIds.has(step.id))
         .map(step => [
           step.id,
           {
@@ -328,7 +319,7 @@ export interface SerializedBuildStepContext {
 
 export class BuildStepContext {
   public readonly logger: bunyan;
-  public readonly relativeWorkingDirectory?: string;
+  private _relativeWorkingDirectory?: string;
 
   constructor(
     private readonly ctx: BuildStepGlobalContext,
@@ -341,7 +332,15 @@ export class BuildStepContext {
     }
   ) {
     this.logger = logger ?? ctx.baseLogger;
-    this.relativeWorkingDirectory = relativeWorkingDirectory;
+    this._relativeWorkingDirectory = relativeWorkingDirectory;
+  }
+
+  public get relativeWorkingDirectory(): string | undefined {
+    return this._relativeWorkingDirectory;
+  }
+
+  public updateRelativeWorkingDirectory(value: string | undefined): void {
+    this._relativeWorkingDirectory = value;
   }
 
   public get global(): BuildStepGlobalContext {
