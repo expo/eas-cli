@@ -16,33 +16,61 @@ export function getAccountChoices(
   actor: Actor,
   namesWithSufficientPermissions: Set<string>
 ): Choice[] {
-  // sorted by account creation date from newest to oldest
-  const sortedAccounts = [...actor.accounts].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const allAccounts = actor.accounts;
 
-  if (actor.__typename === 'Robot') {
-    return sortedAccounts.map(account => ({
-      title: account.name,
-      value: account,
-      description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
-    }));
+  const sortedAccounts =
+    actor.__typename === 'Robot'
+      ? allAccounts
+      : [...allAccounts].sort((a, _b) =>
+          actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
+        );
+
+  if (actor.__typename !== 'Robot') {
+    const personalAccount = allAccounts?.find(account => account?.ownerUserActor?.id === actor.id);
+
+    const personalAccountChoice = personalAccount
+      ? {
+          title: personalAccount.name,
+          value: personalAccount,
+          description: !namesWithSufficientPermissions.has(personalAccount.name)
+            ? '(Personal) (Viewer Role)'
+            : '(Personal)',
+        }
+      : undefined;
+
+    const userAccounts = allAccounts
+      ?.filter(account => account.ownerUserActor && account.name !== actor.username)
+      .map(account => ({
+        title: account.name,
+        value: account,
+        description: !namesWithSufficientPermissions.has(account.name)
+          ? '(Team) (Viewer Role)'
+          : '(Team)',
+      }));
+
+    const organizationAccounts = allAccounts
+      ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
+      .map(account => ({
+        title: account.name,
+        value: account,
+        description: !namesWithSufficientPermissions.has(account.name)
+          ? '(Organization) (Viewer Role)'
+          : '(Organization)',
+      }));
+
+    let choices: Choice[] = [];
+    if (personalAccountChoice) {
+      choices = [personalAccountChoice];
+    }
+
+    return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
+      actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
+    );
   }
 
-  return sortedAccounts.map(account => {
-    const accountType =
-      account.ownerUserActor?.id === actor.id
-        ? '(Personal)'
-        : account.ownerUserActor
-          ? '(Team)'
-          : '(Organization)';
-
-    return {
-      title: account.name,
-      value: account,
-      description: !namesWithSufficientPermissions.has(account.name)
-        ? `${accountType} (Viewer Role)`
-        : accountType,
-    };
-  });
+  return sortedAccounts.map(account => ({
+    title: account.name,
+    value: account,
+    description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
+  }));
 }

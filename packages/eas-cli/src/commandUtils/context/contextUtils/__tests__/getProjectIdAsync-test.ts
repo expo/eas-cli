@@ -52,13 +52,11 @@ describe(getProjectIdAsync, () => {
           {
             id: 'account_id_1',
             name: 'notnotbrent',
-            createdAt: '2020-01-01T00:00:00.000Z',
             users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
           },
           {
             id: 'account_id_2',
             name: 'dominik',
-            createdAt: '2021-01-01T00:00:00.000Z',
             users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
           },
         ],
@@ -198,13 +196,11 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              createdAt: '2020-01-01T00:00:00.000Z',
               users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
             },
             {
               id: 'account_id_2',
               name: 'dominik',
-              createdAt: '2021-01-01T00:00:00.000Z',
               users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
             },
           ],

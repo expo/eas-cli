@@ -35,13 +35,11 @@ describe(AccountResolver, () => {
         {
           id: 'account_id_777',
           name: 'dominik',
-          createdAt: '2020-01-01T00:00:00.000Z',
           users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
         },
         {
           id: 'account_id_888',
           name: 'foo',
-          createdAt: '2021-01-01T00:00:00.000Z',
           users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
         },
       ],

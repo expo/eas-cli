@@ -15,7 +15,6 @@ const userStub: Actor = {
     {
       id: 'account_id_777',
       name: 'username',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [{ role: Role.Owner, actor: { id: 'userId' } }],
     },
   ],
@@ -36,7 +35,6 @@ const ssoUserStub: Actor = {
     {
       id: 'account_id_888',
       name: 'ssoUsername',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
     },
   ],
