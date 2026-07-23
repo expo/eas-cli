@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { BuildJob, Job, Platform, Workflow } from '@expo/eas-build-job';
+import { BuildJob, BuildTrigger, Job, Platform, Workflow } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
 import assert from 'assert';
@@ -192,6 +192,42 @@ export async function resolveRuntimeVersionForExpoUpdatesIfConfiguredAsync({
 
   logger.info(`Resolved runtime version: ${resolvedRuntimeVersion?.runtimeVersion}`);
   return resolvedRuntimeVersion;
+}
+
+export async function updateBuildRuntimeVersionInDatabaseAsync(
+  ctx: BuildContext<BuildJob>,
+  runtimeVersion: string,
+  fingerprintSources: object[] | null
+): Promise<void> {
+  const buildId = ctx.env.EAS_BUILD_ID;
+  if (!buildId || ctx.job.triggeredBy !== BuildTrigger.GIT_BASED_INTEGRATION) {
+    return;
+  }
+  const fingerprintHash = fingerprintSources ? runtimeVersion : undefined;
+  const result = await ctx.graphqlClient
+    .mutation(
+      graphql(`
+        mutation UpdateBuildRuntimeVersionMutation(
+          $buildId: ID!
+          $runtimeVersion: String!
+          $fingerprintHash: String
+        ) {
+          build {
+            updateBuildMetadata(
+              buildId: $buildId
+              metadata: { runtimeVersion: $runtimeVersion, fingerprintHash: $fingerprintHash }
+            ) {
+              id
+            }
+          }
+        }
+      `),
+      { buildId, runtimeVersion, fingerprintHash }
+    )
+    .toPromise();
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 export async function getChannelAsync(ctx: BuildContext<Job>): Promise<string | null> {
