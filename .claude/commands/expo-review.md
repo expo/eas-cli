@@ -36,7 +36,7 @@ First interpret `$ARGUMENTS`:
 Then run (adding flags only as interpreted above):
 
 ```
-npx --yes @expo/code-review-cli review --json [--pr <n>] [--agents <ids>] [--post] [other flags]
+npx --yes -p @expo/code-review-cli ecr review --json [--pr <n>] [--agents <ids>] [--post] [other flags]
 ```
 
 (If you're developing the CLI itself, run your local build instead:
@@ -50,7 +50,7 @@ Notes:
   for lack of credentials, tell the user to authenticate a provider in OpenCode
   and set `REVIEWER_MODEL` (e.g. `openai/gpt-5.4-mini-fast`) — there is no shared
   fallback key. `--post` additionally needs `gh` authenticated.
-- If setup looks off, `npx --yes @expo/code-review-cli doctor` diagnoses it.
+- If setup looks off, `npx --yes -p @expo/code-review-cli ecr doctor` diagnoses it.
 
 Then present the result grouped by severity (critical → warning → suggestion),
 each with `file:line`, the rationale, and any suggested fix. Lead with the
