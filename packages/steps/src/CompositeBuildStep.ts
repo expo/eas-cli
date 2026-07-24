@@ -28,6 +28,7 @@ export class CompositeBuildStep extends BuildStep {
       displayName,
       outputs: [],
       fn: async () => {},
+      // `scope` already applies the call-site `if`, so `always()` disables the default skip-on-failure.
       ifCondition: '${{ always() }}',
       compositeFunctionScope: scope,
     });
