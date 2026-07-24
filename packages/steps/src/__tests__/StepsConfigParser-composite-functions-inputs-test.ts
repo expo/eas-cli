@@ -55,30 +55,46 @@ describe('StepsConfigParser local composite functions', () => {
       ).toBe('');
     });
 
-    it('does not error for a missing required input that is never referenced', async () => {
+    it.each([
+      [
+        'never referenced',
+        {
+          inputs: [{ name: 'token', type: 'string', required: true }],
+          runs: { steps: [{ id: 'inner', uses: 'test/passthrough', with: { value: 'static' } }] },
+        },
+      ],
+      ['referenced', actionReadingInput({ name: 'token', type: 'string', required: true })],
+    ])('rejects at parse time a missing required input that is %s', async (_, actionConfig) => {
+      const error = await getErrorAsync<BuildConfigError>(() =>
+        parseCompositeFunctions({
+          catalog: { [SETUP]: actionConfig },
+          steps: [{ uses: SETUP, id: 'setup' }],
+          externalFunctions: [passThroughFunction()],
+        })
+      );
+      expect(error).toBeInstanceOf(BuildConfigError);
+      expect(error.message).toMatch(
+        /Input parameter "token" for step ".+" is required but it was not set/
+      );
+    });
+
+    // Required-ness is a static presence check, like for regular function steps.
+    // Whether a provided interpolation resolves to a value is not validated.
+    it('treats a required input set to an interpolation as provided, even one resolving to undefined', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: {
-            inputs: [{ name: 'token', type: 'string', required: true }],
-            runs: { steps: [{ id: 'inner', uses: 'test/passthrough', with: { value: 'static' } }] },
-          },
+          [SETUP]: actionReadingInput({ name: 'token', type: 'string', required: true }),
         },
-        steps: [{ uses: SETUP, id: 'setup' }],
+        steps: [{ uses: SETUP, id: 'setup', with: { token: '${{ env.UNSET_VAR }}' } }],
         externalFunctions: [passThroughFunction()],
       });
       await workflow.executeAsync();
       expect(
         workflow.buildSteps.find(s => s.id === 'setup__inner')?.getOutputValueByName('out')
-      ).toBe('static');
+      ).toBe('');
     });
 
     it.each([
-      [
-        'a required input is missing but referenced',
-        actionReadingInput({ name: 'token', type: 'string', required: true }),
-        [{ uses: SETUP, id: 'setup' }],
-        /Input parameter "token" for step ".+" is required but it was not set/,
-      ],
       [
         'a provided input has the wrong type',
         actionReadingInput({ name: 'count', type: 'number' }),

@@ -409,6 +409,11 @@ export class CompositeFunctionExpander {
           providedInputKeys.add(definition.name);
         }
       }
+      if (definition.required && input.rawValue === undefined) {
+        throw new BuildConfigError(
+          `Input parameter "${definition.name}" for step "${compositeFunctionPath}" is required but it was not set.`
+        );
+      }
       const disallowedValueError = getDisallowedInputValueError(input, compositeFunctionPath);
       if (disallowedValueError) {
         throw new BuildConfigError(disallowedValueError);
