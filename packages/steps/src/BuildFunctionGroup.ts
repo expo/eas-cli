@@ -2,13 +2,14 @@ import { BuildFunctionCallInputs } from './BuildFunction';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import {
-  BuildStepInputById,
+  BuildStepInput,
   BuildStepInputProvider,
   makeBuildStepInputByIdMap,
 } from './BuildStepInput';
 import { BuildConfigError } from './errors';
 
 export type BuildFunctionGroupById = Record<string, BuildFunctionGroup | undefined>;
+export type BuildFunctionGroupInputs = Record<string, BuildStepInput>;
 
 export class BuildFunctionGroup {
   public readonly namespace: string;
@@ -35,7 +36,7 @@ export class BuildFunctionGroup {
       {
         inputs,
       }: {
-        inputs: BuildStepInputById;
+        inputs: BuildFunctionGroupInputs;
       }
     ) => BuildStep[];
   }) {
@@ -46,13 +47,13 @@ export class BuildFunctionGroup {
     this.createBuildStepsFromFunctionGroupCall = (ctx, { callInputs = {} } = {}) => {
       const inputs = this.inputProviders?.map(inputProvider => {
         const input = inputProvider(ctx, id);
-        if (input.id in callInputs) {
+        if (Object.hasOwn(callInputs, input.id)) {
           input.set(callInputs[input.id]);
         }
         return input;
       });
       return createBuildStepsFromFunctionGroupCall(ctx, {
-        inputs: makeBuildStepInputByIdMap(inputs),
+        inputs: Object.fromEntries(makeBuildStepInputByIdMap(inputs)),
       });
     };
   }

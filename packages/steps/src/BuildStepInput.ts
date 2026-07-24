@@ -26,7 +26,7 @@ export type BuildStepInputValueType<
       ? number
       : Record<string, unknown>;
 
-export type BuildStepInputById = Record<string, BuildStepInput>;
+export type BuildStepInputById = Map<string, BuildStepInput>;
 export type BuildStepInputProvider = (
   ctx: BuildStepGlobalContext,
   stepId: string
@@ -256,11 +256,5 @@ export function getDisallowedInputValueError(
 }
 
 export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
-  if (inputs === undefined) {
-    return {};
-  }
-  return inputs.reduce((acc, input) => {
-    acc[input.id] = input;
-    return acc;
-  }, {} as BuildStepInputById);
+  return new Map(inputs?.map(input => [input.id, input]));
 }

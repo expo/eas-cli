@@ -812,6 +812,29 @@ describe(BuildStep, () => {
 
         expect(step.getOutputValueByName('abc')).toBe('bar1 bar2 true 27');
       });
+
+      it('passes an input named __proto__ to the function', async () => {
+        const input = new BuildStepInput(baseStepCtx, {
+          id: '__proto__',
+          stepDisplayName: 'test1',
+          defaultValue: 'prototype input',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        });
+        const fn = jest.fn<BuildStepFunction>((_ctx, { inputs }) => {
+          expect(inputs.__proto__.value).toBe('prototype input');
+        });
+        const step = new BuildStep(baseStepCtx, {
+          id: 'test1',
+          displayName: 'test1',
+          inputs: [input],
+          fn,
+        });
+
+        await step.executeAsync();
+
+        expect(fn).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

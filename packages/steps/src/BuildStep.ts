@@ -51,6 +51,7 @@ export enum BuildStepLogMarker {
 }
 
 export type BuildStepFunctionOutputs = Record<string, BuildStepOutput>;
+export type BuildStepFunctionInputs = Record<string, { value: unknown }>;
 
 export type BuildStepFunction = (
   ctx: BuildStepContext,
@@ -59,7 +60,7 @@ export type BuildStepFunction = (
     outputs,
     env,
   }: {
-    inputs: { [key: string]: { value: unknown } };
+    inputs: BuildStepFunctionInputs;
     outputs: BuildStepFunctionOutputs;
     env: BuildStepEnv;
     signal?: AbortSignal;
@@ -494,7 +495,7 @@ export class BuildStep extends BuildStepOutputAccessor {
 
     await this.fn(this.ctx, {
       inputs: Object.fromEntries(
-        Object.entries(this.inputById).map(([key, input]) => [
+        [...this.inputById].map(([key, input]) => [
           key,
           {
             value: input.getValue({
