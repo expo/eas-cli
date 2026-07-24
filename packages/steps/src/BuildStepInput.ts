@@ -8,7 +8,7 @@ import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
   interpolateWithOutputs,
 } from './utils/template';
-import { createNullPrototypeRecord } from './utils/record';
+import { createEmptyRecord } from './utils/record';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',
@@ -257,7 +257,7 @@ export function getDisallowedInputValueError(
 }
 
 export function makeBuildStepInputById(inputs?: BuildStepInput[]): BuildStepInputById {
-  const inputById = createNullPrototypeRecord<BuildStepInput>();
+  const inputById = createEmptyRecord<BuildStepInputById>();
   for (const input of inputs ?? []) {
     inputById[input.id] = input;
   }

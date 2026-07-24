@@ -35,7 +35,7 @@ import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
 import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
-import { createNullPrototypeRecord } from './utils/record';
+import { createEmptyRecord } from './utils/record';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -116,9 +116,10 @@ export class BuildStepOutputAccessor {
   public static deserialize(
     serialized: SerializedBuildStepOutputAccessor
   ): BuildStepOutputAccessor {
-    const outputById = makeBuildStepOutputById(
-      Object.values(serialized.outputById).map(value => BuildStepOutput.deserialize(value))
-    );
+    const outputById = createEmptyRecord<BuildStepOutputById>();
+    for (const [key, value] of Object.entries(serialized.outputById)) {
+      outputById[key] = BuildStepOutput.deserialize(value);
+    }
     return new BuildStepOutputAccessor(
       serialized.id,
       serialized.displayName,
@@ -351,7 +352,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private evaluateOwnStepInputs(): Record<string, unknown> {
-    const inputsById = createNullPrototypeRecord<unknown>();
+    const inputsById = createEmptyRecord<Record<string, unknown>>();
     for (const input of this.inputs ?? []) {
       inputsById[input.id] = input.getValue({
         interpolationContext: this.getInterpolationContext(),
@@ -497,7 +498,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private getFunctionInputs(): BuildStepFunctionInputs {
-    const functionInputs = createNullPrototypeRecord<{ value: unknown }>();
+    const functionInputs = createEmptyRecord<BuildStepFunctionInputs>();
     for (const [key, input] of Object.entries(this.inputById)) {
       functionInputs[key] = {
         value: input.getValue({
@@ -524,7 +525,7 @@ export class BuildStep extends BuildStepOutputAccessor {
             this.getLegacyStepOutputValue(path)
           );
     }
-    const vars = createNullPrototypeRecord<string>();
+    const vars = createEmptyRecord<Record<string, string>>();
     for (const input of inputs) {
       const value = input.getValue({
         interpolationContext: this.getInterpolationContext(),

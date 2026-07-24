@@ -1,6 +1,6 @@
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
-import { createNullPrototypeRecord } from './utils/record';
+import { createEmptyRecord } from './utils/record';
 
 export type BuildStepOutputById = Record<string, BuildStepOutput>;
 export type BuildStepOutputProvider = (
@@ -94,7 +94,7 @@ export class BuildStepOutput<R extends boolean = boolean> {
 }
 
 export function makeBuildStepOutputById(outputs?: BuildStepOutput[]): BuildStepOutputById {
-  const outputById = createNullPrototypeRecord<BuildStepOutput>();
+  const outputById = createEmptyRecord<BuildStepOutputById>();
   for (const output of outputs ?? []) {
     outputById[output.id] = output;
   }
