@@ -49,19 +49,16 @@ describe(parseLocalCompositeFunctionPath, () => {
     expect(parseLocalCompositeFunctionPath('./..functions/setup')).toBe('./..functions/setup');
   });
 
-  it('throws for degenerate paths with no path segment', () => {
-    expect(() => parseLocalCompositeFunctionPath('./')).toThrow(
-      /does not point to a composite function directory/
-    );
-    expect(() => parseLocalCompositeFunctionPath('  ./  ')).toThrow(
-      /does not point to a composite function directory/
-    );
-    expect(() => parseLocalCompositeFunctionPath('../')).toThrow(
-      /does not point to a composite function directory/
-    );
-    expect(() => parseLocalCompositeFunctionPath('./..')).toThrow(
-      /does not point to a composite function directory/
-    );
+  it('canonicalizes paths pointing at the project root or its parent', () => {
+    expect(parseLocalCompositeFunctionPath('./')).toBe('./.');
+    expect(parseLocalCompositeFunctionPath('  ./  ')).toBe('./.');
+    expect(parseLocalCompositeFunctionPath('../')).toBe('..');
+    expect(parseLocalCompositeFunctionPath('./..')).toBe('..');
+  });
+
+  it('is stable when re-parsing its own canonical output', () => {
+    expect(parseLocalCompositeFunctionPath('./.')).toBe('./.');
+    expect(parseLocalCompositeFunctionPath('../.')).toBe('..');
   });
 
   it('throws for backslash-based paths', () => {

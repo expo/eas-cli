@@ -111,6 +111,31 @@ describe('StepsConfigParser local composite functions', () => {
       expect(workflow.buildSteps.map(s => s.id)).toEqual(['top__mid__leaf']);
     });
 
+    it('expands a composite function defined at the project root ("uses: ./")', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          './.': {
+            name: 'Root function',
+            runs: { steps: [{ id: 'root-step', run: 'echo root' }] },
+          },
+        },
+        steps: [{ uses: './', id: 'root' }],
+      });
+      expect(workflow.buildSteps.map(s => s.id)).toEqual(['root__root-step']);
+    });
+
+    it('expands a composite function defined at the project root parent ("uses: ../")', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          '..': {
+            runs: { steps: [{ id: 'parent-step', run: 'echo parent' }] },
+          },
+        },
+        steps: [{ uses: '../', id: 'parent' }],
+      });
+      expect(workflow.buildSteps.map(s => s.id)).toEqual(['parent__parent-step']);
+    });
+
     it('avoids collisions between generated inner step ids and declared inner step ids', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {

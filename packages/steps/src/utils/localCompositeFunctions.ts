@@ -26,12 +26,10 @@ export function parseLocalCompositeFunctionPath(uses: string): string {
     );
   }
   const normalized = path.posix.normalize(trimmed.replace(/\/+$/, ''));
-  if (normalized === '.' || normalized === '..') {
-    throw new BuildConfigError(
-      `Local composite function path "${trimmed}" does not point to a composite function directory.`
-    );
+  if (normalized === '..' || normalized.startsWith('../')) {
+    return normalized;
   }
-  return normalized.startsWith('../') ? normalized : `./${normalized}`;
+  return `./${normalized}`;
 }
 
 export function isLocalCompositeFunctionPath(uses: string): boolean {
