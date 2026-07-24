@@ -163,7 +163,35 @@ describe(fetchObserveEventsAsync, () => {
     );
   });
 
-  it('omits platform, appVersion, and appUpdateId from filter when not provided', async () => {
+  it('includes easClientId in filter when provided', async () => {
+    mockEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    await fetchObserveEventsAsync(mockGraphqlClient, 'app-123', {
+      metricName: 'expo.app_startup.tti',
+      orderBy: {
+        field: AppObserveEventsOrderByField.MetricValue,
+        direction: AppObserveEventsOrderByDirection.Desc,
+      },
+      limit: 10,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-03-01T00:00:00.000Z',
+      easClientId: 'client-abc-123',
+    });
+
+    expect(mockEventsAsync).toHaveBeenCalledWith(
+      mockGraphqlClient,
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          easClientId: 'client-abc-123',
+        }),
+      })
+    );
+  });
+
+  it('omits platform, appVersion, appUpdateId, and easClientId from filter when not provided', async () => {
     mockEventsAsync.mockResolvedValue({
       events: [],
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
@@ -184,6 +212,7 @@ describe(fetchObserveEventsAsync, () => {
     expect(calledFilter).not.toHaveProperty('platform');
     expect(calledFilter).not.toHaveProperty('appVersion');
     expect(calledFilter).not.toHaveProperty('appUpdateId');
+    expect(calledFilter).not.toHaveProperty('easClientId');
   });
 
   it('returns events and pageInfo from the query result', async () => {

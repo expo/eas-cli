@@ -5,8 +5,13 @@ import {
   AppObserveEventsOrderByField,
   AppObservePlatform,
 } from '../../../graphql/generated';
-import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
+import {
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../../../observe/fetchEvents';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
+import { selectAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
 
@@ -15,6 +20,7 @@ jest.mock('../../../observe/fetchEvents', () => {
   return {
     ...actual,
     fetchObserveEventsAsync: jest.fn(),
+    fetchTotalEventCountAsync: jest.fn(),
   };
 });
 jest.mock('../../../observe/formatEvents', () => ({
@@ -23,8 +29,11 @@ jest.mock('../../../observe/formatEvents', () => ({
 }));
 jest.mock('../../../log');
 jest.mock('../../../utils/json');
+jest.mock('../../../prompts');
 
+const mockSelectAsync = jest.mocked(selectAsync);
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
+const mockFetchTotalEventCountAsync = jest.mocked(fetchTotalEventCountAsync);
 const mockBuildObserveEventsJson = jest.mocked(buildObserveEventsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -195,7 +204,15 @@ describe(ObserveMetrics, () => {
     expect(options.updateId).toBe('update-xyz');
   });
 
-  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
+  it('passes --client-id to fetchObserveEventsAsync', async () => {
+    const command = createCommand(['tti', '--client-id', 'client-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.easClientId).toBe('client-xyz');
+  });
+
+  it('does not pass platform, appVersion, updateId, or easClientId when flags are not provided', async () => {
     const command = createCommand(['tti']);
     await command.runAsync();
 
@@ -203,6 +220,7 @@ describe(ObserveMetrics, () => {
     expect(options.platform).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
+    expect(options.easClientId).toBeUndefined();
   });
 
   it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided', async () => {
@@ -246,6 +264,32 @@ describe(ObserveMetrics, () => {
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });
 
+  it('omits metricName and skips the total-event-count query with --all-metrics', async () => {
+    const command = createCommand(['--all-metrics']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
+  });
+
+  it('forwards --client-id together with --all-metrics', async () => {
+    const command = createCommand(['--all-metrics', '--client-id', 'client-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(options.easClientId).toBe('client-xyz');
+  });
+
+  it('throws when --all-metrics is combined with a metric argument', async () => {
+    const command = createCommand(['tti', '--all-metrics']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      '--all-metrics cannot be combined with a metric argument'
+    );
+  });
+
   it('passes --sort flag through to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--sort', 'slowest']);
     await command.runAsync();
@@ -257,20 +301,45 @@ describe(ObserveMetrics, () => {
     });
   });
 
-  it('throws in non-interactive mode when no metric is provided', async () => {
+  it('defaults to all metrics in non-interactive mode when no metric is provided', async () => {
     const command = createCommand(['--non-interactive']);
+    await command.runAsync();
 
-    await expect(command.runAsync()).rejects.toThrow(
-      'metric argument is required in non-interactive mode'
-    );
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockFetchTotalEventCountAsync).not.toHaveBeenCalled();
+    expect(mockSelectAsync).not.toHaveBeenCalled();
   });
 
-  it('treats --json as non-interactive when no metric is provided', async () => {
-    const command = createCommand(['--json']);
+  it('defaults to all metrics when no metric is provided and stdin is not a TTY (piped/CI)', async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    process.stdin.isTTY = false;
+    try {
+      const command = createCommand(['--json']);
+      await command.runAsync();
+    } finally {
+      process.stdin.isTTY = originalIsTTY;
+    }
 
-    await expect(command.runAsync()).rejects.toThrow(
-      'metric argument is required in non-interactive mode'
-    );
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options).not.toHaveProperty('metricName');
+    expect(mockSelectAsync).not.toHaveBeenCalled();
+  });
+
+  it('shows the metric picker with --json in an interactive terminal', async () => {
+    mockSelectAsync.mockResolvedValueOnce('expo.app_startup.tti');
+    const originalIsTTY = process.stdin.isTTY;
+    process.stdin.isTTY = true;
+    try {
+      const command = createCommand(['--json']);
+      await command.runAsync();
+    } finally {
+      process.stdin.isTTY = originalIsTTY;
+    }
+
+    expect(mockSelectAsync).toHaveBeenCalledTimes(1);
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.metricName).toBe('expo.app_startup.tti');
   });
 });
 
