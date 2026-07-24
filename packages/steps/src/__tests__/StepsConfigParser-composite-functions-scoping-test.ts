@@ -1029,6 +1029,7 @@ describe('StepsConfigParser local composite functions', () => {
       expect(error.message).toMatch(/Invalid identifier "name"/);
     });
 
+    // allowed_values is checked eagerly on raw values, so references are skipped
     it('skips the allowed_values check for a reference-valued constrained input', async () => {
       const makeWorkflow = (provided: string): Promise<BuildWorkflow> =>
         parseCompositeFunctions({
