@@ -7,7 +7,7 @@ import { BuildConfigError } from '../errors';
 
 const JOB_CONTEXT_INTERPOLATION_REGEXP = /\$\{\{(.+?)\}\}/;
 
-function localCompositeFunctionPathIsInterpolated(uses: string): boolean {
+function doesLocalCompositeFunctionPathRequireInterpolation(uses: string): boolean {
   return JOB_CONTEXT_INTERPOLATION_REGEXP.test(uses);
 }
 
@@ -15,7 +15,7 @@ export function parseLocalCompositeFunctionPath(uses: string): string {
   const trimmed = uses.trim();
   // The composite function catalog is built before the workflow runs, so a local path must be
   // known statically.
-  if (localCompositeFunctionPathIsInterpolated(trimmed)) {
+  if (doesLocalCompositeFunctionPathRequireInterpolation(trimmed)) {
     throw new BuildConfigError(
       `Local composite function path "${trimmed}" must not contain interpolation ("\${{ ... }}"). The "uses" path for a local composite function must be a static, literal path.`
     );
