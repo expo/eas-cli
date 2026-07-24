@@ -74,8 +74,9 @@ async function getExpoConfigInternalAsync(
       );
       exp = JSON.parse(stdout);
     } else if (resolveFrom.silent(projectDir, 'expo/package.json')) {
-      // Old SDK versions of the `expo` package don't include Expo CLI, so read the config with
-      // the copy of `@expo/config` bundled with EAS CLI instead.
+      // The `expo` package is installed but Expo CLI is not part of it. This happens with old
+      // SDK versions, which predate Expo CLI. Since we can't run `expo config`, read the app
+      // config with the copy of `@expo/config` that ships with EAS CLI.
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
         ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
