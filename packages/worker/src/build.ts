@@ -1,4 +1,10 @@
-import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
+import {
+  Artifacts,
+  BuildContext,
+  Builders,
+  TurtleSshSession,
+  runGenericJobAsync,
+} from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -29,6 +35,7 @@ export async function build({
   analytics: Analytics;
 }): Promise<Artifacts> {
   const { job, logger } = ctx;
+  let sshHoldPromise: Promise<void> | undefined;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
 
@@ -48,6 +55,83 @@ export async function build({
         await prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment);
       }
     });
+
+    if (TurtleSshSession.isWorkflowSshEnabled(ctx.env)) {
+      // Keep SSH_SESSION open in the log UI until the post-build hold ends: emit START here,
+      // skip the automatic END (doNotMarkEnd), and write END when the hold finishes. That way
+      // there is still a running step while the worker stays up for SSH idle.
+      await ctx.runBuildPhase(
+        BuildPhase.SSH_SESSION,
+        async () => {
+          const phaseStartedAt = Date.now();
+          try {
+            ctx.logger.info('Opening an SSH session for this job.');
+            const workflowJobId = TurtleSshSession.getWorkflowJobIdOrThrow(ctx.env);
+            const { handle, idleTimeoutSeconds } = await TurtleSshSession.startSshSessionAsync(
+              ctx,
+              {
+                workflowJobId,
+                relayServerUrl: TurtleSshSession.getSshRelayServerUrl(ctx.env),
+              }
+            );
+            ctx.logger.info(`SSH session ready. Connect with: eas workflow:ssh ${workflowJobId}`);
+            ctx.logger.info(
+              `Closes after ${TurtleSshSession.formatSshIdleTimeoutForLog(idleTimeoutSeconds)} of inactivity. The worker stays up until then.`
+            );
+
+            const sshLogger = logger.child({ phase: BuildPhase.SSH_SESSION });
+            sshHoldPromise = (async () => {
+              let result = BuildPhaseResult.SUCCESS;
+              try {
+                await TurtleSshSession.holdSshSessionUntilIdleAsync({
+                  getConnectedClientCount: () => handle.getConnectedClientCountAsync(),
+                  ensureConnected: () => handle.ensureConnectedAsync(),
+                  idleTimeoutSeconds,
+                  logger: sshLogger,
+                });
+              } catch (err) {
+                result = BuildPhaseResult.WARNING;
+                sshLogger.warn({ err }, 'The SSH session ended unexpectedly.');
+              } finally {
+                await handle.stopAsync().catch(err => {
+                  sshLogger.warn({ err }, 'Failed to tear down the SSH tunnel.');
+                });
+                await handle.closeSessionAsync().catch(err => {
+                  sshLogger.warn(
+                    { err },
+                    'Failed to close the SSH session. It will be cleaned up when the job finishes.'
+                  );
+                });
+                sshLogger.info(
+                  {
+                    marker: LogMarker.END_PHASE,
+                    result,
+                    durationMs: Date.now() - phaseStartedAt,
+                  },
+                  `End phase: ${BuildPhase.SSH_SESSION}`
+                );
+              }
+            })();
+          } catch (err) {
+            ctx.logger.warn(
+              { err },
+              'Failed to open the SSH session. The job will continue without it.'
+            );
+            ctx.markBuildPhaseHasWarnings();
+            // Setup failed: close the phase now so doNotMarkEnd does not leave it open forever.
+            ctx.logger.info(
+              {
+                marker: LogMarker.END_PHASE,
+                result: BuildPhaseResult.WARNING,
+                durationMs: Date.now() - phaseStartedAt,
+              },
+              `End phase: ${BuildPhase.SSH_SESSION}`
+            );
+          }
+        },
+        { doNotMarkEnd: true }
+      );
+    }
 
     let artifacts: Artifacts;
 
@@ -89,6 +173,7 @@ export async function build({
     }
     throw err;
   } finally {
+    await sshHoldPromise;
     if (config.env === 'development') {
       await cleanUpWorkingdir();
     }
