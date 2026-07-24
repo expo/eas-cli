@@ -19,7 +19,7 @@ import {
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
-import { Actor, getActorUsername } from '../../../user/User';
+import { Actor, getActorUsername, getCreatableAccountNames } from '../../../user/User';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
@@ -227,7 +227,9 @@ async function chooseAccountNameForEASProjectAsync(
 
   if (actor.__typename === 'Robot') {
     throw new Error(
-      'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
+      `Project is not configured. When using a robot access token, run "eas init --account <name> --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: ${getCreatableAccountNames(
+        actor
+      ).join(', ')}`
     );
   }
 

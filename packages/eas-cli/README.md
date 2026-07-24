@@ -1624,9 +1624,10 @@ create or link an EAS project
 
 ```
 USAGE
-  $ eas init [--id <value>] [--force] [--non-interactive]
+  $ eas init [--account <value> | --id <value>] [--force] [--non-interactive]
 
 FLAGS
+  --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link
@@ -2259,9 +2260,10 @@ create or link an EAS project
 
 ```
 USAGE
-  $ eas project:init [--id <value>] [--force] [--non-interactive]
+  $ eas project:init [--account <value> | --id <value>] [--force] [--non-interactive]
 
 FLAGS
+  --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link

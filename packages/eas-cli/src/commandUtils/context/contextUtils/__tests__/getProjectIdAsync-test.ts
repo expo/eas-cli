@@ -478,7 +478,7 @@ describe(getProjectIdAsync, () => {
           { nonInteractive: false }
         )
       ).rejects.toThrow(
-        'Must configure EAS project by running "eas init" before using a robot user to manage the project.'
+        'Project is not configured. When using a robot access token, run "eas init --account <name> --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: notnotbrent'
       );
 
       expect(promptAsync).not.toHaveBeenCalled();
