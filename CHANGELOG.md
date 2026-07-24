@@ -8,9 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Add `eas simulator:availability` to check whether EAS Simulator is enabled for the current project account. ([#4045](https://github.com/expo/eas-cli/pull/4045) by [@gwdp](https://github.com/gwdp))
-
 ### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [21.2.0](https://github.com/expo/eas-cli/releases/tag/v21.2.0) - 2026-07-24
+
+### 🎉 New features
+
+- [eas-cli] Add `eas simulator:availability` to check whether EAS Simulator is enabled for the current project account. ([#4045](https://github.com/expo/eas-cli/pull/4045) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
 
