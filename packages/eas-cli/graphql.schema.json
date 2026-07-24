@@ -35453,6 +35453,30 @@
             "deprecationReason": null
           },
           {
+            "name": "gitCommitHash",
+            "description": "Full Git commit SHA for the checkout that launched the session.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "gitRef",
+            "description": "Git branch or tag for the checkout that launched the session. Prefer a fully\nqualified ref such as \"refs/heads/main\" or \"refs/tags/v1.2.3\".",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "maxRunTimeMinutes",
             "description": "Override for the underlying turtle job run's max run time, in minutes. Must\nbe non-negative and smaller than 120 (2 hours). Only customizable on paid\nplans. If omitted, the default is derived based on the job run's priority.",
             "type": {
@@ -40203,6 +40227,30 @@
             "type": {
               "kind": "SCALAR",
               "name": "DateTime",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "gitCommitHash",
+            "description": "Full Git commit SHA for the checkout that launched the session.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "gitRef",
+            "description": "Git branch or tag for the checkout that launched the session. Prefer a fully\nqualified ref such as \"refs/heads/main\" or \"refs/tags/v1.2.3\".",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,

@@ -22,6 +22,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
+import { Client } from '../../../vcs/vcs';
 import SimulatorStart from '../start';
 
 jest.mock('fs-extra');
@@ -74,6 +75,12 @@ const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
+const vcsClient = {
+  getCommitHashAsync: jest.fn(),
+  getCurrentRefAsync: jest.fn(),
+} as unknown as Client;
+const mockGetCommitHashAsync = jest.mocked(vcsClient.getCommitHashAsync);
+const mockGetCurrentRefAsync = jest.mocked(vcsClient.getCurrentRefAsync);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -150,6 +157,8 @@ describe(SimulatorStart, () => {
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
+    mockGetCommitHashAsync.mockResolvedValue('0123456789abcdef0123456789abcdef01234567');
+    mockGetCurrentRefAsync.mockResolvedValue('refs/heads/main');
   });
 
   afterAll(() => {
@@ -170,6 +179,7 @@ describe(SimulatorStart, () => {
       loggedIn: { graphqlClient },
       projectDir,
       projectId: 'project-123',
+      vcsClient,
     });
     return { command, getContextAsync };
   }
@@ -189,6 +199,8 @@ describe(SimulatorStart, () => {
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -278,6 +290,8 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -297,6 +311,8 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,

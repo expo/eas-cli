@@ -243,6 +243,47 @@ describe('git', () => {
     ).resolves.not.toThrow();
   });
 
+  describe('getCurrentRefAsync', () => {
+    let repoRoot: string;
+    let vcs: GitClient;
+
+    beforeAll(async () => {
+      repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-ref-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      await spawnAsync('git', ['checkout', '-b', 'feature/device-sessions'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '--allow-empty', '-m', 'initial commit'], {
+        cwd: repoRoot,
+      });
+      vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+    });
+
+    afterAll(async () => {
+      await fs.rm(repoRoot, { recursive: true, force: true });
+    });
+
+    it('returns a fully qualified branch ref', async () => {
+      await expect(vcs.getCurrentRefAsync()).resolves.toBe('refs/heads/feature/device-sessions');
+    });
+
+    it('returns a fully qualified tag ref for a detached checkout', async () => {
+      await spawnAsync('git', ['tag', 'v1.2.3'], { cwd: repoRoot });
+      await spawnAsync('git', ['checkout', '--detach', 'v1.2.3'], { cwd: repoRoot });
+
+      await expect(vcs.getCurrentRefAsync()).resolves.toBe('refs/tags/v1.2.3');
+    });
+
+    it('returns null for a detached checkout without an exact tag', async () => {
+      await spawnAsync('git', ['commit', '--allow-empty', '-m', 'detached commit'], {
+        cwd: repoRoot,
+      });
+
+      await expect(vcs.getCurrentRefAsync()).resolves.toBeNull();
+    });
+  });
+
   describe('when requireCommit is true', () => {
     it('adheres to .easignore', async () => {
       const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));

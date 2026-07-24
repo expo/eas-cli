@@ -310,6 +310,30 @@ export default class GitClient extends Client {
     }
   }
 
+  public override async getCurrentRefAsync(): Promise<string | null> {
+    try {
+      const branchRef = (
+        await spawnAsync('git', ['symbolic-ref', '--quiet', 'HEAD'], {
+          cwd: this.maybeCwdOverride,
+        })
+      ).stdout.trim();
+      if (branchRef) {
+        return branchRef;
+      }
+    } catch {}
+
+    try {
+      const tag = (
+        await spawnAsync('git', ['describe', '--tags', '--exact-match', 'HEAD'], {
+          cwd: this.maybeCwdOverride,
+        })
+      ).stdout.trim();
+      return tag ? `refs/tags/${tag}` : null;
+    } catch {
+      return null;
+    }
+  }
+
   public override async getLastCommitMessageAsync(): Promise<string | null> {
     try {
       return (

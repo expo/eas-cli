@@ -93,6 +93,7 @@ export default class SimulatorStart extends EasCommand {
     ...this.ContextOptions.ProjectId,
     ...this.ContextOptions.ProjectDir,
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Vcs,
   };
 
   async runAsync(): Promise<void> {
@@ -106,6 +107,7 @@ export default class SimulatorStart extends EasCommand {
     const {
       projectId,
       projectDir,
+      vcsClient,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SimulatorStart, {
       nonInteractive,
@@ -120,6 +122,10 @@ export default class SimulatorStart extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const [gitCommitHash, gitRef] = await Promise.all([
+      vcsClient.getCommitHashAsync(),
+      vcsClient.getCurrentRefAsync(),
+    ]);
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -140,6 +146,8 @@ export default class SimulatorStart extends EasCommand {
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
         maxRunTimeMinutes: flags['max-duration-minutes'],
+        gitCommitHash,
+        gitRef,
       });
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');

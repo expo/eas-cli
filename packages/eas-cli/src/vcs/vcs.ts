@@ -66,6 +66,12 @@ export abstract class Client {
     return null;
   }
 
+  // (optional) returns the fully qualified ref for the current checkout
+  // used for metadata - implementation can be safely skipped
+  public async getCurrentRefAsync(): Promise<string | null> {
+    return null;
+  }
+
   // (optional) returns message of the last commit
   // used for EAS Update - implementation can be safely skipped
   public async getLastCommitMessageAsync(): Promise<string | null> {
