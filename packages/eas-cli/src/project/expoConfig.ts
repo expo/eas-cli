@@ -104,7 +104,7 @@ async function getExpoConfigInternalAsync(
  */
 function assertDependenciesInstalledForExpoConfig(projectDir: string): void {
   const packageJson = getPackageJson(projectDir);
-  if (!packageJson.dependencies?.expo || resolveFrom.silent(projectDir, 'expo/package.json')) {
+  if (!packageJson?.dependencies?.expo || resolveFrom.silent(projectDir, 'expo/package.json')) {
     return;
   }
 
