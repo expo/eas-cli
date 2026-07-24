@@ -56,6 +56,7 @@ eas --help COMMAND
 
 <!-- commands -->
 * [`eas account:audit [ACCOUNT_NAME]`](#eas-accountaudit-account_name)
+* [`eas account:avatar:set PATH [ACCOUNT_NAME]`](#eas-accountavatarset-path-account_name)
 * [`eas account:login`](#eas-accountlogin)
 * [`eas account:logout`](#eas-accountlogout)
 * [`eas account:usage [ACCOUNT_NAME]`](#eas-accountusage-account_name)
@@ -207,6 +208,29 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/account/audit.ts](https://github.com/expo/eas-cli/blob/v21.2.0/packages/eas-cli/src/commands/account/audit.ts)_
+
+## `eas account:avatar:set PATH [ACCOUNT_NAME]`
+
+set the avatar for an account (for a personal account, this is your user avatar)
+
+```
+USAGE
+  $ eas account:avatar:set PATH [ACCOUNT_NAME] [--non-interactive]
+
+ARGUMENTS
+  PATH            Path to the avatar image (PNG or JPEG, at most 10 MB). Non-square images are center-cropped to a
+                  square.
+  [ACCOUNT_NAME]  Name of the account to set the avatar for. Defaults to a prompt when you have access to multiple
+                  accounts.
+
+FLAGS
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  set the avatar for an account (for a personal account, this is your user avatar)
+```
+
+_See code: [packages/eas-cli/src/commands/account/avatar/set.ts](https://github.com/expo/eas-cli/blob/v21.2.0/packages/eas-cli/src/commands/account/avatar/set.ts)_
 
 ## `eas account:login`
 

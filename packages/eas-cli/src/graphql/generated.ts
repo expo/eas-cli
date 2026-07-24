@@ -14059,6 +14059,13 @@ export type AccountByNameQueryVariables = Exact<{
 
 export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string } } };
 
+export type AccountByIdProfileImageUrlQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type AccountByIdProfileImageUrlQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, profileImageUrl: string } } };
+
 export type AccountFullUsageQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
   currentDate: Scalars['DateTime']['input'];
