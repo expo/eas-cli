@@ -107,9 +107,7 @@ function mockTestProject(options: {
   jest.mocked(isExpoInstalled).mockReturnValue(false);
   // Simulate an old SDK project: `expo` is installed but doesn't include Expo CLI, so the config
   // is read with the copy of `@expo/config` bundled with EAS CLI.
-  jest
-    .mocked(resolveFrom.silent)
-    .mockReturnValue(projectRoot + '/node_modules/expo/package.json');
+  jest.mocked(resolveFrom.silent).mockReturnValue(projectRoot + '/node_modules/expo/package.json');
 }
 
 const commandOptions = getMockOclifConfig({ root: '/test-project' });
