@@ -70,7 +70,7 @@ function createMockBuildFragment({
   return {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    logFiles: [],
+    logFileUrls: [],
     platform: AppPlatform.Android,
     id: buildId ?? uuid(),
     priority: BuildPriority.Normal,

@@ -32,7 +32,7 @@ export async function fetchRawLogsForBuildJobAsync(
     return await response.text();
   }
 
-  // Fall back to build logFiles
+  // Fall back to build logFileUrls
   const buildId = job.outputs?.build_id;
   if (!buildId) {
     return null;
@@ -40,7 +40,7 @@ export async function fetchRawLogsForBuildJobAsync(
   const buildFragment = await BuildQuery.byIdAsync(state.graphqlClient, buildId, {
     useCache: false,
   });
-  const firstLogFileUrl = buildFragment.logFiles?.[0];
+  const firstLogFileUrl = buildFragment.logFileUrls?.[0];
   if (!firstLogFileUrl) {
     return null;
   }

@@ -558,67 +558,6 @@
             "deprecationReason": null
           },
           {
-            "name": "appleDevices",
-            "description": null,
-            "args": [
-              {
-                "name": "identifier",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "AppleDevice",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use appleDevicesPaginated"
-          },
-          {
             "name": "appleDevicesPaginated",
             "description": null,
             "args": [
@@ -8885,18 +8824,6 @@
             "deprecationReason": "applicationIdentifier is deprecated and will be auto-detected on submit"
           },
           {
-            "name": "archiveType",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "ENUM",
-              "name": "SubmissionAndroidArchiveType",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "archiveType is deprecated and will be null"
-          },
-          {
             "name": "releaseStatus",
             "description": null,
             "args": [],
@@ -9247,18 +9174,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "appStoreUrl",
-            "description": "ios.appStoreUrl field from most recent classic update manifest",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
           },
           {
             "name": "assetLimitPerUpdateGroup",
@@ -10289,18 +10204,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubUrl",
-            "description": "githubUrl field from most recent classic update manifest",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
-          },
-          {
             "name": "icon",
             "description": "Info about the icon specified in the most recent classic update manifest",
             "args": [],
@@ -10410,22 +10313,6 @@
             "deprecationReason": null
           },
           {
-            "name": "isDeprecated",
-            "description": "Whether the latest classic update publish is using a deprecated SDK version",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
-          },
-          {
             "name": "lastDeletionAttemptTime",
             "description": null,
             "args": [],
@@ -10436,22 +10323,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "lastPublishedTime",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "DateTime",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "latestActivity",
@@ -10513,51 +10384,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "latestReleaseForReleaseChannel",
-            "description": null,
-            "args": [
-              {
-                "name": "platform",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "AppPlatform",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "releaseChannel",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "AppRelease",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
           },
           {
             "name": "logRocketProject",
@@ -10636,18 +10462,6 @@
             "deprecationReason": "No longer supported"
           },
           {
-            "name": "playStoreUrl",
-            "description": "android.playStoreUrl field from most recent classic update manifest",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Classic updates have been deprecated."
-          },
-          {
             "name": "posthogProject",
             "description": null,
             "args": [],
@@ -10669,22 +10483,6 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
-          },
-          {
-            "name": "privacySetting",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "ENUM",
-                "name": "AppPrivacy",
                 "ofType": null
               }
             },
@@ -10763,22 +10561,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "requiresAccessTokenForPushSecurity",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Legacy access tokens are deprecated"
           },
           {
             "name": "resourceClassExperiment",
@@ -21161,87 +20943,6 @@
         "description": null,
         "fields": [
           {
-            "name": "all",
-            "description": "Public apps in the app directory",
-            "args": [
-              {
-                "name": "filter",
-                "description": "Filter to use to filter public app list",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "AppsFilter",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "sort",
-                "description": "Method to sort by",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "AppSort",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "App",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "App directory no longer supported"
-          },
-          {
             "name": "byDevDomainName",
             "description": "Look up app by dev domain name, if one has been created",
             "args": [
@@ -21344,196 +21045,6 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "AppRelease",
-        "description": null,
-        "fields": [
-          {
-            "name": "hash",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "manifest",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "JSON",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "publishedTime",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "DateTime",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "publishingUsername",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "runtimeVersion",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "s3Key",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "s3Url",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sdkVersion",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "version",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "AppSort",
-        "description": null,
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "RECENTLY_PUBLISHED",
-            "description": "Sort by recently published",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "VIEWED",
-            "description": "Sort by highest trendScore",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
         "possibleTypes": null
       },
       {
@@ -26983,29 +26494,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "ENUM",
-        "name": "AppsFilter",
-        "description": null,
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "FEATURED",
-            "description": "Featured Projects",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "NEW",
-            "description": "New Projects",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "possibleTypes": null
-      },
-      {
         "kind": "OBJECT",
         "name": "ArgentRunSessionRemoteConfig",
         "description": null,
@@ -29566,18 +29054,6 @@
             "deprecationReason": null
           },
           {
-            "name": "githubRepositoryOwnerAndName",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'githubRepository' field instead"
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -29674,7 +29150,7 @@
             "deprecationReason": null
           },
           {
-            "name": "logFiles",
+            "name": "logFileUrls",
             "description": null,
             "args": [],
             "type": {
@@ -29696,6 +29172,30 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "logFiles",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "Use logFileUrls instead"
           },
           {
             "name": "maxBuildTimeSeconds",
@@ -30748,18 +30248,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "fingerprintUrl",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'runtime.fingerprint.debugInfoUrl' instead."
           },
           {
             "name": "xcodeBuildLogsUrl",
@@ -39059,33 +38547,6 @@
         "fields": [
           {
             "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "DeleteUpdateGroupResult",
-        "description": null,
-        "fields": [
-          {
-            "name": "group",
             "description": null,
             "args": [],
             "type": {
@@ -58694,39 +58155,6 @@
             "deprecationReason": null
           },
           {
-            "name": "setPreferences",
-            "description": "Legacy user preferences are no longer stored; this mutation accepts and discards\nits input. Use userPreference.set instead.",
-            "args": [
-              {
-                "name": "preferences",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "UserPreferencesInput",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "UserPreferences",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer stored; this mutation has no effect. Use userPreference.set instead."
-          },
-          {
             "name": "setPrimarySecondFactorDevice",
             "description": "Set the user's primary second factor device",
             "args": [
@@ -61603,94 +61031,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "ProjectQuery",
-        "description": null,
-        "fields": [
-          {
-            "name": "byUsernameAndSlug",
-            "description": null,
-            "args": [
-              {
-                "name": "platform",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "sdkVersions",
-                "description": null,
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "slug",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "username",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INTERFACE",
-                "name": "Project",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "See byAccountNameAndSlug"
           }
         ],
         "inputFields": null,
@@ -64607,79 +63947,6 @@
             "deprecationReason": null
           },
           {
-            "name": "allPublicApps",
-            "description": "Public apps in the app directory",
-            "args": [
-              {
-                "name": "filter",
-                "description": "Filter to use to filter public app list",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "AppsFilter",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "sort",
-                "description": "Method to sort by",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "AppSort",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "App",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'all' field under 'app'."
-          },
-          {
             "name": "app",
             "description": null,
             "args": [],
@@ -65249,22 +64516,6 @@
             "deprecationReason": null
           },
           {
-            "name": "project",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "ProjectQuery",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Snacks and apps should be queried separately"
-          },
-          {
             "name": "runtimes",
             "description": "Top-level query object for querying Runtimes.",
             "args": [],
@@ -65414,22 +64665,6 @@
             "deprecationReason": null
           },
           {
-            "name": "user",
-            "description": "Top-level query object for querying Users.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "UserQuery",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user queries are no longer supported"
-          },
-          {
             "name": "userActorPublicData",
             "description": "Top-level query object for querying UserActorPublicData publicly.",
             "args": [],
@@ -65460,64 +64695,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "userByUserId",
-            "description": null,
-            "args": [
-              {
-                "name": "userId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "User",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'byId' field under 'user'."
-          },
-          {
-            "name": "userByUsername",
-            "description": null,
-            "args": [
-              {
-                "name": "username",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "User",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use 'byUsername' field under 'user'."
           },
           {
             "name": "userInvitationPublicData",
@@ -66659,75 +65836,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "apps",
-            "description": "Apps this user has published. If this user is the viewer, this field returns the apps the user has access to.",
-            "args": [
-              {
-                "name": "includeUnpublished",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "App",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use Account.appsPaginated instead"
           },
           {
             "name": "bestContactEmail",
@@ -68532,39 +67640,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "byId",
-            "description": "Get snack by hashId",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "Snack",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use byHashId"
           }
         ],
         "inputFields": null,
@@ -69712,29 +68787,6 @@
           }
         ],
         "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "SubmissionAndroidArchiveType",
-        "description": null,
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "AAB",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "APK",
-            "description": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
         "possibleTypes": null
       },
       {
@@ -74769,39 +73821,6 @@
         "description": null,
         "fields": [
           {
-            "name": "deleteUpdateGroup",
-            "description": "Delete an EAS update group",
-            "args": [
-              {
-                "name": "group",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "DeleteUpdateGroupResult",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use scheduleUpdateGroupDeletion instead"
-          },
-          {
             "name": "scheduleUpdateGroupDeletion",
             "description": "Delete an EAS update group in the background",
             "args": [
@@ -76316,75 +75335,6 @@
             "deprecationReason": null
           },
           {
-            "name": "apps",
-            "description": "Apps this user has published",
-            "args": [
-              {
-                "name": "includeUnpublished",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "App",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use Account.appsPaginated instead"
-          },
-          {
             "name": "bestContactEmail",
             "description": null,
             "args": [],
@@ -76632,22 +75582,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "isLegacy",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "No longer supported"
           },
           {
             "name": "isSecondFactorAuthenticationEnabled",
@@ -77223,75 +76157,6 @@
             "deprecationReason": null
           },
           {
-            "name": "apps",
-            "description": "Apps this user has published",
-            "args": [
-              {
-                "name": "includeUnpublished",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "limit",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "offset",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "App",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use Account.appsPaginated instead"
-          },
-          {
             "name": "bestContactEmail",
             "description": null,
             "args": [],
@@ -77825,22 +76690,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "profilePhoto",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use primaryAccountProfileImageUrl instead"
           },
           {
             "name": "snacks",
@@ -80030,18 +78879,6 @@
             "deprecationReason": null
           },
           {
-            "name": "user",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "User",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "User type is deprecated"
-          },
-          {
             "name": "userActor",
             "description": null,
             "args": [],
@@ -80303,29 +79140,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "INPUT_OBJECT",
-        "name": "UserPreferencesInput",
-        "description": null,
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "onboarding",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "UserPreferencesOnboardingInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
         "kind": "OBJECT",
         "name": "UserPreferencesOnboarding",
         "description": "Set by website. Used by CLI to continue onboarding process on user's machine - clone repository,\ninstall dependencies etc.",
@@ -80409,141 +79223,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "UserPreferencesOnboardingInput",
-        "description": null,
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "appId",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "deviceType",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OnboardingDeviceType",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "environment",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "OnboardingEnvironment",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "isCLIDone",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "lastUsed",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "platform",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "AppPlatform",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "UserQuery",
-        "description": null,
-        "fields": [
-          {
-            "name": "byUsername",
-            "description": "Query a User by username",
-            "args": [
-              {
-                "name": "username",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "User",
-                "ofType": null
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Public user queries are no longer supported"
           }
         ],
         "inputFields": null,
@@ -89042,7 +87721,7 @@
           },
           {
             "name": "deviceTestCaseResultAttempts",
-            "description": "All test case attempt rows produced by this job's own execution (turtle job\nrun), ordered by path then retryCount. Unlike deviceTestCaseResults and\nallDeviceTestCaseResults, this never includes rows from other jobs in the\nworkflow retry chain.",
+            "description": "All test case attempt rows produced by this job's own execution (turtle job\nrun), ordered by path then retryCount. Unlike allDeviceTestCaseResults,\nthis never includes rows from other jobs in the workflow retry chain.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -89063,30 +87742,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "deviceTestCaseResults",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "WorkflowDeviceTestCaseResult",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use deviceTestCaseResultAttempts instead"
           },
           {
             "name": "environment",
@@ -89204,6 +87859,30 @@
                   "ofType": {
                     "kind": "SCALAR",
                     "name": "String",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "rolloutUpdateGroup",
+            "description": "Updates in the group being rolled out by an UPDATE_ROLLOUT job, resolved from the job's\nupdate_group_id output. Empty for other job types or when the group has no updates.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "Update",
                     "ofType": null
                   }
                 }
@@ -89507,18 +88186,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "userActor",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "INTERFACE",
-              "name": "UserActor",
-              "ofType": null
-            },
-            "isDeprecated": true,
-            "deprecationReason": "Use reviewingActor instead"
           },
           {
             "name": "workflowJob",
@@ -89877,6 +88544,12 @@
           },
           {
             "name": "UPDATE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "UPDATE_ROLLOUT",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
