@@ -24,6 +24,12 @@ import {
 } from './BuildTemporaryFiles';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
+import {
+  containsUnresolvedTemplateReference,
+  resolveInterpolatedTarget,
+  stringifyInterpolatedResult,
+  stringifyOptionalInterpolatedResult,
+} from './utils/compositeFunctionInterpolation';
 import { evaluateIfCondition as evaluateIfConditionExpression } from './utils/jsepEval';
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
@@ -234,6 +240,8 @@ export class BuildStep extends BuildStepOutputAccessor {
 
   public async executeAsync(): Promise<void> {
     try {
+      this.resolveTemplatedWorkingDirectoryIfNeeded();
+
       this.logStepStart();
       this.status = BuildStepStatus.IN_PROGRESS;
 
@@ -506,7 +514,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     template: string,
     inputs?: BuildStepInput[]
   ): string {
-    // Actions support only `${{ }}`; a literal `${ steps.x.y }` reaching bash is the accepted
+    // Composite functions support only `${{ }}`; a literal `${ steps.x.y }` reaching bash is the accepted
     // behavior, so skip legacy output interpolation for composite-function-scoped steps.
     const skipLegacyOutputInterpolation = this.compositeFunctionScope !== undefined;
     if (!inputs) {
@@ -597,8 +605,32 @@ export class BuildStep extends BuildStepOutputAccessor {
     });
   }
 
+  private getInterpolatedEnvOverrides(): BuildStepEnv {
+    const ownOverrides = this.stepEnvOverrides;
+    if (!this.compositeFunctionScope) {
+      return ownOverrides;
+    }
+    // Use global env here to avoid recursing through getScriptEnv.
+    const base: JobInterpolationContext = {
+      ...this.ctx.global.getInterpolationContext(),
+      env: this.ctx.global.env,
+    };
+    // Call-site env uses caller scope; step env uses action scope.
+    const inheritedEnv = this.compositeFunctionScope.resolveInheritedEnv(base);
+    const scoped = this.compositeFunctionScope.getScopedInterpolationContext(base);
+    const ownEnv = Object.fromEntries(
+      Object.entries(ownOverrides).map(([key, value]) => {
+        if (typeof value !== 'string' || !containsUnresolvedTemplateReference(value)) {
+          return [key, value];
+        }
+        return [key, stringifyInterpolatedResult(resolveInterpolatedTarget(value, scoped))];
+      })
+    );
+    return { ...inheritedEnv, ...ownEnv };
+  }
+
   private getScriptEnv(): Record<string, string> {
-    const effectiveEnv = { ...this.ctx.global.env, ...this.stepEnvOverrides };
+    const effectiveEnv = { ...this.ctx.global.env, ...this.getInterpolatedEnvOverrides() };
     const currentPath = effectiveEnv.PATH ?? process.env.PATH;
     const newPath = currentPath ? `${BIN_PATH}:${currentPath}` : BIN_PATH;
     return {
@@ -608,5 +640,25 @@ export class BuildStep extends BuildStepOutputAccessor {
       __EXPO_STEPS_WORKING_DIRECTORY: this.ctx.workingDirectory,
       PATH: newPath,
     };
+  }
+
+  private resolveTemplatedWorkingDirectoryIfNeeded(): void {
+    const scope = this.compositeFunctionScope;
+    if (!scope) {
+      return;
+    }
+    const relativeWorkingDirectory = this.ctx.relativeWorkingDirectory;
+    if (
+      relativeWorkingDirectory === undefined ||
+      !containsUnresolvedTemplateReference(relativeWorkingDirectory)
+    ) {
+      return;
+    }
+    const context = scope.getScopedInterpolationContext({
+      ...this.ctx.global.getInterpolationContext(),
+      env: this.getScriptEnv(),
+    });
+    const resolved = resolveInterpolatedTarget(relativeWorkingDirectory, context);
+    this.ctx.updateRelativeWorkingDirectory(stringifyOptionalInterpolatedResult(resolved));
   }
 }
