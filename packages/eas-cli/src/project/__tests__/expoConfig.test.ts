@@ -57,13 +57,6 @@ describe('expoConfig', () => {
   });
 
   describe('getPrivateExpoConfigAsync when Expo CLI is not resolvable', () => {
-    const pluginNotFoundError = Object.assign(
-      new Error(
-        'Failed to resolve plugin for module "expo-router" relative to "/app". Do you have node modules installed?'
-      ),
-      { code: 'PLUGIN_NOT_FOUND' }
-    );
-
     beforeEach(() => {
       jest.mocked(getConfigFilePaths).mockReturnValue({
         staticConfigPath: '/app/app.json',
@@ -72,51 +65,22 @@ describe('expoConfig', () => {
       jest.mocked(isExpoInstalled).mockReturnValue(false);
     });
 
-    it('throws an actionable error when dependencies are not installed and a config plugin cannot be resolved', async () => {
-      // `expo` is declared in package.json but dependencies are not installed
+    it('throws an actionable error when expo is declared in package.json but not installed', async () => {
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
       jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
-      jest.mocked(getConfig).mockImplementation(() => {
-        throw pluginNotFoundError;
-      });
 
       await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
-        /dependencies aren't installed/
+        /dependencies to be installed/
       );
+      expect(getConfig).not.toHaveBeenCalled();
     });
 
-    it('throws an actionable error when dependencies are not installed and a dynamic config cannot be evaluated', async () => {
-      jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
-      jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
-      jest.mocked(getConfig).mockImplementation(() => {
-        throw new Error("Cannot find module 'dotenv/config'");
-      });
-
-      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
-        /dependencies aren't installed/
-      );
-    });
-
-    it('rethrows the original error when expo is not declared in package.json', async () => {
+    it('reads the config with the bundled @expo/config when expo is not declared in package.json', async () => {
+      const exp = { name: 'testapp', slug: 'testapp' } as any;
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: {} } as any);
-      jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
-      jest.mocked(getConfig).mockImplementation(() => {
-        throw pluginNotFoundError;
-      });
+      jest.mocked(getConfig).mockReturnValue({ exp } as any);
 
-      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(pluginNotFoundError.message);
-      expect(getConfig).toHaveBeenCalledTimes(1);
-    });
-
-    it('rethrows the original error when dependencies are installed', async () => {
-      jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
-      jest.mocked(resolveFrom.silent).mockReturnValue('/app/node_modules/expo/package.json');
-      jest.mocked(getConfig).mockImplementation(() => {
-        throw pluginNotFoundError;
-      });
-
-      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(pluginNotFoundError.message);
-      expect(getConfig).toHaveBeenCalledTimes(1);
+      await expect(getPrivateExpoConfigAsync('/app')).resolves.toEqual(exp);
     });
   });
 });

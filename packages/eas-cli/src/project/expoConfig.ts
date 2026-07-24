@@ -73,7 +73,12 @@ async function getExpoConfigInternalAsync(
       );
       exp = JSON.parse(stdout);
     } else {
-      exp = getConfigWithBundledExpoConfig(projectDir, opts);
+      assertDependenciesInstalledForExpoConfig(projectDir);
+      exp = getConfig(projectDir, {
+        skipSDKVersionRequirement: true,
+        ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+        ...(opts.skipPlugins ? { skipPlugins: true } : {}),
+      }).exp;
     }
 
     const { error } = MinimalAppConfigSchema.validate(exp, {
@@ -90,43 +95,25 @@ async function getExpoConfigInternalAsync(
 }
 
 /**
- * Read the app config with the copy of `@expo/config` bundled with EAS CLI. This is used when the
- * project's own copy of Expo CLI can't be resolved, most commonly because the project's
- * dependencies aren't installed. Reading the config often fails in that case too (config plugins
- * and dynamic configs import from the project's dependencies), so detect it and print an
- * actionable error message instead of a confusing module resolution error.
+ * EAS CLI needs the project's dependencies to be installed to read the app config; it runs
+ * `expo config` with the project's own copy of Expo CLI so the config is resolved consistently
+ * across tools. If `expo` is declared in package.json but can't be resolved, the project's
+ * dependencies aren't installed, so tell the developer what to do instead of failing later with
+ * a confusing module resolution error. Projects that don't depend on the `expo` package are read
+ * with the copy of `@expo/config` bundled with EAS CLI.
  */
-function getConfigWithBundledExpoConfig(
-  projectDir: string,
-  opts: ExpoConfigOptionsInternal
-): ExpoConfig {
-  try {
-    return getConfig(projectDir, {
-      skipSDKVersionRequirement: true,
-      ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
-      ...(opts.skipPlugins ? { skipPlugins: true } : {}),
-    }).exp;
-  } catch (error: any) {
-    if (!isExpoDeclaredButUninstalled(projectDir)) {
-      throw error;
-    }
-
-    const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
-    throw new Error(
-      `Your project's dependencies aren't installed and EAS CLI needs them to read your app config. Run ${chalk.bold(
-        installCommand
-      )} in your project directory and run this command again.\n${chalk.dim(error.message)}`
-    );
-  }
-}
-
-/**
- * Whether `expo` is declared in the project's package.json dependencies but can't be resolved,
- * which means the project's dependencies aren't installed.
- */
-function isExpoDeclaredButUninstalled(projectDir: string): boolean {
+function assertDependenciesInstalledForExpoConfig(projectDir: string): void {
   const packageJson = getPackageJson(projectDir);
-  return !!packageJson.dependencies?.expo && !resolveFrom.silent(projectDir, 'expo/package.json');
+  if (!packageJson.dependencies?.expo || resolveFrom.silent(projectDir, 'expo/package.json')) {
+    return;
+  }
+
+  const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
+  throw new Error(
+    `EAS CLI needs your project's dependencies to be installed to read your app config. Run ${chalk.bold(
+      installCommand
+    )} in your project directory and run this command again.`
+  );
 }
 
 const MinimalAppConfigSchema = Joi.object({
