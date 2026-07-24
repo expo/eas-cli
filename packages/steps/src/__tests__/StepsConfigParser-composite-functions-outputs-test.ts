@@ -40,7 +40,7 @@ describe('StepsConfigParser local composite functions', () => {
       expect(outputsStep.displayName).toBe('Setup');
       expect(outputsStep.command).toBeUndefined();
       expect(outputsStep.fn).toBeDefined();
-      expect([...outputsStep.outputById.keys()]).toEqual(['version']);
+      expect(Object.keys(outputsStep.outputById)).toEqual(['version']);
     });
 
     it('uses a generated call id for the outputs node when the caller has no id', async () => {

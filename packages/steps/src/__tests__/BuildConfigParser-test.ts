@@ -269,8 +269,7 @@ describe(BuildConfigParser, () => {
       expect(step1.command).toMatchSnapshot();
       expect(step1.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step1.shell).toBe('/bin/bash -eo pipefail');
-      const first_name = step1.outputById.get('first_name')!;
-      const last_name = step1.outputById.get('last_name')!;
+      const { first_name, last_name } = step1.outputById;
       expect(first_name.id).toBe('first_name');
       expect(first_name.required).toBe(true);
       expect(last_name.id).toBe('last_name');
@@ -294,14 +293,14 @@ describe(BuildConfigParser, () => {
       expect(step2.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step2.shell).toBe('/bin/bash -eo pipefail');
       const step2Outputs = step2.outputById;
-      expect(step2Outputs.get('first_name')!.id).toBe('first_name');
-      expect(step2Outputs.get('first_name')!.required).toBe(true);
-      expect(step2Outputs.get('middle_name')!.id).toBe('middle_name');
-      expect(step2Outputs.get('middle_name')!.required).toBe(false);
-      expect(step2Outputs.get('last_name')!.id).toBe('last_name');
-      expect(step2Outputs.get('last_name')!.required).toBe(true);
-      expect(step2Outputs.get('nickname')!.id).toBe('nickname');
-      expect(step2Outputs.get('nickname')!.required).toBe(true);
+      expect(step2Outputs.first_name.id).toBe('first_name');
+      expect(step2Outputs.first_name.required).toBe(true);
+      expect(step2Outputs.middle_name.id).toBe('middle_name');
+      expect(step2Outputs.middle_name.required).toBe(false);
+      expect(step2Outputs.last_name.id).toBe('last_name');
+      expect(step2Outputs.last_name.required).toBe(true);
+      expect(step2Outputs.nickname.id).toBe('nickname');
+      expect(step2Outputs.nickname.required).toBe(true);
     });
 
     it('parses functions and function calls', async () => {
@@ -398,7 +397,7 @@ describe(BuildConfigParser, () => {
       expect(step4.command).toBe('set-output value 6');
       expect(step4.ctx.workingDirectory).toBe(ctx.defaultWorkingDirectory);
       expect(step4.shell).toBe('/bin/bash -eo pipefail');
-      const value = step4.outputById.get('value')!;
+      const { value } = step4.outputById;
       expect(value.id).toBe('value');
       expect(value.required).toBe(true);
       expect(step4.stepEnvOverrides).toMatchObject({});

@@ -5,7 +5,7 @@ import { BuildStep } from '../BuildStep';
 import {
   BuildStepInput,
   BuildStepInputValueTypeName,
-  makeBuildStepInputByIdMap,
+  makeBuildStepInputById,
 } from '../BuildStepInput';
 import { BuildStepRuntimeError } from '../errors';
 
@@ -942,12 +942,15 @@ describe(BuildStepInput, () => {
   });
 });
 
-describe(makeBuildStepInputByIdMap, () => {
-  it('returns empty map when inputs are undefined', () => {
-    expect(makeBuildStepInputByIdMap(undefined)).toEqual(new Map());
+describe(makeBuildStepInputById, () => {
+  it('returns an empty null-prototype object when inputs are undefined', () => {
+    const result = makeBuildStepInputById(undefined);
+
+    expect(Object.keys(result)).toEqual([]);
+    expect(Object.getPrototypeOf(result)).toBeNull();
   });
 
-  it('returns map with inputs indexed by their ids', () => {
+  it('returns a null-prototype object with inputs indexed by their ids', () => {
     const ctx = createGlobalContextMock();
     const inputs: BuildStepInput[] = [
       new BuildStepInput(ctx, {
@@ -972,19 +975,20 @@ describe(makeBuildStepInputByIdMap, () => {
         required: true,
       }),
     ];
-    const result = makeBuildStepInputByIdMap(inputs);
-    expect(result.size).toBe(3);
-    expect(result.get('foo1')).toBeDefined();
-    expect(result.get('foo2')).toBeDefined();
-    expect(
-      result.get('foo1')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
-    ).toBe('bar1');
-    expect(
-      result.get('foo2')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
-    ).toBe('bar2');
-    expect(
-      result.get('foo3')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
-    ).toBe(true);
+    const result = makeBuildStepInputById(inputs);
+    expect(Object.getPrototypeOf(result)).toBeNull();
+    expect(Object.keys(result)).toHaveLength(3);
+    expect(result.foo1).toBeDefined();
+    expect(result.foo2).toBeDefined();
+    expect(result.foo1.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+      'bar1'
+    );
+    expect(result.foo2.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+      'bar2'
+    );
+    expect(result.foo3.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
+      true
+    );
   });
 
   it('supports input ids that are special object property names', () => {
@@ -997,8 +1001,9 @@ describe(makeBuildStepInputByIdMap, () => {
       allowedValueTypeName: BuildStepInputValueTypeName.STRING,
     });
 
-    const result = makeBuildStepInputByIdMap([input]);
+    const result = makeBuildStepInputById([input]);
 
-    expect(result.get('__proto__')).toBe(input);
+    expect(result.__proto__).toBe(input);
+    expect(Object.hasOwn(result, '__proto__')).toBe(true);
   });
 });

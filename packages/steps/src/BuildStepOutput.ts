@@ -1,7 +1,8 @@
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
+import { createNullPrototypeRecord } from './utils/record';
 
-export type BuildStepOutputById = Map<string, BuildStepOutput>;
+export type BuildStepOutputById = Record<string, BuildStepOutput>;
 export type BuildStepOutputProvider = (
   ctx: BuildStepGlobalContext,
   stepDisplayName: string
@@ -92,6 +93,10 @@ export class BuildStepOutput<R extends boolean = boolean> {
   }
 }
 
-export function makeBuildStepOutputByIdMap(outputs?: BuildStepOutput[]): BuildStepOutputById {
-  return new Map(outputs?.map(output => [output.id, output]));
+export function makeBuildStepOutputById(outputs?: BuildStepOutput[]): BuildStepOutputById {
+  const outputById = createNullPrototypeRecord<BuildStepOutput>();
+  for (const output of outputs ?? []) {
+    outputById[output.id] = output;
+  }
+  return outputById;
 }
