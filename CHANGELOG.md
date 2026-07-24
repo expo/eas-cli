@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Suggest running `agent-device` via `npx` in EAS Simulator session instructions. ([#4070](https://github.com/expo/eas-cli/pull/4070) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 - [eas-cli] Calibrate the experimental AI code reviewer's agent prompts and noise config to eas-cli's conventions. ([#4065](https://github.com/expo/eas-cli/pull/4065) by [@brentvatne](https://github.com/brentvatne))
