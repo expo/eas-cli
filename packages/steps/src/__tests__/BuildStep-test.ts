@@ -1210,6 +1210,46 @@ describe(BuildStep.deserialize, () => {
     expect(step.displayName).toBe('Test 1');
     expect(step.getOutputValueByName('abc')).toBe('123');
   });
+
+  it('preserves serialized output keys when they differ from embedded output ids', () => {
+    const step = BuildStep.deserialize({
+      id: 'test1',
+      displayName: 'Test 1',
+      executed: true,
+      outputById: {
+        serialized_key: {
+          id: 'embedded_id',
+          stepDisplayName: 'Test 1',
+          required: true,
+          value: '123',
+        },
+      },
+    });
+
+    expect(step.getOutputValueByName('serialized_key')).toBe('123');
+    expect(step.hasOutputParameter('embedded_id')).toBe(false);
+  });
+
+  it('deserializes an output keyed by __proto__', () => {
+    const step = BuildStep.deserialize({
+      id: 'test1',
+      displayName: 'Test 1',
+      executed: true,
+      outputById: Object.fromEntries([
+        [
+          '__proto__',
+          {
+            id: '__proto__',
+            stepDisplayName: 'Test 1',
+            required: true,
+            value: '123',
+          },
+        ],
+      ]),
+    });
+
+    expect(step.getOutputValueByName('__proto__')).toBe('123');
+  });
 });
 
 describe(BuildStep.prototype.shouldExecuteStep, () => {
