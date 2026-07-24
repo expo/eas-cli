@@ -17,13 +17,11 @@ export const jester: Actor = {
     {
       id: 'jester-account-id',
       name: 'jester',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [{ role: Role.Admin, actor: { id: 'jester-id' } }],
     },
     {
       id: 'other-account-id',
       name: 'other',
-      createdAt: '2021-01-01T00:00:00.000Z',
       users: [{ role: Role.ViewOnly, actor: { id: 'jester-id' } }],
     },
   ],
@@ -54,7 +52,6 @@ export const robot: Actor = {
     {
       id: 'robot-account-id',
       name: 'robot-account',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [],
     },
   ],

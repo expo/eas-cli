@@ -1,5 +1,5 @@
 import { Role } from '../../graphql/generated';
-import { Actor, getActorDisplayName, getCreatableAccountNamesNewestFirst } from '../User';
+import { Actor, getActorDisplayName, getCreatableAccountNames } from '../User';
 
 const userStub: Actor = {
   __typename: 'User',
@@ -15,7 +15,6 @@ const userStub: Actor = {
     {
       id: 'account_id_777',
       name: 'username',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [{ role: Role.Owner, actor: { id: 'userId' } }],
     },
   ],
@@ -36,7 +35,6 @@ const ssoUserStub: Actor = {
     {
       id: 'account_id_888',
       name: 'ssoUsername',
-      createdAt: '2020-01-01T00:00:00.000Z',
       users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
     },
   ],
@@ -75,38 +73,36 @@ describe('getActorDisplayName', () => {
   });
 });
 
-describe('getCreatableAccountNamesNewestFirst', () => {
-  it('sorts accounts by creation date from newest to oldest and excludes view-only accounts', () => {
+describe('getCreatableAccountNames', () => {
+  it('lists the personal account first, then team accounts, then organizations, excluding view-only accounts', () => {
     const actor: Actor = {
       ...userStub,
       accounts: [
         {
           id: 'account_id_1',
-          name: 'oldest',
-          createdAt: '2019-01-01T00:00:00.000Z',
+          name: 'some-org',
           users: [{ role: Role.Owner, actor: { id: 'userId' } }],
         },
         {
           id: 'account_id_2',
-          name: 'newest',
-          createdAt: '2023-01-01T00:00:00.000Z',
+          name: 'other-user-team',
+          ownerUserActor: { id: 'otherUserId', username: 'other-user' },
           users: [{ role: Role.Admin, actor: { id: 'userId' } }],
         },
         {
           id: 'account_id_3',
-          name: 'view-only',
-          createdAt: '2024-01-01T00:00:00.000Z',
+          name: 'view-only-org',
           users: [{ role: Role.ViewOnly, actor: { id: 'userId' } }],
         },
         {
           id: 'account_id_4',
-          name: 'middle',
-          createdAt: '2021-01-01T00:00:00.000Z',
+          name: 'username',
+          ownerUserActor: { id: 'userId', username: 'username' },
           users: [{ role: Role.Owner, actor: { id: 'userId' } }],
         },
       ],
     };
 
-    expect(getCreatableAccountNamesNewestFirst(actor)).toEqual(['newest', 'middle', 'oldest']);
+    expect(getCreatableAccountNames(actor)).toEqual(['username', 'other-user-team', 'some-org']);
   });
 });

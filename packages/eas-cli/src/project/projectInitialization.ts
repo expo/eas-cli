@@ -17,7 +17,7 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
 import { confirmAsync, promptAsync } from '../prompts';
-import { Actor, getCreatableAccountNamesNewestFirst } from '../user/User';
+import { Actor, getCreatableAccountNames } from '../user/User';
 
 export type InitializeMethodOptions = {
   force: boolean;
@@ -238,7 +238,7 @@ export async function initializeWithoutExplicitIDAsync(
     }
     if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountNameArgument)) {
       throw new Error(
-        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
+        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNames(
           actor
         ).join(', ')}`
       );
@@ -253,7 +253,7 @@ export async function initializeWithoutExplicitIDAsync(
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNamesNewestFirst(
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNames(
             actor
           ).join(
             ', '
