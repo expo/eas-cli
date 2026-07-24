@@ -1157,6 +1157,34 @@ describe('StepsConfigParser local composite functions', () => {
       expect(capturedEnv.TOKEN).toBe('secret');
     });
 
+    it('resolves a nested call-site env template against the outer call-site env', async () => {
+      let capturedEnv: Record<string, string | undefined> = {};
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          './.eas/functions/outer': {
+            runs: {
+              steps: [
+                {
+                  uses: './.eas/functions/inner',
+                  id: 'inner',
+                  env: { COPIED: '${{ env.OUTER }}' },
+                },
+              ],
+            },
+          },
+          './.eas/functions/inner': {
+            runs: { steps: [{ id: 'read', uses: 'test/capture-env' }] },
+          },
+        },
+        steps: [{ uses: './.eas/functions/outer', id: 'outer', env: { OUTER: 'visible' } }],
+        externalFunctions: [captureEnvFunction(env => (capturedEnv = env))],
+      });
+      await workflow.executeAsync();
+
+      expect(capturedEnv.COPIED).toBe('visible');
+      expect(capturedEnv.OUTER).toBe('visible');
+    });
+
     it('throws a runtime error when an input default references itself indirectly', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {

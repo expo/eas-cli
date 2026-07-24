@@ -117,11 +117,12 @@ export class BuildStepCompositeFunctionScope {
     return this.parent ? this.parent.getScopedInterpolationContext(base) : base;
   }
 
-  public resolveScopeEnv(base: JobInterpolationContext): BuildStepEnv {
+  private resolveScopeEnv(base: JobInterpolationContext, parentEnv: BuildStepEnv): BuildStepEnv {
     if (!this.env) {
       return {};
     }
-    const callerContext = this.getCallerInterpolationContext(base);
+    const callerBase: JobInterpolationContext = { ...base, env: { ...base.env, ...parentEnv } };
+    const callerContext = this.getCallerInterpolationContext(callerBase);
     return Object.fromEntries(
       Object.entries(this.env).map(([key, value]) => [
         key,
@@ -133,7 +134,7 @@ export class BuildStepCompositeFunctionScope {
   /** Merge call-site env from each scope level, outer to inner; inner keys win. */
   public resolveInheritedEnv(base: JobInterpolationContext): BuildStepEnv {
     const parentEnv = this.parent?.resolveInheritedEnv(base) ?? {};
-    return { ...parentEnv, ...this.resolveScopeEnv(base) };
+    return { ...parentEnv, ...this.resolveScopeEnv(base, parentEnv) };
   }
 
   // Workflow hides prefixed ids; re-expose the call's children under their local ids.
