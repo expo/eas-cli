@@ -143,6 +143,7 @@ eas --help COMMAND
 * [`eas observe:session [SESSIONID]`](#eas-observesession-sessionid)
 * [`eas observe:versions`](#eas-observeversions)
 * [`eas project:delete [NAME]`](#eas-projectdelete-name)
+* [`eas project:icon:set PATH`](#eas-projecticonset-path)
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
@@ -2217,6 +2218,26 @@ DESCRIPTION
 ```
 
 _See code: [packages/eas-cli/src/commands/project/delete.ts](https://github.com/expo/eas-cli/blob/v21.2.0/packages/eas-cli/src/commands/project/delete.ts)_
+
+## `eas project:icon:set PATH`
+
+set the project icon displayed on the EAS dashboard
+
+```
+USAGE
+  $ eas project:icon:set PATH [--non-interactive]
+
+ARGUMENTS
+  PATH  Path to the icon image (PNG or JPEG, at most 10 MB, ideally square)
+
+FLAGS
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  set the project icon displayed on the EAS dashboard
+```
+
+_See code: [packages/eas-cli/src/commands/project/icon/set.ts](https://github.com/expo/eas-cli/blob/v21.2.0/packages/eas-cli/src/commands/project/icon/set.ts)_
 
 ## `eas project:info`
 
