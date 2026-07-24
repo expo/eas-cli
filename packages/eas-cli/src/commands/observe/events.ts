@@ -25,6 +25,7 @@ import {
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appObservePlatformFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -101,12 +102,14 @@ export default class ObserveEvents extends EasCommand {
     const platform = appObservePlatformFromFlag(flags.platform);
 
     if (!args.eventName && !flags['all-events']) {
-      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
-        appId: projectId,
-        startTime,
-        endTime,
-        platform,
-      });
+      const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
+        ObserveQuery.customEventNamesAsync(graphqlClient, {
+          appId: projectId,
+          startTime,
+          endTime,
+          platform,
+        })
+      );
 
       if (json) {
         printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
@@ -124,17 +127,19 @@ export default class ObserveEvents extends EasCommand {
       return;
     }
 
-    const { events, pageInfo } = await fetchObserveCustomEventsAsync(graphqlClient, projectId, {
-      eventName: args.eventName,
-      limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-      ...(flags.after && { after: flags.after }),
-      startTime,
-      endTime,
-      platform,
-      appVersion: flags['app-version'],
-      updateId: flags['update-id'],
-      sessionId: flags['session-id'],
-    });
+    const { events, pageInfo } = await withObservePlanGateHandlingAsync(() =>
+      fetchObserveCustomEventsAsync(graphqlClient, projectId, {
+        eventName: args.eventName,
+        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+        ...(flags.after && { after: flags.after }),
+        startTime,
+        endTime,
+        platform,
+        appVersion: flags['app-version'],
+        updateId: flags['update-id'],
+        sessionId: flags['session-id'],
+      })
+    );
 
     if (args.eventName && events.length === 0) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
