@@ -80,6 +80,7 @@ export class CompositeFunctionExpander {
       {
         compositeFunctionPath,
         syntheticStepId,
+        name: step.name,
         callWith: step.with,
         callIf: step.if,
         inheritedEnv: step.env,
@@ -145,11 +146,16 @@ export class CompositeFunctionExpander {
       return child;
     });
 
+    const outputTemplates = Object.entries(compositeFunction.outputs ?? {}).map(
+      ([name, output]) => ({ name, template: output.value })
+    );
+
     return new CompositeBuildStep(this.ctx, {
       id: syntheticStepId,
       displayName: compositeFunctionDisplayName,
       scope,
       children,
+      outputTemplates,
     });
   }
 
@@ -249,6 +255,7 @@ export class CompositeFunctionExpander {
       {
         compositeFunctionPath,
         syntheticStepId: newId,
+        name: innerStep.name,
         callWith: innerStep.with,
         callIf: overrides.ifCondition,
         parentScope: scope,
