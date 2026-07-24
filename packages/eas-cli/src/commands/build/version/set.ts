@@ -5,6 +5,7 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import { evaluateConfigWithEnvVarsAsync } from '../../../build/evaluateConfigWithEnvVarsAsync';
+import { getVersionConfigTarget } from '../../../build/utils/version';
 import EasCommand from '../../../commandUtils/EasCommand';
 import { AppVersionMutation } from '../../../graphql/mutations/AppVersionMutation';
 import { AppVersionQuery } from '../../../graphql/queries/AppVersionQuery';
@@ -111,6 +112,7 @@ export default class BuildVersionSetView extends EasCommand {
       : `What version would you like to initialize it with?`;
     Log.log(currentStateMessage);
 
+    const { versionGetter } = getVersionConfigTarget({ exp, platform });
     const { version } = await promptAsync({
       type: platform === Platform.ANDROID ? 'number' : 'text',
       name: 'version',
@@ -124,7 +126,7 @@ export default class BuildVersionSetView extends EasCommand {
       appId: projectId,
       platform: toAppPlatform(platform),
       applicationIdentifier,
-      storeVersion: exp.version ?? '1.0.0',
+      storeVersion: versionGetter(exp) ?? '1.0.0',
       buildVersion: String(version),
       runtimeVersion:
         (await getRuntimeVersionNullableAsync(projectDir, exp, platform)) ?? undefined,
