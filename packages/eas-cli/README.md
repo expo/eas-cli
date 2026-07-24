@@ -1624,13 +1624,14 @@ create or link an EAS project
 
 ```
 USAGE
-  $ eas init [--account <value> | --id <value>] [--force] [--non-interactive]
+  $ eas init [--account <value> | --id <value>] [--force] [--json] [--non-interactive]
 
 FLAGS
   --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
 
 DESCRIPTION
@@ -1638,6 +1639,15 @@ DESCRIPTION
 
 ALIASES
   $ eas init
+
+EXAMPLES
+  $ eas init  	 # Create or link a project interactively
+
+  $ eas init --id <project-id>  	 # Link to the project with the given ID
+
+  $ eas init --account my-account --non-interactive  	 # Create or link @my-account/<slug> without prompts
+
+  $ eas init --account my-account --json --non-interactive  	 # Same, and print the result as JSON to stdout
 ```
 
 ## `eas integrations:asc:connect`
@@ -2260,13 +2270,14 @@ create or link an EAS project
 
 ```
 USAGE
-  $ eas project:init [--account <value> | --id <value>] [--force] [--non-interactive]
+  $ eas project:init [--account <value> | --id <value>] [--force] [--json] [--non-interactive]
 
 FLAGS
   --account=<value>  Name of the account that will own the project
   --force            Whether to create a new project/link an existing project without additional prompts or overwrite
                      any existing project ID when running with --id flag
   --id=<value>       ID of the EAS project to link
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
   --non-interactive  Run the command in non-interactive mode.
 
 DESCRIPTION
@@ -2274,6 +2285,15 @@ DESCRIPTION
 
 ALIASES
   $ eas init
+
+EXAMPLES
+  $ eas init  	 # Create or link a project interactively
+
+  $ eas init --id <project-id>  	 # Link to the project with the given ID
+
+  $ eas init --account my-account --non-interactive  	 # Create or link @my-account/<slug> without prompts
+
+  $ eas init --account my-account --json --non-interactive  	 # Same, and print the result as JSON to stdout
 ```
 
 _See code: [packages/eas-cli/src/commands/project/init.ts](https://github.com/expo/eas-cli/blob/v21.2.0/packages/eas-cli/src/commands/project/init.ts)_

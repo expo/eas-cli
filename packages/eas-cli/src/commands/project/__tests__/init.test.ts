@@ -17,6 +17,7 @@ import { createOrModifyExpoConfigAsync } from '../../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { isExpoInstalled } from '../../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ProjectInit from '../init';
 
 jest.mock('fs');
@@ -37,6 +38,7 @@ jest.mock('../../../ora', () => ({
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../project/projectUtils');
+jest.mock('../../../utils/json');
 
 let originalProcessArgv: string[];
 
@@ -751,6 +753,138 @@ describe(ProjectInit.name, () => {
       );
 
       expect(saveProjectIdToAppConfigAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when json flag is provided', () => {
+    it('prints the created project as JSON', async () => {
+      mockTestProject({});
+      jest.mocked(AppMutation.createAppAsync).mockResolvedValue('0129');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '0129',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(
+        ['--account', 'jester', '--json', '--non-interactive'],
+        commandOptions
+      ).run();
+
+      expect(enableJsonOutput).toHaveBeenCalled();
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'created',
+        projectId: '0129',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+      });
+    });
+
+    it('prints the linked project as JSON when an existing project is found on the server', async () => {
+      mockTestProject({});
+      jest.mocked(findProjectIdByAccountNameAndSlugNullableAsync).mockResolvedValue('123456');
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '123456',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(
+        ['--account', 'jester', '--json', '--non-interactive'],
+        commandOptions
+      ).run();
+
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'linked',
+        projectId: '123456',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+      });
+    });
+
+    it('prints already-linked as JSON when the project is already configured', async () => {
+      mockTestProject({ configuredProjectId: '1234', configuredOwner: jester.accounts[0].name });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(['--json', '--non-interactive'], commandOptions).run();
+
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'already-linked',
+        projectId: '1234',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+      });
+    });
+
+    it('prints the linked project as JSON when linking with an explicit id', async () => {
+      mockTestProject({});
+      jest
+        .mocked(createOrModifyExpoConfigAsync)
+        .mockResolvedValue({ type: 'success', config: {} as any });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit(['--id', '1234', '--json', '--non-interactive'], commandOptions).run();
+
+      expect(saveProjectIdToAppConfigAsync).toHaveBeenCalledWith('/test-project', '1234');
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'linked',
+        projectId: '1234',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+      });
+    });
+
+    it('implies non-interactive mode', async () => {
+      mockTestProject({});
+
+      await expect(new ProjectInit(['--json'], commandOptions).run()).rejects.toThrowError(
+        'You have access to multiple accounts. Choose the account that should own this project with the --account flag'
+      );
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    });
+
+    it('does not print JSON without the json flag', async () => {
+      mockTestProject({ configuredProjectId: '1234', configuredOwner: jester.accounts[0].name });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+
+      await new ProjectInit([], commandOptions).run();
+
+      expect(enableJsonOutput).not.toHaveBeenCalled();
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
     });
   });
 });
