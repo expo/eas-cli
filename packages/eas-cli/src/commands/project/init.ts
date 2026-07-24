@@ -1,16 +1,29 @@
 import { Flags } from '@oclif/core';
 
+import { getProjectDashboardUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
-import { EASNonInteractiveFlag } from '../../commandUtils/flags';
 import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import {
+  ProjectInitResult,
   ensureOwnerSlugConsistencyAsync,
   initializeWithExplicitIDAsync,
   initializeWithoutExplicitIDAsync,
 } from '../../project/projectInitialization';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class ProjectInit extends EasCommand {
   static override description = 'create or link an EAS project';
   static override aliases = ['init'];
+
+  static override examples = [
+    '$ eas init  \t # Create or link a project interactively',
+    '$ eas init --id <project-id>  \t # Link to the project with the given ID',
+    '$ eas init --account my-account --non-interactive  \t # Create or link @my-account/<slug> without prompts',
+    '$ eas init --account my-account --json --non-interactive  \t # Same, and print the result as JSON to stdout',
+  ];
 
   static override flags = {
     id: Flags.string({
@@ -24,7 +37,7 @@ export default class ProjectInit extends EasCommand {
       description:
         'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
     }),
-    ...EASNonInteractiveFlag,
+    ...EasNonInteractiveAndJsonFlags,
   };
 
   static override contextDefinition = {
@@ -33,32 +46,50 @@ export default class ProjectInit extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const {
-      flags: { id: idArgument, account: accountArgument, force, 'non-interactive': nonInteractive },
-    } = await this.parse(ProjectInit);
+    const { flags } = await this.parse(ProjectInit);
+    const { id: idArgument, account: accountArgument, force } = flags;
+    const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const {
       loggedIn: { actor, graphqlClient },
       projectDir,
     } = await this.getContextAsync(ProjectInit, { nonInteractive });
 
-    let idForConsistency: string;
+    let result: ProjectInitResult;
     if (idArgument) {
-      await initializeWithExplicitIDAsync(idArgument, projectDir, {
+      const status = await initializeWithExplicitIDAsync(idArgument, projectDir, {
         force,
         nonInteractive,
       });
-      idForConsistency = idArgument;
+      result = { projectId: idArgument, status };
     } else {
-      idForConsistency = await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
+      result = await initializeWithoutExplicitIDAsync(graphqlClient, actor, projectDir, {
         force,
         nonInteractive,
         accountName: accountArgument,
       });
     }
 
-    await ensureOwnerSlugConsistencyAsync(graphqlClient, idForConsistency, projectDir, {
-      force,
-      nonInteractive,
-    });
+    const { owner, slug } = await ensureOwnerSlugConsistencyAsync(
+      graphqlClient,
+      result.projectId,
+      projectDir,
+      {
+        force,
+        nonInteractive,
+      }
+    );
+
+    if (jsonFlag) {
+      printJsonOnlyOutput({
+        status: result.status,
+        projectId: result.projectId,
+        owner,
+        slug,
+        dashboardUrl: getProjectDashboardUrl(owner, slug),
+      });
+    }
   }
 }

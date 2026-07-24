@@ -24,6 +24,13 @@ export type InitializeMethodOptions = {
   nonInteractive: boolean;
 };
 
+export type ProjectInitStatus = 'created' | 'linked' | 'already-linked';
+
+export type ProjectInitResult = {
+  projectId: string;
+  status: ProjectInitStatus;
+};
+
 async function saveProjectIdAndLogSuccessAsync(
   projectDir: string,
   projectId: string
@@ -85,7 +92,7 @@ export async function ensureOwnerSlugConsistencyAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
+): Promise<{ owner: string; slug: string }> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
   const correctOwner = appForProjectId.ownerAccount.name;
@@ -134,59 +141,60 @@ export async function ensureOwnerSlugConsistencyAsync(
   } else if (!exp.slug) {
     await modifyExpoConfigAsync(projectDir, { slug: correctSlug });
   }
+
+  return { owner: correctOwner, slug: correctSlug };
 }
 
 async function setExplicitIDAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
+): Promise<ProjectInitStatus> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
 
   if (projectId === existingProjectId) {
     Log.succeed(`Project already linked (ID: ${chalk.bold(existingProjectId)})`);
-    return;
+    return 'already-linked';
   }
 
   if (!existingProjectId) {
     await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
-    return;
+    return 'linked';
   }
 
-  if (projectId !== existingProjectId) {
-    if (force) {
-      await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
-      return;
-    }
-
-    if (nonInteractive) {
-      throw new Error(
-        `Project is already linked to a different ID: ${chalk.bold(
-          existingProjectId
-        )}. Use --force flag to overwrite.`
-      );
-    }
-
-    const confirm = await confirmAsync({
-      message: `Project is already linked to a different ID: ${chalk.bold(
-        existingProjectId
-      )}. Do you wish to overwrite it?`,
-    });
-    if (!confirm) {
-      throw new Error('Aborting');
-    }
-
+  if (force) {
     await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
+    return 'linked';
   }
+
+  if (nonInteractive) {
+    throw new Error(
+      `Project is already linked to a different ID: ${chalk.bold(
+        existingProjectId
+      )}. Use --force flag to overwrite.`
+    );
+  }
+
+  const confirm = await confirmAsync({
+    message: `Project is already linked to a different ID: ${chalk.bold(
+      existingProjectId
+    )}. Do you wish to overwrite it?`,
+  });
+  if (!confirm) {
+    throw new Error('Aborting');
+  }
+
+  await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
+  return 'linked';
 }
 
 export async function initializeWithExplicitIDAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
-  await setExplicitIDAsync(projectId, projectDir, {
+): Promise<ProjectInitStatus> {
+  return await setExplicitIDAsync(projectId, projectDir, {
     force,
     nonInteractive,
   });
@@ -201,7 +209,7 @@ export async function initializeWithoutExplicitIDAsync(
     nonInteractive,
     accountName: accountNameArgument,
   }: InitializeMethodOptions & { accountName?: string }
-): Promise<string> {
+): Promise<ProjectInitResult> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
 
@@ -215,7 +223,7 @@ export async function initializeWithoutExplicitIDAsync(
           existingProjectId
         )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
       );
-      return existingProjectId;
+      return { projectId: existingProjectId, status: 'already-linked' };
     }
     if (!force) {
       throw new Error(
@@ -317,7 +325,7 @@ export async function initializeWithoutExplicitIDAsync(
     }
 
     await saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
-    return existingProjectIdOnServer;
+    return { projectId: existingProjectIdOnServer, status: 'linked' };
   }
 
   if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountName)) {
@@ -359,5 +367,5 @@ export async function initializeWithoutExplicitIDAsync(
   }
 
   await saveProjectIdAndLogSuccessAsync(projectDir, createdProjectId);
-  return createdProjectId;
+  return { projectId: createdProjectId, status: 'created' };
 }
