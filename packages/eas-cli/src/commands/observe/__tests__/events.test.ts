@@ -218,7 +218,15 @@ describe(ObserveEvents, () => {
     expect(options.sessionId).toBe('session-xyz');
   });
 
-  it('does not pass platform, appVersion, updateId, or sessionId when flags are not provided', async () => {
+  it('passes --client-id', async () => {
+    const command = createCommand(['my_event', '--client-id', 'client-xyz']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.easClientId).toBe('client-xyz');
+  });
+
+  it('does not pass platform, appVersion, updateId, sessionId, or easClientId when flags are not provided', async () => {
     const command = createCommand(['my_event']);
     await command.runAsync();
 
@@ -227,6 +235,7 @@ describe(ObserveEvents, () => {
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
     expect(options.sessionId).toBeUndefined();
+    expect(options.easClientId).toBeUndefined();
   });
 
   it('calls enableJsonOutput and printJsonOnlyOutput when --json is provided with an event name', async () => {

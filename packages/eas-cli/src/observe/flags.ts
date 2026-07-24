@@ -49,3 +49,9 @@ export const ObserveUpdateIdFlag = {
     description: 'Filter by EAS update ID',
   }),
 };
+
+export const ObserveClientIdFlag = {
+  'client-id': Flags.string({
+    description: 'Filter by EAS client ID (the unique identifier of an app installation)',
+  }),
+};

@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--client-id` flag to `eas observe:events` and `eas observe:metrics` to filter by EAS client ID. ([#4060](https://github.com/expo/eas-cli/pull/4060) by [@keith-kurak](https://github.com/keith-kurak))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
