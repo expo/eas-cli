@@ -2228,7 +2228,7 @@ USAGE
   $ eas project:icon:set PATH [--non-interactive]
 
 ARGUMENTS
-  PATH  Path to the icon image (PNG or JPEG, at most 10 MB, ideally square)
+  PATH  Path to the icon image (PNG or JPEG, at most 10 MB). Non-square images are center-cropped to a square.
 
 FLAGS
   --non-interactive  Run the command in non-interactive mode.

@@ -25,7 +25,8 @@ export default class ProjectIconSet extends EasCommand {
   static override args = {
     path: Args.string({
       required: true,
-      description: 'Path to the icon image (PNG or JPEG, at most 10 MB, ideally square)',
+      description:
+        'Path to the icon image (PNG or JPEG, at most 10 MB). Non-square images are center-cropped to a square.',
     }),
   };
 
