@@ -40,6 +40,9 @@ jest.mock('../../prompts', () => ({
 }));
 
 const { confirmAsync } = require('../../prompts') as jest.Mocked<typeof import('../../prompts')>;
+const { createAppleTasks } = require('../apple/tasks') as jest.Mocked<
+  typeof import('../apple/tasks')
+>;
 
 function createArgs(overrides: Record<string, any> = {}) {
   return {
@@ -96,5 +99,27 @@ describe(downloadMetadataAsync, () => {
     await downloadMetadataAsync(createArgs({ nonInteractive: false }));
 
     expect(confirmAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not skip screenshots or previews by default', async () => {
+    await downloadMetadataAsync(createArgs());
+
+    expect(createAppleTasks).toHaveBeenCalledWith(
+      expect.objectContaining({ skipScreenshots: false, skipPreviews: false })
+    );
+  });
+
+  it('skips screenshots when skipScreenshots is enabled', async () => {
+    await downloadMetadataAsync(createArgs({ skipScreenshots: true }));
+
+    expect(createAppleTasks).toHaveBeenCalledWith(
+      expect.objectContaining({ skipScreenshots: true })
+    );
+  });
+
+  it('skips previews when skipPreviews is enabled', async () => {
+    await downloadMetadataAsync(createArgs({ skipPreviews: true }));
+
+    expect(createAppleTasks).toHaveBeenCalledWith(expect.objectContaining({ skipPreviews: true }));
   });
 });

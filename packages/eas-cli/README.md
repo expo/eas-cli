@@ -1944,11 +1944,13 @@ generate the local store configuration from the app stores
 
 ```
 USAGE
-  $ eas metadata:pull [-e <value>] [--non-interactive]
+  $ eas metadata:pull [-e <value>] [--skip-screenshots] [--skip-previews] [--non-interactive]
 
 FLAGS
-  -e, --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
-      --non-interactive  Run the command in non-interactive mode.
+  -e, --profile=<value>   Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
+      --non-interactive   Run the command in non-interactive mode.
+      --skip-previews     Skip downloading video previews from the app stores
+      --skip-screenshots  Skip downloading screenshots from the app stores
 
 DESCRIPTION
   generate the local store configuration from the app stores
@@ -1962,11 +1964,14 @@ sync the local store configuration to the app stores
 
 ```
 USAGE
-  $ eas metadata:push [-e <value>] [--non-interactive]
+  $ eas metadata:push [-e <value>] [--skip-screenshots] [--skip-previews] [--non-interactive]
 
 FLAGS
-  -e, --profile=<value>  Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
-      --non-interactive  Run the command in non-interactive mode.
+  -e, --profile=<value>   Name of the submit profile from eas.json. Defaults to "production" if defined in eas.json.
+      --non-interactive   Run the command in non-interactive mode.
+      --skip-previews     Skip uploading video previews to the app stores. Video previews missing from the store config
+                          are not deleted from the app stores.
+      --skip-screenshots  Skip uploading screenshots to the app stores
 
 DESCRIPTION
   sync the local store configuration to the app stores

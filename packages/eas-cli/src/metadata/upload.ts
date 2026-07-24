@@ -27,6 +27,8 @@ export async function uploadMetadataAsync({
   nonInteractive,
   graphqlClient,
   projectId,
+  skipScreenshots = false,
+  skipPreviews = false,
 }: {
   projectDir: string;
   profile: SubmitProfile;
@@ -36,6 +38,8 @@ export async function uploadMetadataAsync({
   nonInteractive: boolean;
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
+  skipScreenshots?: boolean;
+  skipPreviews?: boolean;
 }): Promise<{ appleLink: string }> {
   const storeConfig = await loadConfigWithValidationPromptAsync(
     projectDir,
@@ -67,6 +71,8 @@ export async function uploadMetadataAsync({
     // We need to resolve a different version as soon as possible.
     // This version is the parent model of all changes we are going to push.
     version: config.getVersion()?.versionString,
+    skipScreenshots,
+    skipPreviews,
   });
 
   const taskCtx = { app, projectDir };
