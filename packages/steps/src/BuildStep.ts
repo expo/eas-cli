@@ -9,12 +9,12 @@ import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
-import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
+import { BuildStepInput, BuildStepInputById, makeBuildStepInputById } from './BuildStepInput';
 import {
   BuildStepOutput,
   BuildStepOutputById,
   SerializedBuildStepOutput,
-  makeBuildStepOutputByIdMap,
+  makeBuildStepOutputById,
 } from './BuildStepOutput';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
@@ -35,6 +35,7 @@ import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
 import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
+import { createNullPrototypeRecord } from './utils/record';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -50,7 +51,6 @@ export enum BuildStepLogMarker {
   END_STEP = 'end-step',
 }
 
-export type BuildStepFunctionOutputs = Record<string, BuildStepOutput>;
 export type BuildStepFunctionInputs = Record<string, { value: unknown }>;
 
 export type BuildStepFunction = (
@@ -61,7 +61,7 @@ export type BuildStepFunction = (
     env,
   }: {
     inputs: BuildStepFunctionInputs;
-    outputs: BuildStepFunctionOutputs;
+    outputs: BuildStepOutputById;
     env: BuildStepEnv;
     signal?: AbortSignal;
   }
@@ -83,7 +83,7 @@ export class BuildStepOutputAccessor {
   ) {}
 
   public get outputs(): BuildStepOutput[] {
-    return [...this.outputById.values()];
+    return Object.values(this.outputById);
   }
 
   public getOutputValueByName(name: string): string | undefined {
@@ -95,11 +95,11 @@ export class BuildStepOutputAccessor {
     if (!this.hasOutputParameter(name)) {
       throw new BuildStepRuntimeError(`Step "${this.displayName}" does not have output "${name}".`);
     }
-    return this.outputById.get(name)!.value;
+    return this.outputById[name].value;
   }
 
   public hasOutputParameter(name: string): boolean {
-    return this.outputById.has(name);
+    return Object.hasOwn(this.outputById, name);
   }
 
   public serialize(): SerializedBuildStepOutputAccessor {
@@ -107,7 +107,7 @@ export class BuildStepOutputAccessor {
       id: this.id,
       executed: this.executed,
       outputById: Object.fromEntries(
-        [...this.outputById].map(([key, value]) => [key, value.serialize()])
+        Object.entries(this.outputById).map(([key, value]) => [key, value.serialize()])
       ),
       displayName: this.displayName,
     };
@@ -116,11 +116,8 @@ export class BuildStepOutputAccessor {
   public static deserialize(
     serialized: SerializedBuildStepOutputAccessor
   ): BuildStepOutputAccessor {
-    const outputById = new Map(
-      Object.entries(serialized.outputById).map(([key, value]) => [
-        key,
-        BuildStepOutput.deserialize(value),
-      ])
+    const outputById = makeBuildStepOutputById(
+      Object.values(serialized.outputById).map(value => BuildStepOutput.deserialize(value))
     );
     return new BuildStepOutputAccessor(
       serialized.id,
@@ -197,14 +194,14 @@ export class BuildStep extends BuildStepOutputAccessor {
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
     assert(!(command !== undefined && fn !== undefined), 'Command and fn cannot be both set.');
-    const outputById = makeBuildStepOutputByIdMap(outputs);
+    const outputById = makeBuildStepOutputById(outputs);
     super(id, displayName, false, outputById);
 
     this.id = id;
     this.displayName = displayName;
     this.supportedRuntimePlatforms = maybeSupportedRuntimePlatforms;
     this.inputs = inputs;
-    this.inputById = makeBuildStepInputByIdMap(inputs);
+    this.inputById = makeBuildStepInputById(inputs);
     this.outputById = outputById;
     this.fn = fn;
     this.command = command;
@@ -354,18 +351,14 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private evaluateOwnStepInputs(): Record<string, unknown> {
-    return (
-      this.inputs?.reduce(
-        (acc, input) => {
-          acc[input.id] = input.getValue({
-            interpolationContext: this.getInterpolationContext(),
-            skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
-          });
-          return acc;
-        },
-        {} as Record<string, unknown>
-      ) ?? {}
-    );
+    const inputsById = createNullPrototypeRecord<unknown>();
+    for (const input of this.inputs ?? []) {
+      inputsById[input.id] = input.getValue({
+        interpolationContext: this.getInterpolationContext(),
+        skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+      });
+    }
+    return inputsById;
   }
 
   private evaluateIfCondition(
@@ -494,23 +487,26 @@ export class BuildStep extends BuildStepOutputAccessor {
     assert(this.fn, 'Function (fn) must be defined');
 
     await this.fn(this.ctx, {
-      inputs: Object.fromEntries(
-        [...this.inputById].map(([key, input]) => [
-          key,
-          {
-            value: input.getValue({
-              interpolationContext: this.getInterpolationContext(),
-              skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
-            }),
-          },
-        ])
-      ),
-      outputs: Object.fromEntries(this.outputById),
+      inputs: this.getFunctionInputs(),
+      outputs: this.outputById,
       env: this.getScriptEnv(),
       signal: signal ?? undefined,
     });
 
     this.ctx.logger.debug(`Script completed successfully`);
+  }
+
+  private getFunctionInputs(): BuildStepFunctionInputs {
+    const functionInputs = createNullPrototypeRecord<{ value: unknown }>();
+    for (const [key, input] of Object.entries(this.inputById)) {
+      functionInputs[key] = {
+        value: input.getValue({
+          interpolationContext: this.getInterpolationContext(),
+          skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+        }),
+      };
+    }
+    return functionInputs;
   }
 
   private interpolateInputsOutputsAndGlobalContextInTemplate(
@@ -528,18 +524,15 @@ export class BuildStep extends BuildStepOutputAccessor {
             this.getLegacyStepOutputValue(path)
           );
     }
-    const vars = inputs.reduce(
-      (acc, input) => {
-        const value = input.getValue({
-          interpolationContext: this.getInterpolationContext(),
-          skipLegacyOutputInterpolation,
-        });
-        acc[input.id] =
-          typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
-        return acc;
-      },
-      {} as Record<string, string>
-    );
+    const vars = createNullPrototypeRecord<string>();
+    for (const input of inputs) {
+      const value = input.getValue({
+        interpolationContext: this.getInterpolationContext(),
+        skipLegacyOutputInterpolation,
+      });
+      vars[input.id] =
+        typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
+    }
     const interpolatedWithInputsAndGlobalContext = interpolateWithInputs(
       this.ctx.global.interpolate(template),
       vars
@@ -559,23 +552,23 @@ export class BuildStep extends BuildStepOutputAccessor {
     const files = await fs.readdir(outputsDir);
 
     for (const outputId of files) {
-      if (!this.outputById.has(outputId)) {
+      if (!Object.hasOwn(this.outputById, outputId)) {
         const newOutput = new BuildStepOutput(this.ctx.global, {
           id: outputId,
           stepDisplayName: this.displayName,
           required: false,
         });
-        this.outputById.set(outputId, newOutput);
+        this.outputById[outputId] = newOutput;
       }
 
       const file = path.join(outputsDir, outputId);
       const rawContents = await fs.readFile(file, 'utf-8');
       const decodedContents = Buffer.from(rawContents, 'base64').toString('utf-8');
-      this.outputById.get(outputId)!.set(decodedContents);
+      this.outputById[outputId].set(decodedContents);
     }
 
     const nonSetRequiredOutputIds: string[] = [];
-    for (const output of this.outputById.values()) {
+    for (const output of Object.values(this.outputById)) {
       try {
         const value = output.value;
         this.ctx.logger.debug(`Output parameter "${output.id}" is set to "${value}"`);

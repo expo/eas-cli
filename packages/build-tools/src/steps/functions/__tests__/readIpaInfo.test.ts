@@ -64,10 +64,8 @@ describe(createReadIpaInfoBuildFunction, () => {
     });
     await buildStep.executeAsync();
 
-    expect(buildStep.outputById.get('bundle_identifier')!.value).toBe(
-      'dev.expo.SmallestAppExample'
-    );
-    expect(buildStep.outputById.get('bundle_short_version')!.value).toBe('1.0');
-    expect(buildStep.outputById.get('bundle_version')!.value).toBe('1');
+    expect(buildStep.outputById.bundle_identifier.value).toBe('dev.expo.SmallestAppExample');
+    expect(buildStep.outputById.bundle_short_version.value).toBe('1.0');
+    expect(buildStep.outputById.bundle_version.value).toBe('1');
   });
 });

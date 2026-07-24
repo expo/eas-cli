@@ -8,6 +8,7 @@ import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
   interpolateWithOutputs,
 } from './utils/template';
+import { createNullPrototypeRecord } from './utils/record';
 
 export enum BuildStepInputValueTypeName {
   STRING = 'string',
@@ -26,7 +27,7 @@ export type BuildStepInputValueType<
       ? number
       : Record<string, unknown>;
 
-export type BuildStepInputById = Map<string, BuildStepInput>;
+export type BuildStepInputById = Record<string, BuildStepInput>;
 export type BuildStepInputProvider = (
   ctx: BuildStepGlobalContext,
   stepId: string
@@ -255,6 +256,10 @@ export function getDisallowedInputValueError(
   return `Input parameter "${input.id}" for step "${stepDisplayName}" is set to "${rendered}" which is not one of the allowed values: ${allowedValues}.`;
 }
 
-export function makeBuildStepInputByIdMap(inputs?: BuildStepInput[]): BuildStepInputById {
-  return new Map(inputs?.map(input => [input.id, input]));
+export function makeBuildStepInputById(inputs?: BuildStepInput[]): BuildStepInputById {
+  const inputById = createNullPrototypeRecord<BuildStepInput>();
+  for (const input of inputs ?? []) {
+    inputById[input.id] = input;
+  }
+  return inputById;
 }

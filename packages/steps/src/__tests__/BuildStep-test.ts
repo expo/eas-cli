@@ -412,6 +412,34 @@ describe(BuildStep, () => {
         expect(step.getOutputValueByName('foo2')).toBe('bar  linux {"foo":"bar","baz":[1,"aaa"]}');
       });
 
+      it('interpolates an input named __proto__ in a command template', async () => {
+        const step = new BuildStep(baseStepCtx, {
+          id: 'test1',
+          displayName: 'test1',
+          inputs: [
+            new BuildStepInput(baseStepCtx, {
+              id: '__proto__',
+              stepDisplayName: 'test1',
+              defaultValue: 'prototype input',
+              required: true,
+              allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+            }),
+          ],
+          outputs: [
+            new BuildStepOutput(baseStepCtx, {
+              id: 'result',
+              stepDisplayName: 'test1',
+              required: true,
+            }),
+          ],
+          command: "set-output result '${inputs.__proto__}'",
+        });
+
+        await step.executeAsync();
+
+        expect(step.getOutputValueByName('result')).toBe('prototype input');
+      });
+
       it('interpolates the outputs in command template', async () => {
         const stepWithOutput = new BuildFunction({
           id: 'func',
@@ -464,7 +492,7 @@ describe(BuildStep, () => {
           command,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.get('abc'));
+        const abc = nullthrows(step.outputById.abc);
         expect(abc?.value).toBe('123');
       });
 
@@ -510,7 +538,7 @@ describe(BuildStep, () => {
           fn,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.get('abc'));
+        const abc = nullthrows(step.outputById.abc);
         expect(abc?.value).toBe('123');
       });
     });
@@ -607,7 +635,7 @@ describe(BuildStep, () => {
           command,
         });
         await step.executeAsync();
-        const abc = nullthrows(step.outputById.get('abc'));
+        const abc = nullthrows(step.outputById.abc);
         expect(abc?.value).toBe('d o m i n i k');
       });
 
@@ -1305,6 +1333,27 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ],
       ifCondition: 'inputs.foo1 === "bar"',
     });
+    expect(step.shouldExecuteStep()).toBe(true);
+  });
+
+  it('returns true when an input named __proto__ matches', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      inputs: [
+        new BuildStepInput(ctx, {
+          id: '__proto__',
+          stepDisplayName: 'Test 1',
+          defaultValue: 'prototype input',
+          required: true,
+          allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+        }),
+      ],
+      ifCondition: 'inputs.__proto__ === "prototype input"',
+    });
+
     expect(step.shouldExecuteStep()).toBe(true);
   });
 
