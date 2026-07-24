@@ -37,6 +37,6 @@
   "auth": {
     "mode": "oauth",
     "provider": "anthropic",
-    "tokenEnv": "DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY"
+    "tokenEnv": "ANTHROPIC_OAUTH_API_KEY"
   }
 }

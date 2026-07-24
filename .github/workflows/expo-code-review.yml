@@ -98,7 +98,7 @@ jobs:
       - name: Guard config.jsonc tokenEnv
         if: steps.resolve.outputs.run == 'true'
         env:
-          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY' }}
+          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'ANTHROPIC_OAUTH_API_KEY' }}
         run: |
           values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
           count=$(printf '%s\n' "$values" | grep -c .)
@@ -137,7 +137,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Claude Pro/Max OAuth token (auth.mode "oauth" in .expo-code-review/
           # config.jsonc reads this env var). Not an x-api-key.
-          DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
+          ANTHROPIC_OAUTH_API_KEY: ${{ secrets.ANTHROPIC_OAUTH_API_KEY }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.resolve.outputs.agents }}
