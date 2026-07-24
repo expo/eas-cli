@@ -5,7 +5,11 @@ import promiseRetry from 'promise-retry';
 
 import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from './fetch';
-import { AccountUploadSessionType, UploadSessionType } from './graphql/generated';
+import {
+  AccountUploadSessionType,
+  AppUploadSessionType,
+  UploadSessionType,
+} from './graphql/generated';
 import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
@@ -48,6 +52,29 @@ export async function uploadAccountScopedFileAtPathToGCSAsync(
     graphqlClient,
     { type, accountID: accountId }
   );
+
+  await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
+  return signedUrl.bucketKey;
+}
+
+export async function uploadAppScopedFileAtPathToGCSAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    type,
+    appId,
+    path,
+    handleProgressEvent = () => {},
+  }: {
+    type: AppUploadSessionType;
+    appId: string;
+    path: string;
+    handleProgressEvent?: ProgressHandler;
+  }
+): Promise<string> {
+  const signedUrl = await UploadSessionMutation.createAppScopedUploadSessionAsync(graphqlClient, {
+    type,
+    appID: appId,
+  });
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
   return signedUrl.bucketKey;
