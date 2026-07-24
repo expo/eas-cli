@@ -83,7 +83,7 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
       }
       const error = err instanceof Error ? err : new Error(String(err));
       listArtifactsErrorCount += 1;
-      if (listArtifactsErrorCount === 1 || listArtifactsErrorCount % 5 === 0) {
+      if (listArtifactsErrorCount % 5 === 0) {
         Sentry.capture('Could not list agent-device remote session artifacts', error);
         logger.warn(
           { err: error, failedArtifactListCount: listArtifactsErrorCount },
