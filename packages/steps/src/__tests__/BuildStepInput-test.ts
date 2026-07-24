@@ -943,11 +943,11 @@ describe(BuildStepInput, () => {
 });
 
 describe(makeBuildStepInputByIdMap, () => {
-  it('returns empty object when inputs are undefined', () => {
-    expect(makeBuildStepInputByIdMap(undefined)).toEqual({});
+  it('returns empty map when inputs are undefined', () => {
+    expect(makeBuildStepInputByIdMap(undefined)).toEqual(new Map());
   });
 
-  it('returns object with inputs indexed by their ids', () => {
+  it('returns map with inputs indexed by their ids', () => {
     const ctx = createGlobalContextMock();
     const inputs: BuildStepInput[] = [
       new BuildStepInput(ctx, {
@@ -973,17 +973,32 @@ describe(makeBuildStepInputByIdMap, () => {
       }),
     ];
     const result = makeBuildStepInputByIdMap(inputs);
-    expect(Object.keys(result).length).toBe(3);
-    expect(result.foo1).toBeDefined();
-    expect(result.foo2).toBeDefined();
-    expect(result.foo1.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
-      'bar1'
-    );
-    expect(result.foo2.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
-      'bar2'
-    );
-    expect(result.foo3.getValue({ interpolationContext: ctx.getInterpolationContext() })).toBe(
-      true
-    );
+    expect(result.size).toBe(3);
+    expect(result.get('foo1')).toBeDefined();
+    expect(result.get('foo2')).toBeDefined();
+    expect(
+      result.get('foo1')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
+    ).toBe('bar1');
+    expect(
+      result.get('foo2')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
+    ).toBe('bar2');
+    expect(
+      result.get('foo3')!.getValue({ interpolationContext: ctx.getInterpolationContext() })
+    ).toBe(true);
+  });
+
+  it('supports input ids that are special object property names', () => {
+    const ctx = createGlobalContextMock();
+    const input = new BuildStepInput(ctx, {
+      id: '__proto__',
+      stepDisplayName: 'test1',
+      defaultValue: 'value',
+      required: true,
+      allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+    });
+
+    const result = makeBuildStepInputByIdMap([input]);
+
+    expect(result.get('__proto__')).toBe(input);
   });
 });
