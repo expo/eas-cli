@@ -65,9 +65,17 @@ describe('expoConfig', () => {
       jest.mocked(isExpoInstalled).mockReturnValue(false);
     });
 
+    it('reads the config with the bundled @expo/config when expo is installed without Expo CLI (old SDKs)', async () => {
+      const exp = { name: 'testapp', slug: 'testapp' } as any;
+      jest.mocked(resolveFrom.silent).mockReturnValue('/app/node_modules/expo/package.json');
+      jest.mocked(getConfig).mockReturnValue({ exp } as any);
+
+      await expect(getPrivateExpoConfigAsync('/app')).resolves.toEqual(exp);
+    });
+
     it('throws an actionable error when expo is declared in package.json but not installed', async () => {
-      jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
       jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
+      jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
 
       await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
         /dependencies to be installed/
@@ -75,12 +83,14 @@ describe('expoConfig', () => {
       expect(getConfig).not.toHaveBeenCalled();
     });
 
-    it('reads the config with the bundled @expo/config when expo is not declared in package.json', async () => {
-      const exp = { name: 'testapp', slug: 'testapp' } as any;
+    it('throws an actionable error when expo is not declared in package.json', async () => {
+      jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: {} } as any);
-      jest.mocked(getConfig).mockReturnValue({ exp } as any);
 
-      await expect(getPrivateExpoConfigAsync('/app')).resolves.toEqual(exp);
+      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
+        /The `expo` package was not found/
+      );
+      expect(getConfig).not.toHaveBeenCalled();
     });
   });
 });

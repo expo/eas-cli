@@ -14,6 +14,7 @@ import path from 'path';
 import resolveFrom from 'resolve-from';
 
 import { isExpoInstalled } from './projectUtils';
+import { link } from '../log';
 import { spawnExpoCommand } from '../utils/expoCli';
 
 export type PublicExpoConfig = Omit<
@@ -72,13 +73,27 @@ async function getExpoConfigInternalAsync(
         }
       );
       exp = JSON.parse(stdout);
-    } else {
-      assertDependenciesInstalledForExpoConfig(projectDir);
+    } else if (resolveFrom.silent(projectDir, 'expo/package.json')) {
+      // Old SDK versions of the `expo` package don't include Expo CLI, so read the config with
+      // the copy of `@expo/config` bundled with EAS CLI instead.
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
         ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
         ...(opts.skipPlugins ? { skipPlugins: true } : {}),
       }).exp;
+    } else if (getPackageJson(projectDir)?.dependencies?.expo) {
+      const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
+      throw new Error(
+        `EAS CLI needs your project's dependencies to be installed to read your app config. Run ${chalk.bold(
+          installCommand
+        )} in your project directory and run this command again.`
+      );
+    } else {
+      throw new Error(
+        `The \`expo\` package was not found in your project, and EAS CLI needs it to read your app config. Follow the installation directions at ${link(
+          'https://docs.expo.dev/bare/installing-expo-modules/'
+        )}`
+      );
     }
 
     const { error } = MinimalAppConfigSchema.validate(exp, {
@@ -92,28 +107,6 @@ async function getExpoConfigInternalAsync(
   } finally {
     process.env = originalProcessEnv;
   }
-}
-
-/**
- * EAS CLI needs the project's dependencies to be installed to read the app config; it runs
- * `expo config` with the project's own copy of Expo CLI so the config is resolved consistently
- * across tools. If `expo` is declared in package.json but can't be resolved, the project's
- * dependencies aren't installed, so tell the developer what to do instead of failing later with
- * a confusing module resolution error. Projects that don't depend on the `expo` package are read
- * with the copy of `@expo/config` bundled with EAS CLI.
- */
-function assertDependenciesInstalledForExpoConfig(projectDir: string): void {
-  const packageJson = getPackageJson(projectDir);
-  if (!packageJson?.dependencies?.expo || resolveFrom.silent(projectDir, 'expo/package.json')) {
-    return;
-  }
-
-  const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
-  throw new Error(
-    `EAS CLI needs your project's dependencies to be installed to read your app config. Run ${chalk.bold(
-      installCommand
-    )} in your project directory and run this command again.`
-  );
 }
 
 const MinimalAppConfigSchema = Joi.object({
