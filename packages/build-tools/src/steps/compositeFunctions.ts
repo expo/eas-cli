@@ -7,6 +7,7 @@ import {
   CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
+  Step,
 } from '@expo/eas-build-job';
 import {
   buildCompositeFunctionCatalogFromStepsAsync,
@@ -75,7 +76,7 @@ async function loadLocalCompositeFunctionConfigAsync(
 
 export async function buildCompositeFunctionCatalogAsync(
   projectRoot: string,
-  { steps, logger }: { steps: readonly unknown[]; logger?: bunyan }
+  { steps, logger }: { steps: readonly Step[]; logger?: bunyan }
 ): Promise<CompositeFunctionCatalog> {
   return buildCompositeFunctionCatalogFromStepsAsync({
     rootSteps: steps,

@@ -1,4 +1,4 @@
-import { CompositeFunctionCatalog, CompositeFunctionConfig } from '@expo/eas-build-job';
+import { CompositeFunctionCatalog, CompositeFunctionConfig, Step } from '@expo/eas-build-job';
 import path from 'path';
 
 import { BuildConfigError } from '../errors';
@@ -47,7 +47,7 @@ export async function buildCompositeFunctionCatalogFromStepsAsync({
   rootSteps,
   loadCompositeFunction,
 }: {
-  rootSteps: readonly unknown[];
+  rootSteps: readonly Step[];
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<CompositeFunctionCatalog> {
   const catalog: CompositeFunctionCatalog = {};
@@ -79,18 +79,14 @@ export function resolveLocalCompositeFunctionPath(
   return path.resolve(projectRoot, compositeFunctionPath);
 }
 
-function collectLocalCompositeFunctionPathsFromSteps(steps: readonly unknown[]): Set<string> {
+function collectLocalCompositeFunctionPathsFromSteps(steps: readonly Step[]): Set<string> {
   const paths = new Set<string>();
   for (const step of steps) {
-    if (!step || typeof step !== 'object') {
-      continue;
-    }
-    const uses = (step as { uses?: unknown }).uses;
-    if (typeof uses === 'string' && isLocalCompositeFunctionPath(uses)) {
-      if ((step as { working_directory?: unknown }).working_directory !== undefined) {
-        throw new BuildConfigError(getLocalCompositeFunctionCallWorkingDirectoryError(uses));
+    if (step.uses !== undefined && isLocalCompositeFunctionPath(step.uses)) {
+      if (step.working_directory !== undefined) {
+        throw new BuildConfigError(getLocalCompositeFunctionCallWorkingDirectoryError(step.uses));
       }
-      paths.add(parseLocalCompositeFunctionPath(uses));
+      paths.add(parseLocalCompositeFunctionPath(step.uses));
     }
   }
   return paths;
