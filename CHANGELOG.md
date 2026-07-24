@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `eas account:avatar:set` to upload an account avatar from the command line. ([#4073](https://github.com/expo/eas-cli/pull/4073) by [@brentvatne](https://github.com/brentvatne))
+
 - [eas-cli] Add `eas project:icon:set` to upload a project icon from the command line. ([#4068](https://github.com/expo/eas-cli/pull/4068) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
