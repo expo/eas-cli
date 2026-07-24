@@ -1,3 +1,6 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import {
@@ -6,6 +9,7 @@ import {
   AppObservePlatform,
 } from '../../../graphql/generated';
 import { fetchObserveEventsAsync, resolveOrderBy } from '../../../observe/fetchEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { buildObserveEventsJson } from '../../../observe/formatEvents';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import ObserveMetrics from '../metrics';
@@ -51,6 +55,24 @@ describe(ObserveMetrics, () => {
     });
     return command;
   }
+
+  it('surfaces the server plan-gate message when the metric is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveEventsAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand(['nav_tti']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
 
   it('accepts a navigation metric alias as the positional arg', async () => {
     const command = createCommand(['nav_tti']);

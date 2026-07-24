@@ -19,6 +19,7 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -99,13 +100,15 @@ export default class ObserveMetricsSummary extends EasCommand {
     const platforms = appPlatformsFromFlag(flags.platform);
 
     const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
-      await fetchObserveMetricsAsync(
-        graphqlClient,
-        projectId,
-        metricNames,
-        platforms,
-        startTime,
-        endTime
+      await withObservePlanGateHandlingAsync(() =>
+        fetchObserveMetricsAsync(
+          graphqlClient,
+          projectId,
+          metricNames,
+          platforms,
+          startTime,
+          endTime
+        )
       );
 
     const argumentsStat = flags.stat?.length

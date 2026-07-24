@@ -10,6 +10,7 @@ import {
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
+import { isObservePlanGateError } from './planGating';
 
 export enum EventsOrderPreset {
   Slowest = 'SLOWEST',
@@ -112,7 +113,12 @@ export async function fetchTotalEventCountAsync(
         const metric = v.metrics.find(m => m.metricName === metricName);
         return sum + (metric?.eventCount ?? 0);
       }, 0);
-    } catch {
+    } catch (error) {
+      // A plan gate is an account-wide rejection, not a per-platform failure —
+      // let it propagate so the command surfaces the upgrade prompt.
+      if (isObservePlanGateError(error)) {
+        throw error;
+      }
       return 0;
     }
   });
