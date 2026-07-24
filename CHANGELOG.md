@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas fingerprint:generate` and `eas fingerprint:compare` corrupting `--json` output when `--environment` is set, by enabling JSON output before loading server-side environment variables. ([#3870](https://github.com/expo/eas-cli/pull/3870) by [@nossila](https://github.com/nossila))
+
 ### 🧹 Chores
 
 ## [21.2.0](https://github.com/expo/eas-cli/releases/tag/v21.2.0) - 2026-07-24
