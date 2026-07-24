@@ -3,7 +3,6 @@ import JsonFile from '@expo/json-file';
 import { writeFileSync } from 'fs-extra';
 import resolveFrom from 'resolve-from';
 
-import Log from '../../log';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from '../expoConfig';
 import { isExpoInstalled } from '../projectUtils';
 
@@ -58,7 +57,6 @@ describe('expoConfig', () => {
   });
 
   describe('getPrivateExpoConfigAsync when Expo CLI is not resolvable', () => {
-    const exp = { name: 'testapp', slug: 'testapp' } as any;
     const pluginNotFoundError = Object.assign(
       new Error(
         'Failed to resolve plugin for module "expo-router" relative to "/app". Do you have node modules installed?'
@@ -72,32 +70,22 @@ describe('expoConfig', () => {
         dynamicConfigPath: null,
       });
       jest.mocked(isExpoInstalled).mockReturnValue(false);
-      jest.spyOn(Log, 'warn').mockImplementation(() => {});
-      jest.spyOn(Log, 'newLine').mockImplementation(() => {});
     });
 
-    it('reads the config without config plugins when dependencies are not installed', async () => {
+    it('throws an actionable error when dependencies are not installed and a config plugin cannot be resolved', async () => {
       // `expo` is declared in package.json but dependencies are not installed
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
       jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
-      jest
-        .mocked(getConfig)
-        .mockImplementationOnce(() => {
-          throw pluginNotFoundError;
-        })
-        .mockReturnValueOnce({ exp } as any);
+      jest.mocked(getConfig).mockImplementation(() => {
+        throw pluginNotFoundError;
+      });
 
-      await expect(getPrivateExpoConfigAsync('/app')).resolves.toEqual(exp);
-
-      expect(getConfig).toHaveBeenNthCalledWith(
-        2,
-        '/app',
-        expect.objectContaining({ skipPlugins: true })
+      await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
+        /dependencies aren't installed/
       );
-      expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('install'));
     });
 
-    it('throws an actionable error when dependencies are not installed and the config cannot be read at all', async () => {
+    it('throws an actionable error when dependencies are not installed and a dynamic config cannot be evaluated', async () => {
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: { expo: '~53.0.0' } } as any);
       jest.mocked(resolveFrom.silent).mockReturnValue(undefined);
       jest.mocked(getConfig).mockImplementation(() => {

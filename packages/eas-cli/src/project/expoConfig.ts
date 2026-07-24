@@ -14,7 +14,6 @@ import path from 'path';
 import resolveFrom from 'resolve-from';
 
 import { isExpoInstalled } from './projectUtils';
-import Log from '../log';
 import { spawnExpoCommand } from '../utils/expoCli';
 
 export type PublicExpoConfig = Omit<
@@ -93,39 +92,28 @@ async function getExpoConfigInternalAsync(
 /**
  * Read the app config with the copy of `@expo/config` bundled with EAS CLI. This is used when the
  * project's own copy of Expo CLI can't be resolved, most commonly because the project's
- * dependencies aren't installed. In that case config plugins can't be resolved either, so fall
- * back to reading the config without evaluating plugins instead of failing outright.
+ * dependencies aren't installed. Reading the config often fails in that case too (config plugins
+ * and dynamic configs import from the project's dependencies), so detect it and print an
+ * actionable error message instead of a confusing module resolution error.
  */
 function getConfigWithBundledExpoConfig(
   projectDir: string,
   opts: ExpoConfigOptionsInternal
 ): ExpoConfig {
-  const getConfigOptions = {
-    skipSDKVersionRequirement: true,
-    ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
-    ...(opts.skipPlugins ? { skipPlugins: true } : {}),
-  };
-
   try {
-    return getConfig(projectDir, getConfigOptions).exp;
+    return getConfig(projectDir, {
+      skipSDKVersionRequirement: true,
+      ...(opts.isPublicConfig ? { isPublicConfig: true } : {}),
+      ...(opts.skipPlugins ? { skipPlugins: true } : {}),
+    }).exp;
   } catch (error: any) {
     if (!isExpoDeclaredButUninstalled(projectDir)) {
       throw error;
     }
 
     const installCommand = `${resolvePackageManager(projectDir) ?? 'npm'} install`;
-    if (error.code === 'PLUGIN_NOT_FOUND' && !opts.skipPlugins) {
-      Log.warn(
-        `Reading the app config without evaluating its config plugins because your project's dependencies aren't installed. If parts of the config are missing, run ${chalk.bold(
-          installCommand
-        )} in your project directory and run this command again.`
-      );
-      Log.newLine();
-      return getConfig(projectDir, { ...getConfigOptions, skipPlugins: true }).exp;
-    }
-
     throw new Error(
-      `Couldn't read the app config because your project's dependencies aren't installed. Run ${chalk.bold(
+      `Your project's dependencies aren't installed and EAS CLI needs them to read your app config. Run ${chalk.bold(
         installCommand
       )} in your project directory and run this command again.\n${chalk.dim(error.message)}`
     );

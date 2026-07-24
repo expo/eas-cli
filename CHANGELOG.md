@@ -13,7 +13,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [eas-cli] Read the app config without evaluating config plugins when the project's dependencies aren't installed, instead of failing with "Failed to resolve plugin", and print actionable install instructions when the config can't be read at all. ([#4080](https://github.com/expo/eas-cli/pull/4080) by [@ide](https://github.com/ide))
+- [eas-cli] Print an actionable error message that says to install the project's dependencies when reading the app config fails because they aren't installed, instead of a confusing module resolution error. ([#4080](https://github.com/expo/eas-cli/pull/4080) by [@ide](https://github.com/ide))
 
 ### 🧹 Chores
 
