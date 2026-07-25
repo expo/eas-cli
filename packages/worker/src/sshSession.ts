@@ -3,9 +3,9 @@ import { BuildPhase, BuildPhaseResult, LogMarker } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 
 /**
- * Opens the job's SSH session. `sessionPromise` settles once the tunnel is torn down, and is
- * absent when the session could not be opened. It is wrapped in an object because an async
- * function flattens a returned promise, which would make callers wait for the whole session.
+ * Opens the job's SSH session. `done` settles once the tunnel is torn down, and is absent when
+ * the session could not be opened. It is wrapped in an object because an async function flattens
+ * a returned promise, which would make callers wait for the whole session.
  *
  * SSH_SESSION stays open in the log UI for as long as the tunnel lives: we emit START here, skip
  * the automatic END (doNotMarkEnd), and write END on teardown. That way there is still a running
@@ -21,8 +21,8 @@ export async function startSshSessionPhaseAsync({
   buildId: string;
   logger: bunyan;
   hasJobFinished: () => boolean;
-}): Promise<{ sessionPromise?: Promise<void> }> {
-  let sessionPromise: Promise<void> | undefined;
+}): Promise<{ done?: Promise<void> }> {
+  let done: Promise<void> | undefined;
 
   await ctx.runBuildPhase(
     BuildPhase.SSH_SESSION,
@@ -48,7 +48,7 @@ export async function startSshSessionPhaseAsync({
         );
 
         const sshLogger = logger.child({ phase: BuildPhase.SSH_SESSION });
-        sessionPromise = (async () => {
+        done = (async () => {
           let result = BuildPhaseResult.SUCCESS;
           try {
             await TurtleSshSession.superviseSshSessionAsync({
@@ -95,5 +95,5 @@ export async function startSshSessionPhaseAsync({
     { doNotMarkEnd: true }
   );
 
-  return { sessionPromise };
+  return { done };
 }
