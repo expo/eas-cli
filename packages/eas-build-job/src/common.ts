@@ -175,12 +175,8 @@ export const SshSettingsZ = z.object({
     .string()
     .url()
     .refine(value => {
-      try {
-        const { protocol } = new URL(value);
-        return protocol === 'ws:' || protocol === 'wss:';
-      } catch {
-        return false;
-      }
+      const { protocol } = new URL(value);
+      return protocol === 'ws:' || protocol === 'wss:';
     }, 'relayServerUrl must be a ws:// or wss:// URL'),
 });
 
