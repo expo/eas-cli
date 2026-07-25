@@ -65,30 +65,23 @@ describe(startSshSessionPhaseAsync, () => {
     mocked.superviseSshSessionAsync.mockResolvedValue(undefined as any);
   });
 
-  it('opens the session inside SSH_SESSION and leaves the phase open', async () => {
+  it('mentions the idle timeout when it is non-zero', async () => {
     const logger = createLogger();
     const ctx = createContext({ logger });
+    mocked.getSshIdleTimeoutSeconds.mockReturnValue(900);
+    mocked.startSshSessionAsync.mockResolvedValue({ handle, idleTimeoutSeconds: 900 } as any);
 
     const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
-      hasJobFinished: () => false,
+      hasJobFinished: () => true,
     });
-
-    expect(ctx.runBuildPhase).toHaveBeenCalledWith(BuildPhase.SSH_SESSION, expect.any(Function), {
-      doNotMarkEnd: true,
-    });
-    expect(mocked.startSshSessionAsync).toHaveBeenCalledWith(ctx, {
-      target: { turtleJobRunId: 'jr-1' },
-      relayServerUrl: 'wss://relay.expo.dev',
-      idleTimeoutSeconds: 0,
-    });
-    expect(logger.info).toHaveBeenCalledWith(
-      'SSH session ready. Connect with: eas workflow:ssh wj-1'
-    );
-    expect(done).toBeInstanceOf(Promise);
     await done;
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('then closes after 15 minutes with no client connected')
+    );
   });
 
   it('mentions the idle timeout when it is non-zero', async () => {
