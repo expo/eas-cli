@@ -131,6 +131,38 @@ if [[ "$PLATFORM" == "ios" ]]; then
   popd >/dev/null 2>&1
 fi
 
+# Bake the upterm SSH client into the worker package (build-tools/bin/upterm-<arch>) for both
+# arches so jobs use the vendored binary instead of downloading it at runtime; the worker resolves
+# the right one via process.arch, so a mixed-arch worker pool is fine.
+upterm_version="0.24.0"
+case "$PLATFORM" in
+  ios) upterm_os="darwin" ;;
+  android) upterm_os="linux" ;;
+  *) echo "Unsupported platform for the upterm client: $PLATFORM" >&2; exit 1 ;;
+esac
+upterm_bin_dir="$target_root_dir/packages/build-tools/bin"
+mkdir -p "$upterm_bin_dir"
+for upterm_arch in amd64 arm64; do
+  case "${upterm_os}_${upterm_arch}" in
+    darwin_amd64) upterm_sha256="cc65a3c73e993ba22ef0fffd028dfb363529d71968380bf8f2a9804d53fe7f0a" ;;
+    darwin_arm64) upterm_sha256="aafa1330bb452abd308b78ed2cead7c8bdcb1aa2c486468fbd47dd4b567a8b30" ;;
+    linux_amd64) upterm_sha256="a6324d76c6d962236c22e4a27a2c4ffd17aef11dfa3da33d14dfcff4f4de60b3" ;;
+    linux_arm64) upterm_sha256="9015aabeeb837ef4c503db56a54a90139b5965a9f16f162b098b1c5acf8d1584" ;;
+  esac
+  upterm_tarball="$tmp_dir/upterm_${upterm_os}_${upterm_arch}.tar.gz"
+  curl -fsSL -o "$upterm_tarball" \
+    "https://github.com/owenthereal/upterm/releases/download/v${upterm_version}/upterm_${upterm_os}_${upterm_arch}.tar.gz"
+  if command -v sha256sum >/dev/null 2>&1; then
+    echo "${upterm_sha256}  ${upterm_tarball}" | sha256sum -c -
+  else
+    echo "${upterm_sha256}  ${upterm_tarball}" | shasum -a 256 -c -
+  fi
+  tar -xzf "$upterm_tarball" -C "$upterm_bin_dir" upterm
+  mv "$upterm_bin_dir/upterm" "$upterm_bin_dir/upterm-${upterm_arch}"
+  chmod +x "$upterm_bin_dir/upterm-${upterm_arch}"
+  rm -f "$upterm_tarball"
+done
+
 # Create backward-compatible symlink for orchestrator
 # The orchestrator expects ./src/services/worker/dist/main.js
 # but the new structure has ./packages/worker/dist/main.js
