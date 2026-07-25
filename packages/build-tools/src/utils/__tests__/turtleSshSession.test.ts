@@ -176,6 +176,24 @@ describe(startSshSessionAsync, () => {
     expect(host.stopAsync).toHaveBeenCalled();
   });
 
+  it('reports turtleBuildId when the target is a build', async () => {
+    const host = makeHost();
+    mockedStartUptermHost.mockResolvedValue(host);
+
+    await startSshSessionAsync(ctx, {
+      target: { turtleBuildId: 'b-1' },
+      relayServerUrl: 'wss://relay.expo.dev',
+      idleTimeoutSeconds: 900,
+    });
+
+    expect(mutation).toHaveBeenCalledWith(expect.anything(), {
+      turtleJobRunId: null,
+      turtleBuildId: 'b-1',
+      connectionConfig: { ...config1, reconnecting: false, type: 'UPTERM_V1' },
+      sessionSettings: { idleTimeoutSeconds: 900 },
+    });
+  });
+
   it('throws and tears down the dialed host when creating or updating the session fails', async () => {
     const host = makeHost();
     mockedStartUptermHost.mockResolvedValue(host);
@@ -463,6 +481,25 @@ describe(superviseSshSessionAsync, () => {
     expect(logger.info).not.toHaveBeenCalledWith(
       'The job finished and no SSH client is connected. Closing the session.'
     );
+  });
+
+  it('ignores unknown client counts while the job is still running', async () => {
+    let polls = 0;
+    await superviseSshSessionAsync({
+      ensureConnected: async () => {
+        if (polls >= 2) {
+          throw new SystemError('stop the loop');
+        }
+      },
+      getConnectedClientCount: async () => {
+        polls += 1;
+        return null;
+      },
+      idleTimeoutSeconds: 0,
+      hasJobFinished: () => false,
+      logger,
+    });
+    expect(polls).toBeGreaterThanOrEqual(2);
   });
 
   it('closes after unknown client count persists past the grace window', async () => {

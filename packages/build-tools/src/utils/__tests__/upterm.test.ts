@@ -79,6 +79,9 @@ describe(parseUptermSessionJson, () => {
 
   it('returns null when the host is not a parseable url', () => {
     expect(parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://' }))).toBeNull();
+    expect(
+      parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://[' }))
+    ).toBeNull();
   });
 });
 
@@ -156,7 +159,9 @@ describe(startUptermHostAsync, () => {
     return {
       child: {
         stdout: {
-          on: jest.fn(),
+          on: jest.fn((_event: string, cb: (chunk: Buffer) => void) => {
+            cb(Buffer.from('host output'));
+          }),
         },
         stderr: { on: jest.fn() },
         pid: 4242,
@@ -261,6 +266,15 @@ describe(startUptermHostAsync, () => {
     await host.stopAsync();
 
     expect(hostProcess.child.kill).toHaveBeenCalled();
+  });
+
+  it('skips process.kill when the host process has no pid', async () => {
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    hostProcess.child.pid = undefined as unknown as number;
+    await host.stopAsync();
+
+    expect(process.kill).not.toHaveBeenCalled();
+    expect(hostProcess.child.kill).not.toHaveBeenCalled();
   });
 
   it('redialAsync re-establishes the connection', async () => {
