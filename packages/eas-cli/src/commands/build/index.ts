@@ -42,6 +42,7 @@ interface RawBuildFlags {
   'freeze-credentials': boolean;
   'refresh-ad-hoc-provisioning-profile': boolean;
   'verbose-logs'?: boolean;
+  'stream-logs'?: boolean;
   'what-to-test'?: string;
 }
 
@@ -78,6 +79,10 @@ export default class Build extends EasCommand {
       default: true,
       allowNo: true,
       description: 'Wait for build(s) to complete',
+    }),
+    'stream-logs': Flags.boolean({
+      default: false,
+      description: 'Stream remote build logs while waiting for build completion',
     }),
     'clear-cache': Flags.boolean({
       default: false,
@@ -221,6 +226,12 @@ export default class Build extends EasCommand {
         { exit: 1 }
       );
     }
+    if (flags['stream-logs'] && !flags.wait) {
+      Errors.error('--stream-logs cannot be used with --no-wait', { exit: 1 });
+    }
+    if (flags['stream-logs'] && json) {
+      Errors.error('--stream-logs cannot be used with --json', { exit: 1 });
+    }
 
     const requestedPlatform =
       flags.platform &&
@@ -271,6 +282,7 @@ export default class Build extends EasCommand {
       freezeCredentials: flags['freeze-credentials'],
       refreshAdHocProvisioningProfile: flags['refresh-ad-hoc-provisioning-profile'],
       isVerboseLoggingEnabled: flags['verbose-logs'],
+      isBuildLogStreamingEnabled: flags['stream-logs'],
       whatToTest: flags['what-to-test'],
     };
   }
@@ -281,6 +293,9 @@ export default class Build extends EasCommand {
     const requestedPlatform = await selectRequestedPlatformAsync(flags.requestedPlatform);
 
     if (flags.localBuildOptions.localBuildMode) {
+      if (flags.isBuildLogStreamingEnabled) {
+        Errors.error('--stream-logs is not supported for local builds', { exit: 1 });
+      }
       if (flags.autoSubmit) {
         // TODO: implement this
         Errors.error('Auto-submits are not yet supported when building locally', { exit: 1 });
