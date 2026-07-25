@@ -10,6 +10,7 @@ export const SUBSCRIBABLE_PLANS = {
 } as const;
 
 export type PlanSlug = keyof typeof SUBSCRIBABLE_PLANS;
+export type CheckoutPlanType = (typeof SUBSCRIBABLE_PLANS)[PlanSlug]['planType'];
 
 export const PLAN_SLUGS = Object.keys(SUBSCRIBABLE_PLANS) as PlanSlug[];
 

@@ -1,7 +1,9 @@
 import { ApiV2Client } from '../api';
+import type { CheckoutPlanType } from './plans';
 
 export type CheckoutSession = {
   id: string;
+  clientSecret: string | null;
   url: string | null;
 };
 
@@ -20,7 +22,10 @@ export class BillingClient {
     this.apiV2Client = new ApiV2Client(authInfo);
   }
 
-  async createCheckoutSessionAsync(accountId: string, planType: string): Promise<CheckoutSession> {
+  async createCheckoutSessionAsync(
+    accountId: string,
+    planType: CheckoutPlanType
+  ): Promise<CheckoutSession> {
     // apiv2 wraps JSON responses as `{ data: <payload> }`, so unwrap `data` here.
     const { data } = await this.apiV2Client.postAsync('stripe-auth/checkout', {
       body: { accountId, planType },
