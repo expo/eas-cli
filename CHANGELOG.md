@@ -65,6 +65,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add experimental `--resource-class` flag to `eas simulator`. ([#4268](https://github.com/expo/eas-cli/pull/4268) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add worker-side SSH session helpers (upterm relay + session create/report/close). ([#4030](https://github.com/expo/eas-cli/pull/4030) by [@gwdp](https://github.com/gwdp))
 - [worker] Wire an SSH session into the build lifecycle behind the workflow ssh flag. ([#4031](https://github.com/expo/eas-cli/pull/4031) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas workflow:ssh <workflow-job-id> [command...]` to open an ssh session on the worker running a workflow job. ([#4032](https://github.com/expo/eas-cli/pull/4032) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
