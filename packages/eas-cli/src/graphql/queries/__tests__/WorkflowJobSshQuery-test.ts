@@ -79,4 +79,80 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
       await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, 'missing')
     ).toBeNull();
   });
+
+  it('returns null for not-found errors matched by message or code', async () => {
+    for (const graphQLErrors of [
+      [{ message: 'Workflow job not found', extensions: {} }],
+      [{ message: 'missing', extensions: { code: 'ENTITY_NOT_FOUND' } }],
+    ]) {
+      const query = jest.fn().mockReturnValue({
+        toPromise: async () => ({
+          data: undefined,
+          error: new GraphqlError({
+            graphQLErrors,
+            networkError: undefined,
+            response: undefined,
+          }),
+        }),
+      });
+      const graphqlClient = { query } as unknown as ExpoGraphqlClient;
+      expect(
+        await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, 'missing')
+      ).toBeNull();
+    }
+  });
+
+  it('uses the turtleBuild session when there is no turtleJobRun', async () => {
+    const { graphqlClient } = makeClient({
+      id: 'job-1',
+      status: WorkflowJobStatus.Success,
+      type: WorkflowJobType.Build,
+      workflowRun: { sshSettings: { idleTimeoutSeconds: 60 } },
+      turtleJobRun: null,
+      turtleBuild: {
+        sshSession: {
+          id: 'ts-build',
+          connectionConfig: { host: 'relay.expo.dev', secret: 'TOK', reconnecting: true },
+        },
+      },
+    });
+
+    expect(
+      await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, 'job-1')
+    ).toEqual({
+      sshRequested: true,
+      jobCompleted: true,
+      session: {
+        id: 'ts-build',
+        connectionConfig: { host: 'relay.expo.dev', secret: 'TOK', reconnecting: true },
+      },
+    });
+  });
+
+  it('rethrows GraphQL errors that are not not-found', async () => {
+    const error = new GraphqlError({
+      graphQLErrors: [{ message: 'boom', extensions: { errorCode: 'INTERNAL' } }],
+      networkError: undefined,
+      response: undefined,
+    });
+    const query = jest.fn().mockReturnValue({
+      toPromise: async () => ({ data: undefined, error }),
+    });
+    const graphqlClient = { query } as unknown as ExpoGraphqlClient;
+    await expect(
+      WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, 'job-1')
+    ).rejects.toBe(error);
+  });
+
+  it('rethrows unexpected non-GraphQL errors', async () => {
+    const query = jest.fn().mockReturnValue({
+      toPromise: async () => {
+        throw new Error('network down');
+      },
+    });
+    const graphqlClient = { query } as unknown as ExpoGraphqlClient;
+    await expect(
+      WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(graphqlClient, 'job-1')
+    ).rejects.toThrow('network down');
+  });
 });
