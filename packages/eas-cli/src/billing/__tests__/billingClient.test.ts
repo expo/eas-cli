@@ -12,12 +12,22 @@ describe(BillingClient, () => {
   });
 
   it('unwraps the apiv2 `data` envelope for a checkout session', async () => {
-    postAsync.mockResolvedValue({ data: { id: 'cs_123', url: 'https://checkout.stripe.com/pay' } });
+    postAsync.mockResolvedValue({
+      data: {
+        id: 'cs_123',
+        clientSecret: null,
+        url: 'https://checkout.stripe.com/pay',
+      },
+    });
 
     const client = new BillingClient({ accessToken: 'token', sessionSecret: null });
     const session = await client.createCheckoutSessionAsync('account-id', 'STARTER');
 
-    expect(session).toEqual({ id: 'cs_123', url: 'https://checkout.stripe.com/pay' });
+    expect(session).toEqual({
+      id: 'cs_123',
+      clientSecret: null,
+      url: 'https://checkout.stripe.com/pay',
+    });
     expect(postAsync).toHaveBeenCalledWith('stripe-auth/checkout', {
       body: { accountId: 'account-id', planType: 'STARTER' },
     });
