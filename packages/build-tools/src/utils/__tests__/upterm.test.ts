@@ -272,6 +272,7 @@ describe(startUptermHostAsync, () => {
       host: 'relay.expo.dev',
       secret: 'TOKENx',
     });
+    expect(host.connectionConfig).toEqual(config);
   });
 
   it('redialAsync waits for the old process to exit before clearing its socket dir', async () => {

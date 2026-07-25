@@ -190,24 +190,20 @@ export async function startSshSessionAsync(
     if (host.isAlive()) {
       return;
     }
-    let connectionConfig: SshConnectionConfig | undefined;
     for (let attempt = 1; attempt <= MAX_SSH_REDIALS; attempt++) {
       try {
-        if (!host.isAlive() || !connectionConfig) {
+        if (!host.isAlive()) {
           logger.warn('The SSH relay connection dropped. Reconnecting...');
           await createOrUpdateSessionAsync(ctx, {
             target,
-            connectionConfig: {
-              ...(connectionConfig ?? host.connectionConfig),
-              reconnecting: true,
-            },
+            connectionConfig: { ...host.connectionConfig, reconnecting: true },
             idleTimeoutSeconds: requestedIdleTimeoutSeconds,
           }).catch(() => {});
-          connectionConfig = await host.redialAsync();
+          await host.redialAsync();
         }
         await createOrUpdateSessionAsync(ctx, {
           target,
-          connectionConfig: { ...connectionConfig, reconnecting: false },
+          connectionConfig: { ...host.connectionConfig, reconnecting: false },
           idleTimeoutSeconds: requestedIdleTimeoutSeconds,
         });
         logger.info('The SSH relay connection was restored.');
