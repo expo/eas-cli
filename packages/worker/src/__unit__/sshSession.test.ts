@@ -91,6 +91,25 @@ describe(startSshSessionPhaseAsync, () => {
     await done;
   });
 
+  it('mentions the idle timeout when it is non-zero', async () => {
+    const logger = createLogger();
+    const ctx = createContext({ logger });
+    mocked.getSshIdleTimeoutSeconds.mockReturnValue(900);
+    mocked.startSshSessionAsync.mockResolvedValue({ handle, idleTimeoutSeconds: 900 } as any);
+
+    const { done } = await startSshSessionPhaseAsync({
+      ctx,
+      buildId: 'jr-1',
+      logger,
+      hasJobFinished: () => true,
+    });
+    await done;
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('then closes after 15 minutes with no client connected')
+    );
+  });
+
   it('returns before the session ends so the job is not blocked', async () => {
     const logger = createLogger();
     const ctx = createContext({ logger });
@@ -147,10 +166,15 @@ describe(startSshSessionPhaseAsync, () => {
     });
     await done;
 
-    const { hasJobFinished } = mocked.superviseSshSessionAsync.mock.calls[0][0];
+    const { hasJobFinished, getConnectedClientCount, ensureConnected } =
+      mocked.superviseSshSessionAsync.mock.calls[0][0];
     expect(hasJobFinished()).toBe(false);
     jobFinished = true;
     expect(hasJobFinished()).toBe(true);
+    await getConnectedClientCount();
+    await ensureConnected();
+    expect(handle.getConnectedClientCountAsync).toHaveBeenCalled();
+    expect(handle.ensureConnectedAsync).toHaveBeenCalled();
   });
 
   it('closes the phase with a warning when supervision throws', async () => {
@@ -169,6 +193,28 @@ describe(startSshSessionPhaseAsync, () => {
     expect(handle.stopAsync).toHaveBeenCalled();
     expect(endPhaseCalls(logger)).toEqual([
       [expect.objectContaining({ result: BuildPhaseResult.WARNING }), expect.any(String)],
+    ]);
+  });
+
+  it('warns when tearing down the tunnel fails after supervision', async () => {
+    const logger = createLogger();
+    const ctx = createContext({ logger });
+    handle.stopAsync.mockRejectedValue(new Error('already gone'));
+
+    const { done } = await startSshSessionPhaseAsync({
+      ctx,
+      buildId: 'jr-1',
+      logger,
+      hasJobFinished: () => true,
+    });
+    await done;
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Failed to tear down the SSH tunnel.'
+    );
+    expect(endPhaseCalls(logger)).toEqual([
+      [expect.objectContaining({ result: BuildPhaseResult.SUCCESS }), expect.any(String)],
     ]);
   });
 
