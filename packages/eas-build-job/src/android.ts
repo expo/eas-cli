@@ -181,7 +181,7 @@ export const JobSchema = Joi.object({
   buildType: Joi.string().valid(...Object.values(BuildType)),
   username: Joi.string(),
   hooks: HooksSchema,
-  ssh: SshSettingsSchema,
+  ssh: SshSettingsSchema.optional(),
   outputs: JobOutputsSchema,
 
   experimental: Joi.object({
