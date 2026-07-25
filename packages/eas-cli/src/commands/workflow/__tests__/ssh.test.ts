@@ -301,7 +301,8 @@ describe(WorkflowSsh, () => {
 
   it('waits for a pending session to open, then connects', async () => {
     mockConnectInfo
-      .mockResolvedValueOnce(pendingInfo as never)
+      .mockResolvedValueOnce(pendingInfo as never) // initial status check
+      .mockResolvedValueOnce(pendingInfo as never) // first wait poll
       .mockResolvedValue(readyInfo as never);
     await createCommand(['job-1']).runAsync();
     expect(mockSleep).toHaveBeenCalled();
