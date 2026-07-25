@@ -157,6 +157,33 @@ export const HooksSchema = Joi.object().pattern(
 );
 export const HooksZ = z.record(z.string(), z.array(StepZ));
 
+/** Worker-side SSH session settings for workflow VM jobs. Presence enables SSH. */
+export type SshSettings = {
+  idleTimeoutSeconds: number;
+  /** The relay the worker dials. Per-deployment config; the public upterm host is not allowed. */
+  relayServerUrl: string;
+};
+export const SshSettingsSchema = Joi.object({
+  idleTimeoutSeconds: Joi.number().integer().min(0).max(3600).required(),
+  relayServerUrl: Joi.string()
+    .uri({ scheme: ['ws', 'wss'] })
+    .required(),
+});
+export const SshSettingsZ = z.object({
+  idleTimeoutSeconds: z.number().int().min(0).max(3600),
+  relayServerUrl: z
+    .string()
+    .url()
+    .refine(value => {
+      try {
+        const { protocol } = new URL(value);
+        return protocol === 'ws:' || protocol === 'wss:';
+      } catch {
+        return false;
+      }
+    }, 'relayServerUrl must be a ws:// or wss:// URL'),
+});
+
 export interface Cache {
   disabled: boolean;
   clear: boolean;

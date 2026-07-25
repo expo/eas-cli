@@ -1,4 +1,4 @@
-import { EnvSchema, StaticWorkflowInterpolationContextZ } from '../common';
+import { EnvSchema, SshSettingsZ, StaticWorkflowInterpolationContextZ } from '../common';
 
 describe('EnvSchema', () => {
   it('accepts explicit undefined values', () => {
@@ -11,6 +11,23 @@ describe('EnvSchema', () => {
 
     expect(error).toBeUndefined();
     expect(value).toEqual(env);
+  });
+});
+
+describe('SshSettingsZ', () => {
+  it('accepts ws and wss relay URLs', () => {
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' })
+    ).toEqual({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' });
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' })
+    ).toEqual({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' });
+  });
+
+  it('rejects non-websocket relay URL schemes', () => {
+    expect(() =>
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'https://ssh.expo.dev' })
+    ).toThrow(/ws:\/\/ or wss:\/\//);
   });
 });
 
