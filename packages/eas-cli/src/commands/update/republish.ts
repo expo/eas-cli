@@ -50,7 +50,7 @@ type UpdateRepublishFlags = {
 };
 
 export default class UpdateRepublish extends EasCommand {
-  static override description = 'roll back to an existing update';
+  static override description = 'republish an existing update to a branch';
 
   static override flags = {
     channel: Flags.string({
