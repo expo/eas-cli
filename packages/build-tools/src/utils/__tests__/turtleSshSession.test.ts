@@ -121,14 +121,18 @@ describe(startSshSessionAsync, () => {
   let ctx: BuildContext;
 
   function makeHost(overrides: Partial<UptermHost> = {}): UptermHost {
-    return {
+    const host: UptermHost = {
       connectionConfig: config1,
       getConnectedClientCountAsync: jest.fn().mockResolvedValue(3),
       isAlive: jest.fn().mockReturnValue(true),
-      redialAsync: jest.fn().mockResolvedValue(config2),
+      redialAsync: jest.fn(async () => {
+        host.connectionConfig = config2;
+        return config2;
+      }),
       stopAsync: jest.fn().mockResolvedValue(undefined),
       ...overrides,
     };
+    return host;
   }
 
   beforeEach(() => {
@@ -247,10 +251,11 @@ describe(startSshSessionAsync, () => {
     let alive = false;
     const host = makeHost({
       isAlive: jest.fn(() => alive),
-      redialAsync: jest.fn(async () => {
-        alive = true;
-        return config2;
-      }),
+    });
+    host.redialAsync = jest.fn(async () => {
+      alive = true;
+      host.connectionConfig = config2;
+      return config2;
     });
     mockedStartUptermHost.mockResolvedValue(host);
     mutation = jest

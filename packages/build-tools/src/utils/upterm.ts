@@ -55,6 +55,10 @@ export function parseUptermSessionJson(raw: string): SshConnectionConfig | null 
   } catch {
     return null;
   }
+  return connectionConfigFromUptermSession(parsed);
+}
+
+function connectionConfigFromUptermSession(parsed: UptermSessionJson): SshConnectionConfig | null {
   if (!parsed.sessionId || !parsed.host) {
     return null;
   }
@@ -149,7 +153,7 @@ async function waitForConnectionConfigAsync(
     if (adminSocketPath) {
       const session = await readCurrentSessionJsonAsync(uptermPath, adminSocketPath);
       if (session) {
-        const connectionConfig = parseUptermSessionJson(JSON.stringify(session));
+        const connectionConfig = connectionConfigFromUptermSession(session);
         if (connectionConfig) {
           return connectionConfig;
         }
@@ -278,10 +282,15 @@ export async function startUptermHostAsync(
   }
 
   return {
-    connectionConfig,
+    get connectionConfig() {
+      return connectionConfig;
+    },
     getConnectedClientCountAsync: () => getConnectedClientCountAsync(uptermPath, uptermSocketDir),
     isAlive: () => isUptermProcessAlive(currentProcess?.child),
-    redialAsync: dialAsync,
+    redialAsync: async () => {
+      connectionConfig = await dialAsync();
+      return connectionConfig;
+    },
     stopAsync,
   };
 }
