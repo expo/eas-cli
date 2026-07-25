@@ -224,7 +224,6 @@ async function waitForSessionToOpenAsync(
   const deadline = Date.now() + SESSION_OPEN_TIMEOUT_MS;
   try {
     while (Date.now() < deadline) {
-      await sleepAsync(SESSION_OPEN_POLL_INTERVAL_MS);
       const connectInfo = await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(
         graphqlClient,
         workflowJobId
@@ -238,6 +237,7 @@ async function waitForSessionToOpenAsync(
         spinner.succeed('The ssh session is ready.');
         return connectInfo?.session?.connectionConfig ?? null;
       }
+      await sleepAsync(SESSION_OPEN_POLL_INTERVAL_MS);
     }
     spinner.fail(
       'Timed out waiting for the ssh session to open. The worker may still be starting up; try again in a moment.'
