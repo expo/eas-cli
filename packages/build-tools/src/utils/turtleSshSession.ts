@@ -155,7 +155,7 @@ async function createOrUpdateSessionAsync(
     );
   }
   const session = result.data.turtleSshSession.createOrUpdateTurtleSshSession as {
-    sessionSettings: { idleTimeoutSeconds: number };
+    sessionSettings: Pick<SshSettings, 'idleTimeoutSeconds'>;
   };
   return { idleTimeoutSeconds: session.sessionSettings.idleTimeoutSeconds };
 }
@@ -168,9 +168,7 @@ export async function startSshSessionAsync(
     idleTimeoutSeconds: requestedIdleTimeoutSeconds,
   }: {
     target: TurtleSshTarget;
-    relayServerUrl: string;
-    idleTimeoutSeconds: number;
-  }
+  } & SshSettings
 ): Promise<StartedSshSession> {
   const logger = ctx.logger;
   const host = await startUptermHostAsync(ctx, { relayServerUrl });
