@@ -250,7 +250,9 @@ export async function superviseSshSessionAsync({
   // When idle is 0, still allow a short window of unknown polls so a single failed
   // `session current` does not tear down a live client. Cap it so we cannot hang forever.
   const unknownGraceMs =
-    idleTimeoutSeconds === 0 ? UNKNOWN_CLIENT_COUNT_GRACE_MS : Math.max(idleTimeoutMs, UNKNOWN_CLIENT_COUNT_GRACE_MS);
+    idleTimeoutSeconds === 0
+      ? UNKNOWN_CLIENT_COUNT_GRACE_MS
+      : Math.max(idleTimeoutMs, UNKNOWN_CLIENT_COUNT_GRACE_MS);
   let idleSince: number | null = null;
   let unknownSince: number | null = null;
   let previousClientCount = 0;
