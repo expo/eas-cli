@@ -1,4 +1,4 @@
-import { BundleId, Profile, RequestContext } from '@expo/apple-utils';
+import { BundleId, Profile, ProfileState, RequestContext } from '@expo/apple-utils';
 
 async function getProfilesForBundleIdDangerousAsync(
   context: RequestContext,
@@ -15,7 +15,12 @@ export async function getProfilesForBundleIdAsync(
   context: RequestContext,
   bundleIdentifier: string
 ): Promise<Profile[]> {
-  const profiles = await getProfilesForBundleIdDangerousAsync(context, bundleIdentifier);
+  // Only work with active provisioning profiles, we can't use expired or invalid profiles
+  // Once a profile expired or is marked as invalid, it cannot change back to active, making cache poisoning irrelevant here
+  const profiles = await getProfilesForBundleIdDangerousAsync(context, bundleIdentifier).then(
+    profiles => profiles.filter(profile => profile.attributes.profileState === ProfileState.ACTIVE)
+  );
+
   // users sometimes have a poisoned Apple cache and receive stale data from the API
   // we call an arbitrary method, `getBundleIdAsync` on each profile
   // if it errors, the profile was stale, so we remove it
