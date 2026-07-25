@@ -69,7 +69,7 @@ describe(startSshSessionPhaseAsync, () => {
     const logger = createLogger();
     const ctx = createContext({ logger });
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
@@ -87,8 +87,8 @@ describe(startSshSessionPhaseAsync, () => {
     expect(logger.info).toHaveBeenCalledWith(
       'SSH session ready. Connect with: eas workflow:ssh wj-1'
     );
-    expect(sessionPromise).toBeInstanceOf(Promise);
-    await sessionPromise;
+    expect(done).toBeInstanceOf(Promise);
+    await done;
   });
 
   it('returns before the session ends so the job is not blocked', async () => {
@@ -102,17 +102,17 @@ describe(startSshSessionPhaseAsync, () => {
         })
     );
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
       hasJobFinished: () => false,
     });
 
-    expect(sessionPromise).toBeDefined();
+    expect(done).toBeDefined();
     expect(handle.stopAsync).not.toHaveBeenCalled();
     releaseSupervision();
-    await sessionPromise;
+    await done;
     expect(handle.stopAsync).toHaveBeenCalled();
   });
 
@@ -120,13 +120,13 @@ describe(startSshSessionPhaseAsync, () => {
     const logger = createLogger();
     const ctx = createContext({ logger });
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
       hasJobFinished: () => true,
     });
-    await sessionPromise;
+    await done;
 
     expect(handle.stopAsync).toHaveBeenCalled();
     expect(endPhaseCalls(logger)).toEqual([
@@ -139,13 +139,13 @@ describe(startSshSessionPhaseAsync, () => {
     const ctx = createContext({ logger });
     let jobFinished = false;
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
       hasJobFinished: () => jobFinished,
     });
-    await sessionPromise;
+    await done;
 
     const { hasJobFinished } = mocked.superviseSshSessionAsync.mock.calls[0][0];
     expect(hasJobFinished()).toBe(false);
@@ -158,13 +158,13 @@ describe(startSshSessionPhaseAsync, () => {
     const ctx = createContext({ logger });
     mocked.superviseSshSessionAsync.mockRejectedValue(new Error('relay went away'));
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
       hasJobFinished: () => true,
     });
-    await sessionPromise;
+    await done;
 
     expect(handle.stopAsync).toHaveBeenCalled();
     expect(endPhaseCalls(logger)).toEqual([
@@ -177,14 +177,14 @@ describe(startSshSessionPhaseAsync, () => {
     const ctx = createContext({ logger });
     mocked.startSshSessionAsync.mockRejectedValue(new Error('no relay'));
 
-    const { sessionPromise } = await startSshSessionPhaseAsync({
+    const { done } = await startSshSessionPhaseAsync({
       ctx,
       buildId: 'jr-1',
       logger,
       hasJobFinished: () => false,
     });
 
-    expect(sessionPromise).toBeUndefined();
+    expect(done).toBeUndefined();
     expect(ctx.markBuildPhaseHasWarnings).toHaveBeenCalled();
     expect(mocked.superviseSshSessionAsync).not.toHaveBeenCalled();
     expect(endPhaseCalls(logger)).toEqual([
