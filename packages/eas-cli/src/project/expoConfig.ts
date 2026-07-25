@@ -75,7 +75,7 @@ async function getExpoConfigInternalAsync(
       exp = JSON.parse(stdout);
     } else if (resolveFrom.silent(projectDir, 'expo/package.json')) {
       // The `expo` package is installed but Expo CLI is not part of it. This happens with old
-      // SDK versions, which predate Expo CLI. Since we can't run `expo config`, read the app
+      // SDK versions, which predate the local CLI. Since we can't run `expo config`, read the app
       // config with the copy of `@expo/config` that ships with EAS CLI.
       exp = getConfig(projectDir, {
         skipSDKVersionRequirement: true,
@@ -91,9 +91,9 @@ async function getExpoConfigInternalAsync(
       );
     } else {
       throw new Error(
-        `The \`expo\` package was not found in your project, and EAS CLI needs it to read your app config. Follow the installation directions at ${link(
-          'https://docs.expo.dev/bare/installing-expo-modules/'
-        )}`
+        `The "expo" package was not found in your project's dependencies, and EAS CLI needs it to read your app config. Add "expo" to your dependencies. Refer to the version compatibility table at ${link(
+          'https://docs.expo.dev/versions/latest/'
+        )}.`
       );
     }
 

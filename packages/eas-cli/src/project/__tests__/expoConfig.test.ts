@@ -80,7 +80,7 @@ describe('expoConfig', () => {
       jest.mocked(getPackageJson).mockReturnValue({ dependencies: {} } as any);
 
       await expect(getPrivateExpoConfigAsync('/app')).rejects.toThrow(
-        /The `expo` package was not found/
+        /The "expo" package was not found/
       );
       expect(getConfig).not.toHaveBeenCalled();
     });
