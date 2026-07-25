@@ -91,9 +91,9 @@ async function getExpoConfigInternalAsync(
       );
     } else {
       throw new Error(
-        `The "expo" package was not found in your project's dependencies, and EAS CLI needs it to read your app config. Add "expo" to your dependencies. Refer to the version compatibility table at ${link(
+        `The "expo" package was not found in your project's dependencies, needed to read your app config. Add "expo" to your dependencies and install it. Refer to the version compatibility table at: ${link(
           'https://docs.expo.dev/versions/latest/'
-        )}.`
+        )}`
       );
     }
 
