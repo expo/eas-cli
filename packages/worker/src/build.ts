@@ -1,4 +1,10 @@
-import { Artifacts, BuildContext, Builders, runGenericJobAsync } from '@expo/build-tools';
+import {
+  Artifacts,
+  BuildContext,
+  Builders,
+  TurtleSshSession,
+  runGenericJobAsync,
+} from '@expo/build-tools';
 import {
   Android,
   BuildJob,
@@ -17,6 +23,7 @@ import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
+import { startSshSessionPhaseAsync } from './sshSession';
 import { cleanUpWorkingdir } from './workingdir';
 
 export async function build({
@@ -29,6 +36,8 @@ export async function build({
   analytics: Analytics;
 }): Promise<Artifacts> {
   const { job, logger } = ctx;
+  let sshSessionPromise: Promise<void> | undefined;
+  let hasJobFinished = false;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
 
@@ -48,6 +57,15 @@ export async function build({
         await prepareRuntimeEnvironment(ctx, ctx.job.builderEnvironment);
       }
     });
+
+    if (TurtleSshSession.isWorkflowSshEnabled(ctx.job)) {
+      ({ sessionPromise: sshSessionPromise } = await startSshSessionPhaseAsync({
+        ctx,
+        buildId,
+        logger,
+        hasJobFinished: () => hasJobFinished,
+      }));
+    }
 
     let artifacts: Artifacts;
 
@@ -89,6 +107,9 @@ export async function build({
     }
     throw err;
   } finally {
+    // Lets the SSH supervisor start its idle countdown and tear the tunnel down.
+    hasJobFinished = true;
+    await sshSessionPromise;
     if (config.env === 'development') {
       await cleanUpWorkingdir();
     }

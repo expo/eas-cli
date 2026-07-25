@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add an opt-in `--max-idle-time-minutes` flag to `eas simulator`; the session stops automatically after that many minutes without activity. ([#4156](https://github.com/expo/eas-cli/pull/4156) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Add worker-side SSH session helpers (upterm relay + session create/report/close). ([#4030](https://github.com/expo/eas-cli/pull/4030) by [@gwdp](https://github.com/gwdp))
+- [worker] Wire an SSH session into the build lifecycle behind the workflow ssh flag. ([#4031](https://github.com/expo/eas-cli/pull/4031) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
