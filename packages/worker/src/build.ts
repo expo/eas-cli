@@ -36,7 +36,7 @@ export async function build({
   analytics: Analytics;
 }): Promise<Artifacts> {
   const { job, logger } = ctx;
-  let sshSessionPromise: Promise<void> | undefined;
+  let sshSessionDone: Promise<void> | undefined;
   let hasJobFinished = false;
   try {
     analytics.logEvent(Event.WORKER_BUILD_START, {});
@@ -59,7 +59,7 @@ export async function build({
     });
 
     if (TurtleSshSession.isWorkflowSshEnabled(ctx.job)) {
-      ({ sessionPromise: sshSessionPromise } = await startSshSessionPhaseAsync({
+      ({ done: sshSessionDone } = await startSshSessionPhaseAsync({
         ctx,
         buildId,
         logger,
@@ -109,7 +109,7 @@ export async function build({
   } finally {
     // Lets the SSH supervisor start its idle countdown and tear the tunnel down.
     hasJobFinished = true;
-    await sshSessionPromise;
+    await sshSessionDone;
     if (config.env === 'development') {
       await cleanUpWorkingdir();
     }
