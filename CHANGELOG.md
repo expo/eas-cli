@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
 - [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
+- [eas-cli] Add `eas project:status` (alias `eas status`) command that prints a snapshot of the project's recent builds, development builds, workflow runs, submissions, and updates, with agent-friendly JSON metadata, activity links, structured errors, submission-to-build correlation, and `--non-interactive` support. ([#4006](https://github.com/expo/eas-cli/pull/4006) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 
@@ -147,7 +148,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `eas submit:list`, `eas submit:view`, `eas submit:retry`, `eas submit:cancel`, and `eas submit:status` commands; list and view include the runtime version and fingerprint of the submitted build, and status shows the live App Store version and TestFlight build states cross-referenced with EAS submissions (Google Play app status is not available through EAS yet). ([#4134](https://github.com/expo/eas-cli/pull/4134) by [@brentvatne](https://github.com/brentvatne))
-- [eas-cli] Add `eas project:status` (alias `eas status`) command that prints a snapshot of the project's recent builds, development builds, workflow runs, submissions, and updates, with `--json` and `--non-interactive` support. ([#4006](https://github.com/expo/eas-cli/pull/4006) by [@jonsamp](https://github.com/jonsamp))
 - [eas-build-job] Add optional `ssh` field on build/job payloads. ([#4083](https://github.com/expo/eas-cli/pull/4083) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add an `SSH_SESSION` build phase for upcoming worker SSH support. ([#4029](https://github.com/expo/eas-cli/pull/4029) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `ref` input to the `eas/checkout` step to check out a different git ref (branch, tag, or commit SHA) than the one that triggered the job. ([#4035](https://github.com/expo/eas-cli/pull/4035) by [@sswrk](https://github.com/sswrk))
