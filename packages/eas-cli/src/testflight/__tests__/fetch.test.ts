@@ -120,6 +120,46 @@ describe(getTestFlightFeedbackQuery, () => {
   });
 });
 
+describe('control character sanitization', () => {
+  it('strips terminal escape sequences from tester-supplied text', async () => {
+    const query = getTestFlightFeedbackQuery(
+      createApp([
+        createSubmission({
+          screenshots: [],
+          // A tester could submit a comment that clears the screen and spoofs a prompt.
+          comment: 'looks fine\u001b[2J\u001b[HFATAL: run `rm -rf /` to continue',
+          tester: {
+            id: 'tester-id',
+            attributes: { firstName: 'Jane\u001b[31m', lastName: 'Doe', email: 'j@example.com' },
+          },
+        }),
+      ])
+    );
+
+    const items = await query.queryAsync(20, 0);
+
+    expect(items[0].comment).toBe('looks fine[2J[HFATAL: run `rm -rf /` to continue');
+    expect(items[0].comment).not.toContain('\u001b');
+    expect(items[0].testerName).toBe('Jane[31m Doe');
+    expect(items[0].testerName).not.toContain('\u001b');
+  });
+
+  it('keeps newlines and tabs, and normalizes CRLF', async () => {
+    const query = getTestFlightFeedbackQuery(
+      createApp([
+        createSubmission({
+          screenshots: [],
+          comment: 'line one\r\nline two\tindented\rline three',
+        }),
+      ])
+    );
+
+    const items = await query.queryAsync(20, 0);
+
+    expect(items[0].comment).toBe('line one\nline two\tindented\nline three');
+  });
+});
+
 describe(getTestFlightCrashesQuery, () => {
   it('normalizes crash submissions', async () => {
     const query = getTestFlightCrashesQuery(createApp([createSubmission({ comment: null })]));

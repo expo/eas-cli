@@ -162,13 +162,13 @@ export async function viewAndRenderBetaFeedbackAsync(
   { json }: { json: boolean }
 ): Promise<void> {
   if (target.type === 'crash') {
-    const { crash, logText } = await fetchTestFlightCrashAsync(app, target.id);
+    const { crash, logText, logError } = await fetchTestFlightCrashAsync(app, target.id);
     if (json) {
-      printJsonOnlyOutput({ crash, logText });
+      printJsonOnlyOutput({ crash, logText, logError });
       return;
     }
     Log.addNewLineIfNone();
-    Log.log(formatTestFlightCrashDetails(crash, logText));
+    Log.log(formatTestFlightCrashDetails(crash, logText, logError));
     return;
   }
 

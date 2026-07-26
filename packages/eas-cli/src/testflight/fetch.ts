@@ -90,11 +90,28 @@ type SubmissionRelationships = {
   } | null;
 };
 
+/**
+ * Everything here is attacker-influenced text: any TestFlight tester can put arbitrary bytes in a
+ * feedback comment or their own name, and crash logs carry thread and symbol names from the build.
+ * Terminal escape sequences in that text could clear the screen or spoof output when it is printed,
+ * so strip control characters at the boundary — before the data reaches either the formatters or
+ * `--json`. Newlines and tabs survive because multi-line comments and crash logs need them.
+ */
+const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
+
+function sanitizeText(value: string): string {
+  return value.replace(/\r\n?/g, '\n').replace(CONTROL_CHARACTERS, '');
+}
+
+function sanitizeOptionalText(value: unknown): string | null {
+  return typeof value === 'string' ? sanitizeText(value) : null;
+}
+
 function formatTesterName(tester: SubmissionRelationships['tester']): string | null {
   const parts = [tester?.attributes?.firstName, tester?.attributes?.lastName].filter(
     (part): part is string => !!part
   );
-  return parts.length > 0 ? parts.join(' ') : null;
+  return parts.length > 0 ? sanitizeText(parts.join(' ')) : null;
 }
 
 function normalizeSubmission(submission: {
@@ -105,23 +122,23 @@ function normalizeSubmission(submission: {
   return {
     id: submission.id,
     createdDate: attributes.createdDate,
-    comment: attributes.comment ?? null,
-    deviceModel: attributes.deviceModel,
-    osVersion: attributes.osVersion,
-    locale: attributes.locale ?? null,
-    timeZone: attributes.timeZone ?? null,
-    architecture: attributes.architecture ?? null,
-    connectionType: attributes.connectionType ?? null,
-    deviceFamily: attributes.deviceFamily ?? null,
+    comment: sanitizeOptionalText(attributes.comment),
+    deviceModel: sanitizeText(attributes.deviceModel ?? ''),
+    osVersion: sanitizeText(attributes.osVersion ?? ''),
+    locale: sanitizeOptionalText(attributes.locale),
+    timeZone: sanitizeOptionalText(attributes.timeZone),
+    architecture: sanitizeOptionalText(attributes.architecture),
+    connectionType: sanitizeOptionalText(attributes.connectionType),
+    deviceFamily: sanitizeOptionalText(attributes.deviceFamily),
     appUptimeInMilliseconds: attributes.appUptimeInMilliseconds ?? null,
     batteryPercentage: attributes.batteryPercentage ?? null,
     diskBytesAvailable: attributes.diskBytesAvailable ?? null,
     diskBytesTotal: attributes.diskBytesTotal ?? null,
-    buildVersion: attributes.build?.attributes?.version ?? null,
+    buildVersion: sanitizeOptionalText(attributes.build?.attributes?.version),
     testerName: formatTesterName(attributes.tester),
     // The tester relationship hides the email of testers who joined through a public link, in
     // which case the submission itself still carries the address they submitted feedback with.
-    testerEmail: attributes.tester?.attributes?.email ?? attributes.email ?? null,
+    testerEmail: sanitizeOptionalText(attributes.tester?.attributes?.email ?? attributes.email),
   };
 }
 
@@ -133,7 +150,7 @@ function normalizeFeedback(submission: {
     ...normalizeSubmission(submission),
     screenshots: ((submission.attributes.screenshots ?? []) as TestFlightScreenshot[]).map(
       screenshot => ({
-        url: screenshot.url,
+        url: sanitizeText(screenshot.url ?? ''),
         width: screenshot.width,
         height: screenshot.height,
         expirationDate: screenshot.expirationDate,
@@ -173,25 +190,39 @@ export async function fetchTestFlightFeedbackAsync(
   return normalizeFeedback(submission);
 }
 
+export type TestFlightCrashDetails = {
+  crash: TestFlightCrash;
+  /** The crash log, or `null` when App Store Connect has none for this submission. */
+  logText: string | null;
+  /**
+   * Why the crash log could not be fetched, when the request itself failed. Distinct from a
+   * `null` `logText`, which means App Store Connect answered and had no log — reporting a failed
+   * request as "no log" would quietly mislead anyone reading the output or the `--json`.
+   */
+  logError: string | null;
+};
+
 /**
- * Fetch a single crash submission together with its full crash log. The log is reported as `null`
- * when App Store Connect has not symbolicated or retained one for this submission.
+ * Fetch a single crash submission together with its full crash log. The crash metadata is still
+ * returned when the log cannot be fetched, since that is the part testers act on first.
  */
 export async function fetchTestFlightCrashAsync(
   app: App,
   crashId: string
-): Promise<{ crash: TestFlightCrash; logText: string | null }> {
+): Promise<TestFlightCrashDetails> {
   const submission = await BetaFeedbackCrashSubmission.infoAsync(app.context, { id: crashId });
 
   let logText: string | null = null;
+  let logError: string | null = null;
   try {
     const crashLog = await BetaCrashLog.getCrashLogAsync(app.context, {
       betaFeedbackCrashSubmissionId: crashId,
     });
-    logText = crashLog.attributes.logText ?? null;
-  } catch (error: any) {
-    Log.debug(`Failed to fetch crash log for ${crashId}: ${error.message}`);
+    logText = sanitizeOptionalText(crashLog.attributes.logText);
+  } catch (error: unknown) {
+    logError = sanitizeText(error instanceof Error ? error.message : String(error));
+    Log.debug(`Failed to fetch crash log for ${crashId}: ${logError}`);
   }
 
-  return { crash: normalizeSubmission(submission), logText };
+  return { crash: normalizeSubmission(submission), logText, logError };
 }
