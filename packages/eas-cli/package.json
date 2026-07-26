@@ -221,6 +221,9 @@
       "secret": {
         "description": "manage project and account secrets"
       },
+      "testflight": {
+        "description": "read TestFlight feedback and crashes"
+      },
       "update": {
         "description": "manage individual updates"
       },

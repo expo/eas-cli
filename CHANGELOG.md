@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add `eas project:icon:set` to upload a project icon from the command line. ([#4068](https://github.com/expo/eas-cli/pull/4068) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Add `--account` flag to `eas init` to choose the account that should own the project, enabling non-interactive project creation (`eas init --account <name> --non-interactive`), and improve unconfigured-project error messages to list the accounts you can create projects in. ([#4057](https://github.com/expo/eas-cli/pull/4057) by [@williamgrosset](https://github.com/williamgrosset))
 - [eas-cli] Add `--json` flag to `eas init` to print the linked project (status, project ID, owner, slug, dashboard URL) as JSON to stdout, and add usage examples to `eas init --help`. ([#4079](https://github.com/expo/eas-cli/pull/4079) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Add `eas testflight:feedback` and `eas testflight:crashes` to read TestFlight tester feedback (comments, device info, screenshot URLs) and crash reports (including full crash logs) from App Store Connect. Both support `--offset`/`--limit` pagination, `--json`, and looking up a single submission by ID or by the App Store Connect URL that EAS workflow triggers expose as `${{ app_store_connect.beta_feedback.url }}`. ([#\*\*\*\*](https://github.com/expo/eas-cli/pull/****) by [@brentvatne](https://github.com/brentvatne))
 
 ### 🐛 Bug fixes
 
