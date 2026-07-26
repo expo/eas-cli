@@ -17,8 +17,18 @@ export default class ProjectStatus extends EasCommand {
 
   static override aliases = ['status'];
 
+  static override examples = [
+    '$ eas status \t # Show a concise project snapshot',
+    '$ eas status --json \t # Output a machine-readable snapshot for agents and automation',
+    '$ eas status --json --limit 10 \t # Include more activity from each section',
+  ];
+
   static override flags = {
-    limit: getLimitFlagWithCustomValues({ defaultTo: PROJECT_STATUS_DEFAULT_LIMIT, limit: 25 }),
+    limit: getLimitFlagWithCustomValues({
+      defaultTo: PROJECT_STATUS_DEFAULT_LIMIT,
+      limit: 25,
+      description: `The number of items to show in each section. Defaults to ${PROJECT_STATUS_DEFAULT_LIMIT} and is capped at 25.`,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -30,14 +40,15 @@ export default class ProjectStatus extends EasCommand {
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ProjectStatus);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
-    const {
-      projectId,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(ProjectStatus, { nonInteractive });
 
     if (jsonFlag) {
       enableJsonOutput();
     }
+
+    const {
+      projectId,
+      loggedIn: { graphqlClient },
+    } = await this.getContextAsync(ProjectStatus, { nonInteractive });
 
     const status = await getProjectStatusAsync(graphqlClient, {
       projectId,

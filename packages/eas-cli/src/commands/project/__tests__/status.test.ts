@@ -6,7 +6,6 @@ import {
   BuildFragment,
   BuildStatus,
   DistributionType,
-  SubmissionFragment,
   SubmissionStatus,
   UpdateFragment,
   WorkflowRunFragment,
@@ -15,7 +14,7 @@ import {
 } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { BuildQuery } from '../../../graphql/queries/BuildQuery';
-import { SubmissionQuery } from '../../../graphql/queries/SubmissionQuery';
+import { ProjectStatusSubmission, SubmissionQuery } from '../../../graphql/queries/SubmissionQuery';
 import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
@@ -31,7 +30,7 @@ jest.mock('../../../utils/json');
 const mockAppByIdAsync = jest.mocked(AppQuery.byIdAsync);
 const mockWorkflowRunsAsync = jest.mocked(AppQuery.byIdWorkflowRunsFilteredByStatusAsync);
 const mockViewBuildsOnAppAsync = jest.mocked(BuildQuery.viewBuildsOnAppAsync);
-const mockAllSubmissionsAsync = jest.mocked(SubmissionQuery.allForAppAsync);
+const mockProjectStatusSubmissionsAsync = jest.mocked(SubmissionQuery.forProjectStatusAsync);
 const mockViewUpdateGroupsAsync = jest.mocked(UpdateQuery.viewUpdateGroupsOnAppAsync);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
@@ -67,7 +66,7 @@ function makeBuild(overrides: Partial<BuildFragment> = {}): BuildFragment {
   } as unknown as BuildFragment;
 }
 
-function makeWorkflowRun(): WorkflowRunFragment {
+function makeWorkflowRun(overrides: Partial<WorkflowRunFragment> = {}): WorkflowRunFragment {
   return {
     id: 'run-1',
     status: WorkflowRunStatus.Success,
@@ -76,17 +75,30 @@ function makeWorkflowRun(): WorkflowRunFragment {
     triggerEventType: WorkflowRunTriggerEventType.Manual,
     createdAt: '2026-07-02T00:00:00.000Z',
     updatedAt: '2026-07-02T00:05:00.000Z',
+    errors: [],
     workflow: { id: 'wf-1', name: 'Publish', fileName: 'publish.yml' },
+    ...overrides,
   } as unknown as WorkflowRunFragment;
 }
 
-function makeSubmission(): SubmissionFragment {
+function makeSubmission(overrides: Partial<ProjectStatusSubmission> = {}): ProjectStatusSubmission {
   return {
     id: 'submission-1',
     platform: AppPlatform.Android,
     status: SubmissionStatus.Finished,
-    androidConfig: { track: 'production' },
-  } as unknown as SubmissionFragment;
+    createdAt: '2026-07-02T12:00:00.000Z',
+    completedAt: '2026-07-02T12:05:00.000Z',
+    initiatingActor: { id: 'actor-1', displayName: 'jester' },
+    submittedBuild: { id: 'build-1' },
+    androidConfig: {
+      applicationIdentifier: 'com.example.app',
+      track: 'production',
+      releaseStatus: null,
+      rollout: 50,
+    },
+    error: null,
+    ...overrides,
+  } as unknown as ProjectStatusSubmission;
 }
 
 function makeUpdateGroup(): UpdateFragment[] {
@@ -100,6 +112,9 @@ function makeUpdateGroup(): UpdateFragment[] {
       platform: 'ios',
       isRollBackToEmbedded: false,
       gitCommitHash: '1234567890abcdef',
+      rolloutPercentage: 25,
+      environment: 'production',
+      actor: { __typename: 'User', id: 'actor-1', username: 'jester' },
       branch: { id: 'branch-1', name: 'production' },
     },
     {
@@ -111,6 +126,9 @@ function makeUpdateGroup(): UpdateFragment[] {
       platform: 'android',
       isRollBackToEmbedded: false,
       gitCommitHash: '1234567890abcdef',
+      rolloutPercentage: 25,
+      environment: 'production',
+      actor: { __typename: 'User', id: 'actor-1', username: 'jester' },
       branch: { id: 'branch-1', name: 'production' },
     },
   ] as unknown as UpdateFragment[];
@@ -125,7 +143,7 @@ describe(ProjectStatus, () => {
     mockAppByIdAsync.mockResolvedValue(makeApp());
     mockViewBuildsOnAppAsync.mockResolvedValue([makeBuild()]);
     mockWorkflowRunsAsync.mockResolvedValue([makeWorkflowRun()]);
-    mockAllSubmissionsAsync.mockResolvedValue([makeSubmission()]);
+    mockProjectStatusSubmissionsAsync.mockResolvedValue([makeSubmission()]);
     mockViewUpdateGroupsAsync.mockResolvedValue([makeUpdateGroup()]);
   });
 
@@ -145,13 +163,13 @@ describe(ProjectStatus, () => {
 
     expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      limit: 3,
+      limit: 4,
       offset: 0,
       filter: { developmentClient: false, distribution: DistributionType.Store },
     });
     expect(mockViewBuildsOnAppAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      limit: 3,
+      limit: 4,
       offset: 0,
       filter: { developmentClient: true },
     });
@@ -161,14 +179,14 @@ describe(ProjectStatus, () => {
     const command = createCommand(['--limit', '5']);
     await command.runAsync();
 
-    expect(mockWorkflowRunsAsync).toHaveBeenCalledWith(graphqlClient, projectId, undefined, 5);
-    expect(mockAllSubmissionsAsync).toHaveBeenCalledWith(graphqlClient, projectId, {
-      limit: 5,
+    expect(mockWorkflowRunsAsync).toHaveBeenCalledWith(graphqlClient, projectId, undefined, 6);
+    expect(mockProjectStatusSubmissionsAsync).toHaveBeenCalledWith(graphqlClient, projectId, {
+      limit: 6,
       offset: 0,
     });
     expect(mockViewUpdateGroupsAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: projectId,
-      limit: 5,
+      limit: 6,
       offset: 0,
     });
   });
@@ -195,7 +213,7 @@ describe(ProjectStatus, () => {
   it('handles a project with no activity in any section', async () => {
     mockViewBuildsOnAppAsync.mockResolvedValue([]);
     mockWorkflowRunsAsync.mockResolvedValue([]);
-    mockAllSubmissionsAsync.mockResolvedValue([]);
+    mockProjectStatusSubmissionsAsync.mockResolvedValue([]);
     mockViewUpdateGroupsAsync.mockResolvedValue([]);
 
     const command = createCommand([]);
@@ -210,6 +228,15 @@ describe(ProjectStatus, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledTimes(1);
 
     const output = mockPrintJsonOnlyOutput.mock.calls[0][0] as any;
+    expect(output.generatedAt).toEqual(expect.any(String));
+    expect(output.limit).toBe(3);
+    expect(output.hasMore).toEqual({
+      productionBuilds: false,
+      developmentBuilds: false,
+      workflowRuns: false,
+      submissions: false,
+      updates: false,
+    });
     expect(output.project).toMatchObject({
       id: projectId,
       fullName: '@jester/my-app',
@@ -221,15 +248,99 @@ describe(ProjectStatus, () => {
       id: 'build-1',
       status: BuildStatus.Finished,
       gitCommitMessage: 'Ship it',
+      url: 'https://expo.dev/builds/build-1',
     });
     expect(output.developmentBuilds).toHaveLength(1);
-    expect(output.workflowRuns[0]).toMatchObject({ id: 'run-1', workflowName: 'Publish' });
-    expect(output.submissions[0]).toMatchObject({ id: 'submission-1', androidTrack: 'production' });
+    expect(output.workflowRuns[0]).toMatchObject({
+      id: 'run-1',
+      workflowName: 'Publish',
+      errors: [],
+      url: 'https://expo.dev/accounts/jester/projects/my-app/workflows/run-1',
+    });
+    expect(output.submissions[0]).toMatchObject({
+      id: 'submission-1',
+      androidTrack: 'production',
+      appIdentifier: 'com.example.app',
+      buildId: 'build-1',
+      rollout: 50,
+      createdAt: '2026-07-02T12:00:00.000Z',
+      url: 'https://expo.dev/accounts/jester/projects/my-app/submissions/submission-1',
+    });
     expect(output.updates[0]).toMatchObject({
       group: 'group-1',
       branch: 'production',
-      platforms: 'android, ios',
+      platforms: ['android', 'ios'],
       message: 'Fix crash on launch',
+      rolloutPercentage: 25,
+      environment: 'production',
+      initiatingActor: 'jester',
+      url: 'https://expo.dev/accounts/jester/projects/my-app/updates/group-1',
     });
+  });
+
+  it('includes structured activity errors', async () => {
+    mockViewBuildsOnAppAsync.mockResolvedValue([
+      makeBuild({
+        status: BuildStatus.Errored,
+        error: {
+          errorCode: 'BUILD_FAILED',
+          message: 'Gradle failed',
+          docsUrl: 'https://docs.expo.dev/build-reference/troubleshooting/',
+        },
+      }),
+    ]);
+    mockWorkflowRunsAsync.mockResolvedValue([
+      makeWorkflowRun({
+        status: WorkflowRunStatus.Failure,
+        errors: [{ title: 'Deploy failed', message: 'Deployment did not complete' }],
+      }),
+    ]);
+    mockProjectStatusSubmissionsAsync.mockResolvedValue([
+      makeSubmission({
+        status: SubmissionStatus.Errored,
+        error: { errorCode: 'SUBMIT_FAILED', message: 'Store upload failed' },
+      }),
+    ]);
+
+    await createCommand(['--json']).runAsync();
+
+    const output = mockPrintJsonOnlyOutput.mock.calls[0][0] as any;
+    expect(output.productionBuilds[0].error).toEqual({
+      code: 'BUILD_FAILED',
+      message: 'Gradle failed',
+      docsUrl: 'https://docs.expo.dev/build-reference/troubleshooting/',
+    });
+    expect(output.workflowRuns[0].errors).toEqual([
+      { title: 'Deploy failed', message: 'Deployment did not complete' },
+    ]);
+    expect(output.submissions[0].error).toEqual({
+      code: 'SUBMIT_FAILED',
+      message: 'Store upload failed',
+    });
+  });
+
+  it('reports when more results are available and returns only the requested limit', async () => {
+    mockViewBuildsOnAppAsync.mockResolvedValue(Array.from({ length: 4 }, () => makeBuild()));
+    mockWorkflowRunsAsync.mockResolvedValue(Array.from({ length: 4 }, () => makeWorkflowRun()));
+    mockProjectStatusSubmissionsAsync.mockResolvedValue(
+      Array.from({ length: 4 }, () => makeSubmission())
+    );
+    mockViewUpdateGroupsAsync.mockResolvedValue(Array.from({ length: 4 }, () => makeUpdateGroup()));
+
+    await createCommand(['--json']).runAsync();
+
+    const output = mockPrintJsonOnlyOutput.mock.calls[0][0] as any;
+    expect(output.hasMore).toEqual({
+      productionBuilds: true,
+      developmentBuilds: true,
+      workflowRuns: true,
+      submissions: true,
+      updates: true,
+    });
+    expect(output.productionBuilds).toHaveLength(3);
+    expect(output.developmentBuilds).toHaveLength(3);
+    expect(output.workflowRuns).toHaveLength(3);
+    expect(output.submissions).toHaveLength(3);
+    expect(output.updates).toHaveLength(3);
   });
 });
