@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
+- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved from `.eas/build` configs into `.eas/functions` can be called from workflows. ([#4097](https://github.com/expo/eas-cli/pull/4097) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 

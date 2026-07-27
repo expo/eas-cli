@@ -1,8 +1,7 @@
 import {
-  CompositeFunctionConfig,
-  CompositeFunctionConfigZ,
   LocalFunctionCatalog,
   LocalFunctionConfig,
+  LocalFunctionConfigZ,
   Step,
   isLegacyFunctionConfig,
 } from '@expo/eas-build-job';
@@ -121,6 +120,49 @@ export function resolveLegacyFunctionModulePath({
   return path.resolve(resolveLocalFunctionPath(projectRoot, functionPath), modulePath);
 }
 
+/**
+ * Resolves the module path of a single-step `path` function and validates that it points at a
+ * directory containing a `package.json`. The workflow validator repeats the module check once the
+ * function joins `workflow.buildFunctions` at parse time, but this one fires earlier and also
+ * covers `eas workflow` validation, which builds the catalog without ever parsing a workflow.
+ * Shared by every loader so the validation cannot drift.
+ */
+export async function resolveAndValidateLegacyFunctionModulePathAsync({
+  projectRoot,
+  functionPath,
+  modulePath,
+}: {
+  projectRoot: string;
+  functionPath: string;
+  modulePath: string;
+}): Promise<string> {
+  const resolvedModulePath = resolveLegacyFunctionModulePath({
+    projectRoot,
+    functionPath,
+    modulePath,
+  });
+  if (!(await pathExistsAsync(resolvedModulePath))) {
+    throw new Error(
+      `Local function "${functionPath}" declares "path: ${modulePath}", but there is no such directory at ${resolvedModulePath}.`
+    );
+  }
+  if (!(await pathExistsAsync(path.join(resolvedModulePath, 'package.json')))) {
+    throw new Error(
+      `Local function "${functionPath}" declares "path: ${modulePath}", but the module directory ${resolvedModulePath} does not contain a package.json file.`
+    );
+  }
+  return resolvedModulePath;
+}
+
+async function pathExistsAsync(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface LocalFunctionLogger {
   debug(message: string): void;
 }
@@ -133,7 +175,7 @@ export async function loadLocalFunctionConfigAsync(
   projectRoot: string,
   functionPath: string,
   { logger }: { logger?: LocalFunctionLogger } = {}
-): Promise<CompositeFunctionConfig> {
+): Promise<LocalFunctionConfig> {
   const resolvedPath = resolveLocalFunctionPath(projectRoot, functionPath);
 
   for (const ext of ['yml', 'yaml'] as const) {
@@ -165,17 +207,27 @@ export async function loadLocalFunctionConfigAsync(
       );
     }
 
-    const result = CompositeFunctionConfigZ.safeParse(parsed);
+    const result = LocalFunctionConfigZ.safeParse(parsed);
     if (!result.success) {
       throw new Error(
         `Invalid composite function "${functionPath}": ${z.prettifyError(result.error)}`
       );
     }
 
+    const config = result.data;
+    // The catalog is consumed by the steps parser, which expects an absolute module path.
+    if (isLegacyFunctionConfig(config) && config.path !== undefined) {
+      config.path = await resolveAndValidateLegacyFunctionModulePathAsync({
+        projectRoot,
+        functionPath,
+        modulePath: config.path,
+      });
+    }
+
     logger?.debug(
       `Loaded local composite function "${functionPath}" from ${path.relative(projectRoot, absolutePath)}`
     );
-    return result.data;
+    return config;
   }
 
   throw new Error(
@@ -187,7 +239,7 @@ export async function loadLocalFunctionConfigAsync(
 export function createLocalFunctionLoader(
   projectRoot: string,
   { logger }: { logger?: LocalFunctionLogger } = {}
-): (functionPath: string) => Promise<CompositeFunctionConfig> {
+): (functionPath: string) => Promise<LocalFunctionConfig> {
   return async functionPath =>
     await loadLocalFunctionConfigAsync(projectRoot, functionPath, { logger });
 }

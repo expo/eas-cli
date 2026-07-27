@@ -1,4 +1,9 @@
-import { CompositeFunctionConfigZ, LocalFunctionConfigZ } from '@expo/eas-build-job';
+import {
+  CompositeFunctionConfigZ,
+  LocalFunctionConfigZ,
+  isLegacyFunctionConfig,
+} from '@expo/eas-build-job';
+import assert from 'assert';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -11,6 +16,7 @@ import {
   isLocalFunctionPath,
   loadLocalFunctionConfigAsync,
   parseLocalFunctionPath,
+  resolveAndValidateLegacyFunctionModulePathAsync,
   resolveLegacyFunctionModulePath,
   resolveLocalFunctionPath,
 } from '../localCompositeFunctions';
@@ -349,6 +355,7 @@ describe(loadLocalFunctionConfigAsync, () => {
 
     const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.name).toBe('Setup');
     expect(config.runs.steps).toHaveLength(1);
   });
@@ -364,6 +371,7 @@ describe(loadLocalFunctionConfigAsync, () => {
 
     const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.runs.steps).toHaveLength(1);
   });
 
@@ -514,6 +522,7 @@ describe(createLocalFunctionLoader, () => {
     const loader = createLocalFunctionLoader(projectRoot);
     const config = await loader('./.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.name).toBe('Setup');
     expect(config.runs.steps).toHaveLength(1);
   });
@@ -628,6 +637,73 @@ describe(buildLocalFunctionCatalogAsync, () => {
 
     expect(catalog).toEqual({});
   });
+
+  it('loads a referenced single-step command function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      [
+        'name: Say hi',
+        'inputs:',
+        '  - name',
+        'outputs:',
+        '  - greeting',
+        'command: set-output greeting "Hi, ${ inputs.name }!"',
+        'shell: sh',
+        'supported_platforms:',
+        '  - linux',
+      ].join('\n')
+    );
+
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+    });
+
+    const localFunction = catalog['./.eas/functions/say-hi'];
+    assert(isLegacyFunctionConfig(localFunction));
+    expect(localFunction.name).toBe('Say hi');
+    expect(localFunction.command).toBe('set-output greeting "Hi, ${ inputs.name }!"');
+    expect(localFunction.shell).toBe('sh');
+    expect(localFunction.supported_platforms).toEqual(['linux']);
+    expect(localFunction.inputs).toEqual(['name']);
+    expect(localFunction.outputs).toEqual(['greeting']);
+  });
+
+  it('rewrites the "path" of a single-step function to an absolute module path', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['name: Say hi', 'path: ./my-function'].join('\n')
+    );
+    const moduleDir = path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function');
+    await fs.mkdir(moduleDir, { recursive: true });
+    await fs.writeFile(path.join(moduleDir, 'package.json'), '{}', 'utf-8');
+
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+    });
+
+    const localFunction = catalog['./.eas/functions/say-hi'];
+    assert(isLegacyFunctionConfig(localFunction));
+    expect(localFunction.path).toBe(moduleDir);
+  });
+
+  it('throws when a single-step function points at a module directory that does not exist', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['name: Say hi', 'path: ./my-function'].join('\n')
+    );
+
+    await expect(
+      buildLocalFunctionCatalogAsync(projectRoot, {
+        rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+      })
+    ).rejects.toThrow(/there is no such directory at /);
+  });
 });
 
 describe(resolveLegacyFunctionModulePath, () => {
@@ -662,5 +738,51 @@ describe(resolveLegacyFunctionModulePath, () => {
         modulePath: absolutePath,
       })
     ).toBe(absolutePath);
+  });
+});
+
+describe(resolveAndValidateLegacyFunctionModulePathAsync, () => {
+  it('resolves and returns the module path when it contains a package.json', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-legacy-'));
+    const moduleDir = path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function');
+    await fs.mkdir(moduleDir, { recursive: true });
+    await fs.writeFile(path.join(moduleDir, 'package.json'), '{}', 'utf-8');
+
+    const resolvedModulePath = await resolveAndValidateLegacyFunctionModulePathAsync({
+      projectRoot,
+      functionPath: './.eas/functions/say-hi',
+      modulePath: './my-function',
+    });
+
+    expect(resolvedModulePath).toBe(moduleDir);
+  });
+
+  it('throws when the module directory does not exist', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-legacy-'));
+
+    await expect(
+      resolveAndValidateLegacyFunctionModulePathAsync({
+        projectRoot,
+        functionPath: './.eas/functions/say-hi',
+        modulePath: './my-function',
+      })
+    ).rejects.toThrow(
+      /Local function "\.\/\.eas\/functions\/say-hi" declares "path: \.\/my-function", but there is no such directory at .*my-function\./
+    );
+  });
+
+  it('throws when the module directory has no package.json', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-legacy-'));
+    await fs.mkdir(path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function'), {
+      recursive: true,
+    });
+
+    await expect(
+      resolveAndValidateLegacyFunctionModulePathAsync({
+        projectRoot,
+        functionPath: './.eas/functions/say-hi',
+        modulePath: './my-function',
+      })
+    ).rejects.toThrow(/does not contain a package.json file/);
   });
 });
