@@ -13,9 +13,12 @@ import { displayUsage } from '../usage';
 
 jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log', () => ({
+  __esModule: true,
   ...jest.requireActual('../../../log'),
-  log: jest.fn(),
-  newLine: jest.fn(),
+  default: {
+    log: jest.fn(),
+    newLine: jest.fn(),
+  },
   link: jest.fn((url: string, opts?: { text?: string }) => opts?.text ?? url),
 }));
 
