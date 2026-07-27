@@ -98,7 +98,7 @@ jobs:
       - name: Guard config.jsonc tokenEnv
         if: steps.resolve.outputs.run == 'true'
         env:
-          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_REFRESH_TOKEN' }}
+          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
         run: |
           values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
           count=$(printf '%s\n' "$values" | grep -c .)
@@ -135,13 +135,14 @@ jobs:
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ChatGPT/Codex subscription refresh token (auth.mode "oauth" in
-          # .expo-code-review/config.jsonc reads this env var); OpenCode mints
-          # access tokens from it. All reviews run on the subscription.
-          CODEX_OAUTH_REFRESH_TOKEN: ${{ secrets.CODEX_OAUTH_REFRESH_TOKEN }}
+          # ChatGPT/Codex subscription ACCESS token (auth.mode "oauth" in
+          # .expo-code-review/config.jsonc reads this env var) — used as-is, no
+          # rotation involvement; re-mint before its ~10-day expiry. All reviews
+          # run on the subscription.
+          CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
           # Layer-1 runtime auth lock (mirrors the guard step): the CLI refuses to
           # run when the tokenEnv the loaded config honors differs from this.
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_REFRESH_TOKEN' }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.resolve.outputs.agents }}
