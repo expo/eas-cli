@@ -61,6 +61,10 @@ export default class SimulatorStart extends EasCommand {
       description: 'Device platform',
       options: PLATFORM_FLAG_VALUES,
     })(),
+    name: Flags.string({
+      description:
+        'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -136,6 +140,7 @@ export default class SimulatorStart extends EasCommand {
     try {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
+        name: flags.name,
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
@@ -224,6 +229,7 @@ export default class SimulatorStart extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: deviceRunSessionId,
+        name: flags.name,
         type: flags.type,
         deviceRunSessionUrl,
         remoteConfig,

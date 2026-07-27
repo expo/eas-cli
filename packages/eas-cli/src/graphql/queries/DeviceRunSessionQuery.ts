@@ -23,6 +23,7 @@ export const DeviceRunSessionQuery = {
               deviceRunSessions {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
+                  name
                   status
                   type
                   platform
@@ -111,6 +112,7 @@ export const DeviceRunSessionQuery = {
                       cursor
                       node {
                         id
+                        name
                         status
                         type
                         platform

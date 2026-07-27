@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Collect and upload Argent tool-server session events during remote simulator sessions, mirroring agent-device event collection. ([#4067](https://github.com/expo/eas-cli/pull/4067) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add `--name` to `eas simulator:start` and show simulator session names in `eas simulator:get` and `eas simulator:list`. ([#4099](https://github.com/expo/eas-cli/pull/4099) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
