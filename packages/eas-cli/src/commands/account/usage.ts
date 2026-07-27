@@ -58,7 +58,7 @@ function displayBandwidthMetric(metric: UsageMetricDisplay, indent: string = '  
 
   if (metric.overageValue > 0) {
     Log.log(
-      `${indent}${metric.name} (overage): ${chalk.red(
+      `${indent}${metric.name} (additional usage): ${chalk.red(
         formatBytesDisplay(metric.overageValue)
       )} (${formatCurrency(metric.overageCost)})`
     );
@@ -84,7 +84,7 @@ function displayMetric(metric: UsageMetricDisplay, indent: string = '  '): void 
 
   if (metric.overageValue > 0) {
     Log.log(
-      `${indent}${metric.name} (overage): ${chalk.red(
+      `${indent}${metric.name} (additional usage): ${chalk.red(
         `${formatNumber(metric.overageValue)} ${metric.unit ?? ''}`
       )} (${formatCurrency(metric.overageCost)})`
     );
@@ -172,9 +172,9 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
     }
 
     if (data.totalOverageCostCents > 0) {
-      Log.log(`  Current overages: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
+      Log.log(`  Additional usage: ${chalk.yellow(formatCurrency(data.totalOverageCostCents))}`);
       if (data.builds.overageCostCents > 0) {
-        Log.log(`    Build overages: ${formatCurrency(data.builds.overageCostCents)}`);
+        Log.log(`    Builds: ${formatCurrency(data.builds.overageCostCents)}`);
         // Show breakdown by worker size
         for (const overage of data.builds.overagesByWorkerSize) {
           const platformName = overage.platform === AppPlatform.Ios ? 'iOS' : 'Android';
@@ -188,7 +188,7 @@ function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): 
         }
       }
       if (data.updates.overageCostCents > 0) {
-        Log.log(`    Update overages: ${formatCurrency(data.updates.overageCostCents)}`);
+        Log.log(`    Updates: ${formatCurrency(data.updates.overageCostCents)}`);
       }
     }
 
