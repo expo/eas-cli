@@ -63,7 +63,10 @@ describe('StepsConfigParser local composite functions', () => {
           runs: { steps: [{ id: 'inner', uses: 'test/passthrough', with: { value: 'static' } }] },
         },
       ],
-      ['referenced', compositeFunctionReadingInput({ name: 'token', type: 'string', required: true })],
+      [
+        'referenced',
+        compositeFunctionReadingInput({ name: 'token', type: 'string', required: true }),
+      ],
     ])('rejects at parse time a missing required input that is %s', async (_, actionConfig) => {
       const error = await getErrorAsync<BuildConfigError>(() =>
         parseCompositeFunctions({
@@ -147,7 +150,11 @@ describe('StepsConfigParser local composite functions', () => {
     it('falls back to the default resolved in the composite function scope when the caller passes null', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: compositeFunctionReadingInput({ name: 'greeting', type: 'string', default_value: 'hello' }),
+          [SETUP]: compositeFunctionReadingInput({
+            name: 'greeting',
+            type: 'string',
+            default_value: 'hello',
+          }),
         },
         steps: [{ uses: SETUP, id: 'setup', with: { greeting: null } }],
         externalFunctions: [passThroughFunction()],
