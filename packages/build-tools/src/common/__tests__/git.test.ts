@@ -94,9 +94,10 @@ describe(fetchAndCheckoutRefAsync, () => {
     });
   });
 
-  it('checks out a bare commit SHA', async () => {
-    const sha = '0123456789abcdef0123456789abcdef01234567';
-
+  it.each([
+    ['SHA-1', '0123456789abcdef0123456789abcdef01234567'],
+    ['SHA-256', '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'],
+  ])('checks out a bare %s commit hash as detached HEAD', async (_format, sha) => {
     await fetchAndCheckoutRefAsync({
       ref: sha,
       repositoryDirectory,
@@ -108,9 +109,10 @@ describe(fetchAndCheckoutRefAsync, () => {
       ['fetch', 'origin', '--depth', '1', '--no-tags', sha],
       { cwd: repositoryDirectory }
     );
-    expect(spawn).toHaveBeenNthCalledWith(2, 'git', ['checkout', '-B', sha, 'FETCH_HEAD'], {
+    expect(spawn).toHaveBeenNthCalledWith(2, 'git', ['checkout', 'FETCH_HEAD'], {
       cwd: repositoryDirectory,
     });
+    expect(spawn).toHaveBeenCalledTimes(2);
   });
 
   it('throws when the directory is not a git repository', async () => {

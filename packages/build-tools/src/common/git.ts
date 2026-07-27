@@ -72,6 +72,7 @@ export async function fetchAndCheckoutRefAsync({
   }
 
   const { name, type } = getStrippedBranchOrTagName(ref);
+  const isCommitHash = type === 'other' && /^([0-9a-f]{40}|[0-9a-f]{64})$/.test(name);
   const refToFetch =
     type === 'branch' ? `refs/heads/${name}` : type === 'tag' ? `refs/tags/${name}` : name;
   try {
@@ -82,6 +83,8 @@ export async function fetchAndCheckoutRefAsync({
       await spawn('git', ['checkout', 'FETCH_HEAD'], { cwd: repositoryDirectory });
       // --force because the initial clone may have already created this tag.
       await spawn('git', ['tag', '--force', name], { cwd: repositoryDirectory });
+    } else if (isCommitHash) {
+      await spawn('git', ['checkout', 'FETCH_HEAD'], { cwd: repositoryDirectory });
     } else {
       // -B because a branch with this name may exist from the initial clone.
       await spawn('git', ['checkout', '-B', name, 'FETCH_HEAD'], { cwd: repositoryDirectory });
