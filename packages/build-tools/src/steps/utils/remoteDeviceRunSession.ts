@@ -4,6 +4,7 @@ import { BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
+import fetch from 'node-fetch';
 import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
@@ -68,16 +69,94 @@ export function getNgrokTunnelDomainOrThrow(env: BuildStepEnv): string {
   return baseDomain;
 }
 
-export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
-  const authtoken = env.NGROK_AUTHTOKEN;
-  if (!authtoken) {
+const NgrokCredentialResponseSchema = z.object({
+  data: z.object({
+    authtoken: z.string(),
+    hostnames: z
+      .object({
+        remoteSession: z.string().optional(),
+        serveSim: z.string().optional(),
+      })
+      .optional(),
+  }),
+});
+
+export type NgrokCredential = {
+  authtoken: string;
+  /**
+   * Exact hostname the credential's ACL allows for the agent-device/argent
+   * tunnel. Absent on the legacy shared-token fallback path, where a random
+   * hostname is generated instead.
+   */
+  remoteSessionHostname?: string;
+  /** Exact ACL'd hostname for the serve-sim preview tunnel; see above. */
+  serveSimHostname?: string;
+};
+
+/**
+ * Fetch a session-scoped ngrok credential from www, minted on demand for this
+ * device run session. The authtoken's ACL is pinned to the exact returned
+ * hostnames and www revokes it when the session ends, so it is useless if it
+ * leaks from the worker. Falls back to the legacy shared NGROK_AUTHTOKEN job
+ * secret while the www endpoint rolls out; once www stops injecting that
+ * secret, a failed fetch fails the step.
+ */
+export async function fetchNgrokCredentialAsync(
+  ctx: CustomBuildContext,
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<NgrokCredential> {
+  try {
+    const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+    const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const robotAccessToken = nullthrows(
+      ctx.job.secrets?.robotAccessToken,
+      'robot access token is not set'
+    );
+
+    const response = await turtleFetch(
+      new URL(
+        `/v2/device-run-sessions/${deviceRunSessionId}/ngrok-credential`,
+        expoApiServerUrl
+      ).toString(),
+      'POST',
+      {
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+        },
+        json: { supportsProvidedHostnames: true },
+        timeout: 10000,
+        retries: 2,
+        logger,
+      }
+    );
+
+    const { data } = NgrokCredentialResponseSchema.parse(await response.json());
+    logger.info('Using a session-scoped ngrok authtoken.');
+    return {
+      authtoken: data.authtoken,
+      remoteSessionHostname: data.hostnames?.remoteSession,
+      serveSimHostname: data.hostnames?.serveSim,
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    const sharedAuthtoken = env.NGROK_AUTHTOKEN;
+    if (sharedAuthtoken) {
+      Sentry.capture('Could not fetch a session-scoped ngrok authtoken', error, {
+        level: 'warning',
+      });
+      logger.warn(
+        { err: error },
+        'Could not fetch a session-scoped ngrok authtoken; falling back to the shared NGROK_AUTHTOKEN job secret.'
+      );
+      return { authtoken: sharedAuthtoken };
+    }
     throw new SystemError(
-      'NGROK_AUTHTOKEN is not set. ' +
-        'This step must run as part of a device run session ' +
-        'which injects NGROK_AUTHTOKEN into the job environment.'
+      `Could not fetch an ngrok authtoken for this device run session: ${error.message}. ` +
+        'The step must run as part of a device run session whose robot access token can call ' +
+        'the ngrok-credential endpoint on the API server (or, during rollout, with a ' +
+        'NGROK_AUTHTOKEN job secret).'
     );
   }
-  return authtoken;
 }
 
 const TurnIceServersSchema = z.array(
@@ -330,31 +409,32 @@ export function spawnDetached({
   return { pid: promise.child.pid, getOutput: () => output };
 }
 
+const SERVE_SIM_PORT = 3200;
+
 export async function startServeSimWithTunnelAsync(
   ctx: CustomBuildContext,
   {
     baseDomain,
+    ngrokCredential,
     env,
     logger,
     timeoutMs,
   }: {
     baseDomain: string;
+    ngrokCredential: NgrokCredential;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
   }
 ): Promise<{ previewUrl: string }> {
-  logger.info('Launching serve-sim with tunnel.');
+  logger.info('Launching serve-sim.');
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
     args: [
       'serve-sim-szdziedzic@latest',
-      '--tunnel',
-      '--tunnel-provider',
-      'ngrok',
-      '--tunnel-domain',
-      baseDomain,
+      '--port',
+      String(SERVE_SIM_PORT),
       '--stream-max-dimension',
       '1280',
       '--stream-quality',
@@ -366,39 +446,53 @@ export async function startServeSimWithTunnelAsync(
     env,
   });
 
-  logger.info('Waiting for serve-sim to report tunnel URL.');
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const output = serveSim.getOutput();
-    const previewUrl = matchTunnelUrl({ output, baseDomain });
-    if (previewUrl) {
-      return { previewUrl };
-    }
-    await sleepAsync(1_000);
-  }
-  throw new SystemError(
-    `Timed out waiting for serve-sim to report Tunnel URL. Last output:\n${serveSim.getOutput() || '<empty>'}`
-  );
+  logger.info(`Waiting for serve-sim to listen on port ${SERVE_SIM_PORT}.`);
+  await waitForLocalHttpServerAsync({ port: SERVE_SIM_PORT, timeoutMs, processHandle: serveSim });
+
+  // The tunnel is owned here rather than by serve-sim so the ngrok authtoken
+  // never enters serve-sim's environment and the exact ACL'd hostname is
+  // bound. serve-sim adapts its URLs to the request hostname, so it serves
+  // tunnel viewers the same either way.
+  const previewUrl = await startNgrokTunnelAsync({
+    port: SERVE_SIM_PORT,
+    subdomainPrefix: 'serve-sim',
+    baseDomain,
+    hostname: ngrokCredential.serveSimHostname,
+    authtoken: ngrokCredential.authtoken,
+    logger,
+  });
+  return { previewUrl };
 }
 
-function matchTunnelUrl({
-  output,
-  baseDomain,
+async function waitForLocalHttpServerAsync({
+  port,
+  timeoutMs,
+  processHandle,
 }: {
-  output: string;
-  baseDomain: string;
-}): string | null {
-  const labelPattern = new RegExp(
-    `Tunnel:\\s*(https:\\/\\/[a-z0-9-]+\\.${escapeRegExp(baseDomain)})`
+  port: number;
+  timeoutMs: number;
+  processHandle: DetachedProcessHandle;
+}): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      // Any HTTP response means the server is up; the status does not matter.
+      await fetch(`http://127.0.0.1:${port}/`);
+      return;
+    } catch {
+      await sleepAsync(1_000);
+    }
+  }
+  throw new SystemError(
+    `Timed out waiting for serve-sim to listen on port ${port}. Last output:\n${processHandle.getOutput() || '<empty>'}`
   );
-  const match = labelPattern.exec(output);
-  return match ? match[1] : null;
 }
 
 export async function startNgrokTunnelAsync({
   port,
   subdomainPrefix,
   baseDomain,
+  hostname,
   authtoken,
   rewriteHostHeader,
   logger,
@@ -406,11 +500,18 @@ export async function startNgrokTunnelAsync({
   port: number;
   subdomainPrefix: string;
   baseDomain: string;
+  /**
+   * Exact hostname to bind, matching the credential's ACL when www provided
+   * one. A `<subdomainPrefix>-<random>` hostname under `baseDomain` is
+   * generated on the legacy shared-token path, where the ACL permits any
+   * subdomain.
+   */
+  hostname?: string;
   authtoken: string;
   rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<string> {
-  const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
+  const domain = hostname ?? `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
@@ -425,10 +526,6 @@ export async function startNgrokTunnelAsync({
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
   return url;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export async function waitForFileAsync<T>({

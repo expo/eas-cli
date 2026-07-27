@@ -19,8 +19,8 @@ import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
 import {
+  fetchNgrokCredentialAsync,
   getDeviceRunSessionIdOrThrow,
-  getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
@@ -60,13 +60,14 @@ export function createStartArgentRemoteSessionBuildFunction(
       }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
-      // Fail fast before any expensive setup if the injected env
-      // vars are missing: DEVICE_RUN_SESSION_ID (to report the remote config
-      // back to the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain
-      // for our ngrok tunnels), and NGROK_AUTHTOKEN (to authenticate them).
+      // Fail fast before any expensive setup if the session context is
+      // incomplete: DEVICE_RUN_SESSION_ID (to report the remote config back to
+      // the API server), EAS_SIMULATOR_NGROK_TUNNEL_DOMAIN (base domain for our
+      // ngrok tunnels), and a session-scoped ngrok authtoken minted by the API
+      // server (to authenticate them).
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
-      const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
+      const ngrokCredential = await fetchNgrokCredentialAsync(ctx, { env, logger });
 
       const packageVersion = inputs.package_version.value as string | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
@@ -147,7 +148,8 @@ export function createStartArgentRemoteSessionBuildFunction(
           port: toolServerPort,
           subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
-          authtoken: ngrokAuthtoken,
+          hostname: ngrokCredential.remoteSessionHostname,
+          authtoken: ngrokCredential.authtoken,
           rewriteHostHeader: true,
           logger,
         });
@@ -158,6 +160,7 @@ export function createStartArgentRemoteSessionBuildFunction(
         if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
           const serveSim = await startServeSimWithTunnelAsync(ctx, {
             baseDomain: ngrokTunnelDomain,
+            ngrokCredential,
             env,
             logger,
             timeoutMs: STARTUP_TIMEOUT_MS,

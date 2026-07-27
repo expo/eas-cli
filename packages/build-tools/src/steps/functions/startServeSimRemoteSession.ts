@@ -2,6 +2,7 @@ import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
+  fetchNgrokCredentialAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
@@ -24,6 +25,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
     fn: async ({ logger }, { env, signal }) => {
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
+      const ngrokCredential = await fetchNgrokCredentialAsync(ctx, { env, logger });
 
       logger.info('Starting serve-sim remote session.');
 
@@ -31,6 +33,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
 
       const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
         baseDomain: ngrokTunnelDomain,
+        ngrokCredential,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
