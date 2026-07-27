@@ -1,8 +1,7 @@
 ---
-# The coordinator makes the final call — de-duping, re-judging severity, and
-# deciding — so it runs on Opus: consolidation quality matters more here than the
-# small serial-tail latency it adds (no repo tools, so it's a single bounded pass).
-model: anthropic/claude-opus-4-8
+# No model override: the coordinator runs on the config default (gpt-5.5, on the
+# subscription). It only consolidates text (no repo tools), so the default is
+# plenty; override here if consolidation quality ever needs a stronger model.
 ---
 
 # Coordinator — consolidation & decision

@@ -19,7 +19,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.4.0' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.5.0' }}
 
 concurrency:
   group: ai-code-review-cmd-${{ github.event.issue.number }}
@@ -104,7 +104,8 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_OAUTH_API_KEY: ${{ secrets.ANTHROPIC_OAUTH_API_KEY }}
+          CODEX_OAUTH_REFRESH_TOKEN: ${{ secrets.CODEX_OAUTH_REFRESH_TOKEN }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_REFRESH_TOKEN' }}
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.cmd.outputs.agents }}
           ROUTE: ${{ steps.cmd.outputs.route }}

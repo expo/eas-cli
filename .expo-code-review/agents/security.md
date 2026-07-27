@@ -1,11 +1,10 @@
 ---
 description: Security and secrets. Injection, credential or secret leakage, unsafe shell/child-process use, missing validation at trust boundaries.
 alwaysRun: true
-# Security is the highest-stakes agent and benefits most from stronger threat-model
-# reasoning, so it runs on Opus even though the other specialists use the Sonnet
-# default. Scoped to this one agent to limit the extra latency/rate-limit cost;
-# subdivide-on-timeout + the per-fetch deadline keep a slow Opus pass from hanging.
-model: anthropic/claude-opus-4-8
+# No model override: security runs on the config default (gpt-5.5, on the
+# subscription). To give it a stronger model, use the metered openai-api alias
+# from the mixed auth.providers setup (see the @expo/code-review-cli README) —
+# pro-tier models are excluded from the subscription.
 ---
 
 # Security & secrets
