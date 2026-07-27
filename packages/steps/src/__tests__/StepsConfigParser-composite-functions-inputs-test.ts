@@ -1,7 +1,7 @@
 import {
   SETUP,
-  actionReadingInput,
-  echoInputAction,
+  compositeFunctionReadingInput,
+  echoInputCompositeFunction,
   parseCompositeFunctions,
   passThroughFunction,
 } from './StepsConfigParser-composite-functions-test-utils';
@@ -13,7 +13,7 @@ describe('StepsConfigParser local composite functions', () => {
     it('uses the composite function input default when the caller omits the value', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: echoInputAction('greeting', {
+          [SETUP]: echoInputCompositeFunction('greeting', {
             name: 'greeting',
             type: 'string',
             default_value: 'hello',
@@ -36,7 +36,7 @@ describe('StepsConfigParser local composite functions', () => {
       'accepts an explicit %s value, leaving the command raw',
       async (_typeLabel, inputDef, withInputs, expectedCommand) => {
         const workflow = await parseCompositeFunctions({
-          catalog: { [SETUP]: echoInputAction(inputDef.name, inputDef) },
+          catalog: { [SETUP]: echoInputCompositeFunction(inputDef.name, inputDef) },
           steps: [{ uses: SETUP, id: 'setup', with: withInputs }],
         });
         expect(workflow.buildSteps[0].command).toBe(expectedCommand);
@@ -45,7 +45,7 @@ describe('StepsConfigParser local composite functions', () => {
 
     it('ignores unknown caller inputs, matching function-step behavior', async () => {
       const workflow = await parseCompositeFunctions({
-        catalog: { [SETUP]: actionReadingInput({ name: 'greeting', type: 'string' }) },
+        catalog: { [SETUP]: compositeFunctionReadingInput({ name: 'greeting', type: 'string' }) },
         steps: [{ uses: SETUP, id: 'setup', with: { greetng: 'hi' } }],
         externalFunctions: [passThroughFunction()],
       });
@@ -63,7 +63,7 @@ describe('StepsConfigParser local composite functions', () => {
           runs: { steps: [{ id: 'inner', uses: 'test/passthrough', with: { value: 'static' } }] },
         },
       ],
-      ['referenced', actionReadingInput({ name: 'token', type: 'string', required: true })],
+      ['referenced', compositeFunctionReadingInput({ name: 'token', type: 'string', required: true })],
     ])('rejects at parse time a missing required input that is %s', async (_, actionConfig) => {
       const error = await getErrorAsync<BuildConfigError>(() =>
         parseCompositeFunctions({
@@ -83,7 +83,7 @@ describe('StepsConfigParser local composite functions', () => {
     it('treats a required input set to an interpolation as provided, even one resolving to undefined', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: actionReadingInput({ name: 'token', type: 'string', required: true }),
+          [SETUP]: compositeFunctionReadingInput({ name: 'token', type: 'string', required: true }),
         },
         steps: [{ uses: SETUP, id: 'setup', with: { token: '${{ env.UNSET_VAR }}' } }],
         externalFunctions: [passThroughFunction()],
@@ -97,13 +97,13 @@ describe('StepsConfigParser local composite functions', () => {
     it.each([
       [
         'a provided input has the wrong type',
-        actionReadingInput({ name: 'count', type: 'number' }),
+        compositeFunctionReadingInput({ name: 'count', type: 'number' }),
         [{ uses: SETUP, id: 'setup', with: { count: 'two' } }],
         /Input parameter "count" for step ".+" must be of type "number"/,
       ],
       [
         'a string does not parse as JSON for a json input',
-        actionReadingInput({ name: 'config', type: 'json' }),
+        compositeFunctionReadingInput({ name: 'config', type: 'json' }),
         [{ uses: SETUP, id: 'setup', with: { config: 'literal' } }],
         /Input parameter "config" for step ".+" must be of type "json"/,
       ],
@@ -147,7 +147,7 @@ describe('StepsConfigParser local composite functions', () => {
     it('falls back to the default resolved in the composite function scope when the caller passes null', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: actionReadingInput({ name: 'greeting', type: 'string', default_value: 'hello' }),
+          [SETUP]: compositeFunctionReadingInput({ name: 'greeting', type: 'string', default_value: 'hello' }),
         },
         steps: [{ uses: SETUP, id: 'setup', with: { greeting: null } }],
         externalFunctions: [passThroughFunction()],
@@ -161,7 +161,7 @@ describe('StepsConfigParser local composite functions', () => {
     it('accepts a provided literal value that is one of allowed_values', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
-          [SETUP]: actionReadingInput({
+          [SETUP]: compositeFunctionReadingInput({
             name: 'greeting',
             type: 'string',
             allowed_values: ['hi', 'hello'],
@@ -180,7 +180,7 @@ describe('StepsConfigParser local composite functions', () => {
       const error = await getErrorAsync<BuildConfigError>(() =>
         parseCompositeFunctions({
           catalog: {
-            [SETUP]: actionReadingInput({
+            [SETUP]: compositeFunctionReadingInput({
               name: 'greeting',
               type: 'string',
               allowed_values: ['hi', 'hello'],
