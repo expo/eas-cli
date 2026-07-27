@@ -59,7 +59,11 @@ export type DeviceRunSessionEventParseResult = {
  * and failure reporting.
  */
 export type DeviceRunSessionEventSource = {
-  /** Stable producer identifier, e.g. `agent-device` or `argent`. */
+  /**
+   * Stable producer identifier, e.g. `agent-device` or `argent`. Also used
+   * verbatim in diagnostic messages, which are phrased so it never needs
+   * recasing.
+   */
   producer: string;
   /** Discover the NDJSON event files to tail (absolute paths). */
   findEventFilesAsync: () => Promise<string[]>;
@@ -212,8 +216,8 @@ export async function startDeviceRunSessionEventCollectionAsync({
   })()
     .catch(err => {
       const error = err instanceof Error ? err : new Error(String(err));
-      logger.warn({ err: error }, `${capitalize(producer)} event collection poller failed.`);
-      Sentry.capture(`${capitalize(producer)} event collection poller failed`, error, {
+      logger.warn({ err: error }, `Event collection poller for ${producer} failed.`);
+      Sentry.capture(`Event collection poller for ${producer} failed`, error, {
         level: 'warning',
         tags: { phase: `${producer}-event-collection`, operation: 'poll' },
         extras: { deviceRunSessionId },
@@ -339,8 +343,4 @@ async function collectEventFileAsync({
   } finally {
     await handle.close();
   }
-}
-
-function capitalize(value: string): string {
-  return value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`;
 }

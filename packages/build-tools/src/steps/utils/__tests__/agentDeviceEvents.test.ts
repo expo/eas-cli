@@ -447,7 +447,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       await waitForAsync(() =>
         expect(logger.warn).toHaveBeenCalledWith(
           { err: reportingError },
-          'Agent-device event collection poller failed.'
+          'Event collection poller for agent-device failed.'
         )
       );
       await expect(collection.stopAsync()).resolves.toBeUndefined();
@@ -458,7 +458,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     expect(Sentry.capture).toHaveBeenCalledTimes(2);
     expect(Sentry.capture).toHaveBeenNthCalledWith(
       2,
-      'Agent-device event collection poller failed',
+      'Event collection poller for agent-device failed',
       reportingError,
       {
         level: 'warning',

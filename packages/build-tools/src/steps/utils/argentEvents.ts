@@ -44,7 +44,9 @@ const ArgentEventSchema = z
   .object({
     time: z.string(),
     type: z.string(),
-    msg: z.string().optional().catch(undefined),
+    // Argent's EventLogRecord requires `msg` and every emit site sets it to the
+    // human-readable description of the event, so it is our summary verbatim.
+    msg: z.string(),
     level: z.number().optional().catch(undefined),
     toolId: z.string().optional().catch(undefined),
     toolInvocationId: z.string().optional().catch(undefined),
@@ -140,9 +142,6 @@ function normalizeArgentEvent({
       : event.type === 'tool.failed'
         ? 'failure'
         : undefined;
-  const summary =
-    event.msg && event.msg.trim().length > 0 ? event.msg : summarizeArgentEvent(event);
-
   const data: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(event)) {
     if (!NON_DATA_KEYS.has(key) && value !== undefined) {
@@ -165,20 +164,7 @@ function normalizeArgentEvent({
     ...(event.toolInvocationId ? { operationId: event.toolInvocationId } : {}),
     ...(outcome ? { outcome } : {}),
     ...(typeof event.durationMs === 'number' ? { durationMs: event.durationMs } : {}),
-    summary,
+    summary: event.msg,
     data,
   };
-}
-
-function summarizeArgentEvent(event: ArgentEvent): string {
-  switch (event.type) {
-    case 'tool.invoked':
-      return `Invoked ${event.toolId ?? 'tool'}`;
-    case 'tool.completed':
-      return `Completed ${event.toolId ?? 'tool'}`;
-    case 'tool.failed':
-      return `Failed ${event.toolId ?? 'tool'}`;
-    default:
-      return event.type;
-  }
 }

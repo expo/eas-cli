@@ -182,32 +182,16 @@ describe(startArgentEventCollectionAsync, () => {
     });
   });
 
-  it('falls back to a generated summary when the record has no message', async () => {
-    const event = await collectSingleEventAsync(
-      bunyanRecord({
-        level: 30,
-        type: 'tool.invoked',
-        toolId: 'tap',
-        toolInvocationId: 'call-3',
-        msg: '',
-        time: '2026-07-10T12:00:04.000Z',
-      })
-    );
-
-    expect(event).toMatchObject({
-      type: 'operation.started',
-      summary: 'Invoked tap',
-    });
-  });
-
-  it('reports an invalid record without emitting an event', async () => {
+  // `type` and `msg` are both required by Argent's EventLogRecord, so a record missing either
+  // is a broken upstream contract worth reporting — not something to paper over with an
+  // invented summary.
+  it.each([
+    ['type', { time: '2026-07-10T12:00:00.000Z', msg: 'No type.' }],
+    ['msg', { time: '2026-07-10T12:00:00.000Z', type: 'tool.invoked', toolId: 'tap' }],
+  ])('reports a record missing %s without emitting an event', async (_field, record) => {
     const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'argent-events-'));
     const eventLogPath = path.join(stateDir, EVENT_LOG_FILENAME);
-    await fs.promises.writeFile(
-      eventLogPath,
-      // Missing the required `type` field.
-      `${JSON.stringify({ time: '2026-07-10T12:00:00.000Z', msg: 'No type.' })}\n`
-    );
+    await fs.promises.writeFile(eventLogPath, `${JSON.stringify(bunyanRecord(record))}\n`);
     const collection = await startArgentEventCollectionAsync({
       ctx: createContext(),
       deviceRunSessionId: 'session-id',
