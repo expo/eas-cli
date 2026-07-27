@@ -31,10 +31,9 @@ describe(fetchTestFlightCrashAsync, () => {
       .mocked(BetaCrashLog.getCrashLogAsync)
       .mockResolvedValue({ attributes: { logText: 'Thread 0 Crashed:' } } as any);
 
-    const { logText, logError } = await fetchTestFlightCrashAsync(app, 'crash-id');
+    const { logText } = await fetchTestFlightCrashAsync(app, 'crash-id');
 
     expect(logText).toBe('Thread 0 Crashed:');
-    expect(logError).toBeNull();
   });
 
   it('reports no log when App Store Connect answers without one', async () => {
@@ -42,31 +41,22 @@ describe(fetchTestFlightCrashAsync, () => {
       .mocked(BetaCrashLog.getCrashLogAsync)
       .mockResolvedValue({ attributes: { logText: undefined } } as any);
 
-    const { logText, logError } = await fetchTestFlightCrashAsync(app, 'crash-id');
+    const { logText } = await fetchTestFlightCrashAsync(app, 'crash-id');
 
     expect(logText).toBeNull();
-    expect(logError).toBeNull();
   });
 
-  it('distinguishes a failed request from an absent log', async () => {
-    jest
-      .mocked(BetaCrashLog.getCrashLogAsync)
-      .mockRejectedValue(new Error('Request failed with status code 403'));
+  it('propagates a failed crash log request', async () => {
+    const error = new Error('Request failed with status code 403');
+    jest.mocked(BetaCrashLog.getCrashLogAsync).mockRejectedValue(error);
 
-    const { crash, logText, logError } = await fetchTestFlightCrashAsync(app, 'crash-id');
-
-    // The crash metadata still comes back — only the log is missing.
-    expect(crash.id).toBe('crash-id');
-    expect(logText).toBeNull();
-    expect(logError).toBe('Request failed with status code 403');
+    await expect(fetchTestFlightCrashAsync(app, 'crash-id')).rejects.toThrow(error);
   });
 
-  it('handles a non-Error rejection without producing "undefined"', async () => {
+  it('preserves a non-Error rejection', async () => {
     jest.mocked(BetaCrashLog.getCrashLogAsync).mockRejectedValue('socket hang up');
 
-    const { logError } = await fetchTestFlightCrashAsync(app, 'crash-id');
-
-    expect(logError).toBe('socket hang up');
+    await expect(fetchTestFlightCrashAsync(app, 'crash-id')).rejects.toBe('socket hang up');
   });
 });
 
@@ -92,21 +82,12 @@ describe(`${formatTestFlightCrashDetails.name} log states`, () => {
   };
 
   it('prints the log when present', () => {
-    expect(formatTestFlightCrashDetails(crash, 'Thread 0 Crashed:', null)).toContain(
-      'Thread 0 Crashed:'
-    );
+    expect(formatTestFlightCrashDetails(crash, 'Thread 0 Crashed:')).toContain('Thread 0 Crashed:');
   });
 
   it('says no log is available when there is none', () => {
-    expect(formatTestFlightCrashDetails(crash, null, null)).toContain(
+    expect(formatTestFlightCrashDetails(crash, null)).toContain(
       'No crash log is available for this submission yet.'
     );
-  });
-
-  it('surfaces a fetch failure instead of claiming there is no log', () => {
-    const output = formatTestFlightCrashDetails(crash, null, 'Request failed with status code 403');
-
-    expect(output).toContain('Could not fetch the crash log: Request failed with status code 403');
-    expect(output).not.toContain('No crash log is available');
   });
 });

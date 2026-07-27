@@ -103,8 +103,7 @@ export function formatTestFlightCrash(crash: TestFlightCrash, position?: number)
 
 export function formatTestFlightCrashDetails(
   crash: TestFlightCrash,
-  logText: string | null,
-  logError: string | null = null
+  logText: string | null
 ): string {
   const details = formatBlock(heading('Crash', crash.id), [
     ...commonFields(crash),
@@ -115,14 +114,10 @@ export function formatTestFlightCrashDetails(
     ...(crash.comment ? [{ label: 'Comment', value: crash.comment }] : []),
   ]);
 
-  let log: string;
-  if (logText !== null) {
-    log = logText;
-  } else if (logError !== null) {
-    log = chalk.yellow(`Could not fetch the crash log: ${logError}`);
-  } else {
-    log = chalk.dim('No crash log is available for this submission yet.');
-  }
-
-  return [details, '', chalk.bold('Crash log'), log].join('\n');
+  return [
+    details,
+    '',
+    chalk.bold('Crash log'),
+    logText ?? chalk.dim('No crash log is available for this submission yet.'),
+  ].join('\n');
 }

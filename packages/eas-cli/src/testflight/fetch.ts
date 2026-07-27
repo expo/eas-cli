@@ -5,8 +5,6 @@ import {
   BetaFeedbackScreenshotSubmission,
 } from '@expo/apple-utils';
 
-import Log from '../log';
-
 /**
  * The largest page size the App Store Connect API accepts. The apple-utils helpers always walk
  * every page, so we ask for the largest pages possible and paginate client-side from there.
@@ -194,35 +192,19 @@ export type TestFlightCrashDetails = {
   crash: TestFlightCrash;
   /** The crash log, or `null` when App Store Connect has none for this submission. */
   logText: string | null;
-  /**
-   * Why the crash log could not be fetched, when the request itself failed. Distinct from a
-   * `null` `logText`, which means App Store Connect answered and had no log — reporting a failed
-   * request as "no log" would quietly mislead anyone reading the output or the `--json`.
-   */
-  logError: string | null;
 };
 
-/**
- * Fetch a single crash submission together with its full crash log. The crash metadata is still
- * returned when the log cannot be fetched, since that is the part testers act on first.
- */
+/** Fetch a single crash submission together with its full crash log. */
 export async function fetchTestFlightCrashAsync(
   app: App,
   crashId: string
 ): Promise<TestFlightCrashDetails> {
   const submission = await BetaFeedbackCrashSubmission.infoAsync(app.context, { id: crashId });
-
-  let logText: string | null = null;
-  let logError: string | null = null;
-  try {
-    const crashLog = await BetaCrashLog.getCrashLogAsync(app.context, {
-      betaFeedbackCrashSubmissionId: crashId,
-    });
-    logText = sanitizeOptionalText(crashLog.attributes.logText);
-  } catch (error: unknown) {
-    logError = sanitizeText(error instanceof Error ? error.message : String(error));
-    Log.debug(`Failed to fetch crash log for ${crashId}: ${logError}`);
-  }
-
-  return { crash: normalizeSubmission(submission), logText, logError };
+  const crashLog = await BetaCrashLog.getCrashLogAsync(app.context, {
+    betaFeedbackCrashSubmissionId: crashId,
+  });
+  return {
+    crash: normalizeSubmission(submission),
+    logText: sanitizeOptionalText(crashLog.attributes.logText),
+  };
 }

@@ -3,11 +3,13 @@ import { ExpoConfig } from '@expo/config';
 import { Platform } from '@expo/eas-build-job';
 import { EasJsonAccessor, EasJsonUtils, SubmitProfile } from '@expo/eas-json';
 import { MissingEasJsonError } from '@expo/eas-json/build/errors';
+import assert from 'assert';
 
 import { Analytics } from '../analytics/AnalyticsManager';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { CredentialsContext } from '../credentials/context';
 import { AppStoreConnectApiKeyQuery as AccountAppStoreConnectApiKeyQuery } from '../credentials/ios/api/graphql/queries/AppStoreConnectApiKeyQuery';
+import { getRequestContext } from '../credentials/ios/appstore/authenticate';
 import { AppStoreConnectApiKeyQuery } from '../graphql/queries/AppStoreConnectApiKeyQuery';
 import Log from '../log';
 import { getAppStoreAuthAsync } from '../metadata/auth';
@@ -170,14 +172,9 @@ export async function resolveTestFlightAppAsync({
   }
 
   // Last resort: an interactive Apple ID login.
-  const { app } = await getAppStoreAuthAsync({
-    exp,
-    credentialsCtx: createCredentialsContext(false),
-    graphqlClient,
-    nonInteractive: false,
-    profile,
-    projectDir,
-    projectId,
-  });
+  const credentialsCtx = createCredentialsContext(false);
+  const authCtx = await credentialsCtx.appStore.ensureUserAuthenticatedAsync();
+  const app = await App.findAsync(getRequestContext(authCtx), { bundleId });
+  assert(app, `Failed to load app "${bundleId}" from App Store Connect`);
   return app;
 }
