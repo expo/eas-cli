@@ -46,7 +46,7 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
     };
 
     await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
+      /Local function "\.\/\.eas\/functions\/setup" was referenced by a step but no such local function exists/
     );
   });
 
@@ -104,7 +104,7 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
     };
 
     await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
+      /Local function "\.\/\.eas\/functions\/setup" was referenced by a step but no such local function exists/
     );
   });
 
@@ -176,7 +176,7 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
     };
 
     await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
+      /Local function "\.\/\.eas\/functions\/setup" was referenced by a step but no such local function exists/
     );
   });
 
@@ -244,7 +244,7 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
     };
 
     await expect(validateWorkflowLocalFunctionsAsync(workflow, projectDir)).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/functions\/notify" was referenced by a step but no such composite function exists/
+      /Local function "\.\/\.eas\/functions\/notify" was referenced by a step but no such local function exists/
     );
   });
 

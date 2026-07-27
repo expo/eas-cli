@@ -8,7 +8,7 @@ import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputValueType, BuildStepInputValueTypeName } from './BuildStepInput';
 import { BuildConfigError, BuildWorkflowError } from './errors';
-import { isLocalFunctionPath } from './utils/localCompositeFunctions';
+import { isLocalFunctionPath } from './utils/localFunctions';
 import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export type BuildFunctions = Record<string, BuildFunctionConfig>;

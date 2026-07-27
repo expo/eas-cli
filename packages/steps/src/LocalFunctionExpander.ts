@@ -39,7 +39,7 @@ import {
   getLocalFunctionCallWorkingDirectoryError,
   isLocalFunctionPath,
   parseLocalFunctionPath,
-} from './utils/localCompositeFunctions';
+} from './utils/localFunctions';
 import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 const MAX_COMPOSITE_FUNCTION_NESTING_DEPTH = 10;

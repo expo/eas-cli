@@ -1,13 +1,11 @@
 import {
-  CompositeFunctionCatalog,
-  CompositeFunctionConfig,
-  CompositeFunctionConfigZ,
   LocalFunctionCatalog,
   LocalFunctionConfig,
+  LocalFunctionConfigZ,
   Step,
   isLegacyFunctionConfig,
 } from '@expo/eas-build-job';
-import fs from 'fs/promises';
+import fs from 'fs-extra';
 import path from 'path';
 import YAML from 'yaml';
 import { z } from 'zod';
@@ -29,12 +27,12 @@ export function parseLocalFunctionPath(uses: string): string {
   // known statically.
   if (doesLocalFunctionPathRequireInterpolation(trimmed)) {
     throw new BuildConfigError(
-      `Local composite function path "${trimmed}" must not contain interpolation ("\${{ ... }}"). The "uses" path for a local composite function must be a static, literal path.`
+      `Local function path "${trimmed}" must not contain interpolation ("\${{ ... }}"). The "uses" path for a local function must be a static, literal path.`
     );
   }
   if (trimmed.includes('\\')) {
     throw new BuildConfigError(
-      `Local composite function path "${trimmed}" must not contain backslashes. Use forward slashes as path separators.`
+      `Local function path "${trimmed}" must not contain backslashes. Use forward slashes as path separators.`
     );
   }
   const normalized = path.posix.normalize(trimmed.replace(/\/+$/, ''));
@@ -50,7 +48,7 @@ export function isLocalFunctionPath(uses: string): boolean {
 }
 
 export function getLocalFunctionCallWorkingDirectoryError(uses: string): string {
-  return `"working_directory" is not supported on a step that calls a local function ("uses: ${uses.trim()}"). For a composite function, set "working_directory" on the steps inside it; for a single-step "command" function, change directories inside the command.`;
+  return `"working_directory" is not supported on a step that calls a local composite function ("uses: ${uses.trim()}"). The call step expands away; set "working_directory" on the steps inside the composite function instead.`;
 }
 
 /** Loads only functions transitively referenced by `rootSteps`. Unreferenced files are ignored. */
@@ -76,25 +74,36 @@ export async function extendLocalFunctionCatalogFromStepsAsync({
   rootSteps: readonly Step[];
   loadLocalFunction: (functionPath: string) => Promise<LocalFunctionConfig>;
 }): Promise<void> {
-  const loadRecursiveAsync = async (functionPath: string): Promise<void> => {
-    if (functionPath in catalog) {
+  const loadRecursiveAsync = async (
+    functionPath: string,
+    calledWithWorkingDirectory: boolean
+  ): Promise<void> => {
+    const alreadyLoaded = functionPath in catalog;
+    const config = alreadyLoaded ? catalog[functionPath] : await loadLocalFunction(functionPath);
+
+    // working_directory is invalid on composite calls. Shape is only known after load.
+    if (calledWithWorkingDirectory && !isLegacyFunctionConfig(config)) {
+      throw new BuildConfigError(getLocalFunctionCallWorkingDirectoryError(functionPath));
+    }
+    if (alreadyLoaded) {
       return;
     }
-
-    const config = await loadLocalFunction(functionPath);
     catalog[functionPath] = config;
 
-    // Single-step functions are leaves: they have no steps that could reference other functions.
     if (isLegacyFunctionConfig(config)) {
       return;
     }
-    for (const nestedPath of collectLocalFunctionPathsFromSteps(config.runs.steps)) {
-      await loadRecursiveAsync(nestedPath);
+    for (const [nestedPath, nestedCalledWithWorkingDirectory] of collectLocalFunctionCallsFromSteps(
+      config.runs.steps
+    )) {
+      await loadRecursiveAsync(nestedPath, nestedCalledWithWorkingDirectory);
     }
   };
 
-  for (const functionPath of collectLocalFunctionPathsFromSteps(rootSteps)) {
-    await loadRecursiveAsync(functionPath);
+  for (const [functionPath, calledWithWorkingDirectory] of collectLocalFunctionCallsFromSteps(
+    rootSteps
+  )) {
+    await loadRecursiveAsync(functionPath, calledWithWorkingDirectory);
   }
 }
 
@@ -102,12 +111,7 @@ export function resolveLocalFunctionPath(projectRoot: string, functionPath: stri
   return path.resolve(projectRoot, functionPath);
 }
 
-/**
- * Resolves the `path` of a single-step local function against the function's own directory, the
- * way a `.eas/build` config resolves it against the config file. Shared by every loader so the
- * two cannot drift.
- */
-export function resolveLegacyFunctionModulePath({
+async function resolveAndValidateLegacyFunctionModulePathAsync({
   projectRoot,
   functionPath,
   modulePath,
@@ -115,11 +119,21 @@ export function resolveLegacyFunctionModulePath({
   projectRoot: string;
   functionPath: string;
   modulePath: string;
-}): string {
-  if (path.isAbsolute(modulePath)) {
-    return modulePath;
+}): Promise<string> {
+  const resolvedModulePath = path.isAbsolute(modulePath)
+    ? modulePath
+    : path.resolve(resolveLocalFunctionPath(projectRoot, functionPath), modulePath);
+  if (!(await fs.pathExists(resolvedModulePath))) {
+    throw new Error(
+      `Local function "${functionPath}" declares "path: ${modulePath}", but there is no such directory at ${resolvedModulePath}.`
+    );
   }
-  return path.resolve(resolveLocalFunctionPath(projectRoot, functionPath), modulePath);
+  if (!(await fs.pathExists(path.join(resolvedModulePath, 'package.json')))) {
+    throw new Error(
+      `Local function "${functionPath}" declares "path: ${modulePath}", but the module directory ${resolvedModulePath} does not contain a package.json file.`
+    );
+  }
+  return resolvedModulePath;
 }
 
 export interface LocalFunctionLogger {
@@ -134,7 +148,7 @@ export async function loadLocalFunctionConfigAsync(
   projectRoot: string,
   functionPath: string,
   { logger }: { logger?: LocalFunctionLogger } = {}
-): Promise<CompositeFunctionConfig> {
+): Promise<LocalFunctionConfig> {
   const resolvedPath = resolveLocalFunctionPath(projectRoot, functionPath);
 
   for (const ext of ['yml', 'yaml'] as const) {
@@ -146,41 +160,43 @@ export async function loadLocalFunctionConfigAsync(
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
         continue;
       }
-      throw new Error(
-        `Failed to read local composite function "${functionPath}" from ${absolutePath}`,
-        {
-          cause: err as Error,
-        }
-      );
+      throw new Error(`Failed to read local function "${functionPath}" from ${absolutePath}`, {
+        cause: err as Error,
+      });
     }
 
     let parsed: unknown;
     try {
       parsed = YAML.parse(rawContents);
     } catch (err) {
-      throw new Error(
-        `Failed to parse local composite function "${functionPath}" YAML at ${absolutePath}`,
-        {
-          cause: err as Error,
-        }
-      );
+      throw new Error(`Failed to parse local function "${functionPath}" YAML at ${absolutePath}`, {
+        cause: err as Error,
+      });
     }
 
-    const result = CompositeFunctionConfigZ.safeParse(parsed);
+    const result = LocalFunctionConfigZ.safeParse(parsed);
     if (!result.success) {
-      throw new Error(
-        `Invalid composite function "${functionPath}": ${z.prettifyError(result.error)}`
-      );
+      throw new Error(`Invalid local function "${functionPath}": ${z.prettifyError(result.error)}`);
+    }
+
+    const config = result.data;
+    // Steps parser expects an absolute module path.
+    if (isLegacyFunctionConfig(config) && config.path !== undefined) {
+      config.path = await resolveAndValidateLegacyFunctionModulePathAsync({
+        projectRoot,
+        functionPath,
+        modulePath: config.path,
+      });
     }
 
     logger?.debug(
-      `Loaded local composite function "${functionPath}" from ${path.relative(projectRoot, absolutePath)}`
+      `Loaded local function "${functionPath}" from ${path.relative(projectRoot, absolutePath)}`
     );
-    return result.data;
+    return config;
   }
 
   throw new Error(
-    `Local composite function "${functionPath}" was referenced by a step but no such composite function exists. A local composite function is resolved from a "function.yml" (or "function.yaml") file at the referenced path relative to the EAS project root (e.g. "uses: ${functionPath}" resolves "${functionPath}/function.yml"). The recommended convention is to keep composite functions under ".eas/functions/<name>".`
+    `Local function "${functionPath}" was referenced by a step but no such local function exists. A local function is resolved from a "function.yml" (or "function.yaml") file at the referenced path relative to the EAS project root (e.g. "uses: ${functionPath}" resolves "${functionPath}/function.yml"). The recommended convention is to keep local functions under ".eas/functions/<name>".`
   );
 }
 
@@ -188,7 +204,7 @@ export async function loadLocalFunctionConfigAsync(
 export function createLocalFunctionLoader(
   projectRoot: string,
   { logger }: { logger?: LocalFunctionLogger } = {}
-): (functionPath: string) => Promise<CompositeFunctionConfig> {
+): (functionPath: string) => Promise<LocalFunctionConfig> {
   return async functionPath =>
     await loadLocalFunctionConfigAsync(projectRoot, functionPath, { logger });
 }
@@ -197,22 +213,24 @@ export function createLocalFunctionLoader(
 export async function buildLocalFunctionCatalogAsync(
   projectRoot: string,
   { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalFunctionLogger }
-): Promise<CompositeFunctionCatalog> {
+): Promise<LocalFunctionCatalog> {
   return await buildLocalFunctionCatalogFromStepsAsync({
     rootSteps,
     loadLocalFunction: createLocalFunctionLoader(projectRoot, { logger }),
   });
 }
 
-function collectLocalFunctionPathsFromSteps(steps: readonly Step[]): Set<string> {
-  const paths = new Set<string>();
+function collectLocalFunctionCallsFromSteps(steps: readonly Step[]): Map<string, boolean> {
+  const calledWithWorkingDirectoryByPath = new Map<string, boolean>();
   for (const step of steps) {
     if (step.uses !== undefined && isLocalFunctionPath(step.uses)) {
-      if (step.working_directory !== undefined) {
-        throw new BuildConfigError(getLocalFunctionCallWorkingDirectoryError(step.uses));
-      }
-      paths.add(parseLocalFunctionPath(step.uses));
+      const functionPath = parseLocalFunctionPath(step.uses);
+      calledWithWorkingDirectoryByPath.set(
+        functionPath,
+        (calledWithWorkingDirectoryByPath.get(functionPath) ?? false) ||
+          step.working_directory !== undefined
+      );
     }
   }
-  return paths;
+  return calledWithWorkingDirectoryByPath;
 }

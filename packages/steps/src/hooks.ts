@@ -15,7 +15,7 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
 import { LocalFunctionExpander } from './LocalFunctionExpander';
 import { BuildConfigError, BuildWorkflowError } from './errors';
-import { isLocalFunctionPath, parseLocalFunctionPath } from './utils/localCompositeFunctions';
+import { isLocalFunctionPath, parseLocalFunctionPath } from './utils/localFunctions';
 import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 /**

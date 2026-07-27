@@ -1,10 +1,10 @@
 import {
-  CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
   HookKey,
   Hooks,
   LocalFunctionCatalog,
+  LocalFunctionConfig,
   Step,
   isHookAnchorId,
   isStepFunctionStep,
@@ -36,7 +36,7 @@ import {
   extendLocalFunctionCatalogFromStepsAsync,
   isLocalFunctionPath,
   parseLocalFunctionPath,
-} from './utils/localCompositeFunctions';
+} from './utils/localFunctions';
 
 type ValidatedHooks = ReadonlyMap<HookKey, { anchorId: HookAnchorId; steps: Step[] }>;
 
@@ -45,7 +45,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   private readonly hooks: Hooks;
   /** Pre-loaded local function configs keyed by normalized path (e.g. `./.eas/functions/setup`). */
   private readonly localFunctionCatalog: LocalFunctionCatalog;
-  private readonly loadLocalFunction?: (functionPath: string) => Promise<CompositeFunctionConfig>;
+  private readonly loadLocalFunction?: (functionPath: string) => Promise<LocalFunctionConfig>;
 
   constructor(
     ctx: BuildStepGlobalContext,
@@ -65,7 +65,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       externalFunctionGroups?: BuildFunctionGroup[];
       localFunctionCatalog?: LocalFunctionCatalog;
       /** Loads a hook local function missing from the catalog. When omitted, missing entries fail as unknown. */
-      loadLocalFunction?: (functionPath: string) => Promise<CompositeFunctionConfig>;
+      loadLocalFunction?: (functionPath: string) => Promise<LocalFunctionConfig>;
     }
   ) {
     super(ctx, {
