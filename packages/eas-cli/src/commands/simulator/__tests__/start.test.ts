@@ -77,9 +77,11 @@ const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
 const vcsClient = {
   getCommitHashAsync: jest.fn(),
+  getLastCommitMessageAsync: jest.fn(),
   getCurrentRefAsync: jest.fn(),
 } as unknown as Client;
 const mockGetCommitHashAsync = jest.mocked(vcsClient.getCommitHashAsync);
+const mockGetLastCommitMessageAsync = jest.mocked(vcsClient.getLastCommitMessageAsync);
 const mockGetCurrentRefAsync = jest.mocked(vcsClient.getCurrentRefAsync);
 
 function makeCreatedDeviceRunSession(
@@ -158,6 +160,7 @@ describe(SimulatorStart, () => {
     mockResetSimulatorEnvAsync.mockResolvedValue();
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
     mockGetCommitHashAsync.mockResolvedValue('0123456789abcdef0123456789abcdef01234567');
+    mockGetLastCommitMessageAsync.mockResolvedValue('Show Git context for simulator sessions');
     mockGetCurrentRefAsync.mockResolvedValue('refs/heads/main');
   });
 
@@ -200,6 +203,7 @@ describe(SimulatorStart, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
       gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitCommitMessage: 'Show Git context for simulator sessions',
       gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,
@@ -291,6 +295,7 @@ describe(SimulatorStart, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
       gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitCommitMessage: 'Show Git context for simulator sessions',
       gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,
@@ -312,6 +317,7 @@ describe(SimulatorStart, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
       gitCommitHash: '0123456789abcdef0123456789abcdef01234567',
+      gitCommitMessage: 'Show Git context for simulator sessions',
       gitRef: 'refs/heads/main',
       packageVersion: undefined,
       platform: AppPlatform.Ios,

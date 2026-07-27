@@ -4997,13 +4997,6 @@ export type CreateDeviceRunSessionArtifactUploadSessionResult = {
 
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
-  /** Full Git commit SHA for the checkout that launched the session. */
-  gitCommitHash?: InputMaybe<Scalars['String']['input']>;
-  /**
-   * Git branch or tag for the checkout that launched the session. Prefer a fully
-   * qualified ref such as "refs/heads/main" or "refs/tags/v1.2.3".
-   */
-  gitRef?: InputMaybe<Scalars['String']['input']>;
   /**
    * Override for the underlying turtle job run's max run time, in minutes. Must
    * be non-negative and smaller than 120 (2 hours). Only customizable on paid
@@ -5640,13 +5633,6 @@ export type DeviceRunSession = {
   artifacts: Array<DeviceRunSessionArtifact>;
   createdAt: Scalars['DateTime']['output'];
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
-  /** Full Git commit SHA for the checkout that launched the session. */
-  gitCommitHash?: Maybe<Scalars['String']['output']>;
-  /**
-   * Git branch or tag for the checkout that launched the session. Prefer a fully
-   * qualified ref such as "refs/heads/main" or "refs/tags/v1.2.3".
-   */
-  gitRef?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
   /**

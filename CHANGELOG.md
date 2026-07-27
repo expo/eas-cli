@@ -8,7 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
-- [eas-cli] Include Git commit and branch or tag metadata when creating simulator sessions. ([#4071](https://github.com/expo/eas-cli/pull/4071) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Include Git commit, commit message, and branch or tag metadata when creating simulator sessions. ([#4071](https://github.com/expo/eas-cli/pull/4071) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

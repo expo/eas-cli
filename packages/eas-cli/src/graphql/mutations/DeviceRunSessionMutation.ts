@@ -10,10 +10,16 @@ import {
   EnsureDeviceRunSessionStoppedMutationVariables,
 } from '../generated';
 
+type CreateDeviceRunSessionInputWithGitContext = CreateDeviceRunSessionInput & {
+  gitCommitHash?: string | null;
+  gitCommitMessage?: string | null;
+  gitRef?: string | null;
+};
+
 export const DeviceRunSessionMutation = {
   async createDeviceRunSessionAsync(
     graphqlClient: ExpoGraphqlClient,
-    deviceRunSessionInput: CreateDeviceRunSessionInput
+    deviceRunSessionInput: CreateDeviceRunSessionInputWithGitContext
   ): Promise<CreateDeviceRunSessionMutation['deviceRunSession']['createDeviceRunSession']> {
     const data = await withErrorHandlingAsync(
       graphqlClient

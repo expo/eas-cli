@@ -1,6 +1,7 @@
 import { Flags } from '@oclif/core';
 import nullthrows from 'nullthrows';
 
+import { truncateGitCommitMessage } from '../../build/metadata';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
@@ -122,10 +123,12 @@ export default class SimulatorStart extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
-    const [gitCommitHash, gitRef] = await Promise.all([
+    const [gitCommitHash, lastCommitMessage, gitRef] = await Promise.all([
       vcsClient.getCommitHashAsync(),
+      vcsClient.getLastCommitMessageAsync(),
       vcsClient.getCurrentRefAsync(),
     ]);
+    const gitCommitMessage = truncateGitCommitMessage(lastCommitMessage ?? undefined) ?? null;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -147,6 +150,7 @@ export default class SimulatorStart extends EasCommand {
         packageVersion: flags['package-version'],
         maxRunTimeMinutes: flags['max-duration-minutes'],
         gitCommitHash,
+        gitCommitMessage,
         gitRef,
       });
       deviceRunSessionId = session.id;
