@@ -19,7 +19,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.3' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
 
 concurrency:
   group: ai-code-review-cmd-${{ github.event.issue.number }}
@@ -77,12 +77,18 @@ jobs:
       # config, and never `gh pr checkout` the PR head. The reviewer engine itself
       # is the PUBLISHED @expo/code-review-cli (fetched by npx), not built from any
       # checkout, so attacker-controlled PR code never runs here. The diff + PR
-      # metadata come from the API (`gh pr diff`/`gh pr view`).
+      # metadata come from the API (`gh pr diff`/`gh pr view`); `ecr ci` (0.6.0+)
+      # loads configuration from the PR's immutable base commit and reads source
+      # from a head worktree scrubbed of ambient runtime config — the same trust
+      # model as the pull_request workflow.
       - name: Checkout (base ref only — never the PR head)
         if: steps.cmd.outputs.run == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 1
+          # The CLI's git fetches authenticate through `gh` from GH_TOKEN; keep the
+          # token out of .git/config.
+          persist-credentials: false
 
       # Corepack so setup-node's yarn probe doesn't fail on the repo's yarn@4 pin
       # (the reviewer runs via npx, not yarn).
@@ -104,7 +110,8 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY: ${{ secrets.DO_NOT_USE_EXPERIMENTAL_ANTHROPIC_API_KEY }}
+          CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.cmd.outputs.agents }}
           ROUTE: ${{ steps.cmd.outputs.route }}

@@ -10,6 +10,7 @@ import {
   UpdateIdsMap,
   makeMetricsKey,
 } from './formatMetrics';
+import { isObservePlanGateError } from './planGating';
 import { appPlatformToObservePlatform } from './platforms';
 
 export function validateDateFlag(value: string, flagName: string): void {
@@ -48,6 +49,11 @@ export async function fetchObserveMetricsAsync(
       });
       return { appPlatform, appVersions };
     } catch (error: any) {
+      // A plan gate is an account-wide rejection, not a per-platform failure —
+      // let it propagate so the command surfaces the upgrade prompt.
+      if (isObservePlanGateError(error)) {
+        throw error;
+      }
       Log.warn(`Failed to fetch observe data on ${observePlatform}: ${error.message}`);
       return null;
     }

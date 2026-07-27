@@ -9,6 +9,7 @@ import {
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
 import Log from '../log';
+import { isObservePlanGateError } from './planGating';
 import { appPlatformToObservePlatform } from './platforms';
 
 export interface NavigationRouteWithPlatform {
@@ -64,6 +65,11 @@ export async function fetchObserveNavigationRoutesAsync(
       });
       return { appPlatform, ...result };
     } catch (error: any) {
+      // A plan gate is an account-wide rejection, not a per-platform failure —
+      // let it propagate so the command surfaces the upgrade prompt.
+      if (isObservePlanGateError(error)) {
+        throw error;
+      }
       Log.warn(`Failed to fetch navigation routes on ${observePlatform}: ${error.message}`);
       return null;
     }

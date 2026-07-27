@@ -99,6 +99,26 @@ export interface FetchSessionEventsResult {
   hasMoreLogEvents: boolean;
 }
 
+// A syntactically valid UUID that matches no real session, used only to trip
+// the server-side session-timeline plan gate without fetching real data.
+const SESSION_ACCESS_PROBE_ID = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Issues a throwaway session-scoped query so the server-side session-timeline
+ * plan gate fires (or doesn't) up front. Blocked plans reject with the coded
+ * plan-gate error; allowed plans get an empty result that is discarded. Used to
+ * check access before the interactive session picker runs.
+ */
+export async function verifyObserveSessionAccessAsync(
+  graphqlClient: ExpoGraphqlClient,
+  appId: string
+): Promise<void> {
+  await fetchObserveSessionEventsAsync(graphqlClient, appId, {
+    sessionId: SESSION_ACCESS_PROBE_ID,
+    limit: 1,
+  });
+}
+
 export async function fetchObserveSessionEventsAsync(
   graphqlClient: ExpoGraphqlClient,
   appId: string,
