@@ -13,8 +13,8 @@ permissions:
 env:
   # The reviewer is the published @expo/code-review-cli package, run via npx — the
   # repo only carries the `.expo-code-review/` config, not the engine source.
-  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.4.x.
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.4.0' }}
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.5.x.
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.5.0' }}
 
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
@@ -98,7 +98,7 @@ jobs:
       - name: Guard config.jsonc tokenEnv
         if: steps.resolve.outputs.run == 'true'
         env:
-          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'ANTHROPIC_OAUTH_API_KEY' }}
+          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_REFRESH_TOKEN' }}
         run: |
           values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
           count=$(printf '%s\n' "$values" | grep -c .)
@@ -135,9 +135,13 @@ jobs:
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Claude Pro/Max OAuth token (auth.mode "oauth" in .expo-code-review/
-          # config.jsonc reads this env var). Not an x-api-key.
-          ANTHROPIC_OAUTH_API_KEY: ${{ secrets.ANTHROPIC_OAUTH_API_KEY }}
+          # ChatGPT/Codex subscription refresh token (auth.mode "oauth" in
+          # .expo-code-review/config.jsonc reads this env var); OpenCode mints
+          # access tokens from it. All reviews run on the subscription.
+          CODEX_OAUTH_REFRESH_TOKEN: ${{ secrets.CODEX_OAUTH_REFRESH_TOKEN }}
+          # Layer-1 runtime auth lock (mirrors the guard step): the CLI refuses to
+          # run when the tokenEnv the loaded config honors differs from this.
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_REFRESH_TOKEN' }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.resolve.outputs.agents }}
