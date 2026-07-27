@@ -95,7 +95,7 @@ function billingUrl(accountName: string): string {
   return `https://expo.dev/accounts/${accountName}/settings/billing`;
 }
 
-function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): void {
+export function displayUsage(data: UsageDisplayData, usageData: AccountFullUsageData): void {
   const subscription = usageData.subscription;
 
   Log.newLine();
