@@ -72,8 +72,10 @@ export async function fetchAndCheckoutRefAsync({
   }
 
   const { name, type } = getStrippedBranchOrTagName(ref);
+  const refToFetch =
+    type === 'branch' ? `refs/heads/${name}` : type === 'tag' ? `refs/tags/${name}` : name;
   try {
-    await spawn('git', ['fetch', 'origin', '--depth', '1', '--no-tags', name], {
+    await spawn('git', ['fetch', 'origin', '--depth', '1', '--no-tags', refToFetch], {
       cwd: repositoryDirectory,
     });
     if (type === 'tag') {
@@ -110,7 +112,7 @@ function getStrippedBranchOrTagName(ref: string): {
   name: string;
   type: 'branch' | 'tag' | 'other';
 } {
-  const branchRegex = /(\/?refs)?\/?heads\/(.+)/;
+  const branchRegex = /^\/?(refs\/)?heads\/(.+)$/;
   const branchMatch = ref.match(branchRegex);
 
   if (branchMatch) {
@@ -120,7 +122,7 @@ function getStrippedBranchOrTagName(ref: string): {
     };
   }
 
-  const tagRegex = /(\/?refs)?\/?tags\/(.+)/;
+  const tagRegex = /^\/?(refs\/)?tags\/(.+)$/;
   const tagMatch = ref.match(tagRegex);
 
   if (tagMatch) {

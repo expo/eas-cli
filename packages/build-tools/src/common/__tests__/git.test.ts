@@ -22,7 +22,7 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'feature/add-icon'],
+      ['fetch', 'origin', '--depth', '1', '--no-tags', 'refs/heads/feature/add-icon'],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(
@@ -54,6 +54,26 @@ describe(fetchAndCheckoutRefAsync, () => {
     );
   });
 
+  it('does not qualify a bare name containing "heads/" mid-path', async () => {
+    await fetchAndCheckoutRefAsync({
+      ref: 'docs/heads/update',
+      repositoryDirectory,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      'git',
+      ['fetch', 'origin', '--depth', '1', '--no-tags', 'docs/heads/update'],
+      { cwd: repositoryDirectory }
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      'git',
+      ['checkout', '-B', 'docs/heads/update', 'FETCH_HEAD'],
+      { cwd: repositoryDirectory }
+    );
+  });
+
   it('checks out a tag ref and recreates the tag', async () => {
     await fetchAndCheckoutRefAsync({
       ref: 'refs/tags/v1.2.3',
@@ -63,7 +83,7 @@ describe(fetchAndCheckoutRefAsync, () => {
     expect(spawn).toHaveBeenNthCalledWith(
       1,
       'git',
-      ['fetch', 'origin', '--depth', '1', '--no-tags', 'v1.2.3'],
+      ['fetch', 'origin', '--depth', '1', '--no-tags', 'refs/tags/v1.2.3'],
       { cwd: repositoryDirectory }
     );
     expect(spawn).toHaveBeenNthCalledWith(2, 'git', ['checkout', 'FETCH_HEAD'], {
