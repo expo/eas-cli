@@ -1,4 +1,9 @@
-import { CompositeFunctionConfigZ, LocalFunctionConfigZ } from '@expo/eas-build-job';
+import {
+  CompositeFunctionConfigZ,
+  LocalFunctionConfigZ,
+  isLegacyFunctionConfig,
+} from '@expo/eas-build-job';
+import assert from 'assert';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -11,9 +16,8 @@ import {
   isLocalFunctionPath,
   loadLocalFunctionConfigAsync,
   parseLocalFunctionPath,
-  resolveLegacyFunctionModulePath,
   resolveLocalFunctionPath,
-} from '../localCompositeFunctions';
+} from '../localFunctions';
 
 async function makeCompositeFunctionAsync(
   projectRoot: string,
@@ -247,6 +251,14 @@ describe(buildLocalFunctionCatalogFromStepsAsync, () => {
     ).rejects.toThrow(/"working_directory" is not supported on a step that calls/);
   });
 
+  it('allows working_directory on a step that calls a single-step function', async () => {
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
+      rootSteps: [{ uses: './.eas/functions/say-hi', working_directory: 'packages/app' }],
+      loadLocalFunction: async () => LocalFunctionConfigZ.parse({ command: 'echo hi' }),
+    });
+    expect(Object.keys(catalog)).toEqual(['./.eas/functions/say-hi']);
+  });
+
   it('allows working_directory on a step that calls a function, not a local composite function', async () => {
     const catalog = await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: 'eas/build', working_directory: 'packages/app' }],
@@ -349,6 +361,7 @@ describe(loadLocalFunctionConfigAsync, () => {
 
     const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.name).toBe('Setup');
     expect(config.runs.steps).toHaveLength(1);
   });
@@ -364,6 +377,7 @@ describe(loadLocalFunctionConfigAsync, () => {
 
     const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.runs.steps).toHaveLength(1);
   });
 
@@ -392,7 +406,7 @@ describe(loadLocalFunctionConfigAsync, () => {
     await expect(
       loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/missing')
     ).rejects.toThrow(
-      /Local composite function "\.\/\.eas\/functions\/missing" was referenced by a step but no such composite function exists/
+      /Local function "\.\/\.eas\/functions\/missing" was referenced by a step but no such local function exists/
     );
   });
 
@@ -411,7 +425,7 @@ describe(loadLocalFunctionConfigAsync, () => {
     );
 
     expect(error.message).toMatch(
-      /Failed to parse local composite function "\.\/\.eas\/functions\/broken" YAML at /
+      /Failed to parse local function "\.\/\.eas\/functions\/broken" YAML at /
     );
     expect(error.cause).toBeInstanceOf(Error);
   });
@@ -427,7 +441,7 @@ describe(loadLocalFunctionConfigAsync, () => {
     await expect(
       loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/broken')
     ).rejects.toThrow(
-      /Invalid composite function "\.\/\.eas\/functions\/broken": .*must declare at least one step under "runs\.steps"/s
+      /Invalid local function "\.\/\.eas\/functions\/broken": .*must declare at least one step under "runs\.steps"/s
     );
   });
 
@@ -449,7 +463,7 @@ describe(loadLocalFunctionConfigAsync, () => {
     );
 
     expect(error.message).toMatch(
-      /Failed to read local composite function "\.\/\.eas\/functions\/setup" from /
+      /Failed to read local function "\.\/\.eas\/functions\/setup" from /
     );
     expect((error.cause as NodeJS.ErrnoException).code).toBe('EISDIR');
   });
@@ -492,7 +506,7 @@ describe(loadLocalFunctionConfigAsync, () => {
     await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup', { logger });
 
     expect(logger.debug).toHaveBeenCalledWith(
-      `Loaded local composite function "./.eas/functions/setup" from ${path.join(
+      `Loaded local function "./.eas/functions/setup" from ${path.join(
         '.eas',
         'functions',
         'setup',
@@ -514,6 +528,7 @@ describe(createLocalFunctionLoader, () => {
     const loader = createLocalFunctionLoader(projectRoot);
     const config = await loader('./.eas/functions/setup');
 
+    assert(!isLegacyFunctionConfig(config));
     expect(config.name).toBe('Setup');
     expect(config.runs.steps).toHaveLength(1);
   });
@@ -524,7 +539,7 @@ describe(createLocalFunctionLoader, () => {
     const loader = createLocalFunctionLoader(projectRoot);
 
     await expect(loader('./.eas/functions/missing')).rejects.toThrow(
-      /no such composite function exists/
+      /no such local function exists/
     );
   });
 });
@@ -628,39 +643,89 @@ describe(buildLocalFunctionCatalogAsync, () => {
 
     expect(catalog).toEqual({});
   });
-});
 
-describe(resolveLegacyFunctionModulePath, () => {
-  const projectRoot = path.resolve('/tmp/project');
+  it('loads a referenced single-step command function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      [
+        'name: Say hi',
+        'inputs:',
+        '  - name',
+        'outputs:',
+        '  - greeting',
+        'command: set-output greeting "Hi, ${ inputs.name }!"',
+        'shell: sh',
+        'supported_platforms:',
+        '  - linux',
+      ].join('\n')
+    );
 
-  it('resolves a relative module path against the function directory', () => {
-    expect(
-      resolveLegacyFunctionModulePath({
-        projectRoot,
-        functionPath: './.eas/functions/say-hi',
-        modulePath: './my-function',
-      })
-    ).toBe(path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function'));
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+    });
+
+    const localFunction = catalog['./.eas/functions/say-hi'];
+    assert(isLegacyFunctionConfig(localFunction));
+    expect(localFunction.name).toBe('Say hi');
+    expect(localFunction.command).toBe('set-output greeting "Hi, ${ inputs.name }!"');
+    expect(localFunction.shell).toBe('sh');
+    expect(localFunction.supported_platforms).toEqual(['linux']);
+    expect(localFunction.inputs).toEqual(['name']);
+    expect(localFunction.outputs).toEqual(['greeting']);
   });
 
-  it('resolves a module path pointing outside the function directory', () => {
-    expect(
-      resolveLegacyFunctionModulePath({
-        projectRoot,
-        functionPath: './.eas/functions/say-hi',
-        modulePath: '../shared/my-function',
-      })
-    ).toBe(path.join(projectRoot, '.eas', 'functions', 'shared', 'my-function'));
+  it('rewrites the "path" of a single-step function to an absolute module path', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['name: Say hi', 'path: ./my-function'].join('\n')
+    );
+    const moduleDir = path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function');
+    await fs.mkdir(moduleDir, { recursive: true });
+    await fs.writeFile(path.join(moduleDir, 'package.json'), '{}', 'utf-8');
+
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+    });
+
+    const localFunction = catalog['./.eas/functions/say-hi'];
+    assert(isLegacyFunctionConfig(localFunction));
+    expect(localFunction.path).toBe(moduleDir);
   });
 
-  it('passes an absolute module path through', () => {
-    const absolutePath = path.resolve('/opt/functions/say-hi');
-    expect(
-      resolveLegacyFunctionModulePath({
-        projectRoot,
-        functionPath: './.eas/functions/say-hi',
-        modulePath: absolutePath,
+  it('throws when a single-step function points at a module directory that does not exist', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['name: Say hi', 'path: ./my-function'].join('\n')
+    );
+
+    await expect(
+      buildLocalFunctionCatalogAsync(projectRoot, {
+        rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
       })
-    ).toBe(absolutePath);
+    ).rejects.toThrow(/there is no such directory at /);
+  });
+
+  it('throws when the module directory of a single-step function has no package.json', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['name: Say hi', 'path: ./my-function'].join('\n')
+    );
+    await fs.mkdir(path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function'), {
+      recursive: true,
+    });
+
+    await expect(
+      buildLocalFunctionCatalogAsync(projectRoot, {
+        rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+      })
+    ).rejects.toThrow(/does not contain a package.json file/);
   });
 });
