@@ -133,6 +133,17 @@ describe(ObserveEvents, () => {
     expect(options.eventName).toBeUndefined();
   });
 
+  it('routes to fetchObserveCustomEventsAsync with the session filter when --session-id is set with no positional arg', async () => {
+    const command = createCommand(['--session-id', 'session-xyz']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBeUndefined();
+    expect(options.sessionId).toBe('session-xyz');
+  });
+
   it('throws when both an event name argument and --all-events are provided', async () => {
     const command = createCommand(['my_event', '--all-events']);
     await expect(command.runAsync()).rejects.toThrow(
