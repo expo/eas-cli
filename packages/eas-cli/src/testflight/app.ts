@@ -87,8 +87,15 @@ async function findAppWithAccountAscApiKeysAsync({
         );
         return app;
       }
-    } catch (error: any) {
-      Log.debug(`ASC API Key ${key.keyIdentifier} cannot access ${bundleId}: ${error.message}`);
+    } catch (error: unknown) {
+      // Never read `.message` off an unknown rejection: a non-Error value (a string, or
+      // null from a wrapped fetch) would make this handler throw a TypeError, hiding the
+      // real failure and aborting the loop instead of falling through to the next key.
+      Log.debug(
+        `ASC API Key ${key.keyIdentifier} cannot access ${bundleId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -144,8 +151,12 @@ export async function resolveTestFlightAppAsync({
       projectId,
     });
     return app;
-  } catch (error: any) {
-    Log.debug(`Could not resolve an App Store Connect API Key for this project: ${error.message}`);
+  } catch (error: unknown) {
+    Log.debug(
+      `Could not resolve an App Store Connect API Key for this project: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 
   const bundleId =
