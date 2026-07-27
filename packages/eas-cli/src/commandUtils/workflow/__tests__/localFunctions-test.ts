@@ -271,4 +271,24 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
       validateWorkflowLocalFunctionsAsync(workflow, projectDir)
     ).resolves.toBeUndefined();
   });
+
+  it('validates a referenced single-step command function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-functions-command-'));
+    await makeProjectWithCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      ['inputs:', '  - name', 'command: echo "Hi, ${ inputs.name }!"'].join('\n')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          steps: [{ uses: './.eas/functions/say-hi', with: { name: 'World' } }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
 });
