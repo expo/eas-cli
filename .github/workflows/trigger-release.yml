@@ -4,7 +4,7 @@ on:
       version:
         type: string
         required: false
-        description: 'Version number for the release'
+        description: 'Version for the release, e.g. "21.3.0". Prerelease: "21.3.0-beta.0" (publishes under the `next` dist-tag; see RELEASING.md). Leave empty to derive the next stable version from the changelog.'
       dry_run:
         type: boolean
         required: true
