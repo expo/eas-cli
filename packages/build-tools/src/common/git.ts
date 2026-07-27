@@ -67,7 +67,7 @@ export async function fetchAndCheckoutRefAsync({
   if (!(await fs.pathExists(path.join(repositoryDirectory, '.git')))) {
     throw new UserError(
       'EAS_CHECKOUT_NOT_A_GIT_REPOSITORY',
-      `Cannot check out ref "${ref}": ${repositoryDirectory} is not a git repository.`
+      `Cannot check out ref "${ref}": ${repositoryDirectory} is not a Git repository.`
     );
   }
 
