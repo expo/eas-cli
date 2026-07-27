@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [eas-cli] Refresh README as an EAS product landing page. ([#3844](https://github.com/expo/eas-cli/pull/3844) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Fix the EAS logo not rendering in the repository root README. ([#4093](https://github.com/expo/eas-cli/pull/4093) by [@szdziedzic](https://github.com/szdziedzic))
 
 ## [21.3.0](https://github.com/expo/eas-cli/releases/tag/v21.3.0) - 2026-07-27
 

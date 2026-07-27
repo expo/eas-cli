@@ -1,8 +1,10 @@
 <!-- Everything above the "# Commands" section is generated from packages/eas-cli/scripts/readme-header.md. Edit that file, not README.md; `yarn version` regenerates README.md and overwrites this content. -->
 
+<!-- The logo src is an absolute URL on purpose: this file is also the repository root README (README.md is a symlink to it), so it renders at two different depths and no single relative path resolves in both. -->
+
 <p align="center">
   <a href="https://expo.dev/services">
-    <img alt="EAS" height="96" src="../../.github/resources/eas.svg">
+    <img alt="EAS" height="96" src="https://raw.githubusercontent.com/expo/eas-cli/main/.github/resources/eas.svg">
   </a>
 </p>
 
