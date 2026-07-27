@@ -29,6 +29,7 @@ export * from './step';
 export * from './compositeFunction';
 export * from './submission-config';
 export * from './projectPackage';
+export * from './deviceRunSession';
 
 const version = require('../package.json').version;
 export { version };

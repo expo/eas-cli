@@ -1,26 +1,11 @@
 import { stripVTControlCharacters } from 'util';
 
-import { z } from 'zod';
+import { type DeviceRunSessionEvent, parseDeviceRunSessionEvents } from '@expo/eas-build-job';
 
 import fetch, { RequestError } from '../fetch';
 import { formatMilliseconds } from '../utils/timer';
 
-const DeviceRunSessionEventSchema = z
-  .object({
-    v: z.literal(1),
-    eventId: z.string(),
-    ts: z.string().refine(ts => !Number.isNaN(new Date(ts).getTime())),
-    producer: z.string(),
-    type: z.string(),
-    operationId: z.string().optional(),
-    outcome: z.enum(['success', 'failure']).optional(),
-    durationMs: z.number().optional(),
-    summary: z.string(),
-    data: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
-
-export type DeviceRunSessionEvent = z.infer<typeof DeviceRunSessionEventSchema>;
+export type { DeviceRunSessionEvent };
 
 export async function downloadDeviceRunSessionEventsAsync(
   eventLogUrl: string
@@ -34,25 +19,6 @@ export async function downloadDeviceRunSessionEventsAsync(
     }
     throw error;
   }
-}
-
-export function parseDeviceRunSessionEvents(eventLog: string): DeviceRunSessionEvent[] {
-  const events = new Map<string, DeviceRunSessionEvent>();
-
-  for (const line of eventLog.split('\n')) {
-    try {
-      const result = DeviceRunSessionEventSchema.safeParse(JSON.parse(line));
-      if (result.success) {
-        events.set(result.data.eventId, result.data);
-      }
-    } catch {
-      // Ignore malformed or incomplete records.
-    }
-  }
-
-  return [...events.values()].sort(
-    (left, right) => new Date(left.ts).getTime() - new Date(right.ts).getTime()
-  );
 }
 
 export function projectDeviceRunSessionEventsForDisplay(
