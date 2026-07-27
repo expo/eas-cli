@@ -1,9 +1,10 @@
 import { uploadMetadataAsync } from '../upload';
 import { MetadataValidationError } from '../errors';
+import Log from '../../log';
 
 jest.mock('../auth', () => ({
   getAppStoreAuthAsync: jest.fn(() => ({
-    app: { id: '123' },
+    app: { id: '123', attributes: { primaryLocale: 'en-US' } },
     auth: { context: { token: 'mock' } },
   })),
 }));
@@ -15,6 +16,7 @@ jest.mock('../apple/tasks', () => ({
 jest.mock('../config/resolve', () => ({
   createAppleReader: jest.fn(() => ({
     getVersion: jest.fn(() => ({ versionString: '1.0.0' })),
+    getLocales: jest.fn(() => ['en-US']),
   })),
   loadConfigAsync: jest.fn(() => ({ configVersion: 0 })),
 }));
@@ -32,9 +34,6 @@ jest.mock('../../prompts', () => ({
   confirmAsync: jest.fn(),
 }));
 
-const { loadConfigAsync } = require('../config/resolve') as jest.Mocked<
-  typeof import('../config/resolve')
->;
 const { confirmAsync } = require('../../prompts') as jest.Mocked<typeof import('../../prompts')>;
 
 function createArgs(overrides: Record<string, any> = {}) {
@@ -49,6 +48,25 @@ function createArgs(overrides: Record<string, any> = {}) {
     projectId: 'test-project-id',
     ...overrides,
   };
+}
+
+const { getAppStoreAuthAsync } = require('../auth') as jest.Mocked<typeof import('../auth')>;
+const { createAppleReader, loadConfigAsync } = require('../config/resolve') as jest.Mocked<
+  typeof import('../config/resolve')
+>;
+
+function mockApp(primaryLocale?: string) {
+  (getAppStoreAuthAsync as jest.Mock).mockResolvedValueOnce({
+    app: { id: '123', attributes: { primaryLocale } },
+    auth: { context: { token: 'mock' } },
+  });
+}
+
+function mockConfigLocales(locales: string[]) {
+  (createAppleReader as jest.Mock).mockReturnValueOnce({
+    getVersion: jest.fn(() => ({ versionString: '1.0.0' })),
+    getLocales: jest.fn(() => locales),
+  });
 }
 
 describe(uploadMetadataAsync, () => {
@@ -99,5 +117,68 @@ describe(uploadMetadataAsync, () => {
 
     expect(result).toHaveProperty('appleLink');
     expect(result.appleLink).toContain('appstoreconnect.apple.com');
+  });
+
+  describe('locales', () => {
+    it('warns the user when the store config omits the app primary locale', async () => {
+      mockApp('en-GB');
+      mockConfigLocales(['en-US', 'fr-FR']);
+
+      await uploadMetadataAsync(createArgs());
+
+
+      expect(jest.mocked(Log.warn)).toHaveBeenCalledTimes(1);
+      const warn = jest.mocked(Log.warn);
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Your store configuration includes "en-US", "fr-FR", but not the app's primary locale "en-GB".`
+        )
+      );
+      
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`App Store Connect displays the primary locale by default`)
+      );
+      
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`Add a "en-GB" entry to your store.config.json.`)
+      );
+    });
+
+    it('does not warn when the primary locale is included in the store config', async () => {
+      mockApp('en-US');
+      mockConfigLocales(['en-US', 'en-GB']);
+
+      await uploadMetadataAsync(createArgs());
+
+      expect(jest.mocked(Log.warn)).not.toHaveBeenCalled();
+    });
+
+    it('does not warn when the primary locale is the only configured locale', async () => {
+      mockApp('en-US');
+      mockConfigLocales(['en-US']);
+
+      await uploadMetadataAsync(createArgs());
+
+      expect(jest.mocked(Log.warn)).not.toHaveBeenCalled();
+    });
+
+    it('does not warn when the store config has no locales', async () => {
+      mockApp('en-GB');
+      mockConfigLocales([]);
+
+      await uploadMetadataAsync(createArgs());
+
+      expect(jest.mocked(Log.warn)).not.toHaveBeenCalled();
+    });
+
+    it('does not warn when the app has no primary locale', async () => {
+      mockApp();
+      mockConfigLocales(['en-US', 'en-GB']);
+
+      await uploadMetadataAsync(createArgs());
+
+      expect(jest.mocked(Log.warn)).not.toHaveBeenCalled();
+    });
   });
 });

@@ -63,6 +63,31 @@ export async function uploadMetadataAsync({
 
   const errors: Error[] = [];
   const config = createAppleReader(storeConfig);
+
+  /**
+   * Warn the user if the store config doesn't include the app's
+   * primary locale. Pushes that only include non-primary locales
+   * may not appear on the ASC dashboard - due to ASC showing the primary language
+   * by default which could lead to a confusing experience.
+   * @example
+   * en-gb: {}
+   * en-us: { title: "my-app", description: "my-app", keywords: ["cool-app"] }
+   */
+  const locales = config.getLocales();
+  const primaryLocale = app.attributes.primaryLocale;
+
+  if (primaryLocale && locales.length > 0 && !locales.includes(primaryLocale)) {
+    Log.warn(`
+      Your store configuration includes ${locales.map(locale => `"${locale}"`).join(', ')}, but not the app's primary locale "${primaryLocale}".
+      
+      App Store Connect displays the primary locale by default, so changes may not be visible there.
+
+      To fix this, either:
+        • Add a "${primaryLocale}" entry to your store.config.json.
+        • Change the app's primary language in App Store Connect.
+      `);
+  }
+
   const tasks = createAppleTasks({
     // We need to resolve a different version as soon as possible.
     // This version is the parent model of all changes we are going to push.
@@ -93,7 +118,9 @@ export async function uploadMetadataAsync({
     throw new MetadataUploadError(errors, executionId);
   }
 
-  return { appleLink: `https://appstoreconnect.apple.com/apps/${app.id}/appstore` };
+  return {
+    appleLink: `https://appstoreconnect.apple.com/apps/${app.id}/appstore`,
+  };
 }
 
 async function loadConfigWithValidationPromptAsync(
@@ -116,8 +143,16 @@ async function loadConfigWithValidationPromptAsync(
         'Without further updates, the current store configuration can fail to be synchronized with the App Store or pass App Store review.'
       );
 
-      if (await confirmAsync({ message: 'Do you still want to push the store configuration?' })) {
-        return await loadConfigAsync({ projectDir, profile, skipValidation: true });
+      if (
+        await confirmAsync({
+          message: 'Do you still want to push the store configuration?',
+        })
+      ) {
+        return await loadConfigAsync({
+          projectDir,
+          profile,
+          skipValidation: true,
+        });
       }
     }
 
