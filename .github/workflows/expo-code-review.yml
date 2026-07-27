@@ -13,8 +13,9 @@ permissions:
 env:
   # The reviewer is the published @expo/code-review-cli package, run via npx — the
   # repo only carries the `.expo-code-review/` config, not the engine source.
-  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.5.x.
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.5.0' }}
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.6.x
+  # (0.6.0 = trusted base-commit configuration + PR-head runtime-config scrub).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
 
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
@@ -77,36 +78,22 @@ jobs:
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
           echo "route=$route" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
+      # SECURITY: check out the PR's immutable BASE commit, never the PR head or
+      # merge ref — everything on this runner's disk comes from a commit that
+      # already merged. `ecr ci` (0.6.0+) additionally enforces this itself: it
+      # materializes the base commit via the GitHub API for configuration and the
+      # head commit (OID-pinned, scrubbed of ambient runtime config like
+      # opencode.json/plugins/AGENTS.md/.env) for source reads. persist-credentials
+      # off — the CLI's git fetches authenticate through `gh` from GH_TOKEN, so the
+      # token never lands in .git/config.
+      - name: Checkout (base commit only — never the PR head)
         if: steps.resolve.outputs.run == 'true'
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        # The reviewer reads the working tree at HEAD and gets the diff from the
-        # API (`gh pr diff`), so a shallow checkout is enough — no full history.
+        # The diff comes from the API (`gh pr diff`), so a shallow checkout is enough.
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 1
-
-      # SECURITY: this pull_request workflow checks out the PR's code, which includes
-      # .expo-code-review/config.jsonc. Its `auth.tokenEnv` names the env var the CLI
-      # forwards as the model credential, so a PR could repoint it at another secret
-      # in the runner. Refuse to run unless tokenEnv is the expected value. That value
-      # comes from the workflow default / a repo variable — NOT from the PR's diff — so
-      # a config-only change can't move it, and the first PR that introduces the config
-      # passes because its tokenEnv already matches the default. (Backstop: the
-      # published CLI's own denylist refuses GITHUB_TOKEN/cloud-cred names regardless.
-      # Full fix: load config from the trusted base ref once this reviewer is on the
-      # default branch — see ROADMAP.)
-      - name: Guard config.jsonc tokenEnv
-        if: steps.resolve.outputs.run == 'true'
-        env:
-          EXPECTED: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
-        run: |
-          values=$(grep -oE '"tokenEnv"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_]+"' .expo-code-review/config.jsonc | sed -E 's/.*"([A-Za-z0-9_]+)"$/\1/')
-          count=$(printf '%s\n' "$values" | grep -c .)
-          if [ "$count" != "1" ] || [ "$values" != "$EXPECTED" ]; then
-            echo "::error::.expo-code-review/config.jsonc auth.tokenEnv must be \"$EXPECTED\" (found: \"${values:-none}\"). Refusing to run so a PR can't redirect which secret is forwarded to the model provider."
-            exit 1
-          fi
-          echo "config tokenEnv OK: $values"
+          persist-credentials: false
 
       # eas-cli pins yarn@4 via package.json "packageManager", so actions/setup-node's
       # environment probe runs `yarn` and the global yarn 1.x refuses unless corepack
@@ -125,6 +112,20 @@ jobs:
           # setup-node's automatic package-manager cache — otherwise its post step
           # tries to save an empty yarn cache and errors ("path(s) ... do not exist").
           package-manager-cache: false
+
+      # SECURITY: the TRUSTED BASE checkout above includes .expo-code-review/
+      # config.jsonc, whose auth.tokenEnv names the env var the CLI forwards as the
+      # model credential. `ecr verify-config` is the canonical guard (ships with the
+      # CLI): it sweeps every config (root + routing + all scopes, referenced or
+      # not) with the engine's real JSONC parser and refuses unless tokenEnv appears
+      # exactly once, in a ROOT-owned file, equal to ECR_EXPECTED_TOKEN_ENV — so a
+      # config change can't repoint it at another runner secret or sneak in a
+      # JSON-escaped key. Layer 2; layer 1 is the same runtime lock inside `ecr ci`.
+      - name: Guard config tokenEnv (root + routing + all scopes)
+        if: steps.resolve.outputs.run == 'true'
+        env:
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+        run: npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr verify-config
 
       - name: Run AI review
         if: steps.resolve.outputs.run == 'true'
