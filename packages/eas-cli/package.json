@@ -118,6 +118,7 @@
     "prompts": "2.4.2",
     "qrcode-terminal": "0.12.0",
     "resolve-from": "5.0.0",
+    "sandbox-cli-detector": "0.2.0",
     "semver": "7.5.4",
     "set-interval-async": "3.0.3",
     "slash": "3.0.0",

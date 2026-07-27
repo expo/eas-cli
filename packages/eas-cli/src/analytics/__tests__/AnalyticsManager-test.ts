@@ -3,6 +3,7 @@ import RudderAnalytics from '@expo/rudder-sdk-node';
 import UserSettings from '../../user/UserSettings';
 import { CommandEvent, createAnalyticsAsync } from '../AnalyticsManager';
 import { getAgentTelemetryContext } from '../agent';
+import { getSandboxTelemetryContext } from '../sandbox';
 
 const mockIdentify = jest.fn();
 const mockTrack = jest.fn();
@@ -28,8 +29,12 @@ jest.mock('../../user/UserSettings', () => ({
 jest.mock('../agent', () => ({
   getAgentTelemetryContext: jest.fn(),
 }));
+jest.mock('../sandbox', () => ({
+  getSandboxTelemetryContext: jest.fn(),
+}));
 
 const getAgentTelemetryContextMock = jest.mocked(getAgentTelemetryContext);
+const getSandboxTelemetryContextMock = jest.mocked(getSandboxTelemetryContext);
 const userSettingsMock = jest.mocked(UserSettings);
 
 const originalHttpsProxy = process.env.https_proxy;
@@ -42,6 +47,8 @@ beforeEach(() => {
   jest.mocked(RudderAnalytics).mockClear();
   getAgentTelemetryContextMock.mockReset();
   getAgentTelemetryContextMock.mockReturnValue(null);
+  getSandboxTelemetryContextMock.mockReset();
+  getSandboxTelemetryContextMock.mockReturnValue(null);
   userSettingsMock.getAsync.mockImplementation(async (key, defaultValue) => {
     if (key === 'analyticsDeviceId') {
       return 'persistent-device-id';
@@ -68,14 +75,17 @@ afterAll(() => {
   }
 });
 
-it('omits agent context when no agent is detected', async () => {
+it('omits agent and sandbox context when neither is detected', async () => {
   const analytics = await createAnalyticsAsync();
 
   analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
 
   expect(mockTrack).toHaveBeenCalledWith(
     expect.objectContaining({
-      context: expect.not.objectContaining({ agent: expect.anything() }),
+      context: expect.not.objectContaining({
+        agent: expect.anything(),
+        sandbox_id: expect.anything(),
+      }),
     })
   );
 });
@@ -93,6 +103,21 @@ it('adds detected agent context to analytics events', async () => {
           id: 'codex',
           sessionId: 'zzz',
         },
+      }),
+    })
+  );
+});
+
+it('adds detected sandbox context to analytics events', async () => {
+  getSandboxTelemetryContextMock.mockReturnValue('e2b');
+  const analytics = await createAnalyticsAsync();
+
+  analytics.logEvent(CommandEvent.ACTION, { action: 'eas build' });
+
+  expect(mockTrack).toHaveBeenCalledWith(
+    expect.objectContaining({
+      context: expect.objectContaining({
+        sandbox_id: 'e2b',
       }),
     })
   );
