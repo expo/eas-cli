@@ -89,6 +89,26 @@ export function redactConnectionSecrets(text: string): string {
   return redacted.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/gi, '$1<redacted>@');
 }
 
+/** Spawn failures attach stdout/stderr; scrub secrets before logging the error object. */
+export function redactSpawnErrorForLog(err: unknown): unknown {
+  if (!err || typeof err !== 'object') {
+    return err;
+  }
+  const spawnErr = err as { message?: unknown; stdout?: unknown; stderr?: unknown };
+  return {
+    ...spawnErr,
+    ...(typeof spawnErr.message === 'string'
+      ? { message: redactConnectionSecrets(spawnErr.message) }
+      : {}),
+    ...(typeof spawnErr.stdout === 'string'
+      ? { stdout: redactConnectionSecrets(spawnErr.stdout) }
+      : {}),
+    ...(typeof spawnErr.stderr === 'string'
+      ? { stderr: redactConnectionSecrets(spawnErr.stderr) }
+      : {}),
+  };
+}
+
 export function isUptermProcessAlive(
   child:
     | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }
@@ -254,7 +274,9 @@ export async function startUptermHostAsync(
         detached: true,
       }
     );
-    uptermProcess.catch(err => ctx.logger.debug({ err }, 'The upterm host process exited.'));
+    uptermProcess.catch(err =>
+      ctx.logger.debug({ err: redactSpawnErrorForLog(err) }, 'The upterm host process exited.')
+    );
     uptermProcess.child.unref();
     currentProcess = uptermProcess;
 

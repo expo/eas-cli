@@ -9,6 +9,7 @@ import {
   isUptermProcessAlive,
   parseUptermSessionJson,
   redactConnectionSecrets,
+  redactSpawnErrorForLog,
   resolveUptermArch,
   startUptermHostAsync,
 } from '../upterm';
@@ -106,6 +107,29 @@ describe(redactConnectionSecrets, () => {
     expect(redactConnectionSecrets('dialing wss://relay.expo.dev')).toBe(
       'dialing wss://relay.expo.dev'
     );
+  });
+});
+
+describe(redactSpawnErrorForLog, () => {
+  it('redacts secrets in message, stdout, and stderr', () => {
+    expect(
+      redactSpawnErrorForLog({
+        message: 'failed wss://TOKENabc@relay.expo.dev',
+        stdout: 'upterm proxy wss://TOKENabc@relay.expo.dev',
+        stderr: 'ssh dial error: wss://TOKENabc@relay.expo.dev',
+        code: 1,
+      })
+    ).toEqual({
+      message: 'failed wss://<redacted>@relay.expo.dev',
+      stdout: 'upterm proxy wss://<redacted>@relay.expo.dev',
+      stderr: 'ssh dial error: wss://<redacted>@relay.expo.dev',
+      code: 1,
+    });
+  });
+
+  it('passes through non-objects', () => {
+    expect(redactSpawnErrorForLog('boom')).toBe('boom');
+    expect(redactSpawnErrorForLog(null)).toBeNull();
   });
 });
 
