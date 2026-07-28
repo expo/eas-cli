@@ -76,7 +76,9 @@ export class BuildWorkflow {
       // occurrence; an anchor's `if:` cannot see its before-hooks' outputs.
       let shouldExecuteStep = false;
       try {
-        shouldExecuteStep = step.shouldExecuteStep();
+        shouldExecuteStep = step.shouldExecuteStep({
+          runByDefault: !this.ctx.hasAnyPreviousStepFailed,
+        });
       } catch (err: any) {
         logConditionEvaluationError(
           step.ctx.logger,

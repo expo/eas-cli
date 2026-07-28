@@ -333,9 +333,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     );
   }
 
-  public shouldExecuteStep({
-    runByDefault = !this.ctx.global.hasAnyPreviousStepFailed,
-  }: { runByDefault?: boolean } = {}): boolean {
+  public shouldExecuteStep({ runByDefault }: { runByDefault: boolean }): boolean {
     if (
       this.compositeFunctionScope &&
       !this.compositeFunctionScope.isActive(evaluateIfConditionExpression, runByDefault)
