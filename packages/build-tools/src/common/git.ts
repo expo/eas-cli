@@ -1,6 +1,8 @@
-import { ArchiveSource, ArchiveSourceType } from '@expo/eas-build-job';
+import { ArchiveSource, ArchiveSourceType, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import spawn from '@expo/turtle-spawn';
+import fs from 'fs-extra';
+import path from 'path';
 
 export async function shallowCloneRepositoryAsync({
   logger,
@@ -55,6 +57,48 @@ export async function shallowCloneRepositoryAsync({
   }
 }
 
+export async function fetchAndCheckoutRefAsync({
+  ref,
+  repositoryDirectory,
+}: {
+  ref: string;
+  repositoryDirectory: string;
+}): Promise<void> {
+  if (!(await fs.pathExists(path.join(repositoryDirectory, '.git')))) {
+    throw new UserError(
+      'EAS_CHECKOUT_NOT_A_GIT_REPOSITORY',
+      `Cannot check out ref "${ref}": ${repositoryDirectory} is not a Git repository.`
+    );
+  }
+
+  const { name, type } = getStrippedBranchOrTagName(ref);
+  const isCommitHash = type === 'other' && /^([0-9a-f]{40}|[0-9a-f]{64})$/.test(name);
+  const refToFetch =
+    type === 'branch' ? `refs/heads/${name}` : type === 'tag' ? `refs/tags/${name}` : name;
+  try {
+    await spawn('git', ['fetch', 'origin', '--depth', '1', '--no-tags', refToFetch], {
+      cwd: repositoryDirectory,
+    });
+    if (type === 'tag') {
+      await spawn('git', ['checkout', 'FETCH_HEAD'], { cwd: repositoryDirectory });
+      // --force because the initial clone may have already created this tag.
+      await spawn('git', ['tag', '--force', name], { cwd: repositoryDirectory });
+    } else if (isCommitHash) {
+      await spawn('git', ['checkout', 'FETCH_HEAD'], { cwd: repositoryDirectory });
+    } else {
+      // -B because a branch with this name may exist from the initial clone.
+      await spawn('git', ['checkout', '-B', name, 'FETCH_HEAD'], { cwd: repositoryDirectory });
+    }
+  } catch (err) {
+    // Git output is not relayed because it may contain the credentialed repository URL.
+    throw new UserError(
+      'EAS_CHECKOUT_FAILED_TO_CHECKOUT_REF',
+      `Failed to fetch and check out ref "${ref}". Make sure it is a branch, tag, or commit SHA reachable in the source repository.`,
+      { cause: err }
+    );
+  }
+}
+
 function getSanitizedGitUrl(maybeGitUrl: string): string | null {
   try {
     const url = new URL(maybeGitUrl);
@@ -71,7 +115,7 @@ function getStrippedBranchOrTagName(ref: string): {
   name: string;
   type: 'branch' | 'tag' | 'other';
 } {
-  const branchRegex = /(\/?refs)?\/?heads\/(.+)/;
+  const branchRegex = /^\/?(refs\/)?heads\/(.+)$/;
   const branchMatch = ref.match(branchRegex);
 
   if (branchMatch) {
@@ -81,7 +125,7 @@ function getStrippedBranchOrTagName(ref: string): {
     };
   }
 
-  const tagRegex = /(\/?refs)?\/?tags\/(.+)/;
+  const tagRegex = /^\/?(refs\/)?tags\/(.+)$/;
   const tagMatch = ref.match(tagRegex);
 
   if (tagMatch) {

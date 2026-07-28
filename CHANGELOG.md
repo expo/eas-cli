@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add `ref` input to the `eas/checkout` step to check out a different git ref (branch, tag, or commit SHA) than the one that triggered the job. ([#4035](https://github.com/expo/eas-cli/pull/4035) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
