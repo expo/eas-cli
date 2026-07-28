@@ -168,7 +168,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     const installArgs = jest.mocked(spawnAsync).mock.calls[0][1];
     expect(installArgs).toContain('posthog-react-native');
-    expect(installArgs).toContain('posthog-react-native-session-replay');
+    expect(installArgs).toContain('@posthog/react-native-plugin');
     expect(createOrModifyExpoConfigAsync).toHaveBeenCalled();
     expect(fs.writeFile).toHaveBeenCalled();
 
@@ -221,7 +221,7 @@ describe(IntegrationsPostHogConnect, () => {
     await createCommand([]).runAsync();
 
     expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain(
-      'posthog-react-native-session-replay'
+      '@posthog/react-native-plugin'
     );
     const createdNames = jest
       .mocked(EnvironmentVariableMutation.createForAppAsync)
@@ -238,7 +238,7 @@ describe(IntegrationsPostHogConnect, () => {
     // The plugin wires native modules replay needs, so it must be added even without analytics.
     expect(createOrModifyExpoConfigAsync).toHaveBeenCalled();
     expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain(
-      'posthog-react-native-session-replay'
+      '@posthog/react-native-plugin'
     );
     // The public key + host initialize the SDK for any feature, so they're still written.
     const createdNames = jest
@@ -264,7 +264,7 @@ describe(IntegrationsPostHogConnect, () => {
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Skipping error tracking'));
     // Session replay defaults on, so its package is still installed.
     expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain(
-      'posthog-react-native-session-replay'
+      '@posthog/react-native-plugin'
     );
   });
 
@@ -531,7 +531,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     expect(promptAsync).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'features' }));
     expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain(
-      'posthog-react-native-session-replay'
+      '@posthog/react-native-plugin'
     );
   });
 
