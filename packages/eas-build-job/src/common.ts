@@ -171,13 +171,7 @@ export const SshSettingsSchema = Joi.object({
 });
 export const SshSettingsZ = z.object({
   idleTimeoutSeconds: z.number().int().min(0).max(3600),
-  relayServerUrl: z
-    .string()
-    .url()
-    .refine(value => {
-      const { protocol } = new URL(value);
-      return protocol === 'ws:' || protocol === 'wss:';
-    }, 'relayServerUrl must be a ws:// or wss:// URL'),
+  relayServerUrl: z.url({ protocol: /^wss?$/ }),
 });
 
 export interface Cache {

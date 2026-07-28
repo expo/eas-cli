@@ -27,7 +27,7 @@ describe('SshSettingsZ', () => {
   it('rejects non-websocket relay URL schemes', () => {
     expect(() =>
       SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'https://ssh.expo.dev' })
-    ).toThrow(/ws:\/\/ or wss:\/\//);
+    ).toThrow(/Invalid URL|Invalid protocol/);
   });
 });
 
