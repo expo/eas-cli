@@ -8,7 +8,7 @@ type RetryOptions = {
 };
 
 // based on https://github.com/googleapis/nodejs-storage/blob/8ab50804fc7bae3bbd159bbb4adf65c02215b11b/src/storage.ts#L284-L320
-export async function retryOnGCSUploadFailure(
+export async function retryOnUploadFailure(
   fn: (attemptCount: number) => Promise<Response>,
   {
     retries,

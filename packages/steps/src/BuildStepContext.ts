@@ -47,6 +47,8 @@ export interface ExternalBuildContextProvider {
 export interface SerializedBuildStepGlobalContext {
   stepsInternalBuildDirectory: string;
   stepById: Record<string, SerializedBuildStepOutputAccessor>;
+  // Absent on older serialized payloads; treat as empty.
+  internalStepIds?: string[];
   provider: SerializedExternalBuildContextProvider;
   skipCleanup: boolean;
 }
@@ -58,6 +60,8 @@ export class BuildStepGlobalContext {
   private didCheckOut = false;
   private _hasAnyPreviousStepFailed = false;
   private stepById: Record<string, BuildStepOutputAccessor> = {};
+  // Prefixed expansion steps, omitted from the workflow steps view.
+  private internalStepIds = new Set<string>();
   constructor(
     private readonly provider: ExternalBuildContextProvider,
     public readonly skipCleanup: boolean
@@ -91,19 +95,21 @@ export class BuildStepGlobalContext {
   public get staticContext(): StaticJobInterpolationContext {
     return {
       ...this.provider.staticContext(),
-      steps: Object.fromEntries(
-        Object.values(this.stepById).map(step => [
+      steps: this.buildStepsInterpolationMap(),
+    };
+  }
+
+  private buildStepsInterpolationMap(): StaticJobInterpolationContext['steps'] {
+    return Object.fromEntries(
+      Object.values(this.stepById)
+        .filter(step => !this.internalStepIds.has(step.id))
+        .map(step => [
           step.id,
           {
-            outputs: Object.fromEntries(
-              step.outputs.map(output => {
-                return [output.id, output.rawValue];
-              })
-            ),
+            outputs: Object.fromEntries(step.outputs.map(output => [output.id, output.rawValue])),
           },
         ])
-      ),
-    };
+    );
   }
 
   public updateEnv(updatedEnv: BuildStepEnv): void {
@@ -112,11 +118,14 @@ export class BuildStepGlobalContext {
 
   public registerStep(step: BuildStep): void {
     this.stepById[step.id] = step;
+    if (step.isCompositeFunctionInternal) {
+      this.internalStepIds.add(step.id);
+    }
   }
 
   public getStepOutputValue(path: string): string | undefined {
     const { stepId, outputId } = parseOutputPath(path);
-    if (!(stepId in this.stepById)) {
+    if (!(stepId in this.stepById) || this.internalStepIds.has(stepId)) {
       throw new BuildStepRuntimeError(`Step "${stepId}" does not exist.`);
     }
     return this.stepById[stepId].getOutputValueByName(outputId);
@@ -263,6 +272,7 @@ export class BuildStepGlobalContext {
       stepById: Object.fromEntries(
         Object.entries(this.stepById).map(([id, step]) => [id, step.serialize()])
       ),
+      internalStepIds: [...this.internalStepIds],
       provider: {
         projectSourceDirectory: this.provider.projectSourceDirectory,
         projectTargetDirectory: this.provider.projectTargetDirectory,
@@ -295,6 +305,7 @@ export class BuildStepGlobalContext {
     for (const [id, stepOutputAccessor] of Object.entries(serialized.stepById)) {
       ctx.stepById[id] = BuildStepOutputAccessor.deserialize(stepOutputAccessor);
     }
+    ctx.internalStepIds = new Set(serialized.internalStepIds ?? []);
     ctx.stepsInternalBuildDirectory = serialized.stepsInternalBuildDirectory;
 
     return ctx;
@@ -308,7 +319,7 @@ export interface SerializedBuildStepContext {
 
 export class BuildStepContext {
   public readonly logger: bunyan;
-  public readonly relativeWorkingDirectory?: string;
+  private _relativeWorkingDirectory?: string;
 
   constructor(
     private readonly ctx: BuildStepGlobalContext,
@@ -321,7 +332,15 @@ export class BuildStepContext {
     }
   ) {
     this.logger = logger ?? ctx.baseLogger;
-    this.relativeWorkingDirectory = relativeWorkingDirectory;
+    this._relativeWorkingDirectory = relativeWorkingDirectory;
+  }
+
+  public get relativeWorkingDirectory(): string | undefined {
+    return this._relativeWorkingDirectory;
+  }
+
+  public updateRelativeWorkingDirectory(value: string | undefined): void {
+    this._relativeWorkingDirectory = value;
   }
 
   public get global(): BuildStepGlobalContext {

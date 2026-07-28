@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { AppObserveCustomEvent, AppObserveEvent } from '../graphql/generated';
 import { SessionEventEntry, SessionMetadata } from './fetchSessions';
 import { formatLogTimestamp } from './formatUtils';
 import { getMetricDisplayName } from './metricNames';
@@ -141,4 +142,41 @@ export function buildObserveSessionEventsJson(
     hasMoreMetricEvents,
     hasMoreLogEvents,
   };
+}
+
+/**
+ * Compact session ID for display in candidate lists — long UUIDs are
+ * truncated to `<first-8>…<last-4>` so a row stays scannable.
+ */
+export function shortSessionId(sessionId: string): string {
+  if (sessionId.length <= 12) {
+    return sessionId;
+  }
+  return `${sessionId.slice(0, 8)}…${sessionId.slice(-4)}`;
+}
+
+/**
+ * One-line title for a metric event shown in the observe:session candidate
+ * picker, e.g. `Jan 15, 10:00:00.000 AM · Startup TTI 1.23s · 1.0.0 · iOS 17.0 · session abc…1234`.
+ */
+export function formatMetricCandidateTitle(event: AppObserveEvent): string {
+  const displayName = getMetricDisplayName(event.metricName);
+  const value = `${event.metricValue.toFixed(2)}s`;
+  const timestamp = formatLogTimestamp(event.timestamp);
+  const shortSession = shortSessionId(event.sessionId ?? '');
+  const device = `${event.deviceOs} ${event.deviceOsVersion}`;
+  return `${timestamp} · ${displayName} ${value} · ${event.appVersion} · ${device} · session ${shortSession}`;
+}
+
+/**
+ * One-line title for a custom log event shown in the observe:session
+ * candidate picker.
+ */
+export function formatLogCandidateTitle(event: AppObserveCustomEvent): string {
+  const timestamp = formatLogTimestamp(event.timestamp);
+  const severity =
+    event.severityText ?? (event.severityNumber != null ? String(event.severityNumber) : '-');
+  const shortSession = shortSessionId(event.sessionId ?? '');
+  const device = `${event.deviceOs} ${event.deviceOsVersion}`;
+  return `${timestamp} · ${event.eventName} · ${severity} · ${event.appVersion} · ${device} · session ${shortSession}`;
 }

@@ -14,7 +14,7 @@ jest.mock('@expo/build-tools', () => {
   const actual = jest.requireActual('@expo/build-tools');
   return {
     ...actual,
-    GCS: { uploadWithSignedUrl: jest.fn() },
+    uploadWithSignedUrl: jest.fn(),
     Datadog: {
       setup: jest.fn(),
       flushAsync: jest.fn(async () => {}),

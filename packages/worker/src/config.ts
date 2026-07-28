@@ -1,4 +1,4 @@
-import { GCS, GCSLoggerStream } from '@expo/build-tools';
+import { RemoteLoggerStream, type SignedUrl } from '@expo/build-tools';
 import path from 'path';
 
 import { Environment } from './constants';
@@ -34,12 +34,12 @@ export default {
     },
     gcs: {
       uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
-      compressionMethod: GCSLoggerStream.CompressionMethod.BR,
-      signedUploadUrlForLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+      compressionMethod: RemoteLoggerStream.CompressionMethod.BR,
+      signedUploadUrlForLogs: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForLogs'),
         defaultValue: null,
       }),
-      signedUploadUrlForXcodeBuildLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+      signedUploadUrlForXcodeBuildLogs: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForXcodeBuildLogs'),
         defaultValue: null,
       }),
@@ -54,7 +54,7 @@ export default {
     },
   },
   buildCache: {
-    gcsSignedUploadUrlForBuildCache: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+    gcsSignedUploadUrlForBuildCache: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
       transform: createBase64EnvTransformer('gcsSignedUploadUrlForBuildCache'),
       defaultValue: null,
     }),

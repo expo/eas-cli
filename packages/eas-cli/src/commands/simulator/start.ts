@@ -18,6 +18,7 @@ import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessi
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
+import { promptAsync } from '../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -41,9 +42,16 @@ const OUT_CONFIG_TYPE_VALUES = {
   Env: 'env',
   Dotenv: 'dotenv',
 } as const;
+const PLATFORM_FLAG_VALUES = ['android', 'ios'] as const;
+type PlatformFlagValue = (typeof PLATFORM_FLAG_VALUES)[number];
+const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
+  android: AppPlatform.Android,
+  ios: AppPlatform.Ios,
+};
 
 export default class SimulatorStart extends EasCommand {
   static override hidden = true;
+  static override aliases = ['simulator'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -51,9 +59,12 @@ export default class SimulatorStart extends EasCommand {
     platform: Flags.option({
       char: 'p',
       description: 'Device platform',
-      options: ['android', 'ios'] as const,
-      required: true,
+      options: PLATFORM_FLAG_VALUES,
     })(),
+    name: Flags.string({
+      description:
+        'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -104,6 +115,10 @@ export default class SimulatorStart extends EasCommand {
       nonInteractive,
     });
 
+    // The server rejects blank names, so trim here and treat a whitespace-only
+    // --name as if it had been omitted rather than surfacing a validation error.
+    const name = flags.name?.trim() || undefined;
+
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
     if (existingDeviceRunSessionId && !flags.force) {
@@ -111,6 +126,9 @@ export default class SimulatorStart extends EasCommand {
         `Existing simulator session in environment. Use --force to create a new simulator session.`
       );
     }
+
+    const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+
     if (existingDeviceRunSessionId) {
       Log.warn(
         `  Overwriting previous simulator session (id: ${existingDeviceRunSessionId}). ` +
@@ -120,14 +138,13 @@ export default class SimulatorStart extends EasCommand {
       Log.newLine();
     }
 
-    const platform = flags.platform === 'android' ? AppPlatform.Android : AppPlatform.Ios;
-
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
     try {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
+        name,
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
@@ -216,6 +233,7 @@ export default class SimulatorStart extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: deviceRunSessionId,
+        name,
         type: flags.type,
         deviceRunSessionUrl,
         remoteConfig,
@@ -241,6 +259,30 @@ export default class SimulatorStart extends EasCommand {
       projectDir,
     });
   }
+}
+
+async function resolvePlatformAsync(
+  platform: PlatformFlagValue | undefined,
+  nonInteractive: boolean
+): Promise<AppPlatform> {
+  if (platform) {
+    return APP_PLATFORM_BY_FLAG_VALUE[platform];
+  }
+
+  if (nonInteractive) {
+    throw new Error('The --platform flag must be set when running in non-interactive mode.');
+  }
+
+  const { selectedPlatform } = await promptAsync({
+    type: 'select',
+    message: 'Select platform',
+    name: 'selectedPlatform',
+    choices: [
+      { title: 'Android', value: AppPlatform.Android },
+      { title: 'iOS', value: AppPlatform.Ios },
+    ],
+  });
+  return selectedPlatform;
 }
 
 async function writeSimulatorEnvSafelyAsync(

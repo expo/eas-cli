@@ -9,6 +9,7 @@ import {
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import Log from '../../../log';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -46,6 +47,7 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -134,6 +136,7 @@ describe(SimulatorGet, () => {
     expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      name: undefined,
       type: 'agent-device',
       status: DeviceRunSessionStatus.InProgress,
       platform: AppPlatform.Ios,
@@ -146,6 +149,26 @@ describe(SimulatorGet, () => {
       remoteConfig: session.remoteConfig,
       artifacts: session.artifacts,
     });
+  });
+
+  it('includes the session name in JSON and human output when the session is named', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+
+    jest.clearAllMocks();
+    mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command: humanCommand } = createCommand(['--id', 'session-123']);
+    await humanCommand.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Checkout regression'));
   });
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {

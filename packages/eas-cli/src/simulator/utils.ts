@@ -54,7 +54,7 @@ export function formatRemoteSessionInstructions(
           ? [
               '🔑 Run the following to use agent-device with the simulator:',
               '',
-              'eas simulator:exec agent-device <command>',
+              'eas simulator:exec npx agent-device <command>',
             ]
           : [
               '🔑 Run the following in your shell to attach to the agent-device daemon:',

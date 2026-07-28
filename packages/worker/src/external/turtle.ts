@@ -1,4 +1,4 @@
-import { GCS } from '@expo/build-tools';
+import { type SignedUrl } from '@expo/build-tools';
 import { BuildJob, Generic, Metadata, errors } from '@expo/eas-build-job';
 
 export const androidImagesWithJavaVersionLowerThen11 = [
@@ -22,7 +22,7 @@ export namespace Worker {
   }
 
   type JobRunWorkerRuntimeConfig = {
-    gcsSignedUploadUrlForLogs: GCS.SignedUrl;
+    gcsSignedUploadUrlForLogs: SignedUrl;
 
     runMetricsServer: boolean;
 
@@ -31,9 +31,9 @@ export namespace Worker {
   };
 
   type BuildWorkerRuntimeConfig = {
-    gcsSignedUploadUrlForLogs: GCS.SignedUrl;
-    gcsSignedUploadUrlForXcodeBuildLogs?: GCS.SignedUrl;
-    gcsSignedUploadUrlForBuildCache?: GCS.SignedUrl;
+    gcsSignedUploadUrlForLogs: SignedUrl;
+    gcsSignedUploadUrlForXcodeBuildLogs?: SignedUrl;
+    gcsSignedUploadUrlForBuildCache?: SignedUrl;
     gcsSignedBuildCacheDownloadUrl?: string;
 
     runMetricsServer: boolean;

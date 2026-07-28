@@ -60,3 +60,18 @@ export function resolveNavigationMetricName(input: string): string {
 export function getMetricDisplayName(metricName: string): string {
   return METRIC_SHORT_NAMES[metricName] ?? metricName;
 }
+
+/**
+ * Non-throwing predicate: true when `input` is a known metric alias (either
+ * app-startup or navigation) or a known full metric name. Used to decide
+ * whether an event name should be treated as a metric or as a custom log
+ * event without forcing the caller into a try/catch around `resolveMetricName`.
+ */
+export function isKnownMetricName(input: string): boolean {
+  return (
+    input in METRIC_ALIASES ||
+    input in NAVIGATION_METRIC_ALIASES ||
+    KNOWN_FULL_NAMES.has(input) ||
+    KNOWN_FULL_NAVIGATION_NAMES.has(input)
+  );
+}

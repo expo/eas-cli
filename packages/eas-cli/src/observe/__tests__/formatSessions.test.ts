@@ -1,5 +1,12 @@
+import { AppObserveCustomEvent, AppObserveEvent } from '../../graphql/generated';
 import { SessionEventEntry, SessionMetadata } from '../fetchSessions';
-import { buildObserveSessionEventsJson, buildObserveSessionEventsTable } from '../formatSessions';
+import {
+  buildObserveSessionEventsJson,
+  buildObserveSessionEventsTable,
+  formatLogCandidateTitle,
+  formatMetricCandidateTitle,
+  shortSessionId,
+} from '../formatSessions';
 
 function makeMetricEntry(overrides: Partial<SessionEventEntry> = {}): SessionEventEntry {
   return {
@@ -238,5 +245,93 @@ describe(buildObserveSessionEventsJson, () => {
   it('returns null metadata when there were no entries', () => {
     const result = buildObserveSessionEventsJson([], 'session-1', null, false, false);
     expect(result.metadata).toBeNull();
+  });
+});
+
+describe(shortSessionId, () => {
+  it('returns the full id when it is 12 characters or fewer', () => {
+    expect(shortSessionId('abc')).toBe('abc');
+    expect(shortSessionId('abcdefghijkl')).toBe('abcdefghijkl');
+  });
+
+  it('collapses long ids to <first-8>…<last-4>', () => {
+    expect(shortSessionId('abcdefgh1234567890zyxw')).toBe('abcdefgh…zyxw');
+  });
+});
+
+function makeMetricEvent(overrides: Partial<AppObserveEvent> = {}): AppObserveEvent {
+  return {
+    __typename: 'AppObserveEvent' as const,
+    id: 'evt-m-1',
+    metricName: 'expo.app_startup.tti',
+    metricValue: 1.23,
+    timestamp: '2025-01-15T10:00:00.000Z',
+    appVersion: '1.0.0',
+    appBuildNumber: '42',
+    appUpdateId: null,
+    deviceModel: 'iPhone 15',
+    deviceOs: 'iOS',
+    deviceOsVersion: '17.0',
+    countryCode: 'US',
+    sessionId: 'session-abcdefgh1234567890',
+    easClientId: 'client-1',
+    customParams: null,
+    routeName: null,
+    ...overrides,
+  } as AppObserveEvent;
+}
+
+function makeCustomEventEvt(overrides: Partial<AppObserveCustomEvent> = {}): AppObserveCustomEvent {
+  return {
+    __typename: 'AppObserveCustomEvent' as const,
+    id: 'evt-c-1',
+    eventName: 'login_pressed',
+    timestamp: '2025-01-15T10:00:00.000Z',
+    sessionId: 'session-abcdefgh1234567890',
+    severityNumber: null,
+    severityText: null,
+    appVersion: '1.0.0',
+    appBuildNumber: '42',
+    appUpdateId: null,
+    appEasBuildId: null,
+    deviceModel: 'iPhone 15',
+    deviceOs: 'iOS',
+    deviceOsVersion: '17.0',
+    environment: 'production',
+    easClientId: 'client-1',
+    countryCode: 'US',
+    properties: [],
+    ...overrides,
+  } as AppObserveCustomEvent;
+}
+
+describe(formatMetricCandidateTitle, () => {
+  it('includes timestamp, display name, value, version, device, and truncated session id', () => {
+    const title = formatMetricCandidateTitle(makeMetricEvent());
+    expect(title).toContain('Startup TTI 1.23s');
+    expect(title).toContain('1.0.0');
+    expect(title).toContain('iOS 17.0');
+    expect(title).toContain('session session-…7890');
+  });
+});
+
+describe(formatLogCandidateTitle, () => {
+  it('includes timestamp, event name, and severity (using severityText when set)', () => {
+    const title = formatLogCandidateTitle(makeCustomEventEvt({ severityText: 'WARN' }));
+    expect(title).toContain('login_pressed');
+    expect(title).toContain('WARN');
+    expect(title).toContain('1.0.0');
+  });
+
+  it('falls back to severityNumber when severityText is null', () => {
+    const title = formatLogCandidateTitle(
+      makeCustomEventEvt({ severityText: null, severityNumber: 13 })
+    );
+    expect(title).toContain('13');
+  });
+
+  it('shows "-" for severity when both fields are null', () => {
+    const title = formatLogCandidateTitle(makeCustomEventEvt());
+    expect(title).toContain('login_pressed · -');
   });
 });

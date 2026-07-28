@@ -1,15 +1,26 @@
 import {
   AppObserveCustomEvent,
+  AppObserveCustomEventListOrderByField,
   AppObserveEvent,
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
 } from '../../graphql/generated';
 import { fetchObserveCustomEventsAsync } from '../fetchCustomEvents';
 import { fetchObserveEventsAsync } from '../fetchEvents';
-import { fetchObserveSessionEventsAsync } from '../fetchSessions';
+import {
+  fetchObserveSessionEventsAsync,
+  fetchSessionLogCandidatesAsync,
+  fetchSessionMetricCandidatesAsync,
+} from '../fetchSessions';
 
 jest.mock('../fetchCustomEvents');
-jest.mock('../fetchEvents');
+jest.mock('../fetchEvents', () => {
+  const actual = jest.requireActual('../fetchEvents');
+  return {
+    ...actual,
+    fetchObserveEventsAsync: jest.fn(),
+  };
+});
 
 const mockFetchObserveEventsAsync = jest.mocked(fetchObserveEventsAsync);
 const mockFetchObserveCustomEventsAsync = jest.mocked(fetchObserveCustomEventsAsync);
@@ -189,5 +200,151 @@ describe('fetchObserveSessionEventsAsync', () => {
 
     expect(result.hasMoreMetricEvents).toBe(true);
     expect(result.hasMoreLogEvents).toBe(false);
+  });
+});
+
+describe('fetchSessionMetricCandidatesAsync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetchObserveEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+  });
+
+  it('forwards metricName, sort, window, and limit into fetchObserveEventsAsync', async () => {
+    await fetchSessionMetricCandidatesAsync({} as any, 'project-1', {
+      metricName: 'expo.app_startup.tti',
+      sort: 'slowest',
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    const options = mockFetchObserveEventsAsync.mock.calls[0][2];
+    expect(options.metricName).toBe('expo.app_startup.tti');
+    expect(options.limit).toBe(25);
+    expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
+    expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
+    expect(options.orderBy).toEqual({
+      field: AppObserveEventsOrderByField.MetricValue,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+
+  it('filters out events without a sessionId', async () => {
+    mockFetchObserveEventsAsync.mockResolvedValue({
+      events: [
+        makeMetricEvent({ id: 'evt-1', sessionId: 'session-a' }),
+        makeMetricEvent({ id: 'evt-2', sessionId: null }),
+        makeMetricEvent({ id: 'evt-3', sessionId: 'session-b' }),
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const result = await fetchSessionMetricCandidatesAsync({} as any, 'project-1', {
+      metricName: 'expo.app_startup.tti',
+      sort: 'newest',
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    expect(result.map(e => e.id)).toEqual(['evt-1', 'evt-3']);
+  });
+});
+
+describe('fetchSessionLogCandidatesAsync', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+  });
+
+  it('forwards eventName, window, and limit into fetchObserveCustomEventsAsync', async () => {
+    await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: false,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBe('login_pressed');
+    expect(options.limit).toBe(25);
+    expect(options.startTime).toBe('2025-01-01T00:00:00.000Z');
+    expect(options.endTime).toBe('2025-02-01T00:00:00.000Z');
+  });
+
+  it('requests descending timestamp order when orderAscending is false', async () => {
+    await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: false,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
+      field: AppObserveCustomEventListOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Desc,
+    });
+  });
+
+  it('requests ascending timestamp order when orderAscending is true', async () => {
+    await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: true,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+
+    expect(mockFetchObserveCustomEventsAsync.mock.calls[0][2].orderBy).toEqual({
+      field: AppObserveCustomEventListOrderByField.Timestamp,
+      direction: AppObserveEventsOrderByDirection.Asc,
+    });
+  });
+
+  it('preserves the server-provided order (no client-side re-sorting)', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [
+        makeCustomEvent({ id: 'c', timestamp: '2025-01-15T10:10:00.000Z' }),
+        makeCustomEvent({ id: 'b', timestamp: '2025-01-15T10:05:00.000Z' }),
+        makeCustomEvent({ id: 'a', timestamp: '2025-01-15T10:00:00.000Z' }),
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const result = await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: false,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+    expect(result.map(e => e.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('filters out events without a sessionId', async () => {
+    mockFetchObserveCustomEventsAsync.mockResolvedValue({
+      events: [
+        makeCustomEvent({ id: 'a', sessionId: 'session-a' }),
+        makeCustomEvent({ id: 'b', sessionId: null }),
+      ],
+      pageInfo: { hasNextPage: false, hasPreviousPage: false },
+    });
+
+    const result = await fetchSessionLogCandidatesAsync({} as any, 'project-1', {
+      eventName: 'login_pressed',
+      orderAscending: false,
+      startTime: '2025-01-01T00:00:00.000Z',
+      endTime: '2025-02-01T00:00:00.000Z',
+      limit: 25,
+    });
+    expect(result.map(e => e.id)).toEqual(['a']);
   });
 });

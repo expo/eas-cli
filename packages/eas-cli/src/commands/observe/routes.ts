@@ -1,7 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import { fetchObserveNavigationRoutesAsync } from '../../observe/fetchNavigationRoutes';
@@ -21,6 +24,7 @@ import {
   resolveNavigationStatKey,
 } from '../../observe/formatNavigationRoutes';
 import { NAVIGATION_METRIC_ALIASES, resolveNavigationMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -81,16 +85,17 @@ export default class ObserveRoutes extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveRoutes);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveRoutes,
       loggedInOnlyContextDefinition: ObserveRoutes.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -109,10 +114,8 @@ export default class ObserveRoutes extends EasCommand {
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
     const platforms = appPlatformsFromFlag(flags.platform);
 
-    const { routes, pageInfoByPlatform } = await fetchObserveNavigationRoutesAsync(
-      graphqlClient,
-      projectId,
-      {
+    const { routes, pageInfoByPlatform } = await withObservePlanGateHandlingAsync(() =>
+      fetchObserveNavigationRoutesAsync(graphqlClient, projectId, {
         startTime,
         endTime,
         platforms,
@@ -122,10 +125,10 @@ export default class ObserveRoutes extends EasCommand {
         updateId: flags['update-id'],
         buildNumber: flags['build-number'],
         routeNames,
-      }
+      })
     );
 
-    if (flags.json) {
+    if (json) {
       const stats = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
         buildObserveNavigationRoutesJson(routes, metricNames, stats, pageInfoByPlatform)

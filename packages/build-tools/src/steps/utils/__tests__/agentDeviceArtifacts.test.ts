@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
 
 import { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
   listAgentDeviceArtifactsAsync,
@@ -11,6 +12,7 @@ import {
 } from '../agentDeviceArtifacts';
 
 jest.mock('../deviceRunSessionArtifacts');
+jest.mock('../../../sentry');
 jest.mock('node-fetch');
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
@@ -185,12 +187,53 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.mocked(fetch).mockReset();
+    jest.mocked(Sentry.capture).mockReset();
     jest.mocked(uploadDeviceRunSessionArtifactAsync).mockReset();
   });
 
   afterEach(() => {
     jest.clearAllTimers();
     jest.useRealTimers();
+  });
+
+  it('reports artifact listing errors on every fifth consecutive failure', async () => {
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+    const error = new Error('daemon is not ready');
+
+    jest.mocked(fetch).mockRejectedValue(error);
+
+    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger,
+    });
+
+    await flushPromisesAsync();
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(Sentry.capture).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(20_000);
+    await flushPromisesAsync();
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(5);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenLastCalledWith(
+      { err: error, failedArtifactListCount: 5 },
+      'Could not list agent-device remote session artifacts.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(25_000);
+    await flushPromisesAsync();
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(10);
+    expect(logger.warn).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenLastCalledWith(
+      { err: error, failedArtifactListCount: 10 },
+      'Could not list agent-device remote session artifacts.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledTimes(2);
   });
 
   it('retries an artifact after a failed upload', async () => {

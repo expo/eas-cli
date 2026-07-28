@@ -1,5 +1,6 @@
 import {
   getMetricDisplayName,
+  isKnownMetricName,
   resolveMetricName,
   resolveNavigationMetricName,
 } from '../metricNames';
@@ -108,5 +109,33 @@ describe(getMetricDisplayName, () => {
 
   it('returns the full metric name for unknown metrics', () => {
     expect(getMetricDisplayName('custom.metric.name')).toBe('custom.metric.name');
+  });
+});
+
+describe(isKnownMetricName, () => {
+  it('returns true for app-startup short aliases', () => {
+    expect(isKnownMetricName('tti')).toBe(true);
+    expect(isKnownMetricName('cold_launch')).toBe(true);
+    expect(isKnownMetricName('bundle_load')).toBe(true);
+  });
+
+  it('returns true for navigation short aliases', () => {
+    expect(isKnownMetricName('nav_cold_ttr')).toBe(true);
+    expect(isKnownMetricName('nav_warm_ttr')).toBe(true);
+    expect(isKnownMetricName('nav_tti')).toBe(true);
+  });
+
+  it('returns true for full metric names', () => {
+    expect(isKnownMetricName('expo.app_startup.tti')).toBe(true);
+    expect(isKnownMetricName('expo.navigation.cold_ttr')).toBe(true);
+  });
+
+  it('returns false for unknown names (including custom event names)', () => {
+    expect(isKnownMetricName('login_pressed')).toBe(false);
+    expect(isKnownMetricName('some_random_event')).toBe(false);
+    expect(isKnownMetricName('')).toBe(false);
+    // A dotted name that isn't in the known-full set is still not "known"
+    // for picker purposes; the picker treats it as a log event.
+    expect(isKnownMetricName('custom.metric.name')).toBe(false);
   });
 });
