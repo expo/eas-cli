@@ -99,6 +99,7 @@ function makeCreatedDeviceRunSession(
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -189,6 +190,7 @@ describe(SimulatorStart, () => {
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -278,6 +280,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -297,6 +300,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -323,6 +327,48 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+  });
+
+  it('forwards --name to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      'Checkout regression',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('trims --name before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      '  Checkout regression  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('omits a blank --name instead of letting the server reject it', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--name', '   ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: undefined })
+    );
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {

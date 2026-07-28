@@ -5081,6 +5081,11 @@ export type CreateDeviceRunSessionInput = {
    */
   maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
   /**
+   * Human-readable label for the session, at most 255 characters. If omitted, the
+   * session is unnamed and clients fall back to identifying it by id.
+   */
+  name?: InputMaybe<Scalars['String']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
@@ -5836,6 +5841,11 @@ export type DeviceRunSession = {
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
   initiatingActor?: Maybe<Actor>;
+  /**
+   * Human-readable label chosen by whoever started the session. Null when the
+   * session was started without one.
+   */
+  name?: Maybe<Scalars['String']['output']>;
   /**
    * The version of the package backing the device run session. Null means the session is
    * pinned to "latest" at the consumer side.
@@ -14579,7 +14589,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
+export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string }
@@ -14593,7 +14603,7 @@ export type DeviceRunSessionsByAppIdQueryVariables = Exact<{
 }>;
 
 
-export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
+export type DeviceRunSessionsByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, deviceRunSessionsPaginated: { __typename?: 'AppDeviceRunSessionsConnection', edges: Array<{ __typename?: 'AppDeviceRunSessionEdge', cursor: string, node: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } } } };
 
 export type ViewEmbeddedUpdateByIdQueryVariables = Exact<{
   embeddedUpdateId: Scalars['ID']['input'];

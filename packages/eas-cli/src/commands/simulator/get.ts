@@ -85,6 +85,7 @@ export default class SimulatorGet extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: session.id,
+        name: session.name ?? undefined,
         type: deviceRunSessionTypeToFlagValue(session.type),
         status: session.status,
         platform: session.platform,
@@ -120,6 +121,7 @@ export default class SimulatorGet extends EasCommand {
 function formatSessionFields(session: DeviceRunSessionById, deviceRunSessionUrl: string): string {
   return formatFields([
     { label: 'ID', value: session.id },
+    { label: 'Name', value: formatNullable(session.name) },
     { label: 'Type', value: session.type },
     { label: 'Status', value: session.status },
     { label: 'Platform', value: session.platform },

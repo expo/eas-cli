@@ -61,6 +61,10 @@ export default class SimulatorStart extends EasCommand {
       description: 'Device platform',
       options: PLATFORM_FLAG_VALUES,
     })(),
+    name: Flags.string({
+      description:
+        'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -111,6 +115,10 @@ export default class SimulatorStart extends EasCommand {
       nonInteractive,
     });
 
+    // The server rejects blank names, so trim here and treat a whitespace-only
+    // --name as if it had been omitted rather than surfacing a validation error.
+    const name = flags.name?.trim() || undefined;
+
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
     if (existingDeviceRunSessionId && !flags.force) {
@@ -136,6 +144,7 @@ export default class SimulatorStart extends EasCommand {
     try {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
+        name,
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
@@ -224,6 +233,7 @@ export default class SimulatorStart extends EasCommand {
     if (jsonFlag) {
       printJsonOnlyOutput({
         id: deviceRunSessionId,
+        name,
         type: flags.type,
         deviceRunSessionUrl,
         remoteConfig,
