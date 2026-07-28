@@ -97,15 +97,14 @@ export async function configureExpoUpdatesIfInstalledAsync(
     return;
   }
 
-  const appConfigRuntimeVersion =
-    ctx.job.version?.runtimeVersion ?? resolvedRuntime.resolvedRuntimeVersion;
+  const resolvedRuntimeVersion = resolvedRuntime.resolvedRuntimeVersion;
 
-  if (ctx.metadata?.runtimeVersion && ctx.metadata.runtimeVersion !== appConfigRuntimeVersion) {
+  if (ctx.metadata?.runtimeVersion && ctx.metadata.runtimeVersion !== resolvedRuntimeVersion) {
     ctx.logger.warn(
       `
 Runtime version mismatch:
 - Runtime version calculated on local machine: ${ctx.metadata.runtimeVersion}
-- Runtime version calculated on EAS: ${appConfigRuntimeVersion}
+- Runtime version calculated on EAS: ${resolvedRuntimeVersion}
 
 This may be due to one or more factors:
 - Differing result of conditional app config (app.config.js) evaluation for runtime version resolution.
@@ -149,11 +148,6 @@ This would cause any updates published on the local machine to not be compatible
         ctx.markBuildPhaseHasWarnings();
       }
     }
-  }
-
-  if (ctx.job.version?.runtimeVersion) {
-    ctx.logger.info('Updating runtimeVersion in Expo.plist');
-    await setRuntimeVersionNativelyAsync(ctx, ctx.job.version.runtimeVersion);
   }
 }
 
