@@ -2149,6 +2149,12 @@ export type AppObserve = {
   errorTimeSeries: AppObserveErrorTimeSeries;
   events: AppObserveEventsConnection;
   navigationRoutes: AppObserveNavigationRoutesConnection;
+  /** Active users and sessions for the Overview engagement band, across all versions. */
+  overviewEngagement: AppObserveOverviewEngagement;
+  /** Per-update comparison within one app version: the embedded bundle plus each OTA update. */
+  overviewUpdateComparison: AppObserveOverviewUpdateComparison;
+  /** Per-version, per-platform metric summaries for the Overview version-comparison matrix. */
+  overviewVersionComparison: AppObserveOverviewVersionComparison;
   timeSeries: AppObserveTimeSeries;
   totalEventCount: Scalars['Int']['output'];
   /**
@@ -2242,6 +2248,21 @@ export type AppObserveNavigationRoutesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveNavigationRoutesOrderBy>;
+};
+
+
+export type AppObserveOverviewEngagementArgs = {
+  input: AppObserveOverviewEngagementInput;
+};
+
+
+export type AppObserveOverviewUpdateComparisonArgs = {
+  input: AppObserveOverviewUpdateComparisonInput;
+};
+
+
+export type AppObserveOverviewVersionComparisonArgs = {
+  input: AppObserveOverviewVersionComparisonInput;
 };
 
 
@@ -2808,6 +2829,132 @@ export type AppObserveNavigationStat = {
   count: Scalars['Int']['output'];
   median?: Maybe<Scalars['Float']['output']>;
   p90?: Maybe<Scalars['Float']['output']>;
+};
+
+export type AppObserveOverviewEngagement = {
+  __typename?: 'AppObserveOverviewEngagement';
+  activeUsers: AppObserveOverviewEngagementStat;
+  sessions: AppObserveOverviewEngagementStat;
+};
+
+export type AppObserveOverviewEngagementBucket = {
+  __typename?: 'AppObserveOverviewEngagementBucket';
+  bucketStart: Scalars['DateTime']['output'];
+  count: Scalars['Int']['output'];
+};
+
+/** Engagement-band filters. No release filters: the band always spans all versions. */
+export type AppObserveOverviewEngagementInput = {
+  /** Series bucket size. Defaults to one day. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppObservePlatform>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveOverviewEngagementStat = {
+  __typename?: 'AppObserveOverviewEngagementStat';
+  previousPeriodTotal: Scalars['Int']['output'];
+  /** Per-bucket approximate uniques; buckets do not sum to `total`. */
+  series: Array<AppObserveOverviewEngagementBucket>;
+  total: Scalars['Int']['output'];
+};
+
+export type AppObserveOverviewStability = {
+  __typename?: 'AppObserveOverviewStability';
+  affectedUsers: Scalars['Int']['output'];
+  /** Fraction (0..1) of active sessions without a fatal error. */
+  crashFreeSessions: Scalars['Float']['output'];
+  /** Fraction (0..1) of active users without a fatal error. */
+  crashFreeUsers: Scalars['Float']['output'];
+  totalErrors: Scalars['Int']['output'];
+};
+
+export type AppObserveOverviewUpdate = {
+  __typename?: 'AppObserveOverviewUpdate';
+  /** Null for the embedded bundle. */
+  appUpdateId?: Maybe<Scalars['ID']['output']>;
+  /** Downloads recorded in range; null when none were recorded (and always for the embedded bundle). */
+  downloadCount?: Maybe<Scalars['Int']['output']>;
+  eventCount: Scalars['Int']['output'];
+  firstSeenAt: Scalars['DateTime']['output'];
+  isEmbedded: Scalars['Boolean']['output'];
+  medianDownloadTime?: Maybe<Scalars['Float']['output']>;
+  /** EAS update message; null for the embedded bundle or when the update row no longer exists. */
+  message?: Maybe<Scalars['String']['output']>;
+  /** One entry per metric with data in range, all platforms combined. */
+  metrics: Array<AppObserveOverviewUpdateMetric>;
+  /** When the update was published; null for the embedded bundle. */
+  publishedAt?: Maybe<Scalars['DateTime']['output']>;
+  stability: AppObserveOverviewStability;
+  uniqueUserCount: Scalars['Int']['output'];
+};
+
+export type AppObserveOverviewUpdateComparison = {
+  __typename?: 'AppObserveOverviewUpdateComparison';
+  /** Embedded bundle first, then OTA updates oldest first. Only updates with runtime data appear. */
+  updates: Array<AppObserveOverviewUpdate>;
+};
+
+export type AppObserveOverviewUpdateComparisonInput = {
+  appVersion: Scalars['String']['input'];
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Metric names to aggregate. Defaults to all metrics available on the account's plan. */
+  metricNames?: InputMaybe<Array<Scalars['String']['input']>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveOverviewUpdateMetric = {
+  __typename?: 'AppObserveOverviewUpdateMetric';
+  eventCount: Scalars['Int']['output'];
+  metricName: Scalars['String']['output'];
+  statistics: AppObserveVersionMarkerStatistics;
+};
+
+export type AppObserveOverviewVersion = {
+  __typename?: 'AppObserveOverviewVersion';
+  appVersion: Scalars['String']['output'];
+  firstSeenAt: Scalars['DateTime']['output'];
+  /** One entry per (metric, platform) with data in range; iOS includes tvOS and iPadOS. */
+  metrics: Array<AppObserveOverviewVersionMetric>;
+  /** Error stats for this version, all platforms combined. */
+  stability: AppObserveOverviewStability;
+  uniqueUserCount: Scalars['Int']['output'];
+};
+
+export type AppObserveOverviewVersionComparison = {
+  __typename?: 'AppObserveOverviewVersionComparison';
+  /** Every version with data in range, highest version first, for the version picker. */
+  allVersions: Array<AppObserveOverviewVersionSummary>;
+  /** Compared versions, lowest version first. Requested versions with no data are omitted. */
+  versions: Array<AppObserveOverviewVersion>;
+};
+
+export type AppObserveOverviewVersionComparisonInput = {
+  /** Versions to compare (max 10, any order). Defaults to the three highest versions. */
+  appVersions?: InputMaybe<Array<Scalars['String']['input']>>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  /** Metric names to aggregate. Defaults to all metrics available on the account's plan. */
+  metricNames?: InputMaybe<Array<Scalars['String']['input']>>;
+  startTime: Scalars['DateTime']['input'];
+};
+
+export type AppObserveOverviewVersionMetric = {
+  __typename?: 'AppObserveOverviewVersionMetric';
+  eventCount: Scalars['Int']['output'];
+  metricName: Scalars['String']['output'];
+  platform: AppObservePlatform;
+  statistics: AppObserveVersionMarkerStatistics;
+};
+
+export type AppObserveOverviewVersionSummary = {
+  __typename?: 'AppObserveOverviewVersionSummary';
+  appVersion: Scalars['String']['output'];
+  firstSeenAt: Scalars['DateTime']['output'];
+  uniqueUserCount: Scalars['Int']['output'];
 };
 
 export enum AppObservePlatform {
@@ -10746,6 +10893,11 @@ export type User = Actor & UserActor & {
   lastName?: Maybe<Scalars['String']['output']>;
   newEmailPendingVerification?: Maybe<Scalars['String']['output']>;
   oAuthIdentities: Array<OAuthIdentity>;
+  /**
+   * The organization created during signup onboarding: the most recently
+   * created organization this user owns. Only resolves for the viewer.
+   */
+  onboardingOrganization?: Maybe<Account>;
   /** Registered passkey credentials */
   passkeyCredentials: Array<UserPasskeyCredential>;
   /** Pending UserInvitations for this user. Only resolves for the viewer. */
