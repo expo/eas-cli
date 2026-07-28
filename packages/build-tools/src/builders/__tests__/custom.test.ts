@@ -9,18 +9,23 @@ import { BuildContext } from '../../context';
 import { CustomBuildContext } from '../../customBuildContext';
 import { Datadog } from '../../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../../ios/xcodeBuildLogs';
+import { uploadJobOutputsToWwwAsync } from '../../utils/outputs';
 import { runCustomBuildAsync } from '../custom';
 
 jest.mock('../../common/projectSources');
 jest.mock('../../ios/xcodeBuildLogs');
+jest.mock('../../utils/outputs');
 
 const findAndUploadXcodeBuildLogsAsyncMock = jest.mocked(findAndUploadXcodeBuildLogsAsync);
+const uploadJobOutputsToWwwAsyncMock = jest.mocked(uploadJobOutputsToWwwAsync);
 
 describe(runCustomBuildAsync, () => {
   let ctx: BuildContext<BuildJob>;
   const datadogLogSpy = jest.spyOn(Datadog, 'log');
 
   beforeEach(() => {
+    jest.clearAllMocks();
+
     const job = createTestIosJob();
 
     jest.mocked(prepareProjectSourcesAsync).mockImplementation(async () => {
@@ -70,6 +75,19 @@ describe(runCustomBuildAsync, () => {
         uploadArtifact: jest.fn(),
       }
     );
+  });
+
+  it('uploads job outputs after workflow execution', async () => {
+    ctx.job.outputs = {
+      ios_build_type: 'simulator',
+    };
+
+    await runCustomBuildAsync(ctx);
+
+    expect(uploadJobOutputsToWwwAsyncMock).toHaveBeenCalledWith(expect.anything(), {
+      logger: ctx.logger,
+      expoApiV2BaseUrl: undefined,
+    });
   });
 
   it('calls findAndUploadXcodeBuildLogsAsync in an iOS job if its artifacts is empty', async () => {
@@ -161,6 +179,24 @@ describe(runCustomBuildAsync, () => {
     expect(rejected).toBe(true);
 
     drainSpy.mockRestore();
+    executeSpy.mockRestore();
+  });
+
+  it('attempts to upload job outputs when workflow execution throws', async () => {
+    ctx.job.outputs = {
+      ios_build_type: '${{ failure() }}',
+    };
+
+    const executeSpy = jest
+      .spyOn(BuildWorkflow.prototype, 'executeAsync')
+      .mockRejectedValue(new Error('workflow failed'));
+
+    await expect(runCustomBuildAsync(ctx)).rejects.toThrow('workflow failed');
+    expect(uploadJobOutputsToWwwAsyncMock).toHaveBeenCalledWith(expect.anything(), {
+      logger: ctx.logger,
+      expoApiV2BaseUrl: undefined,
+    });
+
     executeSpy.mockRestore();
   });
 });
