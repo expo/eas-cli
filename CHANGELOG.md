@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Apply --session-id in observe:events summary mode. ([#4100](https://github.com/expo/eas-cli/pull/4100) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Suggest running `agent-device` via `npx` in EAS Simulator session instructions. ([#4070](https://github.com/expo/eas-cli/pull/4070) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores

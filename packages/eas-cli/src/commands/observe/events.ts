@@ -55,7 +55,8 @@ export default class ObserveEvents extends EasCommand {
     ...ObserveAppVersionFlag,
     ...ObserveUpdateIdFlag,
     'session-id': Flags.string({
-      description: 'Filter by session ID',
+      description:
+        'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
     'all-events': Flags.boolean({
       description:
@@ -101,7 +102,10 @@ export default class ObserveEvents extends EasCommand {
 
     const platform = appObservePlatformFromFlag(flags.platform);
 
-    if (!args.eventName && !flags['all-events']) {
+    // A session ID narrows to a single session, so show that session's events
+    // (like --all-events) instead of the account-wide name+count summary, which
+    // has no session filter.
+    if (!args.eventName && !flags['all-events'] && !flags['session-id']) {
       const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
         ObserveQuery.customEventNamesAsync(graphqlClient, {
           appId: projectId,
