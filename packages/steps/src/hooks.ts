@@ -13,7 +13,7 @@ import { BuildFunctionGroup, createBuildFunctionGroupByIdMapping } from './Build
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
-import { CompositeFunctionExpander, FunctionMapsWithExpander } from './CompositeFunctionExpander';
+import { CompositeFunctionExpander } from './CompositeFunctionExpander';
 import { BuildConfigError, BuildWorkflowError } from './errors';
 import {
   isLocalCompositeFunctionPath,
@@ -92,14 +92,14 @@ export async function constructHookEntriesAsync(
     externalFunctionIds: Object.keys(buildFunctionById),
     externalFunctionGroupIds: Object.keys(buildFunctionGroupById),
   });
-  return constructHookEntriesFromValidatedSteps(ctx, validatedSteps, {
-    buildFunctionById,
-    buildFunctionGroupById,
-    compositeFunctionExpander: new CompositeFunctionExpander(ctx, compositeFunctionCatalog ?? {}, {
+  return constructHookEntriesFromValidatedSteps(
+    ctx,
+    validatedSteps,
+    new CompositeFunctionExpander(ctx, compositeFunctionCatalog ?? {}, {
       buildFunctionById,
       buildFunctionGroupById,
-    }),
-  });
+    })
+  );
 }
 
 /**
@@ -123,7 +123,7 @@ export async function validateHookStepsAsync(
 export function constructHookEntriesFromValidatedSteps(
   ctx: BuildStepGlobalContext,
   validatedSteps: Step[],
-  { buildFunctionById, buildFunctionGroupById, compositeFunctionExpander }: FunctionMapsWithExpander
+  compositeFunctionExpander: CompositeFunctionExpander
 ): HookEntry[] {
   const entries: HookEntry[] = [];
   for (const step of validatedSteps) {
@@ -145,7 +145,7 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    const maybeFunctionGroup = buildFunctionGroupById[step.uses];
+    const maybeFunctionGroup = compositeFunctionExpander.buildFunctionGroupById[step.uses];
     if (maybeFunctionGroup !== undefined) {
       entries.push({
         steps: maybeFunctionGroup.createBuildStepsFromFunctionGroupCall(ctx, {
@@ -155,7 +155,7 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    const buildFunction = buildFunctionById[step.uses];
+    const buildFunction = compositeFunctionExpander.buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
     entries.push({
       steps: [

@@ -45,10 +45,6 @@ export type FunctionMaps = {
   buildFunctionGroupById: BuildFunctionGroupById;
 };
 
-export type FunctionMapsWithExpander = FunctionMaps & {
-  compositeFunctionExpander: CompositeFunctionExpander;
-};
-
 type CompositeFunctionCall = {
   compositeFunctionPath: string;
   /** Caller-assigned id used as prefix for all inner step ids. */
@@ -73,6 +69,14 @@ export class CompositeFunctionExpander {
     private readonly compositeFunctionCatalog: CompositeFunctionCatalog,
     private readonly functionMaps: FunctionMaps
   ) {}
+
+  public get buildFunctionById(): BuildFunctionById {
+    return this.functionMaps.buildFunctionById;
+  }
+
+  public get buildFunctionGroupById(): BuildFunctionGroupById {
+    return this.functionMaps.buildFunctionGroupById;
+  }
 
   public expandCompositeFunctionStep(
     step: FunctionStep,
