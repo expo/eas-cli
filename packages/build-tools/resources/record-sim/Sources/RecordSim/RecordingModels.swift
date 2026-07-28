@@ -72,6 +72,7 @@ public struct RecordingManifest: Codable, Sendable {
     public let hlsTargetDurationSeconds: Int?
     public let hlsMediaSequence: Int?
     public let recording: String?
+    public let thumbnail: String?
     public let initSegment: String?
     public let segments: [MediaSegmentRecord]
 }

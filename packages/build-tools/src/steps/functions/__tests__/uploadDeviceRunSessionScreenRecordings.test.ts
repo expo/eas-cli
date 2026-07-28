@@ -20,23 +20,33 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
     jest
       .mocked(uploadDeviceRunSessionArtifactAsync)
       .mockReset()
-      .mockImplementation(async (_ctx, { stream }) => {
-        await new Promise<void>((resolve, reject) => {
-          stream.once('end', resolve);
-          stream.once('error', reject);
-          stream.resume();
-        });
+      .mockImplementation(async (_ctx, { stream, thumbnail }) => {
+        await Promise.all(
+          [stream, thumbnail?.stream]
+            .filter(value => value !== undefined)
+            .map(
+              streamToConsume =>
+                new Promise<void>((resolve, reject) => {
+                  streamToConsume.once('end', resolve);
+                  streamToConsume.once('error', reject);
+                  streamToConsume.resume();
+                })
+            )
+        );
       });
   });
 
   it('uploads simulator device metadata', async () => {
     const recordingDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'ios-recording-test-'));
     const recordingPath = path.join(recordingDirectory, 'recording.mp4');
+    const thumbnailPath = path.join(recordingDirectory, 'thumbnail.png');
     await fs.writeFile(recordingPath, 'recording');
+    await fs.writeFile(thumbnailPath, 'thumbnail');
     await fs.writeFile(
       path.join(recordingDirectory, 'session.json'),
       JSON.stringify({
         recording: path.basename(recordingPath),
+        thumbnail: path.basename(thumbnailPath),
         firstFrameWallClock: { iso8601: '2026-07-10T10:00:00.000Z' },
         width: 1179,
         height: 2556,
@@ -79,6 +89,10 @@ describe(createUploadDeviceRunSessionScreenRecordingsBuildFunction, () => {
             width: 1179,
             height: 2556,
           },
+          thumbnail: expect.objectContaining({
+            filename: 'thumbnail.png',
+            size: 9,
+          }),
         })
       );
     } finally {

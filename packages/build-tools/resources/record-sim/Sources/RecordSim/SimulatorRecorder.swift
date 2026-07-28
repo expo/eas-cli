@@ -458,7 +458,7 @@ public final class SimulatorRecorder {
         capturedAt: CMTime,
         capturedAtWallClock: Date
     ) throws {
-        guard let writer, let input, let adaptor else {
+        guard let writer, let input, let adaptor, let outputWriter else {
             throw RecorderError.make(43, "AVAssetWriter is not initialized")
         }
         let isFirstFrame = firstAcceptedCaptureTime == nil
@@ -476,6 +476,7 @@ public final class SimulatorRecorder {
             throw writer.error ?? RecorderError.make(44, "Failed to append pixel buffer")
         }
         if isFirstFrame {
+            try? outputWriter.writeThumbnail(pixelBuffer: pixelBuffer)
             firstAcceptedCaptureTime = capturedAt
             firstAcceptedWallClock = capturedAtWallClock
         }

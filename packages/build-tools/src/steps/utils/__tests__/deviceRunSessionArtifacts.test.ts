@@ -15,6 +15,7 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
 
   it('streams an artifact through a signed upload URL', async () => {
     const stream = Readable.from(Buffer.from('artifact-data'));
+    const thumbnailStream = Readable.from(Buffer.from('thumbnail-data'));
     const reportedSize = 1024;
     const mutation = jest.fn().mockReturnValue({
       toPromise: async () => ({
@@ -25,6 +26,13 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
                 url: 'https://uploads.expo.test/artifact',
                 headers: {
                   'Content-Length': String(reportedSize),
+                  'Content-Type': 'application/octet-stream',
+                },
+              },
+              thumbnailUploadSession: {
+                url: 'https://uploads.expo.test/thumbnail',
+                headers: {
+                  'Content-Length': '14',
                   'Content-Type': 'application/octet-stream',
                 },
               },
@@ -39,7 +47,10 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       },
     } as unknown as CustomBuildContext;
 
-    jest.mocked(fetch).mockResolvedValueOnce(new Response('', { status: 200 }));
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response('', { status: 200 }))
+      .mockResolvedValueOnce(new Response('', { status: 200 }));
 
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId: 'drs-id',
@@ -50,6 +61,11 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       metadata: { firstFrameRecordAt: 'test-time' },
       size: reportedSize,
       stream,
+      thumbnail: {
+        filename: 'thumbnail.png',
+        size: 14,
+        stream: thumbnailStream,
+      },
     });
 
     expect(mutation).toHaveBeenCalledWith(
@@ -62,6 +78,10 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
           kind: 'agent-device-test-report',
           metadata: { firstFrameRecordAt: 'test-time' },
           size: reportedSize,
+          thumbnail: {
+            filename: 'thumbnail.png',
+            size: 14,
+          },
         },
       })
     );
@@ -70,6 +90,13 @@ describe(uploadDeviceRunSessionArtifactAsync, () => {
       expect.objectContaining({
         method: 'PUT',
         body: stream,
+      })
+    );
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      'https://uploads.expo.test/thumbnail',
+      expect.objectContaining({
+        method: 'PUT',
+        body: thumbnailStream,
       })
     );
   });

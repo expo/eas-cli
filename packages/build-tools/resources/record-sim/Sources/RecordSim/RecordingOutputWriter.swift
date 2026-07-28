@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import Foundation
 
 final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
@@ -11,6 +12,7 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
     private var initSegmentPath: String?
     private var segments: [MediaSegmentRecord] = []
     private var nextMediaSegmentIndex = 0
+    private var thumbnailPath: String?
     private var firstError: Error?
 
     init(rootDirectory: URL, onSegment: ((SegmentOutput) -> Void)?) {
@@ -33,6 +35,27 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
 
     var error: Error? {
         stateQueue.sync { firstError }
+    }
+
+    func writeThumbnail(pixelBuffer: CVPixelBuffer) throws {
+        let relativePath = "thumbnail.png"
+        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        let longestEdge = max(image.extent.width, image.extent.height)
+        guard longestEdge > 0 else {
+            throw RecorderError.make(52, "Cannot create thumbnail from an empty frame")
+        }
+
+        let scale = min(1, 640 / longestEdge)
+        let thumbnail = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        try CIContext().writePNGRepresentation(
+            of: thumbnail,
+            to: rootDirectory.appendingPathComponent(relativePath),
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+        stateQueue.sync {
+            thumbnailPath = relativePath
+        }
     }
 
     func assetWriter(
@@ -129,6 +152,7 @@ final class RecordingOutputWriter: NSObject, AVAssetWriterDelegate {
                 hlsTargetDurationSeconds: targetDuration,
                 hlsMediaSequence: segmented ? 0 : nil,
                 recording: segmented ? nil : "recording.mp4",
+                thumbnail: thumbnailPath,
                 initSegment: segmented ? initSegmentPath : nil,
                 segments: segments
             )

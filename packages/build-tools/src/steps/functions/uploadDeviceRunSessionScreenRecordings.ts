@@ -33,6 +33,7 @@ const RecordingManifestSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   recording: z.string(),
+  thumbnail: z.string().optional(),
 });
 
 const recordingStartTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -94,6 +95,10 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
               const displayName = `${recording.deviceName} screen recording (${shortUdid}, started at ${startedAt})`;
               const recordingPath = path.join(recording.directory, metadata.recording);
               const { size } = await stat(recordingPath);
+              const thumbnailPath = metadata.thumbnail
+                ? path.join(recording.directory, metadata.thumbnail)
+                : null;
+              const thumbnailSize = thumbnailPath ? (await stat(thumbnailPath)).size : null;
               const recordingId = path.basename(recording.directory);
               logger.info(
                 `Uploading screen recording for ${recording.deviceName} (${formatBytes(size)}).`
@@ -116,6 +121,15 @@ export function createUploadDeviceRunSessionScreenRecordingsBuildFunction(
                 },
                 size,
                 stream: createReadStream(recordingPath),
+                ...(thumbnailPath && thumbnailSize !== null
+                  ? {
+                      thumbnail: {
+                        filename: path.basename(thumbnailPath),
+                        size: thumbnailSize,
+                        stream: createReadStream(thumbnailPath),
+                      },
+                    }
+                  : {}),
               });
             } catch (err) {
               const error = err instanceof Error ? err : new Error(String(err));
