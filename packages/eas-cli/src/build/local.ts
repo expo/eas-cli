@@ -1,5 +1,6 @@
 import { Env, Job, Metadata, version } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
+import chalk from 'chalk';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
@@ -88,10 +89,61 @@ export async function runLocalBuildAsync(
     });
     childProcess = spawnPromise.child;
     await spawnPromise;
+  } catch (error) {
+    // The plugin's build output is already streamed to the terminal; add a
+    // concise context summary to help debug the failure. Never dump the raw
+    // job/metadata, which contains build credentials.
+    spinner?.stop();
+    logLocalBuildDebugInfo(job, metadata);
+    throw error;
   } finally {
     process.removeListener('SIGINT', interruptHandler);
     spinner?.stop();
   }
+}
+
+/**
+ * Logs an allowlisted, non-secret summary of the build's job/metadata to help
+ * a user debug a failed local build. Only known-safe fields are included —
+ * never the raw job/metadata (which carries credentials and other secrets).
+ */
+function logLocalBuildDebugInfo(job: Job, metadata: Metadata): void {
+  // `platform` and `projectRootDirectory` live on the platform-specific job
+  // variants; read them defensively since this is best-effort logging.
+  const jobFields = job as { platform?: string; projectRootDirectory?: string };
+  const trackingContext = metadata.trackingContext ?? {};
+
+  const fields: [string, string | number | boolean | undefined][] = [
+    ['Platform', jobFields.platform],
+    ['Build profile', metadata.buildProfile],
+    ['Workflow', metadata.workflow],
+    ['Distribution', metadata.distribution],
+    ['Credentials source', metadata.credentialsSource],
+    ['Project root directory', jobFields.projectRootDirectory],
+    ['Required package manager', metadata.requiredPackageManager],
+    ['eas-cli version', metadata.cliVersion],
+    ['SDK version', metadata.sdkVersion],
+    ['Runtime version', metadata.runtimeVersion],
+    ['React Native version', metadata.reactNativeVersion],
+    ['Expo package version', metadata.expoPackageVersion],
+    ['App version', metadata.appVersion],
+    ['Fingerprint hash', metadata.fingerprintHash],
+    ['Git commit', metadata.gitCommitHash],
+    ['Git working tree dirty', metadata.isGitWorkingTreeDirty],
+    ['Build tracking ID', trackingContext.tracking_id],
+    ['Project ID', trackingContext.project_id],
+  ];
+
+  const lines = fields
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([label, value]) => `  ${label}: ${String(value)}`);
+  if (lines.length === 0) {
+    return;
+  }
+
+  Log.newLine();
+  Log.log(chalk.bold('Build context (for debugging this failed local build):'));
+  Log.log(chalk.dim(lines.join('\n')));
 }
 
 async function getCommandAndArgsAsync(): Promise<{ command: string; args: string[] }> {

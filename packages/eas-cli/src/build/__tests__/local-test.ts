@@ -1,6 +1,7 @@
 import { Job, Metadata } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 
+import Log from '../../log';
 import { runLocalBuildAsync } from '../local';
 
 jest.mock('@expo/spawn-async');
@@ -48,5 +49,47 @@ describe(runLocalBuildAsync, () => {
     const input = (spawnOptions?.env as Record<string, string>).EAS_LOCAL_BUILD_PLUGIN_INPUT;
     expect(input).toBeDefined();
     expect(decodeInput(input)).toEqual({ job, metadata });
+  });
+
+  it('logs a non-secret build context summary and re-throws on failure', async () => {
+    const richJob = {
+      type: 'managed',
+      platform: 'ios',
+      projectRootDirectory: 'apps/mobile',
+      secrets: { buildCredentials: 'super-secret' },
+    } as unknown as Job;
+    const richMetadata = {
+      buildProfile: 'production',
+      cliVersion: '21.2.0',
+      sdkVersion: '57.0.0',
+      gitCommitHash: '2c9137d8',
+      isGitWorkingTreeDirty: true,
+      requiredPackageManager: 'pnpm',
+      trackingContext: { tracking_id: 'track-123', project_id: 'proj-456' },
+    } as unknown as Metadata;
+
+    const buildError = new Error('build failed');
+    const rejected = Promise.reject(buildError);
+    rejected.catch(() => {}); // avoid an unhandled-rejection warning before it's awaited
+    mockSpawnAsync.mockReturnValue(Object.assign(rejected, { child: {} }) as any);
+
+    const logSpy = jest.spyOn(Log, 'log').mockImplementation(() => {});
+
+    await expect(runLocalBuildAsync(richJob, richMetadata, { verbose: true }, {})).rejects.toBe(
+      buildError
+    );
+
+    const output = logSpy.mock.calls.flat().join('\n');
+    // Useful debugging context is surfaced...
+    expect(output).toContain('ios');
+    expect(output).toContain('production');
+    expect(output).toContain('apps/mobile');
+    expect(output).toContain('pnpm');
+    expect(output).toContain('2c9137d8');
+    expect(output).toContain('track-123');
+    // ...but secrets are never included.
+    expect(output).not.toContain('super-secret');
+
+    logSpy.mockRestore();
   });
 });
