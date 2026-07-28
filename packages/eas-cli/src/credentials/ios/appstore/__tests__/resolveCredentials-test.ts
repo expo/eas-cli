@@ -6,6 +6,7 @@ import { promptAsync } from '../../../../prompts';
 import { AppleTeamType } from '../authenticateTypes';
 import * as Keychain from '../keychain';
 import {
+  resolveAppleTeamTypeFromEnvironment,
   resolveAppleTeamAsync,
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
@@ -73,6 +74,17 @@ const testTeam = {
   teamName: 'test-name',
   teamType: AppleTeamType.IN_HOUSE,
 };
+describe(resolveAppleTeamTypeFromEnvironment, () => {
+  it('returns undefined when EXPO_APPLE_TEAM_TYPE is not set', () => {
+    expect(resolveAppleTeamTypeFromEnvironment()).toBeUndefined();
+  });
+
+  it('returns parsed team type when EXPO_APPLE_TEAM_TYPE is set', () => {
+    process.env.EXPO_APPLE_TEAM_TYPE = AppleTeamType.COMPANY_OR_ORGANIZATION;
+    expect(resolveAppleTeamTypeFromEnvironment()).toBe(AppleTeamType.COMPANY_OR_ORGANIZATION);
+  });
+});
+
 describe(resolveAppleTeamAsync, () => {
   it(`uses option overrides over environment variables`, async () => {
     process.env.EXPO_APPLE_TEAM_ID = 'not supposed to be here';

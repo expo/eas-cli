@@ -9,12 +9,18 @@ import {
   StaticJobInterpolationContext,
 } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildRuntimePlatform, ExternalBuildContextProvider, StepMetric } from '@expo/steps';
+import {
+  BuildRuntimePlatform,
+  ExternalBuildContextProvider,
+  StepMetric,
+  WorkflowHookMetric,
+} from '@expo/steps';
 import { Client } from '@urql/core';
 import assert from 'assert';
 import path from 'path';
 
 import { ArtifactToUpload, BuildContext } from './context';
+import { reportWorkflowHookMetricToDatadog } from './utils/hookMetrics';
 import { uploadStepMetricsToWwwAsync } from './utils/stepMetrics';
 
 const platformToBuildRuntimePlatform: Record<Platform, BuildRuntimePlatform> = {
@@ -163,6 +169,10 @@ export class CustomBuildContext<TJob extends Job = Job> implements ExternalBuild
       logger: this.logger,
     });
     this.pendingMetricUploads.push(p);
+  }
+
+  public reportWorkflowHookMetric(metric: WorkflowHookMetric): void {
+    reportWorkflowHookMetricToDatadog(metric);
   }
 
   public async drainPendingMetricUploads(): Promise<void> {

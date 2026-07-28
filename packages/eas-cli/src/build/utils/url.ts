@@ -4,10 +4,18 @@ import { getExpoApiBaseUrl, getExpoWebsiteBaseUrl } from '../../api';
 import { AppPlatform, BuildFragment } from '../../graphql/generated';
 
 export function getProjectDashboardUrl(accountName: string, projectName: string): string {
-  return new URL(
-    `/accounts/${accountName}/projects/${projectName}`,
-    getExpoWebsiteBaseUrl()
-  ).toString();
+  return getProjectPageUrl(accountName, projectName);
+}
+
+export function getProjectPageUrl(
+  accountName: string,
+  projectName: string,
+  page?: string | null
+): string {
+  const projectPath = `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+    projectName
+  )}`;
+  return new URL(page ? `${projectPath}/${page}` : projectPath, getExpoWebsiteBaseUrl()).toString();
 }
 
 export function getBuildLogsUrl(build: BuildFragment, hash?: string): string {
@@ -60,6 +68,19 @@ export function getWorkflowRunUrl(
     `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
       projectName
     )}/workflows/${workflowRunId}`,
+    getExpoWebsiteBaseUrl()
+  ).toString();
+}
+
+export function getDeviceRunSessionUrl(
+  accountName: string,
+  projectName: string,
+  deviceRunSessionId: string
+): string {
+  return new URL(
+    `/accounts/${encodeURIComponent(accountName)}/projects/${encodeURIComponent(
+      projectName
+    )}/simulator-sessions/${encodeURIComponent(deviceRunSessionId)}`,
     getExpoWebsiteBaseUrl()
   ).toString();
 }

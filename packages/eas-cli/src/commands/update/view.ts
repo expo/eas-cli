@@ -3,6 +3,8 @@ import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasJsonOnlyFlag } from '../../commandUtils/flags';
+import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { UpdateFragment } from '../../graphql/generated';
 import { UpdateInsightsQuery } from '../../graphql/queries/UpdateInsightsQuery';
 import { UpdateQuery } from '../../graphql/queries/UpdateQuery';
 import { resolveInsightsTimeRange } from '../../insights/timeRange';
@@ -26,7 +28,7 @@ export default class UpdateView extends EasCommand {
   static override args = {
     groupId: Args.string({
       required: true,
-      description: 'The ID of an update group.',
+      description: 'The ID of an update group, or the ID of a platform-specific update.',
     }),
   };
 
@@ -58,7 +60,7 @@ export default class UpdateView extends EasCommand {
 
   async runAsync(): Promise<void> {
     const {
-      args: { groupId },
+      args: { groupId: idArg },
       flags: { json: jsonFlag, insights: insightsFlag, days, start, end },
     } = await this.parse(UpdateView);
 
@@ -74,7 +76,10 @@ export default class UpdateView extends EasCommand {
       enableJsonOutput();
     }
 
-    const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId });
+    const { groupId, updatesByGroup } = await UpdateView.resolveUpdateGroupAsync(
+      graphqlClient,
+      idArg
+    );
 
     let insightsSummary: UpdateInsightsSummary | null = null;
     if (insightsFlag) {
@@ -110,6 +115,36 @@ export default class UpdateView extends EasCommand {
         Log.addNewLineIfNone();
         Log.log(buildUpdateInsightsTable(insightsSummary));
       }
+    }
+  }
+
+  /**
+   * Resolves the provided ID into an update group and its updates. The ID may be either an
+   * update group ID or the ID of a single platform-specific update. We first try to look it up
+   * as a group; if no updates are found, we fall back to resolving it as a platform-specific
+   * update and then fetch the group that update belongs to.
+   */
+  private static async resolveUpdateGroupAsync(
+    graphqlClient: ExpoGraphqlClient,
+    id: string
+  ): Promise<{ groupId: string; updatesByGroup: UpdateFragment[] }> {
+    try {
+      const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, { groupId: id });
+      return { groupId: id, updatesByGroup };
+    } catch (groupError) {
+      let update: UpdateFragment | undefined;
+      try {
+        update = await UpdateQuery.viewByUpdateAsync(graphqlClient, { updateId: id });
+      } catch {
+        // The ID is neither a valid update group nor a valid platform-specific update; surface
+        // the original group lookup error since the group ID is the primary input.
+        throw groupError;
+      }
+
+      const updatesByGroup = await UpdateQuery.viewUpdateGroupAsync(graphqlClient, {
+        groupId: update.group,
+      });
+      return { groupId: update.group, updatesByGroup };
     }
   }
 }

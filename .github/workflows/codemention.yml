@@ -12,9 +12,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      # Pinned to a commit SHA (not the v1.4.0 tag) because this runs under
-      # pull_request_target with a write-scoped token — a re-pointed tag from
-      # a compromised upstream account would give the attacker repo write access.
-      - uses: tobyhs/codemention@bb6bfb2c3ff1e6fee7ee37006bbee6d114057225 # v1.4.0
+      # Pinned to a commit SHA (not a tag or branch) because this runs under
+      # pull_request_target with a write-scoped token — a re-pointed tag or
+      # moving branch would allow unreviewed upstream code to run here.
+      - uses: tobyhs/codemention@ebac5877393ab8693fd73b42708c8552043e9a3b # post-v1.5.2
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}

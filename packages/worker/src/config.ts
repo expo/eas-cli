@@ -1,4 +1,4 @@
-import { GCS, GCSLoggerStream } from '@expo/build-tools';
+import { RemoteLoggerStream, type SignedUrl } from '@expo/build-tools';
 import path from 'path';
 
 import { Environment } from './constants';
@@ -34,12 +34,12 @@ export default {
     },
     gcs: {
       uploadIntervalMs: env('LOGGER_INTERVAL_MS', { defaultValue: 10000, transform: Number }),
-      compressionMethod: GCSLoggerStream.CompressionMethod.BR,
-      signedUploadUrlForLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+      compressionMethod: RemoteLoggerStream.CompressionMethod.BR,
+      signedUploadUrlForLogs: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForLogs'),
         defaultValue: null,
       }),
-      signedUploadUrlForXcodeBuildLogs: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+      signedUploadUrlForXcodeBuildLogs: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
         transform: createBase64EnvTransformer('gcsSignedUploadUrlForXcodeBuildLogs'),
         defaultValue: null,
       }),
@@ -54,7 +54,7 @@ export default {
     },
   },
   buildCache: {
-    gcsSignedUploadUrlForBuildCache: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
+    gcsSignedUploadUrlForBuildCache: env<SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
       transform: createBase64EnvTransformer('gcsSignedUploadUrlForBuildCache'),
       defaultValue: null,
     }),
@@ -63,17 +63,6 @@ export default {
       defaultValue: null,
     }),
   },
-  gcsSignedUploadUrlForApplicationArchive: env<GCS.SignedUrl | null>(
-    'WORKER_RUNTIME_CONFIG_BASE64',
-    {
-      transform: createBase64EnvTransformer('gcsSignedUploadUrlForApplicationArchive'),
-      defaultValue: null,
-    }
-  ),
-  gcsSignedUploadUrlForBuildArtifacts: env<GCS.SignedUrl | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('gcsSignedUploadUrlForBuildArtifacts'),
-    defaultValue: null,
-  }),
   workingdir: env('WORKINGDIR', { defaultValue: path.join(__dirname, '../workingdir') }),
   sentry: {
     dsn: env('SENTRY_DSN', { defaultValue: '' }),
@@ -82,22 +71,6 @@ export default {
     dataPlaneURL: env<string | null>('RUDDERSTACK_DATA_PLANE_URL', { defaultValue: null }),
     writeKey: env<string | null>('RUDDERSTACK_WRITE_KEY', { defaultValue: null }),
   },
-  npmCacheUrl: env<string | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('npmCacheUrl'),
-    defaultValue: null,
-  }),
-  nodeJsCacheUrl: env<string | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('nodeJsCacheUrl'),
-    defaultValue: null,
-  }),
-  mavenCacheUrl: env<string | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('mavenCacheUrl'),
-    defaultValue: null,
-  }),
-  cocoapodsCacheUrl: env<string | null>('WORKER_RUNTIME_CONFIG_BASE64', {
-    transform: createBase64EnvTransformer('cocoapodsCacheUrl'),
-    defaultValue: null,
-  }),
   runMetricsServer: env<boolean | null>('WORKER_RUNTIME_CONFIG_BASE64', {
     transform: createBase64EnvTransformer('runMetricsServer'),
     defaultValue: null,

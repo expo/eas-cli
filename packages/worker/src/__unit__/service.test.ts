@@ -14,7 +14,7 @@ jest.mock('@expo/build-tools', () => {
   const actual = jest.requireActual('@expo/build-tools');
   return {
     ...actual,
-    GCS: { uploadWithSignedUrl: jest.fn() },
+    uploadWithSignedUrl: jest.fn(),
     Datadog: {
       setup: jest.fn(),
       flushAsync: jest.fn(async () => {}),
@@ -26,7 +26,7 @@ jest.mock('../build', () => ({
   build: jest.fn(),
 }));
 jest.mock('../context', () => ({
-  createBuildContext: jest.fn(() => ({ job: {} })),
+  createBuildContext: jest.fn(async () => ({ job: {} })),
 }));
 jest.mock('../config', () => {
   const actual = jest.requireActual('../config').default;
@@ -111,7 +111,7 @@ describe('BuildService Datadog setup', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     buildMock.mockResolvedValue({});
-    createBuildContextMock.mockReturnValue({ job: {} } as any);
+    createBuildContextMock.mockResolvedValue({ job: {} } as any);
     createBuildLoggerWithSecretsFilterMock.mockResolvedValue({
       logger: buildLogger,
       cleanUp: jest.fn(async () => {}),

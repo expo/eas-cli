@@ -61,7 +61,6 @@ describe(IntegrationsConvexConnect, () => {
       ownerUserActor: null,
       users: [],
     },
-    preferences: { onboarding: null },
     accounts: [],
   };
 

@@ -111,6 +111,37 @@ describe(runGenericJobAsync, () => {
     expect(rejected).toBe(true);
   });
 
+  it('passes the job hooks into the steps parser', async () => {
+    // @expo/steps is fully mocked here — assert the plumbing only (real
+    // insertion behavior is covered by the parser's own tests).
+    const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
+    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
+    }));
+
+    mockCtx.job.hooks = { before_install_node_modules: [{ run: 'echo hi' }] };
+    await runGenericJobAsync(mockCtx);
+
+    expect(StepsConfigParser).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hooks: mockCtx.job.hooks })
+    );
+  });
+
+  it('passes hooks: undefined into the steps parser for a hook-less job (dormancy)', async () => {
+    const mockWorkflow = { executeAsync: jest.fn().mockResolvedValue(undefined) };
+    (StepsConfigParser as unknown as jest.Mock).mockImplementation(() => ({
+      parseAsync: jest.fn().mockResolvedValue(mockWorkflow),
+    }));
+
+    await runGenericJobAsync(mockCtx);
+
+    expect(StepsConfigParser).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hooks: undefined })
+    );
+  });
+
   it('throws before workflow execution when expoApiV2BaseUrl is missing', async () => {
     mockCtx.expoApiV2BaseUrl = undefined;
 

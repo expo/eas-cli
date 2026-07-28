@@ -23,6 +23,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   exp,
   vcsClient,
   nonInteractive,
+  autoSelectDefault = false,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
@@ -30,6 +31,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
   exp: ExpoConfig;
   vcsClient: Client;
   nonInteractive: boolean;
+  autoSelectDefault?: boolean;
 }): Promise<string> {
   const workflow = await resolveWorkflowAsync(projectDir, Platform.IOS, vcsClient);
   assert(workflow === Workflow.MANAGED, 'This function should be called only for managed projects');
@@ -43,6 +45,7 @@ export async function ensureBundleIdentifierIsDefinedForManagedProjectAsync({
       exp,
       projectId,
       nonInteractive,
+      autoSelectDefault,
     });
   }
 }
@@ -130,12 +133,14 @@ async function configureBundleIdentifierAsync({
   projectId,
   exp,
   nonInteractive,
+  autoSelectDefault = false,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectDir: string;
   projectId: string;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  autoSelectDefault?: boolean;
 }): Promise<string> {
   if (nonInteractive) {
     throw new Error(
@@ -155,26 +160,34 @@ async function configureBundleIdentifierAsync({
 
   assert(paths.staticConfigPath, 'app.json must exist');
 
-  Log.addNewLineIfNone();
-  Log.log(
-    `${chalk.bold(`📝  iOS Bundle Identifier`)} ${chalk.dim(
-      learnMore('https://expo.fyi/bundle-identifier')
-    )}`
-  );
-
   const suggestedBundleIdentifier = await getSuggestedBundleIdentifierAsync(
     graphqlClient,
     exp,
     projectId
   );
 
-  const { bundleIdentifier } = await promptAsync({
-    name: 'bundleIdentifier',
-    type: 'text',
-    message: `What would you like your iOS bundle identifier to be?`,
-    initial: suggestedBundleIdentifier,
-    validate: value => (isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE),
-  });
+  let bundleIdentifier: string;
+  if (autoSelectDefault && suggestedBundleIdentifier) {
+    bundleIdentifier = suggestedBundleIdentifier;
+    Log.withTick(
+      `Set "ios.bundleIdentifier" to ${chalk.bold(bundleIdentifier)} (modified app.json)`
+    );
+  } else {
+    Log.addNewLineIfNone();
+    Log.log(
+      `${chalk.bold(`📝  iOS Bundle Identifier`)} ${chalk.dim(
+        learnMore('https://expo.fyi/bundle-identifier')
+      )}`
+    );
+    ({ bundleIdentifier } = await promptAsync({
+      name: 'bundleIdentifier',
+      type: 'text',
+      message: `What would you like your iOS bundle identifier to be?`,
+      initial: suggestedBundleIdentifier,
+      validate: value =>
+        isBundleIdentifierValid(value) ? true : INVALID_BUNDLE_IDENTIFIER_MESSAGE,
+    }));
+  }
 
   const rawStaticConfig = readAppJson(paths.staticConfigPath);
   rawStaticConfig.expo = {

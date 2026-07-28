@@ -115,8 +115,8 @@ export const ArchiveSourceSchemaZ = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type Env = Record<string, string>;
-export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string());
+export type Env = Record<string, string | undefined>;
+export const EnvSchema = Joi.object().pattern(Joi.string(), Joi.string().optional());
 
 export type EnvironmentSecret = {
   name: string;
@@ -251,6 +251,10 @@ const AppStoreConnectContextZ = z.looseObject({
       id: z.string(),
       state: z.enum(['awaiting_upload', 'processing', 'failed', 'complete']),
       cf_bundle_version: z.string().optional(),
+      cf_bundle_short_version_string: z.string().optional(),
+      platform: z.string().optional(),
+      uploaded_date: z.string().optional(),
+      created_date: z.string().optional(),
       build: z
         .looseObject({
           id: z.string(),

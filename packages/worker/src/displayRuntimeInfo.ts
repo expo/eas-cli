@@ -70,24 +70,30 @@ function printImageDescription(ctx: BuildContext<Job>): void {
 function printEnvs(ctx: BuildContext<Job>): void {
   const { logger, job } = ctx;
   const publicEnv: Record<string, string> = {};
-  const secretEnv: Record<string, string> = {};
+  // We don't expect environment secrets to be missing from ctx.env,
+  // but if they do we want to see it in logs as "=undefined".
+  const secretEnv: Record<string, string | undefined> = {};
   const instanceEnv: Record<string, string> = {};
 
   // skip development and testing to avoid leaking local credentials from envs to bucket
   if (config.env !== Environment.DEVELOPMENT && config.env !== Environment.TEST) {
     Object.entries(ctx.env).forEach(([key, value]) => {
-      instanceEnv[key] = value;
+      if (value !== undefined) {
+        instanceEnv[key] = value;
+      }
     });
   }
-  Object.entries(job.builderEnvironment?.env ?? ({} as Record<string, string>)).forEach(
-    ([key, value]) => {
+  Object.entries(job.builderEnvironment?.env ?? {}).forEach(([key, value]) => {
+    if (value !== undefined) {
       publicEnv[key] = value;
       delete instanceEnv[key];
     }
-  );
+  });
 
   job.secrets?.environmentSecrets?.forEach(({ name, type }) => {
     if (type === EnvironmentSecretType.FILE) {
+      // ctx.env[name] for a FILE-typed environment secret
+      // should be a path to the file.
       secretEnv[name] = ctx.env[name];
     } else {
       secretEnv[name] = '********';

@@ -1,4 +1,4 @@
-import { Platform } from '@expo/eas-build-job';
+import { Env, Platform } from '@expo/eas-build-job';
 import { BuildProfile, EasJson, ResourceClass } from '@expo/eas-json';
 import JsonFile from '@expo/json-file';
 import { LoggerLevel } from '@expo/logger';
@@ -69,7 +69,7 @@ export async function createBuildContextAsync<T extends Platform>({
   refreshAdHocProvisioningProfile?: boolean;
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
-  env: Record<string, string>;
+  env: Env;
 }): Promise<BuildContext<T>> {
   const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({
     env,

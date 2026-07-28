@@ -118,7 +118,7 @@ function assertAppleTeamType(maybeTeamType: any): AppleTeamType {
   return maybeTeamType;
 }
 
-function resolveAppleTeamTypeFromEnvironment(): AppleTeamType | undefined {
+export function resolveAppleTeamTypeFromEnvironment(): AppleTeamType | undefined {
   if (!process.env.EXPO_APPLE_TEAM_TYPE) {
     return undefined;
   }

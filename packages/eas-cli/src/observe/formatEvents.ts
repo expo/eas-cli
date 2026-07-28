@@ -20,6 +20,7 @@ export interface ObserveEventJson {
   easClientId: string;
   timestamp: string;
   customParams: { [key: string]: any } | null;
+  routeName: string | null;
 }
 
 function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | null {
@@ -106,6 +107,7 @@ export function buildObserveEventsJson(
       easClientId: event.easClientId,
       timestamp: event.timestamp,
       customParams: resolveCustomParams(event),
+      routeName: event.routeName ?? null,
     })),
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage,

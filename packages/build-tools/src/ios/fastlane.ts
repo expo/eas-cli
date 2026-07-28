@@ -93,7 +93,7 @@ export async function runFastlane(
     cwd,
   }: {
     logger?: bunyan;
-    env?: Record<string, string>;
+    env?: Env;
     cwd?: string;
   } = {}
 ): Promise<SpawnResult> {

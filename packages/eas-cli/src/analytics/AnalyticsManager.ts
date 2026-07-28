@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Actor, getActorDisplayName } from '../user/User';
 import UserSettings from '../user/UserSettings';
 import { easCliVersion } from '../utils/easCli';
+import { getAgentTelemetryContext } from './agent';
 
 const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> = {
   darwin: 'Mac',
@@ -225,10 +226,12 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
 
   private getRudderStackContext(): Record<string, any> {
     const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
+    const agent = getAgentTelemetryContext();
     return {
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },
       app: { name: 'eas cli', version: easCliVersion ?? undefined },
+      ...(agent ? { agent } : {}),
     };
   }
 }

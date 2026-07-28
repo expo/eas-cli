@@ -2,7 +2,10 @@ import { Args, Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { EasCommandError } from '../../commandUtils/errors';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import { getLimitFlagWithCustomValues } from '../../commandUtils/pagination';
 import Log from '../../log';
 import {
@@ -20,6 +23,7 @@ import {
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
@@ -34,7 +38,7 @@ export default class ObserveMetrics extends EasCommand {
 
   static override args = {
     metric: Args.string({
-      description: 'Metric to query (e.g. tti, cold_launch)',
+      description: 'Metric to query (e.g. tti, cold_launch, nav_tti)',
       required: false,
       options: Object.keys(METRIC_ALIASES),
     }),
@@ -71,23 +75,24 @@ export default class ObserveMetrics extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags, args } = await this.parse(ObserveMetrics);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveMetrics,
       loggedInOnlyContextDefinition: ObserveMetrics.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
     let metricName: string;
     if (args.metric) {
       metricName = resolveMetricName(args.metric);
-    } else if (flags['non-interactive']) {
+    } else if (nonInteractive) {
       throw new EasCommandError(
         'A metric argument is required in non-interactive mode. Available metrics: ' +
           Object.keys(METRIC_ALIASES).join(', ')
@@ -106,29 +111,31 @@ export default class ObserveMetrics extends EasCommand {
     const platform = appObservePlatformFromFlag(flags.platform);
     const platforms = appPlatformsFromFlag(flags.platform);
 
-    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
-      fetchObserveEventsAsync(graphqlClient, projectId, {
-        metricName,
-        orderBy,
-        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-        ...(flags.after && { after: flags.after }),
-        startTime,
-        endTime,
-        platform,
-        appVersion: flags['app-version'],
-        updateId: flags['update-id'],
-      }),
-      fetchTotalEventCountAsync(
-        graphqlClient,
-        projectId,
-        metricName,
-        platforms,
-        startTime,
-        endTime
-      ),
-    ]);
+    const [{ events, pageInfo }, totalEventCount] = await withObservePlanGateHandlingAsync(() =>
+      Promise.all([
+        fetchObserveEventsAsync(graphqlClient, projectId, {
+          metricName,
+          orderBy,
+          limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+          ...(flags.after && { after: flags.after }),
+          startTime,
+          endTime,
+          platform,
+          appVersion: flags['app-version'],
+          updateId: flags['update-id'],
+        }),
+        fetchTotalEventCountAsync(
+          graphqlClient,
+          projectId,
+          metricName,
+          platforms,
+          startTime,
+          endTime
+        ),
+      ])
+    );
 
-    if (flags.json) {
+    if (json) {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
     } else {
       Log.addNewLineIfNone();

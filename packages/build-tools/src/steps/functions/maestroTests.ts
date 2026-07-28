@@ -1,4 +1,5 @@
-import { SystemError, UserError } from '@expo/eas-build-job';
+import { GenericArtifactType, SystemError, UserError } from '@expo/eas-build-job';
+import { bunyan } from '@expo/logger';
 import {
   BuildFunction,
   BuildRuntimePlatform,
@@ -8,15 +9,27 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   copyLatestAttemptXml,
+  junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowNamesFromJUnitFile,
+  parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
+  parseJUnitTestCases,
 } from './maestroResultParser';
+import {
+  type HarvestedScreenshot,
+  computePureFailureFlowNames,
+  harvestFailureScreenshotsAsync,
+  selectFailureScreenshots,
+} from './maestroScreenshots';
+import { CustomBuildContext } from '../../customBuildContext';
 import { sleepAsync } from '../../utils/retry';
 
 const FlowPathSchema = z.array(z.string().min(1)).min(1);
@@ -79,12 +92,13 @@ function buildMaestroArgs(args: {
   return out;
 }
 
-export function createMaestroTestsBuildFunction(): BuildFunction {
+export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
     id: 'maestro_tests',
     name: 'Run Maestro Tests',
     __metricsId: 'eas/maestro_tests',
+    __hookId: 'maestro_tests',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'flow_path',
@@ -200,13 +214,10 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         throw new SystemError('Failed to create JUnit report directory', { cause: err });
       }
 
-      // null → duplicate flow names; retry-failed-only disabled, fall through to
-      // dumb retry (re-run everything) on failure.
-      const nameToPath = await buildFlowNameToPathMap({
-        inputFlowPaths: flowPaths,
-        projectRoot: stepCtx.workingDirectory,
-        logger,
-      });
+      // Legacy-only (Maestro < 2.6.0 reports carry no `file=` attribute): the
+      // flow scan is built lazily in the retry branch below and memoized so
+      // retries share one scan. Never runs when the report has `file=`.
+      let nameToPathPromise: Promise<Map<string, string> | null> | undefined;
 
       // Retry loop. spawn-async error shapes:
       //   ENOENT/EACCES → infra (binary missing/not executable) → SystemError.
@@ -214,10 +225,11 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       //   else (signal-only, OOM kill, unknown) → infra → SystemError, never
       //     downgraded to "tests failed".
       // Retry-failed-only (junit mode): after a failed attempt, subset to the failing
-      // flows. parseFailedFlowsFromJUnit returns null when the JUnit cannot be
+      // flows. The failed-flow parsers return null when the JUnit cannot be
       // trusted; we then fall through to dumb retry (re-run everything).
       let flowsToRun: string[] = flowPaths;
       let lastAttemptExitCode: number | null = null;
+      const harvested: HarvestedScreenshot[] = [];
 
       const totalAttempts = retries + 1;
       for (let attempt = 0; attempt <= retries; attempt++) {
@@ -240,6 +252,8 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
         );
 
+        const attemptStartedAtMs = Date.now();
+
         try {
           await spawn('maestro', maestroArgs, {
             cwd: stepCtx.workingDirectory,
@@ -259,15 +273,48 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
           }
         }
 
+        // Harvest this attempt's failure screenshots before any retry subsetting. Gated on
+        // junit: test-case-result rows (and therefore the summary icons) only exist for junit
+        // runs, so harvesting other formats would just create orphan artifacts the website hides.
+        if (outputFormat === 'junit') {
+          const failedFlowNames = outputPath
+            ? await parseFailedFlowNamesFromJUnitFile(outputPath)
+            : new Set<string>();
+          harvested.push(
+            ...(await harvestFailureScreenshotsAsync({
+              testsDirectory,
+              capturedSinceMs: attemptStartedAtMs,
+              attemptIndex: attempt,
+              failedFlowNames,
+              logger,
+            }))
+          );
+        }
+
         if (lastAttemptExitCode === 0 || attempt === retries) {
           break;
         }
 
-        if (retryFailedOnly && outputFormat === 'junit' && outputPath && nameToPath) {
-          const failed = await parseFailedFlowsFromJUnit({
-            junitFile: outputPath,
-            nameToPath,
-          });
+        if (retryFailedOnly && outputFormat === 'junit' && outputPath) {
+          let failed: string[] | null;
+          if (await junitFileHasFileAttrs(outputPath)) {
+            failed = await parseFailedFlowsFromFileAttrs({
+              junitFile: outputPath,
+              workingDirectory: stepCtx.workingDirectory,
+            });
+          } else {
+            // Legacy (Maestro < 2.6.0): map failed testcase names back to flow
+            // paths via the flow-file scan. DELETE this arm once the fleet is
+            // on >= 2.6.0.
+            const nameToPath = await (nameToPathPromise ??= buildFlowNameToPathMap({
+              inputFlowPaths: flowPaths,
+              projectRoot: stepCtx.workingDirectory,
+              logger,
+            }));
+            failed = nameToPath
+              ? await parseFailedFlowsFromJUnit({ junitFile: outputPath, nameToPath })
+              : null;
+          }
           if (failed !== null && failed.length > 0) {
             flowsToRun = failed;
             logger.info(
@@ -316,6 +363,12 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
         }
       }
 
+      // Upload before the ERR_MAESTRO_TESTS_FAILED throw below so fully-failed runs (which need
+      // screenshots most) still upload. Harvest only ran for junit, so guard the same way.
+      if (outputFormat === 'junit') {
+        await uploadFailureScreenshotsAsync({ harvested, junitReportDirectory, ctx, logger });
+      }
+
       // The retry loop exits via success (0), numeric status (retryable),
       // or throw (infra). A non-null non-zero status means the user's tests
       // failed every attempt.
@@ -327,4 +380,83 @@ export function createMaestroTestsBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+// Reduce harvested failure screenshots to what's worth uploading, then upload them as workflow
+// artifacts. Best-effort and verdict-neutral: never throws, so a screenshot problem can't mask
+// the maestro test result. Caller guards on junit (harvest only runs for junit).
+async function uploadFailureScreenshotsAsync({
+  harvested,
+  junitReportDirectory,
+  ctx,
+  logger,
+}: {
+  harvested: HarvestedScreenshot[];
+  junitReportDirectory: string;
+  ctx: CustomBuildContext;
+  logger: bunyan;
+}): Promise<void> {
+  // Reduce to the attempts worth uploading — every failed attempt for flaky flows, only the final
+  // attempt for all-failed flows. See computePureFailureFlowNames / selectFailureScreenshots.
+  // Guard the JUnit re-parse so a malformed/missing report can't throw past here and mask the
+  // test verdict (the whole step is verdict-neutral for screenshots).
+  let selected: HarvestedScreenshot[];
+  try {
+    const pureFailureFlowNames = computePureFailureFlowNames(
+      await parseJUnitTestCases(junitReportDirectory)
+    );
+    selected = selectFailureScreenshots(harvested, pureFailureFlowNames);
+  } catch (err: any) {
+    logger.warn({ err }, 'Failed to classify failure screenshots; skipping screenshot upload.');
+    return;
+  }
+  if (selected.length === 0) {
+    return;
+  }
+
+  // Cap well under www's 50-artifact-per-job limit.
+  const MAX_SCREENSHOT_UPLOADS = 30;
+  const toUpload = selected.slice(0, MAX_SCREENSHOT_UPLOADS);
+  if (selected.length > toUpload.length) {
+    logger.warn(
+      `Found ${selected.length} failure screenshots; uploading only the first ${toUpload.length}.`
+    );
+  }
+
+  // Copy each shot to an ASCII-safe name outside testsDirectory (the originals contain a
+  // non-ASCII marker and testsDirectory is uploaded wholesale as the tarball).
+  let safeScreenshotDir: string;
+  try {
+    safeScreenshotDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-maestro-screenshots-'));
+  } catch (err: any) {
+    logger.warn(
+      { err },
+      'Failed to create the failure-screenshot staging dir; skipping screenshot upload.'
+    );
+    return;
+  }
+
+  await Promise.all(
+    toUpload.map(async (shot, index) => {
+      try {
+        // `index` disambiguates two flows that fail within the same millisecond of an attempt.
+        const safePath = path.join(
+          safeScreenshotDir,
+          `failure-attempt-${shot.metadata.attemptIndex}-${index}-${shot.metadata.capturedAtMs}.png`
+        );
+        await fs.copyFile(shot.fileAbsPath, safePath);
+        await ctx.runtimeApi.uploadArtifact({
+          artifact: {
+            type: GenericArtifactType.OTHER,
+            name: shot.displayName,
+            paths: [safePath],
+            metadata: shot.metadata,
+          },
+          logger,
+        });
+      } catch (err: any) {
+        logger.warn({ err }, 'Failed to upload failure screenshot.');
+      }
+    })
+  );
 }

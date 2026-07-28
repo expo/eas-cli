@@ -152,9 +152,27 @@ describe('Go command', () => {
   it('prompts for SDK version when no project config is found', async () => {
     mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
     jest.mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync).mockResolvedValue([
-      { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: false },
-      { sdkVersion: '55.0.0', isLatest: true, isBeta: false, isDeprecated: false },
-      { sdkVersion: '56.0.0', isLatest: false, isBeta: true, isDeprecated: false },
+      {
+        sdkVersion: '54.0.0',
+        isLatest: false,
+        isBeta: false,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+      {
+        sdkVersion: '55.0.0',
+        isLatest: true,
+        isBeta: false,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+      {
+        sdkVersion: '56.0.0',
+        isLatest: false,
+        isBeta: true,
+        isDeprecated: false,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
     ]);
     jest.mocked(selectAsync).mockResolvedValue('55.0.0');
 
@@ -173,11 +191,15 @@ describe('Go command', () => {
 
   it('skips prompt when all versions are deprecated', async () => {
     mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
-    jest
-      .mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync)
-      .mockResolvedValue([
-        { sdkVersion: '54.0.0', isLatest: false, isBeta: false, isDeprecated: true },
-      ]);
+    jest.mocked(WorkflowRunQuery.expoGoSupportedSdkVersionsAsync).mockResolvedValue([
+      {
+        sdkVersion: '54.0.0',
+        isLatest: false,
+        isBeta: false,
+        isDeprecated: true,
+        sourceIpaUrl: 'https://example.com/ipa',
+      },
+    ]);
 
     await makeCmd().run();
 

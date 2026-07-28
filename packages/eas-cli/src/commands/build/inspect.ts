@@ -135,6 +135,7 @@ export default class BuildInspect extends EasCommand {
         }
       } finally {
         await this.copyToOutputDirAsync(path.join(tmpWorkingdir, 'build'), outputDirectory);
+        await this.cleanUpTmpWorkingdirAsync(tmpWorkingdir);
       }
     }
   }
@@ -161,6 +162,15 @@ export default class BuildInspect extends EasCommand {
     } catch (err) {
       spinner.fail();
       throw err;
+    }
+  }
+
+  private async cleanUpTmpWorkingdirAsync(tmpWorkingdir: string): Promise<void> {
+    try {
+      await fs.remove(tmpWorkingdir);
+    } catch (err) {
+      Log.warn(`Failed to remove temporary directory ${tmpWorkingdir}`);
+      Log.debug(err);
     }
   }
 }

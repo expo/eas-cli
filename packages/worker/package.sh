@@ -22,9 +22,22 @@ fi
 
 echo "Building $OUTPUT_FILE"
 
+tmp_dir=""
+record_sim_build_dir=""
+cleanup() {
+  if [[ -n "$tmp_dir" ]]; then
+    rm -rf "$tmp_dir"
+  fi
+  if [[ -n "$record_sim_build_dir" ]]; then
+    rm -rf "$record_sim_build_dir"
+  fi
+}
+trap cleanup EXIT
+
 tmp_dir=$(mktemp -d)
 target_root_dir="$tmp_dir"
 target_worker_dir="$tmp_dir/packages/worker"
+record_sim_build_dir=$(mktemp -d)
 
 mkdir -p "$target_worker_dir"
 
@@ -84,7 +97,26 @@ yarn workspaces focus @expo/worker --production
 rm -rf tsconfig.json tsconfig.build.json
 popd >/dev/null 2>&1
 
+if [[ "$PLATFORM" != "ios" ]]; then
+  rm -f "$target_root_dir/packages/build-tools/bin/record-sim"
+fi
+
 if [[ "$PLATFORM" == "ios" ]]; then
+  record_sim_package_dir="$ROOT_DIR/packages/build-tools/resources/record-sim"
+  record_sim_bin_dir="$target_root_dir/packages/build-tools/bin"
+  mkdir -p "$record_sim_bin_dir"
+  record_sim_bin_path=$(swift build \
+    -c release \
+    --package-path "$record_sim_package_dir" \
+    --build-path "$record_sim_build_dir" \
+    --show-bin-path)
+  swift build \
+    -c release \
+    --package-path "$record_sim_package_dir" \
+    --build-path "$record_sim_build_dir"
+  cp "$record_sim_bin_path/record-sim" "$record_sim_bin_dir/record-sim"
+  chmod +x "$record_sim_bin_dir/record-sim"
+
   # build plugin
   pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1
   if command -v brew &> /dev/null; then
@@ -109,5 +141,3 @@ ln -s ../../../../packages/worker/dist/main.js "$target_root_dir/src/services/wo
 tar zcf $OUTPUT_FILE -C $target_root_dir .
 
 echo "Tarball is ready: $OUTPUT_FILE"
-
-rm -rf $tmp_dir

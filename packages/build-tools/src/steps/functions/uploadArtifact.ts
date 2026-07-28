@@ -1,4 +1,9 @@
-import { GenericArtifactType, Job, ManagedArtifactType } from '@expo/eas-build-job';
+import {
+  GenericArtifactType,
+  Job,
+  ManagedArtifactType,
+  isGenericArtifact,
+} from '@expo/eas-build-job';
 import {
   BuildFunction,
   BuildStepInput,
@@ -65,6 +70,11 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
+      BuildStepInput.createProvider({
+        id: 'metadata',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -108,7 +118,7 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         throw result.reason;
       });
 
-      const artifact = {
+      const artifactSpec = {
         type: parseArtifactTypeInput({
           platform: ctx.job.platform,
           inputValue: `${inputs.type.value ?? ''}`,
@@ -116,19 +126,22 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         paths: artifactPaths,
         name: (inputs.name.value || inputs.key.value) as string,
       };
+      const artifact = isGenericArtifact(artifactSpec)
+        ? {
+            ...artifactSpec,
+            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+          }
+        : artifactSpec;
 
       try {
-        const { artifactId } = await ctx.runtimeApi.uploadArtifact({
-          artifact,
-          logger,
-        });
+        const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
 
         if (artifactId) {
           outputs.artifact_id.set(artifactId);
         }
       } catch (error) {
         if (inputs.ignore_error.value) {
-          logger.error(`Failed to upload ${artifact.type}. Ignoring error.`, error);
+          logger.error({ err: error }, `Failed to upload ${artifact.type}. Ignoring error.`);
           // Ignoring error.
           return;
         }

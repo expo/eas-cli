@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import mockdate from 'mockdate';
+import { Response } from 'node-fetch';
 import path from 'path';
 import { instance, mock } from 'ts-mockito';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +10,7 @@ import { AssetMetadataStatus } from '../../graphql/generated';
 import { PublishMutation } from '../../graphql/mutations/PublishMutation';
 import { PublishQuery } from '../../graphql/queries/PublishQuery';
 import { RequestedPlatform } from '../../platform';
+import { uploadWithPresignedPostWithRetryAsync } from '../../uploads';
 import { expoCommandAsync } from '../../utils/expoCli';
 import {
   MetadataJoi,
@@ -572,9 +574,11 @@ describe(uploadAssetsAsync, () => {
     await fs.remove(userDefinedPath);
   });
 
-  jest.spyOn(PublishMutation, 'getUploadURLsAsync').mockImplementation(async () => {
-    return { specifications: ['{}', '{}', '{}'] };
-  });
+  jest
+    .spyOn(PublishMutation, 'getUploadURLsAsync')
+    .mockImplementation(async (_client, contentTypes) => {
+      return { specifications: contentTypes.map(() => '{}') };
+    });
 
   jest
     .spyOn(PublishQuery, 'getAssetLimitPerUpdateGroupAsync')
@@ -582,27 +586,16 @@ describe(uploadAssetsAsync, () => {
 
   it('resolves if the assets are already uploaded', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
-    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status = AssetMetadataStatus.Exists;
-      jest.runAllTimers();
-      return [
-        {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // userDefinedAsset
-        {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // android.code
-        {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // ios.code
-      ];
-    });
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
+          status: AssetMetadataStatus.Exists,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
 
     mockdate.set(0);
     await expect(
@@ -623,31 +616,22 @@ describe(uploadAssetsAsync, () => {
       assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
+
   it('resolves if the assets are eventually uploaded', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
-    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status =
-        Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
-      mockdate.set(Date.now() + 1);
-      jest.runAllTimers();
-      return [
-        {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        const status =
+          Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
+        mockdate.set(Date.now() + 1);
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
           status,
-          __typename: 'AssetMetadataResult',
-        }, // userDefinedAsset
-        {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // android.code
-        {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // ios.code
-      ];
-    });
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
 
     mockdate.set(0);
     await expect(
@@ -665,38 +649,28 @@ describe(uploadAssetsAsync, () => {
       assetCount: 6,
       launchAssetCount: 2,
       uniqueAssetCount: 3,
-      uniqueUploadedAssetCount: 2,
-      uniqueUploadedAssetPaths: [],
+      uniqueUploadedAssetCount: 3,
+      uniqueUploadedAssetPaths: [dummyOriginalFilePath],
       assetLimitPerUpdateGroup: expectedAssetLimit,
     });
   });
 
-  it('updates spinner text throughout execution', async () => {
+  it('updates spinner text as each asset finalizes', async () => {
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
-    jest.spyOn(PublishQuery, 'getAssetMetadataAsync').mockImplementation(async () => {
-      const status =
-        Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
-      mockdate.set(Date.now() + 1);
-      jest.runAllTimers();
-      return [
-        {
-          storageKey: 'qbgckgkgfdjnNuf9dQd7FDTWUmlEEzg7l1m1sKzQaq0',
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        const status =
+          Date.now() === 0 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
+        mockdate.set(Date.now() + 1);
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
           status,
-          __typename: 'AssetMetadataResult',
-        }, // userDefinedAsset
-        {
-          storageKey: 'bbjgXFSIXtjviGwkaPFY0HG4dVVIGiXHAboRFQEqVa4',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // android.code
-        {
-          storageKey: 'dP-nC8EJXKz42XKh_Rc9tYxiGAT-ilpkRltEi6HIKeQ',
-          status,
-          __typename: 'AssetMetadataResult',
-        }, // ios.code
-      ];
-    });
-    const onAssetUploadResultsChangedFn = jest.fn(_assetUploadResults => {});
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+    const onAssetUploadResultsChangedFn = jest.fn();
 
     mockdate.set(0);
     await uploadAssetsAsync(
@@ -707,7 +681,538 @@ describe(uploadAssetsAsync, () => {
       onAssetUploadResultsChangedFn,
       () => {}
     );
+    // 1 (all false, before existence check) + 1 (after check) + 1 (after poll resolves all)
     expect(onAssetUploadResultsChangedFn).toHaveBeenCalledTimes(3);
+    const firstPayload = onAssetUploadResultsChangedFn.mock.calls[0][0] as { finished: boolean }[];
+    expect(firstPayload.every(r => r.finished)).toBe(false);
+    const lastPayload = onAssetUploadResultsChangedFn.mock.calls.at(-1)![0] as {
+      finished: boolean;
+    }[];
+    expect(lastPayload.every(r => r.finished)).toBe(true);
+  });
+
+  it('re-uploads an asset that remains unfinalized after FINALIZE_POLL_MS', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    try {
+      // Use a single-asset group to test the re-upload path in isolation
+      const singleAssetGroup = {
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'application/javascript',
+            path: androidBundlePath,
+          },
+          assets: [],
+        },
+      };
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let metadataCallCount = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          const callNum = ++metadataCallCount;
+          jest.runAllTimers();
+          // call 1: initial batch check → missing
+          // call 2: first poll (attempt 0) → still missing, advance past deadline
+          // call 3: first poll (attempt 1) → exists
+          if (callNum === 2) {
+            mockdate.set(56_002);
+          }
+          const status =
+            callNum >= 3 ? AssetMetadataStatus.Exists : AssetMetadataStatus.DoesNotExist;
+          return storageKeys.map(storageKey => ({
+            storageKey,
+            status,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      const getUploadURLsSpy = jest
+        .spyOn(PublishMutation, 'getUploadURLsAsync')
+        .mockImplementation(async (_client, contentTypes) => ({
+          specifications: contentTypes.map(() => '{}'),
+        }));
+      getUploadURLsSpy.mockClear();
+
+      mockdate.set(0);
+      await uploadAssetsAsync(
+        graphqlClient,
+        singleAssetGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {},
+        () => {}
+      );
+
+      // 2 URL requests: initial upload (attempt 0) + re-upload (attempt 1)
+      expect(getUploadURLsSpy).toHaveBeenCalledTimes(2);
+      // 3 metadata checks: initial batch + 1 timed-out poll + 1 success
+      expect(metadataCallCount).toBe(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('calls notifyProgress incrementally as assets finalize across poll ticks', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    try {
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let callCount = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          const callNum = ++callCount;
+          jest.runAllTimers();
+          // call 1: initial check → all missing
+          // call 2: poll tick 1 → first asset (index 0) finalizes, others still pending
+          // call 3: poll tick 2 → remaining assets finalize
+          return storageKeys.map((storageKey, i) => ({
+            storageKey,
+            status:
+              callNum === 1 || (callNum === 2 && i > 0)
+                ? AssetMetadataStatus.DoesNotExist
+                : AssetMetadataStatus.Exists,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      const onAssetUploadResultsChangedFn = jest.fn();
+
+      mockdate.set(0);
+      await uploadAssetsAsync(
+        graphqlClient,
+        assetsForUpdateInfoGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        onAssetUploadResultsChangedFn,
+        () => {}
+      );
+
+      // all-false (before check) + all-false (after check) + partial (tick 1) + all-true (tick 2)
+      expect(onAssetUploadResultsChangedFn).toHaveBeenCalledTimes(4);
+      const partialResults = onAssetUploadResultsChangedFn.mock.calls[2][0] as {
+        finished: boolean;
+      }[];
+      expect(partialResults.filter(r => r.finished)).toHaveLength(1);
+      const finalResults = onAssetUploadResultsChangedFn.mock.calls[3][0] as {
+        finished: boolean;
+      }[];
+      expect(finalResults.every(r => r.finished)).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('throws after all upload attempts are exhausted without finalization', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    try {
+      const singleAssetGroup = {
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'application/javascript',
+            path: androidBundlePath,
+          },
+          assets: [],
+        },
+      };
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let callCount = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          const callNum = ++callCount;
+          jest.runAllTimers();
+          // Push time past the 55s deadline on poll calls so each attempt exits after one tick
+          if (callNum > 1) {
+            mockdate.set(Date.now() + 56_002);
+          }
+          return storageKeys.map(storageKey => ({
+            storageKey,
+            status: AssetMetadataStatus.DoesNotExist,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      const getUploadURLsSpy = jest
+        .spyOn(PublishMutation, 'getUploadURLsAsync')
+        .mockImplementation(async (_client, contentTypes) => ({
+          specifications: contentTypes.map(() => '{}'),
+        }));
+      getUploadURLsSpy.mockClear();
+      const onAssetUploadResultsChangedFn = jest.fn();
+
+      mockdate.set(0);
+      let error: Error | undefined;
+      try {
+        await uploadAssetsAsync(
+          graphqlClient,
+          singleAssetGroup,
+          testProjectId,
+          { isCanceledOrFinished: false },
+          onAssetUploadResultsChangedFn,
+          () => {}
+        );
+      } catch (e) {
+        error = e as Error;
+      }
+
+      // Fails loudly rather than publishing an update with unfinalized assets.
+      expect(error?.message).toContain('were not processed by the server after 3 attempts');
+      // The error names the offending asset so the user knows what to retry.
+      expect(error?.message).toContain(androidBundlePath);
+      // One URL fetch per attempt across all 3 attempts (MAX_UPLOAD_ATTEMPTS).
+      expect(getUploadURLsSpy).toHaveBeenCalledTimes(3);
+      // A final progress update reflects the still-unfinalized asset before throwing.
+      const lastPayload = onAssetUploadResultsChangedFn.mock.calls.at(-1)![0] as {
+        finished: boolean;
+      }[];
+      expect(lastPayload.every(r => !r.finished)).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('signs upload URLs in chunks of 100 for large asset sets', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+
+    // 101 unique assets (+1 launch bundle) → 102 unique, chunked into 100 + 2 sign calls.
+    const manyAssetPaths: string[] = [];
+    const manyAssets: RawAsset[] = [];
+    for (let i = 0; i < 101; i++) {
+      const assetPath = uuidv4();
+      await fs.writeFile(assetPath, Buffer.from(`large-asset-${i}`));
+      manyAssetPaths.push(assetPath);
+      manyAssets.push({ contentType: 'image/jpeg', path: assetPath });
+    }
+    const largeAssetGroup = {
+      android: {
+        launchAsset: {
+          type: 'bundle',
+          contentType: 'application/javascript',
+          path: androidBundlePath,
+        },
+        assets: manyAssets,
+      },
+    };
+
+    let metadataCall = 0;
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        const status =
+          ++metadataCall === 1 ? AssetMetadataStatus.DoesNotExist : AssetMetadataStatus.Exists;
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
+          status,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+    const getUploadURLsSpy = jest
+      .spyOn(PublishMutation, 'getUploadURLsAsync')
+      .mockImplementation(async (_client, contentTypes) => ({
+        specifications: contentTypes.map(() => '{}'),
+      }));
+    getUploadURLsSpy.mockClear();
+
+    mockdate.set(0);
+    const result = await uploadAssetsAsync(
+      graphqlClient,
+      largeAssetGroup,
+      testProjectId,
+      { isCanceledOrFinished: false },
+      () => {},
+      () => {}
+    );
+
+    expect(result.uniqueUploadedAssetCount).toBe(102);
+    expect(getUploadURLsSpy).toHaveBeenCalledTimes(2);
+    expect(getUploadURLsSpy.mock.calls[0][1]).toHaveLength(100);
+    expect(getUploadURLsSpy.mock.calls[1][1]).toHaveLength(2);
+
+    await Promise.all(manyAssetPaths.map(assetPath => fs.remove(assetPath)));
+  });
+
+  it('throws if upload URL signing returns fewer URLs than requested', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
+          status: AssetMetadataStatus.DoesNotExist,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+    // Return one fewer specification than requested content types.
+    jest
+      .spyOn(PublishMutation, 'getUploadURLsAsync')
+      .mockImplementation(async (_client, contentTypes) => ({
+        specifications: contentTypes.slice(1).map(() => '{}'),
+      }));
+
+    mockdate.set(0);
+    await expect(
+      uploadAssetsAsync(
+        graphqlClient,
+        assetsForUpdateInfoGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {},
+        () => {}
+      )
+    ).rejects.toThrow('Upload URL signing returned');
+  });
+
+  it('re-uploads only the assets that are still missing', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    try {
+      // Two unique assets: the launch bundle finalizes on the first poll, the image does not,
+      // so the second attempt must re-upload only the image.
+      const twoAssetGroup = {
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'application/javascript',
+            path: androidBundlePath,
+          },
+          assets: [
+            {
+              type: 'jpg',
+              contentType: 'image/jpeg',
+              path: dummyFilePath,
+              originalPath: dummyOriginalFilePath,
+            },
+          ],
+        },
+      };
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let callNum = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          callNum++;
+          jest.runAllTimers();
+          // call 1: initial check → both missing
+          // call 2: attempt 0 poll → launch bundle (index 0) finalizes, image stays missing; time out
+          // call 3: attempt 1 poll → image finalizes
+          if (callNum === 2) {
+            mockdate.set(56_002);
+          }
+          return storageKeys.map((storageKey, i) => ({
+            storageKey,
+            status:
+              callNum >= 3 || (callNum === 2 && i === 0)
+                ? AssetMetadataStatus.Exists
+                : AssetMetadataStatus.DoesNotExist,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      const getUploadURLsSpy = jest
+        .spyOn(PublishMutation, 'getUploadURLsAsync')
+        .mockImplementation(async (_client, contentTypes) => ({
+          specifications: contentTypes.map(() => '{}'),
+        }));
+      getUploadURLsSpy.mockClear();
+
+      mockdate.set(0);
+      const result = await uploadAssetsAsync(
+        graphqlClient,
+        twoAssetGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {},
+        () => {}
+      );
+
+      expect(result.uniqueUploadedAssetCount).toBe(2);
+      expect(getUploadURLsSpy).toHaveBeenCalledTimes(2);
+      // Attempt 0 signs both assets; attempt 1 re-signs only the one that stayed missing.
+      expect(getUploadURLsSpy.mock.calls[0][1]).toHaveLength(2);
+      expect(getUploadURLsSpy.mock.calls[1][1]).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('calls onAssetUploadBegin on every upload attempt, including re-uploads', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    const uploadMock = jest.mocked(uploadWithPresignedPostWithRetryAsync);
+    uploadMock.mockImplementation(async (_path, _presignedPost, onBegin) => {
+      onBegin();
+      return new Response();
+    });
+    try {
+      const singleAssetGroup = {
+        android: {
+          launchAsset: {
+            type: 'bundle',
+            contentType: 'application/javascript',
+            path: androidBundlePath,
+          },
+          assets: [],
+        },
+      };
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let callNum = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          callNum++;
+          jest.runAllTimers();
+          if (callNum === 2) {
+            mockdate.set(56_002); // time out attempt 0's poll so a re-upload happens
+          }
+          return storageKeys.map(storageKey => ({
+            storageKey,
+            status: callNum >= 3 ? AssetMetadataStatus.Exists : AssetMetadataStatus.DoesNotExist,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      jest
+        .spyOn(PublishMutation, 'getUploadURLsAsync')
+        .mockImplementation(async (_client, contentTypes) => ({
+          specifications: contentTypes.map(() => '{}'),
+        }));
+      const onAssetUploadBegin = jest.fn();
+
+      mockdate.set(0);
+      await uploadAssetsAsync(
+        graphqlClient,
+        singleAssetGroup,
+        testProjectId,
+        { isCanceledOrFinished: false },
+        () => {},
+        onAssetUploadBegin
+      );
+
+      // The caller resets its inactivity watchdog on this callback, so re-uploads must fire it too.
+      expect(onAssetUploadBegin).toHaveBeenCalledTimes(2);
+    } finally {
+      uploadMock.mockReset();
+      jest.useRealTimers();
+    }
+  });
+
+  it('throws "Canceled upload" when canceled during the finalize poll', async () => {
+    jest.useFakeTimers({ doNotFake: ['Date'] });
+    try {
+      const cancelationToken = { isCanceledOrFinished: false };
+      const graphqlClient = instance(mock<ExpoGraphqlClient>());
+      let callNum = 0;
+      jest
+        .spyOn(PublishQuery, 'getAssetMetadataAsync')
+        .mockImplementation(async (_client, storageKeys) => {
+          callNum++;
+          jest.runAllTimers();
+          // Cancel during the first poll tick (call 2), after the initial check and upload.
+          if (callNum === 2) {
+            cancelationToken.isCanceledOrFinished = true;
+          }
+          return storageKeys.map(storageKey => ({
+            storageKey,
+            status: AssetMetadataStatus.DoesNotExist,
+            __typename: 'AssetMetadataResult' as const,
+          }));
+        });
+      jest
+        .spyOn(PublishMutation, 'getUploadURLsAsync')
+        .mockImplementation(async (_client, contentTypes) => ({
+          specifications: contentTypes.map(() => '{}'),
+        }));
+
+      mockdate.set(0);
+      await expect(
+        uploadAssetsAsync(
+          graphqlClient,
+          assetsForUpdateInfoGroup,
+          testProjectId,
+          cancelationToken,
+          () => {},
+          () => {}
+        )
+      ).rejects.toThrow('Canceled upload');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('throws "Canceled upload" when canceled during upload signing', async () => {
+    const cancelationToken = { isCanceledOrFinished: false };
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
+          status: AssetMetadataStatus.DoesNotExist,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+    jest
+      .spyOn(PublishMutation, 'getUploadURLsAsync')
+      .mockImplementation(async (_client, contentTypes) => ({
+        specifications: contentTypes.map(() => '{}'),
+      }));
+    // Cancel on the second progress callback (fired right after the initial existence check
+    // passes, before uploading begins) so the cancellation is caught inside the signing loop.
+    let progressCallCount = 0;
+    const onAssetUploadResultsChanged = jest.fn(() => {
+      if (++progressCallCount === 2) {
+        cancelationToken.isCanceledOrFinished = true;
+      }
+    });
+
+    mockdate.set(0);
+    await expect(
+      uploadAssetsAsync(
+        graphqlClient,
+        assetsForUpdateInfoGroup,
+        testProjectId,
+        cancelationToken,
+        onAssetUploadResultsChanged,
+        () => {}
+      )
+    ).rejects.toThrow('Canceled upload');
+  });
+
+  it('resolves with zero counts and signs no URLs for an empty asset group', async () => {
+    const graphqlClient = instance(mock<ExpoGraphqlClient>());
+    jest
+      .spyOn(PublishQuery, 'getAssetMetadataAsync')
+      .mockImplementation(async (_client, storageKeys) => {
+        jest.runAllTimers();
+        return storageKeys.map(storageKey => ({
+          storageKey,
+          status: AssetMetadataStatus.Exists,
+          __typename: 'AssetMetadataResult' as const,
+        }));
+      });
+    const getUploadURLsSpy = jest
+      .spyOn(PublishMutation, 'getUploadURLsAsync')
+      .mockImplementation(async (_client, contentTypes) => ({
+        specifications: contentTypes.map(() => '{}'),
+      }));
+    getUploadURLsSpy.mockClear();
+
+    mockdate.set(0);
+    const result = await uploadAssetsAsync(
+      graphqlClient,
+      {},
+      testProjectId,
+      { isCanceledOrFinished: false },
+      () => {},
+      () => {}
+    );
+
+    expect(result).toMatchObject({
+      assetCount: 0,
+      launchAssetCount: 0,
+      uniqueAssetCount: 0,
+      uniqueUploadedAssetCount: 0,
+      uniqueUploadedAssetPaths: [],
+    });
+    expect(getUploadURLsSpy).not.toHaveBeenCalled();
   });
 });
 

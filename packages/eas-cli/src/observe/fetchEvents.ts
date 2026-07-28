@@ -10,6 +10,7 @@ import {
   PageInfo,
 } from '../graphql/generated';
 import { ObserveQuery } from '../graphql/queries/ObserveQuery';
+import { isObservePlanGateError } from './planGating';
 
 export enum EventsOrderPreset {
   Slowest = 'SLOWEST',
@@ -45,15 +46,16 @@ export function resolveOrderBy(input: string): AppObserveEventsOrderBy {
 }
 
 interface FetchObserveEventsOptions {
-  metricName: string;
+  metricName?: string;
   orderBy: AppObserveEventsOrderBy;
   limit: number;
   after?: string;
-  startTime: string;
-  endTime: string;
+  startTime?: string;
+  endTime?: string;
   platform?: AppObservePlatform;
   appVersion?: string;
   updateId?: string;
+  sessionId?: string;
 }
 
 interface FetchObserveEventsResult {
@@ -67,12 +69,13 @@ export async function fetchObserveEventsAsync(
   options: FetchObserveEventsOptions
 ): Promise<FetchObserveEventsResult> {
   const filter: AppObserveEventsFilter = {
-    metricName: options.metricName,
-    startTime: options.startTime,
-    endTime: options.endTime,
+    ...(options.startTime && { startTime: options.startTime }),
+    ...(options.endTime && { endTime: options.endTime }),
+    ...(options.metricName && { metricName: options.metricName }),
     ...(options.platform && { platform: options.platform }),
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
+    ...(options.sessionId && { sessionId: options.sessionId }),
   };
 
   return await ObserveQuery.eventsAsync(graphqlClient, {
@@ -110,7 +113,12 @@ export async function fetchTotalEventCountAsync(
         const metric = v.metrics.find(m => m.metricName === metricName);
         return sum + (metric?.eventCount ?? 0);
       }, 0);
-    } catch {
+    } catch (error) {
+      // A plan gate is an account-wide rejection, not a per-platform failure —
+      // let it propagate so the command surfaces the upgrade prompt.
+      if (isObservePlanGateError(error)) {
+        throw error;
+      }
       return 0;
     }
   });

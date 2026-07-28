@@ -1,4 +1,4 @@
-import { Job, Metadata, version } from '@expo/eas-build-job';
+import { Env, Job, Metadata, version } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
@@ -42,7 +42,7 @@ export async function runLocalBuildAsync(
   job: Job,
   metadata: Metadata,
   options: LocalBuildOptions,
-  env: Record<string, string>
+  env: Env
 ): Promise<void> {
   const { command, args } = await getCommandAndArgsAsync(job, metadata);
   let spinner;

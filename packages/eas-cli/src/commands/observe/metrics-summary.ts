@@ -1,7 +1,10 @@
 import { Flags } from '@oclif/core';
 
 import EasCommand from '../../commandUtils/EasCommand';
-import { EasNonInteractiveAndJsonFlags } from '../../commandUtils/flags';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
@@ -16,6 +19,7 @@ import {
   resolveStatKey,
 } from '../../observe/formatMetrics';
 import { METRIC_ALIASES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -73,16 +77,17 @@ export default class ObserveMetricsSummary extends EasCommand {
 
   async runAsync(): Promise<void> {
     const { flags } = await this.parse(ObserveMetricsSummary);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     const { projectId, graphqlClient } = await resolveObserveCommandContextAsync({
       command: this,
       commandClass: ObserveMetricsSummary,
       loggedInOnlyContextDefinition: ObserveMetricsSummary.loggedInOnlyContextDefinition,
       projectIdOverride: flags['project-id'],
-      nonInteractive: flags['non-interactive'],
+      nonInteractive,
     });
 
-    if (flags.json) {
+    if (json) {
       enableJsonOutput();
     }
 
@@ -95,20 +100,22 @@ export default class ObserveMetricsSummary extends EasCommand {
     const platforms = appPlatformsFromFlag(flags.platform);
 
     const { metricsMap, buildNumbersMap, updateIdsMap, totalEventCounts } =
-      await fetchObserveMetricsAsync(
-        graphqlClient,
-        projectId,
-        metricNames,
-        platforms,
-        startTime,
-        endTime
+      await withObservePlanGateHandlingAsync(() =>
+        fetchObserveMetricsAsync(
+          graphqlClient,
+          projectId,
+          metricNames,
+          platforms,
+          startTime,
+          endTime
+        )
       );
 
     const argumentsStat = flags.stat?.length
       ? Array.from(new Set(flags.stat.map(resolveStatKey)))
       : undefined;
 
-    if (flags.json) {
+    if (json) {
       const stats: StatisticKey[] = argumentsStat ?? DEFAULT_STATS_JSON;
       printJsonOnlyOutput(
         buildObserveMetricsJson(

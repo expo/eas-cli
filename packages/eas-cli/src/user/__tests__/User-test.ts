@@ -1,5 +1,5 @@
 import { Role } from '../../graphql/generated';
-import { Actor, getActorDisplayName } from '../User';
+import { Actor, getActorDisplayName, getCreatableAccountNames } from '../User';
 
 const userStub: Actor = {
   __typename: 'User',
@@ -20,7 +20,6 @@ const userStub: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const ssoUserStub: Actor = {
@@ -41,7 +40,6 @@ const ssoUserStub: Actor = {
   ],
   isExpoAdmin: false,
   featureGates: {},
-  preferences: {},
 };
 
 const robotStub: Actor = {
@@ -72,5 +70,39 @@ describe('getActorDisplayName', () => {
 
   it('returns robot prefix only for robot actors without firstName', () => {
     expect(getActorDisplayName({ ...robotStub, firstName: undefined })).toBe('robot');
+  });
+});
+
+describe('getCreatableAccountNames', () => {
+  it('lists the personal account first, then team accounts, then organizations, excluding view-only accounts', () => {
+    const actor: Actor = {
+      ...userStub,
+      accounts: [
+        {
+          id: 'account_id_1',
+          name: 'some-org',
+          users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+        },
+        {
+          id: 'account_id_2',
+          name: 'other-user-team',
+          ownerUserActor: { id: 'otherUserId', username: 'other-user' },
+          users: [{ role: Role.Admin, actor: { id: 'userId' } }],
+        },
+        {
+          id: 'account_id_3',
+          name: 'view-only-org',
+          users: [{ role: Role.ViewOnly, actor: { id: 'userId' } }],
+        },
+        {
+          id: 'account_id_4',
+          name: 'username',
+          ownerUserActor: { id: 'userId', username: 'username' },
+          users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+        },
+      ],
+    };
+
+    expect(getCreatableAccountNames(actor)).toEqual(['username', 'other-user-team', 'some-org']);
   });
 });

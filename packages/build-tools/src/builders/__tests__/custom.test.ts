@@ -7,6 +7,7 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { prepareProjectSourcesAsync } from '../../common/projectSources';
 import { BuildContext } from '../../context';
 import { CustomBuildContext } from '../../customBuildContext';
+import { Datadog } from '../../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../../ios/xcodeBuildLogs';
 import { runCustomBuildAsync } from '../custom';
 
@@ -17,6 +18,7 @@ const findAndUploadXcodeBuildLogsAsyncMock = jest.mocked(findAndUploadXcodeBuild
 
 describe(runCustomBuildAsync, () => {
   let ctx: BuildContext<BuildJob>;
+  const datadogLogSpy = jest.spyOn(Datadog, 'log');
 
   beforeEach(() => {
     const job = createTestIosJob();
@@ -27,10 +29,24 @@ describe(runCustomBuildAsync, () => {
       vol.fromJSON(
         {
           'test.yaml': `
+          functions:
+            test_function:
+              name: Test function
+              path: ./custom-function
+              shell: /bin/zsh
+              supported_platforms:
+                - darwin
+                - linux
+              inputs:
+                - name
+                - profile
+              outputs:
+                - artifact_path
           build:
             steps:
               - eas/checkout
           `,
+          'custom-function/package.json': '{}',
         },
         '/workingdir/temporary-custom-build'
       );
@@ -75,6 +91,21 @@ describe(runCustomBuildAsync, () => {
     await runCustomBuildAsync(ctx);
 
     expect(prepareProjectSourcesAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports user-provided custom functions when parsing the custom build config', async () => {
+    await runCustomBuildAsync(ctx);
+
+    expect(datadogLogSpy).toHaveBeenCalledWith('Custom build saw user-provided function', {
+      event: 'custom_build_user_provided_function',
+      custom_function_id: 'test_function',
+      custom_function_input_count: '2',
+      custom_function_module_path: '/workingdir/temporary-custom-build/custom-function',
+      custom_function_name: 'Test function',
+      custom_function_output_count: '1',
+      custom_function_shell: '/bin/zsh',
+      custom_function_supported_runtime_platforms: 'darwin,linux',
+    });
   });
 
   it('awaits drainPendingMetricUploads after workflow execution', async () => {

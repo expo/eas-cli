@@ -89,7 +89,7 @@ describe('prepareRuntimeEnvironment', () => {
 
       await prepareRuntimeEnvironmentConfigFiles();
 
-      expect(spawn).toHaveBeenCalledWith('npm', [
+      expect(spawn).not.toHaveBeenCalledWith('npm', [
         'config',
         'set',
         'registry',

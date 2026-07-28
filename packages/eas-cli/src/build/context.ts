@@ -1,5 +1,5 @@
 import { ExpoConfig } from '@expo/config';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { BuildProfile, EasJson } from '@expo/eas-json';
 import { LoggerLevel } from '@expo/logger';
 import { NodePackageManager } from '@expo/package-manager';
@@ -65,5 +65,5 @@ export interface BuildContext<T extends Platform> {
   loggerLevel?: LoggerLevel;
   isVerboseLoggingEnabled: boolean;
   whatToTest?: string;
-  env: Record<string, string>;
+  env: Env;
 }

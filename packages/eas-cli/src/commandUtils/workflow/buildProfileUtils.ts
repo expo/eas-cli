@@ -1,11 +1,17 @@
 import { ExpoConfig } from '@expo/config';
-import { BuildProfile, EasJsonAccessor, EasJsonUtils, Platform } from '@expo/eas-json';
-import { AndroidBuildProfile, IosBuildProfile } from '@expo/eas-json/build/build/types';
+import { EasJson, EasJsonAccessor, EasJsonUtils } from '@expo/eas-json';
 
-import BuildConfigure from '../../commands/build/configure';
-import UpdateConfigure from '../../commands/update/configure';
+import { ensureProjectConfiguredAsync } from '../../build/configure';
 import Log from '../../log';
-import { promptAsync } from '../../prompts';
+import { RequestedPlatform } from '../../platform';
+import {
+  ensureEASUpdateIsConfiguredAsync,
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+} from '../../update/configure';
+import { Client } from '../../vcs/vcs';
+
+export const DEVELOPMENT_BUILD_PROFILE_NAME = 'development';
+export const DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME = 'development-ios-simulator';
 
 export async function buildProfileNamesFromProjectAsync(projectDir: string): Promise<Set<string>> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
@@ -15,101 +21,35 @@ export async function buildProfileNamesFromProjectAsync(projectDir: string): Pro
   );
   return buildProfileNames;
 }
-export async function getBuildProfileAsync(
-  projectDir: string,
-  platform: Platform,
-  profileName: string
-): Promise<BuildProfile<Platform>> {
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-  const buildProfile = await EasJsonUtils.getBuildProfileAsync(
-    easJsonAccessor,
-    platform,
-    profileName
-  );
-  return buildProfile;
-}
-export async function buildProfilesFromProjectAsync(
-  projectDir: string
-): Promise<Map<string, { android: AndroidBuildProfile; ios: IosBuildProfile }>> {
-  const buildProfileNames = await buildProfileNamesFromProjectAsync(projectDir);
-  const buildProfiles: Map<string, { android: AndroidBuildProfile; ios: IosBuildProfile }> =
-    new Map();
-  for (const profileName of buildProfileNames) {
-    const iosBuildProfile = (await getBuildProfileAsync(
-      projectDir,
-      Platform.IOS,
-      profileName
-    )) as IosBuildProfile;
-    const androidBuildProfile = (await getBuildProfileAsync(
-      projectDir,
-      Platform.ANDROID,
-      profileName
-    )) as AndroidBuildProfile;
-    buildProfiles.set(profileName, { android: androidBuildProfile, ios: iosBuildProfile });
-  }
-  return buildProfiles;
-}
-export function isBuildProfileForDevelopment(
-  buildProfile: BuildProfile<Platform>,
-  platform: Platform
-): boolean {
-  if (buildProfile.developmentClient) {
-    return true;
-  }
-  if (platform === Platform.ANDROID) {
-    return (buildProfile as BuildProfile<Platform.ANDROID>).gradleCommand === ':app:assembleDebug';
-  }
-  if (platform === Platform.IOS) {
-    return (buildProfile as BuildProfile<Platform.IOS>).buildConfiguration === 'Debug';
-  }
-  return false;
-}
-export function isIosBuildProfileForSimulator(buildProfile: BuildProfile<Platform.IOS>): boolean {
-  return buildProfile.simulator ?? false;
-}
-export async function addAndroidDevelopmentBuildProfileToEasJsonAsync(
-  projectDir: string,
-  buildProfileName: string
-): Promise<void> {
+
+export async function ensureDevelopmentBuildProfilesExistAsync(projectDir: string): Promise<void> {
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   await easJsonAccessor.readRawJsonAsync();
+  const addedProfiles: string[] = [];
   easJsonAccessor.patch(easJsonRawObject => {
-    easJsonRawObject.build = {
-      ...easJsonRawObject.build,
-      [buildProfileName]: {
+    easJsonRawObject.build = easJsonRawObject.build ?? {};
+    if (!easJsonRawObject.build[DEVELOPMENT_BUILD_PROFILE_NAME]) {
+      easJsonRawObject.build[DEVELOPMENT_BUILD_PROFILE_NAME] = {
         developmentClient: true,
         distribution: 'internal',
-        android: {
-          gradleCommand: ':app:assembleDebug',
-        },
-      },
-    };
-    return easJsonRawObject;
-  });
-  await easJsonAccessor.writeAsync();
-}
-export async function addIosDevelopmentBuildProfileToEasJsonAsync(
-  projectDir: string,
-  buildProfileName: string,
-  simulator: boolean
-): Promise<void> {
-  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
-  await easJsonAccessor.readRawJsonAsync();
-  easJsonAccessor.patch(easJsonRawObject => {
-    easJsonRawObject.build = {
-      ...easJsonRawObject.build,
-      [buildProfileName]: {
+      };
+      addedProfiles.push(DEVELOPMENT_BUILD_PROFILE_NAME);
+    }
+    if (!easJsonRawObject.build[DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME]) {
+      easJsonRawObject.build[DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME] = {
         developmentClient: true,
-        distribution: 'internal',
         ios: {
-          buildConfiguration: 'Debug',
-          simulator,
+          simulator: true,
         },
-      },
-    };
+      };
+      addedProfiles.push(DEVELOPMENT_IOS_SIMULATOR_BUILD_PROFILE_NAME);
+    }
     return easJsonRawObject;
   });
   await easJsonAccessor.writeAsync();
+  if (addedProfiles.length > 0) {
+    Log.log(`Added the following build profiles to eas.json: ${addedProfiles.join(', ')}`);
+  }
 }
 
 export async function addProductionBuildProfileToEasJsonIfNeededAsync(
@@ -140,7 +80,7 @@ export async function addProductionBuildProfileToEasJsonIfNeededAsync(
   return profileAdded;
 }
 
-export async function hasBuildConfigureBeenRunAsync({
+async function hasBuildConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {
@@ -161,7 +101,7 @@ export async function hasBuildConfigureBeenRunAsync({
   return true;
 }
 
-export async function hasUpdateConfigureBeenRunAsync({
+async function hasUpdateConfigureBeenRunAsync({
   projectDir,
   expoConfig,
 }: {
@@ -182,88 +122,48 @@ export async function hasUpdateConfigureBeenRunAsync({
   }
 }
 
-/**
- * Runs update:configure if needed. Returns a boolean (proceed with workflow creation, or not)
- */
-
-export async function runUpdateConfigureIfNeededAsync({
+export async function configureEasUpdateIfNeededAsync({
   projectDir,
   expoConfig,
+  projectId,
+  vcsClient,
 }: {
   projectDir: string;
   expoConfig: ExpoConfig;
-}): Promise<boolean> {
-  if (
-    await hasUpdateConfigureBeenRunAsync({
-      projectDir,
-      expoConfig,
-    })
-  ) {
-    return true;
+  projectId: string;
+  vcsClient: Client;
+}): Promise<void> {
+  if (await hasUpdateConfigureBeenRunAsync({ projectDir, expoConfig })) {
+    return;
   }
-  const nextStep = (
-    await promptAsync({
-      type: 'select',
-      name: 'nextStep',
-      message:
-        'You have chosen to create a workflow that requires EAS Update configuration. What would you like to do?',
-      choices: [
-        { title: 'Configure EAS Update and then proceed', value: 'configure' },
-        { title: 'EAS Update is already configured, proceed', value: 'proceed' },
-        { title: 'Choose a different workflow template', value: 'repeat' },
-      ],
-    })
-  ).nextStep;
-  switch (nextStep) {
-    case 'configure':
-      Log.newLine();
-      await UpdateConfigure.run([]);
-      return true;
-    case 'proceed':
-      return true;
-    default:
-      return false;
-  }
+  const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
+  const easJsonCliConfig: EasJson['cli'] =
+    (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
+  await ensureEASUpdateIsConfiguredAsync({
+    exp: expoConfig,
+    projectId,
+    projectDir,
+    vcsClient,
+    platform: RequestedPlatform.All,
+    env: undefined,
+    forceNativeConfigSync: true,
+    manifestHostOverride: easJsonCliConfig?.updateManifestHostOverride ?? null,
+  });
+  await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+  Log.withTick('Configured EAS Update');
 }
-/**
- * Runs build:configure if needed. Returns a boolean (proceed with workflow creation, or not)
- */
-export async function runBuildConfigureIfNeededAsync({
+
+export async function configureEasBuildIfNeededAsync({
   projectDir,
   expoConfig,
+  vcsClient,
 }: {
   projectDir: string;
   expoConfig: ExpoConfig;
-}): Promise<boolean> {
-  if (
-    await hasBuildConfigureBeenRunAsync({
-      projectDir,
-      expoConfig,
-    })
-  ) {
-    return true;
+  vcsClient: Client;
+}): Promise<void> {
+  if (await hasBuildConfigureBeenRunAsync({ projectDir, expoConfig })) {
+    return;
   }
-  const nextStep = (
-    await promptAsync({
-      type: 'select',
-      name: 'nextStep',
-      message:
-        'You have chosen to create a workflow that requires EAS Build configuration. What would you like to do?',
-      choices: [
-        { title: 'Configure EAS Build and then proceed', value: 'configure' },
-        { title: 'EAS Build is already configured, proceed', value: 'proceed' },
-        { title: 'Choose a different workflow template', value: 'repeat' },
-      ],
-    })
-  ).nextStep;
-  switch (nextStep) {
-    case 'configure':
-      Log.newLine();
-      await BuildConfigure.run(['-p', 'all']);
-      return true;
-    case 'proceed':
-      return true;
-    default:
-      return false;
-  }
+  await ensureProjectConfiguredAsync({ projectDir, nonInteractive: false, vcsClient });
 }

@@ -1,4 +1,5 @@
 import { ExportedConfig, IOSConfig, compileModsAsync } from '@expo/config-plugins';
+import { Env } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import { getPrebuildConfigAsync } from '@expo/prebuild-config';
 
@@ -17,7 +18,7 @@ interface Target {
 
 export async function getManagedApplicationTargetEntitlementsAsync(
   projectDir: string,
-  env: Record<string, string>,
+  env: Env,
   vcsClient: Client
 ): Promise<JSONObject> {
   let expoConfigError: any;
@@ -95,7 +96,7 @@ export async function getManagedApplicationTargetEntitlementsAsync(
 
 async function resolveManagedApplicationTargetEntitlementsWithBundledConfigAsync(
   projectDir: string,
-  env: Record<string, string>,
+  env: Env,
   vcsClient: Client
 ): Promise<JSONObject> {
   const originalProcessEnv = process.env;

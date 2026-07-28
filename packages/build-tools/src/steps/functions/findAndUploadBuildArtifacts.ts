@@ -26,14 +26,14 @@ export function createFindAndUploadBuildArtifactsBuildFunction(
       try {
         await uploadApplicationArchivesAsync({ ctx, stepCtx });
       } catch (err: unknown) {
-        stepCtx.logger.error(`Failed to upload application archives.`, err);
+        stepCtx.logger.error({ err }, `Failed to upload application archives.`);
         firstError ||= err;
       }
 
       try {
         await uploadBuildArtifacts({ ctx, stepCtx });
       } catch (err: unknown) {
-        stepCtx.logger.error(`Failed to upload build artifacts.`, err);
+        stepCtx.logger.error({ err }, `Failed to upload build artifacts.`);
         firstError ||= err;
       }
 

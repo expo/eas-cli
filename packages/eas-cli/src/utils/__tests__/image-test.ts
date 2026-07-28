@@ -1,17 +1,13 @@
-import { randomInt } from 'crypto';
-import express from 'express';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 
 import { ImageNonPngError, ImageTransparencyError, ensurePNGIsNotTransparentAsync } from '../image';
 
-const TEST_SERVER_PORT = randomInt(9000, 9000 + 1000);
-
 const fixturesPath = path.join(__dirname, 'fixtures');
 const transparentPngPath = path.join(fixturesPath, 'icon-alpha.png');
 const nonTransparentPngPath = path.join(fixturesPath, 'icon-no-alpha.png');
 const jpgPath = path.join(fixturesPath, 'icon.jpg');
-const nonTransparentPngURL = `http://127.0.0.1:${TEST_SERVER_PORT}/icon-alpha.png`;
 
 describe(ensurePNGIsNotTransparentAsync, () => {
   describe('local paths', () => {
@@ -32,15 +28,27 @@ describe(ensurePNGIsNotTransparentAsync, () => {
 
   describe('remote URLs', () => {
     let server: http.Server;
+    let transparentPngURL: string;
 
     beforeAll(async () => {
-      await new Promise<void>(res => {
-        const app = express();
-        app.use(express.static(fixturesPath));
-        server = app.listen(TEST_SERVER_PORT, () => {
+      server = http.createServer((_request, response) => {
+        response.setHeader('Content-Type', 'image/png');
+        fs.createReadStream(transparentPngPath).pipe(response);
+      });
+      await new Promise<void>((res, rej) => {
+        const onError = (error: Error): void => rej(error);
+        server.once('error', onError);
+        server.listen(0, '127.0.0.1', () => {
+          server.off('error', onError);
           res();
         });
       });
+
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        throw new Error('Failed to determine test server address');
+      }
+      transparentPngURL = `http://127.0.0.1:${address.port}/icon-alpha.png`;
     });
 
     afterAll(async () => {
@@ -52,7 +60,7 @@ describe(ensurePNGIsNotTransparentAsync, () => {
     });
 
     it('works with remote URLs', async () => {
-      await expect(ensurePNGIsNotTransparentAsync(nonTransparentPngURL)).rejects.toThrowError(
+      await expect(ensurePNGIsNotTransparentAsync(transparentPngURL)).rejects.toThrowError(
         ImageTransparencyError
       );
     });

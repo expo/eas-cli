@@ -1,6 +1,6 @@
 import { ExpoConfig } from '@expo/config';
 import { IOSConfig, XcodeProject } from '@expo/config-plugins';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { Env, Platform, Workflow } from '@expo/eas-build-job';
 import { JSONObject } from '@expo/json-file';
 import Joi from 'joi';
 import type { XCBuildConfiguration } from 'xcode';
@@ -26,7 +26,7 @@ interface UserDefinedTarget {
 interface ResolveTargetOptions {
   projectDir: string;
   exp: ExpoConfig;
-  env?: Record<string, string>;
+  env?: Env;
   xcodeBuildContext: XcodeBuildContext;
   vcsClient: Client;
 }
@@ -39,6 +39,28 @@ const AppExtensionsConfigSchema = Joi.array().items(
     entitlements: Joi.object(),
   })
 );
+
+/**
+ * For managed projects we don't have an Xcode project to read build settings
+ * from, but the @react-native-tvos/config-tv plugin signals a tvOS build via
+ * the EXPO_TV environment variable. That variable can come from the build
+ * profile's `env` in eas.json (the typical case, which flows in via `env`),
+ * or from the shell process when the user runs `EXPO_TV=1 eas build ...`
+ * (which is NOT included in the merged `env` upstream, so we read
+ * `process.env` directly as a fallback). When set, synthesize
+ * TARGETED_DEVICE_FAMILY=3 so getApplePlatformFromTarget (and every
+ * Apple-portal flow downstream) picks TV_OS for these targets instead of
+ * defaulting to IOS.
+ */
+export function getManagedTvBuildSettings(
+  env: Env | undefined
+): Target['buildSettings'] | undefined {
+  const expoTv = (env?.EXPO_TV ?? process.env.EXPO_TV ?? '').toString().toLowerCase();
+  if (expoTv === '1' || expoTv === 'true' || expoTv === 'yes') {
+    return { TARGETED_DEVICE_FAMILY: '3' };
+  }
+  return undefined;
+}
 
 export async function resolveManagedProjectTargetsAsync({
   exp,
@@ -76,12 +98,14 @@ export async function resolveManagedProjectTargetsAsync({
     );
   }
 
+  const managedBuildSettings = getManagedTvBuildSettings(env);
   const extensionsTargets: Target[] = appExtensions.map(extension => ({
     targetName: extension.targetName,
     buildConfiguration,
     bundleIdentifier: extension.bundleIdentifier,
     parentBundleIdentifier: extension.parentBundleIdentifier ?? applicationTargetBundleIdentifier,
     entitlements: extension.entitlements ?? {},
+    ...(managedBuildSettings && { buildSettings: managedBuildSettings }),
   }));
   return [
     {
@@ -89,6 +113,7 @@ export async function resolveManagedProjectTargetsAsync({
       bundleIdentifier: applicationTargetBundleIdentifier,
       buildConfiguration,
       entitlements: applicationTargetEntitlements,
+      ...(managedBuildSettings && { buildSettings: managedBuildSettings }),
     },
     ...extensionsTargets,
   ];

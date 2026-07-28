@@ -5,12 +5,43 @@ import { withErrorHandlingAsync } from '../client';
 import {
   DeviceRunSessionByIdQuery,
   DeviceRunSessionByIdQueryVariables,
+  DeviceRunSessionEventsByIdQuery,
+  DeviceRunSessionEventsByIdQueryVariables,
   DeviceRunSessionFilterInput,
   DeviceRunSessionsByAppIdQuery,
   DeviceRunSessionsByAppIdQueryVariables,
 } from '../generated';
 
 export const DeviceRunSessionQuery = {
+  async eventsByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    deviceRunSessionId: string
+  ): Promise<DeviceRunSessionEventsByIdQuery['deviceRunSessions']['byId']> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<DeviceRunSessionEventsByIdQuery, DeviceRunSessionEventsByIdQueryVariables>(
+          gql`
+            query DeviceRunSessionEventsByIdQuery($deviceRunSessionId: ID!) {
+              deviceRunSessions {
+                byId(deviceRunSessionId: $deviceRunSessionId) {
+                  id
+                  status
+                  artifacts {
+                    id
+                    downloadUrl
+                    metadata
+                  }
+                }
+              }
+            }
+          `,
+          { deviceRunSessionId },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise()
+    );
+    return data.deviceRunSessions.byId;
+  },
   async byIdAsync(
     graphqlClient: ExpoGraphqlClient,
     deviceRunSessionId: string
@@ -23,8 +54,14 @@ export const DeviceRunSessionQuery = {
               deviceRunSessions {
                 byId(deviceRunSessionId: $deviceRunSessionId) {
                   id
+                  name
                   status
                   type
+                  platform
+                  createdAt
+                  startedAt
+                  finishedAt
+                  updatedAt
                   app {
                     id
                     slug
@@ -32,6 +69,16 @@ export const DeviceRunSessionQuery = {
                       id
                       name
                     }
+                  }
+                  artifacts {
+                    id
+                    name
+                    filename
+                    downloadUrl
+                    fileSizeBytes
+                    metadata
+                    createdAt
+                    updatedAt
                   }
                   remoteConfig {
                     __typename
@@ -42,11 +89,11 @@ export const DeviceRunSessionQuery = {
                     }
                     ... on ArgentRunSessionRemoteConfig {
                       toolsUrl
+                      toolsAuthToken
                       webPreviewUrl
                     }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
-                      streamUrl
                     }
                   }
                   turtleJobRun {
@@ -96,6 +143,7 @@ export const DeviceRunSessionQuery = {
                       cursor
                       node {
                         id
+                        name
                         status
                         type
                         platform

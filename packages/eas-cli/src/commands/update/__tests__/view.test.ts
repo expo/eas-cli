@@ -7,7 +7,7 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import UpdateView from '../view';
 
 jest.mock('../../../graphql/queries/UpdateQuery', () => ({
-  UpdateQuery: { viewUpdateGroupAsync: jest.fn() },
+  UpdateQuery: { viewUpdateGroupAsync: jest.fn(), viewByUpdateAsync: jest.fn() },
 }));
 jest.mock('../../../graphql/queries/UpdateInsightsQuery', () => ({
   UpdateInsightsQuery: { viewUpdateGroupInsightsAsync: jest.fn() },
@@ -16,6 +16,7 @@ jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockViewUpdateGroupAsync = jest.mocked(UpdateQuery.viewUpdateGroupAsync);
+const mockViewByUpdateAsync = jest.mocked(UpdateQuery.viewByUpdateAsync);
 const mockViewUpdateGroupInsightsAsync = jest.mocked(
   UpdateInsightsQuery.viewUpdateGroupInsightsAsync
 );
@@ -154,5 +155,43 @@ describe(UpdateView, () => {
     expect(arg.updates).toBeDefined();
     expect(arg.insights).toBeDefined();
     expect(arg.insights.platforms[0].totals.installs).toBe(990);
+  });
+
+  it('does not look up a single update when the ID resolves as a group', async () => {
+    const command = createCommand(['group-1']);
+    await command.runAsync();
+    expect(mockViewUpdateGroupAsync).toHaveBeenCalledWith(graphqlClient, { groupId: 'group-1' });
+    expect(mockViewByUpdateAsync).not.toHaveBeenCalled();
+  });
+
+  it('resolves a platform-specific update ID to its group', async () => {
+    mockViewUpdateGroupAsync.mockReset();
+    mockViewUpdateGroupAsync
+      .mockRejectedValueOnce(new Error('Could not find any updates with group ID: "u1"'))
+      .mockResolvedValueOnce(updateGroup);
+    mockViewByUpdateAsync.mockResolvedValue({ ...updateGroup[0], group: 'group-1' });
+
+    const command = createCommand(['u1', '--insights']);
+    await command.runAsync();
+
+    expect(mockViewByUpdateAsync).toHaveBeenCalledWith(graphqlClient, { updateId: 'u1' });
+    expect(mockViewUpdateGroupAsync).toHaveBeenLastCalledWith(graphqlClient, {
+      groupId: 'group-1',
+    });
+    expect(mockViewUpdateGroupInsightsAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ groupId: 'group-1' })
+    );
+  });
+
+  it('surfaces the original group lookup error when the ID matches neither a group nor an update', async () => {
+    mockViewUpdateGroupAsync.mockReset();
+    mockViewUpdateGroupAsync.mockRejectedValue(
+      new Error('Could not find any updates with group ID: "bogus"')
+    );
+    mockViewByUpdateAsync.mockRejectedValue(new Error('update not found'));
+
+    const command = createCommand(['bogus']);
+    await expect(command.runAsync()).rejects.toThrow(/Could not find any updates with group ID/);
   });
 });

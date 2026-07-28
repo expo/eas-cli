@@ -1,4 +1,4 @@
-import { GCS } from '@expo/build-tools';
+import { type SignedUrl } from '@expo/build-tools';
 import { BuildJob, Generic, Metadata, errors } from '@expo/eas-build-job';
 
 export const androidImagesWithJavaVersionLowerThen11 = [
@@ -22,12 +22,8 @@ export namespace Worker {
   }
 
   type JobRunWorkerRuntimeConfig = {
-    gcsSignedUploadUrlForLogs: GCS.SignedUrl;
+    gcsSignedUploadUrlForLogs: SignedUrl;
 
-    nodeJsCacheUrl: string | undefined;
-    npmCacheUrl: string | undefined;
-    mavenCacheUrl: string | undefined;
-    cocoapodsCacheUrl: string | undefined;
     runMetricsServer: boolean;
 
     type: 'jobRun';
@@ -35,17 +31,11 @@ export namespace Worker {
   };
 
   type BuildWorkerRuntimeConfig = {
-    gcsSignedUploadUrlForApplicationArchive: GCS.SignedUrl | null;
-    gcsSignedUploadUrlForBuildArtifacts: GCS.SignedUrl | null;
-    gcsSignedUploadUrlForLogs: GCS.SignedUrl;
-    gcsSignedUploadUrlForXcodeBuildLogs?: GCS.SignedUrl;
-    gcsSignedUploadUrlForBuildCache?: GCS.SignedUrl;
+    gcsSignedUploadUrlForLogs: SignedUrl;
+    gcsSignedUploadUrlForXcodeBuildLogs?: SignedUrl;
+    gcsSignedUploadUrlForBuildCache?: SignedUrl;
     gcsSignedBuildCacheDownloadUrl?: string;
 
-    nodeJsCacheUrl: string | undefined;
-    npmCacheUrl: string | undefined;
-    mavenCacheUrl: string | undefined;
-    cocoapodsCacheUrl: string | undefined;
     runMetricsServer: boolean;
 
     type?: never;

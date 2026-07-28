@@ -18,6 +18,11 @@ export async function uploadEmbeddedBundleAsync(ctx: BuildContext<BuildJob>): Pr
     return;
   }
 
+  if (ctx.job.developmentClient) {
+    ctx.markBuildPhaseSkipped();
+    return;
+  }
+
   const { platform } = ctx.job;
   if (platform === Platform.IOS && (ctx.job as Ios.Job).simulator) {
     ctx.markBuildPhaseSkipped();

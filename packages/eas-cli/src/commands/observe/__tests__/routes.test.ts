@@ -1,7 +1,11 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppPlatform } from '../../../graphql/generated';
 import { fetchObserveNavigationRoutesAsync } from '../../../observe/fetchNavigationRoutes';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import {
   buildObserveNavigationRoutesJson,
   buildObserveNavigationRoutesTable,
@@ -50,6 +54,24 @@ describe(ObserveRoutes, () => {
     return command;
   }
 
+  it('surfaces the server plan-gate message when navigation is not available on the plan', async () => {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    mockFetchObserveNavigationRoutesAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(serverMessage, null, null, null, null, null, {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }),
+        ],
+      })
+    );
+
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
   it('queries both platforms by default with all three navigation metric full names', async () => {
     const command = createCommand([]);
     await command.runAsync();
@@ -79,9 +101,9 @@ describe(ObserveRoutes, () => {
   it('resolves --metric short aliases to navigation metric full names and deduplicates', async () => {
     const command = createCommand([
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
-      'cold_ttr',
+      'nav_cold_ttr',
       '--metric',
       'nav_tti',
     ]);

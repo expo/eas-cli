@@ -23,6 +23,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
     id: 'upload_to_asc',
     name: 'Upload to App Store Connect',
     __metricsId: 'eas/upload_to_asc',
+    __hookId: 'submit',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'ipa_path',

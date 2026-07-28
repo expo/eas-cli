@@ -11,6 +11,8 @@ import {
   ViewUpdateGroupsOnAppQueryVariables,
   ViewUpdateGroupsOnBranchQuery,
   ViewUpdateGroupsOnBranchQueryVariables,
+  ViewUpdateGroupsPaginatedOnBranchQuery,
+  ViewUpdateGroupsPaginatedOnBranchQueryVariables,
   ViewUpdatesByGroupQuery,
   ViewUpdatesByGroupQueryVariables,
 } from '../generated';
@@ -95,6 +97,80 @@ export const UpdateQuery = {
     }
 
     return branch.updateGroups;
+  },
+  async viewUpdateGroupsPaginatedOnBranchAsync(
+    graphqlClient: ExpoGraphqlClient,
+    {
+      appId,
+      branchName,
+      first,
+      last,
+      after,
+      before,
+      filter,
+    }: ViewUpdateGroupsPaginatedOnBranchQueryVariables
+  ): Promise<UpdateFragment[][]> {
+    const response = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          ViewUpdateGroupsPaginatedOnBranchQuery,
+          ViewUpdateGroupsPaginatedOnBranchQueryVariables
+        >(
+          gql`
+            query ViewUpdateGroupsPaginatedOnBranch(
+              $appId: String!
+              $branchName: String!
+              $first: Int
+              $last: Int
+              $after: String
+              $before: String
+              $filter: UpdatesFilterV2
+            ) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  updateBranchByName(name: $branchName) {
+                    id
+                    updateGroupsPaginated(
+                      first: $first
+                      last: $last
+                      after: $after
+                      before: $before
+                      filter: $filter
+                    ) {
+                      edges {
+                        node {
+                          id
+                          ...UpdateFragment
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            ${print(UpdateFragmentNode)}
+          `,
+          {
+            appId,
+            branchName,
+            first,
+            last,
+            after,
+            before,
+            filter,
+          },
+          { additionalTypenames: ['Update'] }
+        )
+        .toPromise()
+    );
+    const branch = response.app.byId.updateBranchByName;
+
+    if (!branch) {
+      throw new Error(`Could not find branch "${branchName}"`);
+    }
+
+    return branch.updateGroupsPaginated.edges.map(edge => edge.node);
   },
   async viewUpdateGroupsOnAppAsync(
     graphqlClient: ExpoGraphqlClient,

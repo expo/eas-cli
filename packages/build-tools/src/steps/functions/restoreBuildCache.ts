@@ -206,16 +206,16 @@ export async function restoreGradleCacheAsync({
   }
 
   try {
-    const gradlePropertiesPath = path.join(workingDirectory, 'android', 'gradle.properties');
-    const gradlePropertiesContent = await fs.promises.readFile(gradlePropertiesPath, 'utf-8');
-    await fs.promises.writeFile(
-      gradlePropertiesPath,
-      `${gradlePropertiesContent}\n\norg.gradle.caching=true\n`
-    );
+    // Enable build cache via user-level gradle.properties.
+    // This avoids mutating android/gradle.properties which affects fingerprinting.
+    const gradleUserHome = path.join(os.homedir(), '.gradle');
+    await fs.promises.mkdir(gradleUserHome, { recursive: true });
+    const userGradlePropertiesPath = path.join(gradleUserHome, 'gradle.properties');
+    await fs.promises.appendFile(userGradlePropertiesPath, '\norg.gradle.caching=true\n');
 
-    // Configure cache cleanup via init script (works with both Gradle 8 and 9,
-    // org.gradle.cache.cleanup property was removed in Gradle 9)
-    const initScriptDir = path.join(os.homedir(), '.gradle', 'init.d');
+    // Configure cache cleanup via init script.
+    // Works with both Gradle 8 and 9 (org.gradle.cache.cleanup property was removed in Gradle 9).
+    const initScriptDir = path.join(gradleUserHome, 'init.d');
     await fs.promises.mkdir(initScriptDir, { recursive: true });
     await fs.promises.writeFile(
       path.join(initScriptDir, 'eas-cache-cleanup.gradle'),

@@ -104,4 +104,33 @@ describe(expoUpdates.configureExpoUpdatesIfInstalledAsync, () => {
     expect(iosSetChannelNativelyAsync).toBeCalledTimes(1);
     expect(getExpoUpdatesPackageVersionIfInstalledAsync).toBeCalledTimes(1);
   });
+
+  it('does not fail on missing EAS_BUILD_ID when logging fingerprint diffs', async () => {
+    jest.mocked(getExpoUpdatesPackageVersionIfInstalledAsync).mockResolvedValue('0.18.0');
+
+    const warn = jest.fn();
+    const managedCtx: BuildContext<BuildJob> = {
+      appConfig: {},
+      env: {},
+      job: {
+        platform: Platform.IOS,
+      },
+      logger: { warn },
+      metadata: {
+        runtimeVersion: 'runtime-version-from-local-machine',
+      },
+      getReactNativeProjectDirectory: () => '/app',
+    } as any;
+
+    await expect(
+      expoUpdates.configureExpoUpdatesIfInstalledAsync(managedCtx, {
+        resolvedRuntimeVersion: 'runtime-version-from-eas-build',
+        resolvedFingerprintSources: [],
+      })
+    ).rejects.toThrow(
+      'Runtime version calculated on local machine not equal to runtime version calculated during build.'
+    );
+
+    expect(warn).toHaveBeenCalledWith('Skipping fingerprint diff because EAS_BUILD_ID is not set');
+  });
 });

@@ -14,6 +14,7 @@ import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSe
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
+import { promptAsync } from '../../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -42,6 +43,7 @@ jest.mock('../../../simulator/env', () => ({
   loadSimulatorEnvAsync: jest.fn(),
   resetSimulatorEnvAsync: jest.fn(),
 }));
+jest.mock('../../../prompts');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -61,7 +63,8 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 const graphqlClient = {} as ExpoGraphqlClient;
 const projectDir = '/test/project';
 const simulatorDotenvPath = `${projectDir}/.env.eas-simulator`;
-const jobRunUrl = 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123';
+const deviceRunSessionUrl =
+  'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123';
 
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
@@ -70,6 +73,7 @@ const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockOra = jest.mocked(ora);
+const mockPromptAsync = jest.mocked(promptAsync);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -95,8 +99,14 @@ function makeCreatedDeviceRunSession(
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
+    platform: AppPlatform.Ios,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    startedAt: '2025-01-01T00:00:05.000Z',
+    finishedAt: null,
+    updatedAt: '2025-01-01T00:01:00.000Z',
     app: {
       id: 'app-123',
       slug: 'testapp',
@@ -105,6 +115,7 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
         name: 'testuser',
       },
     },
+    artifacts: [],
     remoteConfig: {
       __typename: 'AgentDeviceRunSessionRemoteConfig',
       agentDeviceRemoteSessionUrl: 'https://agent.example.com',
@@ -179,13 +190,14 @@ describe(SimulatorStart, () => {
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
     });
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
-      `Device run session created (id: session-123) ${jobRunUrl}`
+      `Simulator session created (id: session-123) ${deviceRunSessionUrl}`
     );
     expect(Log.log).toHaveBeenCalledWith(
       expect.stringContaining("export AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'")
@@ -214,14 +226,14 @@ describe(SimulatorStart, () => {
       mockByIdAsync.mock.invocationCallOrder[0]
     );
     expect(mockOra.mock.results[0]?.value.succeed).toHaveBeenCalledWith(
-      `Device run session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${jobRunUrl}`
+      `Simulator session created (id: session-123, saved to ${SIMULATOR_DOTENV_FILE_NAME}) ${deviceRunSessionUrl}`
     );
     expect(Log.withTick).not.toHaveBeenCalled();
     expect(Log.log).toHaveBeenCalledWith(
       [
         '🔑 Run the following to use agent-device with the simulator:',
         '',
-        'eas simulator:exec agent-device <command>',
+        'eas simulator:exec npx agent-device <command>',
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
@@ -268,6 +280,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -287,6 +300,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -298,7 +312,7 @@ describe(SimulatorStart, () => {
 
     const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--no-force']);
     await expect(command.runAsync()).rejects.toThrow(
-      'Existing simulator session in environment. Use --force to create a new device session.'
+      'Existing simulator session in environment. Use --force to create a new simulator session.'
     );
 
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
@@ -313,5 +327,92 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+  });
+
+  it('forwards --name to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      'Checkout regression',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('trims --name before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      '  Checkout regression  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('omits a blank --name instead of letting the server reject it', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--name', '   ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: undefined })
+    );
+  });
+
+  it('prompts to select the platform when --platform is omitted', async () => {
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'select', message: 'Select platform' })
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ platform: AppPlatform.Android })
+    );
+  });
+
+  it('prompts for the platform before warning about overwriting an existing session', async () => {
+    process.env[EAS_SIMULATOR_SESSION_ID] = 'existing-session';
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Ios });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Overwriting previous'));
+    expect(mockPromptAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(Log.warn).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('throws instead of prompting when --platform is omitted in non-interactive mode', async () => {
+    const { command } = createCommand(['--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --platform flag must be set when running in non-interactive mode.'
+    );
+
+    expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 });

@@ -198,6 +198,17 @@ export const AccountQuery = {
                         value
                         limit
                       }
+                      overageMetrics {
+                        id
+                        value
+                        metadata {
+                          ... on AccountUsageEASBuildMetadata {
+                            billingResourceClass
+                            platform
+                          }
+                        }
+                      }
+                      totalCost
                     }
                   }
                 }

@@ -1,14 +1,21 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv } from '@expo/steps';
+import { BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
+import nullthrows from 'nullthrows';
+import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
+import { turtleFetch } from '../../utils/turtleFetch';
+
+const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -23,6 +30,19 @@ const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
     }
   }
 `);
+
+const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
+  query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
+    deviceRunSessions {
+      byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
@@ -60,6 +80,194 @@ export function getNgrokAuthtokenOrThrow(env: BuildStepEnv): string {
   return authtoken;
 }
 
+const TurnIceServersSchema = z.array(
+  z.object({
+    urls: z.array(z.string()),
+    username: z.string().optional(),
+    credential: z.string().optional(),
+  })
+);
+
+export type TurnIceServers = z.infer<typeof TurnIceServersSchema>;
+
+export async function selectXcodeDeveloperDirectoryAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (process.env.ENVIRONMENT === 'development') {
+    logger.info('Job running outside of EAS, not selecting Xcode developer directory.');
+    return;
+  }
+
+  logger.info(`Selecting Xcode developer directory: ${XCODE_DEVELOPER_DIR}.`);
+  await spawnAsync('sudo', ['xcode-select', '-s', XCODE_DEVELOPER_DIR], {
+    env,
+    logger,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+export async function waitForDeviceRunSessionStoppedAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+  signal,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+  signal?: AbortSignal;
+}): Promise<void> {
+  logger.info(
+    `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+  );
+  let pollErrorCount = 0;
+
+  while (!signal?.aborted) {
+    try {
+      const result = await ctx.graphqlClient
+        .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+        .toPromise();
+      if (result.error) {
+        throw result.error;
+      }
+
+      const status = result.data?.deviceRunSessions?.byId?.status;
+      if (!status) {
+        throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
+      }
+      pollErrorCount = 0;
+      if (status === 'STOPPED') {
+        logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+        return;
+      }
+      if (status === 'ERRORED') {
+        throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+      }
+    } catch (err) {
+      if (err instanceof SystemError) {
+        throw err;
+      }
+
+      const error = err instanceof Error ? err : new Error(String(err));
+      pollErrorCount += 1;
+      if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+        Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+        logger.warn(
+          { err: error, failedStatusPollCount: pollErrorCount },
+          'Could not poll device run session status; will retry.'
+        );
+      }
+    }
+    await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+  }
+}
+
+async function sleepUntilAbortedAsync(
+  timeoutMs: number,
+  signal: AbortSignal | undefined
+): Promise<void> {
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, signal ? { signal } : undefined);
+  } catch (err) {
+    if (!signal?.aborted) {
+      throw err;
+    }
+  }
+}
+
+const TurnIceServersResponseSchema = z.object({
+  data: z.object({
+    iceServers: TurnIceServersSchema,
+  }),
+});
+
+/**
+ * Translate Cloudflare ICE servers into serve-sim CLI flags: `--stun-url` (the
+ * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
+ * (the entry carrying the short-lived credentials).
+ */
+export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string[] {
+  const stunUrls = iceServers
+    .filter(server => !server.username && !server.credential)
+    .flatMap(server => server.urls);
+  const turnServer = iceServers.find(server => server.username && server.credential);
+
+  const args: string[] = [];
+  if (stunUrls.length > 0) {
+    args.push('--stun-url', stunUrls.join(','));
+  }
+  if (turnServer?.username && turnServer.credential && turnServer.urls.length > 0) {
+    args.push(
+      '--turn-url',
+      turnServer.urls.join(','),
+      '--turn-username',
+      turnServer.username,
+      '--turn-credential',
+      turnServer.credential
+    );
+  }
+  return args;
+}
+
+/**
+ * Fetch short-lived Cloudflare TURN ICE servers for this job run from www
+ * (minted on demand, mirroring how the worker fetches project clone URLs) and
+ * translate them into serve-sim CLI flags.
+ *
+ * Best-effort: on any failure we log and return [] so serve-sim falls back to
+ * its built-in P2P/STUN behavior. The credential is passed to serve-sim as a
+ * process arg and deliberately not logged (turtle-spawn never logs argv and the
+ * worker is single-tenant).
+ */
+export async function fetchServeSimTurnArgsAsync(
+  ctx: CustomBuildContext,
+  { env, logger }: { env: BuildStepEnv; logger: bunyan }
+): Promise<string[]> {
+  try {
+    const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+    const expoApiServerUrl = nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const robotAccessToken = nullthrows(
+      ctx.job.secrets?.robotAccessToken,
+      'robot access token is not set'
+    );
+
+    const response = await turtleFetch(
+      new URL(
+        `/v2/device-run-sessions/${deviceRunSessionId}/turn-ice-servers`,
+        expoApiServerUrl
+      ).toString(),
+      'POST',
+      {
+        headers: {
+          Authorization: `Bearer ${robotAccessToken}`,
+        },
+        timeout: 5000,
+        retries: 1,
+        logger,
+      }
+    );
+
+    const { data } = TurnIceServersResponseSchema.parse(await response.json());
+    const args = turnIceServersToServeSimArgs(data.iceServers);
+    if (args.length > 0) {
+      logger.info('Configured serve-sim with Cloudflare TURN ICE servers.');
+    }
+    return args;
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
+    logger.warn(
+      { err: error },
+      'Could not fetch Cloudflare TURN ICE servers; serve-sim will fall back to P2P/STUN.'
+    );
+    return [];
+  }
+}
+
 export async function uploadRemoteSessionConfigAsync({
   ctx,
   deviceRunSessionId,
@@ -85,6 +293,8 @@ export async function uploadRemoteSessionConfigAsync({
 }
 
 export type DetachedProcessHandle = {
+  /** PID of the directly spawned process, if the OS assigned one. */
+  pid: number | undefined;
   getOutput: () => string;
 };
 
@@ -117,21 +327,25 @@ export function spawnDetached({
   promise.child.stdout?.on('data', appendChunk);
   promise.child.stderr?.on('data', appendChunk);
 
-  return { getOutput: () => output };
+  return { pid: promise.child.pid, getOutput: () => output };
 }
 
-export async function startServeSimWithTunnelAsync({
-  baseDomain,
-  env,
-  logger,
-  timeoutMs,
-}: {
-  baseDomain: string;
-  env: BuildStepEnv;
-  logger: bunyan;
-  timeoutMs: number;
-}): Promise<{ previewUrl: string; streamUrl: string }> {
+export async function startServeSimWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+  }: {
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+  }
+): Promise<{ previewUrl: string }> {
   logger.info('Launching serve-sim with tunnel.');
+  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const serveSim = spawnDetached({
     command: 'npx',
     args: [
@@ -147,37 +361,35 @@ export async function startServeSimWithTunnelAsync({
       '0.55',
       '--codec',
       'webrtc',
+      ...turnArgs,
     ],
     env,
   });
 
-  logger.info('Waiting for serve-sim to report tunnel and stream URLs.');
+  logger.info('Waiting for serve-sim to report tunnel URL.');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const output = serveSim.getOutput();
-    const previewUrl = matchLabeledUrl({ output, label: 'Tunnel', baseDomain });
-    const streamUrl = matchLabeledUrl({ output, label: 'Stream', baseDomain });
-    if (previewUrl && streamUrl) {
-      return { previewUrl, streamUrl };
+    const previewUrl = matchTunnelUrl({ output, baseDomain });
+    if (previewUrl) {
+      return { previewUrl };
     }
     await sleepAsync(1_000);
   }
   throw new SystemError(
-    `Timed out waiting for serve-sim to report Tunnel and Stream URLs. Last output:\n${serveSim.getOutput() || '<empty>'}`
+    `Timed out waiting for serve-sim to report Tunnel URL. Last output:\n${serveSim.getOutput() || '<empty>'}`
   );
 }
 
-function matchLabeledUrl({
+function matchTunnelUrl({
   output,
-  label,
   baseDomain,
 }: {
   output: string;
-  label: string;
   baseDomain: string;
 }): string | null {
   const labelPattern = new RegExp(
-    `${label}:\\s*(https:\\/\\/[a-z0-9-]+\\.${escapeRegExp(baseDomain)})`
+    `Tunnel:\\s*(https:\\/\\/[a-z0-9-]+\\.${escapeRegExp(baseDomain)})`
   );
   const match = labelPattern.exec(output);
   return match ? match[1] : null;
@@ -188,19 +400,26 @@ export async function startNgrokTunnelAsync({
   subdomainPrefix,
   baseDomain,
   authtoken,
+  rewriteHostHeader,
   logger,
 }: {
   port: number;
   subdomainPrefix: string;
   baseDomain: string;
   authtoken: string;
+  rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<string> {
   const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
-  const listener = await ngrok.forward({ addr: port, authtoken, domain });
+  const listener = await ngrok.forward({
+    addr: port,
+    authtoken,
+    domain,
+    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
+  });
   const url = listener.url();
   if (!url) {
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);

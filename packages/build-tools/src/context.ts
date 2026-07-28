@@ -45,6 +45,7 @@ export type ArtifactToUpload =
       type: GenericArtifactType;
       name: string;
       paths: string[];
+      metadata?: Record<string, unknown>;
     };
 
 export interface BuildContextOptions {
@@ -62,7 +63,7 @@ export interface BuildContextOptions {
   reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   skipNativeBuild?: boolean;
   metadata?: Metadata;
@@ -79,7 +80,7 @@ export class BuildContext<TJob extends Job = Job> {
   public readonly reportError?: (
     msg: string,
     err?: Error,
-    options?: { tags?: Record<string, string>; extras?: Record<string, string> }
+    options?: { tags?: Record<string, string>; extras?: Record<string, string | undefined> }
   ) => void;
   public readonly skipNativeBuild?: boolean;
   public readonly expoApiV2BaseUrl?: string;
@@ -246,9 +247,10 @@ export class BuildContext<TJob extends Job = Job> {
         'Updating environment variables is only allowed when build was triggered by a git-based integration.'
       );
     }
+
     this._env = {
-      ...env,
       ...this._env,
+      ...env,
       __EAS_BUILD_ENVS_DIR: this.buildEnvsDirectory,
     };
     this._env.PATH = this._env.PATH

@@ -2,12 +2,14 @@ import { Config } from '@oclif/core';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  AppPlatform,
   DeviceRunSessionByIdQuery,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import Log from '../../../log';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
@@ -45,8 +47,14 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
+    platform: AppPlatform.Ios,
+    createdAt: '2025-01-01T00:00:00.000Z',
+    startedAt: '2025-01-01T00:00:05.000Z',
+    finishedAt: null,
+    updatedAt: '2025-01-01T00:01:00.000Z',
     app: {
       id: 'app-123',
       slug: 'testapp',
@@ -55,6 +63,18 @@ function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): De
         name: 'testuser',
       },
     },
+    artifacts: [
+      {
+        id: 'artifact-123',
+        name: 'session-log',
+        filename: 'session.log',
+        downloadUrl: 'https://artifacts.example.com/session.log',
+        fileSizeBytes: 1234,
+        metadata: { kind: 'log' },
+        createdAt: '2025-01-01T00:00:10.000Z',
+        updatedAt: '2025-01-01T00:00:20.000Z',
+      },
+    ],
     remoteConfig: {
       __typename: 'AgentDeviceRunSessionRemoteConfig',
       agentDeviceRemoteSessionUrl: 'https://agent.example.com',
@@ -116,11 +136,39 @@ describe(SimulatorGet, () => {
     expect(mockByIdAsync).toHaveBeenCalledWith(graphqlClient, 'session-123');
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
+      name: undefined,
       type: 'agent-device',
       status: DeviceRunSessionStatus.InProgress,
-      jobRunUrl: 'https://expo.dev/accounts/testuser/projects/testapp/job-runs/job-123',
+      platform: AppPlatform.Ios,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      startedAt: '2025-01-01T00:00:05.000Z',
+      finishedAt: undefined,
+      updatedAt: '2025-01-01T00:01:00.000Z',
+      deviceRunSessionUrl:
+        'https://expo.dev/accounts/testuser/projects/testapp/simulator-sessions/session-123',
       remoteConfig: session.remoteConfig,
+      artifacts: session.artifacts,
     });
+  });
+
+  it('includes the session name in JSON and human output when the session is named', async () => {
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command } = createCommand(['--id', 'session-123', '--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+
+    jest.clearAllMocks();
+    mockLoadSimulatorEnvironmentVariablesAsync.mockResolvedValue();
+    mockByIdAsync.mockResolvedValue(makeDeviceRunSession({ name: 'Checkout regression' }));
+
+    const { command: humanCommand } = createCommand(['--id', 'session-123']);
+    await humanCommand.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Checkout regression'));
   });
 
   it(`uses ${EAS_SIMULATOR_SESSION_ID} from simulator env when --id is not passed`, async () => {
