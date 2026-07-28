@@ -345,6 +345,32 @@ describe(SimulatorStart, () => {
     );
   });
 
+  it('trims --name before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      '  Checkout regression  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('omits a blank --name instead of letting the server reject it', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--name', '   ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: undefined })
+    );
+  });
+
   it('prompts to select the platform when --platform is omitted', async () => {
     mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
     mockByIdAsync
