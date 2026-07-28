@@ -30,12 +30,15 @@ import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from '.
  * context only; a group call's `with:` inputs are not visible to them.
  * (2) An entry whose explicit `if:` passed behaves like a single step whose
  * `if:` passed: its no-`if:` steps run past earlier entries' failures, while
- * within-entry failures still skip later siblings.
+ * within-entry failures still skip later siblings. `after` entries get the
+ * same within-entry gate even without an explicit `if:`.
  *
  * Composite calls are also one entry, but their call-site `if:` lives on the
  * expansion scope (not `ifCondition`), matching main-workflow composites. A
- * passing call `if:` therefore does not grant the group-entry `!entryFailed`
- * shield; no-`if:` children follow the plain hook default.
+ * passing call `if:` therefore does not grant the before-side `!entryFailed`
+ * shield; there, no-`if:` children follow the plain in-sequence default. On
+ * the after side every entry is gated by `!entryFailed`, so composite
+ * children fail fast within their entry like everything else.
  */
 export interface HookEntry {
   steps: BuildStep[];

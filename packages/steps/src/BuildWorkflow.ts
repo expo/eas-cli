@@ -165,8 +165,9 @@ export class BuildWorkflow {
  * Default-run rules (a step or entry with no `if:`):
  * - `before`: runs unless a failure occurred within THIS hook sequence;
  *   failures predating the call are ignored — "runs iff the anchor runs".
- * - `after`: runs unconditionally — past the anchor's own failure AND past an
- *   earlier after-entry's failure.
+ * - `after`: each entry starts fresh, past the anchor's own failure AND past
+ *   an earlier after-entry's failure, but a failure within the entry skips
+ *   its later no-`if:` steps.
  * Passed as `runByDefault` so composite scopes share the same missing-`if:` rule.
  * A user `if:` is always evaluated against the real global context, so
  * `failure()` / `success()` keep their global meaning on both sides.
@@ -224,10 +225,11 @@ export async function executeHookStepsAsync(
 
     let entryFailed = false;
     for (const step of entry.steps) {
-      // before skips on in-sequence failure; an entry with a passed if: only skips
-      // on within-entry failure; after always runs.
-      const runByDefault =
-        options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
+      // after and an entry with a passed if: skip on within-entry failure;
+      // before without an entry if: skips on any in-sequence failure.
+      const scopedFailure =
+        options.timing === 'after' || entryHasExplicitCondition ? entryFailed : failedLocally;
+      const runByDefault = !scopedFailure;
       let shouldExecuteStep = false;
       try {
         shouldExecuteStep = step.shouldExecuteStep({ runByDefault });
