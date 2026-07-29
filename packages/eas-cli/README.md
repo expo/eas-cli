@@ -127,7 +127,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas analytics [STATUS]`](#eas-analytics-status)
 * [`eas autocomplete [SHELL]`](#eas-autocomplete-shell)
 * [`eas billing:manage`](#eas-billingmanage)
-* [`eas billing:subscribe PLAN`](#eas-billingsubscribe-plan)
+* [`eas billing:subscribe [PLAN]`](#eas-billingsubscribe-plan)
 * [`eas branch:create [NAME]`](#eas-branchcreate-name)
 * [`eas branch:delete [NAME]`](#eas-branchdelete-name)
 * [`eas branch:list`](#eas-branchlist)
@@ -434,16 +434,16 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/billing/manage.ts)_
 
-## `eas billing:subscribe PLAN`
+## `eas billing:subscribe [PLAN]`
 
 subscribe an account to an EAS plan via Stripe checkout
 
 ```
 USAGE
-  $ eas billing:subscribe PLAN [-a <value>] [--open] [--json] [--non-interactive]
+  $ eas billing:subscribe [PLAN] [-a <value>] [--open] [--json] [--non-interactive]
 
 ARGUMENTS
-  PLAN  (starter|production-plus) plan to subscribe to (starter, production-plus)
+  [PLAN]  (starter|production) plan to subscribe to (starter, production). Required in non-interactive mode.
 
 FLAGS
   -a, --account=<value>  Account to subscribe. Defaults to your account when you only have one.

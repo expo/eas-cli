@@ -6,7 +6,7 @@
  */
 export const SUBSCRIBABLE_PLANS = {
   starter: { planType: 'STARTER', label: 'Starter' },
-  'production-plus': { planType: 'PRODUCTION_PLUS', label: 'Production Plus' },
+  production: { planType: 'PRODUCTION', label: 'Production' },
 } as const;
 
 export type PlanSlug = keyof typeof SUBSCRIBABLE_PLANS;
@@ -22,4 +22,12 @@ export const FREE_PLAN_PRICE_ID = 'price_free';
 
 export function formatStarterSubscribeCommand(accountName?: string): string {
   return `eas billing:subscribe starter${accountName ? ` --account ${accountName}` : ''}`;
+}
+
+export function hasPaidSubscription(
+  subscription: {
+    planId?: string | null;
+  } | null
+): boolean {
+  return subscription?.planId != null && subscription.planId !== FREE_PLAN_PRICE_ID;
 }

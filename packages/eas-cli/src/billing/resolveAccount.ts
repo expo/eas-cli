@@ -1,10 +1,15 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { Permission, Role } from '../graphql/generated';
-import { AccountQuery } from '../graphql/queries/AccountQuery';
+import { AccountQuery, type AccountSubscriptionInfo } from '../graphql/queries/AccountQuery';
+import { hasPaidSubscription } from './plans';
 import { Actor } from '../user/User';
 import { selectAsync } from '../prompts';
 
-export type BillingAccount = { id: string; name: string };
+export type BillingAccount = {
+  id: string;
+  name: string;
+  subscription?: AccountSubscriptionInfo | null;
+};
 
 type AccountWithViewerPermissions = BillingAccount & {
   viewerUserPermission: { permissions: Permission[] };
@@ -41,11 +46,13 @@ export async function resolveBillingAccountAsync({
   actor,
   accountName,
   nonInteractive,
+  requireUnsubscribed = false,
 }: {
   graphqlClient: ExpoGraphqlClient;
   actor: Actor;
   accountName: string | undefined;
   nonInteractive: boolean;
+  requireUnsubscribed?: boolean;
 }): Promise<BillingAccount> {
   const billingAccounts = actor.accounts.filter(account => hasBillingRole(actor, account));
   const availableAccounts = billingAccounts.map(account => account.name).join(', ');
@@ -82,6 +89,33 @@ export async function resolveBillingAccountAsync({
     throw new Error(
       'The --account flag must be provided when running in `--non-interactive` mode and you can manage billing for more than one account.'
     );
+  }
+
+  if (requireUnsubscribed) {
+    const choices = await Promise.all(
+      billingAccounts.map(async account => {
+        const subscription = await AccountQuery.getSubscriptionAsync(graphqlClient, account.id);
+        const paidSubscription = hasPaidSubscription(subscription);
+        return {
+          title: account.name,
+          value: { id: account.id, name: account.name, subscription },
+          description: `Current plan: ${subscription?.name ?? (paidSubscription ? 'Paid' : 'Free')}`,
+          disabled: paidSubscription,
+        };
+      })
+    );
+
+    if (choices.every(choice => choice.disabled)) {
+      throw new Error(
+        'All available accounts already have a paid plan. Run eas billing:manage to change an existing subscription.'
+      );
+    }
+
+    return await selectAsync('Select an account:', choices, {
+      initial: choices.find(choice => !choice.disabled)?.value,
+      warningMessageForDisabledEntries:
+        'This account already has a paid plan. Run eas billing:manage to change it.',
+    });
   }
 
   return await selectAsync(
