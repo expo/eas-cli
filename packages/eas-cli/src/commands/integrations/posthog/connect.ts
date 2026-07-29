@@ -55,7 +55,7 @@ const SDK_PACKAGES = [
   'expo-device',
   'expo-localization',
 ];
-const SESSION_REPLAY_PACKAGE = 'posthog-react-native-session-replay';
+const SESSION_REPLAY_PACKAGE = '@posthog/react-native-plugin';
 const CONFIG_PLUGIN = 'posthog-react-native/expo';
 
 const EAS_POSTHOG_API_KEY_ENV_VAR_NAME = 'EXPO_PUBLIC_POSTHOG_API_KEY';
