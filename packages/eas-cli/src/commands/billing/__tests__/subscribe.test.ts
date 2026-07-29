@@ -7,6 +7,7 @@ import { Role } from '../../../graphql/generated';
 import { AccountQuery } from '../../../graphql/queries/AccountQuery';
 import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
+import { selectAsync } from '../../../prompts';
 import { printJsonOnlyOutput } from '../../../utils/json';
 import BillingSubscribe from '../subscribe';
 
@@ -14,6 +15,7 @@ jest.mock('open');
 jest.mock('../../../billing/billingClient');
 jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log');
+jest.mock('../../../prompts');
 jest.mock('../../../utils/json');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => ({
@@ -34,12 +36,19 @@ describe(BillingSubscribe, () => {
 
   const createCheckoutSessionAsync = jest.fn();
 
-  function createCommand(argv: string[]): BillingSubscribe {
+  function createCommand(
+    argv: string[],
+    accounts: {
+      id: string;
+      name: string;
+      users: { actor: { id: string }; role: Role }[];
+    }[] = [account]
+  ): BillingSubscribe {
     const command = new BillingSubscribe(argv, mockConfig);
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
       loggedIn: {
         graphqlClient,
-        actor: { id: 'actor-id', accounts: [account] },
+        actor: { id: 'actor-id', accounts },
         authenticationInfo: { accessToken: 'token', sessionSecret: null },
       },
     } as never);
@@ -79,9 +88,95 @@ describe(BillingSubscribe, () => {
     jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
 
-    await createCommand(['production-plus', '--json']).runAsync();
+    await createCommand(['production', '--json']).runAsync();
 
-    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'PRODUCTION_PLUS');
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'PRODUCTION');
+  });
+
+  it('prompts for a plan when one is not provided', async () => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
+    jest.mocked(selectAsync).mockResolvedValue('production');
+    createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
+
+    await createCommand([]).runAsync();
+
+    expect(selectAsync).toHaveBeenCalledWith('Select a plan:', [
+      { title: 'Starter', value: 'starter' },
+      { title: 'Production', value: 'production' },
+    ]);
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'PRODUCTION');
+  });
+
+  it('requires a plan in non-interactive mode', async () => {
+    await expect(createCommand(['--non-interactive']).runAsync()).rejects.toThrow(
+      'The plan argument is required in non-interactive mode.'
+    );
+
+    expect(selectAsync).not.toHaveBeenCalled();
+  });
+
+  it('shows current plans and disables subscribed accounts in the account prompt', async () => {
+    const subscribedAccount = {
+      id: 'subscribed-id',
+      name: 'subscribed',
+      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
+    };
+    const freeAccount = {
+      id: 'free-id',
+      name: 'free',
+      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
+    };
+    jest
+      .mocked(AccountQuery.getSubscriptionAsync)
+      .mockImplementation(async (_client, accountId) => {
+        return accountId === subscribedAccount.id
+          ? {
+              id: 'sub_1',
+              name: 'Starter',
+              planId: 'price_paid',
+              status: 'active',
+              willCancel: false,
+            }
+          : null;
+      });
+    jest.mocked(selectAsync).mockImplementation(async (_message, choices) => choices[1].value);
+    createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
+
+    await createCommand(['starter'], [subscribedAccount, freeAccount]).runAsync();
+
+    expect(selectAsync).toHaveBeenCalledWith(
+      'Select an account:',
+      [
+        {
+          title: 'subscribed',
+          value: {
+            id: 'subscribed-id',
+            name: 'subscribed',
+            subscription: {
+              id: 'sub_1',
+              name: 'Starter',
+              planId: 'price_paid',
+              status: 'active',
+              willCancel: false,
+            },
+          },
+          description: 'Current plan: Starter',
+          disabled: true,
+        },
+        {
+          title: 'free',
+          value: { id: 'free-id', name: 'free', subscription: null },
+          description: 'Current plan: Free',
+          disabled: false,
+        },
+      ],
+      {
+        initial: { id: 'free-id', name: 'free', subscription: null },
+        warningMessageForDisabledEntries:
+          'This account already has a paid plan. Run eas billing:manage to change it.',
+      }
+    );
+    expect(createCheckoutSessionAsync).toHaveBeenCalledWith('free-id', 'STARTER');
   });
 
   it('does not create a checkout session when the account already has a paid subscription', async () => {
@@ -93,7 +188,7 @@ describe(BillingSubscribe, () => {
       willCancel: false,
     });
 
-    await createCommand(['production-plus', '--json']).runAsync();
+    await createCommand(['production', '--json']).runAsync();
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({

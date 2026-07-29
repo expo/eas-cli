@@ -2,7 +2,7 @@ import { Args, Flags } from '@oclif/core';
 
 import { BillingClient } from '../../billing/billingClient';
 import { openOrPrintUrlAsync } from '../../billing/openUrl';
-import { FREE_PLAN_PRICE_ID, PLAN_SLUGS, PlanSlug, SUBSCRIBABLE_PLANS } from '../../billing/plans';
+import { PLAN_SLUGS, PlanSlug, SUBSCRIBABLE_PLANS, hasPaidSubscription } from '../../billing/plans';
 import { resolveBillingAccountAsync } from '../../billing/resolveAccount';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -12,6 +12,7 @@ import {
 import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BillingSubscribe extends EasCommand {
@@ -19,8 +20,8 @@ export default class BillingSubscribe extends EasCommand {
 
   static override args = {
     PLAN: Args.string({
-      description: `plan to subscribe to (${PLAN_SLUGS.join(', ')})`,
-      required: true,
+      description: `plan to subscribe to (${PLAN_SLUGS.join(', ')}). Required in non-interactive mode.`,
+      required: false,
       options: [...PLAN_SLUGS],
     }),
   };
@@ -48,10 +49,23 @@ export default class BillingSubscribe extends EasCommand {
       args: { PLAN },
       flags,
     } = await this.parse(BillingSubscribe);
-    const planSlug = PLAN as PlanSlug;
     const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     if (json) {
       enableJsonOutput();
+    }
+
+    let planSlug = PLAN as PlanSlug | undefined;
+    if (!planSlug) {
+      if (nonInteractive) {
+        throw new Error('The plan argument is required in non-interactive mode.');
+      }
+      planSlug = await selectAsync(
+        'Select a plan:',
+        PLAN_SLUGS.map(slug => ({
+          title: SUBSCRIBABLE_PLANS[slug].label,
+          value: slug,
+        }))
+      );
     }
 
     const {
@@ -63,15 +77,17 @@ export default class BillingSubscribe extends EasCommand {
       actor,
       accountName: flags.account,
       nonInteractive,
+      requireUnsubscribed: true,
     });
 
     const plan = SUBSCRIBABLE_PLANS[planSlug];
 
-    const subscription = await AccountQuery.getSubscriptionAsync(graphqlClient, account.id);
-    const hasPaidSubscription =
-      subscription?.planId != null && subscription.planId !== FREE_PLAN_PRICE_ID;
+    const subscription =
+      account.subscription === undefined
+        ? await AccountQuery.getSubscriptionAsync(graphqlClient, account.id)
+        : account.subscription;
 
-    if (hasPaidSubscription) {
+    if (hasPaidSubscription(subscription)) {
       // Creating a new checkout session for an account that already has a paid subscription would
       // create a second, parallel subscription. Route plan changes and cancellation through the
       // Stripe customer portal (`eas billing:manage`), which handles proration natively.
