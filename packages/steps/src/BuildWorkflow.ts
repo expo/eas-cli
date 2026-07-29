@@ -5,6 +5,7 @@ import { BuildFunctionById } from './BuildFunction';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
+import { CompositeBuildStep } from './CompositeBuildStep';
 import { StepMetricResult } from './StepMetrics';
 import { AnchorHooks, HookEntry } from './hooks';
 import { evaluateIfCondition } from './utils/jsepEval';
@@ -192,7 +193,7 @@ export async function executeHookStepsAsync(
     ctx.markAsFailed();
   };
 
-  let anyStepExecuted = false;
+  let anyAuthoredStepExecuted = false;
   for (const entry of entries) {
     // Truthiness, not presence: an empty `if:` means "no condition", the same
     // as BuildStep.shouldExecuteStep treats it.
@@ -247,7 +248,11 @@ export async function executeHookStepsAsync(
         step.skip();
         continue;
       }
-      anyStepExecuted = true;
+      // The synthetic composite outputs node runs under always(), so it alone
+      // must not make a fully-skipped hook side report a metric.
+      if (!(step instanceof CompositeBuildStep)) {
+        anyAuthoredStepExecuted = true;
+      }
       const startTime = performance.now();
       let stepResult: StepMetricResult = 'success';
       try {
@@ -262,7 +267,7 @@ export async function executeHookStepsAsync(
     }
   }
 
-  if (anyStepExecuted) {
+  if (anyAuthoredStepExecuted) {
     ctx.reportWorkflowHookMetric({
       anchor: options.anchor,
       timing: options.timing,

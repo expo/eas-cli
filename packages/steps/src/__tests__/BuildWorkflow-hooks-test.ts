@@ -645,6 +645,9 @@ describe('BuildWorkflow hook execution', () => {
       const outputsNode = entry.steps[entry.steps.length - 1];
       expect(outputsNode.id).toBe('setup');
       expect(outputsNode.getOutputValueByName('version')).toBe('1.2.3');
+      expect(metrics).toEqual([
+        { anchor: 'install_node_modules', timing: 'before', result: 'success' },
+      ]);
     });
 
     it('skips every step of a composite call whose if condition is false and reports no metric', async () => {
@@ -669,6 +672,29 @@ describe('BuildWorkflow hook execution', () => {
       for (const step of entry.steps) {
         expect(step.status).toBe(BuildStepStatus.SKIPPED);
       }
+      expect(metrics).toEqual([]);
+    });
+
+    it('reports no metric when every authored child of an outputs-declaring composite is skipped', async () => {
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }] },
+        externalFunctions: [anchorFunction(), versionFunction('read-version', '1.2.3')],
+        compositeFunctionCatalog: {
+          './.eas/functions/setup': {
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: { steps: [{ id: 'read', uses: 'test/read-version', if: '${{ false }}' }] },
+          },
+        },
+      });
+      await workflow.executeAsync();
+      expect(executionLog).toEqual(['anchor']);
+      expect(hookStepStatuses(workflow)['setup__read']).toBe(BuildStepStatus.SKIPPED);
+      // The synthetic outputs node still runs under always(); only the metric
+      // must not depend on it.
+      const entry = [...workflow.hooksByAnchorStep.values()][0].before[0];
+      const outputsNode = entry.steps[entry.steps.length - 1];
+      expect(outputsNode.status).toBe(BuildStepStatus.SUCCESS);
       expect(metrics).toEqual([]);
     });
 
