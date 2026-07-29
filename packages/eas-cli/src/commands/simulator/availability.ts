@@ -9,7 +9,6 @@ import { ora } from '../../ora';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorAvailability extends EasCommand {
-  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] check whether EAS Simulator is enabled for the current project account';
 
