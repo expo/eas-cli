@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] clean up error handling in local builds. ([#4105](https://github.com/expo/eas-cli/pull/4105) by [@douglowder](https://github.com/douglowder))
+- [build-tools] Install ffmpeg when it is missing so Argent screen recording works in EAS Simulator sessions. ([#4110](https://github.com/expo/eas-cli/pull/4110) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
