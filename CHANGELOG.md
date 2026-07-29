@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] clean up error handling in local builds. ([#4105](https://github.com/expo/eas-cli/pull/4105) by [@douglowder](https://github.com/douglowder))
+
 ### 🧹 Chores
 
 ## [21.4.0](https://github.com/expo/eas-cli/releases/tag/v21.4.0) - 2026-07-28
