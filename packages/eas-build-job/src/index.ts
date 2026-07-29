@@ -11,6 +11,7 @@ export {
   EnvironmentSecret,
   EnvironmentSecretType,
   Hooks,
+  SshSettings,
   Workflow,
   Platform,
   Cache,
