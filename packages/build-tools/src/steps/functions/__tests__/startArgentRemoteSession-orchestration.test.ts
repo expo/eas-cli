@@ -40,6 +40,7 @@ jest.mock('../../utils/argentEvents', () => ({
   startArgentEventCollectionAsync: jest.fn(),
 }));
 jest.mock('../../utils/remoteDeviceRunSession', () => ({
+  ensureFfmpegInstalledAsync: jest.fn(),
   getDeviceRunSessionIdOrThrow: jest.fn(),
   getNgrokAuthtokenOrThrow: jest.fn(),
   getNgrokTunnelDomainOrThrow: jest.fn(),
