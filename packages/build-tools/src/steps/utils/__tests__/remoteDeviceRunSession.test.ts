@@ -450,8 +450,39 @@ describe(ensureFfmpegInstalledAsync, () => {
     );
   });
 
-  it('warns instead of installing on linux, where Homebrew is unavailable', async () => {
-    spawnMock.mockReturnValueOnce(spawnRejected());
+  it('installs ffmpeg with apt on linux when it is missing', async () => {
+    spawnMock
+      .mockReturnValueOnce(spawnRejected()) // command -v ffmpeg
+      .mockReturnValueOnce(spawnResolved()) // apt-get update
+      .mockReturnValueOnce(spawnResolved()); // apt-get install
+
+    await ensureFfmpegInstalledAsync({
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'sudo',
+      ['apt-get', 'update'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      })
+    );
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      'sudo',
+      ['apt-get', 'install', '-y', 'ffmpeg'],
+      expect.objectContaining({
+        env: expect.objectContaining({ DEBIAN_FRONTEND: 'noninteractive' }),
+      })
+    );
+  });
+
+  it('still installs on linux when the apt index refresh fails', async () => {
+    spawnMock
+      .mockReturnValueOnce(spawnRejected()) // command -v ffmpeg
+      .mockReturnValueOnce(spawnRejected()) // apt-get update
+      .mockReturnValueOnce(spawnResolved()); // apt-get install
     const logger = createLoggerMock();
 
     await ensureFfmpegInstalledAsync({
@@ -460,8 +491,12 @@ describe(ensureFfmpegInstalledAsync, () => {
       logger,
     });
 
-    expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalled();
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      'sudo',
+      ['apt-get', 'install', '-y', 'ffmpeg'],
+      expect.anything()
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('warns and resolves when the install fails, so the session still starts', async () => {

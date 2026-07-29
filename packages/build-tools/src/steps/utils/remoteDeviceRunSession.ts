@@ -203,11 +203,39 @@ async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
   return (await asyncResult(spawn('sh', ['-c', 'command -v ffmpeg'], { env }))).ok;
 }
 
+async function installFfmpegWithHomebrewAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  await spawn('brew', ['install', 'ffmpeg'], {
+    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+    logger,
+  });
+}
+
+async function installFfmpegWithAptAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  const aptEnv = { ...env, DEBIAN_FRONTEND: 'noninteractive' };
+  // The worker's package index can be older than the image it booted from, which
+  // makes the install 404 on a moved package. Refreshing first avoids that; a
+  // failed refresh is not fatal because the existing index may still resolve.
+  await asyncResult(spawn('sudo', ['apt-get', 'update'], { env: aptEnv, logger }));
+  await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
+}
+
 /**
  * Install ffmpeg when the runtime does not already provide it, so argent's
- * `screen-recording-start` tool can encode a video. The worker image does not
+ * `screen-recording-start` tool can encode a video. The worker images do not
  * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
- * on PATH".
+ * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
  *
  * Best-effort by design: screen recording is one optional argent tool, so a
  * failure here is logged and the session continues without it. Never rejects,
@@ -227,22 +255,16 @@ export async function ensureFfmpegInstalledAsync({
     return;
   }
 
-  // Homebrew is only available on the macOS workers. Linux workers would need a
-  // package manager and sudo, so report the gap instead of guessing.
-  if (runtimePlatform !== BuildRuntimePlatform.DARWIN) {
-    logger.warn(
-      `ffmpeg is not installed and EAS only installs it on ${BuildRuntimePlatform.DARWIN} runtimes. ` +
-        'Argent screen recording will not work in this session.'
-    );
-    return;
-  }
-
-  logger.info('ffmpeg is not installed, installing it with Homebrew for argent screen recording.');
+  const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
+  logger.info(
+    `ffmpeg is not installed, installing it with ${
+      isDarwin ? 'Homebrew' : 'apt'
+    } for argent screen recording.`
+  );
   const installResult = await asyncResult(
-    spawn('brew', ['install', 'ffmpeg'], {
-      env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
-      logger,
-    })
+    isDarwin
+      ? installFfmpegWithHomebrewAsync({ env, logger })
+      : installFfmpegWithAptAsync({ env, logger })
   );
   if (!installResult.ok) {
     Sentry.capture('Could not install ffmpeg for argent screen recording', installResult.reason);
