@@ -1,6 +1,7 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv, spawnAsync } from '@expo/steps';
+import { asyncResult } from '@expo/results';
+import { BuildRuntimePlatform, BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
@@ -184,6 +185,74 @@ async function sleepUntilAbortedAsync(
       throw err;
     }
   }
+}
+
+// Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
+// which it resolves from PATH and then from these prefixes. Keep the list in
+// sync with argent so we never reinstall a binary it can already find.
+const FFMPEG_FALLBACK_PATHS = [
+  '/opt/homebrew/bin/ffmpeg',
+  '/usr/local/bin/ffmpeg',
+  '/usr/bin/ffmpeg',
+];
+
+async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
+  if (FFMPEG_FALLBACK_PATHS.some(ffmpegPath => fs.existsSync(ffmpegPath))) {
+    return true;
+  }
+  return (await asyncResult(spawn('sh', ['-c', 'command -v ffmpeg'], { env }))).ok;
+}
+
+/**
+ * Install ffmpeg when the runtime does not already provide it, so argent's
+ * `screen-recording-start` tool can encode a video. The worker image does not
+ * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
+ * on PATH".
+ *
+ * Best-effort by design: screen recording is one optional argent tool, so a
+ * failure here is logged and the session continues without it. Never rejects,
+ * which is what lets the caller run it in the background.
+ */
+export async function ensureFfmpegInstalledAsync({
+  runtimePlatform,
+  env,
+  logger,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (await isFfmpegAvailableAsync(env)) {
+    logger.info('ffmpeg is already installed.');
+    return;
+  }
+
+  // Homebrew is only available on the macOS workers. Linux workers would need a
+  // package manager and sudo, so report the gap instead of guessing.
+  if (runtimePlatform !== BuildRuntimePlatform.DARWIN) {
+    logger.warn(
+      `ffmpeg is not installed and EAS only installs it on ${BuildRuntimePlatform.DARWIN} runtimes. ` +
+        'Argent screen recording will not work in this session.'
+    );
+    return;
+  }
+
+  logger.info('ffmpeg is not installed, installing it with Homebrew for argent screen recording.');
+  const installResult = await asyncResult(
+    spawn('brew', ['install', 'ffmpeg'], {
+      env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+      logger,
+    })
+  );
+  if (!installResult.ok) {
+    Sentry.capture('Could not install ffmpeg for argent screen recording', installResult.reason);
+    logger.warn(
+      { err: installResult.reason },
+      'Could not install ffmpeg. Argent screen recording will not work in this session.'
+    );
+    return;
+  }
+  logger.info('Installed ffmpeg.');
 }
 
 const TurnIceServersResponseSchema = z.object({

@@ -1,6 +1,8 @@
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv } from '@expo/steps';
+import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
+import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import fs from 'node:fs';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
@@ -9,6 +11,7 @@ import { turtleFetch } from '../../../utils/turtleFetch';
 import { sleepAsync } from '../../../utils/retry';
 import {
   createServeSimArgs,
+  ensureFfmpegInstalledAsync,
   fetchServeSimTurnArgsAsync,
   startNgrokTunnelAsync,
   turnIceServersToServeSimArgs,
@@ -21,6 +24,7 @@ jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
+jest.mock('@expo/turtle-spawn');
 
 function createLoggerMock(): bunyan {
   return {
@@ -377,5 +381,102 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       }),
       { level: 'warning' }
     );
+  });
+});
+
+describe(ensureFfmpegInstalledAsync, () => {
+  const spawnMock = jest.mocked(spawn);
+  let existsSyncSpy: jest.SpyInstance;
+
+  function spawnResolved(): ReturnType<typeof spawn> {
+    return Promise.resolve({}) as unknown as ReturnType<typeof spawn>;
+  }
+
+  function spawnRejected(): ReturnType<typeof spawn> {
+    return Promise.reject(new Error('boom')) as unknown as ReturnType<typeof spawn>;
+  }
+
+  beforeEach(() => {
+    spawnMock.mockReset();
+    jest.mocked(Sentry).capture.mockReset();
+    // Default to "no ffmpeg on any fallback path" so each test opts in.
+    existsSyncSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    existsSyncSpy.mockRestore();
+  });
+
+  it('does not install when ffmpeg is already on a fallback path', async () => {
+    existsSyncSpy.mockImplementation(path => path === '/opt/homebrew/bin/ffmpeg');
+
+    await ensureFfmpegInstalledAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('does not install when ffmpeg is on PATH', async () => {
+    spawnMock.mockReturnValueOnce(spawnResolved());
+
+    await ensureFfmpegInstalledAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawnMock).toHaveBeenCalledWith('sh', ['-c', 'command -v ffmpeg'], expect.anything());
+  });
+
+  it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
+    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnResolved());
+
+    await ensureFfmpegInstalledAsync({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: createEnvMock(),
+      logger: createLoggerMock(),
+    });
+
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      'brew',
+      ['install', 'ffmpeg'],
+      expect.objectContaining({
+        env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }),
+      })
+    );
+  });
+
+  it('warns instead of installing on linux, where Homebrew is unavailable', async () => {
+    spawnMock.mockReturnValueOnce(spawnRejected());
+    const logger = createLoggerMock();
+
+    await ensureFfmpegInstalledAsync({
+      runtimePlatform: BuildRuntimePlatform.LINUX,
+      env: createEnvMock(),
+      logger,
+    });
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('warns and resolves when the install fails, so the session still starts', async () => {
+    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnRejected());
+    const logger = createLoggerMock();
+
+    await expect(
+      ensureFfmpegInstalledAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: createEnvMock(),
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalled();
+    expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
   });
 });
