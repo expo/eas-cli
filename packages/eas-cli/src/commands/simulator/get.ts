@@ -27,6 +27,7 @@ type DeviceRunSessionById = DeviceRunSessionByIdQuery['deviceRunSessions']['byId
 type DeviceRunSessionArtifact = DeviceRunSessionById['artifacts'][number];
 
 export default class SimulatorGet extends EasCommand {
+  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] get info about a remote simulator session on EAS by its simulator session ID';
 

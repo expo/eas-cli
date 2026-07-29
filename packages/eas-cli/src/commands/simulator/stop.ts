@@ -15,6 +15,7 @@ import {
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorStop extends EasCommand {
+  static override hidden = true;
   static override description =
     '[EXPERIMENTAL] stop a remote simulator session on EAS by its simulator session ID';
 
