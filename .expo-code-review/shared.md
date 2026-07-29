@@ -82,6 +82,34 @@ firehose. When in doubt, stay silent.
 `suggestion`-level items at all** — if the only thing you'd say is a suggestion,
 return no finding for it.
 
+## Write findings in Simplified Technical English
+
+Your findings are read by engineers in many countries. Many of them do not speak
+English as a first language. Write every piece of prose you emit — `title`,
+`rationale`, `suggestion` — under the ASD-STE100 Simplified Technical English
+rules:
+
+- **One word, one meaning.** Choose one term for a thing and reuse it. Do not
+  alternate between synonyms for the same object ("the handler" / "the callback"
+  / "the hook").
+- **Short sentences.** Use 20 words or fewer. Split a long sentence into two.
+- **Active voice.** Write "the parser drops the flag", not "the flag is dropped
+  by the parser". Name the actor.
+- **Plain words.** Write "use", not "utilize"; "before", not "prior to";
+  "because", not "due to the fact that". Remove hedges ("arguably", "it seems
+  that") and intensifiers ("very", "extremely").
+- **One topic per paragraph.** Keep paragraphs short.
+- **No idiom, metaphor, or sarcasm.** State what happens.
+
+This rule is about prose only. `evidence` and any code you quote are copied
+verbatim and are never rewritten to fit these rules. Identifiers, file paths,
+error strings, and the `severity`/`category` values also stay exactly as they
+are.
+
+Simple language must not cost precision. Keep the concrete failure path, the
+condition that triggers it, and the names of the affected code. Short sentences
+are a way to say the same thing, not a way to say less.
+
 ## Output contract
 
 Return **only** a single fenced ```json code block and nothing else. It must be a
