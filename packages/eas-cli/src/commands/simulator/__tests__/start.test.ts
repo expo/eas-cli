@@ -69,6 +69,9 @@ const deviceRunSessionUrl =
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
 );
+const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
+  DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
+);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
@@ -147,6 +150,10 @@ describe(SimulatorStart, () => {
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
+    mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
+      id: 'session-123',
+      status: DeviceRunSessionStatus.Stopped,
+    });
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
@@ -369,6 +376,38 @@ describe(SimulatorStart, () => {
       graphqlClient,
       expect.objectContaining({ name: undefined })
     );
+  });
+
+  it('stops the simulator session when interrupted before the session is ready', async () => {
+    let notifyQueryStarted: () => void = () => {};
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    mockByIdAsync.mockImplementationOnce(
+      () =>
+        new Promise(() => {
+          notifyQueryStarted();
+        })
+    );
+    const existingSigintListeners = new Set(process.listeners('SIGINT'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    const commandPromise = command.runAsync();
+    await queryStarted;
+
+    const sigintHandler = process
+      .listeners('SIGINT')
+      .find(listener => !existingSigintListeners.has(listener));
+    expect(sigintHandler).toBeDefined();
+    sigintHandler?.('SIGINT');
+    await commandPromise;
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {
