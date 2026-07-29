@@ -274,8 +274,9 @@ export async function executeHookStepsAsync(
   return { failedLocally, firstError };
 }
 
-// Shared wording for unevaluable `if:` gates. `ifCondition` is omitted when the
-// failure is a composite call-site `if:` evaluated via the step's scope.
+// Shared wording for unevaluable `if:` gates. Callers pass the step's own
+// `if:`, but the throw may come from a composite call-site `if:` evaluated via
+// the step's scope. In that case the quoted condition is not the one that failed.
 function logConditionEvaluationError(
   logger: bunyan,
   err: unknown,
