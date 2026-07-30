@@ -6,9 +6,34 @@ on:
 name: Release workflow
 
 jobs:
+  # A prerelease tag (any version carrying a SemVer prerelease identifier, e.g.
+  # v21.3.0-beta.0) must NOT be treated like a stable release: npm does not
+  # special-case prerelease versions, so publishing one without an explicit dist-tag
+  # would point `latest` at it and hand it to every `npx eas-cli` user. Every job below
+  # branches on this one output instead of re-deriving it from the tag.
+  resolve:
+    name: Resolve release kind
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+    steps:
+      - id: resolve
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # SemVer puts the prerelease identifier after a hyphen: 21.3.0-beta.0.
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$VERSION is a prerelease: publishing under the 'next' dist-tag, leaving 'latest', the EAS Build tags and CHANGELOG.md untouched."
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
     name: Create a release
     runs-on: ubuntu-latest
+    needs: resolve
     permissions:
       contents: write
     outputs:
@@ -21,11 +46,15 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
-          draft: true
+          # A stable release stays a draft until the changelog job publishes it with
+          # notes. A prerelease skips that job, so publish it immediately and flag it so
+          # GitHub never presents it as the repo's latest release.
+          draft: ${{ needs.resolve.outputs.prerelease == 'false' }}
+          prerelease: ${{ needs.resolve.outputs.prerelease == 'true' }}
   publish-to-npm:
     name: Publish to npm
     runs-on: ubuntu-latest
-    needs: release
+    needs: [resolve, release]
     permissions:
       id-token: write
     steps:
@@ -35,9 +64,18 @@ jobs:
         run: yarn install --immutable
       - name: Build
         run: yarn build
+      # Always pass the dist-tag explicitly. `latest` is what npm would have defaulted
+      # to, so stable releases are unchanged — but relying on that default is what made
+      # a prerelease publish unsafe, so the intent is stated rather than inherited.
       - name: Publish packages to npm
-        run: yarn run -T lerna publish from-package --yes --no-verify-access
+        env:
+          DIST_TAG: ${{ needs.resolve.outputs.prerelease == 'true' && 'next' || 'latest' }}
+        run: yarn run -T lerna publish from-package --yes --no-verify-access --dist-tag "$DIST_TAG"
+      # These two tags select the CLI version used by EAS Build. A prerelease must never
+      # move them (that would put untested code in production builds); `latest-eas-build`
+      # also has its own gated workflow for moving it deliberately.
       - name: Add latest-eas-build-staging tag
+        if: needs.resolve.outputs.prerelease == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
@@ -45,16 +83,22 @@ jobs:
           echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
       - name: Add latest-eas-build tag
+        if: needs.resolve.outputs.prerelease == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
         run: |
           VERSION=$(cat lerna.json | jq -r .version)
           echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
           npm dist-tag add eas-cli@$VERSION latest-eas-build
+  # Stable releases only. A prerelease must leave CHANGELOG.md alone: its entries stay
+  # under "unreleased" so the eventual stable release still announces them. Skipping this
+  # job also keeps a prerelease from committing to main and from Slack-announcing itself
+  # as a release — the GitHub prerelease is its announcement.
   release-changelog:
     name: Update changelog and publish release
+    if: needs.resolve.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
-    needs: publish-to-npm
+    needs: [resolve, publish-to-npm]
     permissions:
       contents: write
     steps:
