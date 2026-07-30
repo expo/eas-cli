@@ -155,7 +155,7 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
 
   // Keep the report close to the xclogparser table width. Gradle task names can be very long,
   // so allowing them to grow the first column without a limit makes the table difficult to read.
-  const maxNameWidth = 40;
+  const maxNameWidth = 48;
   const nameWidth = Math.min(
     maxNameWidth,
     Math.max(4, ...rows.map(row => row.displayName.length)) + 2

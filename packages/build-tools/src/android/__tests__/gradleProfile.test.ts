@@ -15,8 +15,8 @@ describe(formatGradleProfileReport, () => {
     const tableLines = report.split('\n').filter(line => line.startsWith('│'));
 
     expect(tableLines).toHaveLength(4);
-    expect(new Set(tableLines.map(line => line.length))).toEqual(new Set([104]));
-    expect(report).toContain('  └─ aVeryLongGradle…MakeTheTableTooWide');
+    expect(new Set(tableLines.map(line => line.length))).toEqual(new Set([112]));
+    expect(report).toContain('  └─ aVeryLongGradleTask…wiseMakeTheTableTooWide');
   });
 
   it('caps the task column for long module names', () => {
@@ -29,7 +29,7 @@ describe(formatGradleProfileReport, () => {
     const report = formatGradleProfileReport(tasks);
     const tableLines = report.split('\n').filter(line => line.startsWith('│'));
 
-    expect(new Set(tableLines.map(line => line.length))).toEqual(new Set([104]));
-    expect(report).toContain(':aVeryLongGradleModu…MakeTheTableTooWide');
+    expect(new Set(tableLines.map(line => line.length))).toEqual(new Set([112]));
+    expect(report).toContain(':aVeryLongGradleModuleNa…wiseMakeTheTableTooWide');
   });
 });
