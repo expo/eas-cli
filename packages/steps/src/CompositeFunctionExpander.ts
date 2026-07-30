@@ -70,6 +70,14 @@ export class CompositeFunctionExpander {
     private readonly functionMaps: FunctionMaps
   ) {}
 
+  public get buildFunctionById(): BuildFunctionById {
+    return this.functionMaps.buildFunctionById;
+  }
+
+  public get buildFunctionGroupById(): BuildFunctionGroupById {
+    return this.functionMaps.buildFunctionGroupById;
+  }
+
   public expandCompositeFunctionStep(
     step: FunctionStep,
     compositeFunctionPath: string,

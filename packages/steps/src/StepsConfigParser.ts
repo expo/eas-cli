@@ -13,7 +13,7 @@ import {
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
-import { CompositeFunctionExpander, FunctionMaps } from './CompositeFunctionExpander';
+import { CompositeFunctionExpander } from './CompositeFunctionExpander';
 import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
 import {
   BuildFunctionGroup,
@@ -122,10 +122,11 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
-            buildFunctionById,
-            buildFunctionGroupById,
-          });
+          const anchorHooks = this.constructAnchorHooks(
+            anchorId,
+            validatedHooks,
+            compositeFunctionExpander
+          );
           if (anchorHooks !== undefined) {
             hooksByAnchorStep.set(expandedStep, anchorHooks);
           }
@@ -133,15 +134,10 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
 
-      const maps = { buildFunctionById, buildFunctionGroupById };
       const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
       if (anchorId === undefined) {
         buildSteps.push(
-          ...this.createBuildStepsFromNonGroupStepConfig(
-            stepConfig,
-            maps,
-            compositeFunctionExpander
-          )
+          ...this.createBuildStepsFromNonGroupStepConfig(stepConfig, compositeFunctionExpander)
         );
         continue;
       }
@@ -152,10 +148,14 @@ export class StepsConfigParser extends AbstractConfigParser {
           'Hook anchors are not supported on local composite function steps.'
         );
       }
-      const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
+      const before = this.constructHookSideEntries(
+        anchorId,
+        'before',
+        validatedHooks,
+        compositeFunctionExpander
+      );
       const createdSteps = this.createBuildStepsFromNonGroupStepConfig(
         stepConfig,
-        maps,
         compositeFunctionExpander
       );
       assert(
@@ -164,7 +164,12 @@ export class StepsConfigParser extends AbstractConfigParser {
       );
       const anchorStep = createdSteps[0];
       buildSteps.push(anchorStep);
-      const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+      const after = this.constructHookSideEntries(
+        anchorId,
+        'after',
+        validatedHooks,
+        compositeFunctionExpander
+      );
       if (before.length > 0 || after.length > 0) {
         hooksByAnchorStep.set(anchorStep, { anchor: anchorId, before, after });
       }
@@ -227,13 +232,20 @@ export class StepsConfigParser extends AbstractConfigParser {
   private constructAnchorHooks(
     anchorId: HookAnchorId,
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    compositeFunctionExpander: CompositeFunctionExpander
   ): AnchorHooks | undefined {
-    const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
-    const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+    const before = this.constructHookSideEntries(
+      anchorId,
+      'before',
+      validatedHooks,
+      compositeFunctionExpander
+    );
+    const after = this.constructHookSideEntries(
+      anchorId,
+      'after',
+      validatedHooks,
+      compositeFunctionExpander
+    );
     if (before.length === 0 && after.length === 0) {
       return undefined;
     }
@@ -244,32 +256,24 @@ export class StepsConfigParser extends AbstractConfigParser {
     anchorId: HookAnchorId,
     side: 'before' | 'after',
     validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
+    compositeFunctionExpander: CompositeFunctionExpander
   ): HookEntry[] {
     const hookSteps = validatedHooks[`${side}_${anchorId}`];
     if (hookSteps === undefined) {
       return [];
     }
-    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, maps);
+    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
   }
 
   private createBuildStepsFromNonGroupStepConfig(
     stepConfig: Step,
-    maps: FunctionMaps,
     compositeFunctionExpander: CompositeFunctionExpander
   ): BuildStep[] {
     if (isStepShellStep(stepConfig)) {
       return [createBuildStepFromShellStep(this.ctx, stepConfig)];
     }
     if (isStepFunctionStep(stepConfig)) {
-      return this.createBuildStepsFromFunctionStepConfig(
-        stepConfig,
-        maps,
-        compositeFunctionExpander
-      );
+      return this.createBuildStepsFromFunctionStepConfig(stepConfig, compositeFunctionExpander);
     }
     throw new BuildConfigError(
       'Invalid job step configuration detected. Step must be shell or function step'
@@ -278,7 +282,6 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private createBuildStepsFromFunctionStepConfig(
     step: FunctionStep,
-    { buildFunctionById }: FunctionMaps,
     compositeFunctionExpander: CompositeFunctionExpander
   ): BuildStep[] {
     if (isLocalCompositeFunctionPath(step.uses)) {
@@ -291,7 +294,7 @@ export class StepsConfigParser extends AbstractConfigParser {
         .getFlattenedSteps();
     }
 
-    const buildFunction = buildFunctionById[step.uses];
+    const buildFunction = compositeFunctionExpander.buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
 
     return [
