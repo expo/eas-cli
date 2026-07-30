@@ -84,54 +84,57 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
-      const agentDeviceRemoteSessionUrl = await startNgrokTunnelAsync({
+      const agentDeviceTunnel = await startNgrokTunnelAsync({
         port: daemonPort,
         subdomainPrefix: 'agent-device',
         baseDomain: ngrokTunnelDomain,
         authtoken: ngrokAuthtoken,
         logger,
       });
+      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
-      // on Darwin. Android sessions go without a preview URL.
-      let webPreviewUrl: string | undefined;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
-          baseDomain: ngrokTunnelDomain,
-          env,
-          logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
-        });
-        webPreviewUrl = previewUrl;
-        logger.info(`Web preview URL: ${webPreviewUrl}`);
-      }
-
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: {
-          agentDeviceRemoteSessionUrl,
-          agentDeviceRemoteSessionToken: daemonToken,
-          ...(webPreviewUrl ? { webPreviewUrl } : {}),
-        },
-        logger,
-      });
-      void pollAgentDeviceArtifactsForUploadAsync(ctx, {
-        deviceRunSessionId,
-        daemonUrl: `http://127.0.0.1:${daemonPort}`,
-        daemonToken,
-        logger,
-      });
-
-      const eventCollection = await startAgentDeviceEventCollectionAsync({
-        ctx,
-        deviceRunSessionId,
-        stateDir: AGENT_DEVICE_STATE_DIR,
-        logger,
-      });
-
+      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let eventCollection:
+        | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
+        | undefined;
       try {
+        // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
+        // on Darwin. Android sessions go without a preview URL.
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          serveSim = await startServeSimWithTunnelAsync(ctx, {
+            baseDomain: ngrokTunnelDomain,
+            env,
+            logger,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+          });
+          logger.info(`Web preview URL: ${serveSim.previewUrl}`);
+        }
+
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: {
+            agentDeviceRemoteSessionUrl,
+            agentDeviceRemoteSessionToken: daemonToken,
+            ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
+          },
+          logger,
+        });
+        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+          deviceRunSessionId,
+          daemonUrl: `http://127.0.0.1:${daemonPort}`,
+          daemonToken,
+          logger,
+        });
+
+        eventCollection = await startAgentDeviceEventCollectionAsync({
+          ctx,
+          deviceRunSessionId,
+          stateDir: AGENT_DEVICE_STATE_DIR,
+          logger,
+        });
+
         await waitForDeviceRunSessionStoppedAsync({
           ctx,
           deviceRunSessionId,
@@ -139,11 +142,18 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           signal,
         });
       } finally {
-        await stopAgentDeviceEventCollectionSafelyAsync({
-          eventCollection,
-          deviceRunSessionId,
-          logger,
-        });
+        if (serveSim) {
+          await serveSim.stopAsync();
+        }
+        await agentDeviceTunnel.stopAsync();
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+        await daemonProcess.stopAsync();
       }
     },
   });

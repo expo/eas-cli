@@ -165,8 +165,10 @@ export function createStartArgentRemoteSessionBuildFunction(
         logger,
       });
 
+      let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
       try {
-        const publicToolsUrl = await startNgrokTunnelAsync({
+        toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
           subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
@@ -174,12 +176,13 @@ export function createStartArgentRemoteSessionBuildFunction(
           rewriteHostHeader: true,
           logger,
         });
+        const publicToolsUrl = toolsTunnel.url;
         logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
         // serve-sim is iOS-only — Android sessions go without a preview URL.
         let webPreviewUrl: string | undefined;
         if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          const serveSim = await startServeSimWithTunnelAsync(ctx, {
+          serveSim = await startServeSimWithTunnelAsync(ctx, {
             baseDomain: ngrokTunnelDomain,
             env,
             logger,
@@ -207,6 +210,12 @@ export function createStartArgentRemoteSessionBuildFunction(
           signal,
         });
       } finally {
+        if (serveSim) {
+          await serveSim.stopAsync();
+        }
+        if (toolsTunnel) {
+          await toolsTunnel.stopAsync();
+        }
         await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
         artifactPollAbortController.abort();
         try {
@@ -216,6 +225,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           Sentry.capture('Could not finish Argent remote session artifact polling', error);
           logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
         }
+        await argentServer.stopAsync();
       }
     },
   });
