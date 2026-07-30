@@ -88,7 +88,7 @@ function createEnvMock(): BuildStepEnv {
 }
 
 describe(createServeSimArgs, () => {
-  it('pins the Expo package and applies the EAS streaming policy', () => {
+  it('uses the latest Expo package and applies the EAS streaming policy', () => {
     expect(
       createServeSimArgs({
         port: 4321,
@@ -96,7 +96,7 @@ describe(createServeSimArgs, () => {
       })
     ).toEqual([
       '--yes',
-      '@expo/serve-sim@0.1.37',
+      '@expo/serve-sim@latest',
       '--port',
       '4321',
       '--host',

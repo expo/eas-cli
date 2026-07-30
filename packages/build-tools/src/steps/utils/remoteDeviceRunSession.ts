@@ -17,7 +17,7 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@0.1.37';
+const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@latest';
 const SERVE_SIM_HOST = '127.0.0.1';
 const SERVE_SIM_MAX_DIMENSION = '1280';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
