@@ -15,13 +15,13 @@ export async function uploadServeSimMetricsFileAsync(
     deviceRunSessionId,
     udid,
     filePath,
-    meta,
+    metadata,
     logger,
   }: {
     deviceRunSessionId: string;
     udid: string;
     filePath: string;
-    meta?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
     logger: bunyan;
   }
 ): Promise<void> {
@@ -47,10 +47,10 @@ export async function uploadServeSimMetricsFileAsync(
       metadata: {
         __eas_type: 'performance-metrics',
         udid,
-        ...(meta && {
-          hostCores: meta.hostCores,
-          sampleIntervalMs: meta.sampleIntervalMs,
-          schemaVersion: meta.schemaVersion,
+        ...(metadata && {
+          hostCores: metadata.hostCores,
+          sampleIntervalMs: metadata.sampleIntervalMs,
+          schemaVersion: metadata.schemaVersion,
         }),
       },
       size,

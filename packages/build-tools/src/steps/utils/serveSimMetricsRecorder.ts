@@ -24,7 +24,7 @@ type ServeSimMetricsSession = {
   outputDirectory: string;
   files: Map<string, string>;
   attempts: Map<string, number>;
-  meta: Map<string, Record<string, unknown>>;
+  metadata: Map<string, Record<string, unknown>>;
   activeStreams: Map<string, { abortController: AbortController; donePromise: Promise<void> }>;
   pollingPromise: Promise<void>;
   abortController: AbortController;
@@ -54,7 +54,7 @@ export namespace ServeSimMetricsRecorder {
       outputDirectory,
       files: new Map(),
       attempts: new Map(),
-      meta: new Map(),
+      metadata: new Map(),
       activeStreams: new Map(),
       pollingPromise: Promise.resolve(),
       abortController: new AbortController(),
@@ -73,7 +73,7 @@ export namespace ServeSimMetricsRecorder {
     logger,
   }: {
     logger: bunyan;
-  }): Promise<{ udid: string; filePath: string; meta: Record<string, unknown> | undefined }[]> {
+  }): Promise<{ udid: string; filePath: string; metadata: Record<string, unknown> | undefined }[]> {
     const session = activeSession;
     if (!session) {
       logger.info('No serve-sim metrics polling is running.');
@@ -92,7 +92,7 @@ export namespace ServeSimMetricsRecorder {
     return [...session.files.entries()].map(([udid, filePath]) => ({
       udid,
       filePath,
-      meta: session.meta.get(udid),
+      metadata: session.metadata.get(udid),
     }));
   }
 }
@@ -134,12 +134,12 @@ async function pollServeSimMetricsAsync(session: ServeSimMetricsSession): Promis
         signal: streamSignal,
         logger,
       })
-        .then(({ receivedData, meta }) => {
+        .then(({ receivedData, metadata }) => {
           if (receivedData) {
             session.attempts.set(server.udid, 0);
           }
-          if (meta) {
-            session.meta.set(server.udid, meta);
+          if (metadata) {
+            session.metadata.set(server.udid, metadata);
           }
         })
         .finally(() => {
@@ -193,18 +193,18 @@ export async function streamServeSimMetricsToFileAsync({
   filePath: string;
   signal: AbortSignal;
   logger: bunyan;
-}): Promise<{ receivedData: boolean; meta: Record<string, unknown> | undefined }> {
+}): Promise<{ receivedData: boolean; metadata: Record<string, unknown> | undefined }> {
   const file = createWriteStream(filePath, { flags: 'a' });
   file.on('error', err => {
     logger.warn({ err }, `serve-sim metrics file write failed for ${filePath}.`);
   });
   let receivedData = false;
-  let meta: Record<string, unknown> | undefined;
+  let metadata: Record<string, unknown> | undefined;
   try {
     const response = await fetch(new URL('/metrics', serveSimUrl).toString(), { signal });
     if (!response.ok || !response.body) {
       logger.warn(`serve-sim /metrics responded ${response.status} for ${serveSimUrl}.`);
-      return { receivedData, meta };
+      return { receivedData, metadata };
     }
     // One decoder so a multi-byte character split across chunks isn't corrupted.
     const decoder = new TextDecoder();
@@ -223,12 +223,12 @@ export async function streamServeSimMetricsToFileAsync({
         } else if (line.startsWith('data:')) {
           const payload = line.slice('data:'.length).trim();
           if (payload && event === 'meta') {
-            // Keep the meta out of the NDJSON (so it stays homogeneous and reconnects
+            // Keep the metadata out of the NDJSON (so it stays homogeneous and reconnects
             // don't re-append it) but hold onto it for the artifact metadata.
             try {
-              meta = JSON.parse(payload) as Record<string, unknown>;
+              metadata = JSON.parse(payload) as Record<string, unknown>;
             } catch {
-              // ignore a malformed meta frame
+              // ignore a malformed metadata frame
             }
           } else if (payload) {
             file.write(payload + '\n');
@@ -246,7 +246,7 @@ export async function streamServeSimMetricsToFileAsync({
   } finally {
     await endWriteStreamAsync(file);
   }
-  return { receivedData, meta };
+  return { receivedData, metadata };
 }
 
 // An errored write stream may never fire `end`'s callback, so also settle on

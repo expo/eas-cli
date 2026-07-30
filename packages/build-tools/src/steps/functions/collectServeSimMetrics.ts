@@ -21,12 +21,12 @@ export function createCollectServeSimMetricsBuildFunction(ctx: CustomBuildContex
       }
       try {
         const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
-        for (const { udid, filePath, meta } of collected) {
+        for (const { udid, filePath, metadata } of collected) {
           await uploadServeSimMetricsFileAsync(ctx, {
             deviceRunSessionId,
             udid,
             filePath,
-            meta,
+            metadata,
             logger,
           });
         }

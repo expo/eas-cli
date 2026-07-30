@@ -58,7 +58,7 @@ describe(uploadServeSimMetricsFileAsync, () => {
       deviceRunSessionId: 'session-id',
       udid: 'AAAA',
       filePath,
-      meta: { hostCores: 8, sampleIntervalMs: 1000, schemaVersion: 1 },
+      metadata: { hostCores: 8, sampleIntervalMs: 1000, schemaVersion: 1 },
       logger: createLoggerMock(),
     });
 

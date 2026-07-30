@@ -174,7 +174,7 @@ describe(streamServeSimMetricsToFileAsync, () => {
         signal: new AbortController().signal,
         logger,
       })
-    ).resolves.toEqual({ receivedData: false, meta: undefined });
+    ).resolves.toEqual({ receivedData: false, metadata: undefined });
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ err: expect.any(Error) }),
       expect.stringContaining('stream ended')
@@ -196,8 +196,8 @@ describe('ServeSimMetricsRecorder', () => {
     expect(collected).toHaveLength(1);
     expect(collected[0].udid).toBe('AAAA');
     expect(await readFile(collected[0].filePath, 'utf-8')).toBe(EXPECTED_NDJSON);
-    // The meta frame is captured for the artifact metadata, not written to the NDJSON.
-    expect(collected[0].meta).toEqual({
+    // The metadata frame is captured for the artifact metadata, not written to the NDJSON.
+    expect(collected[0].metadata).toEqual({
       schemaVersion: 1,
       udid: 'U',
       hostCores: 8,

@@ -35,8 +35,8 @@ describe(createCollectServeSimMetricsBuildFunction, () => {
 
   it('uploads a metrics file per collected device', async () => {
     jest.mocked(ServeSimMetricsRecorder.finishAsync).mockResolvedValue([
-      { udid: 'AAAA', filePath: '/tmp/AAAA.ndjson', meta: { hostCores: 8 } },
-      { udid: 'BBBB', filePath: '/tmp/BBBB.ndjson', meta: undefined },
+      { udid: 'AAAA', filePath: '/tmp/AAAA.ndjson', metadata: { hostCores: 8 } },
+      { udid: 'BBBB', filePath: '/tmp/BBBB.ndjson', metadata: undefined },
     ]);
     const logger = createLoggerMock();
 
@@ -47,7 +47,7 @@ describe(createCollectServeSimMetricsBuildFunction, () => {
       deviceRunSessionId: 'session-id',
       udid: 'AAAA',
       filePath: '/tmp/AAAA.ndjson',
-      meta: { hostCores: 8 },
+      metadata: { hostCores: 8 },
       logger,
     });
   });
@@ -63,7 +63,7 @@ describe(createCollectServeSimMetricsBuildFunction, () => {
   it('warns instead of failing the session when the session id is missing', async () => {
     jest
       .mocked(ServeSimMetricsRecorder.finishAsync)
-      .mockResolvedValue([{ udid: 'AAAA', filePath: '/tmp/AAAA.ndjson', meta: undefined }]);
+      .mockResolvedValue([{ udid: 'AAAA', filePath: '/tmp/AAAA.ndjson', metadata: undefined }]);
     jest.mocked(getDeviceRunSessionIdOrThrow).mockImplementation(() => {
       throw new Error('missing DEVICE_RUN_SESSION_ID');
     });
