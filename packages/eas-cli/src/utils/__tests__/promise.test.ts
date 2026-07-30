@@ -1,6 +1,10 @@
 import { sleepAsync } from '../promise';
 
-describe(sleepAsync, () => {
+describe('sleepAsync', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('clears its timer when aborted', async () => {
     jest.useFakeTimers();
     const abortController = new AbortController();
@@ -11,6 +15,5 @@ describe(sleepAsync, () => {
     await sleepPromise;
 
     expect(jest.getTimerCount()).toBe(0);
-    jest.useRealTimers();
   });
 });
