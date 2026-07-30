@@ -188,10 +188,11 @@ async function sleepUntilAbortedAsync(
 }
 
 // Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
-// which it resolves from PATH. It inherits this step's env, so PATH here is the
-// PATH argent will search — no need to probe install prefixes ourselves.
+// which it resolves from PATH. The tool-server inherits this step's env, so
+// spawning ffmpeg resolves against the same PATH argent will search: it rejects
+// with ENOENT when the binary is absent, and running it also proves it works.
 async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  return (await asyncResult(spawn('sh', ['-c', 'command -v ffmpeg'], { env }))).ok;
+  return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
 }
 
 async function installFfmpegWithHomebrewAsync({

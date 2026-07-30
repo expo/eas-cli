@@ -409,7 +409,7 @@ describe(ensureFfmpegInstalledAsync, () => {
     });
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(spawnMock).toHaveBeenCalledWith('sh', ['-c', 'command -v ffmpeg'], expect.anything());
+    expect(spawnMock).toHaveBeenCalledWith('ffmpeg', ['-version'], expect.anything());
   });
 
   it('installs ffmpeg with Homebrew on darwin when it is missing', async () => {
@@ -432,7 +432,7 @@ describe(ensureFfmpegInstalledAsync, () => {
 
   it('installs ffmpeg with apt on linux when it is missing', async () => {
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // command -v ffmpeg
+      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnResolved()) // apt-get update
       .mockReturnValueOnce(spawnResolved()); // apt-get install
 
@@ -460,7 +460,7 @@ describe(ensureFfmpegInstalledAsync, () => {
 
   it('still installs on linux when the apt index refresh fails', async () => {
     spawnMock
-      .mockReturnValueOnce(spawnRejected()) // command -v ffmpeg
+      .mockReturnValueOnce(spawnRejected()) // ffmpeg -version
       .mockReturnValueOnce(spawnRejected()) // apt-get update
       .mockReturnValueOnce(spawnResolved()); // apt-get install
     const logger = createLoggerMock();
