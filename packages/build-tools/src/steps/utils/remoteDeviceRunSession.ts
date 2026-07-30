@@ -230,8 +230,13 @@ async function installFfmpegWithAptAsync({
  * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
  *
  * Best-effort by design: screen recording is one optional argent tool, so a
- * failure here is logged and the session continues without it. Never rejects,
- * which is what lets the caller run it in the background.
+ * failure here is logged and the session continues without it.
+ *
+ * The whole body is wrapped because the caller runs this in the background with
+ * `void`. There is no unhandledRejection handler in the worker, so a rejection
+ * escaping here would crash the process and take the live session with it.
+ * `spawn` is not an async function and can throw synchronously, which
+ * `asyncResult` cannot catch — it only wraps an already-created promise.
  */
 export async function ensureFfmpegInstalledAsync({
   runtimePlatform,
@@ -242,31 +247,34 @@ export async function ensureFfmpegInstalledAsync({
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
-  if (await isFfmpegAvailableAsync(env)) {
-    logger.info('ffmpeg is already installed.');
-    return;
-  }
+  try {
+    if (await isFfmpegAvailableAsync(env)) {
+      logger.info('ffmpeg is already installed.');
+      return;
+    }
 
-  const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
-  logger.info(
-    `ffmpeg is not installed, installing it with ${
-      isDarwin ? 'Homebrew' : 'apt'
-    } for argent screen recording.`
-  );
-  const installResult = await asyncResult(
-    isDarwin
-      ? installFfmpegWithHomebrewAsync({ env, logger })
-      : installFfmpegWithAptAsync({ env, logger })
-  );
-  if (!installResult.ok) {
-    Sentry.capture('Could not install ffmpeg for argent screen recording', installResult.reason);
+    const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
+    logger.info(
+      `ffmpeg is not installed, installing it with ${
+        isDarwin ? 'Homebrew' : 'apt'
+      } for argent screen recording.`
+    );
+    if (isDarwin) {
+      await installFfmpegWithHomebrewAsync({ env, logger });
+    } else {
+      await installFfmpegWithAptAsync({ env, logger });
+    }
+    logger.info('Installed ffmpeg.');
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not install ffmpeg for argent screen recording', error, {
+      level: 'warning',
+    });
     logger.warn(
-      { err: installResult.reason },
+      { err: error },
       'Could not install ffmpeg. Argent screen recording will not work in this session.'
     );
-    return;
   }
-  logger.info('Installed ffmpeg.');
 }
 
 const TurnIceServersResponseSchema = z.object({

@@ -494,4 +494,25 @@ describe(ensureFfmpegInstalledAsync, () => {
     expect(logger.warn).toHaveBeenCalled();
     expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
   });
+
+  // The caller runs this with `void` and the worker installs no unhandledRejection
+  // handler, so a rejection here would crash the process. `spawn` is not async and
+  // can throw synchronously, which `asyncResult` cannot catch.
+  it('resolves when the availability check throws synchronously', async () => {
+    spawnMock.mockImplementationOnce(() => {
+      throw new Error('sync spawn failure');
+    });
+    const logger = createLoggerMock();
+
+    await expect(
+      ensureFfmpegInstalledAsync({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+        env: createEnvMock(),
+        logger,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalled();
+    expect(jest.mocked(Sentry).capture).toHaveBeenCalled();
+  });
 });
