@@ -1,18 +1,25 @@
 import { bunyan } from '@expo/logger';
 import { BuildStepEnv } from '@expo/steps';
+import * as ngrok from '@ngrok/ngrok';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
+import { sleepAsync } from '../../../utils/retry';
 import {
+  createServeSimArgs,
   fetchServeSimTurnArgsAsync,
+  startNgrokTunnelAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
+  waitForServeSimReadyAsync,
 } from '../remoteDeviceRunSession';
 
+jest.mock('@ngrok/ngrok');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
+jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('../../../sentry');
 
 function createLoggerMock(): bunyan {
@@ -79,6 +86,101 @@ function createStatusCtxMock(
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
 }
+
+describe(createServeSimArgs, () => {
+  it('pins the Expo package and applies the EAS streaming policy', () => {
+    expect(
+      createServeSimArgs({
+        port: 4321,
+        turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      })
+    ).toEqual([
+      '--yes',
+      '@expo/serve-sim@0.1.37',
+      '--port',
+      '4321',
+      '--host',
+      '127.0.0.1',
+      '--transport',
+      'webrtc',
+      '--webrtc-codec',
+      'h264',
+      '--max-dimension',
+      '1280',
+      '--mjpeg-fps',
+      '10',
+      '--mjpeg-quality',
+      '0.55',
+      '--h264-bitrate',
+      '3000000',
+      '--h264-fps',
+      '30',
+      '--turn-url',
+      'turns:turn.example.test:443',
+    ]);
+  });
+});
+
+describe(waitForServeSimReadyAsync, () => {
+  beforeEach(() => {
+    jest.mocked(turtleFetch).mockReset();
+    jest.mocked(sleepAsync).mockReset();
+    jest.mocked(sleepAsync).mockResolvedValue(undefined);
+  });
+
+  it('waits for the stable readiness endpoint', async () => {
+    jest
+      .mocked(turtleFetch)
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockResolvedValueOnce({
+        json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
+      } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
+
+    await waitForServeSimReadyAsync({
+      serveSim: { pid: undefined, getOutput: () => '' },
+      port: 4321,
+      timeoutMs: 10_000,
+    });
+
+    expect(jest.mocked(turtleFetch)).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(turtleFetch)).toHaveBeenLastCalledWith(
+      'http://127.0.0.1:4321/readyz',
+      'GET',
+      expect.objectContaining({ retries: 0 })
+    );
+    expect(sleepAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe(startNgrokTunnelAsync, () => {
+  it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(ngrok.forward).mockResolvedValue({
+      url: () => 'https://serve-sim.example.test',
+      close,
+    } as never);
+
+    const tunnel = await startNgrokTunnelAsync({
+      port: 4321,
+      subdomainPrefix: 'serve-sim',
+      baseDomain: 'tunnel.example.test',
+      authtoken: 'token',
+      logger: createLoggerMock(),
+    });
+
+    expect(ngrok.forward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addr: 4321,
+        authtoken: 'token',
+        domain: expect.stringMatching(/^serve-sim-[a-f0-9]{32}\.tunnel\.example\.test$/),
+      })
+    );
+    expect(tunnel.url).toBe('https://serve-sim.example.test');
+    await tunnel.stopAsync();
+    await tunnel.stopAsync();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe(turnIceServersToServeSimArgs, () => {
   it('returns no args for an empty ICE server list', () => {

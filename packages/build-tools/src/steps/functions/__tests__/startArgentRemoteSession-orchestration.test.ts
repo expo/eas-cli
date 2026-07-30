@@ -56,6 +56,7 @@ const ARGENT_STATE_DIR = path.join(TEST_HOME, '.argent');
 const EXPECTED_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, 'tool-server-events.jsonl');
 
 const mockStopAsync = jest.fn();
+const mockTunnelStopAsync = jest.fn();
 
 describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
   beforeEach(async () => {
@@ -65,14 +66,22 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(isProcessDescendantOfAsync).mockResolvedValue(true);
     jest.mocked(pollArgentArtifactsForUploadAsync).mockResolvedValue(undefined);
     mockStopAsync.mockResolvedValue(undefined);
+    mockTunnelStopAsync.mockResolvedValue(undefined);
     jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({ stopAsync: mockStopAsync });
 
     jest.mocked(getDeviceRunSessionIdOrThrow).mockReturnValue('device-run-session-id');
     jest.mocked(getNgrokTunnelDomainOrThrow).mockReturnValue('tunnel.example.com');
     jest.mocked(getNgrokAuthtokenOrThrow).mockReturnValue('ngrok-token');
     jest.mocked(selectXcodeDeveloperDirectoryAsync).mockResolvedValue(undefined);
-    jest.mocked(spawnDetached).mockReturnValue({ pid: 4242, getOutput: () => '' });
-    jest.mocked(startNgrokTunnelAsync).mockResolvedValue('https://argent-abc.tunnel.example.com');
+    jest.mocked(spawnDetached).mockReturnValue({
+      pid: 4242,
+      getOutput: () => '',
+      stopAsync: jest.fn(),
+    });
+    jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
+      url: 'https://argent-abc.tunnel.example.com',
+      stopAsync: mockTunnelStopAsync,
+    });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
     jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
 
@@ -134,5 +143,6 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(mockStopAsync.mock.invocationCallOrder[0]).toBeGreaterThan(
       jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
     );
+    expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
   });
 });

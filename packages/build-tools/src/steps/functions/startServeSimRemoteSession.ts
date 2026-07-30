@@ -29,27 +29,31 @@ export function createStartServeSimRemoteSessionBuildFunction(
 
       await selectXcodeDeveloperDirectoryAsync({ env, logger });
 
-      const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
+      const serveSim = await startServeSimWithTunnelAsync(ctx, {
         baseDomain: ngrokTunnelDomain,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
       });
-      logger.info(`Preview URL: ${previewUrl}`);
+      logger.info(`Preview URL: ${serveSim.previewUrl}`);
 
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: { previewUrl },
-        logger,
-      });
+      try {
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: { previewUrl: serveSim.previewUrl },
+          logger,
+        });
 
-      await waitForDeviceRunSessionStoppedAsync({
-        ctx,
-        deviceRunSessionId,
-        logger,
-        signal,
-      });
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          signal,
+        });
+      } finally {
+        await serveSim.stopAsync();
+      }
     },
   });
 }
