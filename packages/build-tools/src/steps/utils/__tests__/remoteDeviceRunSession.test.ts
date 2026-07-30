@@ -12,6 +12,7 @@ import {
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
   fetchServeSimTurnArgsAsync,
+  metricsCorsOriginToServeSimArgs,
   startNgrokTunnelAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
@@ -118,6 +119,47 @@ describe(createServeSimArgs, () => {
       '60',
       '--turn-url',
       'turns:turn.example.test:443',
+    ]);
+  });
+
+  it('appends metrics CORS args after the TURN args when provided', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      metricsCorsArgs: ['--metrics-cors-origin', 'https://expo.dev'],
+    });
+    expect(args.slice(-4)).toEqual([
+      '--turn-url',
+      'turns:turn.example.test:443',
+      '--metrics-cors-origin',
+      'https://expo.dev',
+    ]);
+  });
+});
+
+describe(metricsCorsOriginToServeSimArgs, () => {
+  it('returns no args when the origin is unset or empty', () => {
+    expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
+    expect(
+      metricsCorsOriginToServeSimArgs({ EAS_SIMULATOR_METRICS_CORS_ORIGIN: '' } as BuildStepEnv)
+    ).toEqual([]);
+  });
+
+  it('builds one flag per comma-separated origin', () => {
+    expect(
+      metricsCorsOriginToServeSimArgs({
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev',
+      } as BuildStepEnv)
+    ).toEqual(['--metrics-cors-origin', 'https://expo.dev']);
+    expect(
+      metricsCorsOriginToServeSimArgs({
+        EAS_SIMULATOR_METRICS_CORS_ORIGIN: 'https://expo.dev, https://staging.expo.dev',
+      } as BuildStepEnv)
+    ).toEqual([
+      '--metrics-cors-origin',
+      'https://expo.dev',
+      '--metrics-cors-origin',
+      'https://staging.expo.dev',
     ]);
   });
 });
