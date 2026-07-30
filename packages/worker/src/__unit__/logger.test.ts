@@ -8,16 +8,16 @@ jest.mock('@expo/build-tools', () => {
   const actual = jest.requireActual('@expo/build-tools');
   const { Writable } = jest.requireActual('node:stream');
 
-  class MockGCSLoggerStream extends Writable {
-    public static readonly CompressionMethod = actual.GCSLoggerStream.CompressionMethod;
-    public static readonly instances: MockGCSLoggerStream[] = [];
+  class MockRemoteLoggerStream extends Writable {
+    public static readonly CompressionMethod = actual.RemoteLoggerStream.CompressionMethod;
+    public static readonly instances: MockRemoteLoggerStream[] = [];
 
     public readonly writes: any[] = [];
 
     constructor(...args: any[]) {
       super({ objectMode: true });
       void args;
-      MockGCSLoggerStream.instances.push(this);
+      MockRemoteLoggerStream.instances.push(this);
     }
 
     public async init(): Promise<string> {
@@ -38,10 +38,8 @@ jest.mock('@expo/build-tools', () => {
 
   return {
     ...actual,
-    GCS: {
-      uploadWithSignedUrl: jest.fn(),
-    },
-    GCSLoggerStream: MockGCSLoggerStream,
+    uploadWithSignedUrl: jest.fn(),
+    RemoteLoggerStream: MockRemoteLoggerStream,
   };
 });
 
@@ -65,8 +63,8 @@ async function waitForStreamFlush(): Promise<void> {
 }
 
 const fetchMock = jest.mocked(fetch);
-const { GCSLoggerStream } = jest.requireMock('@expo/build-tools') as {
-  GCSLoggerStream: {
+const { RemoteLoggerStream } = jest.requireMock('@expo/build-tools') as {
+  RemoteLoggerStream: {
     instances: Array<{
       writes: any[];
     }>;
@@ -81,7 +79,7 @@ describe('logger', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(new Response('', { status: 200, statusText: 'OK' }));
-    GCSLoggerStream.instances.length = 0;
+    RemoteLoggerStream.instances.length = 0;
   });
 
   afterEach(() => {
@@ -297,13 +295,13 @@ describe('logger', () => {
     await cleanUp();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(GCSLoggerStream.instances).toHaveLength(1);
+    expect(RemoteLoggerStream.instances).toHaveLength(1);
 
-    const gcsLogs = GCSLoggerStream.instances[0].writes;
-    expect(gcsLogs).toEqual(
+    const remoteLogs = RemoteLoggerStream.instances[0].writes;
+    expect(remoteLogs).toEqual(
       expect.arrayContaining([expect.objectContaining({ msg: 'Actual build log' })])
     );
-    expect(gcsLogs).not.toEqual(
+    expect(remoteLogs).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ msg: 'Failed to send logs batch over HTTP' }),
       ])

@@ -7,6 +7,7 @@ import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/creat
 import { withErrorHandlingAsync } from '../client';
 import {
   AppByFullNameQuery,
+  AppByIdProfileImageUrlQuery,
   AppByIdQuery,
   AppByIdWorkflowRunsFilteredByStatusQuery,
   AppByIdWorkflowsQuery,
@@ -71,6 +72,35 @@ export const AppQuery = {
 
     assert(data.app, 'GraphQL: `app` not defined in server response');
     return data.app.byFullName;
+  },
+  async byIdProfileImageUrlAsync(
+    graphqlClient: ExpoGraphqlClient,
+    projectId: string
+  ): Promise<string | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppByIdProfileImageUrlQuery>(
+          gql`
+            query AppByIdProfileImageUrlQuery($appId: String!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  profileImageUrl
+                }
+              }
+            }
+          `,
+          { appId: projectId },
+          {
+            requestPolicy: 'network-only',
+            additionalTypenames: ['App'],
+          }
+        )
+        .toPromise()
+    );
+
+    assert(data.app, 'GraphQL: `app` not defined in server response');
+    return data.app.byId.profileImageUrl ?? null;
   },
   async byIdWorkflowsAsync(
     graphqlClient: ExpoGraphqlClient,

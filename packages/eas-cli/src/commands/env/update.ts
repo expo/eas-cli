@@ -63,7 +63,9 @@ interface UpdateFlags {
 }
 
 export default class EnvUpdate extends EasCommand {
-  static override description = 'update an environment variable on the current project or account';
+  static override description =
+    'update an environment variable on the current project or account (deprecated, use eas env:set)';
+  static override hidden = true;
 
   static override flags = {
     'variable-name': Flags.string({
@@ -104,6 +106,9 @@ export default class EnvUpdate extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
+    Log.warn('This command is deprecated. Use eas env:set instead.');
+    Log.newLine();
+
     const { args, flags } = await this.parse(EnvUpdate);
     const {
       name,

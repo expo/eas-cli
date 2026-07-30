@@ -1,4 +1,4 @@
-import { GCSLoggerStream, LogBuffer } from '@expo/build-tools';
+import { LogBuffer, RemoteLoggerStream } from '@expo/build-tools';
 import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
@@ -123,9 +123,9 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
     level: buildLogger.level(),
   });
 
-  let gcsLoggerStream: GCSLoggerStream | null = null;
+  let remoteLoggerStream: RemoteLoggerStream | null = null;
   if (config.loggers.gcs.signedUploadUrlForLogs) {
-    gcsLoggerStream = new GCSLoggerStream({
+    remoteLoggerStream = new RemoteLoggerStream({
       uploadMethod: { signedUrl: config.loggers.gcs.signedUploadUrlForLogs },
       options: {
         uploadIntervalMs: config.loggers.gcs.uploadIntervalMs,
@@ -133,8 +133,8 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
       },
       logger: defaultLogger,
     });
-    transformStream.pipe(gcsLoggerStream);
-    await gcsLoggerStream.init();
+    transformStream.pipe(remoteLoggerStream);
+    await remoteLoggerStream.init();
   }
 
   const logBuffer = new WorkerLogBuffer(MAX_LINES_IN_BUFFER);
@@ -163,7 +163,7 @@ export async function createBuildLoggerWithSecretsFilter(secrets: Job['secrets']
   return {
     logger: buildLogger,
     cleanUp: async () => {
-      await Promise.all([gcsLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
+      await Promise.all([remoteLoggerStream?.cleanUp?.(), httpLogStream?.cleanUp?.()]);
     },
     outputStream: transformStream,
     logBuffer,

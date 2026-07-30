@@ -1,4 +1,4 @@
-import { BuildContext, GCS } from '@expo/build-tools';
+import { BuildContext, type SignedUrl, uploadWithSignedUrl } from '@expo/build-tools';
 import { ArchiveSourceType, errors } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
@@ -42,7 +42,7 @@ export async function uploadApplicationArchiveAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `application-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -54,7 +54,7 @@ export async function uploadApplicationArchiveAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -98,7 +98,7 @@ export async function uploadBuildArtifactsAsync(
   const { localPath, suffix, size } = await prepareArtifactsForUploadAsync(logger, artifactPaths);
   const filename = `artifacts-${buildId}${suffix}`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     // Try to upload to the upload session first.
@@ -110,7 +110,7 @@ export async function uploadBuildArtifactsAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -162,7 +162,7 @@ export async function uploadWorkflowArtifactAsync(
       metadata,
     });
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl: uploadSession,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
@@ -249,7 +249,7 @@ async function createUploadSessionAsync(
   }: { filename: string; name: string; size: number; metadata?: Record<string, unknown> }
 ): Promise<{
   bucketKey: string;
-  signedUrl: GCS.SignedUrl;
+  signedUrl: SignedUrl;
   storageType: ArchiveSourceType;
   artifactId: string | null;
 }> {

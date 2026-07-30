@@ -168,7 +168,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     const installArgs = jest.mocked(spawnAsync).mock.calls[0][1];
     expect(installArgs).toContain('posthog-react-native');
-    expect(installArgs).toContain('posthog-react-native-session-replay');
+    expect(installArgs).toContain('@posthog/react-native-plugin');
     expect(createOrModifyExpoConfigAsync).toHaveBeenCalled();
     expect(fs.writeFile).toHaveBeenCalled();
 
@@ -220,9 +220,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     await createCommand([]).runAsync();
 
-    expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain(
-      'posthog-react-native-session-replay'
-    );
+    expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain('@posthog/react-native-plugin');
     const createdNames = jest
       .mocked(EnvironmentVariableMutation.createForAppAsync)
       .mock.calls.map(call => call[1].name);
@@ -237,9 +235,7 @@ describe(IntegrationsPostHogConnect, () => {
 
     // The plugin wires native modules replay needs, so it must be added even without analytics.
     expect(createOrModifyExpoConfigAsync).toHaveBeenCalled();
-    expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain(
-      'posthog-react-native-session-replay'
-    );
+    expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain('@posthog/react-native-plugin');
     // The public key + host initialize the SDK for any feature, so they're still written.
     const createdNames = jest
       .mocked(EnvironmentVariableMutation.createForAppAsync)
@@ -263,9 +259,7 @@ describe(IntegrationsPostHogConnect, () => {
     expect(createdNames).not.toContain('POSTHOG_CLI_API_KEY');
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Skipping error tracking'));
     // Session replay defaults on, so its package is still installed.
-    expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain(
-      'posthog-react-native-session-replay'
-    );
+    expect(jest.mocked(spawnAsync).mock.calls[0][1]).toContain('@posthog/react-native-plugin');
   });
 
   it('non-interactive --error-tracking without a key fails before any provisioning', async () => {
@@ -530,9 +524,7 @@ describe(IntegrationsPostHogConnect, () => {
     await createCommand(['--no-session-replay']).runAsync();
 
     expect(promptAsync).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'features' }));
-    expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain(
-      'posthog-react-native-session-replay'
-    );
+    expect(jest.mocked(spawnAsync).mock.calls[0][1]).not.toContain('@posthog/react-native-plugin');
   });
 
   it('prompts for a personal API key and validates it', async () => {

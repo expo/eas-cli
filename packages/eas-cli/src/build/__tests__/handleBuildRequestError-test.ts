@@ -25,23 +25,27 @@ beforeEach(() => {
   jest.resetAllMocks();
 });
 
-const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `[
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 1"
-  },
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 2"
-  },
-  {
-    "name": "GraphQLError",
-    "extensions": {},
-    "message": "Error 3"
-  }
-]`;
+const EXPECTED_STRINGIFIED_GRAPHQL_ERROR_JSON = `Build request error details:
+{
+  "message": "[GraphQL] Error 1\\n[GraphQL] Error 2\\n[GraphQL] Error 3",
+  "graphQLErrors": [
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 1"
+    },
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 2"
+    },
+    {
+      "name": "GraphQLError",
+      "extensions": {},
+      "message": "Error 3"
+    }
+  ]
+}`;
 
 const EXPECTED_EAS_BUILD_DOWN_MESSAGE = `EAS Build is down for maintenance. Try again later. Check ${link(
   'https://status.expo.dev/'
@@ -110,7 +114,7 @@ describe(Build.name, () => {
           handleBuildRequestError(error, platform);
         } catch {}
 
-        expect(logDebugSpy).toBeCalledWith(undefined);
+        expect(logDebugSpy).not.toHaveBeenCalled();
       });
 
       it('does it with iOS', async () => {
@@ -122,7 +126,7 @@ describe(Build.name, () => {
           handleBuildRequestError(error, platform);
         } catch {}
 
-        expect(logDebugSpy).toBeCalledWith(undefined);
+        expect(logDebugSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -504,6 +508,135 @@ describe(Build.name, () => {
             const graphQLErrors = [graphQLError];
             const error = new CombinedError({ graphQLErrors });
             const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Error 1`;
+
+            const handleBuildRequestErrorThrownError = getError<Error>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+        });
+        describe('with empty GraphQL errors and network response details', () => {
+          it('throws base Error class with network and response details', async () => {
+            const platform = Platform.ANDROID;
+            const error = new CombinedError({
+              graphQLErrors: [],
+              networkError: new Error('Request failed: 400 (Bad Request)'),
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'expo-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+            const expectedMessage =
+              `${EXPECTED_GENERIC_MESSAGE}\n` +
+              'Network error: Request failed: 400 (Bad Request)\n' +
+              'Response status: 400 Bad Request\n' +
+              `Request ID: ${mockRequestId}`;
+
+            const handleBuildRequestErrorThrownError = getError<Error>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+
+          it('logs network and response details to debug', async () => {
+            const platform = Platform.ANDROID;
+            const logDebugSpy = jest.spyOn(Log, 'debug');
+            const error = new CombinedError({
+              graphQLErrors: [],
+              networkError: new Error('Request failed: 400 (Bad Request)'),
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'expo-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+
+            try {
+              handleBuildRequestError(error, platform);
+            } catch {}
+
+            expect(logDebugSpy).toBeCalledWith(expect.stringContaining('"graphQLErrors": []'));
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining('"message": "[Network] Request failed: 400 (Bad Request)"')
+            );
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining('"message": "Request failed: 400 (Bad Request)"')
+            );
+            expect(logDebugSpy).toBeCalledWith(expect.stringContaining('"status": 400'));
+            expect(logDebugSpy).toBeCalledWith(
+              expect.stringContaining(`"expo-request-id": "${mockRequestId}"`)
+            );
+          });
+
+          it('includes the request ID from the x-request-id header when expo-request-id is missing', async () => {
+            const platform = Platform.ANDROID;
+            const error = new CombinedError({
+              graphQLErrors: [],
+              networkError: new Error('Request failed: 400 (Bad Request)'),
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'x-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+            const expectedMessage =
+              `${EXPECTED_GENERIC_MESSAGE}\n` +
+              'Network error: Request failed: 400 (Bad Request)\n' +
+              'Response status: 400 Bad Request\n' +
+              `Request ID: ${mockRequestId}`;
+
+            const handleBuildRequestErrorThrownError = getError<Error>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+        });
+        describe('with the same request ID in GraphQL error extensions and response headers', () => {
+          it('does not duplicate the request ID line', async () => {
+            const platform = Platform.ANDROID;
+            const graphQLError = getGraphQLError('Error 1', 'UNKNOWN_GRAPHQL_ERROR');
+            const error = new CombinedError({
+              graphQLErrors: [graphQLError],
+              response: {
+                status: 400,
+                statusText: 'Bad Request',
+                headers: {
+                  get: (headerName: string) =>
+                    headerName === 'expo-request-id' ? mockRequestId : null,
+                },
+              },
+            });
+            const expectedMessage =
+              `${EXPECTED_GENERIC_MESSAGE}\n` +
+              `Request ID: ${mockRequestId}\n` +
+              'Error message: Error 1\n' +
+              'Response status: 400 Bad Request';
+
+            const handleBuildRequestErrorThrownError = getError<Error>(() => {
+              handleBuildRequestError(error, platform);
+            });
+
+            assertReThrownError(handleBuildRequestErrorThrownError, Error, expectedMessage);
+          });
+        });
+        describe('with no GraphQL, network, or response details', () => {
+          it('falls back to the top-level error message', async () => {
+            const platform = Platform.ANDROID;
+            const error = { graphQLErrors: [], message: 'Something went wrong' };
+            const expectedMessage = `${EXPECTED_GENERIC_MESSAGE}\nError message: Something went wrong`;
 
             const handleBuildRequestErrorThrownError = getError<Error>(() => {
               handleBuildRequestError(error, platform);

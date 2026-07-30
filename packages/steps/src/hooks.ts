@@ -1,4 +1,5 @@
 import {
+  CompositeFunctionCatalog,
   HookAnchorId,
   ShellStep,
   Step,
@@ -7,17 +8,18 @@ import {
 } from '@expo/eas-build-job';
 import assert from 'node:assert';
 
-import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
-import {
-  BuildFunctionGroup,
-  BuildFunctionGroupById,
-  createBuildFunctionGroupByIdMapping,
-} from './BuildFunctionGroup';
+import { BuildFunction, createBuildFunctionByIdMapping } from './BuildFunction';
+import { BuildFunctionGroup, createBuildFunctionGroupByIdMapping } from './BuildFunctionGroup';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepOutput } from './BuildStepOutput';
 import { collectAggregateStepErrors } from './BuildWorkflowValidator';
+import { CompositeFunctionExpander } from './CompositeFunctionExpander';
 import { BuildConfigError, BuildWorkflowError } from './errors';
+import {
+  isLocalCompositeFunctionPath,
+  parseLocalCompositeFunctionPath,
+} from './utils/localCompositeFunctions';
+import { createBuildStepOutputsFromDefinition, getShellStepDisplayName } from './utils/step';
 
 /**
  * One entry per AUTHORED hook step — the unit the user wrote. The wrapper
@@ -28,7 +30,15 @@ import { BuildConfigError, BuildWorkflowError } from './errors';
  * context only; a group call's `with:` inputs are not visible to them.
  * (2) An entry whose explicit `if:` passed behaves like a single step whose
  * `if:` passed: its no-`if:` steps run past earlier entries' failures, while
- * within-entry failures still skip later siblings.
+ * within-entry failures still skip later siblings. `after` entries get the
+ * same within-entry gate even without an explicit `if:`.
+ *
+ * Composite calls are also one entry, but their call-site `if:` lives on the
+ * expansion scope (not `ifCondition`), matching main-workflow composites. A
+ * passing call `if:` therefore does not grant the before-side `!entryFailed`
+ * shield; there, no-`if:` children follow the plain in-sequence default. On
+ * the after side every entry is gated by `!entryFailed`, so composite
+ * children fail fast within their entry like everything else.
  */
 export interface HookEntry {
   steps: BuildStep[];
@@ -63,9 +73,12 @@ export async function constructHookEntriesAsync(
   {
     externalFunctions,
     externalFunctionGroups,
+    compositeFunctionCatalog,
   }: {
     externalFunctions?: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
+    /** When omitted, composite `uses:` fail as missing from an empty catalog. */
+    compositeFunctionCatalog?: CompositeFunctionCatalog;
   }
 ): Promise<HookEntry[]> {
   // An empty array is a valid no-op (e.g. opting out of a default hook);
@@ -82,10 +95,14 @@ export async function constructHookEntriesAsync(
     externalFunctionIds: Object.keys(buildFunctionById),
     externalFunctionGroupIds: Object.keys(buildFunctionGroupById),
   });
-  return constructHookEntriesFromValidatedSteps(ctx, validatedSteps, {
-    buildFunctionById,
-    buildFunctionGroupById,
-  });
+  return constructHookEntriesFromValidatedSteps(
+    ctx,
+    validatedSteps,
+    new CompositeFunctionExpander(ctx, compositeFunctionCatalog ?? {}, {
+      buildFunctionById,
+      buildFunctionGroupById,
+    })
+  );
 }
 
 /**
@@ -109,13 +126,7 @@ export async function validateHookStepsAsync(
 export function constructHookEntriesFromValidatedSteps(
   ctx: BuildStepGlobalContext,
   validatedSteps: Step[],
-  {
-    buildFunctionById,
-    buildFunctionGroupById,
-  }: {
-    buildFunctionById: BuildFunctionById;
-    buildFunctionGroupById: BuildFunctionGroupById;
-  }
+  compositeFunctionExpander: CompositeFunctionExpander
 ): HookEntry[] {
   const entries: HookEntry[] = [];
   for (const step of validatedSteps) {
@@ -125,7 +136,19 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    const maybeFunctionGroup = buildFunctionGroupById[step.uses];
+    if (isLocalCompositeFunctionPath(step.uses)) {
+      entries.push({
+        steps: compositeFunctionExpander
+          .expandCompositeFunctionStep(
+            step,
+            parseLocalCompositeFunctionPath(step.uses),
+            BuildStep.getNewId(step.id)
+          )
+          .getFlattenedSteps(),
+      });
+      continue;
+    }
+    const maybeFunctionGroup = compositeFunctionExpander.buildFunctionGroupById[step.uses];
     if (maybeFunctionGroup !== undefined) {
       entries.push({
         steps: maybeFunctionGroup.createBuildStepsFromFunctionGroupCall(ctx, {
@@ -135,7 +158,7 @@ export function constructHookEntriesFromValidatedSteps(
       });
       continue;
     }
-    const buildFunction = buildFunctionById[step.uses];
+    const buildFunction = compositeFunctionExpander.buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
     entries.push({
       steps: [
@@ -159,25 +182,11 @@ export function createBuildStepFromShellStep(
   ctx: BuildStepGlobalContext,
   step: ShellStep
 ): BuildStep {
-  const id = BuildStep.getNewId(step.id);
-  const displayName =
-    step.name ??
-    step.id ??
-    step.run
-      .split('\n')
-      .find(line => line.trim())
-      ?.trim() ??
-    step.run;
-  const outputs = step.outputs?.map(
-    entry =>
-      new BuildStepOutput(ctx, {
-        id: entry.name,
-        stepDisplayName: displayName,
-        required: entry.required ?? true,
-      })
-  );
+  const displayName = getShellStepDisplayName(step);
+  const outputs =
+    step.outputs && createBuildStepOutputsFromDefinition(ctx, step.outputs, displayName);
   return new BuildStep(ctx, {
-    id,
+    id: BuildStep.getNewId(step.id),
     displayName,
     outputs,
     workingDirectory: step.working_directory,
@@ -202,7 +211,7 @@ export function validateAllStepFunctionsExist(
 ): void {
   const calledFunctionsOrFunctionGroupsSet = new Set<string>();
   for (const step of steps) {
-    if (step.uses) {
+    if (step.uses && !isLocalCompositeFunctionPath(step.uses)) {
       calledFunctionsOrFunctionGroupsSet.add(step.uses);
     }
   }

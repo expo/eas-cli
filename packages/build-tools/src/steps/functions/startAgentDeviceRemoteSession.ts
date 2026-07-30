@@ -15,6 +15,7 @@ import path from 'node:path';
 import { type CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { pollAgentDeviceArtifactsForUploadAsync } from '../utils/agentDeviceArtifacts';
+import { startAgentDeviceEventCollectionAsync } from '../utils/agentDeviceEvents';
 import {
   type DetachedProcessHandle,
   getDeviceRunSessionIdOrThrow,
@@ -32,7 +33,8 @@ import {
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
-const DAEMON_JSON_PATH = path.join(os.homedir(), '.agent-device', 'daemon.json');
+const AGENT_DEVICE_STATE_DIR = path.join(os.homedir(), '.agent-device');
+const DAEMON_JSON_PATH = path.join(AGENT_DEVICE_STATE_DIR, 'daemon.json');
 const STARTUP_TIMEOUT_MS = 60_000;
 const AGENT_DEVICE_DAEMON_ENV = {
   AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
@@ -82,54 +84,101 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       });
       logger.info(`Daemon is listening on port ${daemonPort}; loaded auth token.`);
 
-      const agentDeviceRemoteSessionUrl = await startNgrokTunnelAsync({
+      const agentDeviceTunnel = await startNgrokTunnelAsync({
         port: daemonPort,
         subdomainPrefix: 'agent-device',
         baseDomain: ngrokTunnelDomain,
         authtoken: ngrokAuthtoken,
         logger,
       });
+      const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
       logger.info(`Tunnel is ready at ${agentDeviceRemoteSessionUrl}.`);
 
-      // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
-      // on Darwin. Android sessions go without a preview URL.
-      let webPreviewUrl: string | undefined;
-      if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-        const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
-          baseDomain: ngrokTunnelDomain,
-          env,
+      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let eventCollection:
+        | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
+        | undefined;
+      try {
+        // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
+        // on Darwin. Android sessions go without a preview URL.
+        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
+          serveSim = await startServeSimWithTunnelAsync(ctx, {
+            baseDomain: ngrokTunnelDomain,
+            env,
+            logger,
+            timeoutMs: STARTUP_TIMEOUT_MS,
+          });
+          logger.info(`Web preview URL: ${serveSim.previewUrl}`);
+        }
+
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: {
+            agentDeviceRemoteSessionUrl,
+            agentDeviceRemoteSessionToken: daemonToken,
+            ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
+          },
           logger,
-          timeoutMs: STARTUP_TIMEOUT_MS,
         });
-        webPreviewUrl = previewUrl;
-        logger.info(`Web preview URL: ${webPreviewUrl}`);
+        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+          deviceRunSessionId,
+          daemonUrl: `http://127.0.0.1:${daemonPort}`,
+          daemonToken,
+          logger,
+        });
+
+        eventCollection = await startAgentDeviceEventCollectionAsync({
+          ctx,
+          deviceRunSessionId,
+          stateDir: AGENT_DEVICE_STATE_DIR,
+          logger,
+        });
+
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          signal,
+        });
+      } finally {
+        if (serveSim) {
+          await serveSim.stopAsync();
+        }
+        await agentDeviceTunnel.stopAsync();
+        if (eventCollection) {
+          await stopAgentDeviceEventCollectionSafelyAsync({
+            eventCollection,
+            deviceRunSessionId,
+            logger,
+          });
+        }
+        await daemonProcess.stopAsync();
       }
-
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: {
-          agentDeviceRemoteSessionUrl,
-          agentDeviceRemoteSessionToken: daemonToken,
-          ...(webPreviewUrl ? { webPreviewUrl } : {}),
-        },
-        logger,
-      });
-      void pollAgentDeviceArtifactsForUploadAsync(ctx, {
-        deviceRunSessionId,
-        daemonUrl: `http://127.0.0.1:${daemonPort}`,
-        daemonToken,
-        logger,
-      });
-
-      await waitForDeviceRunSessionStoppedAsync({
-        ctx,
-        deviceRunSessionId,
-        logger,
-        signal,
-      });
     },
   });
+}
+
+export async function stopAgentDeviceEventCollectionSafelyAsync({
+  eventCollection,
+  deviceRunSessionId,
+  logger,
+}: {
+  eventCollection: { stopAsync: () => Promise<void> };
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await eventCollection.stopAsync();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finish agent-device session event collection', error, {
+      level: 'warning',
+      tags: { phase: 'agent-device-event-collection', operation: 'stop' },
+      extras: { deviceRunSessionId },
+    });
+    logger.warn({ err: error }, 'Could not finish agent-device session event collection.');
+  }
 }
 
 async function startAgentDeviceDaemonAsync({

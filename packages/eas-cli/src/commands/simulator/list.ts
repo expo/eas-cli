@@ -131,6 +131,7 @@ export default class SimulatorList extends EasCommand {
       printJsonOnlyOutput({
         sessions: sessions.map(session => ({
           id: session.id,
+          name: session.name ?? undefined,
           type: deviceRunSessionTypeToFlagValue(session.type),
           status: session.status,
           platform: session.platform,
@@ -163,6 +164,7 @@ export default class SimulatorList extends EasCommand {
       );
       const lines = [
         `ID:       ${session.id}`,
+        `Name:     ${session.name ?? 'null'}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,

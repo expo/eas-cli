@@ -1,6 +1,25 @@
-import { CurrentUserQuery, PartnerActor, Robot, SsoUser, User } from '../graphql/generated';
+import { CurrentUserQuery, PartnerActor, Robot, Role, SsoUser, User } from '../graphql/generated';
 
 export type Actor = NonNullable<CurrentUserQuery['meActor']>;
+
+/**
+ * Names of the accounts where the actor can create projects (non-ViewOnly role), listed in the
+ * same order as account selection prompts: the personal account first, then team accounts,
+ * then organization accounts.
+ */
+export function getCreatableAccountNames(actor: Actor): string[] {
+  const creatableAccounts = actor.accounts.filter(
+    a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly
+  );
+  if (actor.__typename === 'Robot') {
+    return creatableAccounts.map(it => it.name);
+  }
+  return [
+    ...creatableAccounts.filter(a => a.ownerUserActor?.id === actor.id),
+    ...creatableAccounts.filter(a => a.ownerUserActor && a.ownerUserActor.id !== actor.id),
+    ...creatableAccounts.filter(a => !a.ownerUserActor),
+  ].map(it => it.name);
+}
 
 /**
  * Resolve the name of the actor, either normal user, sso user or robot user.

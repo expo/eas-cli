@@ -1,10 +1,15 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
+import { EAS_OBSERVE_PLAN_UPGRADE_REQUIRED_ERROR_CODE } from '../../../observe/planGating';
 import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import {
   fetchObserveSessionEventsAsync,
   fetchSessionLogCandidatesAsync,
   fetchSessionMetricCandidatesAsync,
+  verifyObserveSessionAccessAsync,
 } from '../../../observe/fetchSessions';
 import {
   buildObserveSessionEventsJson,
@@ -39,6 +44,7 @@ jest.mock('../../../log');
 jest.mock('../../../utils/json');
 
 const mockFetchObserveSessionEventsAsync = jest.mocked(fetchObserveSessionEventsAsync);
+const mockVerifyObserveSessionAccessAsync = jest.mocked(verifyObserveSessionAccessAsync);
 const mockFetchSessionMetricCandidatesAsync = jest.mocked(fetchSessionMetricCandidatesAsync);
 const mockFetchSessionLogCandidatesAsync = jest.mocked(fetchSessionLogCandidatesAsync);
 const mockCustomEventNamesAsync = jest.mocked(ObserveQuery.customEventNamesAsync);
@@ -162,6 +168,23 @@ describe(ObserveSession, () => {
     await expect(command.runAsync()).rejects.toThrow();
   });
 
+  it('surfaces the server plan-gate message when the timeline is plan-gated', async () => {
+    const serverMessage =
+      'Access to this feature is not included in your current plan. ' +
+      'Upgrade your plan: https://expo.dev/accounts/acme/settings/billing';
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(serverMessage, null, null, null, null, null, {
+          errorCode: EAS_OBSERVE_PLAN_UPGRADE_REQUIRED_ERROR_CODE,
+        }),
+      ],
+    });
+    mockFetchObserveSessionEventsAsync.mockRejectedValueOnce(gateError);
+
+    const command = createCommand(['session-abc']);
+    await expect(command.runAsync()).rejects.toThrow(serverMessage);
+  });
+
   // ---- new picker-mode behavior ----
 
   it('errors when no session ID is provided in non-interactive mode', async () => {
@@ -173,6 +196,36 @@ describe(ObserveSession, () => {
   it('treats --json as non-interactive (requires a session ID)', async () => {
     const command = createCommand(['--json']);
     await expect(command.runAsync()).rejects.toThrow(/session ID argument is required/);
+    expect(mockFetchObserveSessionEventsAsync).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the plan-gate upgrade prompt before the picker when session access is blocked', async () => {
+    mockVerifyObserveSessionAccessAsync.mockRejectedValueOnce(
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Upgrade your plan to view session timelines.',
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              errorCode: EAS_OBSERVE_PLAN_UPGRADE_REQUIRED_ERROR_CODE,
+            }
+          ),
+        ],
+      })
+    );
+
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow(/Upgrade your plan to view session timelines/);
+
+    // The picker is never entered: no prompts, candidate fetches, or drill-down.
+    expect(mockSelectAsync).not.toHaveBeenCalled();
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    expect(mockFetchSessionMetricCandidatesAsync).not.toHaveBeenCalled();
+    expect(mockFetchSessionLogCandidatesAsync).not.toHaveBeenCalled();
     expect(mockFetchObserveSessionEventsAsync).not.toHaveBeenCalled();
   });
 

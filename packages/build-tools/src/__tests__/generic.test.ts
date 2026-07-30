@@ -52,6 +52,7 @@ describe(runGenericJobAsync, () => {
         child: jest.fn().mockReturnThis(),
       },
       runBuildPhase: jest.fn(async (_phase: BuildPhase, fn: () => Promise<any>) => fn()),
+      getReactNativeProjectDirectory: jest.fn(() => '/tmp/src'),
     };
 
     mockUploadJobOutputsToWwwAsync.mockResolvedValue(undefined);

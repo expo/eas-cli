@@ -14,6 +14,7 @@ import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSe
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
+import { promptAsync } from '../../../prompts';
 import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
@@ -42,6 +43,7 @@ jest.mock('../../../simulator/env', () => ({
   loadSimulatorEnvAsync: jest.fn(),
   resetSimulatorEnvAsync: jest.fn(),
 }));
+jest.mock('../../../prompts');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -67,10 +69,14 @@ const deviceRunSessionUrl =
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
 );
+const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
+  DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
+);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
 const mockOra = jest.mocked(ora);
+const mockPromptAsync = jest.mocked(promptAsync);
 
 function makeCreatedDeviceRunSession(
   overrides: Partial<CreatedDeviceRunSession> = {}
@@ -96,6 +102,7 @@ function makeCreatedDeviceRunSession(
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -143,6 +150,10 @@ describe(SimulatorStart, () => {
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
+    mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
+      id: 'session-123',
+      status: DeviceRunSessionStatus.Stopped,
+    });
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
@@ -186,6 +197,7 @@ describe(SimulatorStart, () => {
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -228,7 +240,7 @@ describe(SimulatorStart, () => {
       [
         '🔑 Run the following to use agent-device with the simulator:',
         '',
-        'eas simulator:exec agent-device <command>',
+        'eas simulator:exec npx agent-device <command>',
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
@@ -275,6 +287,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -294,6 +307,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -320,5 +334,128 @@ describe(SimulatorStart, () => {
     await command.runAsync();
 
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+  });
+
+  it('forwards --name to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      'Checkout regression',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('trims --name before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      '  Checkout regression  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('omits a blank --name instead of letting the server reject it', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--name', '   ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: undefined })
+    );
+  });
+
+  it('stops the simulator session when interrupted before the session is ready', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let notifyQueryStarted: () => void = () => {};
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    mockByIdAsync.mockImplementationOnce(
+      () =>
+        new Promise(() => {
+          notifyQueryStarted();
+        })
+    );
+    const existingSigintListeners = new Set(process.listeners('SIGINT'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    const commandPromise = command.runAsync();
+    await queryStarted;
+
+    const sigintHandler = process
+      .listeners('SIGINT')
+      .find(listener => !existingSigintListeners.has(listener));
+    expect(sigintHandler).toBeDefined();
+    sigintHandler?.('SIGINT');
+    await expect(commandPromise).rejects.toThrow('process.exit(130)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    processExitSpy.mockRestore();
+  });
+
+  it('prompts to select the platform when --platform is omitted', async () => {
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Android });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'select', message: 'Select platform' })
+    );
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ platform: AppPlatform.Android })
+    );
+  });
+
+  it('prompts for the platform before warning about overwriting an existing session', async () => {
+    process.env[EAS_SIMULATOR_SESSION_ID] = 'existing-session';
+    mockPromptAsync.mockResolvedValueOnce({ selectedPlatform: AppPlatform.Ios });
+    mockByIdAsync
+      .mockResolvedValueOnce(makeDeviceRunSession())
+      .mockResolvedValueOnce(makeDeviceRunSession({ status: DeviceRunSessionStatus.Stopped }));
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    expect(mockPromptAsync).toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Overwriting previous'));
+    expect(mockPromptAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(Log.warn).mock.invocationCallOrder[0]
+    );
+  });
+
+  it('throws instead of prompting when --platform is omitted in non-interactive mode', async () => {
+    const { command } = createCommand(['--non-interactive']);
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --platform flag must be set when running in non-interactive mode.'
+    );
+
+    expect(mockPromptAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 });
