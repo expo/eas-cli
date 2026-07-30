@@ -15,6 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Stop agent-device artifact polling when remote simulator sessions end. ([#4115](https://github.com/expo/eas-cli/pull/4115) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] clean up error handling in local builds. ([#4105](https://github.com/expo/eas-cli/pull/4105) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
