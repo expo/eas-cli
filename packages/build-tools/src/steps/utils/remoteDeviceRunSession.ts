@@ -475,12 +475,29 @@ export function spawnDetached({
   };
 }
 
+export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
+  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
+  if (!origin) {
+    return [];
+  }
+  const args: string[] = [];
+  for (const value of origin.split(',')) {
+    const trimmed = value.trim();
+    if (trimmed) {
+      args.push('--metrics-cors-origin', trimmed);
+    }
+  }
+  return args;
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
+  metricsCorsArgs = [],
 }: {
   port: number;
   turnArgs?: string[];
+  metricsCorsArgs?: string[];
 }): string[] {
   return [
     '--yes',
@@ -502,6 +519,7 @@ export function createServeSimArgs({
     '--video-fps',
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
+    ...metricsCorsArgs,
   ];
 }
 
@@ -586,9 +604,10 @@ export async function startServeSimWithTunnelAsync(
   const port = await findAvailablePortAsync();
   logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
+  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimArgs({ port, turnArgs }),
+    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs }),
     env,
   });
 
