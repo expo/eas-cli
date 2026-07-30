@@ -2,7 +2,7 @@ import { createLogger } from '@expo/logger';
 import { Response } from 'node-fetch';
 import fetch from 'node-fetch';
 
-import HttpLogStream from '../utils/HttpLogStream';
+import HttpLogStream from '../HttpLogStream';
 
 jest.mock('node-fetch', () => {
   const actual = jest.requireActual('node-fetch');
@@ -12,8 +12,8 @@ jest.mock('node-fetch', () => {
     default: jest.fn(),
   };
 });
-jest.mock('../utils/retry', () => ({
-  retry: jest.fn(async (fn: (attemptCount: number) => Promise<unknown>) => await fn(0)),
+jest.mock('../../utils/retry', () => ({
+  retryAsync: jest.fn(async (fn: (attemptCount: number) => Promise<unknown>) => await fn(0)),
 }));
 
 const fetchMock = jest.mocked(fetch);
@@ -150,5 +150,40 @@ describe(HttpLogStream.name, () => {
     const [firstRequestLogs, secondRequestLogs] = parseRequestLogs();
     expect(firstRequestLogs.map(log => log.logId)).toEqual(['first']);
     expect(secondRequestLogs.map(log => log.logId)).toEqual(['second', 'third']);
+  });
+
+  it('keeps a failed batch buffered and resends the same entries', async () => {
+    fetchMock
+      .mockResolvedValueOnce(createResponse(500, 'upload failed'))
+      .mockResolvedValueOnce(createResponse());
+    const stream = new HttpLogStream({
+      url: 'https://logs.expo.test/build-id',
+      headers: { Authorization: 'Bearer token' },
+      logger: createLogger({ name: 'test' }),
+    });
+
+    stream.write({ logId: 'stable-id', msg: 'Retry me' });
+    await stream.cleanUp();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [firstAttemptLogs, secondAttemptLogs] = parseRequestLogs();
+    expect(firstAttemptLogs).toEqual([{ logId: 'stable-id', msg: 'Retry me' }]);
+    expect(secondAttemptLogs).toEqual(firstAttemptLogs);
+  });
+
+  it('does one final best-effort flush during cleanup without looping indefinitely', async () => {
+    fetchMock.mockResolvedValue(createResponse(500, 'upload failed'));
+    const stream = new HttpLogStream({
+      url: 'https://logs.expo.test/build-id',
+      headers: { Authorization: 'Bearer token' },
+      logger: createLogger({ name: 'test' }),
+    });
+
+    stream.write({ logId: 'stable-id', msg: 'Do not hang' });
+    await stream.cleanUp();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [firstAttemptLogs, secondAttemptLogs] = parseRequestLogs();
+    expect(secondAttemptLogs).toEqual(firstAttemptLogs);
   });
 });
