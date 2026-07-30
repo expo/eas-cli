@@ -6,12 +6,12 @@ import fetch from 'node-fetch';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 import { z } from 'zod';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { Sentry } from '../../sentry';
 import { formatBytes } from '../../utils/artifacts';
-import { sleepAsync } from '../../utils/retry';
 import { uploadDeviceRunSessionArtifactAsync } from './deviceRunSessionArtifacts';
 
 const AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
@@ -40,20 +40,22 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
     daemonUrl,
     daemonToken,
     logger,
+    signal,
   }: {
     deviceRunSessionId: string;
     daemonUrl: string;
     daemonToken: string;
     logger: bunyan;
+    signal: AbortSignal;
   }
 ): Promise<void> {
   logger.info('Started polling agent-device daemon for artifacts.');
   const uploadedArtifactIds = new Set<string>();
   let listArtifactsErrorCount = 0;
 
-  for (;;) {
+  while (!signal.aborted) {
     try {
-      const artifacts = await listAgentDeviceArtifactsAsync({ daemonUrl, daemonToken });
+      const artifacts = await listAgentDeviceArtifactsAsync({ daemonUrl, daemonToken, signal });
       listArtifactsErrorCount = 0;
       for (const artifact of artifacts) {
         if (uploadedArtifactIds.has(artifact.id)) {
@@ -75,6 +77,9 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
         }
       }
     } catch (err) {
+      if (signal.aborted) {
+        break;
+      }
       if (err instanceof AgentDeviceArtifactsUnsupportedError) {
         logger.warn(
           'agent-device daemon does not expose artifact inventory; remote session artifact uploads are disabled.'
@@ -91,19 +96,24 @@ export async function pollAgentDeviceArtifactsForUploadAsync(
         );
       }
     }
-    await sleepAsync(AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS);
+    await sleepUntilAbortedAsync(AGENT_DEVICE_ARTIFACT_UPLOAD_POLL_INTERVAL_MS, signal);
   }
+
+  logger.info('Agent-device artifact polling stopped.');
 }
 
 export async function listAgentDeviceArtifactsAsync({
   daemonUrl,
   daemonToken,
+  signal,
 }: {
   daemonUrl: string;
   daemonToken: string;
+  signal?: AbortSignal;
 }): Promise<AgentDeviceArtifact[]> {
   const response = await fetch(new URL('/artifacts', daemonUrl).toString(), {
     headers: { Authorization: `Bearer ${daemonToken}` },
+    signal,
   });
   if (response.status === 404) {
     throw new AgentDeviceArtifactsUnsupportedError();
@@ -190,4 +200,14 @@ async function downloadAgentDeviceArtifactToFileAsync({
     );
   }
   await pipeline(response.body, createWriteStream(destinationPath));
+}
+
+async function sleepUntilAbortedAsync(timeoutMs: number, signal: AbortSignal): Promise<void> {
+  try {
+    await setTimeoutAsync(timeoutMs, undefined, { signal });
+  } catch (err) {
+    if (!signal.aborted) {
+      throw err;
+    }
+  }
 }

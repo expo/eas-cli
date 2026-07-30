@@ -14,6 +14,32 @@ import {
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('node-fetch');
+jest.mock('node:timers/promises', () => {
+  const actual = jest.requireActual('node:timers/promises');
+  return {
+    ...actual,
+    setTimeout: jest.fn(
+      (delay: number, value: unknown, options?: { signal?: AbortSignal }) =>
+        new Promise((resolve, reject) => {
+          const { signal } = options ?? {};
+          if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+          }
+
+          const onAbort = (): void => {
+            clearTimeout(timeout);
+            reject(signal?.reason);
+          };
+          const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve(value);
+          }, delay);
+          signal?.addEventListener('abort', onAbort, { once: true });
+        })
+    ),
+  };
+});
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
 
@@ -91,6 +117,7 @@ describe(listAgentDeviceArtifactsAsync, () => {
     ]);
     expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts', {
       headers: { Authorization: 'Bearer daemon-token' },
+      signal: undefined,
     });
   });
 
@@ -199,15 +226,17 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
   it('reports artifact listing errors on every fifth consecutive failure', async () => {
     const logger = createLoggerMock();
     const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
     const error = new Error('daemon is not ready');
 
     jest.mocked(fetch).mockRejectedValue(error);
 
-    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+    const pollingPromise = pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
       logger,
+      signal: abortController.signal,
     });
 
     await flushPromisesAsync();
@@ -234,12 +263,16 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
       'Could not list agent-device remote session artifacts.'
     );
     expect(Sentry.capture).toHaveBeenCalledTimes(2);
+
+    abortController.abort();
+    await pollingPromise;
   });
 
   it('retries an artifact after a failed upload', async () => {
     const data = Buffer.from('artifact-data');
     const logger = createLoggerMock();
     const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
     const artifact = {
       id: 'artifact-id',
       filename: 'report.json',
@@ -259,11 +292,12 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
         await readStreamAsync(stream);
       });
 
-    void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+    const pollingPromise = pollAgentDeviceArtifactsForUploadAsync(ctx, {
       deviceRunSessionId: 'drs-id',
       daemonUrl: 'http://127.0.0.1:1234',
       daemonToken: 'daemon-token',
       logger,
+      signal: abortController.signal,
     });
 
     await flushPromisesAsync();
@@ -273,11 +307,44 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
     await flushPromisesAsync();
 
     expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledTimes(2);
+
+    abortController.abort();
+    await pollingPromise;
+  });
+
+  it('stops polling promptly when aborted', async () => {
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
+
+    jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ artifacts: [] })));
+
+    const pollingPromise = pollAgentDeviceArtifactsForUploadAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      daemonUrl: 'http://127.0.0.1:1234',
+      daemonToken: 'daemon-token',
+      logger,
+      signal: abortController.signal,
+    });
+
+    await flushPromisesAsync();
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith('http://127.0.0.1:1234/artifacts', {
+      headers: { Authorization: 'Bearer daemon-token' },
+      signal: abortController.signal,
+    });
+
+    abortController.abort();
+    await pollingPromise;
+
+    await jest.advanceTimersByTimeAsync(10_000);
+    expect(jest.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
   it('stops polling when the daemon does not expose artifact inventory', async () => {
     const logger = createLoggerMock();
     const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
 
     jest.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404 }));
 
@@ -287,6 +354,7 @@ describe(pollAgentDeviceArtifactsForUploadAsync, () => {
         daemonUrl: 'http://127.0.0.1:1234',
         daemonToken: 'daemon-token',
         logger,
+        signal: abortController.signal,
       })
     ).resolves.toBeUndefined();
 

@@ -98,6 +98,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       let eventCollection:
         | Awaited<ReturnType<typeof startAgentDeviceEventCollectionAsync>>
         | undefined;
+      const artifactPollAbortController = new AbortController();
+      const artifactPollSignal = signal
+        ? AbortSignal.any([signal, artifactPollAbortController.signal])
+        : artifactPollAbortController.signal;
+      let artifactPollingPromise: Promise<void> | undefined;
       try {
         // serve-sim is iOS-only — only launch it (and report a webPreviewUrl)
         // on Darwin. Android sessions go without a preview URL.
@@ -121,11 +126,12 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           },
           logger,
         });
-        void pollAgentDeviceArtifactsForUploadAsync(ctx, {
+        artifactPollingPromise = pollAgentDeviceArtifactsForUploadAsync(ctx, {
           deviceRunSessionId,
           daemonUrl: `http://127.0.0.1:${daemonPort}`,
           daemonToken,
           logger,
+          signal: artifactPollSignal,
         });
 
         eventCollection = await startAgentDeviceEventCollectionAsync({
@@ -142,21 +148,60 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           signal,
         });
       } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
-        }
-        await agentDeviceTunnel.stopAsync();
-        if (eventCollection) {
-          await stopAgentDeviceEventCollectionSafelyAsync({
-            eventCollection,
+        try {
+          if (serveSim) {
+            await serveSim.stopAsync();
+          }
+          await agentDeviceTunnel.stopAsync();
+          if (eventCollection) {
+            await stopAgentDeviceEventCollectionSafelyAsync({
+              eventCollection,
+              deviceRunSessionId,
+              logger,
+            });
+          }
+        } finally {
+          await stopAgentDeviceArtifactPollingAndDaemonAsync({
+            artifactPollAbortController,
+            artifactPollingPromise,
+            daemonProcess,
             deviceRunSessionId,
             logger,
           });
         }
-        await daemonProcess.stopAsync();
       }
     },
   });
+}
+
+export async function stopAgentDeviceArtifactPollingAndDaemonAsync({
+  artifactPollAbortController,
+  artifactPollingPromise,
+  daemonProcess,
+  deviceRunSessionId,
+  logger,
+}: {
+  artifactPollAbortController: AbortController;
+  artifactPollingPromise: Promise<void> | undefined;
+  daemonProcess: Pick<DetachedProcessHandle, 'stopAsync'>;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  artifactPollAbortController.abort();
+  if (artifactPollingPromise) {
+    try {
+      await artifactPollingPromise;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.capture('Could not finish agent-device remote session artifact polling', error, {
+        level: 'warning',
+        tags: { phase: 'agent-device-artifact-polling', operation: 'stop' },
+        extras: { deviceRunSessionId },
+      });
+      logger.warn({ err: error }, 'Could not finish agent-device remote session artifact polling.');
+    }
+  }
+  await daemonProcess.stopAsync();
 }
 
 export async function stopAgentDeviceEventCollectionSafelyAsync({
