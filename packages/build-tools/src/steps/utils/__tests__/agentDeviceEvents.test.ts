@@ -504,13 +504,6 @@ describe(startAgentDeviceEventCollectionAsync, () => {
   });
 
   it('does not fail the session when event log setup fails', async () => {
-    const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
-    const eventsDir = path.join(stateDir, 'sessions', 'default');
-    await fs.promises.mkdir(eventsDir, { recursive: true });
-    await fs.promises.writeFile(
-      path.join(eventsDir, 'events.ndjson'),
-      `${JSON.stringify(createAgentDeviceEvent())}\n`
-    );
     const error = new Error('WWW unavailable');
     const ctx = createContext({ realtimeLogs: true });
     jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce({
@@ -521,16 +514,11 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     const collection = await startAgentDeviceEventCollectionAsync({
       ctx,
       deviceRunSessionId: 'session-id',
-      stateDir,
+      stateDir: '/does/not/matter',
       logger,
       pollIntervalMs: 10,
     });
-    try {
-      await waitForAsync(() => expect(mockRealtimeLogStream.write).toHaveBeenCalledTimes(1));
-    } finally {
-      await collection.stopAsync();
-      await fs.promises.rm(stateDir, { recursive: true, force: true });
-    }
+    await collection.stopAsync();
 
     expect(logger.warn).toHaveBeenCalledWith(
       {
@@ -558,13 +546,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       }
     );
     expect(mockEventLogStream.init).not.toHaveBeenCalled();
-    expect(mockRealtimeLogStream.write).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: 'agent-device:session-id:default:1',
-        logId: 'agent-device:session-id:default:1',
-      })
-    );
-    expect(mockRealtimeLogStream.cleanUp).toHaveBeenCalledTimes(1);
+    expect(HttpLogStream).not.toHaveBeenCalled();
   });
 
   it('continues persisting the artifact when real-time log setup fails', async () => {

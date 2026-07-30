@@ -121,22 +121,22 @@ export async function startDeviceRunSessionEventCollectionAsync({
     });
   };
 
-  let eventLogStream: RemoteLoggerStream | undefined;
+  let eventLogStream: RemoteLoggerStream;
   try {
     const uploadSession = await createEventLogUploadSessionAsync(ctx, deviceRunSessionId);
-    const stream = new RemoteLoggerStream({
+    eventLogStream = new RemoteLoggerStream({
       logger,
       uploadMethod: { signedUrl: uploadSession },
       options: {
         uploadIntervalMs: UPLOAD_INTERVAL_MS,
       },
     });
-    await stream.init();
-    eventLogStream = stream;
+    await eventLogStream.init();
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.warn({ err: error }, 'Could not persist device run session events to the artifact.');
     reportEventLogFailure(error, 'setup');
+    return { stopAsync: async () => {} };
   }
 
   let didReportRealtimeLogFailure = false;
@@ -154,7 +154,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
 
   let realtimeLogStream: HttpLogStream | undefined;
   try {
-    realtimeLogStream = createRealtimeLogStream(ctx, logger, Boolean(eventLogStream));
+    realtimeLogStream = createRealtimeLogStream(ctx, logger);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.warn(
@@ -162,10 +162,6 @@ export async function startDeviceRunSessionEventCollectionAsync({
       'Could not start publishing device run session events in real time.'
     );
     reportRealtimeLogFailure(error, 'setup');
-  }
-
-  if (!eventLogStream && !realtimeLogStream) {
-    return { stopAsync: async () => {} };
   }
 
   const states = new Map<string, EventFileState>();
@@ -194,7 +190,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
           source,
           deviceRunSessionId,
           writeEvent: event => {
-            eventLogStream?.write(event);
+            eventLogStream.write(event);
             realtimeLogStream?.write({ ...event, logId: event.eventId });
           },
           onParseFailure: ({ failure, lineNumber }) => {
@@ -284,7 +280,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
 
   async function cleanUpEventLogStreamAsync(): Promise<void> {
     try {
-      await eventLogStream?.cleanUp();
+      await eventLogStream.cleanUp();
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.warn({ err: error }, 'Could not finish persisting device run session events.');
@@ -308,8 +304,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
 
 function createRealtimeLogStream(
   ctx: CustomBuildContext,
-  logger: bunyan,
-  hasDurableEventLog: boolean
+  logger: bunyan
 ): HttpLogStream | undefined {
   const baseUrl = ctx.env.EXPO_LOCAL
     ? 'http://localhost:4999/logs/'
@@ -326,7 +321,7 @@ function createRealtimeLogStream(
     url: new URL(`${jobRunId}/${EAS_LOGS_THREAD}`, baseUrl).toString(),
     headers: { Authorization: `Bearer ${robotAccessToken}` },
     logger,
-    bufferRetentionMs: hasDurableEventLog ? EAS_LOGS_BUFFER_RETENTION_MS : null,
+    bufferRetentionMs: EAS_LOGS_BUFFER_RETENTION_MS,
   });
 }
 
