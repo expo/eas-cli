@@ -113,6 +113,18 @@ jobs:
           # tries to save an empty yarn cache and errors ("path(s) ... do not exist").
           package-manager-cache: false
 
+      # Unblocked CLI — the installer downloads a checksum-verified glibc-Linux
+      # binary to ~/.unblocked/bin, which we put on PATH for the later steps.
+      # Auth is headless via UNBLOCKED_API_TOKEN on the run step (see
+      # https://docs.getunblocked.com/unblocked-cli/cli-auth#headless-authentication),
+      # so no `unblocked auth` here. Non-fatal: the reviewer runs fine without it.
+      - name: Install Unblocked CLI
+        if: steps.resolve.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://getunblocked.com/install.sh | bash
+          echo "$HOME/.unblocked/bin" >> "$GITHUB_PATH"
+
       # SECURITY: the TRUSTED BASE checkout above includes .expo-code-review/
       # config.jsonc, whose auth.tokenEnv names the env var the CLI forwards as the
       # model credential. `ecr verify-config` is the canonical guard (ships with the
@@ -144,6 +156,9 @@ jobs:
           # Layer-1 runtime auth lock (mirrors the guard step): the CLI refuses to
           # run when the tokenEnv the loaded config honors differs from this.
           ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          # Unblocked CLI headless auth (PAT or team access token). Absent =>
+          # the CLI stays unauthenticated; the review still runs.
+          UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}
           # Optional: override the model used by every agent.
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.resolve.outputs.agents }}

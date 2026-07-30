@@ -105,6 +105,17 @@ jobs:
           # post step doesn't error trying to save an empty cache.
           package-manager-cache: false
 
+      # Unblocked CLI — installer drops a checksum-verified glibc-Linux binary in
+      # ~/.unblocked/bin, which we put on PATH. Auth is headless via
+      # UNBLOCKED_API_TOKEN on the run step, so no `unblocked auth` here.
+      # Non-fatal: the reviewer runs fine without it.
+      - name: Install Unblocked CLI
+        if: steps.cmd.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://getunblocked.com/install.sh | bash
+          echo "$HOME/.unblocked/bin" >> "$GITHUB_PATH"
+
       - name: Run AI review
         if: steps.cmd.outputs.run == 'true'
         continue-on-error: true
@@ -112,6 +123,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
           ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          # Unblocked CLI headless auth (PAT or team access token). Absent =>
+          # the CLI stays unauthenticated; the review still runs.
+          UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}
           REVIEWER_MODEL: ${{ vars.REVIEWER_MODEL }}
           AGENTS: ${{ steps.cmd.outputs.agents }}
           ROUTE: ${{ steps.cmd.outputs.route }}

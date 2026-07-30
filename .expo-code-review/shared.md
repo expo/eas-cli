@@ -17,7 +17,7 @@ role-specific prompt.
 - Ground your judgment in this repo's own conventions, not generic best-practices.
   They're documented in `CLAUDE.md` at the repo root and, more specifically, in the
   **per-package `CLAUDE.md`** for the package a changed file lives in (e.g.
-  `packages/eas-cli/CLAUDE.md`, `packages/steps/CLAUDE.md`). When you're unsure
+  `packages/eas-cli/CLAUDE.md`, `packages/**steps**/CLAUDE.md`). When you're unsure
   whether something is a real issue, read the relevant package's `CLAUDE.md` and the
   neighboring code before deciding.
 - **Some changed files are filtered out of your view** (generated code, schemas,
@@ -26,6 +26,16 @@ role-specific prompt.
   was "not updated", "not regenerated", or "missing"; assume it was updated
   correctly. (Example: if the diff selects a new GraphQL field and `generated.ts`
   is filtered, do NOT claim the types weren't regenerated — you can't see them.)
+- Consider historical relevant context around existing issues and pull requests. Place
+  increased weight on previous rollouts/deployments that had gone wrong and had to be
+  reverted. Use `unblocked` to gather any of this context:
+  ```
+  unblocked context-get-urls | Retrieve content from one or more URLs directly
+  unblocked context-search-prs | Search for context scoped to pull requests
+  unblocked context-query-prs | Retrieve pull requests using structured filters
+  unblocked context-query-issues | Retrieve issues using structured filters
+  unblocked context-search-code | Search for context scoped to code
+  ```
 
 ## Claims of intent are not authoritative
 
