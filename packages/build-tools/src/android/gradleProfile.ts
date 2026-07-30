@@ -90,6 +90,17 @@ function formatSeconds(ms: number): string {
   return `${s.toFixed(1)}s`;
 }
 
+function truncateMiddle(value: string, width: number): string {
+  if (value.length <= width) {
+    return value;
+  }
+
+  const availableWidth = width - 1;
+  const startWidth = Math.ceil(availableWidth / 2);
+  const endWidth = Math.floor(availableWidth / 2);
+  return `${value.slice(0, startWidth)}…${value.slice(-endWidth)}`;
+}
+
 export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   // Filter out tasks under 1 second
   const significantTasks = tasks.filter(t => t.durationMs >= 1000);
@@ -142,7 +153,13 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
   const totalMs = individualTasks.reduce((sum, t) => sum + t.durationMs, 0);
   const maxMs = totalMs || 1;
 
-  const nameWidth = Math.max(4, ...rows.map(r => r.displayName.length)) + 2;
+  // Keep the report close to the xclogparser table width. Gradle task names can be very long,
+  // so allowing them to grow the first column without a limit makes the table difficult to read.
+  const maxNameWidth = 40;
+  const nameWidth = Math.min(
+    maxNameWidth,
+    Math.max(4, ...rows.map(row => row.displayName.length)) + 2
+  );
   const barMaxWidth = 20;
 
   const header =
@@ -197,7 +214,7 @@ export function formatGradleProfileReport(tasks: GradleProfileTask[]): string {
 
     lines.push(
       '│ ' +
-        row.displayName.padEnd(nameWidth) +
+        truncateMiddle(row.displayName, nameWidth).padEnd(nameWidth) +
         ' │ ' +
         formatSeconds(row.task.durationMs).padStart(10) +
         ' │ ' +
