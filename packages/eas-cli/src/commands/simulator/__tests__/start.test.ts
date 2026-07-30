@@ -379,6 +379,9 @@ describe(SimulatorStart, () => {
   });
 
   it('stops the simulator session when interrupted before the session is ready', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
     let notifyQueryStarted: () => void = () => {};
     const queryStarted = new Promise<void>(resolve => {
       notifyQueryStarted = resolve;
@@ -400,7 +403,7 @@ describe(SimulatorStart, () => {
       .find(listener => !existingSigintListeners.has(listener));
     expect(sigintHandler).toBeDefined();
     sigintHandler?.('SIGINT');
-    await commandPromise;
+    await expect(commandPromise).rejects.toThrow('process.exit(130)');
 
     expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
       graphqlClient,
@@ -408,6 +411,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
     expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    processExitSpy.mockRestore();
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {

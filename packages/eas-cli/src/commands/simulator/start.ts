@@ -217,7 +217,7 @@ export default class SimulatorStart extends EasCommand {
           break;
         }
 
-        await Promise.race([sleepAsync(POLL_INTERVAL_MS), sessionInterrupt.abortPromise]);
+        await sleepAsync(POLL_INTERVAL_MS, sessionInterrupt.signal);
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
@@ -356,7 +356,7 @@ async function waitForSessionEndOrInterruptAsync({
     `Simulator session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
   ).start();
 
-  const { signal, abortPromise } = sessionInterrupt;
+  const { signal } = sessionInterrupt;
   try {
     while (!signal.aborted) {
       let session;
@@ -366,7 +366,7 @@ async function waitForSessionEndOrInterruptAsync({
         Log.debug(
           `Failed to poll simulator session: ${err instanceof Error ? err.message : String(err)}`
         );
-        await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+        await sleepAsync(POLL_INTERVAL_MS, signal);
         continue;
       }
 
@@ -388,7 +388,7 @@ async function waitForSessionEndOrInterruptAsync({
         return;
       }
 
-      await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+      await sleepAsync(POLL_INTERVAL_MS, signal);
     }
 
     spinner.text = 'Stopping simulator session...';
@@ -477,6 +477,7 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   } finally {
     sessionInterrupt.dispose();
   }
+  process.exit(130);
 }
 
 async function resetSimulatorEnvVerboseAsync(projectDir: string): Promise<void> {
