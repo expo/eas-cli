@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Load local composite function catalogs at build time so custom builds and generic jobs can resolve local composite functions referenced via `uses:`. ([#3930](https://github.com/expo/eas-cli/pull/3930) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Validate local composite functions referenced in workflow files during `eas workflow:validate`, checking that the YAML files exist and are well-formed. ([#3931](https://github.com/expo/eas-cli/pull/3931) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Pass a metrics CORS origin to serve-sim so the dashboard can read a session's live CPU/memory stream cross-origin. ([#3990](https://github.com/expo/eas-cli/pull/3990) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Collect each iOS session's serve-sim CPU/memory `/metrics` to a file and upload it as a device run session artifact at teardown. ([#3995](https://github.com/expo/eas-cli/pull/3995) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
