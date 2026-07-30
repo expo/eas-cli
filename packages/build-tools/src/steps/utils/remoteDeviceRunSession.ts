@@ -1,6 +1,7 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv, spawnAsync } from '@expo/steps';
+import { asyncResult } from '@expo/results';
+import { BuildRuntimePlatform, BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
@@ -183,6 +184,96 @@ async function sleepUntilAbortedAsync(
     if (!signal?.aborted) {
       throw err;
     }
+  }
+}
+
+// Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
+// which it resolves from PATH. The tool-server inherits this step's env, so
+// spawning ffmpeg resolves against the same PATH argent will search: it rejects
+// with ENOENT when the binary is absent, and running it also proves it works.
+async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
+  return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
+}
+
+async function installFfmpegWithHomebrewAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  await spawn('brew', ['install', 'ffmpeg'], {
+    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+    logger,
+  });
+}
+
+async function installFfmpegWithAptAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  const aptEnv = { ...env, DEBIAN_FRONTEND: 'noninteractive' };
+  // The worker's package index can be older than the image it booted from, which
+  // makes the install 404 on a moved package. Refreshing first avoids that; a
+  // failed refresh is not fatal because the existing index may still resolve.
+  await asyncResult(spawn('sudo', ['apt-get', 'update'], { env: aptEnv, logger }));
+  await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
+}
+
+/**
+ * Install ffmpeg when the runtime does not already provide it, so argent's
+ * `screen-recording-start` tool can encode a video. The worker images do not
+ * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
+ * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
+ *
+ * Best-effort by design: screen recording is one optional argent tool, so a
+ * failure here is logged and the session continues without it.
+ *
+ * The whole body is wrapped because the caller runs this in the background with
+ * `void`. There is no unhandledRejection handler in the worker, so a rejection
+ * escaping here would crash the process and take the live session with it.
+ * `spawn` is not an async function and can throw synchronously, which
+ * `asyncResult` cannot catch — it only wraps an already-created promise.
+ */
+export async function ensureFfmpegInstalledAsync({
+  runtimePlatform,
+  env,
+  logger,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    if (await isFfmpegAvailableAsync(env)) {
+      logger.info('ffmpeg is already installed.');
+      return;
+    }
+
+    const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
+    logger.info(
+      `ffmpeg is not installed, installing it with ${
+        isDarwin ? 'Homebrew' : 'apt'
+      } for argent screen recording.`
+    );
+    if (isDarwin) {
+      await installFfmpegWithHomebrewAsync({ env, logger });
+    } else {
+      await installFfmpegWithAptAsync({ env, logger });
+    }
+    logger.info('Installed ffmpeg.');
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not install ffmpeg for argent screen recording', error, {
+      level: 'warning',
+    });
+    logger.warn(
+      { err: error },
+      'Could not install ffmpeg. Argent screen recording will not work in this session.'
+    );
   }
 }
 
