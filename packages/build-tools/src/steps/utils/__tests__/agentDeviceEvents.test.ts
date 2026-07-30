@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import HttpLogStream from '../../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
 import { Sentry } from '../../../sentry';
 import { startAgentDeviceEventCollectionAsync } from '../agentDeviceEvents';
@@ -13,7 +14,15 @@ const mockEventLogStream = {
   write: jest.fn(),
   cleanUp: jest.fn(async () => undefined),
 };
+const mockRealtimeLogStream = {
+  write: jest.fn(),
+  cleanUp: jest.fn(async () => undefined),
+};
 
+jest.mock('../../../logging/HttpLogStream', () => ({
+  __esModule: true,
+  default: jest.fn(() => mockRealtimeLogStream),
+}));
 jest.mock('../../../logging/RemoteLoggerStream', () => ({
   __esModule: true,
   default: jest.fn(() => mockEventLogStream),
@@ -42,7 +51,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
         summary: 'Started tap',
       })}\n`
     );
-    const ctx = createContext();
+    const ctx = createContext({ realtimeLogs: true });
     const logger = createLogger();
     const collection = await startAgentDeviceEventCollectionAsync({
       ctx,
@@ -97,9 +106,34 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     });
     expect(mockEventLogStream.init).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
+    expect(HttpLogStream).toHaveBeenCalledWith({
+      url: 'https://staging-logs.expo.dev/logs/job-run-id/session-events',
+      headers: { Authorization: 'Bearer robot-access-token' },
+      logger,
+      bufferRetentionMs: 30_000,
+    });
+    expect(mockRealtimeLogStream.cleanUp).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.write).toHaveBeenNthCalledWith(2, {
       v: 1,
       eventId: 'agent-device:session-id:default:2',
+      ts: '2026-07-10T12:00:01.000Z',
+      producer: 'agent-device',
+      type: 'operation.completed',
+      operationId: 'request-1',
+      outcome: 'success',
+      durationMs: 25,
+      summary: 'Finished tap',
+      data: {
+        session: 'default',
+        sourceVersion: 1,
+        sourceStatus: 'ok',
+        durationMs: 25,
+      },
+    });
+    expect(mockRealtimeLogStream.write).toHaveBeenNthCalledWith(2, {
+      v: 1,
+      eventId: 'agent-device:session-id:default:2',
+      logId: 'agent-device:session-id:default:2',
       ts: '2026-07-10T12:00:01.000Z',
       producer: 'agent-device',
       type: 'operation.completed',
@@ -470,8 +504,15 @@ describe(startAgentDeviceEventCollectionAsync, () => {
   });
 
   it('does not fail the session when event log setup fails', async () => {
+    const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
+    const eventsDir = path.join(stateDir, 'sessions', 'default');
+    await fs.promises.mkdir(eventsDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(eventsDir, 'events.ndjson'),
+      `${JSON.stringify(createAgentDeviceEvent())}\n`
+    );
     const error = new Error('WWW unavailable');
-    const ctx = createContext();
+    const ctx = createContext({ realtimeLogs: true });
     jest.mocked(ctx.graphqlClient.mutation).mockReturnValueOnce({
       toPromise: async () => ({ error }),
     } as unknown as ReturnType<CustomBuildContext['graphqlClient']['mutation']>);
@@ -480,11 +521,16 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     const collection = await startAgentDeviceEventCollectionAsync({
       ctx,
       deviceRunSessionId: 'session-id',
-      stateDir: '/does/not/matter',
+      stateDir,
       logger,
       pollIntervalMs: 10,
     });
-    await collection.stopAsync();
+    try {
+      await waitForAsync(() => expect(mockRealtimeLogStream.write).toHaveBeenCalledTimes(1));
+    } finally {
+      await collection.stopAsync();
+      await fs.promises.rm(stateDir, { recursive: true, force: true });
+    }
 
     expect(logger.warn).toHaveBeenCalledWith(
       {
@@ -493,7 +539,7 @@ describe(startAgentDeviceEventCollectionAsync, () => {
           cause: error,
         }),
       },
-      'Could not start device run session event collection.'
+      'Could not persist device run session events to the artifact.'
     );
     expect(Sentry.capture).toHaveBeenCalledWith(
       'Could not persist device run session events',
@@ -512,10 +558,101 @@ describe(startAgentDeviceEventCollectionAsync, () => {
       }
     );
     expect(mockEventLogStream.init).not.toHaveBeenCalled();
+    expect(mockRealtimeLogStream.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'agent-device:session-id:default:1',
+        logId: 'agent-device:session-id:default:1',
+      })
+    );
+    expect(mockRealtimeLogStream.cleanUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues persisting the artifact when real-time log setup fails', async () => {
+    const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
+    const eventsDir = path.join(stateDir, 'sessions', 'default');
+    await fs.promises.mkdir(eventsDir, { recursive: true });
+    await fs.promises.writeFile(
+      path.join(eventsDir, 'events.ndjson'),
+      `${JSON.stringify(createAgentDeviceEvent())}\n`
+    );
+    const error = new Error('EAS Logs unavailable');
+    jest.mocked(HttpLogStream).mockImplementationOnce(() => {
+      throw error;
+    });
+    const logger = createLogger();
+
+    const collection = await startAgentDeviceEventCollectionAsync({
+      ctx: createContext({ realtimeLogs: true }),
+      deviceRunSessionId: 'session-id',
+      stateDir,
+      logger,
+      pollIntervalMs: 10,
+    });
+    try {
+      await waitForAsync(() => expect(mockEventLogStream.write).toHaveBeenCalledTimes(1));
+    } finally {
+      await collection.stopAsync();
+      await fs.promises.rm(stateDir, { recursive: true, force: true });
+    }
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      'Could not start publishing device run session events in real time.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not publish device run session events in real time',
+      error,
+      {
+        level: 'warning',
+        tags: {
+          phase: 'device-run-session-event-collection',
+          operation: 'setup',
+          producer: 'agent-device',
+        },
+        extras: { deviceRunSessionId: 'session-id' },
+      }
+    );
+    expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fail the session when real-time log cleanup fails', async () => {
+    const error = new Error('EAS Logs unavailable');
+    mockRealtimeLogStream.cleanUp.mockRejectedValueOnce(error);
+    const logger = createLogger();
+    const collection = await startAgentDeviceEventCollectionAsync({
+      ctx: createContext({ realtimeLogs: true }),
+      deviceRunSessionId: 'session-id',
+      stateDir: '/does/not/matter',
+      logger,
+      pollIntervalMs: 60_000,
+    });
+
+    await expect(collection.stopAsync()).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: error },
+      'Could not finish publishing device run session events in real time.'
+    );
+    expect(Sentry.capture).toHaveBeenCalledWith(
+      'Could not publish device run session events in real time',
+      error,
+      {
+        level: 'warning',
+        tags: {
+          phase: 'device-run-session-event-collection',
+          operation: 'cleanup',
+          producer: 'agent-device',
+        },
+        extras: { deviceRunSessionId: 'session-id' },
+      }
+    );
+    expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
   });
 });
 
-function createContext(): CustomBuildContext {
+function createContext({
+  realtimeLogs = false,
+}: { realtimeLogs?: boolean } = {}): CustomBuildContext {
   const mutation = jest.fn().mockReturnValue({
     toPromise: async () => ({
       data: {
@@ -533,7 +670,13 @@ function createContext(): CustomBuildContext {
       },
     }),
   });
-  return { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+  return {
+    graphqlClient: { mutation },
+    env: realtimeLogs ? { EXPO_STAGING: '1', EAS_BUILD_ID: 'job-run-id' } : {},
+    job: {
+      secrets: realtimeLogs ? { robotAccessToken: 'robot-access-token' } : {},
+    },
+  } as unknown as CustomBuildContext;
 }
 
 function createLogger(): bunyan {

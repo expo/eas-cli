@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { type CustomBuildContext } from '../../../customBuildContext';
+import HttpLogStream from '../../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../../logging/RemoteLoggerStream';
 import { Sentry } from '../../../sentry';
 import { startArgentEventCollectionAsync } from '../argentEvents';
@@ -13,7 +14,15 @@ const mockEventLogStream = {
   write: jest.fn(),
   cleanUp: jest.fn(async () => undefined),
 };
+const mockRealtimeLogStream = {
+  write: jest.fn(),
+  cleanUp: jest.fn(async () => undefined),
+};
 
+jest.mock('../../../logging/HttpLogStream', () => ({
+  __esModule: true,
+  default: jest.fn(() => mockRealtimeLogStream),
+}));
 jest.mock('../../../logging/RemoteLoggerStream', () => ({
   __esModule: true,
   default: jest.fn(() => mockEventLogStream),
@@ -43,7 +52,7 @@ describe(startArgentEventCollectionAsync, () => {
         })
       )}\n`
     );
-    const ctx = createContext();
+    const ctx = createContext({ realtimeLogs: true });
     const logger = createLogger();
     const collection = await startArgentEventCollectionAsync({
       ctx,
@@ -90,6 +99,13 @@ describe(startArgentEventCollectionAsync, () => {
     });
     expect(mockEventLogStream.init).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.cleanUp).toHaveBeenCalledTimes(1);
+    expect(HttpLogStream).toHaveBeenCalledWith({
+      url: 'https://staging-logs.expo.dev/logs/job-run-id/session-events',
+      headers: { Authorization: 'Bearer robot-access-token' },
+      logger,
+      bufferRetentionMs: 30_000,
+    });
+    expect(mockRealtimeLogStream.cleanUp).toHaveBeenCalledTimes(1);
     expect(mockEventLogStream.write).toHaveBeenNthCalledWith(1, {
       v: 1,
       eventId: 'argent:session-id:tool-server-events:1',
@@ -103,6 +119,19 @@ describe(startArgentEventCollectionAsync, () => {
     expect(mockEventLogStream.write).toHaveBeenNthCalledWith(2, {
       v: 1,
       eventId: 'argent:session-id:tool-server-events:2',
+      ts: '2026-07-10T12:00:01.000Z',
+      producer: 'argent',
+      type: 'operation.completed',
+      operationId: 'call-1',
+      outcome: 'success',
+      durationMs: 12.34,
+      summary: 'Captured screenshot.',
+      data: { toolId: 'screenshot', sourceType: 'tool.completed', sourceLevel: 30 },
+    });
+    expect(mockRealtimeLogStream.write).toHaveBeenNthCalledWith(2, {
+      v: 1,
+      eventId: 'argent:session-id:tool-server-events:2',
+      logId: 'argent:session-id:tool-server-events:2',
       ts: '2026-07-10T12:00:01.000Z',
       producer: 'argent',
       type: 'operation.completed',
@@ -286,7 +315,9 @@ function bunyanRecord(fields: Record<string, unknown>): Record<string, unknown> 
   };
 }
 
-function createContext(): CustomBuildContext {
+function createContext({
+  realtimeLogs = false,
+}: { realtimeLogs?: boolean } = {}): CustomBuildContext {
   const mutation = jest.fn().mockReturnValue({
     toPromise: async () => ({
       data: {
@@ -301,7 +332,13 @@ function createContext(): CustomBuildContext {
       },
     }),
   });
-  return { graphqlClient: { mutation } } as unknown as CustomBuildContext;
+  return {
+    graphqlClient: { mutation },
+    env: realtimeLogs ? { EXPO_STAGING: '1', EAS_BUILD_ID: 'job-run-id' } : {},
+    job: {
+      secrets: realtimeLogs ? { robotAccessToken: 'robot-access-token' } : {},
+    },
+  } as unknown as CustomBuildContext;
 }
 
 function createLogger(): bunyan {

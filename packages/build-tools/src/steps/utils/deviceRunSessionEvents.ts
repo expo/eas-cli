@@ -6,12 +6,15 @@ import { StringDecoder } from 'node:string_decoder';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import HttpLogStream from '../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../logging/RemoteLoggerStream';
 import { Sentry } from '../../sentry';
 import { type SignedUrl } from '../../storage/uploadWithSignedUrl';
 
 const POLL_INTERVAL_MS = 1_000;
 const UPLOAD_INTERVAL_MS = 5_000;
+const EAS_LOGS_THREAD = 'session-events';
+const EAS_LOGS_BUFFER_RETENTION_MS = 30_000;
 
 const CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateDeviceRunSessionEventLogUploadSession($deviceRunSessionId: ID!) {
@@ -118,21 +121,50 @@ export async function startDeviceRunSessionEventCollectionAsync({
     });
   };
 
-  let eventLogStream: RemoteLoggerStream;
+  let eventLogStream: RemoteLoggerStream | undefined;
   try {
     const uploadSession = await createEventLogUploadSessionAsync(ctx, deviceRunSessionId);
-    eventLogStream = new RemoteLoggerStream({
+    const stream = new RemoteLoggerStream({
       logger,
       uploadMethod: { signedUrl: uploadSession },
       options: {
         uploadIntervalMs: UPLOAD_INTERVAL_MS,
       },
     });
-    await eventLogStream.init();
+    await stream.init();
+    eventLogStream = stream;
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.warn({ err: error }, 'Could not start device run session event collection.');
+    logger.warn({ err: error }, 'Could not persist device run session events to the artifact.');
     reportEventLogFailure(error, 'setup');
+  }
+
+  let didReportRealtimeLogFailure = false;
+  const reportRealtimeLogFailure = (error: Error, operation: 'setup' | 'cleanup'): void => {
+    if (didReportRealtimeLogFailure) {
+      return;
+    }
+    didReportRealtimeLogFailure = true;
+    Sentry.capture('Could not publish device run session events in real time', error, {
+      level: 'warning',
+      tags: { phase: 'device-run-session-event-collection', operation, producer },
+      extras: { deviceRunSessionId },
+    });
+  };
+
+  let realtimeLogStream: HttpLogStream | undefined;
+  try {
+    realtimeLogStream = createRealtimeLogStream(ctx, logger, Boolean(eventLogStream));
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.warn(
+      { err: error },
+      'Could not start publishing device run session events in real time.'
+    );
+    reportRealtimeLogFailure(error, 'setup');
+  }
+
+  if (!eventLogStream && !realtimeLogStream) {
     return { stopAsync: async () => {} };
   }
 
@@ -161,7 +193,10 @@ export async function startDeviceRunSessionEventCollectionAsync({
           state,
           source,
           deviceRunSessionId,
-          writeEvent: event => eventLogStream.write(event),
+          writeEvent: event => {
+            eventLogStream?.write(event);
+            realtimeLogStream?.write({ ...event, logId: event.eventId });
+          },
           onParseFailure: ({ failure, lineNumber }) => {
             parseFailureCount += 1;
             parseFailureCounts[failure] += 1;
@@ -243,15 +278,56 @@ export async function startDeviceRunSessionEventCollectionAsync({
           extras: { deviceRunSessionId, parseFailureCount, parseFailureCounts },
         });
       }
-      try {
-        await eventLogStream.cleanUp();
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        logger.warn({ err: error }, 'Could not finish device run session event collection.');
-        reportEventLogFailure(error, 'cleanup');
-      }
+      await Promise.all([cleanUpEventLogStreamAsync(), cleanUpRealtimeLogStreamAsync()]);
     },
   };
+
+  async function cleanUpEventLogStreamAsync(): Promise<void> {
+    try {
+      await eventLogStream?.cleanUp();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.warn({ err: error }, 'Could not finish persisting device run session events.');
+      reportEventLogFailure(error, 'cleanup');
+    }
+  }
+
+  async function cleanUpRealtimeLogStreamAsync(): Promise<void> {
+    try {
+      await realtimeLogStream?.cleanUp();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.warn(
+        { err: error },
+        'Could not finish publishing device run session events in real time.'
+      );
+      reportRealtimeLogFailure(error, 'cleanup');
+    }
+  }
+}
+
+function createRealtimeLogStream(
+  ctx: CustomBuildContext,
+  logger: bunyan,
+  hasDurableEventLog: boolean
+): HttpLogStream | undefined {
+  const baseUrl = ctx.env.EXPO_LOCAL
+    ? 'http://localhost:4999/logs/'
+    : ctx.env.EXPO_STAGING
+      ? 'https://staging-logs.expo.dev/logs/'
+      : undefined;
+  const jobRunId = ctx.env.EAS_BUILD_ID;
+  const robotAccessToken = ctx.job.secrets?.robotAccessToken;
+  if (!baseUrl || !jobRunId || !robotAccessToken) {
+    return undefined;
+  }
+
+  return new HttpLogStream({
+    url: new URL(`${jobRunId}/${EAS_LOGS_THREAD}`, baseUrl).toString(),
+    headers: { Authorization: `Bearer ${robotAccessToken}` },
+    logger,
+    bufferRetentionMs: hasDurableEventLog ? EAS_LOGS_BUFFER_RETENTION_MS : null,
+  });
 }
 
 async function createEventLogUploadSessionAsync(
