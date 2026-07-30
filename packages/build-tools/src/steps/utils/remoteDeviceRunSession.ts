@@ -20,10 +20,9 @@ const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
 const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@0.1.37';
 const SERVE_SIM_HOST = '127.0.0.1';
 const SERVE_SIM_MAX_DIMENSION = '1280';
-const SERVE_SIM_MJPEG_FPS = '10';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
-const SERVE_SIM_H264_BITRATE = '3000000';
-const SERVE_SIM_H264_FPS = '30';
+const SERVE_SIM_VIDEO_BITRATE = '3000000';
+const SERVE_SIM_VIDEO_FPS = '60';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -402,17 +401,15 @@ export function createServeSimArgs({
     '--transport',
     'webrtc',
     '--webrtc-codec',
-    'h264',
+    'vp8',
     '--max-dimension',
     SERVE_SIM_MAX_DIMENSION,
-    '--mjpeg-fps',
-    SERVE_SIM_MJPEG_FPS,
     '--mjpeg-quality',
     SERVE_SIM_MJPEG_QUALITY,
-    '--h264-bitrate',
-    SERVE_SIM_H264_BITRATE,
-    '--h264-fps',
-    SERVE_SIM_H264_FPS,
+    '--video-bitrate',
+    SERVE_SIM_VIDEO_BITRATE,
+    '--video-fps',
+    SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
   ];
 }
