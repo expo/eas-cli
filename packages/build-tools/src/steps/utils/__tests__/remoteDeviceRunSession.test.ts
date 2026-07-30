@@ -2,7 +2,6 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
-import fs from 'node:fs';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
@@ -386,7 +385,6 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
 describe(ensureFfmpegInstalledAsync, () => {
   const spawnMock = jest.mocked(spawn);
-  let existsSyncSpy: jest.SpyInstance;
 
   function spawnResolved(): ReturnType<typeof spawn> {
     return Promise.resolve({}) as unknown as ReturnType<typeof spawn>;
@@ -399,24 +397,6 @@ describe(ensureFfmpegInstalledAsync, () => {
   beforeEach(() => {
     spawnMock.mockReset();
     jest.mocked(Sentry).capture.mockReset();
-    // Default to "no ffmpeg on any fallback path" so each test opts in.
-    existsSyncSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
-  });
-
-  afterEach(() => {
-    existsSyncSpy.mockRestore();
-  });
-
-  it('does not install when ffmpeg is already on a fallback path', async () => {
-    existsSyncSpy.mockImplementation(path => path === '/opt/homebrew/bin/ffmpeg');
-
-    await ensureFfmpegInstalledAsync({
-      runtimePlatform: BuildRuntimePlatform.DARWIN,
-      env: createEnvMock(),
-      logger: createLoggerMock(),
-    });
-
-    expect(spawnMock).not.toHaveBeenCalled();
   });
 
   it('does not install when ffmpeg is on PATH', async () => {

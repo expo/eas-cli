@@ -188,18 +188,9 @@ async function sleepUntilAbortedAsync(
 }
 
 // Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
-// which it resolves from PATH and then from these prefixes. Keep the list in
-// sync with argent so we never reinstall a binary it can already find.
-const FFMPEG_FALLBACK_PATHS = [
-  '/opt/homebrew/bin/ffmpeg',
-  '/usr/local/bin/ffmpeg',
-  '/usr/bin/ffmpeg',
-];
-
+// which it resolves from PATH. It inherits this step's env, so PATH here is the
+// PATH argent will search — no need to probe install prefixes ourselves.
 async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
-  if (FFMPEG_FALLBACK_PATHS.some(ffmpegPath => fs.existsSync(ffmpegPath))) {
-    return true;
-  }
   return (await asyncResult(spawn('sh', ['-c', 'command -v ffmpeg'], { env }))).ok;
 }
 
