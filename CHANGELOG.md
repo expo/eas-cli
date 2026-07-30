@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-build-job] Add an `SSH_SESSION` build phase for upcoming worker SSH support. ([#4029](https://github.com/expo/eas-cli/pull/4029) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `ref` input to the `eas/checkout` step to check out a different git ref (branch, tag, or commit SHA) than the one that triggered the job. ([#4035](https://github.com/expo/eas-cli/pull/4035) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Load local composite function catalogs at build time so custom builds and generic jobs can resolve local composite functions referenced via `uses:`. ([#3930](https://github.com/expo/eas-cli/pull/3930) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Validate local composite functions referenced in workflow files during `eas workflow:validate`, checking that the YAML files exist and are well-formed. ([#3931](https://github.com/expo/eas-cli/pull/3931) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
