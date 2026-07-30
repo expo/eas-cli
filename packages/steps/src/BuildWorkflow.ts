@@ -76,7 +76,9 @@ export class BuildWorkflow {
       // occurrence; an anchor's `if:` cannot see its before-hooks' outputs.
       let shouldExecuteStep = false;
       try {
-        shouldExecuteStep = step.shouldExecuteStep();
+        shouldExecuteStep = step.shouldExecuteStep({
+          runByDefault: !this.ctx.hasAnyPreviousStepFailed,
+        });
       } catch (err: any) {
         logConditionEvaluationError(
           step.ctx.logger,
@@ -165,6 +167,7 @@ export class BuildWorkflow {
  *   failures predating the call are ignored — "runs iff the anchor runs".
  * - `after`: runs unconditionally — past the anchor's own failure AND past an
  *   earlier after-entry's failure.
+ * Passed as `runByDefault` so composite scopes share the same missing-`if:` rule.
  * A user `if:` is always evaluated against the real global context, so
  * `failure()` / `success()` keep their global meaning on both sides.
  */
@@ -221,28 +224,22 @@ export async function executeHookStepsAsync(
 
     let entryFailed = false;
     for (const step of entry.steps) {
+      // before skips on in-sequence failure; an entry with a passed if: only skips
+      // on within-entry failure; after always runs.
+      const runByDefault =
+        options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
       let shouldExecuteStep = false;
-      if (step.ifCondition) {
-        try {
-          shouldExecuteStep = step.shouldExecuteStep();
-        } catch (err) {
-          logConditionEvaluationError(
-            step.ctx.logger,
-            err,
-            `step "${step.displayName}"`,
-            step.ifCondition
-          );
-          recordFailure(err);
-          entryFailed = true;
-        }
-      } else {
-        // Before-side: a no-`if:` step runs unless this hook sequence has
-        // already failed. An entry whose explicit condition evaluated true
-        // behaves like a single step whose if: passed — the entry's no-`if:`
-        // steps ignore failures from EARLIER entries (only within-entry
-        // failures skip them).
-        shouldExecuteStep =
-          options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
+      try {
+        shouldExecuteStep = step.shouldExecuteStep({ runByDefault });
+      } catch (err) {
+        logConditionEvaluationError(
+          step.ctx.logger,
+          err,
+          `step "${step.displayName}"`,
+          step.ifCondition
+        );
+        recordFailure(err);
+        entryFailed = true;
       }
       if (!shouldExecuteStep) {
         step.skip();

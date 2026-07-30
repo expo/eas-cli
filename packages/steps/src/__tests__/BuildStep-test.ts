@@ -1179,7 +1179,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ],
     });
 
-    expect(step.shouldExecuteStep()).toBe(false);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
   });
 
   it('returns true when if condition is always and previous steps failed', () => {
@@ -1191,7 +1191,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ always() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is always and previous steps have not failed', () => {
@@ -1202,7 +1202,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ always() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns false when if condition is success and previous steps failed', () => {
@@ -1214,7 +1214,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ success() }',
     });
-    expect(step.shouldExecuteStep()).toBe(false);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
   });
 
   it('returns true when a dynamic expression matches', () => {
@@ -1231,7 +1231,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       },
       ifCondition: '${ env.NODE_ENV === "production" && env.LOCAL_ENV === "true" }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('can use the general interpolation context', () => {
@@ -1245,7 +1245,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: 'fromJSON(env.CONFIG_JSON).foo == "bar"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when a simplified dynamic expression matches', () => {
@@ -1259,7 +1259,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       },
       ifCondition: "env.NODE_ENV === 'production'",
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when an input matches', () => {
@@ -1282,7 +1282,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       ],
       ifCondition: 'inputs.foo1 === "bar"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when an eas value matches', () => {
@@ -1293,7 +1293,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: 'eas.runtimePlatform === "linux"',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is success and previous steps have not failed', () => {
@@ -1304,7 +1304,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
       command: 'echo 123',
       ifCondition: '${ success() }',
     });
-    expect(step.shouldExecuteStep()).toBe(true);
+    expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
   });
 
   it('returns true when if condition is failure and previous steps failed', () => {
@@ -1317,7 +1317,7 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
         command: 'echo 123',
         ifCondition,
       });
-      expect(step.shouldExecuteStep()).toBe(true);
+      expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(true);
     }
   });
 
@@ -1330,7 +1330,31 @@ describe(BuildStep.prototype.shouldExecuteStep, () => {
         command: 'echo 123',
         ifCondition,
       });
-      expect(step.shouldExecuteStep()).toBe(false);
+      expect(step.shouldExecuteStep({ runByDefault: !ctx.hasAnyPreviousStepFailed })).toBe(false);
     }
+  });
+
+  it('resolves a missing if condition with the provided run-by-default policy', () => {
+    const ctx = createGlobalContextMock();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: false })).toBe(false);
+    ctx.markAsFailed();
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(true);
+  });
+
+  it('ignores the run-by-default value when an if condition is present', () => {
+    const ctx = createGlobalContextMock();
+    ctx.markAsFailed();
+    const step = new BuildStep(ctx, {
+      id: 'test1',
+      displayName: 'Test 1',
+      command: 'echo 123',
+      ifCondition: '${ success() }',
+    });
+    expect(step.shouldExecuteStep({ runByDefault: true })).toBe(false);
   });
 });
