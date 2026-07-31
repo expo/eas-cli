@@ -7,9 +7,7 @@ import {
   CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
-  Hooks,
   Step,
-  parseHookKey,
 } from '@expo/eas-build-job';
 import {
   buildCompositeFunctionCatalogFromStepsAsync,
@@ -76,22 +74,20 @@ async function loadLocalCompositeFunctionConfigAsync(
   );
 }
 
-export async function buildCompositeFunctionCatalogAsync(
+export function createCompositeFunctionLoader(
   projectRoot: string,
-  { steps, hooks, logger }: { steps: readonly Step[]; hooks?: Hooks; logger?: bunyan }
-): Promise<CompositeFunctionCatalog> {
-  return buildCompositeFunctionCatalogFromStepsAsync({
-    rootSteps: [...steps, ...hookCatalogRootSteps(hooks)],
-    loadCompositeFunction: compositeFunctionPath =>
-      loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger }),
-  });
+  logger?: bunyan
+): (compositeFunctionPath: string) => Promise<CompositeFunctionConfig> {
+  return compositeFunctionPath =>
+    loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger });
 }
 
-function hookCatalogRootSteps(hooks: Hooks | undefined): Step[] {
-  if (!hooks) {
-    return [];
-  }
-  return Object.entries(hooks).flatMap(([key, steps]) =>
-    parseHookKey(key) !== null && Array.isArray(steps) ? steps : []
-  );
+export async function buildCompositeFunctionCatalogAsync(
+  projectRoot: string,
+  { steps, logger }: { steps: readonly Step[]; logger?: bunyan }
+): Promise<CompositeFunctionCatalog> {
+  return buildCompositeFunctionCatalogFromStepsAsync({
+    rootSteps: steps,
+    loadCompositeFunction: createCompositeFunctionLoader(projectRoot, logger),
+  });
 }

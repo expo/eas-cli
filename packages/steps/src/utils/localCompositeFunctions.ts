@@ -51,7 +51,20 @@ export async function buildCompositeFunctionCatalogFromStepsAsync({
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<CompositeFunctionCatalog> {
   const catalog: CompositeFunctionCatalog = {};
+  await extendCompositeFunctionCatalogFromStepsAsync({ catalog, rootSteps, loadCompositeFunction });
+  return catalog;
+}
 
+/** Extends `catalog` in place with functions transitively referenced by `rootSteps`. Skips paths already present. */
+export async function extendCompositeFunctionCatalogFromStepsAsync({
+  catalog,
+  rootSteps,
+  loadCompositeFunction,
+}: {
+  catalog: CompositeFunctionCatalog;
+  rootSteps: readonly Step[];
+  loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+}): Promise<void> {
   const loadRecursiveAsync = async (compositeFunctionPath: string): Promise<void> => {
     if (compositeFunctionPath in catalog) {
       return;
@@ -68,8 +81,6 @@ export async function buildCompositeFunctionCatalogFromStepsAsync({
   for (const compositeFunctionPath of collectLocalCompositeFunctionPathsFromSteps(rootSteps)) {
     await loadRecursiveAsync(compositeFunctionPath);
   }
-
-  return catalog;
 }
 
 export function resolveLocalCompositeFunctionPath(

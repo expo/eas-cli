@@ -17,7 +17,10 @@ import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
 import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
-import { buildCompositeFunctionCatalogAsync } from '../steps/compositeFunctions';
+import {
+  buildCompositeFunctionCatalogAsync,
+  createCompositeFunctionLoader,
+} from '../steps/compositeFunctions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 import { retryAsync } from '../utils/retry';
@@ -61,22 +64,25 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
   const easFunctionGroups = getEasFunctionGroups(customBuildCtx);
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {
     try {
+      const projectRoot = ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory);
       const parser = ctx.job.steps
         ? new StepsConfigParser(globalContext, {
             externalFunctions: easFunctions,
             externalFunctionGroups: easFunctionGroups,
             steps: ctx.job.steps,
             hooks: ctx.job.hooks,
-            compositeFunctionCatalog: await buildCompositeFunctionCatalogAsync(
-              ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-              { steps: ctx.job.steps, hooks: ctx.job.hooks, logger: ctx.logger }
-            ),
+            // Eager for job steps (always run), lazy loader for hooks (running anchors only).
+            compositeFunctionCatalog: await buildCompositeFunctionCatalogAsync(projectRoot, {
+              steps: ctx.job.steps,
+              logger: ctx.logger,
+            }),
+            loadCompositeFunction: createCompositeFunctionLoader(projectRoot, ctx.logger),
           })
         : new BuildConfigParser(globalContext, {
             externalFunctions: easFunctions,
             externalFunctionGroups: easFunctionGroups,
             configPath: path.join(
-              ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
+              projectRoot,
               nullthrows(
                 ctx.job.customBuildConfig?.path,
                 'Steps or custom build config path are required in custom jobs'
