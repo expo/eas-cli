@@ -1,4 +1,5 @@
 import spawnAsync from '@expo/spawn-async';
+import path from 'path';
 
 export async function isGitInstalledAsync(): Promise<boolean> {
   try {
@@ -34,6 +35,45 @@ export async function gitStatusAsync({ showUntracked, cwd }: GitStatusOptions): 
       cwd,
     })
   ).stdout;
+}
+
+/**
+ * Lists the paths Git considers ignored, following all of the standard exclude
+ * sources: `.gitignore` files, `$GIT_DIR/info/exclude` and `core.excludesFile`.
+ *
+ * Directories that are ignored as a whole are returned as a single entry with a
+ * trailing slash, so Git does not have to walk their contents.
+ */
+export async function getIgnoredPathsAsync(cwd: string): Promise<string[]> {
+  const ignoredPaths = await listIgnoredPathsAsync(cwd);
+
+  // `git ls-files` does not descend into submodules, so each one has to be
+  // asked separately for the paths it ignores.
+  for (const submodulePath of await getSubmodulePathsAsync(cwd)) {
+    const submoduleIgnoredPaths = await listIgnoredPathsAsync(path.join(cwd, submodulePath));
+    ignoredPaths.push(...submoduleIgnoredPaths.map(entry => `${submodulePath}/${entry}`));
+  }
+
+  return ignoredPaths;
+}
+
+async function listIgnoredPathsAsync(cwd: string): Promise<string[]> {
+  const { stdout } = await spawnAsync(
+    'git',
+    ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'],
+    { cwd }
+  );
+  return stdout.split('\0').filter(entry => entry !== '');
+}
+
+/** Paths of the initialized submodules, relative to `cwd`, nested ones included. */
+async function getSubmodulePathsAsync(cwd: string): Promise<string[]> {
+  const { stdout } = await spawnAsync(
+    'git',
+    ['submodule', 'foreach', '--recursive', '--quiet', 'echo "$displaypath"'],
+    { cwd }
+  );
+  return stdout.split('\n').filter(entry => entry !== '');
 }
 
 export async function getGitDiffOutputAsync(cwd: string | undefined): Promise<string> {

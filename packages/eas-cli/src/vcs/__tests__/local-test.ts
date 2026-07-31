@@ -1,6 +1,6 @@
 import { vol } from 'memfs';
 
-import { Ignore } from '../local';
+import { Ignore, IgnoredPathsFilter } from '../local';
 
 jest.mock('fs');
 
@@ -110,5 +110,30 @@ describe(Ignore, () => {
 
     const ignore = await Ignore.createForCopyingAsync('/root');
     expect(() => ignore.ignores('dir/test')).not.toThrowError();
+  });
+});
+
+describe(IgnoredPathsFilter, () => {
+  it('ignores the listed files', () => {
+    const filter = new IgnoredPathsFilter(['secret.txt', 'dir/other.txt']);
+    expect(filter.ignores('secret.txt')).toBe(true);
+    expect(filter.ignores('dir/other.txt')).toBe(true);
+    expect(filter.ignores('other.txt')).toBe(false);
+    expect(filter.ignores('dir/secret.txt')).toBe(false);
+  });
+
+  it('ignores the content of the listed directories', () => {
+    const filter = new IgnoredPathsFilter(['worktrees/']);
+    expect(filter.ignores('worktrees')).toBe(true);
+    expect(filter.ignores('worktrees/a/b.txt')).toBe(true);
+    expect(filter.ignores('worktrees-2')).toBe(false);
+  });
+
+  it('always ignores .git and node_modules', () => {
+    const filter = new IgnoredPathsFilter([]);
+    expect(filter.ignores('.git')).toBe(true);
+    expect(filter.ignores('.git/config')).toBe(true);
+    expect(filter.ignores('node_modules')).toBe(true);
+    expect(filter.ignores('packages/app/node_modules')).toBe(true);
   });
 });
