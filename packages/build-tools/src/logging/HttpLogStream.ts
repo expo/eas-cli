@@ -3,7 +3,7 @@ import { asyncResult } from '@expo/results';
 import fetch from 'node-fetch';
 import { Writable } from 'stream';
 
-import { retry } from './retry';
+import { retryAsync } from '../utils/retry';
 
 const MAX_BATCH_BYTES = 200_000;
 
@@ -152,7 +152,7 @@ export default class HttpLogStream extends Writable {
   }
 
   private async sendBatch(logs: BufferedLogEntry[]): Promise<void> {
-    await retry(
+    await retryAsync(
       async () => {
         const response = await fetch(this.url, {
           method: 'POST',

@@ -1,7 +1,8 @@
 import * as Builders from './builders';
+import HttpLogStream from './logging/HttpLogStream';
 import RemoteLoggerStream from './logging/RemoteLoggerStream';
 
-export { Builders, RemoteLoggerStream };
+export { Builders, HttpLogStream, RemoteLoggerStream };
 export { uploadWithSignedUrl } from './storage/uploadWithSignedUrl';
 export type { SignedUrl, UploadWithSignedUrlParams } from './storage/uploadWithSignedUrl';
 
