@@ -312,7 +312,9 @@ export class StepsConfigParser extends AbstractConfigParser {
         });
       } catch (err) {
         if (err instanceof BuildConfigError) {
-          throw err;
+          throw new BuildConfigError(
+            `Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`
+          );
         }
         throw new BuildConfigError(
           `Failed to load a local composite function referenced from "hooks.${side}_${anchorId}": ${

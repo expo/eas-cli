@@ -885,7 +885,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
     expect(error.message).toMatch(/hooks\.after_install_node_modules/);
   });
 
-  it('surfaces a BuildConfigError from catalog extension unwrapped (working_directory on a composite call)', async () => {
+  it('names the hook key when a composite hook call sets working_directory', async () => {
     const error = await getErrorAsync<BuildConfigError>(async () => {
       await parseWorkflowAsync({
         ctx,
@@ -901,6 +901,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/hooks\.before_install_node_modules/);
     expect(error.message).toMatch(/"working_directory" is not supported/);
     expect(error.message).not.toMatch(/Failed to load/);
   });
