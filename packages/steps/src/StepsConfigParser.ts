@@ -86,9 +86,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   }> {
     const validatedSteps = validateSteps(this.steps);
     const validatedHooks = this.validateHooks();
-    // Hook steps are validated like job steps: a hook `uses:` naming an
-    // unknown function must be a BuildConfigError, not an assertion crash.
-    validateAllStepFunctionsExist([...validatedSteps, ...Object.values(validatedHooks).flat()], {
+    validateAllStepFunctionsExist(validatedSteps, {
       externalFunctionIds: this.getExternalFunctionFullIds(),
       externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
     });
@@ -284,6 +282,18 @@ export class StepsConfigParser extends AbstractConfigParser {
     const hookSteps = validatedHooks[`${side}_${anchorId}`];
     if (hookSteps === undefined) {
       return [];
+    }
+    try {
+      validateAllStepFunctionsExist(hookSteps, {
+        externalFunctionIds: this.getExternalFunctionFullIds(),
+        externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
+      });
+    } catch (err) {
+      throw new BuildConfigError(
+        `Invalid steps in "hooks.${side}_${anchorId}": ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     }
     if (this.loadCompositeFunction !== undefined) {
       // Load only once the anchor runs, so unused anchors do not fail on missing composites.

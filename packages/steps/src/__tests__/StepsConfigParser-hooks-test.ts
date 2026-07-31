@@ -272,6 +272,20 @@ describe('StepsConfigParser hook construction', () => {
     });
     expect(error).toBeInstanceOf(BuildConfigError);
     expect(error.message).toMatch(/nonexistent_function/);
+    expect(error.message).toMatch(/hooks\.before_install_node_modules/);
+  });
+
+  it('ignores a registered hook key whose anchor is absent even when its steps use unknown functions', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: { before_install_node_modules: [{ uses: 'eas/some_newer_function' }] },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
+    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
+      'Ignoring "hooks.before_install_node_modules": this build does not run the "install_node_modules" step.'
+    );
   });
 
   it('rejects a hook step using a composite function missing from the catalog with BuildConfigError', async () => {
