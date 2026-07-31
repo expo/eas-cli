@@ -134,4 +134,123 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
+
+  it('skips jobs that set project_root_directory', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-functions-root-'));
+    const workflow = {
+      jobs: {
+        job: {
+          params: { project_root_directory: 'apps/tv' },
+          steps: [{ uses: './.eas/functions/missing' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
+
+  it('skips hooks of jobs that set project_root_directory', async () => {
+    const projectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'eas-workflow-functions-root-hooks-')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          params: { project_root_directory: 'apps/tv' },
+          steps: [{ run: 'echo hi' }],
+          hooks: {
+            before_install_node_modules: [{ uses: './.eas/functions/missing' }],
+          },
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
+
+  it('skips jobs with an interpolated project_root_directory', async () => {
+    const projectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'eas-workflow-functions-root-interpolated-')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          params: { project_root_directory: '${{ inputs.dir }}' },
+          steps: [{ uses: './.eas/functions/missing' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
+
+  it('still validates jobs without project_root_directory when another job sets it', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-functions-mixed-'));
+    const workflow = {
+      jobs: {
+        defaultRootJob: {
+          steps: [{ uses: './.eas/functions/missing' }],
+        },
+        customRootJob: {
+          params: { project_root_directory: 'apps/tv' },
+          steps: [{ uses: './.eas/functions/also-missing' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).rejects.toThrow(
+      /Local composite function "\.\/\.eas\/functions\/missing" was referenced by a step but no such composite function exists/
+    );
+  });
+
+  it('validates jobs with non-object params', async () => {
+    const projectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'eas-workflow-functions-garbage-params-')
+    );
+    await makeProjectWithCompositeFunctionAsync(
+      projectRoot,
+      'setup',
+      ['runs:', '  steps:', '    - run: echo setup'].join('\n')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          params: 'garbage',
+          steps: [{ uses: './.eas/functions/setup' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
+
+  it('validates jobs with a non-string project_root_directory', async () => {
+    const projectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'eas-workflow-functions-non-string-root-')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          params: { project_root_directory: 123 },
+          steps: [{ uses: './.eas/functions/setup' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+    ).rejects.toThrow(
+      /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
+    );
+  });
 });
