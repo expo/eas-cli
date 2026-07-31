@@ -25,6 +25,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🧹 Chores
 
 - [build-tools] Run EAS Simulator previews with the official `@expo/serve-sim` package under EAS-owned supervision. ([#4114](https://github.com/expo/eas-cli/pull/4114) by [@szdziedzic](https://github.com/szdziedzic))
+- [reviewer] Report each AI review finding with a confidence and shipping-impact signal, and open the review summary with an overall PR risk rating. ([#4128](https://github.com/expo/eas-cli/pull/4128) by [@brentvatne](https://github.com/brentvatne))
 
 ## [21.4.0](https://github.com/expo/eas-cli/releases/tag/v21.4.0) - 2026-07-28
 
