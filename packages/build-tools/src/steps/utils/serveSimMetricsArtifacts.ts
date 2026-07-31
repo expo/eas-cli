@@ -36,17 +36,19 @@ export async function uploadServeSimMetricsFileAsync(
     logger.info(`serve-sim metrics file for ${udid} is empty; skipping upload.`);
     return;
   }
+  const deviceName = typeof metadata?.deviceName === 'string' ? metadata.deviceName : undefined;
   try {
-    logger.info(`Uploading serve-sim metrics for ${udid} (${formatBytes(size)}).`);
+    logger.info(`Uploading serve-sim metrics for ${deviceName ?? udid} (${formatBytes(size)}).`);
     await uploadDeviceRunSessionArtifactAsync(ctx, {
       deviceRunSessionId,
       artifactId: `metrics-${udid}`,
-      name: `Performance metrics (${udid.slice(0, 8)})`,
+      name: `Performance metrics (${deviceName ?? udid.slice(0, 8)})`,
       filename: METRICS_ARTIFACT_FILENAME,
       kind: 'performance-metrics',
       metadata: {
         __eas_type: 'performance-metrics',
         udid,
+        ...(deviceName && { deviceName }),
         ...(metadata && {
           hostCores: metadata.hostCores,
           sampleIntervalMs: metadata.sampleIntervalMs,
