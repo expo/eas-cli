@@ -847,6 +847,17 @@ describe('StepsConfigParser lazy hook composite loading', () => {
     );
   });
 
+  it('warns for an unknown hook key', async () => {
+    await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: { before_install_node_module: [{ run: 'echo typo' }] },
+    });
+    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
+      'Ignoring unknown hook key "before_install_node_module".'
+    );
+  });
+
   it('wraps a loader failure in a BuildConfigError naming the before-side hook key', async () => {
     const error = await getErrorAsync<BuildConfigError>(async () => {
       await parseWorkflowAsync({

@@ -213,6 +213,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       // worker lacks).
       const parsed = parseHookKey(hookKey);
       if (parsed === null) {
+        this.ctx.baseLogger.warn(`Ignoring unknown hook key "${hookKey}".`);
         continue;
       }
       // An empty array is a deliberate no-op (e.g. opting out of a default);
