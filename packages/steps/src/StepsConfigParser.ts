@@ -3,6 +3,7 @@ import {
   CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
+  HookKey,
   Hooks,
   Step,
   isHookAnchorId,
@@ -36,6 +37,8 @@ import {
   isLocalCompositeFunctionPath,
   parseLocalCompositeFunctionPath,
 } from './utils/localCompositeFunctions';
+
+type ValidatedHooks = ReadonlyMap<HookKey, { anchorId: HookAnchorId; steps: Step[] }>;
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
@@ -187,11 +190,10 @@ export class StepsConfigParser extends AbstractConfigParser {
       }
     }
 
-    for (const hookKey of Object.keys(validatedHooks)) {
-      const parsed = parseHookKey(hookKey);
-      if (parsed !== null && !seenAnchorIds.has(parsed.anchorId)) {
+    for (const [hookKey, { anchorId }] of validatedHooks) {
+      if (!seenAnchorIds.has(anchorId)) {
         this.ctx.baseLogger.warn(
-          `Ignoring "hooks.${hookKey}": this build does not run the "${parsed.anchorId}" step.`
+          `Ignoring "hooks.${hookKey}": this build does not run the "${anchorId}" step.`
         );
       }
     }
@@ -203,13 +205,14 @@ export class StepsConfigParser extends AbstractConfigParser {
     };
   }
 
-  private validateHooks(): Record<string, Step[]> {
-    const validatedHooks: Record<string, Step[]> = {};
+  private validateHooks(): ValidatedHooks {
+    const validatedHooks = new Map<HookKey, { anchorId: HookAnchorId; steps: Step[] }>();
     for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
       // A worker must not fail on a hook key newer than itself, so unregistered
       // keys skip validation entirely (their steps may reference functions this
       // worker lacks).
-      if (parseHookKey(hookKey) === null) {
+      const parsed = parseHookKey(hookKey);
+      if (parsed === null) {
         continue;
       }
       // An empty array is a deliberate no-op (e.g. opting out of a default);
@@ -219,7 +222,10 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
       try {
-        validatedHooks[hookKey] = validateSteps(hookSteps);
+        validatedHooks.set(`${parsed.side}_${parsed.anchorId}`, {
+          anchorId: parsed.anchorId,
+          steps: validateSteps(hookSteps),
+        });
       } catch (err) {
         throw new BuildConfigError(
           `Invalid steps in "hooks.${hookKey}": ${err instanceof Error ? err.message : String(err)}`
@@ -252,7 +258,7 @@ export class StepsConfigParser extends AbstractConfigParser {
 
   private async constructAnchorHooksAsync(
     anchorId: HookAnchorId,
-    validatedHooks: Record<string, Step[]>,
+    validatedHooks: ValidatedHooks,
     compositeFunctionExpander: CompositeFunctionExpander
   ): Promise<AnchorHooks | undefined> {
     const before = await this.constructHookSideEntriesAsync(
@@ -276,10 +282,10 @@ export class StepsConfigParser extends AbstractConfigParser {
   private async constructHookSideEntriesAsync(
     anchorId: HookAnchorId,
     side: 'before' | 'after',
-    validatedHooks: Record<string, Step[]>,
+    validatedHooks: ValidatedHooks,
     compositeFunctionExpander: CompositeFunctionExpander
   ): Promise<HookEntry[]> {
-    const hookSteps = validatedHooks[`${side}_${anchorId}`];
+    const hookSteps = validatedHooks.get(`${side}_${anchorId}`)?.steps;
     if (hookSteps === undefined) {
       return [];
     }
