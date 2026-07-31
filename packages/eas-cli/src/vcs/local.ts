@@ -5,6 +5,7 @@ import createIgnore, { Ignore as SingleFileIgnore } from 'ignore';
 import path from 'path';
 
 import Log from '../log';
+import { STORE_MEDIA_DIRECTORIES } from '../metadata/media';
 
 export const EASIGNORE_FILENAME = '.easignore';
 const GITIGNORE_FILENAME = '.gitignore';
@@ -16,7 +17,7 @@ const GITIGNORE_FILENAME = '.gitignore';
  * Inconsistencies with git behavior:
  * - if parent .gitignore has ignore rule and child has exception to that rule,
  *   file will still be ignored,
- * - node_modules is always ignored,
+ * - node_modules and the store media directories are always ignored,
  * - if .easignore exists, .gitignore files are not used.
  */
 export class Ignore {
@@ -27,15 +28,18 @@ export class Ignore {
   static async createForCopyingAsync(rootDir: string): Promise<Ignore> {
     const ignore = new Ignore(rootDir);
     await ignore.initIgnoreAsync({
+      // Store media is only read by `eas metadata:push`, which runs from the
+      // CLI, so there is no reason to upload it for a build.
       defaultIgnore: `
 .git
 node_modules
+${STORE_MEDIA_DIRECTORIES.join('\n')}
 `,
     });
     return ignore;
   }
 
-  /** Does not include the default .git and node_modules ignore rules. */
+  /** Does not include the default .git, node_modules and store media ignore rules. */
   static async createForCheckingAsync(rootDir: string): Promise<Ignore> {
     const ignore = new Ignore(rootDir);
     await ignore.initIgnoreAsync({

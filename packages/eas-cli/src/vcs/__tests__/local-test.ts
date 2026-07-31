@@ -79,6 +79,29 @@ describe(Ignore, () => {
     const ignore = await Ignore.createForCopyingAsync('/root');
     expect(ignore.ignores('.git')).toBe(true);
   });
+
+  it('ignores store media if copying', async () => {
+    vol.fromJSON({}, '/root');
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect(ignore.ignores('store/apple/screenshot')).toBe(true);
+    expect(ignore.ignores('store/apple/screenshot/en-US/APP_IPHONE_67/01.png')).toBe(true);
+    expect(ignore.ignores('store/apple/preview/en-US/IPHONE_67/01.mp4')).toBe(true);
+    expect(ignore.ignores('store/apple/app-clip/en-US/header.png')).toBe(true);
+    expect(ignore.ignores('store.config.json')).toBe(false);
+  });
+
+  it('ignores store media if copying and .easignore is present', async () => {
+    vol.fromJSON(
+      {
+        '.easignore': 'aaa',
+      },
+      '/root'
+    );
+
+    const ignore = await Ignore.createForCopyingAsync('/root');
+    expect(ignore.ignores('store/apple/screenshot/en-US/APP_IPHONE_67/01.png')).toBe(true);
+  });
   describe('for checking', () => {
     it('does not necessarily ignore .git', async () => {
       vol.fromJSON({}, '/root');

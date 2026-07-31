@@ -10,6 +10,7 @@ import path from 'path';
 
 import fetch from '../../../fetch';
 import Log from '../../../log';
+import { STORE_SCREENSHOT_DIRECTORY } from '../../media';
 import { logAsync } from '../../utils/log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 import { AppleScreenshots } from '../types';
@@ -98,7 +99,7 @@ export class ScreenshotsTask extends AppleTask {
           // path) or warn and skip (if it doesn't).
           const fileName =
             screenshot.attributes.fileName || `${String(i + 1).padStart(2, '0')}.png`;
-          paths.push(path.join('store', 'apple', 'screenshot', localeCode, displayType, fileName));
+          paths.push(path.join(STORE_SCREENSHOT_DIRECTORY, localeCode, displayType, fileName));
         }
 
         if (paths.length > 0) {
@@ -300,7 +301,7 @@ async function downloadScreenshotAsync(
   }
 
   // Create directory structure: store/apple/screenshot/{locale}/{displayType}/
-  const screenshotsDir = path.join(projectDir, 'store', 'apple', 'screenshot', locale, displayType);
+  const screenshotsDir = path.join(projectDir, STORE_SCREENSHOT_DIRECTORY, locale, displayType);
   await fs.promises.mkdir(screenshotsDir, { recursive: true });
 
   // Use original filename for matching during sync

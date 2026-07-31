@@ -196,6 +196,67 @@ describe('git', () => {
     });
   });
 
+  describe('store metadata media', () => {
+    const screenshot = 'store/apple/screenshot/en-US/APP_IPHONE_67/01.png';
+    const preview = 'store/apple/preview/en-US/IPHONE_67/01.mp4';
+
+    async function setupProjectWithStoreMediaAsync(): Promise<{
+      repoRoot: string;
+      vcs: GitClient;
+    }> {
+      const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await spawnAsync('git', ['init'], { cwd: repoRoot });
+      const vcs = new GitClient({
+        requireCommit: false,
+        maybeCwdOverride: repoRoot,
+      });
+
+      await fs.writeFile(`${repoRoot}/store.config.json`, '{}');
+      for (const media of [screenshot, preview]) {
+        await fs.mkdir(path.dirname(path.join(repoRoot, media)), { recursive: true });
+        await fs.writeFile(path.join(repoRoot, media), 'media');
+      }
+
+      return { repoRoot, vcs };
+    }
+
+    it('is not included when it is untracked', async () => {
+      const { repoRoot, vcs } = await setupProjectWithStoreMediaAsync();
+      await spawnAsync('git', ['add', 'store.config.json'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'add store config'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, screenshot))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, preview))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, 'store.config.json'))).resolves.not.toThrow();
+    });
+
+    it('is not included when it is committed', async () => {
+      const { repoRoot, vcs } = await setupProjectWithStoreMediaAsync();
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'add store media'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, screenshot))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, preview))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, 'store.config.json'))).resolves.not.toThrow();
+    });
+
+    it('is not included when the project has an .easignore', async () => {
+      const { repoRoot, vcs } = await setupProjectWithStoreMediaAsync();
+      await fs.writeFile(`${repoRoot}/.easignore`, 'something-else\n');
+      await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+      await spawnAsync('git', ['commit', '-m', 'add store media'], { cwd: repoRoot });
+
+      const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+      await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+      await expect(fs.stat(path.join(repoClone, screenshot))).rejects.toThrow('ENOENT');
+      await expect(fs.stat(path.join(repoClone, 'store.config.json'))).resolves.not.toThrow();
+    });
+  });
+
   it('does not include files that have been removed in the working directory', async () => {
     const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
     await spawnAsync('git', ['init'], { cwd: repoRoot });
