@@ -37,7 +37,8 @@
     "lodash.clonedeep": "^4.5.0",
     "lodash.get": "^4.4.2",
     "uuid": "^9.0.1",
-    "yaml": "^2.4.3"
+    "yaml": "^2.4.3",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

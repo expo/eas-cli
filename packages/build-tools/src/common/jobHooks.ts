@@ -13,13 +13,13 @@ import {
   BuildStepGlobalContext,
   HookEntry,
   constructHookEntriesAsync,
+  createLocalCompositeFunctionLoader,
   extendCompositeFunctionCatalogFromStepsAsync,
   validateHookStepsAsync,
 } from '@expo/steps';
 
 import { BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
-import { createCompositeFunctionLoader } from '../steps/compositeFunctions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 
@@ -99,9 +99,9 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
   const hookEntriesByKey: Partial<Record<HookKey, HookEntry[]>> = {};
   const orderedSteps: BuildStep[] = [];
   const compositeFunctionCatalog: CompositeFunctionCatalog = {};
-  const loadCompositeFunction = createCompositeFunctionLoader(
+  const loadCompositeFunction = createLocalCompositeFunctionLoader(
     ctx.getReactNativeProjectDirectory(),
-    ctx.logger
+    { logger: ctx.logger }
   );
   for (const anchor of wrappedAnchors) {
     for (const side of ['before', 'after'] as const) {
