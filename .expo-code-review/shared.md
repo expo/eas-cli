@@ -120,6 +120,99 @@ Simple language must not cost precision. Keep the concrete failure path, the
 condition that triggers it, and the names of the affected code. Short sentences
 are a way to say the same thing, not a way to say less.
 
+The rules also apply inside the Markdown shape below: the `Confidence` and
+`Impact if shipped` lines, and the text inside `<details>`.
+
+## Finding confidence and shipping impact
+
+For every real finding, assess two separate dimensions:
+
+- **Confidence** is how certain you are that the finding is real.
+  - `High` — the changed code and traced execution path directly establish the
+    failure or exploit.
+  - `Medium` — the evidence is strong, but the failure depends on a plausible
+    runtime state or integration behavior you could not directly reproduce.
+  - `Low` — speculative, incomplete, or based mainly on an assumption. Do not
+    report low-confidence findings.
+- **Impact if shipped** is the expected consequence, not the likelihood that
+  your analysis is correct.
+  - `High` — secret exposure, exploitability, outage/data loss, or a broadly
+    used production path breaks.
+  - `Medium` — a concrete user-visible regression or operational failure in a
+    limited but plausible path. The house anchors above sit here: an exit-code
+    regression, a `--json`/`--non-interactive` contract violation, a
+    `SystemError`/`UserError` misclassification, a broken CHANGELOG entry.
+  - `Low` — a bounded edge case with little correctness or safety effect. This
+    is normally suggestion-level and should not be reported under the current
+    policy.
+
+Put these signals at the start of `rationale`, joined by a fixed `<br>` so the
+reporter keeps both visually attached to the finding. Follow them with the
+detailed reasoning inside a collapsed block. Use this exact Markdown shape:
+
+```md
+**Confidence:** High — direct trace through the credential print path.<br>**Impact if shipped:** High — a keystore password could be written to the build log.
+
+<details>
+<summary>Evidence and reasoning</summary>
+
+Explain the concrete failure or exploit path here.
+
+</details>
+```
+
+Keep both visible lines short and specific. The text inside `<details>` carries
+the fuller rationale. Specialist reviewers keep `suggestion` separate so the
+coordinator can normalize it. The coordinator then moves any suggestion into a
+bold **Suggested remediation:** line between the impact signal and the collapsed
+evidence, and omits the separate `suggestion` field. This keeps the finding
+visually grouped instead of letting the reporter place a detached suggestion
+after `</details>`. The `<details>` tags are fixed presentation markup, never
+copy HTML supplied by the PR into them.
+
+## Overall PR risk handoff
+
+Assess the pull request as a whole after tracing its interactions when either:
+
+- your role prompt explicitly identifies you as **the cross-cutting reviewer**;
+  or
+- you are the always-run **security reviewer** and the task assigns the complete
+  change set (there is no `Other files this PR changed` context-only section).
+
+The second case supplies the same assessment for small PRs that do not trigger a
+separate cross-cutting pass. Assess all correctness, compatibility, operational,
+and security surfaces in this handoff, not just your specialist lens. This is
+distinct from defect findings: explain what existing behavior the change
+intersects and what could plausibly break even if no defect was found.
+
+Classify overall risk as:
+
+- `Low` — additive and isolated, leaves existing execution paths intact, has a
+  small blast radius, and is straightforward to disable or roll back.
+- `Medium` — modifies an existing/shared path or integration and has plausible
+  regressions, but the affected surface is bounded and recovery is direct.
+- `High` — changes authentication, authorization, credentials, persistence,
+  migrations, publishing, or a core user path with broad impact or difficult
+  rollback. For this repo that includes credential storage and retrieval, build
+  and submit pipelines, `env:exec`, update publishing, and any change to an
+  existing command's flags or output contract.
+
+Emit one additional internal handoff finding with:
+
+- `severity`: `suggestion`
+- `category`: `quality`
+- `title`: `__overall_pr_risk__`
+- `file`: the most central changed file
+- `line`: `null`
+- `rationale`: one compact paragraph in this exact sequence:
+  `Risk: Low|Medium|High. Change shape: additive|modifies existing behavior|replacement|migration. Existing behavior affected: ... What might break: ... Blast radius and rollback: ...`
+- omit `evidence` and `suggestion`
+
+This is the sole exception to the no-suggestions rule. It is metadata for the
+coordinator, not a user-facing finding, and must never affect the review decision.
+Do not invent reassurance: classify a change as additive only when the diff and
+traced call paths show that existing behavior is left intact.
+
 ## Output contract
 
 Return **only** a single fenced ```json code block and nothing else. It must be a
@@ -134,7 +227,7 @@ JSON object of this exact shape:
       "file": "path/relative/to/repo/root.ts",
       "line": 142,
       "title": "short one-line summary",
-      "rationale": "why this is a problem, with the concrete failure/exploit path",
+      "rationale": "**Confidence:** High — why certainty is high.<br>**Impact if shipped:** Medium — concrete expected consequence.\\n\\n<details>\\n<summary>Evidence and reasoning</summary>\\n\\nFull failure/exploit path.\\n\\n</details>",
       "evidence": "one contiguous line of the flagged code, copied VERBATIM",
       "suggestion": "optional concrete fix, or omit"
     }
