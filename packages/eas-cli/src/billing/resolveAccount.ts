@@ -15,6 +15,8 @@ type AccountWithViewerPermissions = BillingAccount & {
   viewerUserPermission: { permissions: Permission[] };
 };
 
+type SubscriptionFilter = 'subscribed' | 'unsubscribed';
+
 function hasBillingPermission(account: AccountWithViewerPermissions): boolean {
   const { permissions } = account.viewerUserPermission;
   return permissions.includes(Permission.Admin) || permissions.includes(Permission.Own);
@@ -36,6 +38,31 @@ function assertBillingPermission(account: AccountWithViewerPermissions): void {
   }
 }
 
+async function getAccountWithSubscriptionAsync(
+  graphqlClient: ExpoGraphqlClient,
+  account: BillingAccount
+): Promise<BillingAccount> {
+  const subscription = await AccountQuery.getSubscriptionAsync(graphqlClient, account.id);
+  return { id: account.id, name: account.name, subscription };
+}
+
+function assertMatchesSubscriptionFilter(
+  account: BillingAccount,
+  subscriptionFilter: SubscriptionFilter
+): void {
+  const paidSubscription = hasPaidSubscription(account.subscription ?? null);
+  if (subscriptionFilter === 'unsubscribed' && paidSubscription) {
+    throw new Error(
+      `Account "${account.name}" already has a paid plan. Run eas billing:manage to change it.`
+    );
+  }
+  if (subscriptionFilter === 'subscribed' && !paidSubscription) {
+    throw new Error(
+      `Account "${account.name}" does not have an active paid plan. Run eas billing:subscribe to subscribe.`
+    );
+  }
+}
+
 /**
  * Resolves the account to operate on for a billing command. When `accountName` is provided we
  * prefer one of the actor's own accounts and fall back to a by-name lookup (e.g. organizations
@@ -46,13 +73,13 @@ export async function resolveBillingAccountAsync({
   actor,
   accountName,
   nonInteractive,
-  requireUnsubscribed = false,
+  subscriptionFilter,
 }: {
   graphqlClient: ExpoGraphqlClient;
   actor: Actor;
   accountName: string | undefined;
   nonInteractive: boolean;
-  requireUnsubscribed?: boolean;
+  subscriptionFilter?: SubscriptionFilter;
 }): Promise<BillingAccount> {
   const billingAccounts = actor.accounts.filter(account => hasBillingRole(actor, account));
   const availableAccounts = billingAccounts.map(account => account.name).join(', ');
@@ -65,7 +92,12 @@ export async function resolveBillingAccountAsync({
           `You must be an Owner or Admin of account "${found.name}" to manage billing.`
         );
       }
-      return found;
+      if (!subscriptionFilter) {
+        return found;
+      }
+      const account = await getAccountWithSubscriptionAsync(graphqlClient, found);
+      assertMatchesSubscriptionFilter(account, subscriptionFilter);
+      return account;
     }
     const account = await AccountQuery.getByNameAsync(graphqlClient, accountName).catch(() => null);
     if (!account) {
@@ -74,11 +106,84 @@ export async function resolveBillingAccountAsync({
       );
     }
     assertBillingPermission(account);
-    return account;
+    if (!subscriptionFilter) {
+      return account;
+    }
+    const accountWithSubscription = await getAccountWithSubscriptionAsync(graphqlClient, account);
+    assertMatchesSubscriptionFilter(accountWithSubscription, subscriptionFilter);
+    return accountWithSubscription;
   }
 
   if (billingAccounts.length === 0) {
     throw new Error('You must be an Owner or Admin of at least one account to manage billing.');
+  }
+
+  if (subscriptionFilter) {
+    const accountsWithSubscriptions = await Promise.all(
+      billingAccounts.map(account => getAccountWithSubscriptionAsync(graphqlClient, account))
+    );
+    const subscribedAccounts = accountsWithSubscriptions.filter(account =>
+      hasPaidSubscription(account.subscription ?? null)
+    );
+    const unsubscribedAccounts = accountsWithSubscriptions.filter(
+      account => !hasPaidSubscription(account.subscription ?? null)
+    );
+    const eligibleAccounts =
+      subscriptionFilter === 'subscribed' ? subscribedAccounts : unsubscribedAccounts;
+
+    if (eligibleAccounts.length === 0) {
+      if (subscriptionFilter === 'subscribed') {
+        throw new Error(
+          'No available accounts have an active paid plan. Run eas billing:subscribe to subscribe an account.'
+        );
+      }
+      throw new Error(
+        'All available accounts already have a paid plan. Run eas billing:manage to change an existing subscription.'
+      );
+    }
+
+    if (eligibleAccounts.length === 1) {
+      return eligibleAccounts[0];
+    }
+
+    if (nonInteractive) {
+      throw new Error(
+        'The --account flag must be provided when running in `--non-interactive` mode and you can manage billing for more than one eligible account.'
+      );
+    }
+
+    if (subscriptionFilter === 'subscribed') {
+      return await selectAsync(
+        'Select an account:',
+        subscribedAccounts.map(account => ({
+          title: account.name,
+          value: account,
+          description: `Current plan: ${account.subscription?.name ?? 'Paid'}`,
+        })),
+        { initial: subscribedAccounts[0] }
+      );
+    }
+
+    const choices = [
+      ...unsubscribedAccounts.map(account => ({
+        title: account.name,
+        value: account,
+        description: `Current plan: ${account.subscription?.name ?? 'Free'}`,
+        disabled: false,
+      })),
+      ...subscribedAccounts.map(account => ({
+        title: account.name,
+        value: account,
+        description: `Current plan: ${account.subscription?.name ?? 'Paid'}`,
+        disabled: true,
+      })),
+    ];
+
+    return await selectAsync('Select an account:', choices, {
+      initial: unsubscribedAccounts[0],
+      warningMessageForDisabledEntries:
+        'This account already has a paid plan. Run eas billing:manage to change it.',
+    });
   }
 
   if (billingAccounts.length === 1) {
@@ -89,33 +194,6 @@ export async function resolveBillingAccountAsync({
     throw new Error(
       'The --account flag must be provided when running in `--non-interactive` mode and you can manage billing for more than one account.'
     );
-  }
-
-  if (requireUnsubscribed) {
-    const choices = await Promise.all(
-      billingAccounts.map(async account => {
-        const subscription = await AccountQuery.getSubscriptionAsync(graphqlClient, account.id);
-        const paidSubscription = hasPaidSubscription(subscription);
-        return {
-          title: account.name,
-          value: { id: account.id, name: account.name, subscription },
-          description: `Current plan: ${subscription?.name ?? (paidSubscription ? 'Paid' : 'Free')}`,
-          disabled: paidSubscription,
-        };
-      })
-    );
-
-    if (choices.every(choice => choice.disabled)) {
-      throw new Error(
-        'All available accounts already have a paid plan. Run eas billing:manage to change an existing subscription.'
-      );
-    }
-
-    return await selectAsync('Select an account:', choices, {
-      initial: choices.find(choice => !choice.disabled)?.value,
-      warningMessageForDisabledEntries:
-        'This account already has a paid plan. Run eas billing:manage to change it.',
-    });
   }
 
   return await selectAsync(
