@@ -10,7 +10,10 @@ import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { confirmAsync, selectAsync } from '../../prompts';
-import { formatSubmissionChoice, getRecentSubmissionsAsync } from '../../submit/queries';
+import {
+  formatSubmissionChoice,
+  getRecentSubmissionsWithStatusesAsync,
+} from '../../submit/queries';
 
 const CANCELLABLE_STATUSES = [
   SubmissionStatus.AwaitingBuild,
@@ -26,11 +29,12 @@ export async function selectSubmissionToCancelAsync(
 ): Promise<string | null> {
   const spinner = ora().start('Fetching the uncompleted submissions…');
 
-  let submissions;
+  let cancellableSubmissions;
   try {
-    submissions = await getRecentSubmissionsAsync(graphqlClient, {
+    cancellableSubmissions = await getRecentSubmissionsWithStatusesAsync(graphqlClient, {
       projectId,
-      filter: { platform },
+      platform,
+      statuses: CANCELLABLE_STATUSES,
     });
     spinner.stop();
   } catch (error) {
@@ -39,9 +43,6 @@ export async function selectSubmissionToCancelAsync(
     );
     throw error;
   }
-  const cancellableSubmissions = submissions.filter(submission =>
-    CANCELLABLE_STATUSES.includes(submission.status)
-  );
   if (cancellableSubmissions.length === 0) {
     Log.warn(`We couldn't find any uncompleted submissions for the project ${projectDisplayName}.`);
     return null;

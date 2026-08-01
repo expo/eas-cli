@@ -6,7 +6,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, SubmissionStatus } from '../../graphql/generated';
 import { SubmissionMutation } from '../../graphql/mutations/SubmissionMutation';
 import { SubmissionQuery } from '../../graphql/queries/SubmissionQuery';
 import Log from '../../log';
@@ -14,7 +14,10 @@ import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { selectAsync } from '../../prompts';
-import { formatSubmissionChoice, getRecentSubmissionsAsync } from '../../submit/queries';
+import {
+  formatSubmissionChoice,
+  getRecentSubmissionsWithStatusesAsync,
+} from '../../submit/queries';
 import { printSubmissionDetailsUrls } from '../../submit/utils/urls';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
@@ -28,9 +31,12 @@ async function selectSubmissionToRetryAsync(
 
   let submissions;
   try {
-    submissions = await getRecentSubmissionsAsync(graphqlClient, {
+    // Only failed submissions can be retried, so filter by status on the server — recent
+    // finished submissions must not push retryable ones off the page.
+    submissions = await getRecentSubmissionsWithStatusesAsync(graphqlClient, {
       projectId,
-      filter: { platform },
+      platform,
+      statuses: [SubmissionStatus.Errored],
     });
     spinner.stop();
   } catch (error) {

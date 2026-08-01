@@ -100,6 +100,38 @@ export async function getRecentSubmissionsAsync(
   });
 }
 
+/**
+ * Fetch a page per status and merge, newest first. The GraphQL filter takes a single status;
+ * fetching one unfiltered page instead would let recent finished submissions push older
+ * still-active ones off the page.
+ */
+export async function getRecentSubmissionsWithStatusesAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    platform,
+    statuses,
+  }: {
+    projectId: string;
+    platform?: AppPlatform;
+    statuses: SubmissionStatus[];
+  }
+): Promise<SubmissionWithSubmittedBuildFragment[]> {
+  const pages = await Promise.all(
+    statuses.map(status =>
+      SubmissionQuery.allForAppAsync(graphqlClient, projectId, {
+        limit: SUBMISSIONS_LIMIT,
+        offset: 0,
+        platform,
+        status,
+      })
+    )
+  );
+  return pages
+    .flat()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export function formatSubmissionChoice(submission: SubmissionWithSubmittedBuildFragment): string {
   const platform = appPlatformDisplayNames[submission.platform];
   const status = submission.status.toLowerCase().replace(/_/g, ' ');
