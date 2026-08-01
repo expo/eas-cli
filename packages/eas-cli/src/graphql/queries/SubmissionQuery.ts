@@ -7,12 +7,16 @@ import {
   AppPlatform,
   GetAllSubmissionsForAppQuery,
   GetAllSubmissionsForAppQueryVariables,
+  SubmissionByIdWithSubmittedBuildQuery,
+  SubmissionByIdWithSubmittedBuildQueryVariables,
   SubmissionFragment,
   SubmissionStatus,
+  SubmissionWithSubmittedBuildFragment,
   SubmissionsByIdQuery,
   SubmissionsByIdQueryVariables,
 } from '../generated';
 import { SubmissionFragmentNode } from '../types/Submission';
+import { SubmissionWithSubmittedBuildFragmentNode } from '../types/SubmissionWithSubmittedBuild';
 
 type Filters = {
   platform?: AppPlatform;
@@ -52,11 +56,40 @@ export const SubmissionQuery = {
     return data.submissions.byId;
   },
 
+  async byIdWithSubmittedBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    submissionId: string
+  ): Promise<SubmissionWithSubmittedBuildFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          SubmissionByIdWithSubmittedBuildQuery,
+          SubmissionByIdWithSubmittedBuildQueryVariables
+        >(
+          gql`
+            query SubmissionByIdWithSubmittedBuildQuery($submissionId: ID!) {
+              submissions {
+                byId(submissionId: $submissionId) {
+                  id
+                  ...SubmissionWithSubmittedBuildFragment
+                }
+              }
+            }
+            ${print(SubmissionWithSubmittedBuildFragmentNode)}
+          `,
+          { submissionId },
+          { additionalTypenames: ['Submission'] }
+        )
+        .toPromise()
+    );
+    return data.submissions.byId;
+  },
+
   async allForAppAsync(
     graphqlClient: ExpoGraphqlClient,
     appId: string,
     { limit = 10, offset = 0, status, platform }: Filters
-  ): Promise<SubmissionFragment[]> {
+  ): Promise<SubmissionWithSubmittedBuildFragment[]> {
     const data = await withErrorHandlingAsync(
       graphqlClient
         .query<GetAllSubmissionsForAppQuery, GetAllSubmissionsForAppQueryVariables>(
@@ -77,12 +110,12 @@ export const SubmissionQuery = {
                     limit: $limit
                   ) {
                     id
-                    ...SubmissionFragment
+                    ...SubmissionWithSubmittedBuildFragment
                   }
                 }
               }
             }
-            ${print(SubmissionFragmentNode)}
+            ${print(SubmissionWithSubmittedBuildFragmentNode)}
           `,
           { appId, offset, limit, status, platform },
           { additionalTypenames: ['Submission'] }

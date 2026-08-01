@@ -180,6 +180,8 @@ export type Account = {
   ssoConfiguration?: Maybe<AccountSsoConfiguration>;
   /** Subscription info visible to members that have VIEWER role */
   subscription?: Maybe<SubscriptionDetails>;
+  /** Supabase connection for this account */
+  supabaseConnection?: Maybe<SupabaseConnection>;
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
   updatedAt: Scalars['DateTime']['output'];
@@ -1494,6 +1496,7 @@ export type App = Project & {
   submissions: Array<Submission>;
   submissionsPaginated: AppSubmissionsConnection;
   suggestedDevDomainName: Scalars['String']['output'];
+  supabaseProject?: Maybe<SupabaseProject>;
   /** Coalesced project activity for an app using pagination */
   timelineActivity: TimelineActivityConnection;
   turtleBrownfieldArtifactsPaginated: BrownfieldArtifactsConnection;
@@ -2875,15 +2878,16 @@ export type AppObserveOverviewUpdate = {
   __typename?: 'AppObserveOverviewUpdate';
   /** Null for the embedded bundle. */
   appUpdateId?: Maybe<Scalars['ID']['output']>;
-  /** Downloads recorded in range; null when none were recorded (and always for the embedded bundle). */
+  /** Downloads recorded in range across platforms; null when none were recorded (and always for the embedded bundle). */
   downloadCount?: Maybe<Scalars['Int']['output']>;
+  /** One entry per platform with downloads in range; empty for the embedded bundle. */
+  downloads: Array<AppObserveOverviewUpdateDownload>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
   isEmbedded: Scalars['Boolean']['output'];
-  medianDownloadTime?: Maybe<Scalars['Float']['output']>;
   /** EAS update message; null for the embedded bundle or when the update row no longer exists. */
   message?: Maybe<Scalars['String']['output']>;
-  /** One entry per metric with data in range, all platforms combined. */
+  /** One entry per (metric, platform) with data in range. */
   metrics: Array<AppObserveOverviewUpdateMetric>;
   /** When the update was published; null for the embedded bundle. */
   publishedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -2906,10 +2910,18 @@ export type AppObserveOverviewUpdateComparisonInput = {
   startTime: Scalars['DateTime']['input'];
 };
 
+export type AppObserveOverviewUpdateDownload = {
+  __typename?: 'AppObserveOverviewUpdateDownload';
+  downloadCount: Scalars['Int']['output'];
+  medianDownloadTime: Scalars['Float']['output'];
+  platform: AppObservePlatform;
+};
+
 export type AppObserveOverviewUpdateMetric = {
   __typename?: 'AppObserveOverviewUpdateMetric';
   eventCount: Scalars['Int']['output'];
   metricName: Scalars['String']['output'];
+  platform: AppObservePlatform;
   statistics: AppObserveVersionMarkerStatistics;
 };
 
@@ -4177,6 +4189,10 @@ export enum BackgroundJobState {
   Success = 'SUCCESS'
 }
 
+export type BeginSupabaseOAuthInput = {
+  accountId: Scalars['ID']['input'];
+};
+
 export type Billing = {
   __typename?: 'Billing';
   /** History of invoices */
@@ -4890,6 +4906,11 @@ export type CodeSigningInfoInput = {
 };
 
 export type CompletePostHogConnectionInput = {
+  code: Scalars['String']['input'];
+  state: Scalars['ID']['input'];
+};
+
+export type CompleteSupabaseOAuthInput = {
   code: Scalars['String']['input'];
   state: Scalars['ID']['input'];
 };
@@ -5897,6 +5918,8 @@ export type DeviceRunSessionEventLogUploadSession = {
 };
 
 export type DeviceRunSessionFilterInput = {
+  /** Case-insensitive prefix match on the session name. */
+  name?: InputMaybe<Scalars['String']['input']>;
   platforms?: InputMaybe<Array<AppPlatform>>;
   statuses?: InputMaybe<Array<DeviceRunSessionStatus>>;
   types?: InputMaybe<Array<DeviceRunSessionType>>;
@@ -6856,12 +6879,15 @@ export enum EntityTypeName {
   CustomerEntity = 'CustomerEntity',
   EchoProjectEntity = 'EchoProjectEntity',
   EchoVersionEntity = 'EchoVersionEntity',
+  EnvironmentVariableEntity = 'EnvironmentVariableEntity',
   GoogleServiceAccountKeyEntity = 'GoogleServiceAccountKeyEntity',
   IosAppCredentialsEntity = 'IosAppCredentialsEntity',
   LogRocketOrganizationEntity = 'LogRocketOrganizationEntity',
   LogRocketProjectEntity = 'LogRocketProjectEntity',
   PostHogOrganizationConnectionEntity = 'PostHogOrganizationConnectionEntity',
   PostHogProjectEntity = 'PostHogProjectEntity',
+  SupabaseConnectionEntity = 'SupabaseConnectionEntity',
+  SupabaseProjectEntity = 'SupabaseProjectEntity',
   UserInvitationEntity = 'UserInvitationEntity',
   UserPermissionEntity = 'UserPermissionEntity',
   VexoAccountConnectionEntity = 'VexoAccountConnectionEntity',
@@ -8254,15 +8280,29 @@ export type JobRunError = {
   message: Scalars['String']['output'];
 };
 
+export type JobRunLogsCentrifugoSubscriptionToken = {
+  __typename?: 'JobRunLogsCentrifugoSubscriptionToken';
+  channel: Scalars['String']['output'];
+  token: Scalars['String']['output'];
+};
+
 export type JobRunMutation = {
   __typename?: 'JobRunMutation';
   /** Cancel an EAS Job Run */
   cancelJobRun: JobRun;
+  /** Generate a token for subscribing to an EAS Job Run log channel */
+  generateLogsCentrifugoSubscriptionToken: JobRunLogsCentrifugoSubscriptionToken;
 };
 
 
 export type JobRunMutationCancelJobRunArgs = {
   jobRunId: Scalars['ID']['input'];
+};
+
+
+export type JobRunMutationGenerateLogsCentrifugoSubscriptionTokenArgs = {
+  jobRunId: Scalars['ID']['input'];
+  thread?: InputMaybe<Scalars['String']['input']>;
 };
 
 export enum JobRunPriority {
@@ -8348,6 +8388,11 @@ export type LinkSentryInstallationToExpoAccountInput = {
   code: Scalars['String']['input'];
   installationId: Scalars['ID']['input'];
   sentryOrgSlug: Scalars['String']['input'];
+};
+
+export type LinkSupabaseProjectInput = {
+  appId: Scalars['ID']['input'];
+  supabaseProjectRef: Scalars['String']['input'];
 };
 
 export type LocalBuildArchiveSourceInput = {
@@ -8952,6 +8997,20 @@ export type ProjectPublicData = {
   id: Scalars['ID']['output'];
 };
 
+export type ProvisionAdditionalSupabaseProjectInput = {
+  appId: Scalars['ID']['input'];
+  /** Suffix appended to the app name for the new Supabase project (e.g. preview). */
+  projectNameSuffix: Scalars['String']['input'];
+  /** A Supabase region code (e.g. us-east-1) or smart-group (americas, emea, apac). */
+  region: Scalars['String']['input'];
+};
+
+export type ProvisionSupabaseProjectInput = {
+  appId: Scalars['ID']['input'];
+  /** A Supabase region code (e.g. us-east-1) or smart-group (americas, emea, apac). */
+  region: Scalars['String']['input'];
+};
+
 export type PublicArtifacts = {
   __typename?: 'PublicArtifacts';
   applicationArchiveUrl?: Maybe<Scalars['String']['output']>;
@@ -8975,6 +9034,17 @@ export type PublishUpdateGroupInput = {
   runtimeVersion: Scalars['String']['input'];
   turtleJobRunId?: InputMaybe<Scalars['String']['input']>;
   updateInfoGroup?: InputMaybe<UpdateInfoGroup>;
+};
+
+export type RealtimeLogsCentrifugoConnectionToken = {
+  __typename?: 'RealtimeLogsCentrifugoConnectionToken';
+  token: Scalars['String']['output'];
+};
+
+export type RealtimeLogsMutation = {
+  __typename?: 'RealtimeLogsMutation';
+  /** Generate a token for connecting to EAS Logs Centrifugo */
+  generateCentrifugoConnectionToken: RealtimeLogsCentrifugoConnectionToken;
 };
 
 export type RemoteAppStoreConnectApp = {
@@ -9257,6 +9327,7 @@ export type RootMutation = {
   notificationPreference: NotificationPreferenceMutation;
   posthogOrganizationConnection: PostHogOrganizationConnectionMutation;
   posthogProject: PostHogProjectMutation;
+  realtimeLogs: RealtimeLogsMutation;
   /** Mutations that create, update, and delete Robots */
   robot: RobotMutation;
   /** Mutations for Sentry installations */
@@ -9265,6 +9336,8 @@ export type RootMutation = {
   sentryProject: SentryProjectMutation;
   /** Mutations that modify an EAS Submit submission */
   submission: SubmissionMutation;
+  supabaseConnection: SupabaseConnectionMutation;
+  supabaseProject: SupabaseProjectMutation;
   tunnels: TunnelsMutation;
   turtleBrownfieldArtifacts: TurtleBrownfieldArtifactMutation;
   update: UpdateMutation;
@@ -9757,6 +9830,11 @@ export type ServeSimRunSessionRemoteConfig = {
   streamUrl?: Maybe<Scalars['String']['output']>;
 };
 
+export type SetSupabaseConnectionOrganizationInput = {
+  organizationSlug: Scalars['String']['input'];
+  supabaseConnectionId: Scalars['ID']['input'];
+};
+
 export type SetupConvexProjectInput = {
   appId: Scalars['ID']['input'];
   convexTeamConnectionId: Scalars['ID']['input'];
@@ -10101,6 +10179,138 @@ export type SubscriptionDetails = {
 
 export type SubscriptionDetailsPlanEnablementArgs = {
   serviceMetric: EasServiceMetric;
+};
+
+export type SupabaseConnection = {
+  __typename?: 'SupabaseConnection';
+  account: Account;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  supabaseOrganizationName: Scalars['String']['output'];
+  /** The organization new projects are provisioned under. Chosen at connect time; defaults to the first. */
+  supabaseOrganizationSlug: Scalars['String']['output'];
+  supabaseProjects: Array<SupabaseProject>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type SupabaseConnectionMutation = {
+  __typename?: 'SupabaseConnectionMutation';
+  /** Begins a Supabase connection: creates the PKCE handoff and returns the authorize URL. */
+  beginSupabaseOAuth: SupabaseOAuthStart;
+  /**
+   * Completes a connection from the browser callback: exchanges the authorization code with the
+   * stored PKCE verifier and persists the connection.
+   */
+  completeSupabaseOAuth: SupabaseConnection;
+  /** Removes the Expo-side connection only; the Supabase organization and its projects are preserved. */
+  disconnectSupabase: Scalars['ID']['output'];
+  /**
+   * Live list of Supabase organizations this connection can access (Management API). Used once at
+   * connect-time for the org picker — not a type field, so casual connection reads stay cheap.
+   */
+  listSupabaseOrganizations: Array<SupabaseOrganization>;
+  /** Sets which Supabase organization new projects are provisioned under (the connect-time picker). */
+  setSupabaseConnectionOrganization: SupabaseConnection;
+};
+
+
+export type SupabaseConnectionMutationBeginSupabaseOAuthArgs = {
+  input: BeginSupabaseOAuthInput;
+};
+
+
+export type SupabaseConnectionMutationCompleteSupabaseOAuthArgs = {
+  input: CompleteSupabaseOAuthInput;
+};
+
+
+export type SupabaseConnectionMutationDisconnectSupabaseArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type SupabaseConnectionMutationListSupabaseOrganizationsArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
+export type SupabaseConnectionMutationSetSupabaseConnectionOrganizationArgs = {
+  input: SetSupabaseConnectionOrganizationInput;
+};
+
+/**
+ * Handoff for the browser OAuth step. The CLI opens `url`, and once the user authorizes,
+ * the website callback completes the connection; the CLI polls for it with `state`.
+ */
+export type SupabaseOAuthStart = {
+  __typename?: 'SupabaseOAuthStart';
+  state: Scalars['ID']['output'];
+  url: Scalars['String']['output'];
+};
+
+export type SupabaseOrganization = {
+  __typename?: 'SupabaseOrganization';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  slug: Scalars['String']['output'];
+};
+
+export type SupabaseProject = {
+  __typename?: 'SupabaseProject';
+  app: App;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  supabaseConnection: SupabaseConnection;
+  supabaseProjectName: Scalars['String']['output'];
+  supabaseProjectRef: Scalars['String']['output'];
+  supabaseProjectUrl: Scalars['String']['output'];
+  supabaseRegion: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type SupabaseProjectMutation = {
+  __typename?: 'SupabaseProjectMutation';
+  /** Removes the Expo-side project link only; the Supabase project is preserved. */
+  deleteSupabaseProject: Scalars['ID']['output'];
+  /**
+   * Live publishable (anon) key for the app's linked Supabase project (Management API). Never
+   * stored — null while the project is still provisioning. Used by the CLI to write EAS env vars.
+   */
+  fetchSupabasePublishableKey?: Maybe<Scalars['String']['output']>;
+  /** Links an existing Supabase project (by ref) to the app. */
+  linkSupabaseProject: SupabaseProject;
+  /**
+   * Schedules an additional hosted Supabase project for selected EAS environments. Does not replace
+   * the app's primary linked project — poll the receipt for ref/url/publishableKey in resultData.
+   */
+  provisionAdditionalSupabaseProject: BackgroundJobReceipt;
+  /** Schedules provisioning of a new Supabase project for the app. Poll the returned receipt until success, then read app.supabaseProject. */
+  provisionSupabaseProject: BackgroundJobReceipt;
+};
+
+
+export type SupabaseProjectMutationDeleteSupabaseProjectArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type SupabaseProjectMutationFetchSupabasePublishableKeyArgs = {
+  appId: Scalars['ID']['input'];
+};
+
+
+export type SupabaseProjectMutationLinkSupabaseProjectArgs = {
+  input: LinkSupabaseProjectInput;
+};
+
+
+export type SupabaseProjectMutationProvisionAdditionalSupabaseProjectArgs = {
+  input: ProvisionAdditionalSupabaseProjectInput;
+};
+
+
+export type SupabaseProjectMutationProvisionSupabaseProjectArgs = {
+  input: ProvisionSupabaseProjectInput;
 };
 
 export enum TargetEntityMutationType {
@@ -12400,7 +12610,7 @@ export type WorkflowDeviceTestCaseResult = {
 export type WorkflowDeviceTestCaseResultInput = {
   /** Execution time in milliseconds. Must be non-negative. */
   duration?: InputMaybe<Scalars['Int']['input']>;
-  /** Error message if failed. Max 4096 characters. */
+  /** Error message if failed. Truncated to 4096 characters. */
   errorMessage?: InputMaybe<Scalars['String']['input']>;
   /** Test case name (e.g., "login", "checkout"). Max 255 characters. */
   name: Scalars['String']['input'];
@@ -14116,6 +14326,20 @@ export type CreateIosSubmissionMutationVariables = Exact<{
 
 export type CreateIosSubmissionMutation = { __typename?: 'RootMutation', submission: { __typename?: 'SubmissionMutation', createIosSubmission: { __typename?: 'CreateSubmissionResult', submission: { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null } } } };
 
+export type CancelSubmissionMutationVariables = Exact<{
+  submissionId: Scalars['ID']['input'];
+}>;
+
+
+export type CancelSubmissionMutation = { __typename?: 'RootMutation', submission: { __typename?: 'SubmissionMutation', cancelSubmission: { __typename?: 'Submission', id: string, status: SubmissionStatus } } };
+
+export type RetrySubmissionMutationVariables = Exact<{
+  parentSubmissionId: Scalars['ID']['input'];
+}>;
+
+
+export type RetrySubmissionMutation = { __typename?: 'RootMutation', submission: { __typename?: 'SubmissionMutation', retrySubmission: { __typename?: 'CreateSubmissionResult', submission: { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null } } } };
+
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
   filename?: InputMaybe<Scalars['String']['input']>;
@@ -14811,6 +15035,21 @@ export type SubmissionsByIdQueryVariables = Exact<{
 
 export type SubmissionsByIdQuery = { __typename?: 'RootQuery', submissions: { __typename?: 'SubmissionQuery', byId: { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null } } };
 
+export type SubmissionByIdWithSubmittedBuildQueryVariables = Exact<{
+  submissionId: Scalars['ID']['input'];
+}>;
+
+
+export type SubmissionByIdWithSubmittedBuildQuery = { __typename?: 'RootQuery', submissions: { __typename?: 'SubmissionQuery', byId: { __typename?: 'Submission', id: string, createdAt: any, completedAt?: any | null, canRetry: boolean, maxRetryTimeMinutes: number, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, submittedBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+          | { __typename: 'PartnerActor', id: string, displayName: string }
+          | { __typename: 'Robot', id: string, displayName: string }
+          | { __typename: 'SSOUser', id: string, displayName: string }
+          | { __typename: 'User', id: string, displayName: string }
+         | null, project:
+          | { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }
+          | { __typename: 'Snack', id: string, name: string, slug: string }
+        , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null } } };
+
 export type GetAllSubmissionsForAppQueryVariables = Exact<{
   appId: Scalars['String']['input'];
   offset: Scalars['Int']['input'];
@@ -14820,7 +15059,15 @@ export type GetAllSubmissionsForAppQueryVariables = Exact<{
 }>;
 
 
-export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
+export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, submissions: Array<{ __typename?: 'Submission', id: string, createdAt: any, completedAt?: any | null, canRetry: boolean, maxRetryTimeMinutes: number, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, submittedBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+            | { __typename: 'PartnerActor', id: string, displayName: string }
+            | { __typename: 'Robot', id: string, displayName: string }
+            | { __typename: 'SSOUser', id: string, displayName: string }
+            | { __typename: 'User', id: string, displayName: string }
+           | null, project:
+            | { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }
+            | { __typename: 'Snack', id: string, name: string, slug: string }
+          , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
 
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
@@ -15157,6 +15404,16 @@ export type RuntimeFragment = { __typename?: 'Runtime', id: string, version: str
 export type StatuspageServiceFragment = { __typename?: 'StatuspageService', id: string, name: StatuspageServiceName, status: StatuspageServiceStatus, incidents: Array<{ __typename?: 'StatuspageIncident', id: string, status: StatuspageIncidentStatus, name: string, impact: StatuspageIncidentImpact, shortlink: string }> };
 
 export type SubmissionFragment = { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
+
+export type SubmissionWithSubmittedBuildFragment = { __typename?: 'Submission', id: string, createdAt: any, completedAt?: any | null, canRetry: boolean, maxRetryTimeMinutes: number, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, submittedBuild?: { __typename?: 'Build', id: string, status: BuildStatus, platform: AppPlatform, logFiles: Array<string>, channel?: string | null, distribution?: DistributionType | null, iosEnterpriseProvisioning?: BuildIosEnterpriseProvisioning | null, buildProfile?: string | null, sdkVersion?: string | null, appVersion?: string | null, appBuildVersion?: string | null, runtimeVersion?: string | null, gitCommitHash?: string | null, gitCommitMessage?: string | null, initialQueuePosition?: number | null, queuePosition?: number | null, estimatedWaitTimeLeftSeconds?: number | null, priority: BuildPriority, createdAt: any, updatedAt: any, message?: string | null, completedAt?: any | null, expirationDate?: any | null, isForIosSimulator: boolean, error?: { __typename?: 'BuildError', errorCode: string, message: string, docsUrl?: string | null } | null, artifacts?: { __typename?: 'BuildArtifacts', buildUrl?: string | null, xcodeBuildLogsUrl?: string | null, applicationArchiveUrl?: string | null, buildArtifactsUrl?: string | null } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string } | null, initiatingActor?:
+      | { __typename: 'PartnerActor', id: string, displayName: string }
+      | { __typename: 'Robot', id: string, displayName: string }
+      | { __typename: 'SSOUser', id: string, displayName: string }
+      | { __typename: 'User', id: string, displayName: string }
+     | null, project:
+      | { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }
+      | { __typename: 'Snack', id: string, name: string, slug: string }
+    , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }
