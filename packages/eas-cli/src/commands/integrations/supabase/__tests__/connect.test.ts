@@ -434,7 +434,7 @@ describe(IntegrationsSupabaseConnect, () => {
     await expect(
       createCommand(['--environment', 'preview', '--region', 'americas', '--overwrite']).runAsync()
     ).rejects.toThrow(
-      /maximum limits for the number of active free projects[\s\S]*--environment preview --link <project-url>/
+      /maximum limits for the number of active free projects[\s\S]*--environment preview(?!.*--link)/
     );
   });
 
