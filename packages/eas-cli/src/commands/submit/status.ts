@@ -16,7 +16,7 @@ import { resolveTestFlightAppAsync } from '../../testflight/app';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 const ANDROID_STATUS_UNAVAILABLE_MESSAGE =
-  'Google Play status is not available yet. EAS cannot read the live Play Console state, and the Play Console is the source of truth. Run `eas submit:list -p android` to see recent Android submissions.';
+  'Google Play app status is not available through EAS yet. Run `eas submit:list -p android` to see recent Android submissions.';
 
 export default class SubmissionStatus extends EasCommand {
   static override description =
@@ -26,7 +26,7 @@ export default class SubmissionStatus extends EasCommand {
     '  - eas.json submit profile: ascApiKeyPath, ascApiKeyId, ascApiKeyIssuerId\n' +
     '  - EAS credentials service: run `eas credentials` to set up an API key\n' +
     'Without a key, the command offers an interactive Apple login; in non-interactive mode it fails.\n\n' +
-    'Google Play status is not available yet: EAS cannot read the live Play Console state. Use `eas submit:list -p android` to see recent Android submissions.';
+    'Google Play app status is not available through EAS yet. Run `eas submit:list -p android` to see recent Android submissions.';
 
   static override examples = [
     '$ eas submit:status  \t # live App Store version and TestFlight builds',
