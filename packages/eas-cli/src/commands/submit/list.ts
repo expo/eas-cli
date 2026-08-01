@@ -52,15 +52,15 @@ export default class SubmissionList extends EasCommand {
     const paginatedQueryOptions = getPaginatedQueryOptions(flags);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const { platform: requestedPlatform, status: submissionStatus } = flags;
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SubmissionList, {
       nonInteractive,
     });
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlSubmissionStatus = toGraphQLSubmissionStatus(submissionStatus);

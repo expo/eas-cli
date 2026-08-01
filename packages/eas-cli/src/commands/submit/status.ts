@@ -57,6 +57,11 @@ export default class SubmissionStatus extends EasCommand {
     const { flags } = await this.parse(SubmissionStatus);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
     const requestedPlatform = flags.platform ?? RequestedPlatform.All;
+    // Redirect stdout before context setup — resolving the project config can log messages,
+    // and with --json those must go to stderr.
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
 
     const {
       loggedIn: { actor, graphqlClient },
@@ -67,9 +72,6 @@ export default class SubmissionStatus extends EasCommand {
       nonInteractive,
       withServerSideEnvironment: null,
     });
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const includeIos = [RequestedPlatform.All, RequestedPlatform.Ios].includes(requestedPlatform);
     const includeAndroid = [RequestedPlatform.All, RequestedPlatform.Android].includes(

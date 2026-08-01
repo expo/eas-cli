@@ -46,15 +46,15 @@ export default class SubmissionView extends EasCommand {
       );
     }
 
+    if (flags.json) {
+      enableJsonOutput();
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SubmissionView, {
       nonInteractive: true,
     });
-    if (flags.json) {
-      enableJsonOutput();
-    }
 
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 

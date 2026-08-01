@@ -95,15 +95,15 @@ export default class SubmissionRetry extends EasCommand {
       );
     }
 
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(SubmissionRetry, {
       nonInteractive,
     });
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
