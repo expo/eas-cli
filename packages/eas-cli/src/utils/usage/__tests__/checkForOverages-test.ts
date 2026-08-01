@@ -245,7 +245,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
 
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "You've used 10 builds beyond your included credits this billing period ($15.00 in overages so far)."
+        "You've used 10 builds beyond your included credits this billing period ($15.00 in additional usage so far)."
       )
     );
     expect(mockWarn).toHaveBeenCalledWith(
@@ -289,7 +289,7 @@ describe('maybeWarnAboutUsageOveragesAsync', () => {
 
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "You've used 3 builds beyond your included credits this billing period ($4.50 in overages so far)."
+        "You've used 3 builds beyond your included credits this billing period ($4.50 in additional usage so far)."
       )
     );
   });
@@ -558,7 +558,7 @@ describe('displayOverageWarning', () => {
 
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "You've used 10 builds beyond your included credits this billing period ($15.00 in overages so far)."
+        "You've used 10 builds beyond your included credits this billing period ($15.00 in additional usage so far)."
       )
     );
     expect(mockWarn).toHaveBeenCalledWith(
@@ -579,7 +579,7 @@ describe('displayOverageWarning', () => {
 
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "You've used 1 build beyond your included credits this billing period ($1.50 in overages so far)."
+        "You've used 1 build beyond your included credits this billing period ($1.50 in additional usage so far)."
       )
     );
   });
