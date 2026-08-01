@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add Supabase integration foundation: GraphQL client, shared integration helpers, and provisioning utilities. ([#4130](https://github.com/expo/eas-cli/pull/4130) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:supabase:connect` command. ([#4106](https://github.com/expo/eas-cli/pull/4106) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
