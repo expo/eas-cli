@@ -46,7 +46,10 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
             value: submission.androidConfig?.applicationIdentifier,
           },
           { label: 'Track', value: submission.androidConfig?.track?.toLowerCase() },
-          { label: 'Release Status', value: submission.androidConfig?.releaseStatus?.toLowerCase() },
+          {
+            label: 'Release Status',
+            value: submission.androidConfig?.releaseStatus?.toLowerCase(),
+          },
         ]
       : [{ label: 'ASC App ID', value: submission.iosConfig?.ascAppIdentifier }]),
     { label: 'Build ID', value: submittedBuild?.id },

@@ -293,7 +293,9 @@ export function renderAndroidTrackStatuses(statuses: AndroidTrackStatus[]): void
     if (status.submissionCompletedAt) {
       details.push(`submitted ${fromNow(new Date(status.submissionCompletedAt))} ago`);
     }
-    Log.log(`  ${status.track}: ${chalk.bold(version)}${details.length ? ` — ${details.join(', ')}` : ''}`);
+    Log.log(
+      `  ${status.track}: ${chalk.bold(version)}${details.length ? ` — ${details.join(', ')}` : ''}`
+    );
     const buildFields: FormatFieldsItem[] = [];
     if (status.runtimeVersion) {
       buildFields.push({ label: 'Runtime Version', value: status.runtimeVersion });

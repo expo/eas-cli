@@ -43,9 +43,7 @@ export async function selectSubmissionToCancelAsync(
     CANCELLABLE_STATUSES.includes(submission.status)
   );
   if (cancellableSubmissions.length === 0) {
-    Log.warn(
-      `We couldn't find any uncompleted submissions for the project ${projectDisplayName}.`
-    );
+    Log.warn(`We couldn't find any uncompleted submissions for the project ${projectDisplayName}.`);
     return null;
   } else {
     const submissionId = await selectAsync<string>(
