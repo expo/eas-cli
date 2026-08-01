@@ -81,7 +81,10 @@ const project: SupabaseProjectData = {
 describe('provision hints and poll errors', () => {
   it('builds failure hints', () => {
     expect(primaryProvisionFailureHint()).toContain('--link');
-    expect(additionalProvisionFailureHint(['preview'])).toContain('--environment preview');
+    const additional = additionalProvisionFailureHint(['preview']);
+    expect(additional).toContain('--environment preview');
+    expect(additional).not.toContain('--link');
+    expect(additional).toContain('EXPO_PUBLIC_SUPABASE_URL');
   });
 
   it('toProvisionPollError preserves non-poll errors', () => {
