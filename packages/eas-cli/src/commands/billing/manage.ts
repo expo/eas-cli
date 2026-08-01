@@ -48,6 +48,7 @@ export default class BillingManage extends EasCommand {
       actor,
       accountName: flags.account,
       nonInteractive,
+      subscriptionFilter: 'subscribed',
     });
 
     const billingClient = new BillingClient(authenticationInfo);

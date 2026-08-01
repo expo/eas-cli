@@ -55,17 +55,8 @@ export default class BillingSubscribe extends EasCommand {
     }
 
     let planSlug = PLAN as PlanSlug | undefined;
-    if (!planSlug) {
-      if (nonInteractive) {
-        throw new Error('The plan argument is required in non-interactive mode.');
-      }
-      planSlug = await selectAsync(
-        'Select a plan:',
-        PLAN_SLUGS.map(slug => ({
-          title: SUBSCRIBABLE_PLANS[slug].label,
-          value: slug,
-        }))
-      );
+    if (!planSlug && nonInteractive) {
+      throw new Error('The plan argument is required in non-interactive mode.');
     }
 
     const {
@@ -77,8 +68,18 @@ export default class BillingSubscribe extends EasCommand {
       actor,
       accountName: flags.account,
       nonInteractive,
-      requireUnsubscribed: true,
+      subscriptionFilter: 'unsubscribed',
     });
+
+    if (!planSlug) {
+      planSlug = await selectAsync(
+        'Select a plan:',
+        PLAN_SLUGS.map(slug => ({
+          title: SUBSCRIBABLE_PLANS[slug].label,
+          value: slug,
+        }))
+      );
+    }
 
     const plan = SUBSCRIBABLE_PLANS[planSlug];
 
