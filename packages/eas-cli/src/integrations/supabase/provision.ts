@@ -77,9 +77,9 @@ export function toProvisionPollError(error: unknown, { hint }: { hint: string })
 /** Fast-forward guidance when additional (--environment) provision fails permanently. */
 export function additionalProvisionFailureHint(environments: string[]): string {
   return [
-    'If a project already exists in your Supabase dashboard, point those environments at it with --link:',
-    `       eas integrations:supabase:connect --environment ${environments.join(',')} --link <project-url>`,
-    'Or free a slot on your Supabase plan (delete, pause, or upgrade a project), then re-run without --link.',
+    'Free a slot on your Supabase plan (delete, pause, or upgrade a project), then re-run:',
+    `       eas integrations:supabase:connect --environment ${environments.join(',')}`,
+    'Or set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY on those EAS environments to an existing Supabase project.',
   ].join('\n');
 }
 
