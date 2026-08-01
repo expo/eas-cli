@@ -5,7 +5,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { AppPlatform } from '../../graphql/generated';
+import { AppPlatform, SubmissionWithSubmittedBuildFragment } from '../../graphql/generated';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { RequestedPlatform } from '../../platform';
@@ -79,10 +79,26 @@ export default class SubmissionStatus extends EasCommand {
       requestedPlatform
     );
 
+    // Fetch each platform's page separately: one unfiltered page could fill up with
+    // submissions from the other platform and hide the requested platform's history.
     const spinner = ora().start('Fetching submissions…');
-    let easSubmissions;
+    let iosSubmissions: SubmissionWithSubmittedBuildFragment[] = [];
+    let androidSubmissions: SubmissionWithSubmittedBuildFragment[] = [];
     try {
-      easSubmissions = await getRecentSubmissionsAsync(graphqlClient, { projectId });
+      [iosSubmissions, androidSubmissions] = await Promise.all([
+        includeIos
+          ? getRecentSubmissionsAsync(graphqlClient, {
+              projectId,
+              filter: { platform: AppPlatform.Ios },
+            })
+          : [],
+        includeAndroid
+          ? getRecentSubmissionsAsync(graphqlClient, {
+              projectId,
+              filter: { platform: AppPlatform.Android },
+            })
+          : [],
+      ]);
       spinner.stop();
     } catch (error) {
       spinner.fail("Something went wrong and we couldn't fetch the submissions for this project.");
@@ -106,10 +122,7 @@ export default class SubmissionStatus extends EasCommand {
         });
         const ascSpinner = ora().start('Fetching App Store status…');
         try {
-          iosStatus = await getIosStoreStatusAsync(
-            app,
-            easSubmissions.filter(submission => submission.platform === AppPlatform.Ios)
-          );
+          iosStatus = await getIosStoreStatusAsync(app, iosSubmissions);
           ascSpinner.stop();
         } catch (error) {
           ascSpinner.fail("Something went wrong and we couldn't fetch the App Store status.");
@@ -126,7 +139,7 @@ export default class SubmissionStatus extends EasCommand {
       }
     }
 
-    const androidStatuses = includeAndroid ? getAndroidTrackStatuses(easSubmissions) : null;
+    const androidStatuses = includeAndroid ? getAndroidTrackStatuses(androidSubmissions) : null;
 
     if (jsonFlag) {
       printJsonOnlyOutput({
@@ -137,10 +150,7 @@ export default class SubmissionStatus extends EasCommand {
     }
 
     if (iosStatus) {
-      renderIosStoreStatus(
-        iosStatus,
-        easSubmissions.filter(submission => submission.platform === AppPlatform.Ios)
-      );
+      renderIosStoreStatus(iosStatus, iosSubmissions);
     }
     if (androidStatuses) {
       renderAndroidTrackStatuses(androidStatuses);

@@ -11,6 +11,7 @@ import {
 import Log, { link } from '../log';
 import { fromNow } from '../utils/date';
 import formatFields, { FormatFieldsItem } from '../utils/formatFields';
+import { sanitizeTerminalText } from '../utils/terminalText';
 
 const TESTFLIGHT_BUILDS_LIMIT = 5;
 
@@ -100,8 +101,8 @@ async function toStoreVersionStatusAsync(
     ? findEasSubmissionByBuildNumber(easSubmissions, buildNumber, version.attributes.versionString)
     : null;
   return {
-    versionString: version.attributes.versionString,
-    buildNumber,
+    versionString: sanitizeTerminalText(version.attributes.versionString),
+    buildNumber: buildNumber == null ? null : sanitizeTerminalText(buildNumber),
     state: version.attributes.appVersionState ?? version.attributes.appStoreState ?? null,
     ...toEasBuildLinkage(easSubmission),
   };
@@ -110,10 +111,11 @@ async function toStoreVersionStatusAsync(
 function toEasBuildLinkage(
   easSubmission: SubmissionWithSubmittedBuildFragment | null
 ): EasBuildLinkage {
+  const runtimeVersion = easSubmission?.submittedBuild?.runtimeVersion ?? null;
   return {
     easSubmissionId: easSubmission?.id ?? null,
     easBuildId: easSubmission?.submittedBuild?.id ?? null,
-    runtimeVersion: easSubmission?.submittedBuild?.runtimeVersion ?? null,
+    runtimeVersion: runtimeVersion == null ? null : sanitizeTerminalText(runtimeVersion),
     fingerprintHash: easSubmission?.submittedBuild?.fingerprint?.hash ?? null,
   };
 }
@@ -126,8 +128,8 @@ function toTestFlightBuildStatus(
   const appVersion = build.attributes.preReleaseVersion?.attributes.version ?? null;
   const easSubmission = findEasSubmissionByBuildNumber(easSubmissions, buildNumber, appVersion);
   return {
-    appVersion,
-    buildNumber,
+    appVersion: appVersion == null ? null : sanitizeTerminalText(appVersion),
+    buildNumber: sanitizeTerminalText(buildNumber),
     processingState: build.attributes.processingState,
     internalState: build.attributes.buildBetaDetail?.attributes.internalBuildState ?? null,
     externalState: build.attributes.buildBetaDetail?.attributes.externalBuildState ?? null,
@@ -171,16 +173,20 @@ export function getAndroidTrackStatuses(
   }
 
   return [...latestByTrack.entries()].map(([track, submission]) => ({
-    track,
-    appVersion: submission.submittedBuild?.appVersion ?? null,
-    versionCode: submission.submittedBuild?.appBuildVersion ?? null,
+    track: sanitizeTerminalText(track),
+    appVersion: sanitizeOptional(submission.submittedBuild?.appVersion),
+    versionCode: sanitizeOptional(submission.submittedBuild?.appBuildVersion),
     releaseStatus: submission.androidConfig?.releaseStatus ?? null,
     rollout: submission.androidConfig?.rollout ?? null,
     submissionId: submission.id,
     submissionCompletedAt: submission.completedAt ?? null,
-    runtimeVersion: submission.submittedBuild?.runtimeVersion ?? null,
+    runtimeVersion: sanitizeOptional(submission.submittedBuild?.runtimeVersion),
     fingerprintHash: submission.submittedBuild?.fingerprint?.hash ?? null,
   }));
+}
+
+function sanitizeOptional(value: string | null | undefined): string | null {
+  return value == null ? null : sanitizeTerminalText(value);
 }
 
 export function renderIosStoreStatus(

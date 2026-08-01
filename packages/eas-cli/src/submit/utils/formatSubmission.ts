@@ -9,6 +9,12 @@ import {
 import { link } from '../../log';
 import { appPlatformDisplayNames } from '../../platform';
 import formatFields from '../../utils/formatFields';
+import { sanitizeTerminalText } from '../../utils/terminalText';
+
+// Submission and build fields carry project-controlled text (versions, profiles, error
+// messages); strip control characters so a crafted value cannot spoof terminal output.
+const sanitize = (value: string | null | undefined): string | null | undefined =>
+  value == null ? value : sanitizeTerminalText(value);
 
 export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuildFragment): string {
   const { submittedBuild } = submission;
@@ -43,7 +49,7 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
       ? [
           {
             label: 'Application Identifier',
-            value: submission.androidConfig?.applicationIdentifier,
+            value: sanitize(submission.androidConfig?.applicationIdentifier),
           },
           { label: 'Track', value: submission.androidConfig?.track?.toLowerCase() },
           {
@@ -51,19 +57,19 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
             value: submission.androidConfig?.releaseStatus?.toLowerCase(),
           },
         ]
-      : [{ label: 'ASC App ID', value: submission.iosConfig?.ascAppIdentifier }]),
+      : [{ label: 'ASC App ID', value: sanitize(submission.iosConfig?.ascAppIdentifier) }]),
     { label: 'Build ID', value: submittedBuild?.id },
-    { label: 'Build Profile', value: submittedBuild?.buildProfile },
-    { label: 'App Version', value: submittedBuild?.appVersion },
+    { label: 'Build Profile', value: sanitize(submittedBuild?.buildProfile) },
+    { label: 'App Version', value: sanitize(submittedBuild?.appVersion) },
     {
       label: submission.platform === AppPlatform.Android ? 'Version code' : 'Build number',
-      value: submittedBuild?.appBuildVersion,
+      value: sanitize(submittedBuild?.appBuildVersion),
     },
-    { label: 'Runtime Version', value: submittedBuild?.runtimeVersion },
+    { label: 'Runtime Version', value: sanitize(submittedBuild?.runtimeVersion) },
     { label: 'Fingerprint', value: submittedBuild?.fingerprint?.hash },
-    { label: 'Commit', value: submittedBuild?.gitCommitHash },
-    { label: 'Error Code', value: submission.error?.errorCode },
-    { label: 'Error Message', value: submission.error?.message },
+    { label: 'Commit', value: sanitize(submittedBuild?.gitCommitHash) },
+    { label: 'Error Code', value: sanitize(submission.error?.errorCode) },
+    { label: 'Error Message', value: sanitize(submission.error?.message) },
     { label: 'Started at', value: new Date(submission.createdAt).toLocaleString() },
     {
       label: 'Finished at',
