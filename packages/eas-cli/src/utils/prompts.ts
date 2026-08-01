@@ -1,13 +1,11 @@
 import chalk from 'chalk';
 
-import { DefaultEnvironment } from '../build/utils/environment';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
+import { DEFAULT_ENVIRONMENTS } from '../environments/defaults';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
 import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
-
-const DEFAULT_ENVIRONMENTS = Object.values(DefaultEnvironment);
 
 export async function getProjectEnvironmentVariableEnvironmentsAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -19,8 +17,8 @@ export async function getProjectEnvironmentVariableEnvironmentsAsync(
       projectId
     );
     return environments;
-  } catch {
-    throw new Error('Failed to fetch available environments');
+  } catch (error) {
+    throw new Error('Failed to fetch available environments', { cause: error });
   }
 }
 
