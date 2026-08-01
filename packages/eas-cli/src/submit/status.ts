@@ -2,12 +2,7 @@ import { App, Platform as ApplePlatform, AppStoreVersion, Build } from '@expo/ap
 import chalk from 'chalk';
 
 import { getSubmissionDetailsUrl } from './utils/urls';
-import {
-  AppPlatform,
-  SubmissionAndroidReleaseStatus,
-  SubmissionStatus,
-  SubmissionWithSubmittedBuildFragment,
-} from '../graphql/generated';
+import { SubmissionWithSubmittedBuildFragment } from '../graphql/generated';
 import Log, { link } from '../log';
 import { fromNow } from '../utils/date';
 import formatFields, { FormatFieldsItem } from '../utils/formatFields';
@@ -44,18 +39,6 @@ export type IosStoreStatus = {
   inReview: IosStoreVersionStatus | null;
   pendingRelease: IosStoreVersionStatus | null;
   testFlightBuilds: IosTestFlightBuildStatus[];
-};
-
-export type AndroidTrackStatus = {
-  track: string;
-  appVersion: string | null;
-  versionCode: string | null;
-  releaseStatus: string | null;
-  rollout: number | null;
-  submissionId: string;
-  submissionCompletedAt: string | null;
-  runtimeVersion: string | null;
-  fingerprintHash: string | null;
 };
 
 export async function getIosStoreStatusAsync(
@@ -153,42 +136,6 @@ function findEasSubmissionByBuildNumber(
   );
 }
 
-export function getAndroidTrackStatuses(
-  easSubmissions: SubmissionWithSubmittedBuildFragment[]
-): AndroidTrackStatus[] {
-  const finishedSubmissions = easSubmissions.filter(
-    submission =>
-      submission.platform === AppPlatform.Android &&
-      submission.status === SubmissionStatus.Finished &&
-      submission.androidConfig?.track
-  );
-
-  const latestByTrack = new Map<string, SubmissionWithSubmittedBuildFragment>();
-  for (const submission of finishedSubmissions) {
-    const track = submission.androidConfig!.track;
-    // Submissions arrive newest-first, so the first one wins for each track.
-    if (!latestByTrack.has(track)) {
-      latestByTrack.set(track, submission);
-    }
-  }
-
-  return [...latestByTrack.entries()].map(([track, submission]) => ({
-    track: sanitizeTerminalText(track),
-    appVersion: sanitizeOptional(submission.submittedBuild?.appVersion),
-    versionCode: sanitizeOptional(submission.submittedBuild?.appBuildVersion),
-    releaseStatus: submission.androidConfig?.releaseStatus ?? null,
-    rollout: submission.androidConfig?.rollout ?? null,
-    submissionId: submission.id,
-    submissionCompletedAt: submission.completedAt ?? null,
-    runtimeVersion: sanitizeOptional(submission.submittedBuild?.runtimeVersion),
-    fingerprintHash: submission.submittedBuild?.fingerprint?.hash ?? null,
-  }));
-}
-
-function sanitizeOptional(value: string | null | undefined): string | null {
-  return value == null ? null : sanitizeTerminalText(value);
-}
-
 export function renderIosStoreStatus(
   status: IosStoreStatus,
   easSubmissions: SubmissionWithSubmittedBuildFragment[]
@@ -277,54 +224,6 @@ function logEasLinkage(
   );
 }
 
-export function renderAndroidTrackStatuses(statuses: AndroidTrackStatus[]): void {
-  Log.addNewLineIfNone();
-  Log.log(chalk.bold('Android — Google Play (from EAS submissions)'));
-  if (statuses.length === 0) {
-    Log.log(chalk.dim('  No finished submissions found.'));
-    return;
-  }
-  for (const status of statuses) {
-    const version =
-      status.appVersion || status.versionCode
-        ? `${status.appVersion ?? '?'} (${status.versionCode ?? '?'})`
-        : 'unknown version';
-    const details: string[] = [];
-    if (status.releaseStatus) {
-      details.push(`release status: ${formatAndroidReleaseStatus(status.releaseStatus)}`);
-    }
-    if (status.rollout != null) {
-      details.push(`rollout: ${Math.round(status.rollout * 100)}%`);
-    }
-    if (status.submissionCompletedAt) {
-      details.push(`submitted ${fromNow(new Date(status.submissionCompletedAt))} ago`);
-    }
-    Log.log(
-      `  ${status.track}: ${chalk.bold(version)}${details.length ? ` — ${details.join(', ')}` : ''}`
-    );
-    const buildFields: FormatFieldsItem[] = [];
-    if (status.runtimeVersion) {
-      buildFields.push({ label: 'Runtime Version', value: status.runtimeVersion });
-    }
-    if (status.fingerprintHash) {
-      buildFields.push({ label: 'Fingerprint', value: status.fingerprintHash });
-    }
-    if (buildFields.length > 0) {
-      Log.log(
-        formatFields(buildFields)
-          .split('\n')
-          .map(line => `    ${line}`)
-          .join('\n')
-      );
-    }
-  }
-  Log.log(
-    chalk.dim(
-      '  Play state is inferred from the latest finished EAS submission per track. Check the Play Console for the authoritative live state.'
-    )
-  );
-}
-
 function formatStoreState(state: string): string {
   const lower = state.toLowerCase().replace(/_/g, ' ');
   switch (state) {
@@ -353,18 +252,6 @@ function formatBetaState(state: string): string {
       return chalk.red(lower);
     case 'EXPIRED':
       return chalk.gray(lower);
-    default:
-      return chalk.blue(lower);
-  }
-}
-
-function formatAndroidReleaseStatus(releaseStatus: string): string {
-  const lower = releaseStatus.toLowerCase().replace(/_/g, ' ');
-  switch (releaseStatus) {
-    case SubmissionAndroidReleaseStatus.Completed:
-      return chalk.green(lower);
-    case SubmissionAndroidReleaseStatus.Halted:
-      return chalk.red(lower);
     default:
       return chalk.blue(lower);
   }
