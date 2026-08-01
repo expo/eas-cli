@@ -14,15 +14,20 @@ import formatFields, { FormatFieldsItem } from '../utils/formatFields';
 
 const TESTFLIGHT_BUILDS_LIMIT = 5;
 
-export type IosStoreVersionStatus = {
+export type EasBuildLinkage = {
+  easSubmissionId: string | null;
+  easBuildId: string | null;
+  runtimeVersion: string | null;
+  fingerprintHash: string | null;
+};
+
+export type IosStoreVersionStatus = EasBuildLinkage & {
   versionString: string;
   buildNumber: string | null;
   state: string | null;
-  easSubmissionId: string | null;
-  easBuildId: string | null;
 };
 
-export type IosTestFlightBuildStatus = {
+export type IosTestFlightBuildStatus = EasBuildLinkage & {
   appVersion: string | null;
   buildNumber: string;
   processingState: string;
@@ -30,8 +35,6 @@ export type IosTestFlightBuildStatus = {
   externalState: string | null;
   uploadedDate: string;
   expired: boolean;
-  easSubmissionId: string | null;
-  easBuildId: string | null;
 };
 
 export type IosStoreStatus = {
@@ -50,6 +53,8 @@ export type AndroidTrackStatus = {
   rollout: number | null;
   submissionId: string;
   submissionCompletedAt: string | null;
+  runtimeVersion: string | null;
+  fingerprintHash: string | null;
 };
 
 export async function getIosStoreStatusAsync(
@@ -98,8 +103,18 @@ async function toStoreVersionStatusAsync(
     versionString: version.attributes.versionString,
     buildNumber,
     state: version.attributes.appVersionState ?? version.attributes.appStoreState ?? null,
+    ...toEasBuildLinkage(easSubmission),
+  };
+}
+
+function toEasBuildLinkage(
+  easSubmission: SubmissionWithSubmittedBuildFragment | null
+): EasBuildLinkage {
+  return {
     easSubmissionId: easSubmission?.id ?? null,
     easBuildId: easSubmission?.submittedBuild?.id ?? null,
+    runtimeVersion: easSubmission?.submittedBuild?.runtimeVersion ?? null,
+    fingerprintHash: easSubmission?.submittedBuild?.fingerprint?.hash ?? null,
   };
 }
 
@@ -118,8 +133,7 @@ function toTestFlightBuildStatus(
     externalState: build.attributes.buildBetaDetail?.attributes.externalBuildState ?? null,
     uploadedDate: build.attributes.uploadedDate,
     expired: build.attributes.expired,
-    easSubmissionId: easSubmission?.id ?? null,
-    easBuildId: easSubmission?.submittedBuild?.id ?? null,
+    ...toEasBuildLinkage(easSubmission),
   };
 }
 
@@ -164,6 +178,8 @@ export function getAndroidTrackStatuses(
     rollout: submission.androidConfig?.rollout ?? null,
     submissionId: submission.id,
     submissionCompletedAt: submission.completedAt ?? null,
+    runtimeVersion: submission.submittedBuild?.runtimeVersion ?? null,
+    fingerprintHash: submission.submittedBuild?.fingerprint?.hash ?? null,
   }));
 }
 
@@ -203,7 +219,7 @@ export function renderIosStoreStatus(
     }
     const uploaded = `uploaded ${fromNow(new Date(build.uploadedDate))} ago`;
     Log.log(`  ${chalk.bold(version)} — ${states.join(', ')} — ${uploaded}`);
-    logEasLinkage(build.easSubmissionId, build.easBuildId, easSubmissions);
+    logEasLinkage(build, easSubmissions);
   }
 }
 
@@ -221,23 +237,31 @@ function renderStoreVersion(
     : version.versionString;
   const state = version.state ? formatStoreState(version.state) : '';
   Log.log(`  ${label}: ${chalk.bold(versionText)}${state ? ` — ${state}` : ''}`);
-  logEasLinkage(version.easSubmissionId, version.easBuildId, easSubmissions);
+  logEasLinkage(version, easSubmissions);
 }
 
 function logEasLinkage(
-  easSubmissionId: string | null,
-  easBuildId: string | null,
+  linkage: EasBuildLinkage,
   easSubmissions: SubmissionWithSubmittedBuildFragment[]
 ): void {
-  if (!easSubmissionId) {
+  if (!linkage.easSubmissionId) {
     return;
   }
-  const submission = easSubmissions.find(s => s.id === easSubmissionId);
+  const submission = easSubmissions.find(s => s.id === linkage.easSubmissionId);
   const fields: FormatFieldsItem[] = [
-    { label: 'EAS Submission', value: submission ? link(getSubmissionDetailsUrl(submission)) : easSubmissionId },
+    {
+      label: 'EAS Submission',
+      value: submission ? link(getSubmissionDetailsUrl(submission)) : linkage.easSubmissionId,
+    },
   ];
-  if (easBuildId) {
-    fields.push({ label: 'EAS Build ID', value: easBuildId });
+  if (linkage.easBuildId) {
+    fields.push({ label: 'EAS Build ID', value: linkage.easBuildId });
+  }
+  if (linkage.runtimeVersion) {
+    fields.push({ label: 'Runtime Version', value: linkage.runtimeVersion });
+  }
+  if (linkage.fingerprintHash) {
+    fields.push({ label: 'Fingerprint', value: linkage.fingerprintHash });
   }
   Log.log(
     formatFields(fields)
@@ -270,6 +294,21 @@ export function renderAndroidTrackStatuses(statuses: AndroidTrackStatus[]): void
       details.push(`submitted ${fromNow(new Date(status.submissionCompletedAt))} ago`);
     }
     Log.log(`  ${status.track}: ${chalk.bold(version)}${details.length ? ` — ${details.join(', ')}` : ''}`);
+    const buildFields: FormatFieldsItem[] = [];
+    if (status.runtimeVersion) {
+      buildFields.push({ label: 'Runtime Version', value: status.runtimeVersion });
+    }
+    if (status.fingerprintHash) {
+      buildFields.push({ label: 'Fingerprint', value: status.fingerprintHash });
+    }
+    if (buildFields.length > 0) {
+      Log.log(
+        formatFields(buildFields)
+          .split('\n')
+          .map(line => `    ${line}`)
+          .join('\n')
+      );
+    }
   }
   Log.log(
     chalk.dim(
