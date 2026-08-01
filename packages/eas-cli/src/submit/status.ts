@@ -83,9 +83,11 @@ async function toStoreVersionStatusAsync(
   const easSubmission = buildNumber
     ? findEasSubmissionByBuildNumber(easSubmissions, buildNumber, version.attributes.versionString)
     : null;
+  // Values stay raw here so --json reports exactly what the APIs returned; the render
+  // functions sanitize at print time.
   return {
-    versionString: sanitizeTerminalText(version.attributes.versionString),
-    buildNumber: buildNumber == null ? null : sanitizeTerminalText(buildNumber),
+    versionString: version.attributes.versionString,
+    buildNumber,
     state: version.attributes.appVersionState ?? version.attributes.appStoreState ?? null,
     ...toEasBuildLinkage(easSubmission),
   };
@@ -94,11 +96,10 @@ async function toStoreVersionStatusAsync(
 function toEasBuildLinkage(
   easSubmission: SubmissionWithSubmittedBuildFragment | null
 ): EasBuildLinkage {
-  const runtimeVersion = easSubmission?.submittedBuild?.runtimeVersion ?? null;
   return {
     easSubmissionId: easSubmission?.id ?? null,
     easBuildId: easSubmission?.submittedBuild?.id ?? null,
-    runtimeVersion: runtimeVersion == null ? null : sanitizeTerminalText(runtimeVersion),
+    runtimeVersion: easSubmission?.submittedBuild?.runtimeVersion ?? null,
     fingerprintHash: easSubmission?.submittedBuild?.fingerprint?.hash ?? null,
   };
 }
@@ -111,8 +112,8 @@ function toTestFlightBuildStatus(
   const appVersion = build.attributes.preReleaseVersion?.attributes.version ?? null;
   const easSubmission = findEasSubmissionByBuildNumber(easSubmissions, buildNumber, appVersion);
   return {
-    appVersion: appVersion == null ? null : sanitizeTerminalText(appVersion),
-    buildNumber: sanitizeTerminalText(buildNumber),
+    appVersion,
+    buildNumber,
     processingState: build.attributes.processingState,
     internalState: build.attributes.buildBetaDetail?.attributes.internalBuildState ?? null,
     externalState: build.attributes.buildBetaDetail?.attributes.externalBuildState ?? null,
@@ -156,7 +157,7 @@ export function renderIosStoreStatus(
     return;
   }
   for (const build of status.testFlightBuilds) {
-    const version = `${build.appVersion ?? '?'} (${build.buildNumber})`;
+    const version = sanitizeTerminalText(`${build.appVersion ?? '?'} (${build.buildNumber})`);
     const states: string[] = [];
     if (build.expired) {
       states.push(chalk.gray('expired'));
@@ -185,9 +186,11 @@ function renderStoreVersion(
     Log.log(`  ${chalk.dim(`${label}: none`)}`);
     return;
   }
-  const versionText = version.buildNumber
-    ? `${version.versionString} (${version.buildNumber})`
-    : version.versionString;
+  const versionText = sanitizeTerminalText(
+    version.buildNumber
+      ? `${version.versionString} (${version.buildNumber})`
+      : version.versionString
+  );
   const state = version.state ? formatStoreState(version.state) : '';
   Log.log(`  ${label}: ${chalk.bold(versionText)}${state ? ` — ${state}` : ''}`);
   logEasLinkage(version, easSubmissions);
@@ -211,7 +214,7 @@ function logEasLinkage(
     fields.push({ label: 'EAS Build ID', value: linkage.easBuildId });
   }
   if (linkage.runtimeVersion) {
-    fields.push({ label: 'Runtime Version', value: linkage.runtimeVersion });
+    fields.push({ label: 'Runtime Version', value: sanitizeTerminalText(linkage.runtimeVersion) });
   }
   if (linkage.fingerprintHash) {
     fields.push({ label: 'Fingerprint', value: linkage.fingerprintHash });

@@ -72,7 +72,7 @@ export default class SubmissionView extends EasCommand {
         });
         if (!submission) {
           spinner.fail(`Couldn't find any submissions for the project ${displayName}`);
-          return;
+          throw new Error(`No submissions found for the project ${displayName}`);
         }
       }
 
