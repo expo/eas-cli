@@ -10,6 +10,8 @@ import {
 } from '../graphql/generated';
 import { SubmissionQuery } from '../graphql/queries/SubmissionQuery';
 import Log from '../log';
+import { appPlatformDisplayNames } from '../platform';
+import { fromNow } from '../utils/date';
 import { printJsonOnlyOutput } from '../utils/json';
 import { paginatedQueryWithConfirmPromptAsync } from '../utils/queries';
 
@@ -59,6 +61,51 @@ export async function listAndRenderSubmissionsOnAppAsync(
       },
     });
   }
+}
+
+export async function getLatestSubmissionAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    filter,
+  }: {
+    projectId: string;
+    filter?: SubmissionFilter;
+  }
+): Promise<SubmissionWithSubmittedBuildFragment | null> {
+  const submissions = await SubmissionQuery.allForAppAsync(graphqlClient, projectId, {
+    limit: 1,
+    offset: 0,
+    ...filter,
+  });
+  return submissions[0] ?? null;
+}
+
+export async function getRecentSubmissionsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    projectId,
+    filter,
+    limit = SUBMISSIONS_LIMIT,
+  }: {
+    projectId: string;
+    filter?: SubmissionFilter;
+    limit?: number;
+  }
+): Promise<SubmissionWithSubmittedBuildFragment[]> {
+  return await SubmissionQuery.allForAppAsync(graphqlClient, projectId, {
+    limit,
+    offset: 0,
+    ...filter,
+  });
+}
+
+export function formatSubmissionChoice(submission: SubmissionWithSubmittedBuildFragment): string {
+  const platform = appPlatformDisplayNames[submission.platform];
+  const status = submission.status.toLowerCase().replace(/_/g, ' ');
+  return `${platform} submission ${submission.id} (${status}, created ${fromNow(
+    new Date(submission.createdAt)
+  )} ago)`;
 }
 
 function renderPageOfSubmissions({

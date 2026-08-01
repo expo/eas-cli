@@ -13,6 +13,8 @@ export const SubmissionWithSubmittedBuildFragmentNode = gql`
     ...SubmissionFragment
     createdAt
     completedAt
+    canRetry
+    maxRetryTimeMinutes
     submittedBuild {
       id
       ...BuildFragment

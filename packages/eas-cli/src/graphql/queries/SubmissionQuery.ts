@@ -7,6 +7,8 @@ import {
   AppPlatform,
   GetAllSubmissionsForAppQuery,
   GetAllSubmissionsForAppQueryVariables,
+  SubmissionByIdWithSubmittedBuildQuery,
+  SubmissionByIdWithSubmittedBuildQueryVariables,
   SubmissionFragment,
   SubmissionStatus,
   SubmissionWithSubmittedBuildFragment,
@@ -48,6 +50,35 @@ export const SubmissionQuery = {
             requestPolicy: useCache ? 'cache-first' : 'network-only',
             additionalTypenames: ['Submission'],
           }
+        )
+        .toPromise()
+    );
+    return data.submissions.byId;
+  },
+
+  async byIdWithSubmittedBuildAsync(
+    graphqlClient: ExpoGraphqlClient,
+    submissionId: string
+  ): Promise<SubmissionWithSubmittedBuildFragment> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<
+          SubmissionByIdWithSubmittedBuildQuery,
+          SubmissionByIdWithSubmittedBuildQueryVariables
+        >(
+          gql`
+            query SubmissionByIdWithSubmittedBuildQuery($submissionId: ID!) {
+              submissions {
+                byId(submissionId: $submissionId) {
+                  id
+                  ...SubmissionWithSubmittedBuildFragment
+                }
+              }
+            }
+            ${print(SubmissionWithSubmittedBuildFragmentNode)}
+          `,
+          { submissionId },
+          { additionalTypenames: ['Submission'] }
         )
         .toPromise()
     );
