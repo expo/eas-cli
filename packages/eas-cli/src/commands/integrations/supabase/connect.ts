@@ -483,7 +483,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     const parsedResult = AdditionalProvisionResultSchema.safeParse(finalized.resultData);
     if (!parsedResult.success) {
       throw new Error(
-        'Additional provision succeeded but did not return project credentials. Check your Supabase dashboard and try again.'
+        'Additional provision succeeded but did not return project credentials. Open your Supabase dashboard, copy the project URL and publishable key, and set EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY on the target EAS environments. Do not re-run connect --environment — that would create another project.'
       );
     }
     const resultData = parsedResult.data;
@@ -506,7 +506,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     dashboardUrl,
     headline,
   }: {
-    additional: Pick<AdditionalProvisionResult, 'supabaseProjectUrl'>;
+    additional: Pick<AdditionalProvisionResult, 'supabaseProjectUrl' | 'publishableKey'>;
     targetEnvironments: string[];
     dashboardUrl: string;
     headline: string;
@@ -514,7 +514,9 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     return new Error(
       [
         headline,
-        `Re-run with --overwrite, or set EXPO_PUBLIC_SUPABASE_URL=${additional.supabaseProjectUrl} and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY on ${targetEnvironments.join(', ')}.`,
+        `Do not re-run connect --environment — the Supabase project already exists. Set these on ${targetEnvironments.join(', ')}:`,
+        `  EXPO_PUBLIC_SUPABASE_URL=${additional.supabaseProjectUrl}`,
+        `  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${additional.publishableKey}`,
         `Dashboard: ${dashboardUrl}`,
       ].join('\n')
     );

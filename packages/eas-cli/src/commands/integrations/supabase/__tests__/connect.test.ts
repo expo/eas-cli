@@ -742,7 +742,9 @@ describe(IntegrationsSupabaseConnect, () => {
 
     await expect(
       createCommand(['--environment', 'preview', '--region', 'americas', '--overwrite']).runAsync()
-    ).rejects.toThrow(/did not return project credentials/);
+    ).rejects.toThrow(
+      /did not return project credentials[\s\S]*Do not re-run connect --environment/
+    );
   });
 
   it('throws when additional env writes partially skip', async () => {
@@ -776,7 +778,9 @@ describe(IntegrationsSupabaseConnect, () => {
 
     await expect(
       createCommand(['--environment', 'preview', '--region', 'americas']).runAsync()
-    ).rejects.toThrow(/did not write all EAS environment variables/);
+    ).rejects.toThrow(
+      /did not write all EAS environment variables[\s\S]*Do not re-run connect --environment[\s\S]*sb_publishable_preview/
+    );
   });
 
   it('prints json for additional environment setup', async () => {
@@ -834,7 +838,9 @@ describe(IntegrationsSupabaseConnect, () => {
 
     await expect(
       createCommand(['--environment', 'preview', '--region', 'americas', '--overwrite']).runAsync()
-    ).rejects.toThrow(/could not write EAS environment variables.*graphql down/);
+    ).rejects.toThrow(
+      /could not write EAS environment variables.*graphql down[\s\S]*Do not re-run connect --environment[\s\S]*EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_preview/
+    );
   });
 
   it('wraps non-Error env write failures after additional provision', async () => {
@@ -854,6 +860,8 @@ describe(IntegrationsSupabaseConnect, () => {
 
     await expect(
       createCommand(['--environment', 'preview', '--region', 'americas', '--overwrite']).runAsync()
-    ).rejects.toThrow(/could not write EAS environment variables.*graphql down/);
+    ).rejects.toThrow(
+      /could not write EAS environment variables.*graphql down[\s\S]*Do not re-run connect --environment/
+    );
   });
 });
