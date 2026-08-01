@@ -13,9 +13,9 @@ permissions:
 env:
   # The reviewer is the published @expo/code-review-cli package, run via npx — the
   # repo only carries the `.expo-code-review/` config, not the engine source.
-  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.6.x
-  # (0.6.0 = trusted base-commit configuration + PR-head runtime-config scrub).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.7.x
+  # (0.7.0 = auth mode "random" billing A/B + verbose agent output).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.7.0' }}
 
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
@@ -136,7 +136,10 @@ jobs:
       - name: Guard config tokenEnv (root + routing + all scopes)
         if: steps.resolve.outputs.run == 'true'
         env:
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          # Both names: the billing A/B auth entry declares apiKeyEnv AND
+          # oauthTokenEnv, and the lock covers every declared credential env
+          # (stable across the per-run coin flip).
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN,OPENAI_API_KEY' }}
         run: npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr verify-config
 
       - name: Run AI review
@@ -148,14 +151,21 @@ jobs:
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ChatGPT/Codex subscription ACCESS token (auth.mode "oauth" in
-          # .expo-code-review/config.jsonc reads this env var) — used as-is, no
-          # rotation involvement; re-mint before its ~10-day expiry. All reviews
-          # run on the subscription.
+          # Billing A/B (auth.mode "random" in .expo-code-review/config.jsonc):
+          # each run flips between the subscription token and the metered API
+          # key; BOTH must be set or the preflight fails fast.
+          # ChatGPT/Codex subscription ACCESS token — used as-is, no rotation
+          # involvement; re-mint before its ~10-day expiry.
           CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
+          # Restricted OpenAI key (Responses + Chat completions Request only),
+          # from a dedicated budget-capped project.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # Layer-1 runtime auth lock (mirrors the guard step): the CLI refuses to
-          # run when the tokenEnv the loaded config honors differs from this.
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          # run when the credential envs the loaded config honors differ from this.
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN,OPENAI_API_KEY' }}
+          # Full agent output (reasoning, reply text, tool I/O) in the job log —
+          # the observability half of diagnosing the GPT stalls.
+          ECR_VERBOSE: '1'
           # Unblocked CLI headless auth (PAT or team access token). Absent =>
           # the CLI stays unauthenticated; the review still runs.
           UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}
