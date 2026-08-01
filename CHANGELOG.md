@@ -19,6 +19,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Exit with a non-zero code when `eas build:view` or `eas submit:view` finds no builds or submissions, and print a single failure message instead of two. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Enable JSON output before context setup in `eas build:list` and `eas build:view` so `--json` stdout stays pure JSON. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] clean up error handling in local builds. ([#4105](https://github.com/expo/eas-cli/pull/4105) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Install ffmpeg when it is missing so Argent screen recording works in EAS Simulator sessions. ([#4110](https://github.com/expo/eas-cli/pull/4110) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Stop simulator job runs when `eas simulator:start` is canceled before the session is ready. ([#4113](https://github.com/expo/eas-cli/pull/4113) by [@sjchmiela](https://github.com/sjchmiela))

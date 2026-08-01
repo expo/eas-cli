@@ -9,6 +9,8 @@ import { ora } from '../../ora';
 import { getDisplayNameForProjectIdAsync } from '../../project/projectUtils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
+class NoBuildsFoundError extends Error {}
+
 export default class BuildView extends EasCommand {
   static override description = 'view a build for your project';
 
@@ -31,15 +33,17 @@ export default class BuildView extends EasCommand {
       args: { BUILD_ID: buildId },
       flags,
     } = await this.parse(BuildView);
+    // Redirect stdout before context setup — resolving the project config can log messages,
+    // and with --json those must go to stderr.
+    if (flags.json) {
+      enableJsonOutput();
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildView, {
       nonInteractive: true,
     });
-    if (flags.json) {
-      enableJsonOutput();
-    }
 
     const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
@@ -58,7 +62,8 @@ export default class BuildView extends EasCommand {
         });
         if (builds.length === 0) {
           spinner.fail(`Couldn't find any builds for the project ${displayName}`);
-          return;
+          // Throw so scripts get a non-zero exit code instead of silent success.
+          throw new NoBuildsFoundError(`No builds found for the project ${displayName}`);
         }
         build = builds[0];
       }
@@ -75,12 +80,14 @@ export default class BuildView extends EasCommand {
         Log.log(`\n${formatGraphQLBuild(build)}`);
       }
     } catch (err) {
-      if (buildId) {
-        spinner.fail(`Something went wrong and we couldn't fetch the build with id ${buildId}`);
-      } else {
-        spinner.fail(
-          `Something went wrong and we couldn't fetch the last build for the project ${displayName}`
-        );
+      if (!(err instanceof NoBuildsFoundError)) {
+        if (buildId) {
+          spinner.fail(`Something went wrong and we couldn't fetch the build with id ${buildId}`);
+        } else {
+          spinner.fail(
+            `Something went wrong and we couldn't fetch the last build for the project ${displayName}`
+          );
+        }
       }
 
       throw err;

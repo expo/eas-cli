@@ -12,6 +12,8 @@ import { getLatestSubmissionAsync } from '../../submit/queries';
 import { formatGraphQLSubmission } from '../../submit/utils/formatSubmission';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
+class NoSubmissionsFoundError extends Error {}
+
 export default class SubmissionView extends EasCommand {
   static override description = 'view a submission for your project';
 
@@ -72,7 +74,7 @@ export default class SubmissionView extends EasCommand {
         });
         if (!submission) {
           spinner.fail(`Couldn't find any submissions for the project ${displayName}`);
-          throw new Error(`No submissions found for the project ${displayName}`);
+          throw new NoSubmissionsFoundError(`No submissions found for the project ${displayName}`);
         }
       }
 
@@ -88,14 +90,16 @@ export default class SubmissionView extends EasCommand {
         Log.log(`\n${formatGraphQLSubmission(submission)}`);
       }
     } catch (err) {
-      if (submissionId) {
-        spinner.fail(
-          `Something went wrong and we couldn't fetch the submission with id ${submissionId}`
-        );
-      } else {
-        spinner.fail(
-          `Something went wrong and we couldn't fetch the last submission for the project ${displayName}`
-        );
+      if (!(err instanceof NoSubmissionsFoundError)) {
+        if (submissionId) {
+          spinner.fail(
+            `Something went wrong and we couldn't fetch the submission with id ${submissionId}`
+          );
+        } else {
+          spinner.fail(
+            `Something went wrong and we couldn't fetch the last submission for the project ${displayName}`
+          );
+        }
       }
 
       throw err;

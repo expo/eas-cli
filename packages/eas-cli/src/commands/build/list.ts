@@ -103,15 +103,17 @@ export default class BuildList extends EasCommand {
       );
       process.exit(1);
     }
+    // Redirect stdout before context setup — resolving the project config can log messages,
+    // and with --json those must go to stderr.
+    if (jsonFlag) {
+      enableJsonOutput();
+    }
     const {
       projectId,
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(BuildList, {
       nonInteractive,
     });
-    if (jsonFlag) {
-      enableJsonOutput();
-    }
 
     const platform = toAppPlatform(requestedPlatform);
     const graphqlBuildStatus = toGraphQLBuildStatus(buildStatus);
