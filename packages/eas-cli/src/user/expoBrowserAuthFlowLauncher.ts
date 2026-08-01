@@ -22,6 +22,16 @@ function generateState(): string {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+function getRedirectBaseUrl(port: number): string {
+  if (process.env.CODESPACES === 'true') {
+    // In GitHub Codespaces, `localhost` is not reachable from the browser used to complete the
+    // OAuth flow, so the redirect must point at the forwarded port's public URL instead.
+    const { CODESPACE_NAME, GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN } = process.env;
+    return `https://${CODESPACE_NAME}-${port}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`;
+  }
+  return `http://localhost:${port}`;
+}
+
 async function exchangeCodeForSessionSecretAsync({
   code,
   codeVerifier,
@@ -55,7 +65,6 @@ async function exchangeCodeForSessionSecretAsync({
 }
 
 export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Promise<string> {
-  const scheme = 'http';
   const hostname = 'localhost';
   const callbackPath = '/auth/callback';
 
@@ -66,7 +75,7 @@ export async function getSessionUsingBrowserAuthFlowAsync({ sso = false }): Prom
   const state = generateState();
 
   const buildRedirectUri = (port: number): string =>
-    `${scheme}://${hostname}:${port}${callbackPath}`;
+    new URL(callbackPath, getRedirectBaseUrl(port)).toString();
 
   const buildExpoLoginUrl = (port: number, sso: boolean): string => {
     // Note: we avoid URLSearchParams here because better-opn calls encodeURI()
