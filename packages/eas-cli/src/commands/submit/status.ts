@@ -22,7 +22,19 @@ import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SubmissionStatus extends EasCommand {
   static override description =
-    'show the status of your app on the stores: the live App Store version, TestFlight builds, and Google Play tracks';
+    'show the status of your app on the stores: the live App Store version, TestFlight builds, and Google Play tracks\n\n' +
+    'The iOS section reads from App Store Connect and requires an ASC API key. Provide one via:\n' +
+    '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
+    '  - eas.json submit profile: ascApiKeyPath, ascApiKeyId, ascApiKeyIssuerId\n' +
+    '  - EAS credentials service: run `eas credentials` to set up an API key\n' +
+    'Without a key, the command offers an interactive Apple login; in non-interactive mode the iOS section is skipped (or the command fails when only iOS was requested).\n\n' +
+    'The Android section is derived from finished EAS submissions and requires no Google Play credentials. The Play Console remains the authoritative source for the live release state.';
+
+  static override examples = [
+    '$ eas submit:status  \t # App Store, TestFlight, and Play track status for both platforms',
+    '$ eas submit:status -p ios  \t # iOS only',
+    '$ eas submit:status --json --non-interactive  \t # machine-readable output',
+  ];
 
   static override flags = {
     platform: Flags.option({
@@ -104,6 +116,11 @@ export default class SubmissionStatus extends EasCommand {
           throw error;
         }
       } catch (error: unknown) {
+        // With only iOS requested there is nothing left to show, so fail loudly. When Android
+        // was also requested, degrade to a warning and still render the Android section.
+        if (!includeAndroid) {
+          throw error;
+        }
         iosError = error instanceof Error ? error.message : String(error);
         Log.warn(`Skipping iOS App Store status: ${iosError}`);
       }
