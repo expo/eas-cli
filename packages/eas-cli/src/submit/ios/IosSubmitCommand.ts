@@ -11,6 +11,7 @@ import {
 } from './AppSpecificPasswordSource';
 import { AscApiKeySource, AscApiKeySourceType } from './AscApiKeySource';
 import IosSubmitter, { IosSubmissionOptions } from './IosSubmitter';
+import { ensureTestFlightSetupForExistingAppAsync } from './ensureTestFlightSetup';
 import { MissingCredentialsError } from '../../credentials/errors';
 import Log, { learnMore } from '../../log';
 import { ArchiveSource, ArchiveSourceType, getArchiveAsync } from '../ArchiveSource';
@@ -171,6 +172,10 @@ export default class IosSubmitCommand {
   private async resolveAscAppIdentifierAsync(): Promise<Result<string>> {
     const { ascAppId } = this.ctx.profile;
     if (ascAppId) {
+      // The automatic TestFlight setup otherwise only runs when the ASC app is
+      // created by the CLI; apps created on the App Store Connect website
+      // would never get an internal group.
+      await ensureTestFlightSetupForExistingAppAsync(this.ctx, ascAppId);
       return result(ascAppId);
     } else if (this.ctx.nonInteractive) {
       return result(
