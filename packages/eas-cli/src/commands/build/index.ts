@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import figures from 'figures';
 import fs from 'fs-extra';
 import path from 'path';
+import * as uuid from 'uuid';
 
 import { LocalBuildMode } from '../../build/local';
 import { BuildFlags, runBuildAndSubmitAsync } from '../../build/runBuildAndSubmit';
@@ -17,6 +18,7 @@ import {
 import { StatuspageServiceName } from '../../graphql/generated';
 import Log, { link } from '../../log';
 import { RequestedPlatform, selectRequestedPlatformAsync } from '../../platform';
+import { linkExistingProjectByIdAsync } from '../../project/projectInitialization';
 import { selectAsync } from '../../prompts';
 import uniq from '../../utils/expodash/uniq';
 import { enableJsonOutput } from '../../utils/json';
@@ -28,6 +30,8 @@ interface RawBuildFlags {
   'skip-credentials-check': boolean;
   'skip-project-configuration': boolean;
   profile?: string;
+  'link-project-id'?: string;
+  force?: boolean;
   'non-interactive': boolean;
   local: boolean;
   output?: string;
@@ -66,6 +70,16 @@ export default class Build extends EasCommand {
       description:
         'Name of the build profile from eas.json. Defaults to "production" if defined in eas.json.',
       helpValue: 'PROFILE_NAME',
+    }),
+    'link-project-id': Flags.string({
+      description:
+        'ID of an existing EAS project to link this directory to before building. Writes "extra.eas.projectId" to your app config, like `eas init --id`.',
+      helpValue: 'PROJECT_ID',
+    }),
+    force: Flags.boolean({
+      dependsOn: ['link-project-id'],
+      description:
+        'Used with --link-project-id: overwrite an existing different project link, "owner", or "slug" in your app config without prompting',
     }),
     local: Flags.boolean({
       default: false,
@@ -161,6 +175,13 @@ export default class Build extends EasCommand {
       withServerSideEnvironment: null,
     });
 
+    if (rawFlags['link-project-id']) {
+      await linkExistingProjectByIdAsync(graphqlClient, rawFlags['link-project-id'], projectDir, {
+        force: rawFlags.force ?? false,
+        nonInteractive: flags.nonInteractive,
+      });
+    }
+
     await handleDeprecatedEasJsonAsync(projectDir, flags.nonInteractive);
 
     if (!flags.localBuildOptions.localBuildMode) {
@@ -213,6 +234,12 @@ export default class Build extends EasCommand {
     }
     if (!flags.platform && nonInteractive) {
       Errors.error('--platform is required when building in non-interactive mode', { exit: 1 });
+    }
+    if (flags['link-project-id'] && !uuid.validate(flags['link-project-id'])) {
+      Errors.error(
+        `--link-project-id must be a valid UUID. Received: ${flags['link-project-id']}`,
+        { exit: 1 }
+      );
     }
     const autoSubmit = flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined;
     if (flags['what-to-test'] && !autoSubmit) {

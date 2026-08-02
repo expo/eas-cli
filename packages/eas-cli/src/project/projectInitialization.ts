@@ -12,6 +12,7 @@ import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../commandUtils/context/contextUtils/getProjectIdAsync';
 import { validSlugName, validateFullNameAndSlug } from '../commandUtils/projectNameValidation';
+import { AppFragment } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
@@ -91,10 +92,14 @@ export async function ensureOwnerSlugConsistencyAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   projectDir: string,
-  { force, nonInteractive }: InitializeMethodOptions
+  {
+    force,
+    nonInteractive,
+    prefetchedApp,
+  }: InitializeMethodOptions & { prefetchedApp?: AppFragment }
 ): Promise<{ owner: string; slug: string }> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
-  const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
+  const appForProjectId = prefetchedApp ?? (await AppQuery.byIdAsync(graphqlClient, projectId));
   const correctOwner = appForProjectId.ownerAccount.name;
   const correctSlug = appForProjectId.slug;
 
@@ -198,6 +203,35 @@ export async function initializeWithExplicitIDAsync(
     force,
     nonInteractive,
   });
+}
+
+export async function linkExistingProjectByIdAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string,
+  projectDir: string,
+  { force, nonInteractive }: InitializeMethodOptions
+): Promise<{ projectId: string; status: ProjectInitStatus; owner: string; slug: string }> {
+  let app: AppFragment;
+  try {
+    app = await AppQuery.byIdAsync(graphqlClient, projectId);
+  } catch (error: any) {
+    throw new Error(
+      `Failed to link project with ID "${projectId}": ${
+        error?.message ?? error
+      }\nNo changes were made to your app config.`
+    );
+  }
+  const status = await initializeWithExplicitIDAsync(projectId, projectDir, {
+    force,
+    nonInteractive,
+  });
+  const { owner, slug } = await ensureOwnerSlugConsistencyAsync(
+    graphqlClient,
+    projectId,
+    projectDir,
+    { force, nonInteractive, prefetchedApp: app }
+  );
+  return { projectId, status, owner, slug };
 }
 
 export async function initializeWithoutExplicitIDAsync(

@@ -535,10 +535,10 @@ start a build
 
 ```
 USAGE
-  $ eas build [-p android|ios|all] [-e PROFILE_NAME] [--local] [--output <value>] [--wait] [--clear-cache]
-    [-s | --auto-submit-with-profile PROFILE_NAME] [--what-to-test <value>] [-m <value>] [--build-logger-level
-    trace|debug|info|warn|error|fatal] [--freeze-credentials] [--refresh-ad-hoc-provisioning-profile] [--verbose-logs]
-    [--json] [--non-interactive]
+  $ eas build [-p android|ios|all] [-e PROFILE_NAME] [--force --link-project-id PROJECT_ID] [--local]
+    [--output <value>] [--wait] [--clear-cache] [-s | --auto-submit-with-profile PROFILE_NAME] [--what-to-test <value>]
+    [-m <value>] [--build-logger-level trace|debug|info|warn|error|fatal] [--freeze-credentials]
+    [--refresh-ad-hoc-provisioning-profile] [--verbose-logs] [--json] [--non-interactive]
 
 FLAGS
   -e, --profile=PROFILE_NAME                   Name of the build profile from eas.json. Defaults to "production" if
@@ -551,9 +551,13 @@ FLAGS
       --build-logger-level=<option>            The level of logs to output during the build process. Defaults to "info".
                                                <options: trace|debug|info|warn|error|fatal>
       --clear-cache                            Clear cache before the build
+      --force                                  Used with --link-project-id: overwrite an existing different project
+                                               link, "owner", or "slug" in your app config without prompting
       --freeze-credentials                     Prevent the build from updating credentials in non-interactive mode
       --json                                   Enable JSON output, non-JSON messages will be printed to stderr. Implies
                                                --non-interactive.
+      --link-project-id=PROJECT_ID             ID of an existing EAS project to link this directory to before building.
+                                               Writes "extra.eas.projectId" to your app config, like `eas init --id`.
       --local                                  Run build locally [experimental]
       --non-interactive                        Run the command in non-interactive mode.
       --output=<value>                         Output path for local build
