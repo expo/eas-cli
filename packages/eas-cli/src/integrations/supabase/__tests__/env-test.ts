@@ -2,22 +2,24 @@ import * as fs from 'fs-extra';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import {
+  upsertEasEnvVarAsync,
+  upsertEasEnvVarForEnvironmentsAsync,
+} from '../../../environments/variables';
+import {
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
 } from '../../../graphql/generated';
 import { EnvironmentVariableMutation } from '../../../graphql/mutations/EnvironmentVariableMutation';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
+import { mergeEnvContent, writeEnvLocalAsync } from '../../shared/envFile';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
 import {
   EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME,
   EAS_SUPABASE_URL_ENV_VAR_NAME,
+  SUPABASE_ENV_LABEL,
   createSupabaseEnvVars,
   ensureAdditionalEnvWritesAllowedAsync,
-  mergeEnvContent,
-  upsertEasEnvVarAsync,
-  upsertEasEnvVarForEnvironmentsAsync,
-  writeEnvLocalAsync,
   writeEnvVarsAsync,
 } from '../env';
 
@@ -27,7 +29,7 @@ jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../prompts');
 jest.mock('../../../log');
 
-describe('createSupabaseEnvVars / mergeEnvContent / writeEnvVarsAsync', () => {
+describe('createSupabaseEnvVars / writeEnvVarsAsync', () => {
   it('createSupabaseEnvVars returns public URL and key vars', () => {
     expect(createSupabaseEnvVars('https://example.supabase.co', 'pk')).toEqual([
       {
@@ -41,11 +43,6 @@ describe('createSupabaseEnvVars / mergeEnvContent / writeEnvVarsAsync', () => {
         visibility: EnvironmentVariableVisibility.Public,
       },
     ]);
-  });
-
-  it('mergeEnvContent updates existing keys and appends new ones', () => {
-    expect(mergeEnvContent('FOO=1\n', { FOO: '2', BAR: '3' })).toBe('FOO=2\nBAR=3\n');
-    expect(mergeEnvContent('FOO=1', { BAR: '3' })).toBe('FOO=1\nBAR=3\n');
   });
 
   it('writeEnvVarsAsync runs upsert for each var', async () => {
@@ -70,7 +67,7 @@ describe('createSupabaseEnvVars / mergeEnvContent / writeEnvVarsAsync', () => {
   });
 });
 
-describe('writeEnvLocalAsync', () => {
+describe('shared writeEnvLocalAsync / mergeEnvContent (via Supabase label)', () => {
   const envVars = createSupabaseEnvVars('https://example.supabase.co', 'pk');
 
   beforeEach(() => {
@@ -79,8 +76,19 @@ describe('writeEnvLocalAsync', () => {
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
   });
 
+  it('mergeEnvContent updates existing keys and appends new ones', () => {
+    expect(mergeEnvContent('FOO=1\n', { FOO: '2', BAR: '3' })).toBe('FOO=2\nBAR=3\n');
+    expect(mergeEnvContent('FOO=1', { BAR: '3' })).toBe('FOO=1\nBAR=3\n');
+  });
+
   it('writes a new .env.local file', async () => {
-    await expect(writeEnvLocalAsync('/project', envVars, true, false)).resolves.toBe(true);
+    await expect(
+      writeEnvLocalAsync('/project', envVars, {
+        label: SUPABASE_ENV_LABEL,
+        nonInteractive: true,
+        overwrite: false,
+      })
+    ).resolves.toBe(true);
     expect(fs.writeFile).toHaveBeenCalledWith(
       expect.stringContaining('.env.local'),
       expect.stringContaining(EAS_SUPABASE_URL_ENV_VAR_NAME)
@@ -92,7 +100,13 @@ describe('writeEnvLocalAsync', () => {
     jest.mocked(fs.pathExists).mockResolvedValue(true as never);
     jest.mocked(fs.readFile).mockResolvedValue(`${EAS_SUPABASE_URL_ENV_VAR_NAME}=old\n` as never);
 
-    await expect(writeEnvLocalAsync('/project', envVars, true, false)).resolves.toBe(false);
+    await expect(
+      writeEnvLocalAsync('/project', envVars, {
+        label: SUPABASE_ENV_LABEL,
+        nonInteractive: true,
+        overwrite: false,
+      })
+    ).resolves.toBe(false);
     expect(fs.writeFile).not.toHaveBeenCalled();
     expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('skipped'));
   });
@@ -102,7 +116,13 @@ describe('writeEnvLocalAsync', () => {
     jest.mocked(fs.readFile).mockResolvedValue(`${EAS_SUPABASE_URL_ENV_VAR_NAME}=old\n` as never);
     jest.mocked(confirmAsync).mockResolvedValue(false);
 
-    await expect(writeEnvLocalAsync('/project', envVars, false, false)).resolves.toBe(false);
+    await expect(
+      writeEnvLocalAsync('/project', envVars, {
+        label: SUPABASE_ENV_LABEL,
+        nonInteractive: false,
+        overwrite: false,
+      })
+    ).resolves.toBe(false);
     expect(fs.writeFile).not.toHaveBeenCalled();
   });
 
@@ -111,8 +131,20 @@ describe('writeEnvLocalAsync', () => {
     jest.mocked(fs.readFile).mockResolvedValue(`${EAS_SUPABASE_URL_ENV_VAR_NAME}=old\n` as never);
     jest.mocked(confirmAsync).mockResolvedValue(true);
 
-    await expect(writeEnvLocalAsync('/project', envVars, false, false)).resolves.toBe(true);
-    await expect(writeEnvLocalAsync('/project', envVars, true, true)).resolves.toBe(true);
+    await expect(
+      writeEnvLocalAsync('/project', envVars, {
+        label: SUPABASE_ENV_LABEL,
+        nonInteractive: false,
+        overwrite: false,
+      })
+    ).resolves.toBe(true);
+    await expect(
+      writeEnvLocalAsync('/project', envVars, {
+        label: SUPABASE_ENV_LABEL,
+        nonInteractive: true,
+        overwrite: true,
+      })
+    ).resolves.toBe(true);
     expect(fs.writeFile).toHaveBeenCalled();
   });
 });
@@ -326,6 +358,7 @@ describe('ensureAdditionalEnvWritesAllowedAsync', () => {
 describe('upsertEasEnvVarForEnvironmentsAsync', () => {
   const client = {} as ExpoGraphqlClient;
   const envVar = createSupabaseEnvVars('https://example.supabase.co', 'pk')[0];
+  const labelOpts = { label: SUPABASE_ENV_LABEL };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -345,7 +378,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     ]);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], true, true)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        true,
+        true,
+        labelOpts
+      )
     ).resolves.toBe(true);
     expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(
       client,
@@ -364,7 +405,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     ]);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], true, false)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        true,
+        false,
+        labelOpts
+      )
     ).resolves.toBe(false);
   });
 
@@ -379,7 +428,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     ]);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], true, false)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        true,
+        false,
+        labelOpts
+      )
     ).resolves.toBe(true);
   });
 
@@ -394,7 +451,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     ]);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], true, true)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        true,
+        true,
+        labelOpts
+      )
     ).resolves.toBe(true);
     expect(EnvironmentVariableMutation.updateAsync).toHaveBeenCalledWith(client, {
       id: 'shared',
@@ -419,7 +484,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     jest.mocked(confirmAsync).mockResolvedValue(false);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], false, false)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        false,
+        false,
+        labelOpts
+      )
     ).resolves.toBe(false);
     expect(confirmAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -445,7 +518,8 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
         envVar,
         ['preview', 'development'],
         true,
-        true
+        true,
+        labelOpts
       )
     ).resolves.toBe(true);
     expect(EnvironmentVariableMutation.deleteAsync).toHaveBeenCalledWith(client, 'preview-only');
@@ -469,7 +543,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     ] as never);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], true, false)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        true,
+        false,
+        labelOpts
+      )
     ).resolves.toBe(true);
     expect(EnvironmentVariableMutation.deleteAsync).not.toHaveBeenCalled();
     expect(EnvironmentVariableMutation.createForAppAsync).toHaveBeenCalled();
@@ -487,7 +569,15 @@ describe('upsertEasEnvVarForEnvironmentsAsync', () => {
     jest.mocked(confirmAsync).mockResolvedValue(true);
 
     await expect(
-      upsertEasEnvVarForEnvironmentsAsync(client, 'app-1', envVar, ['preview'], false, false)
+      upsertEasEnvVarForEnvironmentsAsync(
+        client,
+        'app-1',
+        envVar,
+        ['preview'],
+        false,
+        false,
+        labelOpts
+      )
     ).resolves.toBe(true);
   });
 });
