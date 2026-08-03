@@ -11,6 +11,7 @@ import path from 'path';
 
 import fetch from '../../../fetch';
 import Log from '../../../log';
+import { STORE_APP_CLIP_DIRECTORY } from '../../media';
 import { logAsync } from '../../utils/log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 
@@ -180,7 +181,7 @@ export class AppClipTask extends AppleTask {
           // so subsequent pushes don't try to delete the in-progress upload.
           // Filename match in syncAppClipHeaderImageAsync will skip re-upload.
           const fileName = headerImage.attributes.fileName || 'header.png';
-          headerImagePath = path.join('store', 'apple', 'app-clip', locale, fileName);
+          headerImagePath = path.join(STORE_APP_CLIP_DIRECTORY, locale, fileName);
         }
       }
       config.setAppClipLocalizedInfo(locale, {
@@ -495,7 +496,7 @@ async function downloadAppClipHeaderImageAsync(
     return null;
   }
 
-  const targetDir = path.join(projectDir, 'store', 'apple', 'app-clip', locale);
+  const targetDir = path.join(projectDir, STORE_APP_CLIP_DIRECTORY, locale);
   await fs.promises.mkdir(targetDir, { recursive: true });
 
   const fileName = headerImage.attributes.fileName || 'header.png';

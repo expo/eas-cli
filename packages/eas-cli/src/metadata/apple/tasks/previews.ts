@@ -11,6 +11,7 @@ import path from 'path';
 
 import fetch from '../../../fetch';
 import Log from '../../../log';
+import { STORE_PREVIEW_DIRECTORY } from '../../media';
 import { logAsync } from '../../utils/log';
 import { AppleTask, TaskDownloadOptions, TaskPrepareOptions, TaskUploadOptions } from '../task';
 import { ApplePreviewConfig, ApplePreviews } from '../types';
@@ -105,7 +106,7 @@ export class PreviewsTask extends AppleTask {
         // the broken ASC record.
         const fileName = preview.attributes.fileName || 'preview.mp4';
         const relativePath =
-          downloaded || path.join('store', 'apple', 'preview', localeCode, previewType, fileName);
+          downloaded || path.join(STORE_PREVIEW_DIRECTORY, localeCode, previewType, fileName);
 
         if (preview.attributes.previewFrameTimeCode) {
           previews[previewType] = {
@@ -309,7 +310,7 @@ async function downloadPreviewAsync(
   }
 
   // Create directory structure: store/apple/preview/{locale}/{previewType}/
-  const previewsDir = path.join(projectDir, 'store', 'apple', 'preview', locale, previewType);
+  const previewsDir = path.join(projectDir, STORE_PREVIEW_DIRECTORY, locale, previewType);
   await fs.promises.mkdir(previewsDir, { recursive: true });
 
   // Use original filename for matching during sync
