@@ -47,6 +47,10 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
     },
     ...(submission.platform === AppPlatform.Android
       ? [
+          {
+            label: 'Application Identifier',
+            value: sanitize(submittedBuild?.appIdentifier),
+          },
           { label: 'Track', value: sanitize(submission.androidConfig?.track)?.toLowerCase() },
           {
             label: 'Release Status',
