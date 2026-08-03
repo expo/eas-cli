@@ -7,7 +7,10 @@ import nullthrows from 'nullthrows';
 import { prepareProjectSourcesAsync } from './common/projectSources';
 import { BuildContext } from './context';
 import { CustomBuildContext } from './customBuildContext';
-import { buildCompositeFunctionCatalogAsync } from './steps/compositeFunctions';
+import {
+  buildCompositeFunctionCatalogAsync,
+  createCompositeFunctionLoader,
+} from './steps/compositeFunctions';
 import { getEasFunctionGroups } from './steps/easFunctionGroups';
 import { getEasFunctions } from './steps/easFunctions';
 import { uploadJobOutputsToWwwAsync } from './utils/outputs';
@@ -46,10 +49,12 @@ export async function runGenericJobAsync(
 
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {
     try {
-      const compositeFunctionCatalog = await buildCompositeFunctionCatalogAsync(
-        ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-        { steps: ctx.job.steps, logger: ctx.logger }
-      );
+      const projectRoot = ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory);
+      // Eager for job steps (always run), lazy loader for hooks (running anchors only).
+      const compositeFunctionCatalog = await buildCompositeFunctionCatalogAsync(projectRoot, {
+        steps: ctx.job.steps,
+        logger: ctx.logger,
+      });
 
       const parser = new StepsConfigParser(globalContext, {
         externalFunctions: getEasFunctions(customBuildCtx),
@@ -57,6 +62,7 @@ export async function runGenericJobAsync(
         steps: ctx.job.steps,
         hooks: ctx.job.hooks,
         compositeFunctionCatalog,
+        loadCompositeFunction: createCompositeFunctionLoader(projectRoot, ctx.logger),
       });
 
       return await parser.parseAsync();

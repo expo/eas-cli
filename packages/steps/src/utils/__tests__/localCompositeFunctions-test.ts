@@ -3,6 +3,7 @@ import path from 'path';
 
 import {
   buildCompositeFunctionCatalogFromStepsAsync,
+  extendCompositeFunctionCatalogFromStepsAsync,
   isLocalCompositeFunctionPath,
   parseLocalCompositeFunctionPath,
   resolveLocalCompositeFunctionPath,
@@ -211,6 +212,65 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
         CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
     });
     expect(Object.keys(catalog)).toEqual([]);
+  });
+});
+
+describe(extendCompositeFunctionCatalogFromStepsAsync, () => {
+  it('extends the given catalog in place', async () => {
+    const catalog = {
+      './.eas/functions/existing': CompositeFunctionConfigZ.parse({
+        runs: { steps: [{ run: 'echo existing' }] },
+      }),
+    };
+    await extendCompositeFunctionCatalogFromStepsAsync({
+      catalog,
+      rootSteps: [{ uses: './.eas/functions/setup' }],
+      loadCompositeFunction: async () =>
+        CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
+    });
+    expect(Object.keys(catalog).sort()).toEqual([
+      './.eas/functions/existing',
+      './.eas/functions/setup',
+    ]);
+  });
+
+  it('skips paths already present without calling the loader', async () => {
+    const loadedPaths: string[] = [];
+    const catalog = {
+      './.eas/functions/setup': CompositeFunctionConfigZ.parse({
+        runs: { steps: [{ run: 'echo setup' }] },
+      }),
+    };
+    await extendCompositeFunctionCatalogFromStepsAsync({
+      catalog,
+      rootSteps: [{ uses: './.eas/functions/setup' }],
+      loadCompositeFunction: async compositeFunctionPath => {
+        loadedPaths.push(compositeFunctionPath);
+        throw new Error(`must not be called: ${compositeFunctionPath}`);
+      },
+    });
+    expect(loadedPaths).toEqual([]);
+    expect(Object.keys(catalog)).toEqual(['./.eas/functions/setup']);
+  });
+
+  it('recurses into nested references', async () => {
+    const catalog = {};
+    await extendCompositeFunctionCatalogFromStepsAsync({
+      catalog,
+      rootSteps: [{ uses: './.eas/functions/outer' }],
+      loadCompositeFunction: async compositeFunctionPath => {
+        if (compositeFunctionPath === './.eas/functions/outer') {
+          return CompositeFunctionConfigZ.parse({
+            runs: { steps: [{ uses: './.eas/functions/inner' }] },
+          });
+        }
+        return CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo inner' }] } });
+      },
+    });
+    expect(Object.keys(catalog).sort()).toEqual([
+      './.eas/functions/inner',
+      './.eas/functions/outer',
+    ]);
   });
 });
 

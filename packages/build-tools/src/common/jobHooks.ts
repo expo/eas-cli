@@ -1,5 +1,6 @@
 import {
   BuildJob,
+  CompositeFunctionCatalog,
   ErrorCode,
   HookAnchorId,
   HookKey,
@@ -12,11 +13,13 @@ import {
   BuildStepGlobalContext,
   HookEntry,
   constructHookEntriesAsync,
+  extendCompositeFunctionCatalogFromStepsAsync,
   validateHookStepsAsync,
 } from '@expo/steps';
 
 import { BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
+import { createCompositeFunctionLoader } from '../steps/compositeFunctions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 
@@ -95,6 +98,11 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
   // outputs accumulate across keys.
   const hookEntriesByKey: Partial<Record<HookKey, HookEntry[]>> = {};
   const orderedSteps: BuildStep[] = [];
+  const compositeFunctionCatalog: CompositeFunctionCatalog = {};
+  const loadCompositeFunction = createCompositeFunctionLoader(
+    ctx.getReactNativeProjectDirectory(),
+    ctx.logger
+  );
   for (const anchor of wrappedAnchors) {
     for (const side of ['before', 'after'] as const) {
       const key: HookKey = `${side}_${anchor}`;
@@ -104,9 +112,16 @@ export async function parseJobHooksAsync<TJob extends BuildJob>(
       }
       let entries: HookEntry[];
       try {
+        // Extended per key so a bad `uses:` path is attributed to that hook key.
+        await extendCompositeFunctionCatalogFromStepsAsync({
+          catalog: compositeFunctionCatalog,
+          rootSteps: steps,
+          loadCompositeFunction,
+        });
         entries = await constructHookEntriesAsync(globalContext, steps, {
           externalFunctions,
           externalFunctionGroups,
+          compositeFunctionCatalog,
         });
       } catch (err) {
         throw new UserError(

@@ -2,7 +2,10 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { buildCompositeFunctionCatalogAsync } from '../compositeFunctions';
+import {
+  buildCompositeFunctionCatalogAsync,
+  createCompositeFunctionLoader,
+} from '../compositeFunctions';
 
 async function makeProjectWithCompositeFunctionAsync(
   functionName: string,
@@ -169,5 +172,30 @@ describe(buildCompositeFunctionCatalogAsync, () => {
         steps: [{ uses: './.eas/functions/broken', id: 'broken' }],
       })
     ).rejects.toThrow(/must declare at least one step under "runs.steps"/);
+  });
+});
+
+describe(createCompositeFunctionLoader, () => {
+  it('loads function.yml from disk for a normalized path', async () => {
+    const projectRoot = await makeProjectWithCompositeFunctionAsync(
+      'setup',
+      setupCompositeFunctionContents
+    );
+
+    const loader = createCompositeFunctionLoader(projectRoot);
+    const config = await loader('./.eas/functions/setup');
+
+    expect(config.name).toBe('Setup');
+    expect(config.runs.steps).toHaveLength(1);
+  });
+
+  it('rejects for a path with no composite function on disk', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-functions-loader-'));
+
+    const loader = createCompositeFunctionLoader(projectRoot);
+
+    await expect(loader('./.eas/functions/missing')).rejects.toThrow(
+      /no such composite function exists/
+    );
   });
 });
