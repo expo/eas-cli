@@ -109,6 +109,7 @@ export default class BuildInspect extends EasCommand {
             freezeCredentials: false,
             wait: true,
             clearCache: false,
+            autoConfigureUpdate: false,
             json: false,
             autoSubmit: false,
             requestedPlatform: flags.platform,

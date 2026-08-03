@@ -25,7 +25,7 @@ import { LocalBuildMode, LocalBuildOptions } from './local';
 import { ensureLockfileExistsAsync } from './validateLockfile';
 import { ensureExpoDevClientInstalledForDevClientBuildsAsync } from './utils/devClient';
 import { printBuildResults, printLogsUrls } from './utils/printBuildInfo';
-import { ensureRepoIsCleanAsync } from './utils/repository';
+import { ensureRepoIsCleanAsync, reviewAndCommitChangesAsync } from './utils/repository';
 import { Analytics } from '../analytics/AnalyticsManager';
 import { createAndLinkChannelAsync, doesChannelExistAsync } from '../channel/queries';
 import { DynamicConfigContextFn } from '../commandUtils/context/DynamicProjectConfigContextField';
@@ -75,7 +75,10 @@ import {
   waitToCompleteAsync as waitForSubmissionsToCompleteAsync,
 } from '../submit/submit';
 import { printSubmissionDetailsUrls } from '../submit/utils/urls';
-import { ensureEASUpdateIsConfiguredAsync } from '../update/configure';
+import {
+  ensureEASUpdateIsConfiguredAsync,
+  ensureEASUpdateIsConfiguredInEasJsonAsync,
+} from '../update/configure';
 import { Actor } from '../user/User';
 import { downloadAndMaybeExtractAppAsync } from '../utils/download';
 import { truthy } from '../utils/expodash/filter';
@@ -107,6 +110,7 @@ export interface BuildFlags {
   isVerboseLoggingEnabled?: boolean;
   whatToTest?: string;
   simulator?: SimulatorRunTarget;
+  autoConfigureUpdate: boolean;
 }
 
 export async function runBuildAndSubmitAsync({
@@ -144,6 +148,26 @@ export async function runBuildAndSubmitAsync({
   const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
   const easJsonCliConfig: EasJson['cli'] =
     (await EasJsonUtils.getCliConfigAsync(easJsonAccessor)) ?? {};
+
+  if (flags.autoConfigureUpdate) {
+    const { exp, projectId } = await getDynamicPrivateProjectConfigAsync({ env: envOverride });
+    await ensureEASUpdateIsConfiguredAsync({
+      exp,
+      projectId,
+      projectDir,
+      vcsClient,
+      platform: flags.requestedPlatform,
+      env: envOverride,
+      manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
+    });
+    await ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir);
+    if (await vcsClient.isCommitRequiredAsync()) {
+      Log.addNewLineIfNone();
+      await reviewAndCommitChangesAsync(vcsClient, 'Configure EAS Update', {
+        nonInteractive: flags.nonInteractive,
+      });
+    }
+  }
 
   const platforms = toPlatforms(flags.requestedPlatform);
   const buildProfiles = await getProfilesAsync({
@@ -673,7 +697,7 @@ async function validateExpoUpdatesInstalledAsProjectDependencyAsync({
     );
   } else if (nonInteractive) {
     Log.warn(
-      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates" followed by "eas update:configure".`
+      `The build profile "${buildProfile.profileName}" has specified the channel "${buildProfile.profile.channel}", but the "expo-updates" package hasn't been installed. To use channels for your builds, install the "expo-updates" package by running "npx expo install expo-updates" followed by "eas update:configure", or re-run this build with the --auto-configure-update flag.`
     );
   } else {
     Log.warn(

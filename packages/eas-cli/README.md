@@ -536,9 +536,9 @@ start a build
 ```
 USAGE
   $ eas build [-p android|ios|all] [-e PROFILE_NAME] [--force --link-project-id PROJECT_ID] [--local]
-    [--output <value>] [--wait] [--clear-cache] [-s | --auto-submit-with-profile PROFILE_NAME] [--what-to-test <value>]
-    [-m <value>] [--build-logger-level trace|debug|info|warn|error|fatal] [--freeze-credentials]
-    [--refresh-ad-hoc-provisioning-profile] [--verbose-logs] [--json] [--non-interactive]
+    [--output <value>] [--wait] [--clear-cache] [--auto-configure-update] [-s | --auto-submit-with-profile PROFILE_NAME]
+    [--what-to-test <value>] [-m <value>] [--build-logger-level trace|debug|info|warn|error|fatal]
+    [--freeze-credentials] [--refresh-ad-hoc-provisioning-profile] [--verbose-logs] [--json] [--non-interactive]
 
 FLAGS
   -e, --profile=PROFILE_NAME                   Name of the build profile from eas.json. Defaults to "production" if
@@ -547,6 +547,9 @@ FLAGS
   -p, --platform=<option>                      <options: android|ios|all>
   -s, --auto-submit                            Submit on build complete using the submit profile with the same name as
                                                the build profile
+      --auto-configure-update                  Configure the project for EAS Update before the build starts (install
+                                               expo-updates, set updates.url and runtimeVersion in app config, add
+                                               channels to build profiles), so the resulting binary can receive updates
       --auto-submit-with-profile=PROFILE_NAME  Submit on build complete using the submit profile with provided name
       --build-logger-level=<option>            The level of logs to output during the build process. Defaults to "info".
                                                <options: trace|debug|info|warn|error|fatal>

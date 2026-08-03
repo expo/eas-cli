@@ -132,6 +132,47 @@ describe(Build, () => {
     expect(runBuildAndSubmitAsync).not.toHaveBeenCalled();
   });
 
+  it('passes autoConfigureUpdate: true when --auto-configure-update is set', async () => {
+    await createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--auto-configure-update',
+    ]).runAsync();
+
+    expect(runBuildAndSubmitAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flags: expect.objectContaining({ autoConfigureUpdate: true }),
+      })
+    );
+  });
+
+  it('passes autoConfigureUpdate: false when --auto-configure-update is not set', async () => {
+    await createCommand(['--platform', 'ios', '--non-interactive']).runAsync();
+
+    expect(runBuildAndSubmitAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flags: expect.objectContaining({ autoConfigureUpdate: false }),
+      })
+    );
+  });
+
+  it('composes --auto-configure-update with --json', async () => {
+    await createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--json',
+      '--auto-configure-update',
+    ]).runAsync();
+
+    expect(runBuildAndSubmitAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flags: expect.objectContaining({ autoConfigureUpdate: true, json: true }),
+      })
+    );
+  });
+
   it('works with --json', async () => {
     await createCommand([
       '--platform',

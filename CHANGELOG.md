@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--auto-configure-update` flag to `eas build` to configure EAS Update before the build starts (install expo-updates, set updates.url and runtimeVersion, add channels to build profiles). ([#4139](https://github.com/expo/eas-cli/pull/4139) by [@williamgrosset](https://github.com/williamgrosset))
 - [eas-cli] Add `--link-project-id` flag to `eas build` to link the directory to an existing project before building, like `eas init --id`. ([#4138](https://github.com/expo/eas-cli/pull/4138) by [@williamgrosset](https://github.com/williamgrosset))
 
 ### 🐛 Bug fixes

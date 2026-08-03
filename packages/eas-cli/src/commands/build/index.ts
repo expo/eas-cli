@@ -37,6 +37,7 @@ interface RawBuildFlags {
   output?: string;
   wait: boolean;
   'clear-cache': boolean;
+  'auto-configure-update': boolean;
   json: boolean;
   'auto-submit': boolean;
   'auto-submit-with-profile'?: string;
@@ -96,6 +97,11 @@ export default class Build extends EasCommand {
     'clear-cache': Flags.boolean({
       default: false,
       description: 'Clear cache before the build',
+    }),
+    'auto-configure-update': Flags.boolean({
+      default: false,
+      description:
+        'Configure the project for EAS Update before the build starts (install expo-updates, set updates.url and runtimeVersion in app config, add channels to build profiles), so the resulting binary can receive updates',
     }),
     'auto-submit': Flags.boolean({
       char: 's',
@@ -289,6 +295,7 @@ export default class Build extends EasCommand {
         : {},
       wait: flags['wait'],
       clearCache: flags['clear-cache'],
+      autoConfigureUpdate: flags['auto-configure-update'],
       json,
       autoSubmit,
       submitProfile: flags['auto-submit-with-profile'] ?? profile,

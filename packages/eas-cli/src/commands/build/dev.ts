@@ -188,6 +188,7 @@ export default class BuildDev extends EasCommand {
         freezeCredentials: false,
         wait: true,
         clearCache: false,
+        autoConfigureUpdate: false,
         json: false,
         autoSubmit: false,
         localBuildOptions: {},

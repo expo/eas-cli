@@ -315,6 +315,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
     const easJsonAccessor = EasJsonAccessor.fromProjectPath(projectDir);
     await easJsonAccessor.readRawJsonAsync();
 
+    const patchedProfileNames: string[] = [];
     easJsonAccessor.patch(easJsonRawObject => {
       // If there are no build profiles then we are done.
       if (!easJsonRawObject.build) {
@@ -326,6 +327,7 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
           const buildProfile = easJsonRawObject.build[profileNameKey];
           const isNotAlreadyConfigured = !buildProfile.channel;
           if (isNotAlreadyConfigured) {
+            patchedProfileNames.push(profileNameKey);
             return {
               ...acc,
               [profileNameKey]: {
@@ -350,6 +352,10 @@ export async function ensureEASUpdateIsConfiguredInEasJsonAsync(projectDir: stri
         build: easBuildProfilesWithChannels,
       };
     });
+
+    if (patchedProfileNames.length === 0) {
+      return;
+    }
 
     await easJsonAccessor.writeAsync();
     Log.withTick(`Configured ${chalk.bold('eas.json')}.`);

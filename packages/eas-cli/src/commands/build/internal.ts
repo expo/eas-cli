@@ -93,6 +93,7 @@ export default class BuildInternal extends EasCommand {
         refreshAdHocProvisioningProfile: flags['refresh-ad-hoc-provisioning-profile'],
         wait: false,
         clearCache: false,
+        autoConfigureUpdate: false,
         json: true,
         autoSubmit: flags['auto-submit'] || flags['auto-submit-with-profile'] !== undefined,
         localBuildOptions: {
