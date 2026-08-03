@@ -26,6 +26,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Check non-interactive mode before fetching context in `eas submit:cancel` and `eas submit:retry`, so a missing submission ID fails fast without network requests. ([#4141](https://github.com/expo/eas-cli/pull/4141) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Run EAS Simulator previews with the official `@expo/serve-sim` package under EAS-owned supervision. ([#4114](https://github.com/expo/eas-cli/pull/4114) by [@szdziedzic](https://github.com/szdziedzic))
 - [reviewer] Report each AI review finding with a confidence and shipping-impact signal, and open the review summary with an overall PR risk rating. ([#4128](https://github.com/expo/eas-cli/pull/4128) by [@brentvatne](https://github.com/brentvatne))
 

@@ -96,6 +96,10 @@ export default class SubmissionCancel extends EasCommand {
       );
     }
 
+    if (!submissionIdFromArg && nonInteractive) {
+      throw new Error('Submission ID must be provided in non-interactive mode');
+    }
+
     const {
       projectId,
       loggedIn: { graphqlClient },
@@ -103,13 +107,9 @@ export default class SubmissionCancel extends EasCommand {
       nonInteractive,
     });
 
-    const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
-
     let submissionId: string | null = submissionIdFromArg ?? null;
     if (!submissionId) {
-      if (nonInteractive) {
-        throw new Error('Submission ID must be provided in non-interactive mode');
-      }
+      const displayName = await getDisplayNameForProjectIdAsync(graphqlClient, projectId);
 
       submissionId = await selectSubmissionToCancelAsync(
         graphqlClient,
