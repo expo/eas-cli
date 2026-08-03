@@ -4,6 +4,7 @@ import * as fs from 'fs-extra';
 
 import { getMockOclifConfig } from '../../../../__tests__/commands/utils';
 import { ExpoGraphqlClient } from '../../../../commandUtils/context/contextUtils/createGraphqlClient';
+import * as supabaseCommandUtils from '../../../../commandUtils/supabase';
 import { testProjectId } from '../../../../credentials/__tests__/fixtures-constants';
 import {
   EnvironmentVariableScope,
@@ -350,6 +351,18 @@ describe(IntegrationsSupabaseConnect, () => {
       ]),
       expect.objectContaining({ initial: 'link' })
     );
+    const promptOpts = jest.mocked(promptAsync).mock.calls[0]?.[0] as {
+      validate?: (value: string) => true | string;
+    };
+    expect(promptOpts.validate?.(mockProject.supabaseProjectRef)).toBe(true);
+    expect(promptOpts.validate?.('not a ref')).toEqual(expect.any(String));
+    const parseSpy = jest
+      .spyOn(supabaseCommandUtils, 'parseSupabaseProjectRef')
+      .mockImplementationOnce(() => {
+        throw 'nope';
+      });
+    expect(promptOpts.validate?.('x')).toBe('Invalid project ref or URL');
+    parseSpy.mockRestore();
     expect(SupabaseMutation.linkSupabaseProjectAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: testProjectId,
       supabaseProjectRef: mockProject.supabaseProjectRef,

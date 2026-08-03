@@ -208,6 +208,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     }
 
     let organizations: SupabaseOrganizationData[] | null = null;
+    let authorizedConnection: SupabaseConnectionData;
     if (connection) {
       organizations = await loadOrganizationsBestEffortAsync(graphqlClient, account.id);
       Log.withTick(
@@ -215,9 +216,15 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
           formatSupabaseOrganization(connection, organizations ?? undefined)
         )}`
       );
+      authorizedConnection = connection;
     } else {
-      connection = await authorizeViaBrowserAsync(graphqlClient, account, nonInteractive);
+      authorizedConnection = await authorizeViaBrowserAsync(
+        graphqlClient,
+        account,
+        nonInteractive
+      );
     }
+    connection = authorizedConnection;
 
     let project = await SupabaseQuery.getSupabaseProjectByAppIdAsync(graphqlClient, projectId);
     if (project) {
@@ -248,29 +255,27 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
         graphqlClient,
         projectId,
         accountId: account.id,
-        connection,
+        connection: authorizedConnection,
         organizationFlag,
         regionFlag,
         nonInteractive,
         organizations,
       });
       project = afterReauth.project;
-      connection = afterReauth.connection;
+      authorizedConnection = afterReauth.connection;
+      connection = authorizedConnection;
     } else {
-      connection = await resolveOrganizationAsync(
+      authorizedConnection = await resolveOrganizationAsync(
         graphqlClient,
         account.id,
-        connection,
+        authorizedConnection,
         organizationFlag,
         nonInteractive,
         organizations
       );
+      connection = authorizedConnection;
       const region = await resolveRegionAsync(regionFlag, nonInteractive);
       project = await this.provisionAndPollPrimaryProjectAsync(graphqlClient, projectId, region);
-    }
-
-    if (!connection) {
-      throw new Error('Expected an authorized Supabase connection before continuing.');
     }
 
     const publishableKey = await resolvePublishableKeyAsync(graphqlClient, projectId, project);
