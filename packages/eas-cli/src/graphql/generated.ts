@@ -3665,7 +3665,10 @@ export type AppleDeviceRegistrationRequest = {
 
 export type AppleDeviceRegistrationRequestMutation = {
   __typename?: 'AppleDeviceRegistrationRequestMutation';
-  /** Create an Apple Device registration request */
+  /**
+   * Create an Apple Device registration request.
+   * Pass singleUse to create a fresh request that closes after the first device is registered.
+   */
   createAppleDeviceRegistrationRequest: AppleDeviceRegistrationRequest;
 };
 
@@ -3673,6 +3676,7 @@ export type AppleDeviceRegistrationRequestMutation = {
 export type AppleDeviceRegistrationRequestMutationCreateAppleDeviceRegistrationRequestArgs = {
   accountId: Scalars['ID']['input'];
   appleTeamId: Scalars['ID']['input'];
+  singleUse?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 /** Publicly visible data for an AppleDeviceRegistrationRequest. */
@@ -4334,6 +4338,8 @@ export type Build = ActivityTimelineProjectActivity & BuildOrBuildJob & {
   sdkVersion?: Maybe<Scalars['String']['output']>;
   /** @deprecated Use 'resolvedImage' for the concrete image the build runs on. */
   selectedImage?: Maybe<Scalars['String']['output']>;
+  /** The active ssh session for this build, if any. */
+  sshSession?: Maybe<TurtleSshSession>;
   status: BuildStatus;
   submissions: Array<Submission>;
   updateChannel?: Maybe<UpdateChannel>;
@@ -8266,6 +8272,8 @@ export type JobRun = {
   priority: JobRunPriority;
   /** String describing the worker profile used to run this job run. */
   resourceClassDisplayName: Scalars['String']['output'];
+  /** The active ssh session for this job run, if any. */
+  sshSession?: Maybe<TurtleSshSession>;
   startedAt?: Maybe<Scalars['DateTime']['output']>;
   status: JobRunStatus;
   updateGroups: Array<Array<Update>>;
@@ -9340,6 +9348,7 @@ export type RootMutation = {
   supabaseProject: SupabaseProjectMutation;
   tunnels: TunnelsMutation;
   turtleBrownfieldArtifacts: TurtleBrownfieldArtifactMutation;
+  turtleSshSession: TurtleSshSessionMutation;
   update: UpdateMutation;
   updateBranch: UpdateBranchMutation;
   updateChannel: UpdateChannelMutation;
@@ -10387,6 +10396,63 @@ export type TurtleBrownfieldArtifactQueryLatestForAppArgs = {
   bundleName: Scalars['String']['input'];
   platform: AppPlatform;
 };
+
+/**
+ * Everything a client needs to open the ssh connection, reported by the worker once it has dialed
+ * the relay. Reading this decrypts the connection secret, so it is gated at account PUBLISH.
+ */
+export type TurtleSshConnectionConfig = {
+  __typename?: 'TurtleSshConnectionConfig';
+  host: Scalars['String']['output'];
+  reconnecting: Scalars['Boolean']['output'];
+  secret: Scalars['String']['output'];
+  type: TurtleSshTransportType;
+};
+
+export type TurtleSshConnectionConfigInput = {
+  host: Scalars['String']['input'];
+  reconnecting?: InputMaybe<Scalars['Boolean']['input']>;
+  secret: Scalars['String']['input'];
+  type: TurtleSshTransportType;
+};
+
+export type TurtleSshSession = {
+  __typename?: 'TurtleSshSession';
+  build?: Maybe<Build>;
+  connectionConfig: TurtleSshConnectionConfig;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  initiatingActor?: Maybe<Actor>;
+  jobRun?: Maybe<JobRun>;
+  sessionSettings: TurtleSshSessionSettings;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type TurtleSshSessionMutation = {
+  __typename?: 'TurtleSshSessionMutation';
+  createOrUpdateTurtleSshSession: TurtleSshSession;
+};
+
+
+export type TurtleSshSessionMutationCreateOrUpdateTurtleSshSessionArgs = {
+  connectionConfig: TurtleSshConnectionConfigInput;
+  sessionSettings: TurtleSshSessionSettingsInput;
+  turtleBuildId?: InputMaybe<Scalars['ID']['input']>;
+  turtleJobRunId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+export type TurtleSshSessionSettings = {
+  __typename?: 'TurtleSshSessionSettings';
+  idleTimeoutSeconds: Scalars['Int']['output'];
+};
+
+export type TurtleSshSessionSettingsInput = {
+  idleTimeoutSeconds: Scalars['Int']['input'];
+};
+
+export enum TurtleSshTransportType {
+  UptermV1 = 'UPTERM_V1'
+}
 
 export type UniqueUsersOverTimeData = {
   __typename?: 'UniqueUsersOverTimeData';
@@ -12970,6 +13036,7 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   retriedWorkflowRun?: Maybe<WorkflowRun>;
   retries: Array<WorkflowRun>;
   sourceExpiresAt?: Maybe<Scalars['DateTime']['output']>;
+  sshSettings?: Maybe<WorkflowRunSshSettings>;
   status: WorkflowRunStatus;
   triggerEventType: WorkflowRunTriggerEventType;
   triggeringLabelName?: Maybe<Scalars['String']['output']>;
@@ -13055,6 +13122,11 @@ export type WorkflowRunQuery = {
 
 export type WorkflowRunQueryByIdArgs = {
   workflowRunId: Scalars['ID']['input'];
+};
+
+export type WorkflowRunSshSettings = {
+  __typename?: 'WorkflowRunSshSettings';
+  idleTimeoutSeconds: Scalars['Int']['output'];
 };
 
 export enum WorkflowRunStatus {
@@ -15237,6 +15309,13 @@ export type WorkflowJobByIdQuery = { __typename?: 'RootQuery', workflowJobs: { _
           | { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }
           | { __typename: 'Snack', id: string, name: string, slug: string }
         , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, errors: Array<{ __typename?: 'WorkflowJobError', title: string, message: string }> } } };
+
+export type WorkflowJobSshPollQueryVariables = Exact<{
+  workflowJobId: Scalars['ID']['input'];
+}>;
+
+
+export type WorkflowJobSshPollQuery = { __typename?: 'RootQuery', workflowJobs: { __typename?: 'WorkflowJobQuery', byId: { __typename?: 'WorkflowJob', id: string, status: WorkflowJobStatus, type: WorkflowJobType, workflowRun: { __typename?: 'WorkflowRun', id: string, sshSettings?: { __typename?: 'WorkflowRunSshSettings', idleTimeoutSeconds: number } | null }, turtleJobRun?: { __typename?: 'JobRun', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null, turtleBuild?: { __typename?: 'Build', id: string, sshSession?: { __typename?: 'TurtleSshSession', id: string, connectionConfig: { __typename?: 'TurtleSshConnectionConfig', host: string, secret: string, reconnecting: boolean } } | null } | null } } };
 
 export type ExpoGoSupportedSdkVersionsQueryVariables = Exact<{ [key: string]: never; }>;
 
