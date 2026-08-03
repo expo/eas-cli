@@ -17,11 +17,13 @@ import {
 import { SupabaseMutation } from '../../../graphql/mutations/SupabaseMutation';
 import { SupabaseQuery } from '../../../graphql/queries/SupabaseQuery';
 import {
+  SupabaseConnectionData,
   SupabaseOrganizationData,
   SupabaseProjectData,
 } from '../../../graphql/types/SupabaseConnection';
 import Log, { link } from '../../../log';
 import { getOwnerAccountForProjectIdAsync } from '../../../project/projectUtils';
+import { promptAsync, selectAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
 import {
@@ -105,7 +107,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     }),
     reauth: Flags.boolean({
       description:
-        'Disconnect the existing Supabase OAuth connection, then re-authorize in the browser. Removes the EAS connection and primary project link; Supabase projects themselves are kept. Interactive only; incompatible with --environment',
+        'Disconnect the existing Supabase OAuth connection, then re-authorize in the browser. Removes the EAS connection and primary project link (Supabase projects are kept). Then prompts to link an existing project (default) or provision a new one; pass --link to skip the prompt. Interactive only; incompatible with --environment',
       default: false,
     }),
     overwrite: Flags.boolean({
@@ -184,6 +186,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       graphqlClient,
       account.id
     );
+    let didReauth = false;
     if (reauth) {
       if (!connection) {
         if (!nonInteractive) {
@@ -195,11 +198,12 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
         );
       } else {
         Log.warn(
-          'Resetting the Supabase connection. This removes the EAS connection and its project link (your Supabase projects are preserved). After authorizing you can re-link with --link <ref> or provision a new project.'
+          'Resetting the Supabase connection. This removes the EAS connection and its project link (your Supabase projects are preserved). After authorizing, you will be asked to link an existing project (recommended) or provision a new one.'
         );
         await SupabaseMutation.disconnectSupabaseAsync(graphqlClient, connection.id);
         Log.withTick('Reset the existing Supabase connection');
         connection = null;
+        didReauth = true;
       }
     }
 
@@ -239,6 +243,19 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
         supabaseProjectRef: linkProjectRef,
       });
       Log.withTick(`Linked Supabase project ${chalk.bold(formatSupabaseProjectLabel(project))}`);
+    } else if (didReauth) {
+      const afterReauth = await this.resolveProjectAfterReauthAsync({
+        graphqlClient,
+        projectId,
+        accountId: account.id,
+        connection,
+        organizationFlag,
+        regionFlag,
+        nonInteractive,
+        organizations,
+      });
+      project = afterReauth.project;
+      connection = afterReauth.connection;
     } else {
       connection = await resolveOrganizationAsync(
         graphqlClient,
@@ -250,6 +267,10 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       );
       const region = await resolveRegionAsync(regionFlag, nonInteractive);
       project = await this.provisionAndPollPrimaryProjectAsync(graphqlClient, projectId, region);
+    }
+
+    if (!connection) {
+      throw new Error('Expected an authorized Supabase connection before continuing.');
     }
 
     const publishableKey = await resolvePublishableKeyAsync(graphqlClient, projectId, project);
@@ -296,6 +317,74 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     }
 
     this.printNextSteps(project, manualSteps);
+  }
+
+  private async resolveProjectAfterReauthAsync({
+    graphqlClient,
+    projectId,
+    accountId,
+    connection,
+    organizationFlag,
+    regionFlag,
+    nonInteractive,
+    organizations,
+  }: {
+    graphqlClient: ExpoGraphqlClient;
+    projectId: string;
+    accountId: string;
+    connection: SupabaseConnectionData;
+    organizationFlag: string | undefined;
+    regionFlag: string | undefined;
+    nonInteractive: boolean;
+    organizations: SupabaseOrganizationData[] | null;
+  }): Promise<{ project: SupabaseProjectData; connection: SupabaseConnectionData }> {
+    // --reauth already required interactive mode when a connection existed.
+    const choice = await selectAsync<'link' | 'provision'>(
+      'The previous EAS project link was removed. What next?',
+      [
+        { title: 'Link an existing Supabase project (recommended)', value: 'link' },
+        { title: 'Provision a new Supabase project', value: 'provision' },
+      ],
+      { initial: 'link' }
+    );
+
+    if (choice === 'link') {
+      const { linkValue } = await promptAsync({
+        type: 'text',
+        name: 'linkValue',
+        message: 'Supabase project ref or URL',
+        validate: (value: string) => {
+          try {
+            parseSupabaseProjectRef(value);
+            return true;
+          } catch (error) {
+            return error instanceof Error ? error.message : 'Invalid project ref or URL';
+          }
+        },
+      });
+      const project = await SupabaseMutation.linkSupabaseProjectAsync(graphqlClient, {
+        appId: projectId,
+        supabaseProjectRef: parseSupabaseProjectRef(linkValue),
+      });
+      Log.withTick(`Linked Supabase project ${chalk.bold(formatSupabaseProjectLabel(project))}`);
+      return { project, connection };
+    }
+
+    const nextConnection = await resolveOrganizationAsync(
+      graphqlClient,
+      accountId,
+      connection,
+      organizationFlag,
+      nonInteractive,
+      organizations
+    );
+    const region = await resolveRegionAsync(regionFlag, nonInteractive);
+    const project = await this.provisionAndPollPrimaryProjectAsync(
+      graphqlClient,
+      projectId,
+      region
+    );
+    return { project, connection: nextConnection };
   }
 
   private async provisionAndPollPrimaryProjectAsync(
