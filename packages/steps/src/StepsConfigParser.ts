@@ -323,7 +323,14 @@ export class StepsConfigParser extends AbstractConfigParser {
         );
       }
     }
-    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
+    try {
+      return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
+    } catch (err) {
+      if (err instanceof BuildConfigError) {
+        throw new BuildConfigError(`Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   private createBuildStepsFromNonGroupStepConfig(

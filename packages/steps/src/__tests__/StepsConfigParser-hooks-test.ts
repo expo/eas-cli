@@ -698,6 +698,28 @@ describe('StepsConfigParser hooks with composite functions', () => {
     expect(error.message).toMatch(/"working_directory" is not supported/);
   });
 
+  it('reports the hook key on composite expansion errors', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [{ uses: './.eas/functions/notify', id: 'notify' }],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/notify': {
+            inputs: [{ name: 'message', type: 'string', required: true }],
+            runs: { steps: [{ run: 'echo hi' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(
+      /^Invalid steps in "hooks\.before_install_node_modules": Input parameter "message"/
+    );
+  });
+
   it('flattens nested composite calls into a single hook entry', async () => {
     const workflow = await parseWorkflowAsync({
       ctx,
