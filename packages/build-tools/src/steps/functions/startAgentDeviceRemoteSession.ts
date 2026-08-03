@@ -31,6 +31,7 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const AGENT_DEVICE_PACKAGE_NAME = 'agent-device';
+export const DEFAULT_AGENT_DEVICE_VERSION = '0.20.3';
 const AGENT_DEVICE_REPO_URL = 'https://github.com/callstack/agent-device.git';
 const SRC_DIR = '/tmp/agent-device-src';
 const AGENT_DEVICE_STATE_DIR = path.join(os.homedir(), '.agent-device');
@@ -65,10 +66,11 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
-      const packageVersion = inputs.package_version.value as string | undefined;
+      const packageVersion =
+        (inputs.package_version.value as string | undefined) ?? DEFAULT_AGENT_DEVICE_VERSION;
       const { runtimePlatform } = global;
       logger.info(
-        `Starting agent-device remote session (version: ${packageVersion ?? 'latest'}, runtime: ${runtimePlatform}).`
+        `Starting agent-device remote session (version: ${packageVersion}, runtime: ${runtimePlatform}).`
       );
 
       if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
@@ -186,7 +188,7 @@ async function startAgentDeviceDaemonAsync({
   env,
   logger,
 }: {
-  packageVersion: string | undefined;
+  packageVersion: string;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<DetachedProcessHandle> {
@@ -223,7 +225,7 @@ async function startAgentDeviceDaemonAsync({
         },
         extras: {
           packageSpec,
-          packageVersion: packageVersion ?? 'latest',
+          packageVersion,
           bunVersion,
           bunInstallConfigured: Boolean(env.BUN_INSTALL?.trim()),
         },
@@ -241,15 +243,11 @@ async function startAgentDeviceDaemonFromGitAsync({
   env,
   logger,
 }: {
-  packageVersion: string | undefined;
+  packageVersion: string;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<DetachedProcessHandle> {
-  logger.info(
-    packageVersion
-      ? `Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`
-      : `Cloning agent-device (latest) into ${SRC_DIR}.`
-  );
+  logger.info(`Cloning agent-device @ v${packageVersion} into ${SRC_DIR}.`);
   await cloneAgentDeviceAsync({ packageVersion, env, logger });
 
   logger.info('Installing agent-device dependencies.');
@@ -273,11 +271,11 @@ async function cloneAgentDeviceAsync({
   env,
   logger,
 }: {
-  packageVersion: string | undefined;
+  packageVersion: string;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
-  const branchArgs = packageVersion ? ['--branch', `v${packageVersion}`] : [];
+  const branchArgs = ['--branch', `v${packageVersion}`];
   await spawn('git', ['clone', '--depth', '1', ...branchArgs, AGENT_DEVICE_REPO_URL, SRC_DIR], {
     env,
     logger,
@@ -317,8 +315,8 @@ async function getBunVersionForDiagnosticsAsync(env: BuildStepEnv): Promise<stri
   }
 }
 
-function createAgentDevicePackageSpec(packageVersion: string | undefined): string {
-  const versionSpec = packageVersion ? packageVersion.replace(/^v(?=\d)/, '') : 'latest';
+function createAgentDevicePackageSpec(packageVersion: string): string {
+  const versionSpec = packageVersion.replace(/^v(?=\d)/, '');
   return `${AGENT_DEVICE_PACKAGE_NAME}@${versionSpec}`;
 }
 
