@@ -1,4 +1,4 @@
-import { SystemError } from '@expo/eas-build-job';
+import { Env, SystemError } from '@expo/eas-build-job';
 import downloadFile from '@expo/downloader';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
@@ -9,6 +9,10 @@ import { z } from 'zod';
 import { isChildProcessAlive } from './processes';
 import { sleepAsync } from './retry';
 import { BuildContext } from '../context';
+
+// Keep \t/\n; strip the rest (incl. \r / ESC) so ANSI cannot spoof build logs.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
 
 /** GCS objects under turtle-v2/upterm — only the arches EAS workers use. */
 export function resolveUptermGcsObjectName(
@@ -92,9 +96,9 @@ function connectionConfigFromUptermSession(parsed: UptermSessionJson): SshConnec
 }
 
 export function redactConnectionSecrets(text: string): string {
-  let redacted = text;
+  let redacted = text.replace(CONTROL_CHARACTERS, '');
   // Every session token upterm emitted (userinfo before `@`), so each exact token can be scrubbed.
-  for (const [, token] of text.matchAll(/upterm proxy wss?:\/\/([^@\s]+)@/g)) {
+  for (const [, token] of redacted.matchAll(/upterm proxy wss?:\/\/([^@\s]+)@/g)) {
     redacted = redacted.split(token).join('<redacted>');
   }
   // Catch-all: redact URL userinfo (scheme://<userinfo>@) for any other credential in the text.
@@ -134,9 +138,10 @@ function killUptermProcessGroup(child: { pid?: number; kill: () => void } | unde
   }
 }
 
-async function tryUptermOnPathAsync(): Promise<string | null> {
+async function tryUptermOnPathAsync(env: Env): Promise<string | null> {
   try {
-    await spawn('upterm', ['version'], { stdio: 'pipe' });
+    // Use the job env (same PATH the host spawn gets), not process.env.
+    await spawn('upterm', ['version'], { stdio: 'pipe', env });
     return 'upterm';
   } catch {
     return null;
@@ -147,8 +152,8 @@ async function tryUptermOnPathAsync(): Promise<string | null> {
  * Prefer an image/PATH install (Linux workers already bake upterm). Otherwise download the
  * platform binary from gs://turtle-v2/upterm (same pattern as xclogparser).
  */
-export async function resolveUptermPathAsync(): Promise<string> {
-  const onPath = await tryUptermOnPathAsync();
+export async function resolveUptermPathAsync(env: Env): Promise<string> {
+  const onPath = await tryUptermOnPathAsync(env);
   if (onPath) {
     return onPath;
   }
@@ -253,7 +258,7 @@ export async function startUptermHostAsync(
   ctx: BuildContext,
   { relayServerUrl }: { relayServerUrl: string }
 ): Promise<UptermHost> {
-  const uptermPath = await resolveUptermPathAsync();
+  const uptermPath = await resolveUptermPathAsync(ctx.env);
 
   const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-ssh-'));
   const hostKeyPath = path.join(stateDir, 'id_host');

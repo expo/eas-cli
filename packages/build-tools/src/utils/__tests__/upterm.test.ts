@@ -126,6 +126,13 @@ describe(redactConnectionSecrets, () => {
       'dialing wss://relay.expo.dev'
     );
   });
+
+  it('strips control characters (incl. ESC) while keeping newlines', () => {
+    // ESC alone is enough to neutralize CSI; leftover printable "[31m" is harmless in logs.
+    expect(redactConnectionSecrets('ok\n\u001b[31mfail\u001b[0m\r\nbad\u0007')).toBe(
+      'ok\n[31mfail[0m\nbad'
+    );
+  });
 });
 
 describe(redactSpawnErrorForLog, () => {
@@ -210,10 +217,10 @@ describe(startUptermHostAsync, () => {
     };
   }
 
-  function makeCtx(): BuildContext {
+  function makeCtx(env: Record<string, string> = {}): BuildContext {
     return {
       logger: createMockLogger(),
-      env: {},
+      env,
     } as unknown as BuildContext;
   }
 
@@ -254,7 +261,10 @@ describe(startUptermHostAsync, () => {
   });
 
   it('uses upterm on PATH, dials, and returns a handle with the parsed config', async () => {
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
+    const env = { PATH: '/job/bin', CUSTOM: '1' };
+    const host = await startUptermHostAsync(makeCtx(env), {
+      relayServerUrl: 'wss://relay.expo.dev',
+    });
 
     expect(host.connectionConfig).toEqual({
       type: 'upterm-v1',
@@ -263,6 +273,15 @@ describe(startUptermHostAsync, () => {
     });
     expect(host.isAlive()).toBe(true);
     expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(mockedSpawn).toHaveBeenCalledWith('upterm', ['version'], {
+      stdio: 'pipe',
+      env,
+    });
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'upterm',
+      expect.arrayContaining(['host']),
+      expect.objectContaining({ env: expect.objectContaining({ CUSTOM: '1', PATH: '/job/bin' }) })
+    );
   });
 
   it('downloads from GCS when upterm is not on PATH', async () => {
