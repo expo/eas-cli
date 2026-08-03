@@ -1,43 +1,13 @@
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
-import {
-  EnvVar,
-  loadProjectScopedEnvVarsAsync,
-  upsertEasEnvVarForEnvironmentsAsync as upsertEasEnvVarForEnvironmentsWithLabelAsync,
-} from '../../environments/variables';
+import { EnvVar, loadProjectScopedEnvVarsAsync } from '../../environments/variables';
 import { EnvironmentVariableVisibility } from '../../graphql/generated';
 import { confirmAsync } from '../../prompts';
-import {
-  mergeEnvContent,
-  writeEnvLocalAsync as writeEnvLocalWithLabelAsync,
-} from '../shared/envFile';
-
-export type { EnvVar };
-export { mergeEnvContent };
-export { upsertEasEnvVarAsync } from '../../environments/variables';
 
 export const EAS_SUPABASE_URL_ENV_VAR_NAME = 'EXPO_PUBLIC_SUPABASE_URL';
 export const EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME = 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY';
 
-const SUPABASE_ENV_LABEL = 'Supabase';
-
-export async function upsertEasEnvVarForEnvironmentsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectId: string,
-  envVar: EnvVar,
-  environments: string[],
-  nonInteractive: boolean,
-  overwrite: boolean
-): Promise<boolean> {
-  return await upsertEasEnvVarForEnvironmentsWithLabelAsync(
-    graphqlClient,
-    projectId,
-    envVar,
-    environments,
-    nonInteractive,
-    overwrite,
-    { label: SUPABASE_ENV_LABEL }
-  );
-}
+/** Label passed into shared env helpers for prompts and log lines. */
+export const SUPABASE_ENV_LABEL = 'Supabase';
 
 export function createSupabaseEnvVars(url: string, publishableKey: string): EnvVar[] {
   return [
@@ -52,19 +22,6 @@ export function createSupabaseEnvVars(url: string, publishableKey: string): EnvV
       visibility: EnvironmentVariableVisibility.Public,
     },
   ];
-}
-
-export async function writeEnvLocalAsync(
-  projectDir: string,
-  envVars: EnvVar[],
-  nonInteractive: boolean,
-  overwrite: boolean
-): Promise<boolean> {
-  return await writeEnvLocalWithLabelAsync(projectDir, envVars, {
-    label: SUPABASE_ENV_LABEL,
-    nonInteractive,
-    overwrite,
-  });
 }
 
 export async function writeEnvVarsAsync(
