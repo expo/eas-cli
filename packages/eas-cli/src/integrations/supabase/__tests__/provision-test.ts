@@ -219,6 +219,22 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Open this URL'));
   });
 
+  it('authorizeViaBrowserAsync succeeds when organization listing fails', async () => {
+    jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
+      state: 's',
+      url: 'https://oauth.example',
+    });
+    jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
+    jest.mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).mockResolvedValue(connection);
+    jest
+      .mocked(SupabaseMutation.listSupabaseOrganizationsAsync)
+      .mockRejectedValue(new Error('org list unavailable'));
+
+    const spinner = mockOraSpinner();
+    await expect(authorizeViaBrowserAsync(client, account, false)).resolves.toEqual(connection);
+    expect(spinner.succeed).toHaveBeenCalledWith(expect.stringContaining('org-slug'));
+  });
+
   it('authorizeViaBrowserAsync fails spinner on poll error', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
       state: 's',
@@ -310,6 +326,10 @@ describe('resolveRegionAsync', () => {
 
   it('returns flag value when provided', async () => {
     await expect(resolveRegionAsync('emea', true)).resolves.toBe('emea');
+  });
+
+  it('rejects a whitespace-only --region value', async () => {
+    await expect(resolveRegionAsync('   ', true)).rejects.toThrow(/Pass a Supabase region/);
   });
 
   it('throws in non-interactive mode without a flag', async () => {

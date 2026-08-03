@@ -148,4 +148,10 @@ describe(parseSupabaseProjectRef, () => {
     );
     expect(() => parseSupabaseProjectRef('   ')).toThrow(/No Supabase project given/);
   });
+
+  it('treats a malformed URL as a non-ref and rejects it', () => {
+    expect(() => parseSupabaseProjectRef('https://[')).toThrow(
+      /not a Supabase project reference ID/
+    );
+  });
 });
