@@ -28,6 +28,8 @@ jobs:
     needs: release
     permissions:
       id-token: write
+    outputs:
+      version: ${{ steps.resolve-version.outputs.version }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: ./.github/actions/setup-mise
@@ -37,40 +39,57 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn run -T lerna publish from-package --yes --no-verify-access
-      # Temporarily disabled (2026-08-03): we can no longer add npm dist-tags from CI.
-      # The tags must be added manually. A Slack reminder with the commands is posted below.
-      # - name: Add latest-eas-build-staging tag
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-      #   run: |
-      #     VERSION=$(cat lerna.json | jq -r .version)
-      #     echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-      #     npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-      # - name: Add latest-eas-build tag
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-      #   run: |
-      #     VERSION=$(cat lerna.json | jq -r .version)
-      #     echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-      #     npm dist-tag add eas-cli@$VERSION latest-eas-build
-      - name: Resolve version
-        run: echo "EAS_CLI_VERSION=$(jq -r .version lerna.json)" >> $GITHUB_ENV
-      - name: Slack reminder to add npm tags manually
+      # Read the version from the eas-cli package, not lerna.json. Lerna bumps
+      # only changed packages, so a release can carry a lerna.json version that
+      # eas-cli never published (example: v21.5.1 shipped eas-cli@21.5.0).
+      - name: Resolve eas-cli version
+        id: resolve-version
+        run: echo "version=$(jq -r .version packages/eas-cli/package.json)" >> $GITHUB_OUTPUT
+      # Remove this reminder once the build fleet resolves eas-cli through the
+      # pointer packages instead of the legacy dist-tags.
+      - name: Slack reminder to move legacy npm dist-tags manually
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
         env:
           SLACK_CHANNEL: eas-cli
           SLACK_COLOR: warning
           SLACK_ICON: https://github.com/expo-bot.png?size=48
-          SLACK_TITLE: "Manual action needed: add npm tags for eas-cli@${{ env.EAS_CLI_VERSION }}"
+          SLACK_TITLE: "Manual action needed: move legacy npm dist-tags for eas-cli@${{ steps.resolve-version.outputs.version }}"
           SLACK_MESSAGE: |
-            Don't forget to add these tags to the npm packages. Run:
+            The pointer packages are published by CI now, but the build fleet still reads the legacy dist-tags. Until the fleet migrates, run:
             ```
-            npm dist-tag add eas-cli@${{ env.EAS_CLI_VERSION }} latest-eas-build-staging
-            npm dist-tag add eas-cli@${{ env.EAS_CLI_VERSION }} latest-eas-build
+            npm dist-tag add eas-cli@${{ steps.resolve-version.outputs.version }} latest-eas-build-staging
+            npm dist-tag add eas-cli@${{ steps.resolve-version.outputs.version }} latest-eas-build
             ```
           SLACK_USERNAME: "EAS CLI CI"
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_FOOTER: ""
+  publish-staging-eas-cli-pointer:
+    name: Publish staging eas-cli pointer
+    needs: publish-to-npm
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-eas-cli-pointer.yml
+    with:
+      version: ${{ needs.publish-to-npm.outputs.version }}
+      target: staging
+  system-tests:
+    name: Run system tests against staging
+    needs: publish-staging-eas-cli-pointer
+    uses: ./.github/workflows/worker-system-tests.yml
+    secrets: inherit
+  publish-production-eas-cli-pointer:
+    name: Publish production eas-cli pointer
+    needs:
+      - publish-to-npm
+      - system-tests
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/publish-eas-cli-pointer.yml
+    with:
+      version: ${{ needs.publish-to-npm.outputs.version }}
+      target: production
   release-changelog:
     name: Update changelog and publish release
     runs-on: ubuntu-latest

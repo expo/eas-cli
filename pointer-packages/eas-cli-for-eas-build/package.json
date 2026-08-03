@@ -1,0 +1,23 @@
+{
+  "name": "eas-cli-for-eas-build",
+  "version": "0.0.0",
+  "description": "Internal Expo pointer package. It pins the eas-cli version used on EAS Build production infrastructure. Do not install this package directly.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/eas-cli.git",
+    "directory": "pointer-packages/eas-cli-for-eas-build"
+  },
+  "bin": {
+    "eas-cli-pointer": "./bin/run"
+  },
+  "files": [
+    "/bin"
+  ],
+  "dependencies": {
+    "eas-cli": "0.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

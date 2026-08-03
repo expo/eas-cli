@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+// Forwards all arguments to the `eas` binary of the exact `eas-cli` version
+// pinned in this package's dependencies.
+const { spawn } = require('child_process');
+const path = require('path');
+
+const easCliPackageJsonPath = require.resolve('eas-cli/package.json');
+const easCliPackageJson = require(easCliPackageJsonPath);
+const easBinPath = path.join(path.dirname(easCliPackageJsonPath), easCliPackageJson.bin.eas);
+
+const child = spawn(process.execPath, [easBinPath, ...process.argv.slice(2)], {
+  stdio: 'inherit',
+});
+child.on('error', err => {
+  console.error(err);
+  process.exit(1);
+});
+child.on('exit', code => {
+  process.exit(code ?? 1);
+});

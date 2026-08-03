@@ -1,0 +1,69 @@
+# Publishes the eas-cli pointer packages that pin the eas-cli version used on
+# EAS Build infrastructure. This replaces moving the latest-eas-build and
+# latest-eas-build-staging npm dist-tags: CI can no longer run `npm dist-tag add`
+# with npm access tokens, but it can still `npm publish` with OIDC trusted
+# publishing. See pointer-packages/README.md.
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: "Exact eas-cli version to pin the pointer packages to"
+      target:
+        type: string
+        required: false
+        default: "both"
+        description: "Which pointer packages to publish: staging, production, or both"
+      dry_run:
+        type: boolean
+        required: false
+        default: false
+        description: "Run without publishing to npm"
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: "Exact eas-cli version to pin the pointer packages to"
+      target:
+        type: choice
+        options:
+          - staging
+          - production
+          - both
+        default: "both"
+        description: "Which pointer packages to publish"
+      dry_run:
+        type: boolean
+        required: true
+        default: true
+        description: "Run without publishing to npm"
+
+name: Publish eas-cli pointer packages
+
+jobs:
+  publish:
+    name: Publish eas-cli pointer packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      INPUT_VERSION: ${{ inputs.version }}
+      INPUT_TARGET: ${{ inputs.target }}
+      INPUT_DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: ./.github/actions/setup-mise
+      - name: Update npm (OIDC trusted publishing requires npm >= 11.5.1)
+        run: |
+          npm install -g npm@^11
+          npm --version
+      - name: Publish pointer packages
+        run: |
+          args=(--eas-cli-version "$INPUT_VERSION" --target "$INPUT_TARGET")
+          if [[ "$INPUT_DRY_RUN" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          node pointer-packages/publish.mjs "${args[@]}"
