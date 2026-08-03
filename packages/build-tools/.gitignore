@@ -1,8 +1,6 @@
 node_modules/
 dist/
 bin/record-sim
-# Baked by worker package.sh at build time
-bin/upterm-*
 
 .secrets*
 !.secrets.example

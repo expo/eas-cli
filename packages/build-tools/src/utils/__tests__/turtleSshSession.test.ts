@@ -209,6 +209,23 @@ describe(startSshSessionAsync, () => {
     expect(host.stopAsync).toHaveBeenCalled();
   });
 
+  it('still throws the create error when host teardown itself fails', async () => {
+    const host = makeHost({
+      stopAsync: jest.fn().mockRejectedValue(new Error('teardown failed')),
+    });
+    mockedStartUptermHost.mockResolvedValue(host);
+    createOrUpdateResult = { error: { message: 'boom' } };
+
+    await expect(
+      startSshSessionAsync(ctx, {
+        target,
+        relayServerUrl: 'wss://r',
+        idleTimeoutSeconds: 300,
+      })
+    ).rejects.toThrow('boom');
+    expect(host.stopAsync).toHaveBeenCalled();
+  });
+
   it('throws "no data returned" when create or update succeeds without a payload', async () => {
     const host = makeHost();
     mockedStartUptermHost.mockResolvedValue(host);
