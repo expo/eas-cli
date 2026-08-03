@@ -96614,18 +96614,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "ssh",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "WorkflowRunSshInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -96829,18 +96817,6 @@
                 "deprecationReason": null
               },
               {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "workflowRevisionId",
                 "description": null,
                 "type": {
@@ -96879,18 +96855,6 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -96973,29 +96937,6 @@
         ],
         "inputFields": null,
         "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "WorkflowRunSshInput",
-        "description": "Enables ssh on the run's VM jobs. Presence turns ssh on; idleTimeoutSeconds is optional,\ndefaults server-side, and is validated against a supported range.",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "idleTimeoutSeconds",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
