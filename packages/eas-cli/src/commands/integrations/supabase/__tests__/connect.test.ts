@@ -324,14 +324,10 @@ describe(IntegrationsSupabaseConnect, () => {
     // Cascade delete removes the EAS project link with the connection.
     jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 'state',
       url: 'https://api.supabase.com/v1/oauth/authorize',
     });
     jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
-    jest
-      .mocked(selectAsync)
-      .mockResolvedValueOnce('link')
-      .mockResolvedValue('americas');
+    jest.mocked(selectAsync).mockResolvedValueOnce('link').mockResolvedValue('americas');
     jest.mocked(promptAsync).mockResolvedValue({ linkValue: mockProject.supabaseProjectRef });
     jest.mocked(SupabaseMutation.linkSupabaseProjectAsync).mockResolvedValue(mockProject);
 
@@ -381,7 +377,6 @@ describe(IntegrationsSupabaseConnect, () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValue(mockProject);
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 'state',
       url: 'https://api.supabase.com/v1/oauth/authorize',
     });
     jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
@@ -405,7 +400,6 @@ describe(IntegrationsSupabaseConnect, () => {
       .mockResolvedValue(mockConnection);
     jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 'state',
       url: 'https://api.supabase.com/v1/oauth/authorize',
     });
     jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
@@ -438,7 +432,6 @@ describe(IntegrationsSupabaseConnect, () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValue(mockConnection);
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 'state',
       url: 'https://api.supabase.com/v1/oauth/authorize',
     });
 
