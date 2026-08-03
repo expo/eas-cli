@@ -200,6 +200,48 @@ describe('upsertEasEnvVarAsync', () => {
       expect.objectContaining({ message: expect.stringContaining('multiple') })
     );
   });
+
+  it('uses other-environments wording when extras have no environment lists', async () => {
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([
+      {
+        id: 'keeper',
+        scope: EnvironmentVariableScope.Project,
+        environments: ['production'],
+      },
+      {
+        id: 'extra',
+        scope: EnvironmentVariableScope.Project,
+        environments: null,
+      },
+    ] as never);
+    jest.mocked(confirmAsync).mockResolvedValue(true);
+    jest.mocked(EnvironmentVariableMutation.deleteAsync).mockResolvedValue({} as never);
+    jest.mocked(EnvironmentVariableMutation.updateAsync).mockResolvedValue({} as never);
+
+    await expect(
+      upsertEasEnvVarAsync(client, 'app-1', envVar, ['production'], false, false)
+    ).resolves.toBe(true);
+    expect(confirmAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('other environments') })
+    );
+  });
+
+  it('skips interactively without mentioning --overwrite', async () => {
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([
+      {
+        id: 'v1',
+        scope: EnvironmentVariableScope.Project,
+        environments: ['production'],
+      } as never,
+    ]);
+    jest.mocked(confirmAsync).mockResolvedValue(false);
+
+    await expect(
+      upsertEasEnvVarAsync(client, 'app-1', envVar, ['production'], false, false)
+    ).resolves.toBe(false);
+    expect(Log.warn).toHaveBeenCalledWith(expect.stringContaining('Skipped updating'));
+    expect(Log.warn).not.toHaveBeenCalledWith(expect.stringContaining('--overwrite'));
+  });
 });
 
 describe('ensureAdditionalEnvWritesAllowedAsync', () => {
@@ -218,6 +260,19 @@ describe('ensureAdditionalEnvWritesAllowedAsync', () => {
 
   it('returns false when there is no overlap', async () => {
     jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([]);
+    await expect(
+      ensureAdditionalEnvWritesAllowedAsync(client, 'app-1', ['preview'], true, false)
+    ).resolves.toBe(false);
+  });
+
+  it('treats null environments as no overlap', async () => {
+    jest.mocked(EnvironmentVariablesQuery.byAppIdAsync).mockResolvedValue([
+      {
+        id: 'v1',
+        scope: EnvironmentVariableScope.Project,
+        environments: null,
+      } as never,
+    ]);
     await expect(
       ensureAdditionalEnvWritesAllowedAsync(client, 'app-1', ['preview'], true, false)
     ).resolves.toBe(false);
