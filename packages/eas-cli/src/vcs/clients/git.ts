@@ -12,11 +12,18 @@ import { confirmAsync, promptAsync } from '../../prompts';
 import {
   doesGitRepoExistAsync,
   getGitDiffOutputAsync,
+  getIgnoredPathsAsync,
   gitDiffAsync,
   gitStatusAsync,
   isGitInstalledAsync,
 } from '../git';
-import { EASIGNORE_FILENAME, Ignore, makeShallowCopyAsync } from '../local';
+import {
+  EASIGNORE_FILENAME,
+  Ignore,
+  IgnoredPathsFilter,
+  makeShallowCopyAsync,
+  PathFilter,
+} from '../local';
 import { Client } from '../vcs';
 
 let hasWarnedAboutEasignoreInRequireCommit = false;
@@ -274,7 +281,11 @@ export default class GitClient extends Client {
       //
       // We only do this if `requireCommit` is false because `requireCommit: true`
       // setups expect no changes in files (e.g. locked files should remain locked).
-      await makeShallowCopyAsync(rootPath, destinationPath);
+      await makeShallowCopyAsync(
+        rootPath,
+        destinationPath,
+        await this.createCopyFilterAsync(rootPath, { doesEasignoreExist })
+      );
     } else {
       Log.debug('not making shallow copy', { requireCommit: this.requireCommit });
     }
@@ -390,6 +401,23 @@ export default class GitClient extends Client {
 
   public override canGetLastCommitMessage(): boolean {
     return true;
+  }
+
+  private async createCopyFilterAsync(
+    rootPath: string,
+    { doesEasignoreExist }: { doesEasignoreExist: boolean }
+  ): Promise<PathFilter> {
+    if (doesEasignoreExist) {
+      // `.easignore` replaces the Git ignore rules entirely.
+      return await Ignore.createForCopyingAsync(rootPath);
+    }
+
+    // Ask Git which paths are ignored rather than reimplementing its ignore
+    // rules, so that the copy stays consistent with `isFileIgnoredAsync()` and
+    // with what the user sees in `git status`.
+    const ignoredPaths = await getIgnoredPathsAsync(rootPath);
+    Log.debug('paths ignored by git', { ignoredPaths });
+    return new IgnoredPathsFilter(ignoredPaths);
   }
 
   private async ensureGitConfiguredAsync({

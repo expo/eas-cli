@@ -243,6 +243,112 @@ describe('git', () => {
     ).resolves.not.toThrow();
   });
 
+  it('does not include files ignored in $GIT_DIR/info/exclude', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: false,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await fs.writeFile(`${repoRoot}/committed-file.txt`, 'file');
+    await spawnAsync('git', ['add', '.'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'add file'], { cwd: repoRoot });
+
+    await fs.mkdir(`${repoRoot}/locally-excluded-dir`);
+    await fs.writeFile(`${repoRoot}/locally-excluded-dir/file.txt`, 'file');
+    await fs.writeFile(`${repoRoot}/locally-excluded-file.txt`, 'file');
+    await fs.writeFile(
+      `${repoRoot}/.git/info/exclude`,
+      'locally-excluded-dir/\nlocally-excluded-file.txt\n'
+    );
+
+    const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoClone, 'locally-excluded-dir'))).rejects.toThrow('ENOENT');
+    await expect(fs.stat(path.join(repoClone, 'locally-excluded-file.txt'))).rejects.toThrow(
+      'ENOENT'
+    );
+    await expect(fs.stat(path.join(repoClone, 'committed-file.txt'))).resolves.not.toThrow();
+  });
+
+  it('does not include files ignored in core.excludesFile', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: false,
+      maybeCwdOverride: repoRoot,
+    });
+
+    const globalExcludesFile = path.join(repoRoot, '..', `${path.basename(repoRoot)}-excludes`);
+    await fs.writeFile(globalExcludesFile, 'globally-excluded-file.txt\n');
+    await spawnAsync('git', ['config', 'core.excludesFile', globalExcludesFile], { cwd: repoRoot });
+
+    await fs.writeFile(`${repoRoot}/committed-file.txt`, 'file');
+    await spawnAsync('git', ['add', 'committed-file.txt'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'add file'], { cwd: repoRoot });
+    await fs.writeFile(`${repoRoot}/globally-excluded-file.txt`, 'file');
+
+    const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoClone, 'globally-excluded-file.txt'))).rejects.toThrow(
+      'ENOENT'
+    );
+    await expect(fs.stat(path.join(repoClone, 'committed-file.txt'))).resolves.not.toThrow();
+  });
+
+  it('does not include files ignored inside a submodule', async () => {
+    const submoduleRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: submoduleRoot });
+    await fs.writeFile(`${submoduleRoot}/.gitignore`, 'build/\n');
+    await fs.writeFile(`${submoduleRoot}/source.txt`, 'file');
+    await spawnAsync('git', ['add', '.'], { cwd: submoduleRoot });
+    await spawnAsync('git', ['commit', '-m', 'add source'], { cwd: submoduleRoot });
+
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: false,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await spawnAsync(
+      'git',
+      // Local submodules are refused unless the file protocol is allowed.
+      ['-c', 'protocol.file.allow=always', 'submodule', 'add', submoduleRoot, 'submodule'],
+      { cwd: repoRoot }
+    );
+    await spawnAsync('git', ['commit', '-m', 'add submodule'], { cwd: repoRoot });
+
+    await fs.mkdir(`${repoRoot}/submodule/build`);
+    await fs.writeFile(`${repoRoot}/submodule/build/artifact.txt`, 'file');
+
+    const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoClone, 'submodule/build'))).rejects.toThrow('ENOENT');
+    await expect(fs.stat(path.join(repoClone, 'submodule/source.txt'))).resolves.not.toThrow();
+  });
+
+  it('includes tracked files that match a .gitignore rule', async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await spawnAsync('git', ['init'], { cwd: repoRoot });
+    const vcs = new GitClient({
+      requireCommit: false,
+      maybeCwdOverride: repoRoot,
+    });
+
+    await fs.writeFile(`${repoRoot}/.gitignore`, '*.env\n');
+    await fs.writeFile(`${repoRoot}/tracked.env`, 'file');
+    await fs.writeFile(`${repoRoot}/untracked.env`, 'file');
+    await spawnAsync('git', ['add', '--force', '.gitignore', 'tracked.env'], { cwd: repoRoot });
+    await spawnAsync('git', ['commit', '-m', 'add files'], { cwd: repoRoot });
+
+    const repoClone = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
+    await expect(vcs.makeShallowCopyAsync(repoClone)).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoClone, 'tracked.env'))).resolves.not.toThrow();
+    await expect(fs.stat(path.join(repoClone, 'untracked.env'))).rejects.toThrow('ENOENT');
+  });
+
   describe('when requireCommit is true', () => {
     it('adheres to .easignore', async () => {
       const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-cli-git-test-'));
