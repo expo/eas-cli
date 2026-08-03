@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Publish `eas-cli-for-eas-build` and `eas-cli-for-eas-build-staging` pointer packages from CI to replace the `latest-eas-build` and `latest-eas-build-staging` npm dist-tags, and gate the production pointer on the worker system tests. ([#4146](https://github.com/expo/eas-cli/pull/4146) by [@szdziedzic](https://github.com/szdziedzic))
+
 ## [21.5.1](https://github.com/expo/eas-cli/releases/tag/v21.5.1) - 2026-08-03
 
 ## [21.5.0](https://github.com/expo/eas-cli/releases/tag/v21.5.0) - 2026-08-03
