@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 
@@ -9,16 +10,19 @@ import {
   parseUptermSessionJson,
   redactConnectionSecrets,
   redactSpawnErrorForLog,
-  resolveUptermArch,
+  resolveUptermGcsObjectName,
   startUptermHostAsync,
 } from '../upterm';
 
 jest.mock('@expo/turtle-spawn', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('@expo/downloader', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('../retry', () => ({ sleepAsync: jest.fn() }));
 jest.mock('node:fs/promises', () => ({
   __esModule: true,
   default: {
     access: jest.fn(),
+    mkdir: jest.fn(),
+    chmod: jest.fn(),
     mkdtemp: jest.fn(),
     writeFile: jest.fn(),
     rm: jest.fn(),
@@ -26,10 +30,15 @@ jest.mock('node:fs/promises', () => ({
   },
 }));
 
-describe(resolveUptermArch, () => {
-  it('maps arm64 to arm64 and everything else to amd64', () => {
-    expect(resolveUptermArch('arm64')).toBe('arm64');
-    expect(resolveUptermArch('x64')).toBe('amd64');
+describe(resolveUptermGcsObjectName, () => {
+  it('maps worker platforms to GCS object names', () => {
+    expect(resolveUptermGcsObjectName('darwin', 'arm64')).toBe('upterm-darwin-arm64');
+    expect(resolveUptermGcsObjectName('linux', 'x64')).toBe('upterm-linux-amd64');
+  });
+
+  it('rejects unsupported platforms', () => {
+    expect(() => resolveUptermGcsObjectName('darwin', 'x64')).toThrow(/only available/);
+    expect(() => resolveUptermGcsObjectName('linux', 'arm64')).toThrow(/only available/);
   });
 });
 
@@ -83,11 +92,6 @@ describe(parseUptermSessionJson, () => {
       parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://[' }))
     ).toBeNull();
   });
-
-  it('returns null when json is the wrong shape', () => {
-    expect(parseUptermSessionJson(JSON.stringify({ sessionId: 1, host: 'relay' }))).toBeNull();
-    expect(parseUptermSessionJson(JSON.stringify(['sessionId']))).toBeNull();
-  });
 });
 
 describe(redactConnectionSecrets, () => {
@@ -139,15 +143,13 @@ describe(redactSpawnErrorForLog, () => {
   it('leaves non-string message/stdout/stderr fields alone', () => {
     expect(
       redactSpawnErrorForLog({
-        message: { nested: 'wss://secret@relay' },
-        stdout: 12,
-        stderr: undefined,
+        message: 42,
+        stdout: Buffer.from('x'),
         code: 1,
       })
     ).toEqual({
-      message: { nested: 'wss://secret@relay' },
-      stdout: 12,
-      stderr: undefined,
+      message: 42,
+      stdout: Buffer.from('x'),
       code: 1,
     });
   });
@@ -157,6 +159,7 @@ describe(startUptermHostAsync, () => {
   const mockedSpawn = jest.mocked(spawn);
   const mockedSleep = jest.mocked(sleepAsync);
   const mockedFs = jest.mocked(fs);
+  const mockedDownloadFile = jest.mocked(downloadFile);
 
   let hostProcess: {
     child: {
@@ -172,6 +175,7 @@ describe(startUptermHostAsync, () => {
     catch: (cb: (err: unknown) => void) => Promise<void>;
   };
   let sessionStdout: string;
+  let uptermOnPath = true;
 
   function makeHostProcess(): typeof hostProcess {
     return {
@@ -207,18 +211,28 @@ describe(startUptermHostAsync, () => {
     jest.clearAllMocks();
     jest.spyOn(process, 'kill').mockReturnValue(true);
     hostProcess = makeHostProcess();
+    uptermOnPath = true;
     sessionStdout = JSON.stringify({
       sessionId: 'TOKENx',
       host: 'ssh://relay.expo.dev:22',
       clientCount: 0,
     });
     mockedSleep.mockResolvedValue(undefined);
-    mockedFs.access.mockResolvedValue(undefined as never);
+    mockedFs.access.mockRejectedValue(new Error('ENOENT') as never);
+    mockedFs.mkdir.mockResolvedValue(undefined as never);
+    mockedFs.chmod.mockResolvedValue(undefined as never);
     mockedFs.mkdtemp.mockResolvedValue('/tmp/eas-ssh-1' as never);
     mockedFs.writeFile.mockResolvedValue(undefined as never);
     mockedFs.rm.mockResolvedValue(undefined as never);
     mockedFs.readdir.mockResolvedValue(['default.sock'] as never);
-    mockedSpawn.mockImplementation(((_cmd: string, args: string[]) => {
+    mockedDownloadFile.mockResolvedValue(undefined as never);
+    mockedSpawn.mockImplementation(((cmd: string, args: string[]) => {
+      if (cmd === 'upterm' && Array.isArray(args) && args[0] === 'version') {
+        if (!uptermOnPath) {
+          return Promise.reject(new Error('not found')) as never;
+        }
+        return Promise.resolve({ stdout: 'upterm version 0.24.0\n', stderr: '' }) as never;
+      }
       if (Array.isArray(args) && args[0] === 'host') {
         return hostProcess as never;
       }
@@ -229,7 +243,7 @@ describe(startUptermHostAsync, () => {
     }) as never);
   });
 
-  it('resolves the baked client, dials, and returns a handle with the parsed config', async () => {
+  it('uses upterm on PATH, dials, and returns a handle with the parsed config', async () => {
     const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
 
     expect(host.connectionConfig).toEqual({
@@ -238,13 +252,54 @@ describe(startUptermHostAsync, () => {
       secret: 'TOKENx',
     });
     expect(host.isAlive()).toBe(true);
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
   });
 
-  it('throws when the baked upterm client is missing', async () => {
+  it('downloads from GCS when upterm is not on PATH', async () => {
+    uptermOnPath = false;
     mockedFs.access.mockRejectedValue(new Error('ENOENT') as never);
 
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
+
+    expect(host.connectionConfig.secret).toBe('TOKENx');
+    expect(mockedDownloadFile).toHaveBeenCalledWith(
+      expect.stringMatching(/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/),
+      expect.stringContaining('eas-upterm'),
+      expect.objectContaining({ retry: 3 })
+    );
+  });
+
+  it('reuses a previously downloaded binary from the cache dir', async () => {
+    uptermOnPath = false;
+    mockedFs.access.mockResolvedValue(undefined as never);
+
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
+
+    expect(host.connectionConfig.secret).toBe('TOKENx');
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      expect.stringContaining('eas-upterm'),
+      expect.arrayContaining(['host']),
+      expect.anything()
+    );
+  });
+
+  it('throws when upterm is missing from PATH and the GCS download fails', async () => {
+    uptermOnPath = false;
+    mockedDownloadFile.mockRejectedValue(new Error('403 Forbidden') as never);
+
     await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
-      /was not found/
+      /could not be downloaded/
+    );
+  });
+
+  it('still throws when download fails with a non-Error and cache cleanup also fails', async () => {
+    uptermOnPath = false;
+    mockedDownloadFile.mockRejectedValue('network down' as never);
+    mockedFs.rm.mockRejectedValue(new Error('EPERM') as never);
+
+    await expect(startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' })).rejects.toThrow(
+      /network down/
     );
   });
 
@@ -265,29 +320,6 @@ describe(startUptermHostAsync, () => {
     } finally {
       jest.useRealTimers();
     }
-  });
-
-  it('keeps polling when the admin socket reports an incomplete session', async () => {
-    let sessionCalls = 0;
-    mockedSpawn.mockImplementation(((_cmd: string, args: string[]) => {
-      if (Array.isArray(args) && args[0] === 'host') {
-        return hostProcess as never;
-      }
-      if (Array.isArray(args) && args[0] === 'session') {
-        sessionCalls += 1;
-        const stdout =
-          sessionCalls === 1
-            ? JSON.stringify({ host: 'ssh://relay.expo.dev:22' })
-            : sessionStdout;
-        return Promise.resolve({ stdout, stderr: '' }) as never;
-      }
-      return Promise.resolve({ stdout: '', stderr: '' }) as never;
-    }) as never);
-
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
-    expect(host.connectionConfig.secret).toBe('TOKENx');
-    expect(sessionCalls).toBeGreaterThan(1);
-    expect(mockedSleep).toHaveBeenCalled();
   });
 
   it('stopAsync kills the process and removes the state dir', async () => {

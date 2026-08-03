@@ -1,4 +1,5 @@
 import { SystemError } from '@expo/eas-build-job';
+import downloadFile from '@expo/downloader';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -9,17 +10,24 @@ import { isChildProcessAlive } from './processes';
 import { sleepAsync } from './retry';
 import { BuildContext } from '../context';
 
-export function resolveUptermArch(arch: string): 'amd64' | 'arm64' {
-  return arch === 'arm64' ? 'arm64' : 'amd64';
+/** GCS objects under turtle-v2/upterm — only the arches EAS workers use. */
+export function resolveUptermGcsObjectName(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch
+): string {
+  if (platform === 'darwin' && arch === 'arm64') {
+    return 'upterm-darwin-arm64';
+  }
+  if (platform === 'linux' && arch === 'x64') {
+    return 'upterm-linux-amd64';
+  }
+  throw new SystemError(
+    `SSH upterm is only available on darwin/arm64 and linux/x64 (got ${platform}/${arch}).`
+  );
 }
 
-const UPTERM_BIN_PATH = path.join(
-  __dirname,
-  '..',
-  '..',
-  'bin',
-  `upterm-${resolveUptermArch(process.arch)}`
-);
+const UPTERM_GCS_BASE_URL = 'https://storage.googleapis.com/turtle-v2/upterm';
+const UPTERM_DOWNLOAD_TIMEOUT_MS = 60_000;
 const UPTERM_KEEPALIVE_SLEEP_SECONDS = 6 * 60 * 60; // 6 hours
 const CONNECTION_POLL_INTERVAL_MS = 500;
 const CONNECTION_STARTUP_TIMEOUT_MS = 60_000;
@@ -41,8 +49,8 @@ export type UptermHost = {
 };
 
 const UptermSessionJsonZ = z.object({
-  sessionId: z.string().optional(),
-  host: z.string().optional(),
+  sessionId: z.string().min(1),
+  host: z.string().min(1),
   clientCount: z.number().optional(),
 });
 type UptermSessionJson = z.infer<typeof UptermSessionJsonZ>;
@@ -52,23 +60,20 @@ type UptermSessionJson = z.infer<typeof UptermSessionJsonZ>;
  * `host` may be `ssh://hostname:22` or a bare hostname; `sessionId` is the join secret.
  */
 export function parseUptermSessionJson(raw: string): SshConnectionConfig | null {
-  let parsed: unknown;
+  let json: unknown;
   try {
-    parsed = JSON.parse(raw);
+    json = JSON.parse(raw);
   } catch {
     return null;
   }
-  const result = UptermSessionJsonZ.safeParse(parsed);
-  if (!result.success) {
+  const parsed = UptermSessionJsonZ.safeParse(json);
+  if (!parsed.success) {
     return null;
   }
-  return connectionConfigFromUptermSession(result.data);
+  return connectionConfigFromUptermSession(parsed.data);
 }
 
 function connectionConfigFromUptermSession(parsed: UptermSessionJson): SshConnectionConfig | null {
-  if (!parsed.sessionId || !parsed.host) {
-    return null;
-  }
   let host = parsed.host;
   if (host.includes('://')) {
     let url: URL;
@@ -121,21 +126,57 @@ function killUptermProcessGroup(child: { pid?: number; kill: () => void } | unde
     return;
   }
   try {
+    // Negated pid = process group. We spawn detached, so bash/sleep children share the group;
+    // killing only the upterm pid can leave them behind across redial.
     process.kill(-child.pid, 'SIGTERM');
   } catch {
     child.kill();
   }
 }
 
-async function resolveUptermPathAsync(): Promise<string> {
+async function tryUptermOnPathAsync(): Promise<string | null> {
   try {
-    await fs.access(UPTERM_BIN_PATH);
+    await spawn('upterm', ['version'], { stdio: 'pipe' });
+    return 'upterm';
   } catch {
+    return null;
+  }
+}
+
+/**
+ * Prefer an image/PATH install (Linux workers already bake upterm). Otherwise download the
+ * platform binary from gs://turtle-v2/upterm (same pattern as xclogparser).
+ */
+export async function resolveUptermPathAsync(): Promise<string> {
+  const onPath = await tryUptermOnPathAsync();
+  if (onPath) {
+    return onPath;
+  }
+
+  const objectName = resolveUptermGcsObjectName();
+  const cacheDir = path.join(os.tmpdir(), 'eas-upterm');
+  const cachePath = path.join(cacheDir, objectName);
+  try {
+    await fs.access(cachePath);
+    return cachePath;
+  } catch {
+    // download below
+  }
+
+  await fs.mkdir(cacheDir, { recursive: true });
+  const url = `${UPTERM_GCS_BASE_URL}/${objectName}`;
+  try {
+    await downloadFile(url, cachePath, { retry: 3, timeout: UPTERM_DOWNLOAD_TIMEOUT_MS });
+    await fs.chmod(cachePath, 0o755);
+  } catch (err) {
+    await fs.rm(cachePath, { force: true }).catch(() => {});
     throw new SystemError(
-      `The upterm SSH client was not found at ${UPTERM_BIN_PATH}. It is baked into the worker package at build time, so this worker image is likely missing it.`
+      `The upterm SSH client was not on PATH and could not be downloaded from ${url}. ${
+        err instanceof Error ? err.message : String(err)
+      }`
     );
   }
-  return UPTERM_BIN_PATH;
+  return cachePath;
 }
 
 async function findAdminSocketPathAsync(uptermSocketDir: string): Promise<string | null> {
@@ -149,6 +190,8 @@ async function readCurrentSessionJsonAsync(
   adminSocketPath: string
 ): Promise<UptermSessionJson | null> {
   try {
+    // Pin --admin-socket to this host's temp runtime dir so we never read another session's
+    // default socket (or a stale one left from a previous dial).
     const result = await spawn(
       uptermPath,
       ['session', 'current', '--admin-socket', adminSocketPath, '--output', 'json'],
@@ -220,6 +263,8 @@ export async function startUptermHostAsync(
   await spawn('ssh-keygen', ['-t', 'ed25519', '-N', '', '-f', hostKeyPath, '-q'], {
     logger: ctx.logger,
   });
+  // upterm `--force-command` takes an executable path (not an inline string). Joining SSH
+  // clients run this login shell; the host keep-alive `sleep` after `--` is separate.
   await fs.writeFile(forceCommandPath, '#!/usr/bin/env bash\nexec bash -l\n', { mode: 0o755 });
 
   let currentProcess: SpawnPromise<SpawnResult> | null = null;
@@ -250,6 +295,10 @@ export async function startUptermHostAsync(
     });
 
     ctx.logger.debug('Connecting to the SSH relay.');
+    // Two different "commands":
+    // - `--force-command join.sh`: what each *SSH client* gets when they connect (interactive shell).
+    // - `bash -lc sleep …` after `--`: the *host-side* process that keeps `upterm host` alive
+    //   for hours even when nobody is connected (so idle wait / late joins still work).
     const uptermProcess = spawn(
       uptermPath,
       [
