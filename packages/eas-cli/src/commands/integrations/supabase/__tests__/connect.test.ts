@@ -22,7 +22,7 @@ import {
 import Log from '../../../../log';
 import { createOrModifyExpoConfigAsync } from '../../../../project/expoConfig';
 import { getOwnerAccountForProjectIdAsync } from '../../../../project/projectUtils';
-import { confirmAsync, selectAsync } from '../../../../prompts';
+import { confirmAsync, promptAsync, selectAsync } from '../../../../prompts';
 import { printJsonOnlyOutput } from '../../../../utils/json';
 import {
   BackgroundJobReceiptPollError,
@@ -120,6 +120,7 @@ describe(IntegrationsSupabaseConnect, () => {
     jest.mocked(getOwnerAccountForProjectIdAsync).mockResolvedValue(mockAccount as any);
     jest.mocked(selectAsync).mockResolvedValue('americas');
     jest.mocked(confirmAsync).mockResolvedValue(true);
+    jest.mocked(promptAsync).mockResolvedValue({ linkValue: mockProject.supabaseProjectRef });
     jest.mocked(spawnAsync).mockResolvedValue({} as any);
     jest.mocked(fs.pathExists).mockResolvedValue(false as never);
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
@@ -313,18 +314,25 @@ describe(IntegrationsSupabaseConnect, () => {
     );
   });
 
-  it('resets the connection with --reauth and re-authorizes in the browser', async () => {
+  it('resets the connection with --reauth, then links an existing project by default', async () => {
     jest
       .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
       .mockResolvedValueOnce(mockConnection)
       .mockResolvedValueOnce(null)
       .mockResolvedValue(mockConnection);
-    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(mockProject);
+    // Cascade delete removes the EAS project link with the connection.
+    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
       state: 'state',
       url: 'https://api.supabase.com/v1/oauth/authorize',
     });
     jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
+    jest
+      .mocked(selectAsync)
+      .mockResolvedValueOnce('link')
+      .mockResolvedValue('americas');
+    jest.mocked(promptAsync).mockResolvedValue({ linkValue: mockProject.supabaseProjectRef });
+    jest.mocked(SupabaseMutation.linkSupabaseProjectAsync).mockResolvedValue(mockProject);
 
     await createCommand(['--reauth']).runAsync();
 
@@ -334,6 +342,74 @@ describe(IntegrationsSupabaseConnect, () => {
     );
     expect(SupabaseMutation.beginSupabaseOAuthAsync).toHaveBeenCalled();
     expect(openBrowserAsync).toHaveBeenCalled();
+    expect(selectAsync).toHaveBeenCalledWith(
+      expect.stringContaining('previous EAS project link was removed'),
+      expect.arrayContaining([
+        expect.objectContaining({ value: 'link' }),
+        expect.objectContaining({ value: 'provision' }),
+      ]),
+      expect.objectContaining({ initial: 'link' })
+    );
+    expect(SupabaseMutation.linkSupabaseProjectAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      supabaseProjectRef: mockProject.supabaseProjectRef,
+    });
+    expect(SupabaseMutation.provisionSupabaseProjectAsync).not.toHaveBeenCalled();
+  });
+
+  it('provisions after --reauth when the user chooses provision', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockResolvedValueOnce(mockConnection)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(mockConnection);
+    jest
+      .mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(mockProject);
+    jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
+      state: 'state',
+      url: 'https://api.supabase.com/v1/oauth/authorize',
+    });
+    jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
+    jest
+      .mocked(selectAsync)
+      .mockResolvedValueOnce('provision')
+      .mockResolvedValueOnce('org-slug')
+      .mockResolvedValue('americas');
+
+    await createCommand(['--reauth']).runAsync();
+
+    expect(SupabaseMutation.provisionSupabaseProjectAsync).toHaveBeenCalled();
+    expect(SupabaseMutation.linkSupabaseProjectAsync).not.toHaveBeenCalled();
+  });
+
+  it('skips the post-reauth prompt when --link is passed', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockResolvedValueOnce(mockConnection)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(mockConnection);
+    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
+      state: 'state',
+      url: 'https://api.supabase.com/v1/oauth/authorize',
+    });
+    jest.mocked(SupabaseMutation.disconnectSupabaseAsync).mockResolvedValue(mockConnection.id);
+    jest.mocked(SupabaseMutation.linkSupabaseProjectAsync).mockResolvedValue(mockProject);
+
+    await createCommand(['--reauth', '--link', mockProject.supabaseProjectRef]).runAsync();
+
+    expect(SupabaseMutation.linkSupabaseProjectAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: testProjectId,
+      supabaseProjectRef: mockProject.supabaseProjectRef,
+    });
+    expect(SupabaseMutation.provisionSupabaseProjectAsync).not.toHaveBeenCalled();
+    expect(selectAsync).not.toHaveBeenCalledWith(
+      expect.stringContaining('previous EAS project link was removed'),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it('rejects --reauth in non-interactive mode when a connection exists', async () => {
