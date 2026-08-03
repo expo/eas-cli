@@ -13,26 +13,26 @@ const userActor: Actor = {
   primaryAccount: {
     id: 'account-id-personal',
     name: 'jane',
-    users: [{ role: Role.Owner, actor: { id: 'user-id' } }],
+    viewerUserPermission: { role: Role.Owner },
   },
   accounts: [
     {
       id: 'account-id-org',
       name: 'acme',
       ownerUserActor: null,
-      users: [{ role: Role.ViewOnly, actor: { id: 'user-id' } }],
+      viewerUserPermission: { role: Role.ViewOnly },
     },
     {
       id: 'account-id-personal',
       name: 'jane',
       ownerUserActor: { id: 'user-id' },
-      users: [{ role: Role.Owner, actor: { id: 'user-id' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
     {
       id: 'account-id-team',
       name: 'bob',
       ownerUserActor: { id: 'other-user-id' },
-      users: [{ role: Role.Admin, actor: { id: 'user-id' } }],
+      viewerUserPermission: { role: Role.Admin },
     },
   ],
   isExpoAdmin: false,
@@ -46,12 +46,12 @@ const robotActor: Actor = {
     {
       id: 'account-id-1',
       name: 'acme',
-      users: [{ role: Role.Admin, actor: { id: 'robot-id' } }],
+      viewerUserPermission: { role: Role.Admin },
     },
     {
       id: 'account-id-2',
       name: 'other-org',
-      users: [{ role: Role.ViewOnly, actor: { id: 'robot-id' } }],
+      viewerUserPermission: { role: Role.ViewOnly },
     },
   ],
   isExpoAdmin: false,
@@ -87,7 +87,7 @@ describe(getAccountChoices, () => {
           id: 'account-id-personal',
           name: 'jane',
           ownerUserActor: { id: 'user-id' },
-          users: [{ role: Role.ViewOnly, actor: { id: 'user-id' } }],
+          viewerUserPermission: { role: Role.ViewOnly },
         },
       ],
     } as any as Actor;
