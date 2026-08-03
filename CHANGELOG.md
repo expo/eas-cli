@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Revert pinning the default `agent-device` version for remote sessions, so sessions install `latest` again when no `package_version` input is set. ([#4145](https://github.com/expo/eas-cli/pull/4145) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [21.5.1](https://github.com/expo/eas-cli/releases/tag/v21.5.1) - 2026-08-03
