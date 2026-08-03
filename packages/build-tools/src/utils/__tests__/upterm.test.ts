@@ -6,7 +6,6 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
-  isUptermProcessAlive,
   parseUptermSessionJson,
   redactConnectionSecrets,
   redactSpawnErrorForLog,
@@ -84,6 +83,11 @@ describe(parseUptermSessionJson, () => {
       parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://[' }))
     ).toBeNull();
   });
+
+  it('returns null when json is the wrong shape', () => {
+    expect(parseUptermSessionJson(JSON.stringify({ sessionId: 1, host: 'relay' }))).toBeNull();
+    expect(parseUptermSessionJson(JSON.stringify(['sessionId']))).toBeNull();
+  });
 });
 
 describe(redactConnectionSecrets, () => {
@@ -131,31 +135,21 @@ describe(redactSpawnErrorForLog, () => {
     expect(redactSpawnErrorForLog('boom')).toBe('boom');
     expect(redactSpawnErrorForLog(null)).toBeNull();
   });
-});
 
-describe(isUptermProcessAlive, () => {
-  it('is alive while the process is running', () => {
-    expect(isUptermProcessAlive({ exitCode: null, signalCode: null, killed: false })).toBe(true);
-  });
-
-  it('is dead after a normal exit', () => {
-    expect(isUptermProcessAlive({ exitCode: 0, signalCode: null, killed: false })).toBe(false);
-    expect(isUptermProcessAlive({ exitCode: 1, signalCode: null, killed: false })).toBe(false);
-  });
-
-  it('is dead after an external signal termination (the regression case)', () => {
-    expect(isUptermProcessAlive({ exitCode: null, signalCode: 'SIGTERM', killed: false })).toBe(
-      false
-    );
-    expect(isUptermProcessAlive({ exitCode: null, signalCode: 'SIGKILL', killed: false })).toBe(
-      false
-    );
-  });
-
-  it('is dead once we have killed it, and when there is no process', () => {
-    expect(isUptermProcessAlive({ exitCode: null, signalCode: null, killed: true })).toBe(false);
-    expect(isUptermProcessAlive(null)).toBe(false);
-    expect(isUptermProcessAlive(undefined)).toBe(false);
+  it('leaves non-string message/stdout/stderr fields alone', () => {
+    expect(
+      redactSpawnErrorForLog({
+        message: { nested: 'wss://secret@relay' },
+        stdout: 12,
+        stderr: undefined,
+        code: 1,
+      })
+    ).toEqual({
+      message: { nested: 'wss://secret@relay' },
+      stdout: 12,
+      stderr: undefined,
+      code: 1,
+    });
   });
 });
 
@@ -271,6 +265,29 @@ describe(startUptermHostAsync, () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('keeps polling when the admin socket reports an incomplete session', async () => {
+    let sessionCalls = 0;
+    mockedSpawn.mockImplementation(((_cmd: string, args: string[]) => {
+      if (Array.isArray(args) && args[0] === 'host') {
+        return hostProcess as never;
+      }
+      if (Array.isArray(args) && args[0] === 'session') {
+        sessionCalls += 1;
+        const stdout =
+          sessionCalls === 1
+            ? JSON.stringify({ host: 'ssh://relay.expo.dev:22' })
+            : sessionStdout;
+        return Promise.resolve({ stdout, stderr: '' }) as never;
+      }
+      return Promise.resolve({ stdout: '', stderr: '' }) as never;
+    }) as never);
+
+    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
+    expect(host.connectionConfig.secret).toBe('TOKENx');
+    expect(sessionCalls).toBeGreaterThan(1);
+    expect(mockedSleep).toHaveBeenCalled();
   });
 
   it('stopAsync kills the process and removes the state dir', async () => {

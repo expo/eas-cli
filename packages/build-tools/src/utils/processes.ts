@@ -1,5 +1,14 @@
 import spawn from '@expo/turtle-spawn';
 
+export function isChildProcessAlive(
+  child:
+    | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }
+    | null
+    | undefined
+): boolean {
+  return child != null && child.exitCode === null && child.signalCode === null && !child.killed;
+}
+
 async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
   try {
     const result = await spawn('pgrep', ['-P', parentPids.join(',')], {

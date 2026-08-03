@@ -1,9 +1,11 @@
 import { SystemError } from '@expo/eas-build-job';
-import spawn from '@expo/turtle-spawn';
+import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { z } from 'zod';
 
+import { isChildProcessAlive } from './processes';
 import { sleepAsync } from './retry';
 import { BuildContext } from '../context';
 
@@ -38,24 +40,29 @@ export type UptermHost = {
   stopAsync: () => Promise<void>;
 };
 
-type UptermSessionJson = {
-  sessionId?: string;
-  host?: string;
-  clientCount?: number;
-};
+const UptermSessionJsonZ = z.object({
+  sessionId: z.string().optional(),
+  host: z.string().optional(),
+  clientCount: z.number().optional(),
+});
+type UptermSessionJson = z.infer<typeof UptermSessionJsonZ>;
 
 /**
  * Parse `upterm session current --output json`.
  * `host` may be `ssh://hostname:22` or a bare hostname; `sessionId` is the join secret.
  */
 export function parseUptermSessionJson(raw: string): SshConnectionConfig | null {
-  let parsed: UptermSessionJson;
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as UptermSessionJson;
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
-  return connectionConfigFromUptermSession(parsed);
+  const result = UptermSessionJsonZ.safeParse(parsed);
+  if (!result.success) {
+    return null;
+  }
+  return connectionConfigFromUptermSession(result.data);
 }
 
 function connectionConfigFromUptermSession(parsed: UptermSessionJson): SshConnectionConfig | null {
@@ -109,15 +116,6 @@ export function redactSpawnErrorForLog(err: unknown): unknown {
   };
 }
 
-export function isUptermProcessAlive(
-  child:
-    | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }
-    | null
-    | undefined
-): boolean {
-  return child != null && child.exitCode === null && child.signalCode === null && !child.killed;
-}
-
 function killUptermProcessGroup(child: { pid?: number; kill: () => void } | undefined): void {
   if (child?.pid == null) {
     return;
@@ -156,7 +154,8 @@ async function readCurrentSessionJsonAsync(
       ['session', 'current', '--admin-socket', adminSocketPath, '--output', 'json'],
       { stdio: 'pipe' }
     );
-    return JSON.parse(result.stdout) as UptermSessionJson;
+    const parsed = UptermSessionJsonZ.safeParse(JSON.parse(result.stdout));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
@@ -223,7 +222,7 @@ export async function startUptermHostAsync(
   });
   await fs.writeFile(forceCommandPath, '#!/usr/bin/env bash\nexec bash -l\n', { mode: 0o755 });
 
-  let currentProcess: ReturnType<typeof spawn> | null = null;
+  let currentProcess: SpawnPromise<SpawnResult> | null = null;
 
   /**
    * Stops the running host process and waits for it to exit, so a redial cannot read the dying
@@ -308,7 +307,7 @@ export async function startUptermHostAsync(
       return connectionConfig;
     },
     getConnectedClientCountAsync: () => getConnectedClientCountAsync(uptermPath, uptermSocketDir),
-    isAlive: () => isUptermProcessAlive(currentProcess?.child),
+    isAlive: () => isChildProcessAlive(currentProcess?.child),
     redialAsync: async () => {
       connectionConfig = await dialAsync();
       return connectionConfig;
