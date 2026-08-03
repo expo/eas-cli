@@ -94,7 +94,7 @@ function connectionConfigFromUptermSession(parsed: UptermSessionJson): SshConnec
 export function redactConnectionSecrets(text: string): string {
   let redacted = text;
   // Every session token upterm emitted (userinfo before `@`), so each exact token can be scrubbed.
-  for (const [, token] of text.matchAll(/upterm proxy wss:\/\/([^@\s]+)@/g)) {
+  for (const [, token] of text.matchAll(/upterm proxy wss?:\/\/([^@\s]+)@/g)) {
     redacted = redacted.split(token).join('<redacted>');
   }
   // Catch-all: redact URL userinfo (scheme://<userinfo>@) for any other credential in the text.
