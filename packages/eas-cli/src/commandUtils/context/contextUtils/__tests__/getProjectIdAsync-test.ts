@@ -423,13 +423,13 @@ describe(getProjectIdAsync, () => {
           primaryAccount: {
             id: 'account_id_1',
             name: 'notnotbrent',
-            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+            viewerUserPermission: { role: Role.Owner },
           },
           accounts: [
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+              viewerUserPermission: { role: Role.Owner },
             },
           ],
           isExpoAdmin: false,
@@ -465,7 +465,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
+              viewerUserPermission: { role: Role.Admin },
             },
           ],
           isExpoAdmin: false,
