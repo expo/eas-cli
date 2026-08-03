@@ -34,6 +34,10 @@ export function parseEnvironmentFlag(value: string | undefined): string[] | null
   return environments;
 }
 
+/**
+ * Resolve requested EAS environment names against what the project already uses.
+ * Shared across integrations; pass integration-specific defaults and label at each callsite.
+ */
 export async function resolveTargetEnvironmentsAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
