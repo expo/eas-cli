@@ -1,5 +1,9 @@
 import spawn from '@expo/turtle-spawn';
 
+/**
+ * Whether a spawned child is still running. Prefer this over checking exitCode alone —
+ * signal-terminated children can have exitCode null with a non-null signalCode.
+ */
 export function isChildProcessAlive(
   child:
     | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }

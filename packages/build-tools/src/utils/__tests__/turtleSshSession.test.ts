@@ -209,9 +209,9 @@ describe(startSshSessionAsync, () => {
     expect(host.stopAsync).toHaveBeenCalled();
   });
 
-  it('still throws the create error when host teardown itself fails', async () => {
+  it('still rethrows when teardown after a create/update failure also fails', async () => {
     const host = makeHost({
-      stopAsync: jest.fn().mockRejectedValue(new Error('teardown failed')),
+      stopAsync: jest.fn().mockRejectedValue(new Error('already gone')),
     });
     mockedStartUptermHost.mockResolvedValue(host);
     createOrUpdateResult = { error: { message: 'boom' } };
@@ -280,6 +280,28 @@ describe(startSshSessionAsync, () => {
       connectionConfig: { ...config2, reconnecting: false, type: 'UPTERM_V1' },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });
+  });
+
+  it('continues redial when the reconnecting status update fails', async () => {
+    const host = makeHost({ isAlive: jest.fn().mockReturnValue(false) });
+    mockedStartUptermHost.mockResolvedValue(host);
+    mutation
+      .mockReturnValueOnce({ toPromise: async () => createOrUpdateResult }) // initial create
+      .mockReturnValueOnce({
+        toPromise: async () => {
+          throw new Error('www unreachable');
+        },
+      }) // reconnecting=true best-effort
+      .mockReturnValue({ toPromise: async () => createOrUpdateResult }); // post-redial
+
+    const { handle } = await startSshSessionAsync(ctx, {
+      target,
+      relayServerUrl: 'wss://r',
+      idleTimeoutSeconds: 300,
+    });
+    await handle.ensureConnectedAsync();
+
+    expect(host.redialAsync).toHaveBeenCalledTimes(1);
   });
 
   it('retries only the report (no second redial) when reporting the fresh config fails', async () => {
