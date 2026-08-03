@@ -27,19 +27,21 @@ import { promptAsync, selectAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 
 import {
-  EAS_SUPABASE_ENVIRONMENTS,
   parseEnvironmentFlag,
   resolveTargetEnvironmentsAsync,
-} from '../../../integrations/supabase/environments';
+} from '../../../environments/resolve';
+import { upsertEnvVarAsync, upsertEnvVarsSequentiallyAsync } from '../../../environments/variables';
+import { writeEnvLocalAsync } from '../../../integrations/shared/envFile';
+import { setupSdkAndConfigAsync } from '../../../integrations/shared/sdk';
 import {
+  EAS_SUPABASE_ENVIRONMENTS,
   EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME,
   EAS_SUPABASE_URL_ENV_VAR_NAME,
+  SUPABASE_ENV_LABEL,
+  confirmOverwriteForAdditionalProjectAsync,
   createSupabaseEnvVars,
-  ensureAdditionalEnvWritesAllowedAsync,
-  upsertEasEnvVarAsync,
-  upsertEasEnvVarForEnvironmentsAsync,
-  writeEnvLocalAsync,
-  writeEnvVarsAsync,
+  supabaseEnvironmentCancelMessage,
+  supabaseMoveConfirmMessage,
 } from '../../../integrations/supabase/env';
 import {
   additionalProvisionFailureHint,
@@ -52,7 +54,9 @@ import {
   resolvePublishableKeyAsync,
   resolveRegionAsync,
 } from '../../../integrations/supabase/provision';
-import { setupSdkAndConfigAsync } from '../../../integrations/supabase/sdk';
+
+const SDK_PACKAGES = ['@supabase/supabase-js', 'react-native-url-polyfill', 'expo-sqlite'];
+const CONFIG_PLUGIN = 'expo-sqlite';
 
 const PrimaryProvisionResultSchema = z.object({
   supabaseProjectId: z.string().optional(),
@@ -166,7 +170,11 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
         graphqlClient,
         projectId,
         requestedEnvironments,
-        nonInteractive
+        nonInteractive,
+        {
+          defaultEnvironments: EAS_SUPABASE_ENVIRONMENTS,
+          cancelMessage: supabaseEnvironmentCancelMessage,
+        }
       );
       await this.runAdditionalEnvironmentSetupAsync({
         graphqlClient,
@@ -218,11 +226,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       );
       authorizedConnection = connection;
     } else {
-      authorizedConnection = await authorizeViaBrowserAsync(
-        graphqlClient,
-        account,
-        nonInteractive
-      );
+      authorizedConnection = await authorizeViaBrowserAsync(graphqlClient, account, nonInteractive);
     }
     connection = authorizedConnection;
 
@@ -282,22 +286,27 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
 
     const envVars = createSupabaseEnvVars(project.supabaseProjectUrl, publishableKey);
 
-    const manualSteps = await setupSdkAndConfigAsync(projectDir, exp, jsonFlag);
+    const manualSteps = await setupSdkAndConfigAsync(projectDir, exp, {
+      packages: SDK_PACKAGES,
+      plugin: CONFIG_PLUGIN,
+      label: SUPABASE_ENV_LABEL,
+      jsonFlag,
+    });
 
-    const envLocalWritten = await writeEnvLocalAsync(
-      projectDir,
-      envVars,
+    const envLocalWritten = await writeEnvLocalAsync(projectDir, envVars, {
+      label: SUPABASE_ENV_LABEL,
       nonInteractive,
-      overwrite
-    );
-    const easWritten = await writeEnvVarsAsync(envVars, envVar =>
-      upsertEasEnvVarAsync(
+      overwrite,
+    });
+    const easWritten = await upsertEnvVarsSequentiallyAsync(envVars, envVar =>
+      upsertEnvVarAsync(
         graphqlClient,
         projectId,
         envVar,
         EAS_SUPABASE_ENVIRONMENTS,
         nonInteractive,
-        overwrite
+        overwrite,
+        { mode: 'replaceOtherEnvironments' }
       )
     );
 
@@ -401,7 +410,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       appId: projectId,
       region,
     });
-    const { finalized, spinner } = await pollProvisionReceiptAsync(graphqlClient, receipt, {
+    const finalized = await pollProvisionReceiptAsync(graphqlClient, receipt, {
       startMessage: 'Provisioning Supabase project (this can take a minute)…',
       waitingMessage: 'Waiting for Expo to finish Supabase setup…',
       failureMessage: 'Failed to provision the Supabase project',
@@ -419,9 +428,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
           : 'Provision succeeded but the Expo project link was not found. Try again, or link an existing project with --link.'
       );
     }
-    spinner.succeed(
-      `Provisioned Supabase project ${chalk.bold(formatSupabaseProjectLabel(project))}`
-    );
+    Log.withTick(`Provisioned Supabase project ${chalk.bold(formatSupabaseProjectLabel(project))}`);
     return project;
   }
 
@@ -477,14 +484,14 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     const projectNameSuffix = projectNameSuffixForEnvironments(targetEnvironments);
 
     // Fail closed before billing: refuse to provision if we already know env writes will be skipped.
-    const confirmedOverwrite = await ensureAdditionalEnvWritesAllowedAsync(
+    const { forceOverwrite } = await confirmOverwriteForAdditionalProjectAsync(
       graphqlClient,
       projectId,
       targetEnvironments,
       nonInteractive,
       overwrite
     );
-    const effectiveOverwrite = overwrite || confirmedOverwrite;
+    const effectiveOverwrite = overwrite || forceOverwrite;
 
     const additional = await this.provisionAndPollAdditionalProjectAsync(graphqlClient, projectId, {
       region,
@@ -500,14 +507,18 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
 
     let easWritten: boolean[] = [];
     try {
-      easWritten = await writeEnvVarsAsync(envVars, envVar =>
-        upsertEasEnvVarForEnvironmentsAsync(
+      easWritten = await upsertEnvVarsSequentiallyAsync(envVars, envVar =>
+        upsertEnvVarAsync(
           graphqlClient,
           projectId,
           envVar,
           targetEnvironments,
           nonInteractive,
-          effectiveOverwrite
+          effectiveOverwrite,
+          {
+            mode: 'keepOtherEnvironments',
+            moveConfirmMessage: supabaseMoveConfirmMessage,
+          }
         )
       );
     } catch (error) {
@@ -568,7 +579,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       region,
       projectNameSuffix,
     });
-    const { finalized, spinner } = await pollProvisionReceiptAsync(graphqlClient, receipt, {
+    const finalized = await pollProvisionReceiptAsync(graphqlClient, receipt, {
       startMessage: `Provisioning additional Supabase project for ${targetEnvironments.join(', ')}…`,
       waitingMessage: 'Waiting for Expo to finish additional Supabase setup…',
       failureMessage: 'Failed to provision the additional Supabase project',
@@ -588,7 +599,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
       supabaseRegion: resultData.supabaseRegion ?? region,
       publishableKey: resultData.publishableKey,
     };
-    spinner.succeed(
+    Log.withTick(
       `Provisioned additional Supabase project ${chalk.bold(formatSupabaseProjectLabel(additional))}`
     );
     return additional;
