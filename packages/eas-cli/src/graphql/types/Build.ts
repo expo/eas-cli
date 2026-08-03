@@ -47,6 +47,7 @@ export const BuildFragmentNode = gql`
     distribution
     iosEnterpriseProvisioning
     buildProfile
+    appIdentifier
     sdkVersion
     appVersion
     appBuildVersion
