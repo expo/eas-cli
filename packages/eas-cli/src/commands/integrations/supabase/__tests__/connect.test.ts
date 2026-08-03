@@ -709,6 +709,18 @@ describe(IntegrationsSupabaseConnect, () => {
     );
   });
 
+  it('throws when primary provision receipt data is not an object', async () => {
+    jest.mocked(SupabaseQuery.getSupabaseProjectByAppIdAsync).mockResolvedValue(null);
+    jest.mocked(pollForBackgroundJobReceiptAsync).mockResolvedValue({
+      id: 'receipt-1',
+      resultData: 'not-an-object',
+    } as any);
+
+    await expect(createCommand(['--region', 'americas', '--overwrite']).runAsync()).rejects.toThrow(
+      /Provision succeeded but the Expo project link was not found/
+    );
+  });
+
   it('rejects --environment without a connection', async () => {
     jest.mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).mockResolvedValue(null);
 
