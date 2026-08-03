@@ -111,6 +111,16 @@ describe(redactConnectionSecrets, () => {
     );
   });
 
+  it('strips the bare token for ws:// relay URLs too', () => {
+    const line =
+      "ssh -o ProxyCommand='upterm proxy ws://TOKENabc123@relay.local' TOKENabc123@relay.local";
+    const redacted = redactConnectionSecrets(line);
+    expect(redacted).not.toContain('TOKENabc123');
+    expect(redacted).toBe(
+      "ssh -o ProxyCommand='upterm proxy ws://<redacted>@relay.local' <redacted>@relay.local"
+    );
+  });
+
   it('leaves output without userinfo untouched', () => {
     expect(redactConnectionSecrets('dialing wss://relay.expo.dev')).toBe(
       'dialing wss://relay.expo.dev'
