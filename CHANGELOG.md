@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [21.5.0](https://github.com/expo/eas-cli/releases/tag/v21.5.0) - 2026-08-03
+
+### 🎉 New features
+
 - [eas-cli] Add `eas submit:list`, `eas submit:view`, `eas submit:retry`, `eas submit:cancel`, and `eas submit:status` commands; list and view include the runtime version and fingerprint of the submitted build, and status shows the live App Store version and TestFlight build states cross-referenced with EAS submissions (Google Play app status is not available through EAS yet). ([#4134](https://github.com/expo/eas-cli/pull/4134) by [@brentvatne](https://github.com/brentvatne))
 - [eas-build-job] Add optional `ssh` field on build/job payloads. ([#4083](https://github.com/expo/eas-cli/pull/4083) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add an `SSH_SESSION` build phase for upcoming worker SSH support. ([#4029](https://github.com/expo/eas-cli/pull/4029) by [@gwdp](https://github.com/gwdp))
