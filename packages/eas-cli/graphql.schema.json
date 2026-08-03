@@ -25838,7 +25838,7 @@
         "fields": [
           {
             "name": "createAppleDeviceRegistrationRequest",
-            "description": "Create an Apple Device registration request",
+            "description": "Create an Apple Device registration request.\nPass singleUse to create a fresh request that closes after the first device is registered.",
             "args": [
               {
                 "name": "accountId",
@@ -25867,6 +25867,18 @@
                     "name": "ID",
                     "ofType": null
                   }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "singleUse",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -93558,7 +93570,7 @@
           },
           {
             "name": "sshSettings",
-            "description": "SSH settings for this run's VM jobs when SSH was requested; otherwise null.",
+            "description": null,
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -93865,18 +93877,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "ssh",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "WorkflowRunSshInput",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -94080,18 +94080,6 @@
                 "deprecationReason": null
               },
               {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "workflowRevisionId",
                 "description": null,
                 "type": {
@@ -94130,18 +94118,6 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -94224,29 +94200,6 @@
         ],
         "inputFields": null,
         "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "WorkflowRunSshInput",
-        "description": "Enables ssh on the run's VM jobs. Presence turns ssh on; idleTimeoutSeconds is optional,\ndefaults server-side, and is validated against a supported range.",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "idleTimeoutSeconds",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },

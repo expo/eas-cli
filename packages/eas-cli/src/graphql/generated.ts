@@ -3665,7 +3665,10 @@ export type AppleDeviceRegistrationRequest = {
 
 export type AppleDeviceRegistrationRequestMutation = {
   __typename?: 'AppleDeviceRegistrationRequestMutation';
-  /** Create an Apple Device registration request */
+  /**
+   * Create an Apple Device registration request.
+   * Pass singleUse to create a fresh request that closes after the first device is registered.
+   */
   createAppleDeviceRegistrationRequest: AppleDeviceRegistrationRequest;
 };
 
@@ -3673,6 +3676,7 @@ export type AppleDeviceRegistrationRequestMutation = {
 export type AppleDeviceRegistrationRequestMutationCreateAppleDeviceRegistrationRequestArgs = {
   accountId: Scalars['ID']['input'];
   appleTeamId: Scalars['ID']['input'];
+  singleUse?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 /** Publicly visible data for an AppleDeviceRegistrationRequest. */
@@ -13032,7 +13036,6 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   retriedWorkflowRun?: Maybe<WorkflowRun>;
   retries: Array<WorkflowRun>;
   sourceExpiresAt?: Maybe<Scalars['DateTime']['output']>;
-  /** SSH settings for this run's VM jobs when SSH was requested; otherwise null. */
   sshSettings?: Maybe<WorkflowRunSshSettings>;
   status: WorkflowRunStatus;
   triggerEventType: WorkflowRunTriggerEventType;
@@ -13068,7 +13071,6 @@ export type WorkflowRunGitBranchFilterInput = {
 export type WorkflowRunInput = {
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   projectSource: WorkflowProjectSourceInput;
-  ssh?: InputMaybe<WorkflowRunSshInput>;
 };
 
 export type WorkflowRunMutation = {
@@ -13103,14 +13105,12 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
 export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
-  ssh?: InputMaybe<WorkflowRunSshInput>;
   workflowRevisionId: Scalars['ID']['input'];
 };
 
 
 export type WorkflowRunMutationRetryWorkflowRunArgs = {
   fromFailedJobs?: InputMaybe<Scalars['Boolean']['input']>;
-  ssh?: InputMaybe<WorkflowRunSshInput>;
   workflowRunId: Scalars['ID']['input'];
 };
 
@@ -13122,14 +13122,6 @@ export type WorkflowRunQuery = {
 
 export type WorkflowRunQueryByIdArgs = {
   workflowRunId: Scalars['ID']['input'];
-};
-
-/**
- * Enables ssh on the run's VM jobs. Presence turns ssh on; idleTimeoutSeconds is optional,
- * defaults server-side, and is validated against a supported range.
- */
-export type WorkflowRunSshInput = {
-  idleTimeoutSeconds?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type WorkflowRunSshSettings = {
@@ -14497,7 +14489,6 @@ export type CreateWorkflowRunFromGitRefMutationVariables = Exact<{
   workflowRevisionId: Scalars['ID']['input'];
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
-  ssh?: InputMaybe<WorkflowRunSshInput>;
 }>;
 
 
