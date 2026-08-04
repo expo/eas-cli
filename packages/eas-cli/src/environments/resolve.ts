@@ -1,6 +1,7 @@
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { confirmAsync } from '../prompts';
-import { getProjectEnvironmentVariableEnvironmentsAsync } from '../utils/prompts';
+
+import { getProjectEnvironmentVariableEnvironmentsAsync } from './variables';
 
 export function parseEnvironmentFlag(value: string | undefined): string[] | null {
   if (value === undefined) {
@@ -36,14 +37,20 @@ export function parseEnvironmentFlag(value: string | undefined): string[] | null
 
 /**
  * Resolve requested EAS environment names against what the project already uses.
- * Shared across integrations; pass integration-specific defaults and label at each callsite.
+ * Shared across integrations; pass integration-specific defaults and messages at each callsite.
  */
 export async function resolveTargetEnvironmentsAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   requested: string[],
   nonInteractive: boolean,
-  { defaultEnvironments, label }: { defaultEnvironments: string[]; label: string }
+  {
+    defaultEnvironments,
+    cancelMessage,
+  }: {
+    defaultEnvironments: string[];
+    cancelMessage: (knownEnvironments: string) => string;
+  }
 ): Promise<string[]> {
   let known = await getProjectEnvironmentVariableEnvironmentsAsync(graphqlClient, projectId);
   if (known.length === 0) {
@@ -75,9 +82,7 @@ export async function resolveTargetEnvironmentsAsync(
     message: `EAS ${noun} ${listed} ${verb} not used on this project yet.${customHint} Continue provisioning?`,
   });
   if (!create) {
-    throw new Error(
-      `Canceled. No additional ${label} project was provisioned. Create the environment(s) first, or pass only existing ones (known: ${known.join(', ')}).`
-    );
+    throw new Error(cancelMessage(known.join(', ')));
   }
   // Custom environments are created lazily when env vars are written (createForAppAsync).
   return requested;

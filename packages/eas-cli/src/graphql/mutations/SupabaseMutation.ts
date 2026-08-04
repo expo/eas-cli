@@ -34,7 +34,6 @@ export const SupabaseMutation = {
             mutation BeginSupabaseOAuth($input: BeginSupabaseOAuthInput!) {
               supabaseConnection {
                 beginSupabaseOAuth(input: $input) {
-                  state
                   url
                 }
               }
