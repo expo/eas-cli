@@ -13071,6 +13071,7 @@ export type WorkflowRunGitBranchFilterInput = {
 export type WorkflowRunInput = {
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
   projectSource: WorkflowProjectSourceInput;
+  ssh?: InputMaybe<WorkflowRunSshInput>;
 };
 
 export type WorkflowRunMutation = {
@@ -13105,12 +13106,14 @@ export type WorkflowRunMutationCreateWorkflowRunArgs = {
 export type WorkflowRunMutationCreateWorkflowRunFromGitRefArgs = {
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+  ssh?: InputMaybe<WorkflowRunSshInput>;
   workflowRevisionId: Scalars['ID']['input'];
 };
 
 
 export type WorkflowRunMutationRetryWorkflowRunArgs = {
   fromFailedJobs?: InputMaybe<Scalars['Boolean']['input']>;
+  ssh?: InputMaybe<WorkflowRunSshInput>;
   workflowRunId: Scalars['ID']['input'];
 };
 
@@ -13122,6 +13125,14 @@ export type WorkflowRunQuery = {
 
 export type WorkflowRunQueryByIdArgs = {
   workflowRunId: Scalars['ID']['input'];
+};
+
+/**
+ * Enables ssh on the run's VM jobs. Presence turns ssh on; idleTimeoutSeconds is optional,
+ * defaults server-side, and is validated against a supported range.
+ */
+export type WorkflowRunSshInput = {
+  idleTimeoutSeconds?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type WorkflowRunSshSettings = {
@@ -14489,6 +14500,7 @@ export type CreateWorkflowRunFromGitRefMutationVariables = Exact<{
   workflowRevisionId: Scalars['ID']['input'];
   gitRef: Scalars['String']['input'];
   inputs?: InputMaybe<Scalars['JSONObject']['input']>;
+  ssh?: InputMaybe<WorkflowRunSshInput>;
 }>;
 
 
