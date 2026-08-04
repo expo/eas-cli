@@ -4,6 +4,7 @@ import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/cr
 import {
   upsertEasEnvVarAsync,
   upsertEasEnvVarForEnvironmentsAsync,
+  writeEnvVarsAsync,
 } from '../../../environments/variables';
 import {
   EnvironmentVariableScope,
@@ -14,13 +15,14 @@ import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentV
 import { mergeEnvContent, writeEnvLocalAsync } from '../../shared/envFile';
 import Log from '../../../log';
 import { confirmAsync } from '../../../prompts';
+import { DefaultEnvironment } from '../../../build/utils/environment';
 import {
+  EAS_SUPABASE_ENVIRONMENTS,
   EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME,
   EAS_SUPABASE_URL_ENV_VAR_NAME,
   SUPABASE_ENV_LABEL,
   createSupabaseEnvVars,
   ensureAdditionalEnvWritesAllowedAsync,
-  writeEnvVarsAsync,
 } from '../env';
 
 jest.mock('fs-extra');
@@ -29,7 +31,7 @@ jest.mock('../../../graphql/queries/EnvironmentVariablesQuery');
 jest.mock('../../../prompts');
 jest.mock('../../../log');
 
-describe('createSupabaseEnvVars / writeEnvVarsAsync', () => {
+describe('createSupabaseEnvVars / writeEnvVarsAsync / constants', () => {
   it('createSupabaseEnvVars returns public URL and key vars', () => {
     expect(createSupabaseEnvVars('https://example.supabase.co', 'pk')).toEqual([
       {
@@ -42,6 +44,14 @@ describe('createSupabaseEnvVars / writeEnvVarsAsync', () => {
         value: 'pk',
         visibility: EnvironmentVariableVisibility.Public,
       },
+    ]);
+  });
+
+  it('lists production, preview, and development in that order', () => {
+    expect(EAS_SUPABASE_ENVIRONMENTS).toEqual([
+      DefaultEnvironment.Production,
+      DefaultEnvironment.Preview,
+      DefaultEnvironment.Development,
     ]);
   });
 
