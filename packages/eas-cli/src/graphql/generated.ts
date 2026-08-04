@@ -14345,7 +14345,7 @@ export type BeginSupabaseOAuthMutationVariables = Exact<{
 }>;
 
 
-export type BeginSupabaseOAuthMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', beginSupabaseOAuth: { __typename?: 'SupabaseOAuthStart', state: string, url: string } } };
+export type BeginSupabaseOAuthMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', beginSupabaseOAuth: { __typename?: 'SupabaseOAuthStart', url: string } } };
 
 export type SetSupabaseConnectionOrganizationMutationVariables = Exact<{
   input: SetSupabaseConnectionOrganizationInput;

@@ -33,7 +33,10 @@ describe('parseEnvironmentFlag', () => {
 
 describe('resolveTargetEnvironmentsAsync', () => {
   const client = {} as ExpoGraphqlClient;
-  const options = { defaultEnvironments: DEFAULT_ENVIRONMENTS, label: 'Example' };
+  const options = {
+    defaultEnvironments: DEFAULT_ENVIRONMENTS,
+    cancelMessage: (knownEnvironments: string) => `Canceled. Known: ${knownEnvironments}.`,
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -132,7 +135,7 @@ describe('resolveTargetEnvironmentsAsync', () => {
 
     await expect(
       resolveTargetEnvironmentsAsync(client, 'app-1', ['preview'], false, options)
-    ).rejects.toThrow(/Canceled\. No additional Example project was provisioned\./);
+    ).rejects.toThrow('Canceled. Known: production.');
   });
 
   it('mentions enterprise plan for custom environments interactively', async () => {

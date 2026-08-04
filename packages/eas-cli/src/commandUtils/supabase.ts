@@ -51,7 +51,8 @@ export function parseSupabaseProjectRef(input: string): string {
       `"${input}" is not a Supabase project reference ID. Supabase shows it as "Reference ID" under Project Settings → General; you can also paste the dashboard URL (https://supabase.com/dashboard/project/<ref>). Note that a project name is not a reference ID.`
     );
   }
-  return ref;
+  // Refs are lowercase, and the server matches them exactly.
+  return ref.toLowerCase();
 }
 
 /** Prefer human-readable org name; Supabase slugs are often opaque ids like `ycjmzsygzfkryaazoitp`. */

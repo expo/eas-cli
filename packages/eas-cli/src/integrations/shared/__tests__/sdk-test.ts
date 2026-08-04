@@ -172,7 +172,7 @@ describe('setupSdkAndConfigAsync', () => {
     jest.clearAllMocks();
   });
 
-  it('adds install failure guidance', async () => {
+  it('adds install failure guidance and does not add the plugin', async () => {
     jest.mocked(spawnAsync).mockRejectedValue(new Error('nope'));
     jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({ type: 'success' } as never);
 
@@ -182,7 +182,9 @@ describe('setupSdkAndConfigAsync', () => {
       label,
       jsonFlag: true,
     });
-    expect(steps[0]).toContain('npx expo install');
+    expect(steps).toEqual([expect.stringContaining('npx expo install')]);
+    expect(steps[0]).toContain(plugin);
+    expect(createOrModifyExpoConfigAsync).not.toHaveBeenCalled();
   });
 
   it('prefers dynamic config guidance over adding the plugin', async () => {
