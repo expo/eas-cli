@@ -1,7 +1,7 @@
 ---
-# No model override: the coordinator runs on the config default (gpt-5.5, on the
-# subscription). It only consolidates text (no repo tools), so the default is
-# plenty; override here if consolidation quality ever needs a stronger model.
+# No model override: the coordinator runs on the config default
+# (claude-sonnet-5). It only consolidates text (no repo tools), so the default
+# is plenty; override here if consolidation quality ever needs a stronger model.
 ---
 
 # Coordinator — consolidation & decision

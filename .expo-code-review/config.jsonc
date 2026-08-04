@@ -1,9 +1,11 @@
 {
-  // Default model for every pass — served by the ChatGPT/Codex subscription (see
-  // auth below), so reviews have no marginal cost. Per-agent frontmatter can
-  // override this. Override everything at runtime with REVIEWER_MODEL
-  // (e.g. REVIEWER_MODEL=openai/gpt-5.4-mini for a cheaper local run).
-  "model": "openai/gpt-5.5",
+  // Default model for every pass. Anthropic models run through the Claude Code
+  // CLI engine (`claude -p`), inferred per agent from the model id — see the
+  // auth entry below for the credential. Per-agent frontmatter can override
+  // this (security runs Opus). Override everything at runtime with
+  // REVIEWER_MODEL (e.g. REVIEWER_MODEL=anthropic/claude-haiku-4-5 for a
+  // cheaper local run).
+  "model": "anthropic/claude-sonnet-5",
 
   // Agents are every markdown file in agents/. shared.md (prepended to all) and
   // coordinator.md are reserved. Per-agent overrides go in each file's frontmatter.
@@ -30,17 +32,16 @@
   "breakGlass": { "marker": "/skip-review" },
   "commentTag": "expo-ai-code-reviewer",
 
-  // ChatGPT/Codex subscription (OAuth): tokenEnv holds the ACCESS token from an
-  // `opencode auth login` ChatGPT sign-in (`ecr setup-auth` extracts it) — a
-  // plain bearer with no rotation involvement; re-mint before its ~10-day expiry
-  // (doctor + the run preflight warn first). NEVER use the refresh token here:
-  // it is single-use and dies on first rotation. All models above are on the
-  // subscription's allowlist, so reviews draw no metered spend. (To add pro-tier
-  // models later, see the mixed auth.providers setup in the @expo/code-review-cli
-  // README.)
+  // Anthropic models always run through the Claude Code CLI — the engine is
+  // inferred per agent from the `anthropic/…` model id, so this entry only
+  // supplies the credential. The tokenEnv holds the shared review credential
+  // (an `sk-ant-oat…` token from `claude setup-token`, or an `sk-ant-api…`
+  // Console key — the CLI reads either; the engine classifies by shape).
+  // ECR_EXPECTED_TOKEN_ENV (repo variable / workflow fallback) must equal this
+  // tokenEnv. Locally, an active `claude` login is enough.
   "auth": {
-    "mode": "oauth",
-    "provider": "openai",
-    "tokenEnv": "CODEX_OAUTH_ACCESS_TOKEN"
+    "providers": {
+      "anthropic": { "tokenEnv": "CLAUDE_CODE_REVIEW_SHARED_API_TOKEN" }
+    }
   }
 }
