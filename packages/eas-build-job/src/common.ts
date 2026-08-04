@@ -399,3 +399,34 @@ export enum EasCliNpmTags {
   STAGING = 'latest-eas-build-staging',
   PRODUCTION = 'latest-eas-build',
 }
+
+/**
+ * The `eas-cli` versions used by EAS Build for the staging and production
+ * environments. Replaces the `latest-eas-build*` npm dist-tags: instead of
+ * moving dist-tags, the versions are committed to `cli-versions.json` at the
+ * root of the expo/eas-cli repository.
+ */
+export interface EasCliVersions {
+  STAGING: string;
+  PRODUCTION: string;
+}
+
+const EasCliVersionsZ = z.object({
+  STAGING: z.string(),
+  PRODUCTION: z.string(),
+});
+
+const CLI_VERSIONS_URL = 'https://raw.githubusercontent.com/expo/eas-cli/main/cli-versions.json';
+
+/**
+ * Fetches and parses `cli-versions.json` from the `main` branch of
+ * expo/eas-cli. Throws if the file cannot be fetched or does not match the
+ * expected shape; callers should fall back to {@link EasCliNpmTags}.
+ */
+export async function fetchEasCliVersionsAsync(): Promise<EasCliVersions> {
+  const response = await fetch(CLI_VERSIONS_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${CLI_VERSIONS_URL} (HTTP ${response.status}).`);
+  }
+  return EasCliVersionsZ.parse(await response.json());
+}

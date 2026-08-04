@@ -7,6 +7,8 @@ export {
   BuildMode,
   BuildTrigger,
   EasCliNpmTags,
+  EasCliVersions,
+  fetchEasCliVersionsAsync,
   Env,
   EnvironmentSecret,
   EnvironmentSecretType,
