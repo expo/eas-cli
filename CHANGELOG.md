@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Add Supabase integration foundation: GraphQL client, shared integration helpers, and provisioning utilities. ([#4130](https://github.com/expo/eas-cli/pull/4130) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:connect` command. ([#4106](https://github.com/expo/eas-cli/pull/4106) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `eas integrations:supabase:dashboard` command. ([#4107](https://github.com/expo/eas-cli/pull/4107) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:supabase:disconnect` command. ([#4108](https://github.com/expo/eas-cli/pull/4108) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add optional `ssh` field on build/job payloads. ([#4083](https://github.com/expo/eas-cli/pull/4083) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add an `SSH_SESSION` build phase for upcoming worker SSH support. ([#4029](https://github.com/expo/eas-cli/pull/4029) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `ref` input to the `eas/checkout` step to check out a different git ref (branch, tag, or commit SHA) than the one that triggered the job. ([#4035](https://github.com/expo/eas-cli/pull/4035) by [@sswrk](https://github.com/sswrk))
