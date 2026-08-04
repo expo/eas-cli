@@ -69,6 +69,9 @@ export default class SimulatorList extends EasCommand {
       options: Object.values(PLATFORM_FLAG_VALUES),
       multiple: true,
     })(),
+    name: Flags.string({
+      description: 'Filter by session name (case-insensitive prefix match)',
+    }),
     limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_LIMIT, limit: MAX_LIMIT }),
     after: Flags.string({
       description:
@@ -106,6 +109,9 @@ export default class SimulatorList extends EasCommand {
     }
     if (flags.platform && flags.platform.length > 0) {
       filter.platforms = flags.platform.map(value => PLATFORM_BY_FLAG_VALUE[value]);
+    }
+    if (flags.name) {
+      filter.name = flags.name;
     }
 
     const limit = flags.limit ?? DEFAULT_LIMIT;

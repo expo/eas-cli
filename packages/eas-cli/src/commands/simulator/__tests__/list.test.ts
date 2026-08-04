@@ -164,6 +164,8 @@ describe(SimulatorList, () => {
       'argent',
       '--platform',
       'ios',
+      '--name',
+      'checkout',
       '--limit',
       '25',
       '--after',
@@ -179,6 +181,7 @@ describe(SimulatorList, () => {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
         types: [DeviceRunSessionType.Argent],
         platforms: [AppPlatform.Ios],
+        name: 'checkout',
       },
     });
   });
