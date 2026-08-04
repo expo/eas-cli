@@ -204,3 +204,14 @@ export async function upsertEasEnvVarForEnvironmentsAsync(
   );
   return true;
 }
+
+export async function writeEnvVarsAsync(
+  envVars: EnvVar[],
+  upsert: (envVar: EnvVar) => Promise<boolean>
+): Promise<boolean[]> {
+  const easWritten: boolean[] = [];
+  for (const envVar of envVars) {
+    easWritten.push(await upsert(envVar));
+  }
+  return easWritten;
+}

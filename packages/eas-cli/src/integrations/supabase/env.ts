@@ -1,3 +1,4 @@
+import { DefaultEnvironment } from '../../build/utils/environment';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { EnvVar, loadProjectScopedEnvVarsAsync } from '../../environments/variables';
 import { EnvironmentVariableVisibility } from '../../graphql/generated';
@@ -8,6 +9,13 @@ export const EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME = 'EXPO_PUBLIC_SUPABASE_P
 
 /** Label passed into shared env helpers for prompts and log lines. */
 export const SUPABASE_ENV_LABEL = 'Supabase';
+
+// Production-first, matching the PostHog and Convex integrations.
+export const EAS_SUPABASE_ENVIRONMENTS = [
+  DefaultEnvironment.Production,
+  DefaultEnvironment.Preview,
+  DefaultEnvironment.Development,
+];
 
 export function createSupabaseEnvVars(url: string, publishableKey: string): EnvVar[] {
   return [
@@ -22,17 +30,6 @@ export function createSupabaseEnvVars(url: string, publishableKey: string): EnvV
       visibility: EnvironmentVariableVisibility.Public,
     },
   ];
-}
-
-export async function writeEnvVarsAsync(
-  envVars: EnvVar[],
-  upsert: (envVar: EnvVar) => Promise<boolean>
-): Promise<boolean[]> {
-  const easWritten: boolean[] = [];
-  for (const envVar of envVars) {
-    easWritten.push(await upsert(envVar));
-  }
-  return easWritten;
 }
 
 export async function ensureAdditionalEnvWritesAllowedAsync(
