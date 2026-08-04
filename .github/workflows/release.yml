@@ -37,6 +37,20 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn run -T lerna publish from-package --yes --no-verify-access
+      - name: Verify eas-cli was published as latest on npm
+        run: |
+          expected="$(jq -r .version lerna.json)"
+          for attempt in $(seq 1 10); do
+            published="$(npm view eas-cli@latest version 2>/dev/null || true)"
+            if [ "$published" = "$expected" ]; then
+              echo "Verified eas-cli@$expected is latest on npm."
+              exit 0
+            fi
+            echo "Attempt $attempt: npm latest is '$published', expected '$expected'. Retrying in 15s..."
+            sleep 15
+          done
+          echo "eas-cli@$expected was not published as latest on npm; the publish step failed." >&2
+          exit 1
   release-changelog:
     name: Update changelog and publish release
     runs-on: ubuntu-latest
@@ -53,11 +67,6 @@ jobs:
         run: yarn install --immutable
       - name: Resolve version
         run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-      - name: Update cli-versions.json
-        run: |
-          jq --arg version "$EAS_CLI_VERSION" '.STAGING = $version | .PRODUCTION = $version' \
-            cli-versions.json > cli-versions.json.tmp
-          mv cli-versions.json.tmp cli-versions.json
       - name: Update changelog
         working-directory: ./scripts
         run: yarn release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
@@ -69,10 +78,13 @@ jobs:
         run: |
           git fetch
           git checkout main
+          jq --arg version "$EAS_CLI_VERSION" '.STAGING = $version' \
+            cli-versions.json > cli-versions.json.tmp
+          mv cli-versions.json.tmp cli-versions.json
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
           git add cli-versions.json CHANGELOG.md
-          git commit --allow-empty -m "update CHANGELOG.md and cli-versions.json"
+          git commit --allow-empty -m "update CHANGELOG.md and bump STAGING in cli-versions.json"
           git push
       - name: Prepare changelog for Slack
         run: |

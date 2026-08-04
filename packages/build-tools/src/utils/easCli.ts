@@ -1,17 +1,32 @@
 import spawn, { SpawnOptions, SpawnResult } from '@expo/turtle-spawn';
-import { EasCliNpmTags, EasCliVersions, Env, fetchEasCliVersionsAsync } from '@expo/eas-build-job';
+import {
+  EasCliNpmTags,
+  EasCliVersions,
+  EasCliVersionsFetchTimeoutError,
+  Env,
+  fetchEasCliVersionsAsync,
+} from '@expo/eas-build-job';
 
 import { isAtLeastNpm7Async } from './packageManager';
+import { Sentry } from '../sentry';
 
 /**
  * Resolves the `eas-cli` versions to install for staging/production. Prefers the
  * versions committed to `cli-versions.json` (fetched from expo/eas-cli); on any
- * failure falls back to the `latest-eas-build*` npm dist-tags.
+ * failure (e.g. GitHub is unreachable or slow) reports to Sentry and falls back
+ * to the `latest-eas-build*` npm dist-tags so the build can still proceed.
  */
 async function resolveEasCliVersionsAsync(): Promise<EasCliVersions> {
   try {
     return await fetchEasCliVersionsAsync();
-  } catch {
+  } catch (error) {
+    const message =
+      error instanceof EasCliVersionsFetchTimeoutError
+        ? 'Timed out fetching cli-versions.json; falling back to npm dist-tags'
+        : 'Failed to fetch cli-versions.json; falling back to npm dist-tags';
+    Sentry.capture(message, error instanceof Error ? error : new Error(String(error)), {
+      level: 'error',
+    });
     return { STAGING: EasCliNpmTags.STAGING, PRODUCTION: EasCliNpmTags.PRODUCTION };
   }
 }

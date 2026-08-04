@@ -8,6 +8,7 @@ export {
   BuildTrigger,
   EasCliNpmTags,
   EasCliVersions,
+  EasCliVersionsFetchTimeoutError,
   fetchEasCliVersionsAsync,
   Env,
   EnvironmentSecret,
