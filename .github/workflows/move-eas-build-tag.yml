@@ -1,3 +1,6 @@
+# NOTE (2026-08-03): We can no longer add npm dist-tags from CI.
+# This workflow will fail if run without dry_run. Run the npm dist-tag
+# commands manually instead until CI tagging is restored.
 on:
   workflow_dispatch:
     inputs:

@@ -8,6 +8,21 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
+
+### 🧹 Chores
+
+## [21.5.1](https://github.com/expo/eas-cli/releases/tag/v21.5.1) - 2026-08-03
+
+## [21.5.0](https://github.com/expo/eas-cli/releases/tag/v21.5.0) - 2026-08-03
+
+### 🎉 New features
+
+- [eas-cli] Add `eas submit:list`, `eas submit:view`, `eas submit:retry`, `eas submit:cancel`, and `eas submit:status` commands; list and view include the runtime version and fingerprint of the submitted build, and status shows the live App Store version and TestFlight build states cross-referenced with EAS submissions (Google Play app status is not available through EAS yet). ([#4134](https://github.com/expo/eas-cli/pull/4134) by [@brentvatne](https://github.com/brentvatne))
 - [eas-build-job] Add optional `ssh` field on build/job payloads. ([#4083](https://github.com/expo/eas-cli/pull/4083) by [@gwdp](https://github.com/gwdp))
 - [eas-build-job] Add an `SSH_SESSION` build phase for upcoming worker SSH support. ([#4029](https://github.com/expo/eas-cli/pull/4029) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `ref` input to the `eas/checkout` step to check out a different git ref (branch, tag, or commit SHA) than the one that triggered the job. ([#4035](https://github.com/expo/eas-cli/pull/4035) by [@sswrk](https://github.com/sswrk))
@@ -15,17 +30,20 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Validate local composite functions referenced in workflow files during `eas workflow:validate`, checking that the YAML files exist and are well-formed. ([#3931](https://github.com/expo/eas-cli/pull/3931) by [@sswrk](https://github.com/sswrk))
 - [build-tools] Pass a metrics CORS origin to serve-sim so the dashboard can read a session's live CPU/memory stream cross-origin. ([#3990](https://github.com/expo/eas-cli/pull/3990) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Collect each iOS session's serve-sim CPU/memory `/metrics` to a file and upload it as a device run session artifact at teardown. ([#3995](https://github.com/expo/eas-cli/pull/3995) by [@gwdp](https://github.com/gwdp))
-- [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Load local composite function catalogs for hook steps, in both steps-based and native builds. ([#4063](https://github.com/expo/eas-cli/pull/4063) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
 - [eas-cli] clean up error handling in local builds. ([#4105](https://github.com/expo/eas-cli/pull/4105) by [@douglowder](https://github.com/douglowder))
 - [build-tools] Install ffmpeg when it is missing so Argent screen recording works in EAS Simulator sessions. ([#4110](https://github.com/expo/eas-cli/pull/4110) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Stop simulator job runs when `eas simulator:start` is canceled before the session is ready. ([#4113](https://github.com/expo/eas-cli/pull/4113) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Pin the default `agent-device` version for remote sessions instead of installing `latest`. ([#4142](https://github.com/expo/eas-cli/pull/4142) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
 
+- [eas-cli] Check non-interactive mode before fetching context in `eas submit:cancel` and `eas submit:retry`, so a missing submission ID fails fast without network requests. ([#4141](https://github.com/expo/eas-cli/pull/4141) by [@brentvatne](https://github.com/brentvatne))
 - [build-tools] Run EAS Simulator previews with the official `@expo/serve-sim` package under EAS-owned supervision. ([#4114](https://github.com/expo/eas-cli/pull/4114) by [@szdziedzic](https://github.com/szdziedzic))
+- [reviewer] Report each AI review finding with a confidence and shipping-impact signal, and open the review summary with an overall PR risk rating. ([#4128](https://github.com/expo/eas-cli/pull/4128) by [@brentvatne](https://github.com/brentvatne))
 
 ## [21.4.0](https://github.com/expo/eas-cli/releases/tag/v21.4.0) - 2026-07-28
 
@@ -45,6 +63,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Refresh README as an EAS product landing page. ([#3844](https://github.com/expo/eas-cli/pull/3844) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Fix the EAS logo not rendering in the repository root README. ([#4093](https://github.com/expo/eas-cli/pull/4093) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Improve wording for usage printouts. ([#4094](https://github.com/expo/eas-cli/pull/4094) by [@kadikraman](https://github.com/kadikraman))
 
 ## [21.3.0](https://github.com/expo/eas-cli/releases/tag/v21.3.0) - 2026-07-27
 

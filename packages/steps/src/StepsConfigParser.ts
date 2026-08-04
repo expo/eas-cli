@@ -1,7 +1,9 @@
 import {
   CompositeFunctionCatalog,
+  CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
+  HookKey,
   Hooks,
   Step,
   isHookAnchorId,
@@ -31,15 +33,21 @@ import {
   validateAllStepFunctionsExist,
 } from './hooks';
 import {
+  extendCompositeFunctionCatalogFromStepsAsync,
   isLocalCompositeFunctionPath,
   parseLocalCompositeFunctionPath,
 } from './utils/localCompositeFunctions';
+
+type ValidatedHooks = ReadonlyMap<HookKey, { anchorId: HookAnchorId; steps: Step[] }>;
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
   private readonly hooks: Hooks;
   /** Pre-loaded composite function configs keyed by normalized path (e.g. `./.eas/functions/setup`). */
   private readonly compositeFunctionCatalog: CompositeFunctionCatalog;
+  private readonly loadCompositeFunction?: (
+    compositeFunctionPath: string
+  ) => Promise<CompositeFunctionConfig>;
 
   constructor(
     ctx: BuildStepGlobalContext,
@@ -49,6 +57,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       externalFunctions,
       externalFunctionGroups,
       compositeFunctionCatalog,
+      loadCompositeFunction,
     }: {
       steps: Step[];
       // Required (not `hooks?:`) so a call site cannot silently forget to pass
@@ -57,6 +66,8 @@ export class StepsConfigParser extends AbstractConfigParser {
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
       compositeFunctionCatalog?: CompositeFunctionCatalog;
+      /** Loads a hook composite missing from the catalog. When omitted, missing entries fail as unknown. */
+      loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
     }
   ) {
     super(ctx, {
@@ -66,7 +77,9 @@ export class StepsConfigParser extends AbstractConfigParser {
 
     this.steps = steps;
     this.hooks = hooks ?? {};
-    this.compositeFunctionCatalog = compositeFunctionCatalog ?? {};
+    // Shallow copy so lazy loading never mutates a caller-owned catalog.
+    this.compositeFunctionCatalog = { ...(compositeFunctionCatalog ?? {}) };
+    this.loadCompositeFunction = loadCompositeFunction;
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
@@ -76,9 +89,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   }> {
     const validatedSteps = validateSteps(this.steps);
     const validatedHooks = this.validateHooks();
-    // Hook steps are validated like job steps: a hook `uses:` naming an
-    // unknown function must be a BuildConfigError, not an assertion crash.
-    validateAllStepFunctionsExist([...validatedSteps, ...Object.values(validatedHooks).flat()], {
+    validateAllStepFunctionsExist(validatedSteps, {
       externalFunctionIds: this.getExternalFunctionFullIds(),
       externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
     });
@@ -87,6 +98,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     const buildFunctionGroupById = createBuildFunctionGroupByIdMapping(
       this.externalFunctionGroups ?? []
     );
+    // Expander shares this catalog by reference; it grows as hook composites load.
     const compositeFunctionExpander = new CompositeFunctionExpander(
       this.ctx,
       this.compositeFunctionCatalog,
@@ -102,6 +114,7 @@ export class StepsConfigParser extends AbstractConfigParser {
     // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
+    const seenAnchorIds = new Set<HookAnchorId>();
 
     for (const stepConfig of validatedSteps) {
       const maybeFunctionGroup =
@@ -122,7 +135,8 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          const anchorHooks = this.constructAnchorHooks(
+          seenAnchorIds.add(anchorId);
+          const anchorHooks = await this.constructAnchorHooksAsync(
             anchorId,
             validatedHooks,
             compositeFunctionExpander
@@ -148,7 +162,8 @@ export class StepsConfigParser extends AbstractConfigParser {
           'Hook anchors are not supported on local composite function steps.'
         );
       }
-      const before = this.constructHookSideEntries(
+      seenAnchorIds.add(anchorId);
+      const before = await this.constructHookSideEntriesAsync(
         anchorId,
         'before',
         validatedHooks,
@@ -164,7 +179,7 @@ export class StepsConfigParser extends AbstractConfigParser {
       );
       const anchorStep = createdSteps[0];
       buildSteps.push(anchorStep);
-      const after = this.constructHookSideEntries(
+      const after = await this.constructHookSideEntriesAsync(
         anchorId,
         'after',
         validatedHooks,
@@ -175,6 +190,14 @@ export class StepsConfigParser extends AbstractConfigParser {
       }
     }
 
+    for (const [hookKey, { anchorId }] of validatedHooks) {
+      if (!seenAnchorIds.has(anchorId)) {
+        this.ctx.baseLogger.warn(
+          `Ignoring "hooks.${hookKey}": this build does not run the "${anchorId}" step.`
+        );
+      }
+    }
+
     return {
       buildSteps,
       buildFunctionById,
@@ -182,13 +205,15 @@ export class StepsConfigParser extends AbstractConfigParser {
     };
   }
 
-  private validateHooks(): Record<string, Step[]> {
-    const validatedHooks: Record<string, Step[]> = {};
+  private validateHooks(): ValidatedHooks {
+    const validatedHooks = new Map<HookKey, { anchorId: HookAnchorId; steps: Step[] }>();
     for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
       // A worker must not fail on a hook key newer than itself, so unregistered
       // keys skip validation entirely (their steps may reference functions this
       // worker lacks).
-      if (parseHookKey(hookKey) === null) {
+      const parsed = parseHookKey(hookKey);
+      if (parsed === null) {
+        this.ctx.baseLogger.warn(`Ignoring unknown hook key "${hookKey}".`);
         continue;
       }
       // An empty array is a deliberate no-op (e.g. opting out of a default);
@@ -198,7 +223,10 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
       try {
-        validatedHooks[hookKey] = validateSteps(hookSteps);
+        validatedHooks.set(`${parsed.side}_${parsed.anchorId}`, {
+          anchorId: parsed.anchorId,
+          steps: validateSteps(hookSteps),
+        });
       } catch (err) {
         throw new BuildConfigError(
           `Invalid steps in "hooks.${hookKey}": ${err instanceof Error ? err.message : String(err)}`
@@ -229,18 +257,18 @@ export class StepsConfigParser extends AbstractConfigParser {
     return undefined;
   }
 
-  private constructAnchorHooks(
+  private async constructAnchorHooksAsync(
     anchorId: HookAnchorId,
-    validatedHooks: Record<string, Step[]>,
+    validatedHooks: ValidatedHooks,
     compositeFunctionExpander: CompositeFunctionExpander
-  ): AnchorHooks | undefined {
-    const before = this.constructHookSideEntries(
+  ): Promise<AnchorHooks | undefined> {
+    const before = await this.constructHookSideEntriesAsync(
       anchorId,
       'before',
       validatedHooks,
       compositeFunctionExpander
     );
-    const after = this.constructHookSideEntries(
+    const after = await this.constructHookSideEntriesAsync(
       anchorId,
       'after',
       validatedHooks,
@@ -252,17 +280,57 @@ export class StepsConfigParser extends AbstractConfigParser {
     return { anchor: anchorId, before, after };
   }
 
-  private constructHookSideEntries(
+  private async constructHookSideEntriesAsync(
     anchorId: HookAnchorId,
     side: 'before' | 'after',
-    validatedHooks: Record<string, Step[]>,
+    validatedHooks: ValidatedHooks,
     compositeFunctionExpander: CompositeFunctionExpander
-  ): HookEntry[] {
-    const hookSteps = validatedHooks[`${side}_${anchorId}`];
+  ): Promise<HookEntry[]> {
+    const hookSteps = validatedHooks.get(`${side}_${anchorId}`)?.steps;
     if (hookSteps === undefined) {
       return [];
     }
-    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
+    try {
+      validateAllStepFunctionsExist(hookSteps, {
+        externalFunctionIds: this.getExternalFunctionFullIds(),
+        externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
+      });
+    } catch (err) {
+      throw new BuildConfigError(
+        `Invalid steps in "hooks.${side}_${anchorId}": ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+    if (this.loadCompositeFunction !== undefined) {
+      // Load only once the anchor runs, so unused anchors do not fail on missing composites.
+      try {
+        await extendCompositeFunctionCatalogFromStepsAsync({
+          catalog: this.compositeFunctionCatalog,
+          rootSteps: hookSteps,
+          loadCompositeFunction: this.loadCompositeFunction,
+        });
+      } catch (err) {
+        if (err instanceof BuildConfigError) {
+          throw new BuildConfigError(
+            `Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`
+          );
+        }
+        throw new BuildConfigError(
+          `Failed to load a local composite function referenced from "hooks.${side}_${anchorId}": ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    }
+    try {
+      return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
+    } catch (err) {
+      if (err instanceof BuildConfigError) {
+        throw new BuildConfigError(`Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`);
+      }
+      throw err;
+    }
   }
 
   private createBuildStepsFromNonGroupStepConfig(

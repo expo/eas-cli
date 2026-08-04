@@ -74,13 +74,20 @@ async function loadLocalCompositeFunctionConfigAsync(
   );
 }
 
+export function createCompositeFunctionLoader(
+  projectRoot: string,
+  logger?: bunyan
+): (compositeFunctionPath: string) => Promise<CompositeFunctionConfig> {
+  return compositeFunctionPath =>
+    loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger });
+}
+
 export async function buildCompositeFunctionCatalogAsync(
   projectRoot: string,
   { steps, logger }: { steps: readonly Step[]; logger?: bunyan }
 ): Promise<CompositeFunctionCatalog> {
   return buildCompositeFunctionCatalogFromStepsAsync({
     rootSteps: steps,
-    loadCompositeFunction: compositeFunctionPath =>
-      loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger }),
+    loadCompositeFunction: createCompositeFunctionLoader(projectRoot, logger),
   });
 }

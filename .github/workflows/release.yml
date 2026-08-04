@@ -37,20 +37,40 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn run -T lerna publish from-package --yes --no-verify-access
-      - name: Add latest-eas-build-staging tag
+      # Temporarily disabled (2026-08-03): we can no longer add npm dist-tags from CI.
+      # The tags must be added manually. A Slack reminder with the commands is posted below.
+      # - name: Add latest-eas-build-staging tag
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      #   run: |
+      #     VERSION=$(cat lerna.json | jq -r .version)
+      #     echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+      #     npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
+      # - name: Add latest-eas-build tag
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+      #   run: |
+      #     VERSION=$(cat lerna.json | jq -r .version)
+      #     echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
+      #     npm dist-tag add eas-cli@$VERSION latest-eas-build
+      - name: Resolve version
+        run: echo "EAS_CLI_VERSION=$(jq -r .version lerna.json)" >> $GITHUB_ENV
+      - name: Slack reminder to add npm tags manually
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: |
-          VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-          npm dist-tag add eas-cli@$VERSION latest-eas-build-staging
-      - name: Add latest-eas-build tag
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
-        run: |
-          VERSION=$(cat lerna.json | jq -r .version)
-          echo //registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN > ~/.npmrc
-          npm dist-tag add eas-cli@$VERSION latest-eas-build
+          SLACK_CHANNEL: eas-cli
+          SLACK_COLOR: warning
+          SLACK_ICON: https://github.com/expo-bot.png?size=48
+          SLACK_TITLE: "Manual action needed: add npm tags for eas-cli@${{ env.EAS_CLI_VERSION }}"
+          SLACK_MESSAGE: |
+            Don't forget to add these tags to the npm packages. Run:
+            ```
+            npm dist-tag add eas-cli@${{ env.EAS_CLI_VERSION }} latest-eas-build-staging
+            npm dist-tag add eas-cli@${{ env.EAS_CLI_VERSION }} latest-eas-build
+            ```
+          SLACK_USERNAME: "EAS CLI CI"
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_FOOTER: ""
   release-changelog:
     name: Update changelog and publish release
     runs-on: ubuntu-latest

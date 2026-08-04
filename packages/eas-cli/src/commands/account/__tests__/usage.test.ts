@@ -1,4 +1,5 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
+import { extractUsageData } from '../../../commandUtils/usageUtils';
 import {
   AccountFullUsageQuery as AccountFullUsageQueryType,
   EasService,
@@ -6,9 +7,20 @@ import {
   UsageMetricType,
 } from '../../../graphql/generated';
 import { AccountQuery } from '../../../graphql/queries/AccountQuery';
+import Log from '../../../log';
 import { calculatePercentUsed, createProgressBar } from '../../../utils/usage/checkForOverages';
+import { displayUsage } from '../usage';
 
 jest.mock('../../../graphql/queries/AccountQuery');
+jest.mock('../../../log', () => ({
+  __esModule: true,
+  ...jest.requireActual('../../../log'),
+  default: {
+    log: jest.fn(),
+    newLine: jest.fn(),
+  },
+  link: jest.fn((url: string, opts?: { text?: string }) => opts?.text ?? url),
+}));
 
 function createMockFullUsageData(
   overrides: Partial<{
@@ -203,6 +215,39 @@ describe('AccountQuery', () => {
       expect.any(Date)
     );
     expect(result.name).toBe('test-account');
+  });
+});
+
+describe('displayUsage', () => {
+  const mockLog = jest.mocked(Log.log);
+
+  beforeEach(() => {
+    mockLog.mockClear();
+  });
+
+  it('labels usage beyond included credits as "additional usage"', () => {
+    const usageData = createMockFullUsageData({
+      buildValue: 55,
+      buildLimit: 50,
+      mauValue: 3500,
+      mauLimit: 3000,
+      buildOverageCost: 1500,
+      updateOverageCost: 250,
+    });
+    const displayData = extractUsageData(usageData);
+
+    displayUsage(displayData, usageData);
+
+    // eslint-disable-next-line no-control-regex
+    const output = mockLog.mock.calls
+      .flat()
+      .join('\n')
+      .replace(/\u001b\[\d+m/g, '');
+    expect(output).toContain('Unique Updaters (additional usage): 500 users ($2.50)');
+    expect(output).toContain('Additional usage: $17.50');
+    expect(output).toContain('Builds: $15.00');
+    expect(output).toContain('Updates: $2.50');
+    expect(output.toLowerCase()).not.toContain('overage');
   });
 });
 
