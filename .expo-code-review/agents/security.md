@@ -1,10 +1,9 @@
 ---
 description: Security and secrets. Injection, credential or secret leakage, unsafe shell/child-process use, missing validation at trust boundaries.
 alwaysRun: true
-# No model override: security runs on the config default (gpt-5.5, on the
-# subscription). To give it a stronger model, use the metered openai-api alias
-# from the mixed auth.providers setup (see the @expo/code-review-cli README) —
-# pro-tier models are excluded from the subscription.
+# Security is the highest-stakes agent, so it runs on the Opus tier (mirrors
+# the expo/code-review-cli repo's own roster).
+model: anthropic/claude-opus-5
 ---
 
 # Security & secrets

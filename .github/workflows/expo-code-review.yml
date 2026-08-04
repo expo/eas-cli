@@ -13,9 +13,9 @@ permissions:
 env:
   # The reviewer is the published @expo/code-review-cli package, run via npx — the
   # repo only carries the `.expo-code-review/` config, not the engine source.
-  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.6.x
-  # (0.6.0 = trusted base-commit configuration + PR-head runtime-config scrub).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
+  # Override with a repo variable ECR_VERSION to pin/bump; defaults to 0.9.x
+  # (0.9 = the claude-code engine the anthropic/… models below run on).
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.9.2' }}
 
 concurrency:
   group: ai-code-review-${{ github.event.pull_request.number }}
@@ -125,6 +125,14 @@ jobs:
           curl -fsSL https://getunblocked.com/install.sh | bash
           echo "$HOME/.unblocked/bin" >> "$GITHUB_PATH"
 
+      # The anthropic/… models in .expo-code-review/config.jsonc run through the
+      # Claude Code CLI (the claude-code engine). Pinned exactly — an unpinned
+      # CLI would silently drift on every CI run; bump it deliberately (mirrors
+      # expo/code-review-cli's own workflow).
+      - name: Install Claude Code CLI
+        if: steps.resolve.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.212
+
       # SECURITY: the TRUSTED BASE checkout above includes .expo-code-review/
       # config.jsonc, whose auth.tokenEnv names the env var the CLI forwards as the
       # model credential. `ecr verify-config` is the canonical guard (ships with the
@@ -136,7 +144,7 @@ jobs:
       - name: Guard config tokenEnv (root + routing + all scopes)
         if: steps.resolve.outputs.run == 'true'
         env:
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CLAUDE_CODE_REVIEW_SHARED_API_TOKEN' }}
         run: npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr verify-config
 
       - name: Run AI review
@@ -148,14 +156,14 @@ jobs:
         env:
           # GitHub token scoped by the permissions block above (PR comments only).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ChatGPT/Codex subscription ACCESS token (auth.mode "oauth" in
-          # .expo-code-review/config.jsonc reads this env var) — used as-is, no
-          # rotation involvement; re-mint before its ~10-day expiry. All reviews
-          # run on the subscription.
-          CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
+          # Shared Anthropic review credential (auth.providers.anthropic in
+          # .expo-code-review/config.jsonc reads this env var). The claude-code
+          # engine forwards it to the Claude Code CLI as the only credential —
+          # an `sk-ant-oat…` setup-token or an `sk-ant-api…` Console key both work.
+          CLAUDE_CODE_REVIEW_SHARED_API_TOKEN: ${{ secrets.CLAUDE_CODE_REVIEW_SHARED_API_TOKEN }}
           # Layer-1 runtime auth lock (mirrors the guard step): the CLI refuses to
           # run when the tokenEnv the loaded config honors differs from this.
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CLAUDE_CODE_REVIEW_SHARED_API_TOKEN' }}
           # Unblocked CLI headless auth (PAT or team access token). Absent =>
           # the CLI stays unauthenticated; the review still runs.
           UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}

@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [reviewer] Migrate AI code reviews from GPT to Claude models on the claude-code engine (Sonnet 5 by default, Opus 5 for the security agent). ([#4148](https://github.com/expo/eas-cli/pull/4148) by [@brentvatne](https://github.com/brentvatne))
+
 ## [21.5.1](https://github.com/expo/eas-cli/releases/tag/v21.5.1) - 2026-08-03
 
 ## [21.5.0](https://github.com/expo/eas-cli/releases/tag/v21.5.0) - 2026-08-03
