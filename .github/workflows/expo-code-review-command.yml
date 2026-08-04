@@ -19,7 +19,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.7.0' }}
 
 concurrency:
   group: ai-code-review-cmd-${{ github.event.issue.number }}
@@ -121,8 +121,13 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Billing A/B (auth.mode "random"): both credentials must be set —
+          # each run flips between them. See expo-code-review.yml for details.
           CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN,OPENAI_API_KEY' }}
+          # Full agent output in the job log (see expo-code-review.yml).
+          ECR_VERBOSE: '1'
           # Unblocked CLI headless auth (PAT or team access token). Absent =>
           # the CLI stays unauthenticated; the review still runs.
           UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}

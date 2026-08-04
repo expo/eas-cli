@@ -30,17 +30,28 @@
   "breakGlass": { "marker": "/skip-review" },
   "commentTag": "expo-ai-code-reviewer",
 
-  // ChatGPT/Codex subscription (OAuth): tokenEnv holds the ACCESS token from an
-  // `opencode auth login` ChatGPT sign-in (`ecr setup-auth` extracts it) — a
-  // plain bearer with no rotation involvement; re-mint before its ~10-day expiry
-  // (doctor + the run preflight warn first). NEVER use the refresh token here:
-  // it is single-use and dies on first rotation. All models above are on the
-  // subscription's allowlist, so reviews draw no metered spend. (To add pro-tier
-  // models later, see the mixed auth.providers setup in the @expo/code-review-cli
-  // README.)
+  // Billing-mode A/B experiment (needs @expo/code-review-cli >= 0.7): each run
+  // flips a fair coin between the ChatGPT/Codex subscription (oauth) and the
+  // metered API key, and records the arm in the run log (authModes) together
+  // with pass outcomes — so GPT stall/timeout rates can be compared per billing
+  // mode from field data. BOTH credentials must be set (the preflight fails
+  // fast); both arms run at the same concurrency.
+  //
+  // oauthTokenEnv holds the ACCESS token from an `opencode auth login` ChatGPT
+  // sign-in (`ecr setup-auth` extracts it) — a plain bearer with no rotation
+  // involvement; re-mint before its ~10-day expiry (doctor + the run preflight
+  // warn first). NEVER use the refresh token here: it is single-use and dies on
+  // first rotation. apiKeyEnv holds a Restricted key (Responses → Request +
+  // Chat completions → Request only) from a dedicated budget-capped project.
+  //
+  // To end the experiment, set "mode" to "oauth" or "api-key" — one field.
   "auth": {
-    "mode": "oauth",
-    "provider": "openai",
-    "tokenEnv": "CODEX_OAUTH_ACCESS_TOKEN"
+    "providers": {
+      "openai": {
+        "mode": "random",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "oauthTokenEnv": "CODEX_OAUTH_ACCESS_TOKEN"
+      }
+    }
   }
 }
