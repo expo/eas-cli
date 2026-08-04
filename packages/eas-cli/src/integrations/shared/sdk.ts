@@ -9,9 +9,8 @@ import { createOrModifyExpoConfigAsync } from '../../project/expoConfig';
 const DYNAMIC_CONFIG_MARKER = 'Cannot automatically write to dynamic config';
 
 export type SdkInstallResult =
-  | { status: 'installed' }
-  | { status: 'failed' }
-  | { status: 'installed'; dynamicConfigGuidance: string };
+  | { status: 'installed'; dynamicConfigGuidance?: string }
+  | { status: 'failed' };
 
 export function getSpawnErrorOutput(error: unknown): string {
   const { stdout, stderr } = (error ?? {}) as { stdout?: string; stderr?: string };
@@ -26,6 +25,7 @@ export function extractDynamicConfigGuidance(output: string): string | null {
   return output.slice(index).trim();
 }
 
+// These point eas-cli at a local or staging server; SDK packages always come from production.
 export function envForExpoInstall(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.EXPO_LOCAL;
@@ -99,19 +99,15 @@ export async function setupSdkAndConfigAsync(
   }: { packages: string[]; plugin: string; label: string; jsonFlag: boolean }
 ): Promise<string[]> {
   const installResult = await installSdkPackagesAsync(projectDir, { packages, label, jsonFlag });
-  const manualSteps: string[] = [];
+  // Adding the plugin for a package that isn't installed leaves the app config unresolvable.
   if (installResult.status === 'failed') {
-    manualSteps.push(
-      `The ${label} SDK packages didn't install. Run npx expo install ${packages.join(' ')} from your project directory.`
-    );
+    return [
+      `The ${label} SDK packages didn't install, so the ${plugin} config plugin was not added. Run npx expo install ${packages.join(' ')} from your project directory, then re-run this command.`,
+    ];
   }
-  if (installResult.status === 'installed' && 'dynamicConfigGuidance' in installResult) {
-    manualSteps.push(installResult.dynamicConfigGuidance);
-  } else {
-    const pluginManualStep = await addConfigPluginAsync(projectDir, exp, { plugin });
-    if (pluginManualStep) {
-      manualSteps.push(pluginManualStep);
-    }
+  if (installResult.dynamicConfigGuidance) {
+    return [installResult.dynamicConfigGuidance];
   }
-  return manualSteps;
+  const pluginManualStep = await addConfigPluginAsync(projectDir, exp, { plugin });
+  return pluginManualStep ? [pluginManualStep] : [];
 }

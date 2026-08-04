@@ -133,6 +133,13 @@ describe(parseSupabaseProjectRef, () => {
     );
   });
 
+  it('lowercases the reference ID, which the server matches exactly', () => {
+    expect(parseSupabaseProjectRef('JFURMBUIOOGLJWSQWNPD')).toBe('jfurmbuioogljwsqwnpd');
+    expect(
+      parseSupabaseProjectRef('https://supabase.com/dashboard/project/KWDFDXDZURXIGTBTWDDJ')
+    ).toBe('kwdfdxdzurxigtbtwddj');
+  });
+
   it('rejects a project name with guidance', () => {
     expect(() => parseSupabaseProjectRef('@testuser/test-app-personal-661c52f1')).toThrow(
       /not a Supabase project reference ID/

@@ -15,7 +15,7 @@ import {
   SupabaseProjectData,
 } from '../../graphql/types/SupabaseConnection';
 import Log, { link } from '../../log';
-import { Ora, ora } from '../../ora';
+import { ora } from '../../ora';
 import { selectAsync } from '../../prompts';
 import { sleepAsync } from '../../utils/promise';
 import {
@@ -105,7 +105,7 @@ export async function pollProvisionReceiptAsync(
     failureMessage: string;
     failureHint: string;
   }
-): Promise<{ finalized: BackgroundJobReceiptDataFragment; spinner: Ora }> {
+): Promise<BackgroundJobReceiptDataFragment> {
   const spinner = ora(startMessage).start();
   try {
     spinner.text = waitingMessage;
@@ -116,7 +116,9 @@ export async function pollProvisionReceiptAsync(
     if (!finalized) {
       throw new Error('Supabase project provision finished without a receipt.');
     }
-    return { finalized, spinner };
+    // Stopped, not succeeded: the caller resolves what was provisioned and owns that message.
+    spinner.stop();
+    return finalized;
   } catch (error) {
     spinner.fail(failureMessage);
     throw toProvisionPollError(error, { hint: failureHint });

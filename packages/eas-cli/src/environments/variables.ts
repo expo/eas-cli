@@ -17,6 +17,29 @@ type ProjectScopedEnvVar = Awaited<
   ReturnType<typeof EnvironmentVariablesQuery.byAppIdAsync>
 >[number];
 
+// What happens to environments that already hold a value for this name but are not being written:
+// drop them so one value covers everything, or leave them on their existing value.
+export type EnvVarWriteMode = 'replaceOtherEnvironments' | 'keepOtherEnvironments';
+
+function coversExactly(environments: string[], target: Set<string>): boolean {
+  return environments.length === target.size && environments.every(e => target.has(e));
+}
+
+export async function getProjectEnvironmentVariableEnvironmentsAsync(
+  graphqlClient: ExpoGraphqlClient,
+  projectId: string
+): Promise<string[]> {
+  try {
+    const environments = await EnvironmentVariablesQuery.environmentVariableEnvironmentsAsync(
+      graphqlClient,
+      projectId
+    );
+    return environments;
+  } catch (error) {
+    throw new Error('Failed to fetch available environments', { cause: error });
+  }
+}
+
 export async function loadProjectScopedEnvVarsAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
@@ -30,188 +53,134 @@ export async function loadProjectScopedEnvVarsAsync(
   ).filter(variable => variable.scope === EnvironmentVariableScope.Project);
 }
 
-export async function upsertEasEnvVarAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectId: string,
-  envVar: EnvVar,
-  environments: string[],
-  nonInteractive: boolean,
-  overwrite: boolean
-): Promise<boolean> {
-  const existingProjectVariables = await loadProjectScopedEnvVarsAsync(
-    graphqlClient,
-    projectId,
-    envVar.name
-  );
-
-  if (existingProjectVariables.length === 0) {
-    await EnvironmentVariableMutation.createForAppAsync(
-      graphqlClient,
-      {
-        name: envVar.name,
-        value: envVar.value,
-        environments,
-        visibility: envVar.visibility,
-        type: EnvironmentSecretType.String,
-      },
-      projectId
-    );
-    Log.withTick(
-      `Created EAS environment variable ${chalk.bold(envVar.name)} for ${environments.join(', ')}`
-    );
-    return true;
-  }
-
-  const [keeper, ...extras] = existingProjectVariables;
-  const extraEnvironments = [...new Set(extras.flatMap(variable => variable.environments ?? []))];
-  const shouldOverwrite =
-    overwrite ||
-    (!nonInteractive &&
-      (await confirmAsync({
-        message:
-          extras.length > 0
-            ? `EAS has multiple ${envVar.name} variables for this project (including ${extraEnvironments.join(', ') || 'other environments'}). Replace them with one value for ${environments.join(', ')}?`
-            : `EAS already has an ${envVar.name} environment variable for this project. Overwrite it?`,
-      })));
-  if (!shouldOverwrite) {
-    Log.warn(
-      `Skipped updating EAS environment variable ${chalk.bold(envVar.name)}${
-        nonInteractive ? ' (pass --overwrite to replace it)' : ''
-      }.`
-    );
-    return false;
-  }
-
-  for (const extra of extras) {
-    await EnvironmentVariableMutation.deleteAsync(graphqlClient, extra.id);
-  }
-  await EnvironmentVariableMutation.updateAsync(graphqlClient, {
-    id: keeper.id,
-    name: envVar.name,
-    value: envVar.value,
-    environments,
-    visibility: envVar.visibility,
-    type: EnvironmentSecretType.String,
-  });
-  Log.withTick(
-    `Updated EAS environment variable ${chalk.bold(envVar.name)} for ${environments.join(', ')}`
-  );
-  return true;
-}
-
-export async function upsertEasEnvVarForEnvironmentsAsync(
+export async function upsertEnvVarAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   envVar: EnvVar,
   environments: string[],
   nonInteractive: boolean,
   overwrite: boolean,
-  { label }: { label: string }
-): Promise<boolean> {
-  const existingVariables = await loadProjectScopedEnvVarsAsync(
-    graphqlClient,
-    projectId,
-    envVar.name
-  );
-
-  const targetSet = new Set(environments);
-  const exactMatch = existingVariables.find(variable => {
-    const current = variable.environments ?? [];
-    return (
-      current.length === targetSet.size && current.every(environment => targetSet.has(environment))
-    );
-  });
-  if (exactMatch) {
-    const shouldOverwrite =
-      overwrite ||
-      exactMatch.value === envVar.value ||
-      (!nonInteractive &&
-        (await confirmAsync({
-          message: `EAS already has ${envVar.name} for ${environments.join(', ')}. Overwrite it?`,
-        })));
-    if (!shouldOverwrite) {
-      Log.warn(`Skipped updating EAS environment variable ${chalk.bold(envVar.name)}.`);
-      return false;
-    }
-    await EnvironmentVariableMutation.updateAsync(graphqlClient, {
-      id: exactMatch.id,
-      name: envVar.name,
-      value: envVar.value,
-      environments,
-      visibility: envVar.visibility,
-      type: EnvironmentSecretType.String,
-    });
-    Log.withTick(
-      `Updated EAS environment variable ${chalk.bold(envVar.name)} for ${environments.join(', ')}`
-    );
-    return true;
+  {
+    mode,
+    moveConfirmMessage,
+  }: {
+    mode: EnvVarWriteMode;
+    // Only reachable in keepOtherEnvironments mode, where a row keeps some environments and loses others.
+    moveConfirmMessage?: (variableName: string, overlappingEnvironments: string) => string;
   }
+): Promise<boolean> {
+  const target = new Set(environments);
+  const replacingAll = mode === 'replaceOtherEnvironments';
+  const existingRows = await loadProjectScopedEnvVarsAsync(graphqlClient, projectId, envVar.name);
 
-  const toDelete: { id: string; overlap: string[] }[] = [];
-  const toShrink: { id: string; overlap: string[]; remaining: string[] }[] = [];
-  for (const variable of existingVariables) {
-    const current = variable.environments ?? [];
-    const overlap = current.filter(environment => targetSet.has(environment));
-    if (overlap.length === 0) {
+  // 1. Work out which rows this write touches. Replacing takes over every row; keeping only touches
+  // rows that share an environment with the target.
+  type CoveredRow = {
+    id: string;
+    value: string;
+    environments: string[];
+    visibility: EnvironmentVariableVisibility | null;
+  };
+  const coveredRows: CoveredRow[] = [];
+  const rowsToShrink: { id: string; keptEnvironments: string[] }[] = [];
+  const takenOverEnvironments = new Set<string>();
+  for (const row of existingRows) {
+    const rowEnvironments = row.environments ?? [];
+    const handedOver = replacingAll
+      ? rowEnvironments
+      : rowEnvironments.filter(environment => target.has(environment));
+    const kept = replacingAll
+      ? []
+      : rowEnvironments.filter(environment => !target.has(environment));
+    if (!replacingAll && handedOver.length === 0) {
       continue;
     }
-    const remaining = current.filter(environment => !targetSet.has(environment));
-    if (remaining.length === 0) {
-      toDelete.push({ id: variable.id, overlap });
+    handedOver.forEach(environment => takenOverEnvironments.add(environment));
+    if (kept.length === 0) {
+      coveredRows.push({
+        id: row.id,
+        value: row.value ?? '',
+        environments: rowEnvironments,
+        visibility: row.visibility ?? null,
+      });
     } else {
-      toShrink.push({ id: variable.id, overlap, remaining });
+      rowsToShrink.push({ id: row.id, keptEnvironments: kept });
     }
   }
+  // Reuse the first fully covered row so the variable keeps its id; the rest are redundant. Typed
+  // explicitly because tsconfig has no noUncheckedIndexedAccess, so index 0 looks always-present.
+  const rowToReuse: CoveredRow | undefined = coveredRows[0];
+  const redundantRows = coveredRows.slice(1);
+  const takenOver = [...takenOverEnvironments].join(', ') || 'other environments';
 
-  if ((toDelete.length > 0 || toShrink.length > 0) && !overwrite) {
-    const overlapLabel = [
-      ...new Set([...toDelete, ...toShrink].flatMap(item => item.overlap)),
-    ].join(', ');
-    const shouldOverwrite =
-      !nonInteractive &&
-      (await confirmAsync({
-        message: `Move ${envVar.name} for ${overlapLabel} to the additional ${label} project?`,
-      }));
-    if (!shouldOverwrite) {
-      Log.warn(`Skipped updating EAS environment variable ${chalk.bold(envVar.name)}.`);
+  // 2. Get consent. Overwriting is always explicit — --overwrite, or a yes — and only a write that
+  // changes nothing at all is exempt. Visibility counts: writing the same value as Public over a
+  // Sensitive row would expose it, so that is a change like any other.
+  const reusedRowIsIdentical =
+    rowToReuse?.value === envVar.value &&
+    rowToReuse.visibility === envVar.visibility &&
+    coversExactly(rowToReuse.environments, target);
+  const touchesExistingRows = coveredRows.length > 0 || rowsToShrink.length > 0;
+  const changesNothing =
+    reusedRowIsIdentical && redundantRows.length === 0 && rowsToShrink.length === 0;
+
+  if (touchesExistingRows && !overwrite && !changesNothing) {
+    let message: string;
+    if (rowsToShrink.length > 0 && moveConfirmMessage) {
+      message = moveConfirmMessage(envVar.name, takenOver);
+    } else if (redundantRows.length > 0) {
+      message = `EAS has multiple ${envVar.name} variables for this project (including ${takenOver}). Replace them with one value for ${environments.join(', ')}?`;
+    } else {
+      message = `EAS already has ${envVar.name} for ${takenOver}. Overwrite it?`;
+    }
+    if (nonInteractive || !(await confirmAsync({ message }))) {
+      Log.warn(
+        `Skipped updating EAS environment variable ${chalk.bold(envVar.name)}${
+          nonInteractive ? ' (pass --overwrite to replace it)' : ''
+        }.`
+      );
       return false;
     }
   }
 
-  for (const item of toDelete) {
-    await EnvironmentVariableMutation.deleteAsync(graphqlClient, item.id);
-  }
-  for (const item of toShrink) {
+  // 3. Apply: hand environments over, drop redundant rows, then land the value.
+  for (const { id, keptEnvironments } of rowsToShrink) {
     await EnvironmentVariableMutation.updateAsync(graphqlClient, {
-      id: item.id,
-      environments: item.remaining,
+      id,
+      environments: keptEnvironments,
     });
   }
+  for (const { id } of redundantRows) {
+    await EnvironmentVariableMutation.deleteAsync(graphqlClient, id);
+  }
 
-  await EnvironmentVariableMutation.createForAppAsync(
-    graphqlClient,
-    {
-      name: envVar.name,
-      value: envVar.value,
-      environments,
-      visibility: envVar.visibility,
-      type: EnvironmentSecretType.String,
-    },
-    projectId
-  );
+  const fields = {
+    name: envVar.name,
+    value: envVar.value,
+    environments,
+    visibility: envVar.visibility,
+    type: EnvironmentSecretType.String,
+  };
+  if (rowToReuse) {
+    await EnvironmentVariableMutation.updateAsync(graphqlClient, { id: rowToReuse.id, ...fields });
+  } else {
+    await EnvironmentVariableMutation.createForAppAsync(graphqlClient, fields, projectId);
+  }
   Log.withTick(
-    `Created EAS environment variable ${chalk.bold(envVar.name)} for ${environments.join(', ')}`
+    `${rowToReuse ? 'Updated' : 'Created'} EAS environment variable ${chalk.bold(
+      envVar.name
+    )} for ${environments.join(', ')}`
   );
   return true;
 }
 
-export async function writeEnvVarsAsync(
+export async function upsertEnvVarsSequentiallyAsync(
   envVars: EnvVar[],
   upsert: (envVar: EnvVar) => Promise<boolean>
 ): Promise<boolean[]> {
-  const easWritten: boolean[] = [];
+  const written: boolean[] = [];
   for (const envVar of envVars) {
-    easWritten.push(await upsert(envVar));
+    written.push(await upsert(envVar));
   }
-  return easWritten;
+  return written;
 }

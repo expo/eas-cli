@@ -48,12 +48,14 @@ function mockOraSpinner(): {
   start: jest.Mock;
   succeed: jest.Mock;
   fail: jest.Mock;
+  stop: jest.Mock;
   text: string;
 } {
   const spinner = {
     start: jest.fn().mockReturnThis(),
     succeed: jest.fn().mockReturnThis(),
     fail: jest.fn().mockReturnThis(),
+    stop: jest.fn().mockReturnThis(),
     text: '',
   };
   jest.mocked(ora).mockReturnValue(spinner as never);
@@ -135,13 +137,14 @@ describe('provision hints and poll errors', () => {
 
 describe('pollProvisionReceiptAsync', () => {
   const client = {} as ExpoGraphqlClient;
+  let spinner: ReturnType<typeof mockOraSpinner>;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    mockOraSpinner();
+    spinner = mockOraSpinner();
   });
 
-  it('returns finalized receipt', async () => {
+  it('returns the finalized receipt and stops its own spinner', async () => {
     const receipt = { id: 'r1' } as never;
     jest.mocked(pollForBackgroundJobReceiptAsync).mockResolvedValue(receipt);
 
@@ -151,7 +154,9 @@ describe('pollProvisionReceiptAsync', () => {
       failureMessage: 'fail',
       failureHint: 'hint',
     });
-    expect(result.finalized).toBe(receipt);
+    expect(result).toBe(receipt);
+    expect(spinner.stop).toHaveBeenCalled();
+    expect(spinner.succeed).not.toHaveBeenCalled();
   });
 
   it('fails spinner when poll returns null', async () => {
@@ -189,7 +194,6 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
 
   it('authorizeViaBrowserAsync polls until connected', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 's',
       url: 'https://oauth.example',
     });
     jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
@@ -208,7 +212,6 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
 
   it('authorizeViaBrowserAsync shows URL when browser open fails', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 's',
       url: 'https://oauth.example',
     });
     jest.mocked(openBrowserAsync).mockRejectedValue(new Error('no browser'));
@@ -221,7 +224,6 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
 
   it('authorizeViaBrowserAsync succeeds when organization listing fails', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 's',
       url: 'https://oauth.example',
     });
     jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
@@ -237,7 +239,6 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
 
   it('authorizeViaBrowserAsync fails spinner on poll error', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
-      state: 's',
       url: 'https://oauth.example',
     });
     jest.mocked(openBrowserAsync).mockResolvedValue(true as never);

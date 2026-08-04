@@ -33,7 +33,7 @@ export type SupabaseProjectData = Pick<
   | 'updatedAt'
 >;
 
-export type SupabaseOAuthStartData = Pick<SupabaseOAuthStart, 'state' | 'url'>;
+export type SupabaseOAuthStartData = Pick<SupabaseOAuthStart, 'url'>;
 
 export const SupabaseConnectionFragmentNode = gql`
   fragment SupabaseConnectionFragment on SupabaseConnection {

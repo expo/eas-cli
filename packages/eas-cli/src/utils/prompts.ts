@@ -2,25 +2,10 @@ import chalk from 'chalk';
 
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { DEFAULT_ENVIRONMENTS } from '../environments/defaults';
+import { getProjectEnvironmentVariableEnvironmentsAsync } from '../environments/variables';
 import { EnvironmentSecretType, EnvironmentVariableVisibility } from '../graphql/generated';
-import { EnvironmentVariablesQuery } from '../graphql/queries/EnvironmentVariablesQuery';
 import { RequestedPlatform } from '../platform';
 import { promptAsync, selectAsync } from '../prompts';
-
-export async function getProjectEnvironmentVariableEnvironmentsAsync(
-  graphqlClient: ExpoGraphqlClient,
-  projectId: string
-): Promise<string[]> {
-  try {
-    const environments = await EnvironmentVariablesQuery.environmentVariableEnvironmentsAsync(
-      graphqlClient,
-      projectId
-    );
-    return environments;
-  } catch (error) {
-    throw new Error('Failed to fetch available environments', { cause: error });
-  }
-}
 
 const CUSTOM_ENVIRONMENT_VALUE = '~~CUSTOM~~';
 

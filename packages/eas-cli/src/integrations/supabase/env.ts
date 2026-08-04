@@ -17,6 +17,17 @@ export const EAS_SUPABASE_ENVIRONMENTS = [
   DefaultEnvironment.Development,
 ];
 
+export function supabaseMoveConfirmMessage(
+  variableName: string,
+  overlappingEnvironments: string
+): string {
+  return `Move ${variableName} for ${overlappingEnvironments} to the additional Supabase project?`;
+}
+
+export function supabaseEnvironmentCancelMessage(knownEnvironments: string): string {
+  return `Canceled. No additional Supabase project was provisioned. Create the environment(s) first, or pass only existing ones (known: ${knownEnvironments}).`;
+}
+
 export function createSupabaseEnvVars(url: string, publishableKey: string): EnvVar[] {
   return [
     {
@@ -32,15 +43,15 @@ export function createSupabaseEnvVars(url: string, publishableKey: string): EnvV
   ];
 }
 
-export async function ensureAdditionalEnvWritesAllowedAsync(
+export async function confirmOverwriteForAdditionalProjectAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   environments: string[],
   nonInteractive: boolean,
   overwrite: boolean
-): Promise<boolean> {
+): Promise<{ forceOverwrite: boolean }> {
   if (overwrite) {
-    return true;
+    return { forceOverwrite: true };
   }
   const names = [EAS_SUPABASE_URL_ENV_VAR_NAME, EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME];
   const targetSet = new Set(environments);
@@ -67,7 +78,7 @@ export async function ensureAdditionalEnvWritesAllowedAsync(
     }
     // One confirm covers both vars; stop asking. Force overwrite so the per-var upsert
     // doesn't prompt again and can't return false after we already billed the project.
-    return true;
+    return { forceOverwrite: true };
   }
-  return false;
+  return { forceOverwrite: false };
 }
