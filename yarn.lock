@@ -2911,6 +2911,7 @@ __metadata:
     typescript: "npm:^5.5.4"
     uuid: "npm:^9.0.1"
     yaml: "npm:^2.4.3"
+    zod: "npm:^4.3.5"
   languageName: unknown
   linkType: soft
 

@@ -8,8 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Replace eas-cli npm dist-tags with cli-versions.json. ([#4147](https://github.com/expo/eas-cli/pull/4147) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
+- [eas-cli] Point accounts without EAS Simulator access at the waitlist: `eas simulator:availability` includes the link (and a `waitlistUrl` field in `--json`), and `eas simulator` now fails early with the same message instead of a generic permission error. ([#4151](https://github.com/expo/eas-cli/pull/4151) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Make the configure-version gradle script compatible with AGP 9, which removes the `applicationVariants` API; per-output version overrides now fall back to the `androidComponents` variant API. ([#4155](https://github.com/expo/eas-cli/pull/4155) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 

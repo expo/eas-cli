@@ -1,7 +1,22 @@
 import { DeviceRunSessionByIdQuery, DeviceRunSessionType } from '../graphql/generated';
+import { link } from '../log';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
+
+/** Landing page where accounts without access can request it. */
+export const EAS_SIMULATOR_WAITLIST_URL = 'https://expo.dev/services/simulators';
+
+/**
+ * Message shown when EAS Simulator is not enabled for the account. Shared by every
+ * command that can hit the gate so users always get the same waitlist pointer.
+ */
+export function formatSimulatorUnavailableMessage(accountName: string): string {
+  return [
+    `EAS Simulator isn't available on ${accountName} yet — it's coming soon.`,
+    `Join the waitlist to get access: ${link(EAS_SIMULATOR_WAITLIST_URL)}`,
+  ].join('\n');
+}
 
 // Mapping enum -> CLI flag value. Declared as Record<DeviceRunSessionType, string>
 // so adding a new enum value in codegen fails the build until it is wired up here.

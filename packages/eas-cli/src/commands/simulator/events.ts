@@ -30,6 +30,7 @@ const POST_STOP_REFRESH_COUNT = 2;
 
 export default class SimulatorEvents extends EasCommand {
   static override hidden = true;
+  static override aliases = ['sim:events'];
   static override description =
     '[EXPERIMENTAL] show activity events from a remote simulator session';
 
