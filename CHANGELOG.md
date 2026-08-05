@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Point accounts without EAS Simulator access at the waitlist: `eas simulator:availability` includes the link (and a `waitlistUrl` field in `--json`), and `eas simulator` now fails early with the same message instead of a generic permission error. ([#4151](https://github.com/expo/eas-cli/pull/4151) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
