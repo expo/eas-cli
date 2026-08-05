@@ -28,6 +28,8 @@ export * from './generic';
 export * from './hooks';
 export * from './step';
 export * from './compositeFunction';
+export * from './legacyFunction';
+export * from './localFunction';
 export * from './submission-config';
 export * from './projectPackage';
 export * from './deviceRunSession';
