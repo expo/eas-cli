@@ -45,16 +45,16 @@ async function parseWorkflowAsync({
   hooks,
   externalFunctions,
   externalFunctionGroups,
-  compositeFunctionCatalog,
-  loadCompositeFunction,
+  localFunctionCatalog,
+  loadLocalFunction,
 }: {
   ctx: BuildStepGlobalContext;
   steps: Step[];
   hooks: Hooks | undefined;
   externalFunctions?: BuildFunction[];
   externalFunctionGroups?: BuildFunctionGroup[];
-  compositeFunctionCatalog?: LocalFunctionCatalog;
-  loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+  localFunctionCatalog?: LocalFunctionCatalog;
+  loadLocalFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<BuildWorkflow> {
   const parser = new StepsConfigParser(ctx, {
     steps,
@@ -64,8 +64,8 @@ async function parseWorkflowAsync({
       createCheckoutFunction(),
     ],
     externalFunctionGroups,
-    compositeFunctionCatalog,
-    loadCompositeFunction,
+    localFunctionCatalog,
+    loadLocalFunction,
   });
   return await parser.parseAsync();
 }
@@ -541,7 +541,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         before_install_node_modules: [{ run: 'echo never' }],
         after_install_node_modules: [{ run: 'echo never' }],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           runs: { steps: [{ uses: 'eas/install_node_modules' }] },
         },
@@ -566,7 +566,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         before_install_node_modules: [{ run: 'echo before', id: 'before-hook' }],
         after_install_node_modules: [{ run: 'echo after', id: 'after-hook' }],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           runs: { steps: [{ uses: 'eas/install_node_modules' }] },
         },
@@ -587,7 +587,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         ctx,
         steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'install_node_modules' }],
         hooks: { before_install_node_modules: [{ run: 'echo never' }] },
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           './.eas/functions/setup': {
             runs: { steps: [{ run: 'echo setup' }] },
           },
@@ -604,7 +604,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         ctx,
         steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'install_node_modules' }],
         hooks: { before_install_node_modules: [{ run: 'echo never' }] },
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           './.eas/functions/setup': {
             runs: { steps: [{ run: 'echo one' }, { run: 'echo two' }] },
           },
@@ -620,7 +620,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
       ctx,
       steps: [{ uses: './.eas/functions/setup', id: 'setup', __hook_id: 'some_future_anchor' }],
       hooks: { before_install_node_modules: [{ run: 'echo never' }] },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           runs: { steps: [{ uses: 'eas/install_node_modules' }] },
         },
@@ -637,7 +637,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
       hooks: {
         before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
           runs: {
@@ -666,7 +666,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
           { uses: './.eas/functions/setup', id: 'setup', if: '${{ failure() }}' },
         ],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           runs: { steps: [{ run: 'echo hi' }] },
         },
@@ -687,7 +687,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
             { uses: './.eas/functions/setup', id: 'setup', working_directory: 'app' },
           ],
         },
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           './.eas/functions/setup': {
             runs: { steps: [{ run: 'echo hi' }] },
           },
@@ -706,7 +706,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         hooks: {
           before_install_node_modules: [{ uses: './.eas/functions/notify', id: 'notify' }],
         },
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           './.eas/functions/notify': {
             inputs: [{ name: 'message', type: 'string', required: true }],
             runs: { steps: [{ run: 'echo hi' }] },
@@ -727,7 +727,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
       hooks: {
         before_install_node_modules: [{ uses: './.eas/functions/outer', id: 'top' }],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/outer': {
           runs: {
             steps: [{ uses: './.eas/functions/inner', id: 'mid' }, { run: 'echo done' }],
@@ -755,7 +755,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
         after_install_node_modules: [{ uses: './.eas/functions/teardown', id: 'teardown' }],
       },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': {
           runs: { steps: [{ id: 'prepare', run: 'echo prepare' }] },
         },
@@ -779,7 +779,7 @@ describe('StepsConfigParser hooks with composite functions', () => {
         hooks: {
           before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
         },
-        compositeFunctionCatalog: makeCatalog({
+        localFunctionCatalog: makeCatalog({
           './.eas/functions/setup': {
             // Outputs node reuses the call id, forcing the collision with the job step.
             outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
@@ -800,13 +800,13 @@ describe('StepsConfigParser lazy hook composite loading', () => {
   });
 
   function createLoader(entries: Record<string, unknown>): {
-    loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+    loadLocalFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
     loadedPaths: string[];
   } {
     const loadedPaths: string[] = [];
     return {
       loadedPaths,
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         loadedPaths.push(compositeFunctionPath);
         const raw = entries[compositeFunctionPath];
         if (raw === undefined) {
@@ -824,7 +824,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
   }
 
   it('loads a hook composite through the loader (normalized path) when the anchor is present', async () => {
-    const { loadCompositeFunction, loadedPaths } = createLoader({
+    const { loadLocalFunction, loadedPaths } = createLoader({
       './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
     });
     const workflow = await parseWorkflowAsync({
@@ -834,7 +834,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
         // Trailing slash must normalize before the loader is called.
         before_install_node_modules: [{ uses: './.eas/functions/setup/', id: 'setup' }],
       },
-      loadCompositeFunction,
+      loadLocalFunction,
     });
     expect(loadedPaths).toEqual(['./.eas/functions/setup']);
     const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
@@ -853,7 +853,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       hooks: {
         before_install_node_modules: [{ uses: './.eas/functions/only-elsewhere' }],
       },
-      loadCompositeFunction: rejectingLoader(),
+      loadLocalFunction: rejectingLoader(),
     });
     expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
   });
@@ -886,7 +886,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
         ctx,
         steps: [{ uses: 'eas/install_node_modules' }],
         hooks: { before_install_node_modules: [{ uses: './.eas/functions/missing' }] },
-        loadCompositeFunction: createLoader({}).loadCompositeFunction,
+        loadLocalFunction: createLoader({}).loadLocalFunction,
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
@@ -900,7 +900,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
         ctx,
         steps: [{ uses: 'eas/install_node_modules' }],
         hooks: { after_install_node_modules: [{ uses: './.eas/functions/missing' }] },
-        loadCompositeFunction: createLoader({}).loadCompositeFunction,
+        loadLocalFunction: createLoader({}).loadLocalFunction,
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
@@ -917,9 +917,9 @@ describe('StepsConfigParser lazy hook composite loading', () => {
             { uses: './.eas/functions/setup', id: 'setup', working_directory: 'app' },
           ],
         },
-        loadCompositeFunction: createLoader({
+        loadLocalFunction: createLoader({
           './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
-        }).loadCompositeFunction,
+        }).loadLocalFunction,
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
@@ -929,14 +929,14 @@ describe('StepsConfigParser lazy hook composite loading', () => {
   });
 
   it('calls the loader once per composite across repeated occurrences of the same anchor', async () => {
-    const { loadCompositeFunction, loadedPaths } = createLoader({
+    const { loadLocalFunction, loadedPaths } = createLoader({
       './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
     });
     await parseWorkflowAsync({
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }, { uses: 'eas/install_node_modules' }],
       hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
-      loadCompositeFunction,
+      loadLocalFunction,
     });
     expect(loadedPaths).toEqual(['./.eas/functions/setup']);
   });
@@ -946,16 +946,16 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
       hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
-      compositeFunctionCatalog: makeCatalog({
+      localFunctionCatalog: makeCatalog({
         './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
       }),
-      loadCompositeFunction: rejectingLoader(),
+      loadLocalFunction: rejectingLoader(),
     });
     expect(workflow.hooksByAnchorStep.size).toBe(1);
   });
 
   it('loads composites transitively referenced by a hook composite', async () => {
-    const { loadCompositeFunction, loadedPaths } = createLoader({
+    const { loadLocalFunction, loadedPaths } = createLoader({
       './.eas/functions/outer': {
         runs: { steps: [{ uses: './.eas/functions/inner', id: 'mid' }] },
       },
@@ -965,7 +965,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
       hooks: { before_install_node_modules: [{ uses: './.eas/functions/outer', id: 'top' }] },
-      loadCompositeFunction,
+      loadLocalFunction,
     });
     expect(loadedPaths.sort()).toEqual(['./.eas/functions/inner', './.eas/functions/outer']);
     const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
@@ -985,7 +985,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
         installFunction.createBuildStepFromFunctionCall(globalCtx),
       ],
     });
-    const { loadCompositeFunction, loadedPaths } = createLoader({
+    const { loadLocalFunction, loadedPaths } = createLoader({
       './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
     });
     const workflow = await parseWorkflowAsync({
@@ -994,7 +994,7 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }] },
       externalFunctions: [checkoutFunction, installFunction],
       externalFunctionGroups: [group],
-      loadCompositeFunction,
+      loadLocalFunction,
     });
     expect(loadedPaths).toEqual(['./.eas/functions/setup']);
     expect(workflow.hooksByAnchorStep.size).toBe(1);
@@ -1006,10 +1006,10 @@ describe('StepsConfigParser lazy hook composite loading', () => {
       ctx,
       steps: [{ uses: 'eas/install_node_modules' }],
       hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
-      compositeFunctionCatalog: callerCatalog,
-      loadCompositeFunction: createLoader({
+      localFunctionCatalog: callerCatalog,
+      loadLocalFunction: createLoader({
         './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
-      }).loadCompositeFunction,
+      }).loadLocalFunction,
     });
     expect(Object.keys(callerCatalog)).toEqual([]);
   });
