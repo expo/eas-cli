@@ -595,7 +595,9 @@ describe('StepsConfigParser hooks with composite functions', () => {
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toBe('Hook anchors are not supported on local composite function steps.');
+    expect(error.message).toBe(
+      'Hook anchors are not supported on steps that call a local function.'
+    );
   });
 
   it('rejects a REGISTERED stamp on a composite call that expands into multiple steps', async () => {
@@ -612,7 +614,9 @@ describe('StepsConfigParser hooks with composite functions', () => {
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toBe('Hook anchors are not supported on local composite function steps.');
+    expect(error.message).toBe(
+      'Hook anchors are not supported on steps that call a local function.'
+    );
   });
 
   it('treats an UNREGISTERED-stamped composite call as an inert ordinary step (skew tolerance)', async () => {
@@ -653,6 +657,30 @@ describe('StepsConfigParser hooks with composite functions', () => {
       'setup__composite_function_step_1',
       'setup',
     ]);
+    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+  });
+
+  it('parses a single-step function hook step into one entry with one step', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [
+          { uses: './.eas/functions/say-hi', id: 'greet', if: '${{ always() }}' },
+        ],
+      },
+      localFunctionCatalog: makeCatalog({
+        './.eas/functions/say-hi': { name: 'Say hi', command: 'echo hi' },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    const [hookStep] = anchorHooks.before[0].steps;
+    expect(anchorHooks.before[0].steps).toHaveLength(1);
+    expect(hookStep.id).toBe('greet');
+    expect(hookStep.displayName).toBe('Say hi');
+    expect(hookStep.command).toBe('echo hi');
+    expect(hookStep.ifCondition).toBe('${{ always() }}');
     expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
   });
 
