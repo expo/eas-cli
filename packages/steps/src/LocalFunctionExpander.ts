@@ -1,16 +1,18 @@
 /**
- * Expands local composite functions (`uses: ./path/to/function`) into a
- * {@link CompositeBuildStep} tree at parse time.
+ * Expands local functions (`uses: ./path/to/function`) into build steps at parse time.
  *
- * Each call becomes a node with prefixed child ids (`caller__inner`); the parser
- * flattens the tree into the workflow. Expanded steps carry a
- * {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and `${{ inputs.* }}`
- * resolve against composite-function-local names.
+ * A composite function call becomes a {@link CompositeBuildStep} node with prefixed child ids
+ * (`caller__inner`); the parser flattens the tree into the workflow. Expanded steps carry a
+ * {@link BuildStepCompositeFunctionScope} so `${{ steps.* }}` and `${{ inputs.* }}` resolve
+ * against composite-function-local names. A single-step (`command`/`path`) function call becomes
+ * one ordinary build step keeping the caller's own id.
  */
 import {
   CompositeFunctionConfig,
   FunctionStep,
+  LegacyFunctionConfig,
   LocalFunctionCatalog,
+  LocalFunctionConfig,
   ShellStep,
   Step,
   isLegacyFunctionConfig,
@@ -32,6 +34,7 @@ import {
 import { CompositeBuildStep } from './CompositeBuildStep';
 import { BuildConfigError } from './errors';
 import { duplicates } from './utils/expodash/duplicates';
+import { createBuildFunctionFromLegacyFunctionConfig } from './utils/legacyFunction';
 import {
   getLocalFunctionCallWorkingDirectoryError,
   isLocalFunctionPath,
@@ -48,10 +51,10 @@ export type FunctionMaps = {
 
 type LocalFunctionCall = {
   functionPath: string;
-  /** Caller-assigned id used as prefix for all inner step ids. */
+  /** Caller-assigned id; for a composite function also the prefix of all inner step ids. */
   syntheticStepId: string;
   name?: string;
-  /** Caller-provided input values, consumed when composite function inputs are interpolated. */
+  /** Caller-provided input values, consumed when function inputs are interpolated. */
   callWith?: Record<string, unknown>;
   callIf?: string;
   parentScope?: BuildStepCompositeFunctionScope;
@@ -79,13 +82,14 @@ export class LocalFunctionExpander {
     return this.functionMaps.buildFunctionGroupById;
   }
 
+  /** Steps a local function call expands to: many for a composite function, one otherwise. */
   public expandLocalFunctionStep(
     step: FunctionStep,
     functionPath: string,
     syntheticStepId: string
-  ): CompositeBuildStep {
+  ): BuildStep[] {
     this.rejectLocalFunctionCallWorkingDirectory(step);
-    return this.expand(
+    const expanded = this.expandCall(
       {
         functionPath,
         syntheticStepId,
@@ -96,6 +100,7 @@ export class LocalFunctionExpander {
       },
       new Set<string>()
     );
+    return expanded instanceof CompositeBuildStep ? expanded.getFlattenedSteps() : [expanded];
   }
 
   // The call step expands away; `working_directory` on it would never apply.
@@ -105,12 +110,52 @@ export class LocalFunctionExpander {
     }
   }
 
+  private expandCall(call: LocalFunctionCall, visited: ReadonlySet<string>): BuildStep {
+    const localFunction = this.lookupLocalFunction(call.functionPath);
+    if (isLegacyFunctionConfig(localFunction)) {
+      return this.createLegacyFunctionStep(call, localFunction);
+    }
+    return this.expand(call, localFunction, visited);
+  }
+
+  /**
+   * A single-step function keeps the caller's id and takes the call-site `if` as its own
+   * condition; there is no expansion scope to hang it on.
+   */
+  private createLegacyFunctionStep(
+    call: LocalFunctionCall,
+    config: LegacyFunctionConfig
+  ): BuildStep {
+    const { functionPath } = call;
+    // `buildFunctionById` doubles as the per-path cache: a `BuildFunction` is stateless, and
+    // registering it there puts the function in `workflow.buildFunctions`, so module validation
+    // and telemetry cover it. Legacy keys are `./`-prefixed paths, so they cannot collide with
+    // registered function ids.
+    let buildFunction = this.functionMaps.buildFunctionById[functionPath];
+    if (!buildFunction) {
+      buildFunction = createBuildFunctionFromLegacyFunctionConfig(functionPath, config);
+      this.functionMaps.buildFunctionById[functionPath] = buildFunction;
+    }
+    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+      id: call.syntheticStepId,
+      name: call.name ?? config.name ?? functionPath,
+      callInputs: call.callWith,
+      shell: config.shell,
+      env: call.inheritedEnv,
+      ifCondition: call.callIf,
+      compositeFunctionScope: call.parentScope,
+    });
+  }
+
   // `visited.size` is the current composite function nesting depth.
-  private expand(call: LocalFunctionCall, visited: ReadonlySet<string>): CompositeBuildStep {
+  private expand(
+    call: LocalFunctionCall,
+    compositeFunction: CompositeFunctionConfig,
+    visited: ReadonlySet<string>
+  ): CompositeBuildStep {
     const { functionPath: compositeFunctionPath, syntheticStepId } = call;
     this.guardAgainstRunawayRecursion(compositeFunctionPath, visited);
 
-    const compositeFunction = this.lookupLocalFunction(compositeFunctionPath);
     const compositeFunctionDisplayName =
       call.name ?? compositeFunction.name ?? compositeFunctionPath;
     const innerSteps = compositeFunction.runs.steps;
@@ -185,23 +230,14 @@ export class LocalFunctionExpander {
     }
   }
 
-  private lookupLocalFunction(compositeFunctionPath: string): CompositeFunctionConfig {
-    // The catalog can hold either shape, but this expander does not dispatch on legacy
-    // functions yet, so a lookup here is always the composite shape.
-    const compositeFunction = this.localFunctionCatalog[compositeFunctionPath] as
-      | CompositeFunctionConfig
-      | undefined;
-    if (!compositeFunction) {
+  private lookupLocalFunction(functionPath: string): LocalFunctionConfig {
+    const localFunction = this.localFunctionCatalog[functionPath];
+    if (!localFunction) {
       throw new BuildConfigError(
-        `Local composite function "${compositeFunctionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${compositeFunctionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
+        `Local function "${functionPath}" does not exist. Expected a "function.yml" (or "function.yaml") file at "${functionPath}" relative to the EAS project root (convention: ".eas/functions/<name>").`
       );
     }
-    if (isLegacyFunctionConfig(compositeFunction)) {
-      throw new BuildConfigError(
-        `Local function "${compositeFunctionPath}" uses the legacy command/path shape, which this expander does not support yet.`
-      );
-    }
-    return compositeFunction;
+    return localFunction;
   }
 
   private expandInnerStep(
@@ -268,8 +304,8 @@ export class LocalFunctionExpander {
       scope: BuildStepCompositeFunctionScope;
       visited: ReadonlySet<string>;
     }
-  ): CompositeBuildStep {
-    return this.expand(
+  ): BuildStep {
+    return this.expandCall(
       {
         functionPath,
         syntheticStepId: newId,

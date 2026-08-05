@@ -135,13 +135,11 @@ export function constructHookEntriesFromValidatedSteps(
     }
     if (isLocalFunctionPath(step.uses)) {
       entries.push({
-        steps: localFunctionExpander
-          .expandLocalFunctionStep(
-            step,
-            parseLocalFunctionPath(step.uses),
-            BuildStep.getNewId(step.id)
-          )
-          .getFlattenedSteps(),
+        steps: localFunctionExpander.expandLocalFunctionStep(
+          step,
+          parseLocalFunctionPath(step.uses),
+          BuildStep.getNewId(step.id)
+        ),
       });
       continue;
     }

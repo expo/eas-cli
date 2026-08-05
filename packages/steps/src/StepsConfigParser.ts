@@ -347,13 +347,11 @@ export class StepsConfigParser extends AbstractConfigParser {
     localFunctionExpander: LocalFunctionExpander
   ): BuildStep[] {
     if (isLocalFunctionPath(step.uses)) {
-      return localFunctionExpander
-        .expandLocalFunctionStep(
-          step,
-          parseLocalFunctionPath(step.uses),
-          BuildStep.getNewId(step.id)
-        )
-        .getFlattenedSteps();
+      return localFunctionExpander.expandLocalFunctionStep(
+        step,
+        parseLocalFunctionPath(step.uses),
+        BuildStep.getNewId(step.id)
+      );
     }
 
     const buildFunction = localFunctionExpander.buildFunctionById[step.uses];

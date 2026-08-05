@@ -656,6 +656,31 @@ describe('StepsConfigParser hooks with composite functions', () => {
     expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
   });
 
+  it('parses a single-step function hook step into one entry with one step', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [
+          { uses: './.eas/functions/say-hi', id: 'greet', if: '${{ always() }}' },
+        ],
+      },
+      localFunctionCatalog: makeCatalog({
+        './.eas/functions/say-hi': { name: 'Say hi', command: 'echo hi' },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    const [hookStep] = anchorHooks.before[0].steps;
+    expect(anchorHooks.before[0].steps).toHaveLength(1);
+    expect(hookStep.id).toBe('greet');
+    expect(hookStep.displayName).toBe('Say hi');
+    expect(hookStep.command).toBe('echo hi');
+    // Unlike a composite call, the authored if: lands on the step itself.
+    expect(hookStep.ifCondition).toBe('${{ always() }}');
+    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+  });
+
   it('does not copy the if condition of a composite hook step onto the entry', async () => {
     // The authored if: is applied inside the expansion scope, not on the entry.
     const workflow = await parseWorkflowAsync({
