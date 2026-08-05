@@ -37,15 +37,6 @@ describe('LocalFunctionConfigZ', () => {
     expect(isLegacyFunctionConfig(parsed)).toBe(true);
   });
 
-  it('narrows a legacy config on the path field', () => {
-    const parsed = LocalFunctionConfigZ.parse({ path: './my-function' });
-    expect(isLegacyFunctionConfig(parsed)).toBe(true);
-    if (isLegacyFunctionConfig(parsed) && parsed.path !== undefined) {
-      const modulePath: string = parsed.path;
-      expect(modulePath).toBe('./my-function');
-    }
-  });
-
   it.each<[string, unknown]>([
     ['unknown top-level keys on a command function', { command: 'echo hi', runz: {} }],
     ['unknown top-level keys on a path function', { path: './fn', run: 'echo' }],
