@@ -1,4 +1,4 @@
-import { CompositeFunctionConfigZ } from '@expo/eas-build-job';
+import { CompositeFunctionConfigZ, LocalFunctionConfigZ } from '@expo/eas-build-job';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -11,6 +11,7 @@ import {
   isLocalFunctionPath,
   loadLocalFunctionConfigAsync,
   parseLocalFunctionPath,
+  resolveLegacyFunctionModulePath,
   resolveLocalFunctionPath,
 } from '../localCompositeFunctions';
 
@@ -161,6 +162,39 @@ describe(buildLocalFunctionCatalogFromStepsAsync, () => {
     });
 
     expect(Object.keys(catalog).sort()).toEqual(paths.sort());
+  });
+
+  it('loads a single-step function without recursing into it', async () => {
+    const loadedPaths: string[] = [];
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
+      rootSteps: [{ uses: './.eas/functions/say-hi' }],
+      loadLocalFunction: async compositeFunctionPath => {
+        loadedPaths.push(compositeFunctionPath);
+        return LocalFunctionConfigZ.parse({ command: 'echo hi' });
+      },
+    });
+
+    expect(loadedPaths).toEqual(['./.eas/functions/say-hi']);
+    expect(Object.keys(catalog)).toEqual(['./.eas/functions/say-hi']);
+  });
+
+  it('loads a single-step function referenced from inside a composite function', async () => {
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
+      rootSteps: [{ uses: './.eas/functions/outer' }],
+      loadLocalFunction: async compositeFunctionPath => {
+        if (compositeFunctionPath === './.eas/functions/outer') {
+          return LocalFunctionConfigZ.parse({
+            runs: { steps: [{ uses: './.eas/functions/say-hi' }] },
+          });
+        }
+        return LocalFunctionConfigZ.parse({ command: 'echo hi' });
+      },
+    });
+
+    expect(Object.keys(catalog).sort()).toEqual([
+      './.eas/functions/outer',
+      './.eas/functions/say-hi',
+    ]);
   });
 
   it('collects normalized action paths from steps', async () => {
@@ -593,5 +627,40 @@ describe(buildLocalFunctionCatalogAsync, () => {
     });
 
     expect(catalog).toEqual({});
+  });
+});
+
+describe(resolveLegacyFunctionModulePath, () => {
+  const projectRoot = path.resolve('/tmp/project');
+
+  it('resolves a relative module path against the function directory', () => {
+    expect(
+      resolveLegacyFunctionModulePath({
+        projectRoot,
+        functionPath: './.eas/functions/say-hi',
+        modulePath: './my-function',
+      })
+    ).toBe(path.join(projectRoot, '.eas', 'functions', 'say-hi', 'my-function'));
+  });
+
+  it('resolves a module path pointing outside the function directory', () => {
+    expect(
+      resolveLegacyFunctionModulePath({
+        projectRoot,
+        functionPath: './.eas/functions/say-hi',
+        modulePath: '../shared/my-function',
+      })
+    ).toBe(path.join(projectRoot, '.eas', 'functions', 'shared', 'my-function'));
+  });
+
+  it('passes an absolute module path through', () => {
+    const absolutePath = path.resolve('/opt/functions/say-hi');
+    expect(
+      resolveLegacyFunctionModulePath({
+        projectRoot,
+        functionPath: './.eas/functions/say-hi',
+        modulePath: absolutePath,
+      })
+    ).toBe(absolutePath);
   });
 });
