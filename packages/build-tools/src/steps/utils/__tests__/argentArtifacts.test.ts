@@ -135,9 +135,68 @@ describe(uploadArgentArtifactAsync, () => {
       artifactId: 'artifact-id',
       name: 'report.json (artifact-id)',
       filename: 'report.json',
+      kind: undefined,
       size: data.length,
       stream: expect.anything(),
     });
+  });
+
+  async function uploadAsync(artifact: {
+    id: string;
+    filename: string;
+    mimeType: string;
+    isDirectory?: boolean;
+  }): Promise<CustomBuildContext> {
+    const ctx = {} as unknown as CustomBuildContext;
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response(Readable.from([Buffer.from('artifact-data')])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadArgentArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      toolsUrl: 'http://127.0.0.1:1234',
+      logger: createLoggerMock(),
+      artifact,
+    });
+
+    return ctx;
+  }
+
+  it.each([
+    { mimeType: 'image/png', filename: 'screen.png', kind: 'screenshot' },
+    { mimeType: 'image/jpeg', filename: 'screen.jpg', kind: 'screenshot' },
+    // Media types are case-insensitive and may carry parameters.
+    { mimeType: 'IMAGE/PNG; charset=binary', filename: 'screen.png', kind: 'screenshot' },
+    { mimeType: 'video/mp4', filename: 'session.mp4', kind: 'screen-recording' },
+    { mimeType: 'video/quicktime', filename: 'session.mov', kind: 'screen-recording' },
+    { mimeType: 'application/json', filename: 'report.json', kind: undefined },
+    { mimeType: 'text/plain', filename: 'log.txt', kind: undefined },
+  ])('uploads $mimeType with kind $kind', async ({ mimeType, filename, kind }) => {
+    const ctx = await uploadAsync({ id: 'artifact-id', filename, mimeType });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ filename, kind })
+    );
+  });
+
+  it('leaves directory artifacts unclassified because they are uploaded as a tarball', async () => {
+    const ctx = await uploadAsync({
+      id: 'artifact-id',
+      filename: 'screenshots',
+      mimeType: 'image/png',
+      isDirectory: true,
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ filename: 'screenshots.tar.gz', kind: undefined })
+    );
   });
 });
 
