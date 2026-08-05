@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add an opt-in `--max-idle-time-minutes` flag to `eas simulator`; the session stops automatically after that many minutes without activity. ([#4156](https://github.com/expo/eas-cli/pull/4156) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
