@@ -1,7 +1,7 @@
 import {
-  CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
+  LocalFunctionCatalog,
   Step,
 } from '@expo/eas-build-job';
 import fs from 'fs/promises';
@@ -57,8 +57,8 @@ export async function buildCompositeFunctionCatalogFromStepsAsync({
 }: {
   rootSteps: readonly Step[];
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
-}): Promise<CompositeFunctionCatalog> {
-  const catalog: CompositeFunctionCatalog = {};
+}): Promise<LocalFunctionCatalog> {
+  const catalog: LocalFunctionCatalog = {};
   await extendCompositeFunctionCatalogFromStepsAsync({ catalog, rootSteps, loadCompositeFunction });
   return catalog;
 }
@@ -69,7 +69,7 @@ export async function extendCompositeFunctionCatalogFromStepsAsync({
   rootSteps,
   loadCompositeFunction,
 }: {
-  catalog: CompositeFunctionCatalog;
+  catalog: LocalFunctionCatalog;
   rootSteps: readonly Step[];
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<void> {
@@ -173,7 +173,7 @@ export function createLocalCompositeFunctionLoader(
 export async function buildLocalCompositeFunctionCatalogAsync(
   projectRoot: string,
   { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalCompositeFunctionLogger }
-): Promise<CompositeFunctionCatalog> {
+): Promise<LocalFunctionCatalog> {
   return await buildCompositeFunctionCatalogFromStepsAsync({
     rootSteps,
     loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, { logger }),

@@ -1,4 +1,4 @@
-import { CompositeFunctionCatalog, CompositeFunctionConfigZ, Step } from '@expo/eas-build-job';
+import { CompositeFunctionConfigZ, LocalFunctionCatalog, Step } from '@expo/eas-build-job';
 
 import { createGlobalContextMock } from './utils/context';
 import { BuildFunction } from '../BuildFunction';
@@ -10,8 +10,8 @@ import { StepsConfigParser } from '../StepsConfigParser';
 
 export const SETUP = './.eas/functions/setup';
 
-export function makeCatalog(entries: Record<string, unknown>): CompositeFunctionCatalog {
-  const catalog: CompositeFunctionCatalog = {};
+export function makeCatalog(entries: Record<string, unknown>): LocalFunctionCatalog {
+  const catalog: LocalFunctionCatalog = {};
   for (const [compositeFunctionPath, raw] of Object.entries(entries)) {
     catalog[compositeFunctionPath] = CompositeFunctionConfigZ.parse(raw);
   }
