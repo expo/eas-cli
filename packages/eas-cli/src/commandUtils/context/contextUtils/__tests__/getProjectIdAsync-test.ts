@@ -493,10 +493,12 @@ describe(getProjectIdAsync, () => {
           { nonInteractive: true }
         )
       ).rejects.toThrow(
-        `EAS project not configured. This command cannot configure it in non-interactive mode.\n` +
-          `Run one of the following, then re-run this command:\n` +
-          `- To link an existing project: eas init --id <project-id> --non-interactive\n` +
-          `- To create a new project: eas init --account <account-name> --non-interactive\n` +
+        `EAS project not configured. This command cannot configure it in non-interactive mode. ` +
+          `Run one of the following, then re-run this command:\n\n` +
+          `To link an existing project:\n\n` +
+          `  eas init --id <project-id> --non-interactive\n\n` +
+          `To create a new project:\n\n` +
+          `  eas init --account <account-name> --non-interactive\n\n` +
           `Accounts you can create projects in: notnotbrent`
       );
 
