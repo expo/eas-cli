@@ -3,7 +3,9 @@ import {
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
   LocalFunctionCatalog,
+  LocalFunctionConfig,
   Step,
+  isLegacyFunctionConfig,
 } from '@expo/eas-build-job';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,7 +14,7 @@ import { z } from 'zod';
 
 import { BuildConfigError } from '../errors';
 
-// Local composite functions referenced via `uses: ./path` or `uses: ../path` in EAS workflows.
+// Local functions referenced via `uses: ./path` or `uses: ../path` in EAS workflows.
 // Not supported in `.eas/build/*.yml` custom build configs.
 
 const JOB_CONTEXT_INTERPOLATION_REGEXP = /\$\{\{(.+?)\}\}/;
@@ -48,18 +50,18 @@ export function isLocalFunctionPath(uses: string): boolean {
 }
 
 export function getLocalFunctionCallWorkingDirectoryError(uses: string): string {
-  return `"working_directory" is not supported on a step that calls a local composite function ("uses: ${uses.trim()}"). Set "working_directory" on the steps inside the composite function instead.`;
+  return `"working_directory" is not supported on a step that calls a local function ("uses: ${uses.trim()}"). For a composite function, set "working_directory" on the steps inside it; for a single-step "command" function, change directories inside the command.`;
 }
 
-/** Loads only composite functions transitively referenced by `rootSteps`. Unreferenced files are ignored. */
+/** Loads only functions transitively referenced by `rootSteps`. Unreferenced files are ignored. */
 export async function buildLocalFunctionCatalogFromStepsAsync({
   rootSteps,
   loadLocalFunction,
 }: {
   rootSteps: readonly Step[];
-  loadLocalFunction: (functionPath: string) => Promise<CompositeFunctionConfig>;
-}): Promise<CompositeFunctionCatalog> {
-  const catalog: CompositeFunctionCatalog = {};
+  loadLocalFunction: (functionPath: string) => Promise<LocalFunctionConfig>;
+}): Promise<LocalFunctionCatalog> {
+  const catalog: LocalFunctionCatalog = {};
   await extendLocalFunctionCatalogFromStepsAsync({ catalog, rootSteps, loadLocalFunction });
   return catalog;
 }
@@ -72,7 +74,7 @@ export async function extendLocalFunctionCatalogFromStepsAsync({
 }: {
   catalog: LocalFunctionCatalog;
   rootSteps: readonly Step[];
-  loadLocalFunction: (functionPath: string) => Promise<CompositeFunctionConfig>;
+  loadLocalFunction: (functionPath: string) => Promise<LocalFunctionConfig>;
 }): Promise<void> {
   const loadRecursiveAsync = async (functionPath: string): Promise<void> => {
     if (functionPath in catalog) {
@@ -82,6 +84,10 @@ export async function extendLocalFunctionCatalogFromStepsAsync({
     const config = await loadLocalFunction(functionPath);
     catalog[functionPath] = config;
 
+    // Single-step functions are leaves: they have no steps that could reference other functions.
+    if (isLegacyFunctionConfig(config)) {
+      return;
+    }
     for (const nestedPath of collectLocalFunctionPathsFromSteps(config.runs.steps)) {
       await loadRecursiveAsync(nestedPath);
     }
@@ -96,12 +102,32 @@ export function resolveLocalFunctionPath(projectRoot: string, functionPath: stri
   return path.resolve(projectRoot, functionPath);
 }
 
+/**
+ * Resolves the `path` of a single-step local function against the function's own directory, the
+ * way a `.eas/build` config resolves it against the config file. Shared by every loader so the
+ * two cannot drift.
+ */
+export function resolveLegacyFunctionModulePath({
+  projectRoot,
+  functionPath,
+  modulePath,
+}: {
+  projectRoot: string;
+  functionPath: string;
+  modulePath: string;
+}): string {
+  if (path.isAbsolute(modulePath)) {
+    return modulePath;
+  }
+  return path.resolve(resolveLocalFunctionPath(projectRoot, functionPath), modulePath);
+}
+
 export interface LocalFunctionLogger {
   debug(message: string): void;
 }
 
 /**
- * Reads and validates the function.yml (or function.yaml) file of a local composite function.
+ * Reads and validates the function.yml (or function.yaml) file of a local function.
  * `functionPath` is the normalized ref returned by {@link parseLocalFunctionPath}.
  */
 export async function loadLocalFunctionConfigAsync(
@@ -167,7 +193,7 @@ export function createLocalFunctionLoader(
     await loadLocalFunctionConfigAsync(projectRoot, functionPath, { logger });
 }
 
-/** Builds the catalog of composite functions transitively referenced by `rootSteps`, loading each from disk. */
+/** Builds the catalog of local functions transitively referenced by `rootSteps`, loading each from disk. */
 export async function buildLocalFunctionCatalogAsync(
   projectRoot: string,
   { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalFunctionLogger }
