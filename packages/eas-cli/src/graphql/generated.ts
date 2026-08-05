@@ -5096,6 +5096,11 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
+   * Stop the session automatically after this many minutes without observed
+   * session activity. If omitted, the session has no idle timeout.
+   */
+  maxIdleTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
+  /**
    * Override for the underlying turtle job run's max run time, in minutes. Must
    * be non-negative and smaller than 120 (2 hours). Only customizable on paid
    * plans. If omitted, the default is derived based on the job run's priority.
