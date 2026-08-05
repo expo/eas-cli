@@ -110,5 +110,3 @@ export const CompositeFunctionConfigZ = z
  *       run: set-output version "1.0.0"
  */
 export type CompositeFunctionConfig = z.infer<typeof CompositeFunctionConfigZ>;
-
-export type CompositeFunctionCatalog = Record<string, CompositeFunctionConfig>;
