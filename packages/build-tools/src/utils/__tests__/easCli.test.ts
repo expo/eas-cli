@@ -5,7 +5,11 @@ import {
 } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 
-import { resolveEasCommandPrefixAndEnvAsync, runEasCliCommand } from '../easCli';
+import {
+  resetCachedEasCliVersionsForTest,
+  resolveEasCommandPrefixAndEnvAsync,
+  runEasCliCommand,
+} from '../easCli';
 import { isAtLeastNpm7Async } from '../packageManager';
 import { Sentry } from '../../sentry';
 
@@ -32,6 +36,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
   const originalEnvironment = process.env.ENVIRONMENT;
 
   beforeEach(() => {
+    resetCachedEasCliVersionsForTest();
     jest.mocked(spawn).mockReset();
     jest.mocked(Sentry.capture).mockReset();
     jest.mocked(fetchEasCliVersionsAsync).mockReset();
@@ -113,6 +118,13 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(Sentry.capture).not.toHaveBeenCalled();
   });
 
+  it('fetches cli-versions.json only once across multiple calls', async () => {
+    process.env.ENVIRONMENT = 'production';
+    await resolveEasCommandPrefixAndEnvAsync();
+    await resolveEasCommandPrefixAndEnvAsync();
+    expect(fetchEasCliVersionsAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the npm dist-tags and reports to Sentry when fetching cli-versions.json fails', async () => {
     const fetchError = new Error('not found');
     jest.mocked(fetchEasCliVersionsAsync).mockRejectedValue(fetchError);
@@ -170,6 +182,7 @@ describe(runEasCliCommand, () => {
   const originalEnvironment = process.env.ENVIRONMENT;
 
   beforeEach(() => {
+    resetCachedEasCliVersionsForTest();
     jest.mocked(spawn).mockReset();
     jest.mocked(fetchEasCliVersionsAsync).mockReset();
     jest.mocked(fetchEasCliVersionsAsync).mockResolvedValue({
