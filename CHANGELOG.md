@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Make the configure-version gradle script compatible with AGP 9, which removes the `applicationVariants` API; per-output version overrides now fall back to the `androidComponents` variant API. ([#4155](https://github.com/expo/eas-cli/pull/4155) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ### 🧹 Chores
 
