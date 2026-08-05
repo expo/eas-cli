@@ -493,7 +493,11 @@ describe(getProjectIdAsync, () => {
           { nonInteractive: true }
         )
       ).rejects.toThrow(
-        `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
+        `EAS project not configured. This command cannot configure it in non-interactive mode.\n` +
+          `Run one of the following, then re-run this command:\n` +
+          `- To link an existing project: eas init --id <project-id> --non-interactive\n` +
+          `- To create a new project: eas init --account <account-name> --non-interactive\n` +
+          `Accounts you can create projects in: notnotbrent`
       );
 
       expect(promptAsync).not.toHaveBeenCalled();
