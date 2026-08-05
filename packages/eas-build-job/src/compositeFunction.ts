@@ -8,6 +8,10 @@ import { StepZ } from './step';
 
 const CompositeFunctionInputValueTypeNameZ = z.enum(['string', 'boolean', 'number', 'json']);
 
+export type CompositeFunctionInputValueTypeName = z.infer<
+  typeof CompositeFunctionInputValueTypeNameZ
+>;
+
 const CompositeFunctionInputValueZ = z.union([
   z.string(),
   z.boolean(),
