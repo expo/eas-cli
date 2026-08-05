@@ -86,6 +86,11 @@ export default class Simulator extends EasCommand {
         'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
       min: 0,
     }),
+    'max-idle-time-minutes': Flags.integer({
+      description:
+        'Stop the simulator session automatically after this many minutes without session activity. When omitted, the session has no idle timeout and runs until its maximum duration.',
+      min: 0,
+    }),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -172,6 +177,7 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         maxRunTimeMinutes: flags['max-duration-minutes'],
+        maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
