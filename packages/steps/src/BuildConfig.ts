@@ -8,7 +8,7 @@ import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInputValueType, BuildStepInputValueTypeName } from './BuildStepInput';
 import { BuildConfigError, BuildWorkflowError } from './errors';
-import { isLocalCompositeFunctionPath } from './utils/localCompositeFunctions';
+import { isLocalFunctionPath } from './utils/localCompositeFunctions';
 import { BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX } from './utils/template';
 
 export type BuildFunctions = Record<string, BuildFunctionConfig>;
@@ -439,9 +439,7 @@ export function validateAllFunctionsExist(
     }
   }
   const calledFunctionsOrFunctionGroup = Array.from(calledFunctionsOrFunctionGroupsSet);
-  const compositeFunctionPaths = calledFunctionsOrFunctionGroup.filter(
-    isLocalCompositeFunctionPath
-  );
+  const compositeFunctionPaths = calledFunctionsOrFunctionGroup.filter(isLocalFunctionPath);
   if (compositeFunctionPaths.length > 0) {
     throw new BuildConfigError(
       `Local composite functions (${compositeFunctionPaths

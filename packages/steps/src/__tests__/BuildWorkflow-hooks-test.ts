@@ -108,22 +108,20 @@ describe('BuildWorkflow hook execution', () => {
     hooks,
     externalFunctions,
     externalFunctionGroups,
-    compositeFunctionCatalog,
+    localFunctionCatalog,
   }: {
     steps: Step[];
     hooks: Hooks | undefined;
     externalFunctions: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
-    compositeFunctionCatalog?: Record<string, unknown>;
+    localFunctionCatalog?: Record<string, unknown>;
   }): Promise<BuildWorkflow> {
     const parser = new StepsConfigParser(ctx, {
       steps,
       hooks,
       externalFunctions,
       externalFunctionGroups,
-      compositeFunctionCatalog: compositeFunctionCatalog
-        ? makeCatalog(compositeFunctionCatalog)
-        : undefined,
+      localFunctionCatalog: localFunctionCatalog ? makeCatalog(localFunctionCatalog) : undefined,
     });
     return await parser.parseAsync();
   }
@@ -627,7 +625,7 @@ describe('BuildWorkflow hook execution', () => {
           versionFunction('read-version', '1.2.3'),
           recordingFunction('second-child'),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
             runs: {
@@ -659,7 +657,7 @@ describe('BuildWorkflow hook execution', () => {
           ],
         },
         externalFunctions: [anchorFunction(), versionFunction('read-version', '1.2.3')],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
             runs: { steps: [{ id: 'read', uses: 'test/read-version' }] },
@@ -680,7 +678,7 @@ describe('BuildWorkflow hook execution', () => {
         steps: [{ uses: 'eas/install_node_modules' }],
         hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }] },
         externalFunctions: [anchorFunction(), versionFunction('read-version', '1.2.3')],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
             runs: { steps: [{ id: 'read', uses: 'test/read-version', if: '${{ false }}' }] },
@@ -710,7 +708,7 @@ describe('BuildWorkflow hook execution', () => {
           recordingFunction('on-success'),
           versionFunction('always-version', '9.9.9'),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/cleanup': {
             outputs: { last: { value: '${{ steps.always.outputs.version }}' } },
             runs: {
@@ -741,7 +739,7 @@ describe('BuildWorkflow hook execution', () => {
           recordingFunction('after-boom'),
           recordingFunction('always-child'),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { note: { value: 'done' } },
             runs: {
@@ -776,7 +774,7 @@ describe('BuildWorkflow hook execution', () => {
           recordingFunction('push'),
           recordingFunction('always-child'),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/publish': {
             outputs: { note: { value: 'done' } },
             runs: {
@@ -815,7 +813,7 @@ describe('BuildWorkflow hook execution', () => {
           recordingFunction('plain-child'),
           recordingFunction('always-child'),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { note: { value: 'done' } },
             runs: {
@@ -854,7 +852,7 @@ describe('BuildWorkflow hook execution', () => {
           versionFunction('read-version', '1.2.3'),
           captureFunction('consume', value => captured.push(value)),
         ],
-        compositeFunctionCatalog: {
+        localFunctionCatalog: {
           './.eas/functions/setup': {
             outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
             runs: { steps: [{ id: 'read', uses: 'test/read-version' }] },

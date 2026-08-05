@@ -28,7 +28,7 @@ export async function parseCompositeFunctions(options: {
   const parser = new StepsConfigParser(ctx, {
     steps: options.steps,
     hooks: undefined,
-    compositeFunctionCatalog: makeCatalog(options.catalog ?? {}),
+    localFunctionCatalog: makeCatalog(options.catalog ?? {}),
     externalFunctions: options.externalFunctions,
     externalFunctionGroups: options.externalFunctionGroups,
   });

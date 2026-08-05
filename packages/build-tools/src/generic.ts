@@ -4,8 +4,8 @@ import {
   BuildStepGlobalContext,
   BuildWorkflow,
   StepsConfigParser,
-  buildLocalCompositeFunctionCatalogAsync,
-  createLocalCompositeFunctionLoader,
+  buildLocalFunctionCatalogAsync,
+  createLocalFunctionLoader,
   errors,
 } from '@expo/steps';
 import fs from 'fs/promises';
@@ -54,7 +54,7 @@ export async function runGenericJobAsync(
     try {
       const projectRoot = ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory);
       // Eager for job steps (always run), lazy loader for hooks (running anchors only).
-      const compositeFunctionCatalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+      const localFunctionCatalog = await buildLocalFunctionCatalogAsync(projectRoot, {
         rootSteps: ctx.job.steps,
         logger: ctx.logger,
       });
@@ -64,8 +64,8 @@ export async function runGenericJobAsync(
         externalFunctionGroups: getEasFunctionGroups(customBuildCtx),
         steps: ctx.job.steps,
         hooks: ctx.job.hooks,
-        compositeFunctionCatalog,
-        loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, {
+        localFunctionCatalog,
+        loadLocalFunction: createLocalFunctionLoader(projectRoot, {
           logger: ctx.logger,
         }),
       });
