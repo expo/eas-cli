@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-build-job] Replace eas-cli npm dist-tags with cli-versions.json. ([#4147](https://github.com/expo/eas-cli/pull/4147) by [@douglowder](https://github.com/douglowder))
 - [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
