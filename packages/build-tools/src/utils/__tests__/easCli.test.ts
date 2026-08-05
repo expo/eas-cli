@@ -61,6 +61,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
       ['--help'],
       expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] })
     );
+    expect(fetchEasCliVersionsAsync).not.toHaveBeenCalled();
   });
 
   it('resolves the staging version in development when easd --help fails', async () => {
@@ -134,7 +135,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       expect.stringContaining('Failed to fetch cli-versions.json'),
       fetchError,
-      expect.objectContaining({ level: 'error' })
+      expect.objectContaining({ level: 'warning' })
     );
   });
 
@@ -149,7 +150,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(Sentry.capture).toHaveBeenCalledWith(
       expect.stringContaining('Timed out fetching cli-versions.json'),
       timeoutError,
-      expect.objectContaining({ level: 'error' })
+      expect.objectContaining({ level: 'warning' })
     );
   });
 

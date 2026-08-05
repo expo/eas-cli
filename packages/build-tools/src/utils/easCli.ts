@@ -25,7 +25,7 @@ async function resolveEasCliVersionsAsync(): Promise<EasCliVersions> {
         ? 'Timed out fetching cli-versions.json; falling back to npm dist-tags'
         : 'Failed to fetch cli-versions.json; falling back to npm dist-tags';
     Sentry.capture(message, error instanceof Error ? error : new Error(String(error)), {
-      level: 'error',
+      level: 'warning',
     });
     return { STAGING: EasCliNpmTags.STAGING, PRODUCTION: EasCliNpmTags.PRODUCTION };
   }
@@ -48,23 +48,25 @@ export async function resolveEasCommandPrefixAndEnvAsync(): Promise<{
   extraEnv: Env;
 }> {
   const npxArgsPrefix = (await isAtLeastNpm7Async()) ? ['-y'] : [];
-  const versions = await resolveEasCliVersionsAsync();
   if (process.env.ENVIRONMENT === 'development') {
     if (await probeEasdAsync()) {
       return { cmd: 'easd', args: [], extraEnv: {} };
     }
+    const versions = await resolveEasCliVersionsAsync();
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.STAGING}`],
       extraEnv: {},
     };
   } else if (process.env.ENVIRONMENT === 'staging') {
+    const versions = await resolveEasCliVersionsAsync();
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.STAGING}`],
       extraEnv: { EXPO_STAGING: '1' },
     };
   } else {
+    const versions = await resolveEasCliVersionsAsync();
     return {
       cmd: 'npx',
       args: [...npxArgsPrefix, `eas-cli@${versions.PRODUCTION}`],

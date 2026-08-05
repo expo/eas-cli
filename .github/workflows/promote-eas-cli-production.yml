@@ -31,8 +31,15 @@ jobs:
             version="$(jq -r .STAGING cli-versions.json)"
           fi
           echo "PRODUCTION_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Verify version exists on npm
-        run: npm pack --dry-run "eas-cli@$PRODUCTION_VERSION"
+      - name: Verify version is an exact, published eas-cli version
+        run: |
+          resolved="$(npm view "eas-cli@$PRODUCTION_VERSION" version 2>/dev/null || true)"
+          if [ "$resolved" != "$PRODUCTION_VERSION" ]; then
+            echo "'$PRODUCTION_VERSION' is not an exact published eas-cli version." >&2
+            echo "npm resolved it to: '${resolved:-<nothing>}'." >&2
+            echo "Provide an exact version such as 21.5.0, not a range or dist-tag." >&2
+            exit 1
+          fi
       - name: Bump PRODUCTION in cli-versions.json
         run: |
           jq --arg version "$PRODUCTION_VERSION" '.PRODUCTION = $version' \
