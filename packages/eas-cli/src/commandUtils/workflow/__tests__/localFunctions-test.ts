@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { validateWorkflowLocalCompositeFunctionsAsync } from '../compositeFunctions';
+import { validateWorkflowLocalFunctionsAsync } from '../localFunctions';
 
 async function makeProjectWithCompositeFunctionAsync(
   projectRoot: string,
@@ -14,7 +14,7 @@ async function makeProjectWithCompositeFunctionAsync(
   await fs.writeFile(path.join(functionDir, 'function.yml'), contents, 'utf-8');
 }
 
-describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
+describe(validateWorkflowLocalFunctionsAsync, () => {
   it('validates referenced local composite functions', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-functions-test-'));
     await makeProjectWithCompositeFunctionAsync(
@@ -31,7 +31,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
 
@@ -45,9 +45,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       },
     };
 
-    await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
-    ).rejects.toThrow(
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
       /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
     );
   });
@@ -64,9 +62,9 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       },
     };
 
-    await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
-    ).rejects.toThrow(/must not contain interpolation/);
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
+      /must not contain interpolation/
+    );
   });
 
   it('validates local composite functions referenced from job hooks', async () => {
@@ -88,7 +86,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
 
@@ -105,9 +103,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       },
     };
 
-    await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
-    ).rejects.toThrow(
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
       /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
     );
   });
@@ -131,7 +127,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
 
@@ -158,7 +154,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
 
@@ -179,9 +175,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       },
     };
 
-    await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectRoot)
-    ).rejects.toThrow(
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
       /Local composite function "\.\/\.eas\/functions\/setup" was referenced by a step but no such composite function exists/
     );
   });
@@ -197,13 +191,10 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync({ defaults: 'garbage', jobs }, projectRoot)
+      validateWorkflowLocalFunctionsAsync({ defaults: 'garbage', jobs }, projectRoot)
     ).resolves.toBeUndefined();
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(
-        { defaults: { hooks: 'garbage' }, jobs },
-        projectRoot
-      )
+      validateWorkflowLocalFunctionsAsync({ defaults: { hooks: 'garbage' }, jobs }, projectRoot)
     ).resolves.toBeUndefined();
   });
 
@@ -229,7 +220,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectDir)
+      validateWorkflowLocalFunctionsAsync(workflow, projectDir)
     ).resolves.toBeUndefined();
   });
 
@@ -252,9 +243,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
       },
     };
 
-    await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectDir)
-    ).rejects.toThrow(
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectDir)).rejects.toThrow(
       /Local composite function "\.\/\.eas\/functions\/notify" was referenced by a step but no such composite function exists/
     );
   });
@@ -279,7 +268,7 @@ describe(validateWorkflowLocalCompositeFunctionsAsync, () => {
     };
 
     await expect(
-      validateWorkflowLocalCompositeFunctionsAsync(workflow, projectDir)
+      validateWorkflowLocalFunctionsAsync(workflow, projectDir)
     ).resolves.toBeUndefined();
   });
 });

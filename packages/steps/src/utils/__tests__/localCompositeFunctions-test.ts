@@ -4,14 +4,14 @@ import os from 'os';
 import path from 'path';
 
 import {
-  buildCompositeFunctionCatalogFromStepsAsync,
-  buildLocalCompositeFunctionCatalogAsync,
-  createLocalCompositeFunctionLoader,
-  extendCompositeFunctionCatalogFromStepsAsync,
-  isLocalCompositeFunctionPath,
-  loadLocalCompositeFunctionConfigAsync,
-  parseLocalCompositeFunctionPath,
-  resolveLocalCompositeFunctionPath,
+  buildLocalFunctionCatalogAsync,
+  buildLocalFunctionCatalogFromStepsAsync,
+  createLocalFunctionLoader,
+  extendLocalFunctionCatalogFromStepsAsync,
+  isLocalFunctionPath,
+  loadLocalFunctionConfigAsync,
+  parseLocalFunctionPath,
+  resolveLocalFunctionPath,
 } from '../localCompositeFunctions';
 
 async function makeCompositeFunctionAsync(
@@ -25,88 +25,80 @@ async function makeCompositeFunctionAsync(
   await fs.writeFile(path.join(functionDir, fileName), contents, 'utf-8');
 }
 
-describe(isLocalCompositeFunctionPath, () => {
+describe(isLocalFunctionPath, () => {
   it('recognizes relative paths as local composite function paths', () => {
-    expect(isLocalCompositeFunctionPath('./.eas/functions/setup')).toBe(true);
-    expect(isLocalCompositeFunctionPath('../../shared/actions/setup')).toBe(true);
-    expect(isLocalCompositeFunctionPath('  ./.eas/functions/setup/  ')).toBe(true);
+    expect(isLocalFunctionPath('./.eas/functions/setup')).toBe(true);
+    expect(isLocalFunctionPath('../../shared/actions/setup')).toBe(true);
+    expect(isLocalFunctionPath('  ./.eas/functions/setup/  ')).toBe(true);
   });
 
   it('rejects function ids and absolute or backslash-prefixed paths', () => {
-    expect(isLocalCompositeFunctionPath('eas/build')).toBe(false);
-    expect(isLocalCompositeFunctionPath('/actions/setup')).toBe(false);
-    expect(isLocalCompositeFunctionPath('..\\actions\\setup')).toBe(false);
+    expect(isLocalFunctionPath('eas/build')).toBe(false);
+    expect(isLocalFunctionPath('/actions/setup')).toBe(false);
+    expect(isLocalFunctionPath('..\\actions\\setup')).toBe(false);
   });
 });
 
-describe(parseLocalCompositeFunctionPath, () => {
+describe(parseLocalFunctionPath, () => {
   it('parses local composite function paths', () => {
-    expect(parseLocalCompositeFunctionPath('./.eas/functions/setup')).toBe(
-      './.eas/functions/setup'
-    );
-    expect(parseLocalCompositeFunctionPath('../../shared/actions/setup')).toBe(
-      '../../shared/actions/setup'
-    );
+    expect(parseLocalFunctionPath('./.eas/functions/setup')).toBe('./.eas/functions/setup');
+    expect(parseLocalFunctionPath('../../shared/actions/setup')).toBe('../../shared/actions/setup');
   });
 
   it('normalizes local composite function paths', () => {
-    expect(parseLocalCompositeFunctionPath('  ./.eas/functions/setup/  ')).toBe(
-      './.eas/functions/setup'
-    );
+    expect(parseLocalFunctionPath('  ./.eas/functions/setup/  ')).toBe('./.eas/functions/setup');
   });
 
   it('collapses equivalent paths to the same canonical path', () => {
-    expect(parseLocalCompositeFunctionPath('././.eas/functions/setup')).toBe(
+    expect(parseLocalFunctionPath('././.eas/functions/setup')).toBe('./.eas/functions/setup');
+    expect(parseLocalFunctionPath('./.eas/functions/other/../setup')).toBe(
       './.eas/functions/setup'
     );
-    expect(parseLocalCompositeFunctionPath('./.eas/functions/other/../setup')).toBe(
-      './.eas/functions/setup'
-    );
-    expect(parseLocalCompositeFunctionPath('../shared/other/../functions/setup')).toBe(
+    expect(parseLocalFunctionPath('../shared/other/../functions/setup')).toBe(
       '../shared/functions/setup'
     );
   });
 
   it('keeps the "./" prefix for under-root directories whose name starts with ".."', () => {
-    expect(parseLocalCompositeFunctionPath('./..actions/setup')).toBe('./..actions/setup');
+    expect(parseLocalFunctionPath('./..actions/setup')).toBe('./..actions/setup');
   });
 
   it('canonicalizes paths pointing at the project root or its parent', () => {
-    expect(parseLocalCompositeFunctionPath('./')).toBe('./.');
-    expect(parseLocalCompositeFunctionPath('  ./  ')).toBe('./.');
-    expect(parseLocalCompositeFunctionPath('../')).toBe('..');
-    expect(parseLocalCompositeFunctionPath('./..')).toBe('..');
+    expect(parseLocalFunctionPath('./')).toBe('./.');
+    expect(parseLocalFunctionPath('  ./  ')).toBe('./.');
+    expect(parseLocalFunctionPath('../')).toBe('..');
+    expect(parseLocalFunctionPath('./..')).toBe('..');
   });
 
   it('is stable when re-parsing its own canonical output', () => {
-    expect(parseLocalCompositeFunctionPath('./.')).toBe('./.');
-    expect(parseLocalCompositeFunctionPath('../.')).toBe('..');
+    expect(parseLocalFunctionPath('./.')).toBe('./.');
+    expect(parseLocalFunctionPath('../.')).toBe('..');
   });
 
   it('throws for backslash-based paths', () => {
-    expect(() => parseLocalCompositeFunctionPath('./compositeFunctions\\setup')).toThrow(
+    expect(() => parseLocalFunctionPath('./compositeFunctions\\setup')).toThrow(
       /must not contain backslashes/
     );
   });
 
   it('throws for interpolated local composite function paths', () => {
-    expect(() => parseLocalCompositeFunctionPath('./.eas/functions/${{ inputs.name }}')).toThrow(
+    expect(() => parseLocalFunctionPath('./.eas/functions/${{ inputs.name }}')).toThrow(
       /must not contain interpolation/
     );
   });
 
   it('parses local composite function paths that contain }}${{ as literal characters', () => {
-    expect(parseLocalCompositeFunctionPath('./.eas/functions/weird}}${{name')).toBe(
+    expect(parseLocalFunctionPath('./.eas/functions/weird}}${{name')).toBe(
       './.eas/functions/weird}}${{name'
     );
   });
 });
 
-describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
+describe(buildLocalFunctionCatalogFromStepsAsync, () => {
   it('loads referenced composite functions transitively', async () => {
-    const catalog = await buildCompositeFunctionCatalogFromStepsAsync({
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: './.eas/functions/outer', id: 'outer' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         if (compositeFunctionPath === './.eas/functions/outer') {
           return CompositeFunctionConfigZ.parse({
             runs: { steps: [{ uses: './.eas/functions/inner' }] },
@@ -128,9 +120,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
   });
 
   it('loads each action once even when references are cyclic (cycles are reported at expansion time)', async () => {
-    const catalog = await buildCompositeFunctionCatalogFromStepsAsync({
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: './.eas/functions/a', id: 'a' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         if (compositeFunctionPath === './.eas/functions/a') {
           return CompositeFunctionConfigZ.parse({
             runs: { steps: [{ uses: './.eas/functions/b' }] },
@@ -152,9 +144,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
     const chainLength = 10;
     const paths = Array.from({ length: chainLength }, (_, index) => `./.eas/functions/a${index}`);
 
-    const catalog = await buildCompositeFunctionCatalogFromStepsAsync({
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: paths[0], id: 'root' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         const index = paths.indexOf(compositeFunctionPath);
         if (index === -1) {
           throw new Error(`missing ${compositeFunctionPath}`);
@@ -173,9 +165,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
 
   it('collects normalized action paths from steps', async () => {
     const loadedPaths: string[] = [];
-    await buildCompositeFunctionCatalogFromStepsAsync({
+    await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: './.eas/functions/setup/' }, { uses: 'eas/build' }, { run: 'echo hi' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         loadedPaths.push(compositeFunctionPath);
         return CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } });
       },
@@ -185,9 +177,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
 
   it('rejects interpolated local composite function paths', async () => {
     await expect(
-      buildCompositeFunctionCatalogFromStepsAsync({
+      buildLocalFunctionCatalogFromStepsAsync({
         rootSteps: [{ uses: './.eas/functions/${{ inputs.name }}' }],
-        loadCompositeFunction: async () =>
+        loadLocalFunction: async () =>
           CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
       })
     ).rejects.toThrow(/must not contain interpolation/);
@@ -195,9 +187,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
 
   it('rejects working_directory on a root step that calls a local composite function', async () => {
     await expect(
-      buildCompositeFunctionCatalogFromStepsAsync({
+      buildLocalFunctionCatalogFromStepsAsync({
         rootSteps: [{ uses: './.eas/functions/setup', working_directory: 'packages/app' }],
-        loadCompositeFunction: async () =>
+        loadLocalFunction: async () =>
           CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
       })
     ).rejects.toThrow(/"working_directory" is not supported on a step that calls/);
@@ -205,9 +197,9 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
 
   it('rejects working_directory on a nested step that calls a local composite function', async () => {
     await expect(
-      buildCompositeFunctionCatalogFromStepsAsync({
+      buildLocalFunctionCatalogFromStepsAsync({
         rootSteps: [{ uses: './.eas/functions/outer' }],
-        loadCompositeFunction: async compositeFunctionPath => {
+        loadLocalFunction: async compositeFunctionPath => {
           if (compositeFunctionPath === './.eas/functions/outer') {
             return CompositeFunctionConfigZ.parse({
               runs: {
@@ -222,26 +214,26 @@ describe(buildCompositeFunctionCatalogFromStepsAsync, () => {
   });
 
   it('allows working_directory on a step that calls a function, not a local composite function', async () => {
-    const catalog = await buildCompositeFunctionCatalogFromStepsAsync({
+    const catalog = await buildLocalFunctionCatalogFromStepsAsync({
       rootSteps: [{ uses: 'eas/build', working_directory: 'packages/app' }],
-      loadCompositeFunction: async () =>
+      loadLocalFunction: async () =>
         CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
     });
     expect(Object.keys(catalog)).toEqual([]);
   });
 });
 
-describe(extendCompositeFunctionCatalogFromStepsAsync, () => {
+describe(extendLocalFunctionCatalogFromStepsAsync, () => {
   it('extends the given catalog in place', async () => {
     const catalog = {
       './.eas/functions/existing': CompositeFunctionConfigZ.parse({
         runs: { steps: [{ run: 'echo existing' }] },
       }),
     };
-    await extendCompositeFunctionCatalogFromStepsAsync({
+    await extendLocalFunctionCatalogFromStepsAsync({
       catalog,
       rootSteps: [{ uses: './.eas/functions/setup' }],
-      loadCompositeFunction: async () =>
+      loadLocalFunction: async () =>
         CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
     });
     expect(Object.keys(catalog).sort()).toEqual([
@@ -257,10 +249,10 @@ describe(extendCompositeFunctionCatalogFromStepsAsync, () => {
         runs: { steps: [{ run: 'echo setup' }] },
       }),
     };
-    await extendCompositeFunctionCatalogFromStepsAsync({
+    await extendLocalFunctionCatalogFromStepsAsync({
       catalog,
       rootSteps: [{ uses: './.eas/functions/setup' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         loadedPaths.push(compositeFunctionPath);
         throw new Error(`must not be called: ${compositeFunctionPath}`);
       },
@@ -271,10 +263,10 @@ describe(extendCompositeFunctionCatalogFromStepsAsync, () => {
 
   it('recurses into nested references', async () => {
     const catalog = {};
-    await extendCompositeFunctionCatalogFromStepsAsync({
+    await extendLocalFunctionCatalogFromStepsAsync({
       catalog,
       rootSteps: [{ uses: './.eas/functions/outer' }],
-      loadCompositeFunction: async compositeFunctionPath => {
+      loadLocalFunction: async compositeFunctionPath => {
         if (compositeFunctionPath === './.eas/functions/outer') {
           return CompositeFunctionConfigZ.parse({
             runs: { steps: [{ uses: './.eas/functions/inner' }] },
@@ -290,29 +282,29 @@ describe(extendCompositeFunctionCatalogFromStepsAsync, () => {
   });
 });
 
-describe(resolveLocalCompositeFunctionPath, () => {
+describe(resolveLocalFunctionPath, () => {
   const projectRoot = path.resolve('/tmp/project');
 
   it('resolves a path under the conventional .eas/functions directory', () => {
-    expect(resolveLocalCompositeFunctionPath(projectRoot, './.eas/functions/setup')).toBe(
+    expect(resolveLocalFunctionPath(projectRoot, './.eas/functions/setup')).toBe(
       path.join(projectRoot, '.eas', 'functions', 'setup')
     );
   });
 
   it('resolves an arbitrary arbitrary path style path within the project', () => {
-    expect(resolveLocalCompositeFunctionPath(projectRoot, './internal-actions/deploy')).toBe(
+    expect(resolveLocalFunctionPath(projectRoot, './internal-actions/deploy')).toBe(
       path.join(projectRoot, 'internal-actions', 'deploy')
     );
   });
 
   it('resolves a composite function above the EAS project root', () => {
-    expect(resolveLocalCompositeFunctionPath(projectRoot, '../shared-actions/deploy')).toBe(
+    expect(resolveLocalFunctionPath(projectRoot, '../shared-actions/deploy')).toBe(
       path.resolve(projectRoot, '../shared-actions/deploy')
     );
   });
 });
 
-describe(loadLocalCompositeFunctionConfigAsync, () => {
+describe(loadLocalFunctionConfigAsync, () => {
   it('loads and validates a function.yml file', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
     await makeCompositeFunctionAsync(
@@ -321,10 +313,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
       ['name: Setup', 'runs:', '  steps:', '    - run: echo setup'].join('\n')
     );
 
-    const config = await loadLocalCompositeFunctionConfigAsync(
-      projectRoot,
-      './.eas/functions/setup'
-    );
+    const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
     expect(config.name).toBe('Setup');
     expect(config.runs.steps).toHaveLength(1);
@@ -339,10 +328,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
       { fileName: 'function.yaml' }
     );
 
-    const config = await loadLocalCompositeFunctionConfigAsync(
-      projectRoot,
-      './.eas/functions/setup'
-    );
+    const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
     expect(config.runs.steps).toHaveLength(1);
   });
@@ -361,10 +347,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
       { fileName: 'function.yaml' }
     );
 
-    const config = await loadLocalCompositeFunctionConfigAsync(
-      projectRoot,
-      './.eas/functions/setup'
-    );
+    const config = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
 
     expect(config.name).toBe('FromYml');
   });
@@ -373,7 +356,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
 
     await expect(
-      loadLocalCompositeFunctionConfigAsync(projectRoot, './.eas/functions/missing')
+      loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/missing')
     ).rejects.toThrow(
       /Local composite function "\.\/\.eas\/functions\/missing" was referenced by a step but no such composite function exists/
     );
@@ -383,12 +366,12 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
     await makeCompositeFunctionAsync(projectRoot, 'broken', 'runs: [unclosed');
 
-    const error: Error = await loadLocalCompositeFunctionConfigAsync(
+    const error: Error = await loadLocalFunctionConfigAsync(
       projectRoot,
       './.eas/functions/broken'
     ).then(
       () => {
-        throw new Error('expected loadLocalCompositeFunctionConfigAsync to throw');
+        throw new Error('expected loadLocalFunctionConfigAsync to throw');
       },
       err => err
     );
@@ -408,7 +391,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
     );
 
     await expect(
-      loadLocalCompositeFunctionConfigAsync(projectRoot, './.eas/functions/broken')
+      loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/broken')
     ).rejects.toThrow(
       /Invalid composite function "\.\/\.eas\/functions\/broken": .*must declare at least one step under "runs\.steps"/s
     );
@@ -421,12 +404,12 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
       recursive: true,
     });
 
-    const error: Error = await loadLocalCompositeFunctionConfigAsync(
+    const error: Error = await loadLocalFunctionConfigAsync(
       projectRoot,
       './.eas/functions/setup'
     ).then(
       () => {
-        throw new Error('expected loadLocalCompositeFunctionConfigAsync to throw');
+        throw new Error('expected loadLocalFunctionConfigAsync to throw');
       },
       err => err
     );
@@ -453,11 +436,8 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
       'utf-8'
     );
 
-    const underRoot = await loadLocalCompositeFunctionConfigAsync(
-      projectRoot,
-      './.eas/functions/setup'
-    );
-    const aboveRoot = await loadLocalCompositeFunctionConfigAsync(
+    const underRoot = await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup');
+    const aboveRoot = await loadLocalFunctionConfigAsync(
       projectRoot,
       '../../shared/functions/deploy'
     );
@@ -475,7 +455,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
     );
     const logger = { debug: jest.fn() };
 
-    await loadLocalCompositeFunctionConfigAsync(projectRoot, './.eas/functions/setup', { logger });
+    await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/setup', { logger });
 
     expect(logger.debug).toHaveBeenCalledWith(
       `Loaded local composite function "./.eas/functions/setup" from ${path.join(
@@ -488,7 +468,7 @@ describe(loadLocalCompositeFunctionConfigAsync, () => {
   });
 });
 
-describe(createLocalCompositeFunctionLoader, () => {
+describe(createLocalFunctionLoader, () => {
   it('loads function.yml from disk for a normalized path', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-loader-'));
     await makeCompositeFunctionAsync(
@@ -497,7 +477,7 @@ describe(createLocalCompositeFunctionLoader, () => {
       ['name: Setup', 'runs:', '  steps:', '    - run: echo setup'].join('\n')
     );
 
-    const loader = createLocalCompositeFunctionLoader(projectRoot);
+    const loader = createLocalFunctionLoader(projectRoot);
     const config = await loader('./.eas/functions/setup');
 
     expect(config.name).toBe('Setup');
@@ -507,7 +487,7 @@ describe(createLocalCompositeFunctionLoader, () => {
   it('rejects for a path with no composite function on disk', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-loader-'));
 
-    const loader = createLocalCompositeFunctionLoader(projectRoot);
+    const loader = createLocalFunctionLoader(projectRoot);
 
     await expect(loader('./.eas/functions/missing')).rejects.toThrow(
       /no such composite function exists/
@@ -515,7 +495,7 @@ describe(createLocalCompositeFunctionLoader, () => {
   });
 });
 
-describe(buildLocalCompositeFunctionCatalogAsync, () => {
+describe(buildLocalFunctionCatalogAsync, () => {
   it('builds a catalog keyed by normalized ref, loading transitively nested functions from disk', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
     await makeCompositeFunctionAsync(
@@ -529,7 +509,7 @@ describe(buildLocalCompositeFunctionCatalogAsync, () => {
       ['runs:', '  steps:', '    - run: echo inner'].join('\n')
     );
 
-    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
       rootSteps: [{ uses: './.eas/functions/outer/', id: 'outer' }],
     });
 
@@ -549,7 +529,7 @@ describe(buildLocalCompositeFunctionCatalogAsync, () => {
       'utf-8'
     );
 
-    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
       rootSteps: [{ uses: './internal-functions/deploy' }],
     });
 
@@ -564,7 +544,7 @@ describe(buildLocalCompositeFunctionCatalogAsync, () => {
       ['runs:', '  steps:', '    - uses: ./.eas/functions/loop'].join('\n')
     );
 
-    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
       rootSteps: [{ uses: './.eas/functions/loop' }],
     });
 
@@ -589,7 +569,7 @@ describe(buildLocalCompositeFunctionCatalogAsync, () => {
       ['runs:', '  steps:', '    - uses: ./.eas/functions/shared'].join('\n')
     );
 
-    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
       rootSteps: [{ uses: './.eas/functions/left' }, { uses: './.eas/functions/right' }],
     });
 
@@ -608,7 +588,7 @@ describe(buildLocalCompositeFunctionCatalogAsync, () => {
       ['name: Broken', 'runs:', '  steps: []'].join('\n')
     );
 
-    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
       rootSteps: [{ run: 'echo hi' }],
     });
 
