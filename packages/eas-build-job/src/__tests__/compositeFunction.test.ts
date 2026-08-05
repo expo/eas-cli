@@ -75,4 +75,12 @@ describe('CompositeFunctionConfigZ', () => {
       );
     }
   });
+
+  it('rejects the single-step output shape', () => {
+    const config = {
+      outputs: [{ name: 'version' }],
+      runs: { steps: [{ run: 'echo hello' }] },
+    };
+    expect(() => CompositeFunctionConfigZ.parse(config)).toThrow(ZodError);
+  });
 });
