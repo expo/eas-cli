@@ -26,8 +26,8 @@ import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import {
   BuildStepInput,
-  BuildStepInputValueTypeName,
   getDisallowedInputValueError,
+  parseBuildStepInputValueTypeName,
 } from './BuildStepInput';
 import { CompositeBuildStep } from './CompositeBuildStep';
 import { BuildConfigError } from './errors';
@@ -419,11 +419,10 @@ export class LocalFunctionExpander {
         defaultValue: definition.defaultValue,
         required: definition.required,
         allowedValues: definition.allowedValues,
-        allowedValueTypeName: this.toInputValueTypeName(
-          definition.type,
-          compositeFunctionPath,
-          definition.name
-        ),
+        allowedValueTypeName: parseBuildStepInputValueTypeName(definition.type, {
+          functionPath: compositeFunctionPath,
+          inputName: definition.name,
+        }),
       });
       if (callWith && Object.prototype.hasOwnProperty.call(callWith, definition.name)) {
         const value = callWith[definition.name];
@@ -446,21 +445,5 @@ export class LocalFunctionExpander {
       inputs.set(definition.name, input);
     }
     return { inputs, providedInputKeys };
-  }
-
-  private toInputValueTypeName(
-    type: string,
-    compositeFunctionPath: string,
-    inputName: string
-  ): BuildStepInputValueTypeName {
-    const supported = Object.values(BuildStepInputValueTypeName) as string[];
-    if (!supported.includes(type)) {
-      throw new BuildConfigError(
-        `Composite function "${compositeFunctionPath}" input "${inputName}" has unsupported type "${type}". Supported types: ${supported.join(
-          ', '
-        )}.`
-      );
-    }
-    return type as BuildStepInputValueTypeName;
   }
 }

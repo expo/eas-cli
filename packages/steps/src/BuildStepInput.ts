@@ -2,7 +2,7 @@ import { JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
-import { BuildStepRuntimeError } from './errors';
+import { BuildConfigError, BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
 import {
   BUILD_STEP_OR_BUILD_GLOBAL_CONTEXT_REFERENCE_REGEX,
@@ -25,6 +25,22 @@ export type BuildStepInputValueType<
     : T extends BuildStepInputValueTypeName.NUMBER
       ? number
       : Record<string, unknown>;
+
+/** Maps a local function input's declared `type` string onto the enum, shared by both function shapes. */
+export function parseBuildStepInputValueTypeName(
+  type: string,
+  { functionPath, inputName }: { functionPath: string; inputName: string }
+): BuildStepInputValueTypeName {
+  const supported = Object.values(BuildStepInputValueTypeName) as string[];
+  if (!supported.includes(type)) {
+    throw new BuildConfigError(
+      `Local function "${functionPath}" input "${inputName}" has unsupported type "${type}". Supported types: ${supported.join(
+        ', '
+      )}.`
+    );
+  }
+  return type as BuildStepInputValueTypeName;
+}
 
 export type BuildStepInputById = Record<string, BuildStepInput>;
 export type BuildStepInputProvider = (
