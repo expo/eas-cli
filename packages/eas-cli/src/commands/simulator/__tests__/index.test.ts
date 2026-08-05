@@ -347,6 +347,26 @@ describe(Simulator, () => {
     });
   });
 
+  it('passes --max-idle-time-minutes to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--max-idle-time-minutes',
+      '30',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: 'project-123',
+      name: undefined,
+      packageVersion: undefined,
+      platform: AppPlatform.Ios,
+      type: DeviceRunSessionType.AgentDevice,
+      maxIdleTimeMinutes: 30,
+    });
+  });
+
   it(`throws when ${EAS_SIMULATOR_SESSION_ID} is already present with --no-force`, async () => {
     process.env[EAS_SIMULATOR_SESSION_ID] = 'existing-session';
 
