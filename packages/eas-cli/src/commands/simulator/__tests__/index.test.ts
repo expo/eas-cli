@@ -22,7 +22,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
-import SimulatorStart from '../start';
+import Simulator from '../index';
 
 jest.mock('fs-extra');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
@@ -142,7 +142,7 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-describe(SimulatorStart, () => {
+describe(Simulator, () => {
   const mockConfig = getMockOclifConfig();
   const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
 
@@ -169,10 +169,10 @@ describe(SimulatorStart, () => {
   });
 
   function createCommand(argv: string[]): {
-    command: SimulatorStart;
+    command: Simulator;
     getContextAsync: jest.SpyInstance;
   } {
-    const command = new SimulatorStart(argv, mockConfig);
+    const command = new Simulator(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       loggedIn: { graphqlClient },
@@ -192,7 +192,7 @@ describe(SimulatorStart, () => {
     ]);
     await command.runAsync();
 
-    expect(getContextAsync).toHaveBeenCalledWith(SimulatorStart, {
+    expect(getContextAsync).toHaveBeenCalledWith(Simulator, {
       nonInteractive: true,
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {

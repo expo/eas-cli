@@ -49,9 +49,9 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   ios: AppPlatform.Ios,
 };
 
-export default class SimulatorStart extends EasCommand {
+export default class Simulator extends EasCommand {
   static override hidden = true;
-  static override aliases = ['simulator'];
+  static override aliases = ['simulator:start'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -100,7 +100,7 @@ export default class SimulatorStart extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(SimulatorStart);
+    const { flags } = await this.parse(Simulator);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -111,7 +111,7 @@ export default class SimulatorStart extends EasCommand {
       projectId,
       projectDir,
       loggedIn: { graphqlClient },
-    } = await this.getContextAsync(SimulatorStart, {
+    } = await this.getContextAsync(Simulator, {
       nonInteractive,
     });
 
