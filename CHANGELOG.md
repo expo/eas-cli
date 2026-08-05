@@ -20,11 +20,13 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Set up the internal TestFlight group and invite admin testers when submitting with an existing `ascAppId`, using non-interactive App Store Connect API key auth when available. Previously the automatic TestFlight setup only ran when the CLI created the App Store Connect app itself, so apps created on the App Store Connect website required manual tester configuration before anyone could install builds. ([#4136](https://github.com/expo/eas-cli/pull/4136) by [@tchayen](https://github.com/tchayen))
 
 ### 🐛 Bug fixes
 
 - [eas-cli] Point accounts without EAS Simulator access at the waitlist: `eas simulator:availability` includes the link (and a `waitlistUrl` field in `--json`), and `eas simulator` now fails early with the same message instead of a generic permission error. ([#4151](https://github.com/expo/eas-cli/pull/4151) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Fix the TestFlight group URL printed when adding testers partially fails. ([#4136](https://github.com/expo/eas-cli/pull/4136) by [@tchayen](https://github.com/tchayen))
 
 ### 🧹 Chores
 
