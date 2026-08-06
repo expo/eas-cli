@@ -310,7 +310,7 @@ function createRealtimeLogStream(
     ? 'http://localhost:4999/logs/'
     : ctx.env.EXPO_STAGING
       ? 'https://staging-logs.expo.dev/logs/'
-      : undefined;
+      : 'https://logs.expo.dev/logs/';
   const jobRunId = ctx.env.EAS_BUILD_ID;
   const robotAccessToken = ctx.job.secrets?.robotAccessToken;
   if (!baseUrl || !jobRunId || !robotAccessToken) {
