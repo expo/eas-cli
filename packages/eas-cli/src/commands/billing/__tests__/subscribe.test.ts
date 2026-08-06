@@ -216,7 +216,7 @@ describe(BillingSubscribe, () => {
     expect(createCheckoutSessionAsync).toHaveBeenCalledWith('free-id', 'STARTER');
   });
 
-  it('rejects an account that already has a paid subscription', async () => {
+  it('returns the current plan when an explicitly selected account is already subscribed', async () => {
     jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
       id: 'sub_1',
       name: 'Starter',
@@ -225,14 +225,14 @@ describe(BillingSubscribe, () => {
       willCancel: false,
     });
 
-    await expect(
-      createCommand(['production', '--account', 'testaccount', '--json']).runAsync()
-    ).rejects.toThrow(
-      'Account "testaccount" already has a paid plan. Run eas billing:manage to change it.'
-    );
+    await createCommand(['production', '--account', 'testaccount', '--json']).runAsync();
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
-    expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+      checkoutUrl: null,
+      alreadySubscribed: true,
+      currentPlan: 'Starter',
+    });
   });
 
   it('treats the free plan as not subscribed', async () => {

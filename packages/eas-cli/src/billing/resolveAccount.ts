@@ -46,17 +46,8 @@ async function getAccountWithSubscriptionAsync(
   return { id: account.id, name: account.name, subscription };
 }
 
-function assertMatchesSubscriptionFilter(
-  account: BillingAccount,
-  subscriptionFilter: SubscriptionFilter
-): void {
-  const paidSubscription = hasPaidSubscription(account.subscription ?? null);
-  if (subscriptionFilter === 'unsubscribed' && paidSubscription) {
-    throw new Error(
-      `Account "${account.name}" already has a paid plan. Run eas billing:manage to change it.`
-    );
-  }
-  if (subscriptionFilter === 'subscribed' && !paidSubscription) {
+function assertAccountCanBeManaged(account: BillingAccount): void {
+  if (!hasPaidSubscription(account.subscription ?? null)) {
     throw new Error(
       `Account "${account.name}" does not have an active paid plan. Run eas billing:subscribe to subscribe.`
     );
@@ -96,7 +87,9 @@ export async function resolveBillingAccountAsync({
         return found;
       }
       const account = await getAccountWithSubscriptionAsync(graphqlClient, found);
-      assertMatchesSubscriptionFilter(account, subscriptionFilter);
+      if (subscriptionFilter === 'subscribed') {
+        assertAccountCanBeManaged(account);
+      }
       return account;
     }
     const account = await AccountQuery.getByNameAsync(graphqlClient, accountName).catch(() => null);
@@ -110,7 +103,9 @@ export async function resolveBillingAccountAsync({
       return account;
     }
     const accountWithSubscription = await getAccountWithSubscriptionAsync(graphqlClient, account);
-    assertMatchesSubscriptionFilter(accountWithSubscription, subscriptionFilter);
+    if (subscriptionFilter === 'subscribed') {
+      assertAccountCanBeManaged(accountWithSubscription);
+    }
     return accountWithSubscription;
   }
 
