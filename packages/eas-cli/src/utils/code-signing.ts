@@ -30,6 +30,11 @@ export async function getCodeSigningInfoAsync(
 ): Promise<CodeSigningInfo | undefined> {
   const codeSigningCertificatePath = config.updates?.codeSigningCertificate;
   if (!codeSigningCertificatePath) {
+    if (privateKeyPath) {
+      throw new Error(
+        'Must specify codeSigningCertificate under the "updates" field of your app config file to use EAS code signing'
+      );
+    }
     return undefined;
   }
 
