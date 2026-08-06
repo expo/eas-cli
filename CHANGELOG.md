@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fail when `--private-key-path` is passed without `updates.codeSigningCertificate` in the resolved app config, instead of ignoring the flag and publishing an unsigned update. ([#4161](https://github.com/expo/eas-cli/pull/4161) by [@gwdp](https://github.com/gwdp))
+
 ### 🧹 Chores
 
 ## [21.6.0](https://github.com/expo/eas-cli/releases/tag/v21.6.0) - 2026-08-05
