@@ -211,6 +211,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas project:info`](#eas-projectinfo)
 * [`eas project:init`](#eas-projectinit)
 * [`eas project:new [PATH]`](#eas-projectnew-path)
+* [`eas project:status`](#eas-projectstatus)
 * [`eas sim`](#eas-sim)
 * [`eas sim:availability`](#eas-simavailability)
 * [`eas sim:events`](#eas-simevents)
@@ -220,6 +221,7 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 * [`eas sim:start`](#eas-simstart)
 * [`eas sim:stop`](#eas-simstop)
 * [`eas simulator:start`](#eas-simulatorstart)
+* [`eas status`](#eas-status)
 * [`eas submit`](#eas-submit)
 * [`eas submit:cancel [SUBMISSION_ID]`](#eas-submitcancel-submission_id)
 * [`eas submit:list`](#eas-submitlist)
@@ -2402,6 +2404,35 @@ ALIASES
 
 _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/expo/eas-cli/blob/v21.6.0/packages/eas-cli/src/commands/project/new.ts)_
 
+## `eas project:status`
+
+show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+```
+USAGE
+  $ eas project:status [--limit <value>] [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --limit=<value>    The number of items to show in each section. Defaults to 3 and is capped at 25.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+ALIASES
+  $ eas status
+
+EXAMPLES
+  $ eas status 	 # Show a concise project snapshot
+
+  $ eas status --json 	 # Output a machine-readable snapshot for agents and automation
+
+  $ eas status --json --limit 10 	 # Include more activity from each section
+```
+
+_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v21.6.0/packages/eas-cli/src/commands/project/status.ts)_
+
 ## `eas sim`
 
 [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
@@ -2641,6 +2672,35 @@ ALIASES
   $ eas simulator:start
   $ eas sim
   $ eas sim:start
+```
+
+_See code: [packages/eas-cli/src/commands/simulator/start.ts](https://github.com/expo/eas-cli/blob/v21.6.0/packages/eas-cli/src/commands/simulator/start.ts)_
+
+## `eas status`
+
+show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+```
+USAGE
+  $ eas status [--limit <value>] [--json] [--non-interactive]
+
+FLAGS
+  --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+  --limit=<value>    The number of items to show in each section. Defaults to 3 and is capped at 25.
+  --non-interactive  Run the command in non-interactive mode.
+
+DESCRIPTION
+  show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
+
+ALIASES
+  $ eas status
+
+EXAMPLES
+  $ eas status 	 # Show a concise project snapshot
+
+  $ eas status --json 	 # Output a machine-readable snapshot for agents and automation
+
+  $ eas status --json --limit 10 	 # Include more activity from each section
 ```
 
 ## `eas submit`
