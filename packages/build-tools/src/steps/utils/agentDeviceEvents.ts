@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { type CustomBuildContext } from '../../customBuildContext';
 import {
   type DeviceRunSessionEvent,
+  type DeviceRunSessionEventCollection,
   type DeviceRunSessionEventParseFailure,
   startDeviceRunSessionEventCollectionAsync,
 } from './deviceRunSessionEvents';
@@ -46,7 +47,7 @@ export async function startAgentDeviceEventCollectionAsync({
   stateDir: string;
   logger: bunyan;
   pollIntervalMs?: number;
-}): Promise<{ stopAsync: () => Promise<void> }> {
+}): Promise<DeviceRunSessionEventCollection> {
   return startDeviceRunSessionEventCollectionAsync({
     ctx,
     deviceRunSessionId,

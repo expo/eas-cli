@@ -22,6 +22,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
 - [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Support an optional `max_idle_time_minutes` input on `eas/start_argent_remote_session` and `eas/start_agent_device_remote_session`; the step stops the device run session after that many minutes without observed session events. ([#4157](https://github.com/expo/eas-cli/pull/4157) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
