@@ -1,4 +1,6 @@
+import { CombinedError } from '@urql/core';
 import openBrowserAsync from 'better-opn';
+import { GraphQLError } from 'graphql';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { SupabaseMutation } from '../../../graphql/mutations/SupabaseMutation';
@@ -60,6 +62,18 @@ function mockOraSpinner(): {
   };
   jest.mocked(ora).mockReturnValue(spinner as never);
   return spinner;
+}
+
+function userError(message: string): CombinedError {
+  return new CombinedError({
+    graphQLErrors: [new GraphQLError(message, { extensions: { errorType: 'USER' } })],
+  });
+}
+
+function systemError(message: string): CombinedError {
+  return new CombinedError({
+    graphQLErrors: [new GraphQLError(message, { extensions: { errorType: 'SYSTEM' } })],
+  });
 }
 
 const connection: SupabaseConnectionData = {
@@ -237,14 +251,28 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
     expect(spinner.succeed).toHaveBeenCalledWith(expect.stringContaining('org-slug'));
   });
 
-  it('authorizeViaBrowserAsync fails spinner on poll error', async () => {
+  it('authorizeViaBrowserAsync fails spinner on a non-retriable poll error', async () => {
     jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
       url: 'https://oauth.example',
     });
     jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
     jest
       .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
-      .mockRejectedValue(new Error('always fail'));
+      .mockRejectedValue(userError('not authorized'));
+
+    const spinner = mockOraSpinner();
+    await expect(authorizeViaBrowserAsync(client, account, false)).rejects.toThrow(
+      /not authorized/
+    );
+    expect(spinner.fail).toHaveBeenCalled();
+  });
+
+  it('authorizeViaBrowserAsync fails spinner when the authorization never arrives', async () => {
+    jest.mocked(SupabaseMutation.beginSupabaseOAuthAsync).mockResolvedValue({
+      url: 'https://oauth.example',
+    });
+    jest.mocked(openBrowserAsync).mockResolvedValue(true as never);
+    jest.mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).mockResolvedValue(null);
 
     const spinner = mockOraSpinner();
     const promise = authorizeViaBrowserAsync(client, account, false);
@@ -261,16 +289,64 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
     await expect(loadOrganizationsBestEffortAsync(client, 'acct-1')).resolves.toBeNull();
   });
 
-  it('pollForConnectionAsync retries after query errors', async () => {
+  it('pollForConnectionAsync retries after retriable query errors', async () => {
     jest
       .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
-      .mockRejectedValueOnce(new Error('blip'))
+      .mockRejectedValueOnce(new CombinedError({ networkError: new Error('offline') }))
       .mockResolvedValueOnce(connection);
 
     const promise = pollForConnectionAsync(client, 'acct-1');
     await jest.advanceTimersByTimeAsync(2_000);
     await expect(promise).resolves.toEqual(connection);
     expect(Log.debug).toHaveBeenCalled();
+  });
+
+  it('pollForConnectionAsync stops on a non-retriable query error', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockRejectedValue(userError('not authorized'));
+
+    await expect(pollForConnectionAsync(client, 'acct-1')).rejects.toThrow(/not authorized/);
+    expect(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('pollForConnectionAsync keeps waiting through server-side errors', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockRejectedValueOnce(systemError('boom'))
+      .mockResolvedValueOnce(connection);
+
+    const promise = pollForConnectionAsync(client, 'acct-1');
+    await jest.advanceTimersByTimeAsync(2_000);
+    await expect(promise).resolves.toEqual(connection);
+  });
+
+  it('pollForConnectionAsync surfaces an error that keeps repeating', async () => {
+    jest
+      .mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync)
+      .mockRejectedValue(new CombinedError({ networkError: new Error('offline') }));
+
+    const promise = pollForConnectionAsync(client, 'acct-1');
+    promise.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(10 * 2_000);
+    await expect(promise).rejects.toThrow(/offline/);
+    expect(SupabaseQuery.getSupabaseConnectionByAccountIdAsync).toHaveBeenCalledTimes(10);
+  });
+
+  it('pollForConnectionAsync forgives errors that stop repeating', async () => {
+    const query = jest.mocked(SupabaseQuery.getSupabaseConnectionByAccountIdAsync);
+    for (let i = 0; i < 9; i++) {
+      query.mockRejectedValueOnce(new CombinedError({ networkError: new Error('offline') }));
+    }
+    query.mockResolvedValueOnce(null);
+    for (let i = 0; i < 9; i++) {
+      query.mockRejectedValueOnce(new CombinedError({ networkError: new Error('offline') }));
+    }
+    query.mockResolvedValueOnce(connection);
+
+    const promise = pollForConnectionAsync(client, 'acct-1');
+    await jest.advanceTimersByTimeAsync(20 * 2_000);
+    await expect(promise).resolves.toEqual(connection);
   });
 });
 
@@ -298,16 +374,47 @@ describe('resolvePublishableKeyAsync', () => {
     await expect(promise).resolves.toBe('pk_live');
   });
 
-  it('throws after consecutive readiness errors', async () => {
+  it('stops on a non-retriable readiness error', async () => {
     jest
       .mocked(SupabaseMutation.fetchSupabasePublishableKeyAsync)
-      .mockRejectedValue(new Error('revoked'));
+      .mockRejectedValue(userError('revoked'));
+
+    await expect(resolvePublishableKeyAsync(client, 'app-1', project)).rejects.toThrow(/revoked/);
+    expect(SupabaseMutation.fetchSupabasePublishableKeyAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps waiting through retriable readiness errors', async () => {
+    jest
+      .mocked(SupabaseMutation.fetchSupabasePublishableKeyAsync)
+      .mockRejectedValueOnce(new CombinedError({ networkError: new Error('offline') }))
+      .mockResolvedValueOnce('pk_live');
+
+    const promise = resolvePublishableKeyAsync(client, 'app-1', project);
+    await jest.advanceTimersByTimeAsync(3_000);
+    await expect(promise).resolves.toBe('pk_live');
+  });
+
+  it('gives up once a server fault keeps repeating', async () => {
+    jest
+      .mocked(SupabaseMutation.fetchSupabasePublishableKeyAsync)
+      .mockRejectedValue(systemError('upstream 502'));
 
     const promise = resolvePublishableKeyAsync(client, 'app-1', project);
     promise.catch(() => undefined);
+    await jest.advanceTimersByTimeAsync(10 * 3_000);
+    await expect(promise).rejects.toThrow(/upstream 502/);
+    expect(SupabaseMutation.fetchSupabasePublishableKeyAsync).toHaveBeenCalledTimes(10);
+  });
+
+  it('keeps waiting through a server fault that resolves', async () => {
+    jest
+      .mocked(SupabaseMutation.fetchSupabasePublishableKeyAsync)
+      .mockRejectedValueOnce(systemError('upstream 502'))
+      .mockResolvedValueOnce('pk_live');
+
+    const promise = resolvePublishableKeyAsync(client, 'app-1', project);
     await jest.advanceTimersByTimeAsync(3_000);
-    await jest.advanceTimersByTimeAsync(3_000);
-    await expect(promise).rejects.toThrow('revoked');
+    await expect(promise).resolves.toBe('pk_live');
   });
 
   it('times out when key never becomes ready', async () => {
