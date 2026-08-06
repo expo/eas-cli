@@ -6,6 +6,7 @@ import {
   formatSupabaseOrganization,
   getSupabaseProjectDashboardUrl,
 } from '../../commandUtils/supabase';
+import { isPermanentGraphqlError } from '../../graphql/client';
 import { BackgroundJobReceiptDataFragment } from '../../graphql/generated';
 import { SupabaseMutation } from '../../graphql/mutations/SupabaseMutation';
 import { SupabaseQuery } from '../../graphql/queries/SupabaseQuery';
@@ -28,12 +29,15 @@ import {
 // approval the user completes within the window.
 const CONNECTION_POLL_INTERVAL_MS = 2_000;
 const CONNECTION_POLL_TIMEOUT_MS = 15 * 60 * 1_000;
+const MAX_CONSECUTIVE_CONNECTION_ERRORS = 10;
 
 // A freshly provisioned project takes a minute or two to become healthy; the publishable key only
 // resolves once it is.
 const READINESS_POLL_INTERVAL_MS = 3_000;
 const READINESS_POLL_TIMEOUT_MS = 5 * 60 * 1_000;
-const MAX_CONSECUTIVE_READINESS_ERRORS = 3;
+// A server fault is worth retrying, but not for the full timeout: once it repeats this many
+// times it isn't a provisioning delay, and the user shouldn't wait five minutes to hear it.
+const MAX_CONSECUTIVE_READINESS_ERRORS = 10;
 
 // Background job create + publishable-key polling can take 5+ minutes; allow 7 min at 1s interval.
 export const PROVISION_RECEIPT_MAX_CHECKS = 420;
@@ -180,6 +184,7 @@ export async function pollForConnectionAsync(
   accountId: string
 ): Promise<SupabaseConnectionData> {
   const deadline = Date.now() + CONNECTION_POLL_TIMEOUT_MS;
+  let consecutiveErrors = 0;
   for (;;) {
     let connection: SupabaseConnectionData | null = null;
     try {
@@ -188,8 +193,19 @@ export async function pollForConnectionAsync(
         accountId,
         { useCache: false }
       );
+      consecutiveErrors = 0;
     } catch (error) {
-      Log.debug(`Polling for the Supabase connection failed, will retry: ${error}`);
+      consecutiveErrors += 1;
+      Log.debug(`Polling for the Supabase connection failed: ${error}`);
+      if (
+        isPermanentGraphqlError(error) ||
+        consecutiveErrors >= MAX_CONSECUTIVE_CONNECTION_ERRORS
+      ) {
+        Log.error(
+          'Gave up checking whether the Supabase authorization finished. Fix the error below, then re-run `eas integrations:supabase:connect` — an authorization you already approved is still picked up.'
+        );
+        throw error;
+      }
     }
     if (connection) {
       return connection;
@@ -210,9 +226,8 @@ export async function resolvePublishableKeyAsync(
 ): Promise<string> {
   const spinner = ora('Waiting for the Supabase project to finish provisioning').start();
   const deadline = Date.now() + READINESS_POLL_TIMEOUT_MS;
-  // The server returns a null key while the project is still provisioning but throws for a real
-  // problem (revoked authorization, etc.). Tolerate a transient blip, but stop retrying for the
-  // full timeout once the errors are persistent — that isn't a provisioning delay.
+  // The server returns a null key while the project is still provisioning, and throws for a real
+  // problem. A rejected request can't succeed on a retry; a server fault might, but not forever.
   let consecutiveErrors = 0;
   for (;;) {
     let key: string | null = null;
@@ -221,9 +236,14 @@ export async function resolvePublishableKeyAsync(
       consecutiveErrors = 0;
     } catch (error) {
       consecutiveErrors += 1;
-      Log.debug(`Polling for the Supabase project readiness failed, will retry: ${error}`);
-      if (consecutiveErrors >= MAX_CONSECUTIVE_READINESS_ERRORS) {
+      Log.debug(`Polling for the Supabase project readiness failed: ${error}`);
+      if (isPermanentGraphqlError(error) || consecutiveErrors >= MAX_CONSECUTIVE_READINESS_ERRORS) {
         spinner.fail("Couldn't reach the Supabase project");
+        Log.error(
+          `The project may exist even though EAS can't read its key. Check it at ${getSupabaseProjectDashboardUrl(
+            project
+          )} before you re-run \`eas integrations:supabase:connect\`.`
+        );
         throw error;
       }
     }
