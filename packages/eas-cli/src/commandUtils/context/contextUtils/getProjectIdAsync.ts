@@ -183,7 +183,9 @@ export async function validateOrSetProjectIdAsync({
     throw new Error('This command must be run inside a project directory.');
   }
 
-  Log.warn('EAS project not configured.');
+  if (!options.nonInteractive) {
+    Log.warn('EAS project not configured.');
+  }
 
   const accountName = await chooseAccountNameForEASProjectAsync(exp, actor, options);
 

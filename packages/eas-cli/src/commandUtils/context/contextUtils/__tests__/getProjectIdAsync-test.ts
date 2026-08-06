@@ -4,7 +4,7 @@ import { anything, instance, mock, when } from 'ts-mockito';
 
 import { Role } from '../../../../graphql/generated';
 import { AppQuery } from '../../../../graphql/queries/AppQuery';
-import { learnMore } from '../../../../log';
+import Log, { learnMore } from '../../../../log';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { isExpoInstalled } from '../../../../project/projectUtils';
 import { promptAsync } from '../../../../prompts';
@@ -31,6 +31,8 @@ describe(getProjectIdAsync, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    jest.spyOn(Log, 'warn').mockImplementation(() => {});
 
     jest
       .mocked(getConfigFilePaths)
@@ -379,6 +381,7 @@ describe(getProjectIdAsync, () => {
       ).resolves.toEqual('2345');
 
       expect(promptAsync).toHaveBeenCalledTimes(1);
+      expect(Log.warn).toHaveBeenCalledWith('EAS project not configured.');
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
         expect.anything(),
         { accountName: 'dominik', projectName: 'test' },
@@ -504,6 +507,18 @@ describe(getProjectIdAsync, () => {
 
       expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not warn that the project is not configured in non-interactive mode', async () => {
+      await expect(
+        getProjectIdAsync(
+          sessionManager,
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).rejects.toThrow();
+
+      expect(Log.warn).not.toHaveBeenCalledWith('EAS project not configured.');
     });
   });
 
