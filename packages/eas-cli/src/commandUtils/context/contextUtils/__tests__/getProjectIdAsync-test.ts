@@ -481,7 +481,14 @@ describe(getProjectIdAsync, () => {
           { nonInteractive: false }
         )
       ).rejects.toThrow(
-        'Project is not configured. When using a robot access token, run "eas init --account <name> --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: notnotbrent'
+        `EAS project not configured. A robot access token cannot configure it interactively. ` +
+          `Run one of the following, then re-run this command:\n\n` +
+          `To link an existing project:\n\n` +
+          `  eas init --id <project-id> --non-interactive\n\n` +
+          `To create a new project:\n\n` +
+          `  eas init --account <account-name> --non-interactive\n\n` +
+          `Accounts you can create projects in: notnotbrent\n\n` +
+          `Alternatively, set the "owner" field in your app config.`
       );
 
       expect(promptAsync).not.toHaveBeenCalled();
@@ -507,6 +514,49 @@ describe(getProjectIdAsync, () => {
 
       expect(promptAsync).not.toHaveBeenCalled();
       expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).not.toHaveBeenCalled();
+    });
+
+    it('defers to the project fetch in non-interactive mode when the account is already known', async () => {
+      const sessionManagerMock = mock<SessionManager>();
+      when(sessionManagerMock.ensureLoggedInAsync(anything())).thenResolve({
+        actor: {
+          __typename: 'User',
+          id: 'user_id',
+          email: 'notnotbrent@example.com',
+          username: 'notnotbrent',
+          primaryAccount: {
+            id: 'account_id_1',
+            name: 'notnotbrent',
+            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+          },
+          accounts: [
+            {
+              id: 'account_id_1',
+              name: 'notnotbrent',
+              users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
+            },
+          ],
+          isExpoAdmin: false,
+          featureGates: {},
+        },
+        authenticationInfo: { accessToken: 'fake', sessionSecret: null },
+      } as any);
+
+      await expect(
+        getProjectIdAsync(
+          instance(sessionManagerMock),
+          { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
+          { nonInteractive: true }
+        )
+      ).resolves.toEqual('2345');
+
+      expect(promptAsync).not.toHaveBeenCalled();
+      expect(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        { accountName: 'notnotbrent', projectName: 'test' },
+        { nonInteractive: true },
+        expect.anything()
+      );
     });
 
     it('does not warn that the project is not configured in non-interactive mode', async () => {
