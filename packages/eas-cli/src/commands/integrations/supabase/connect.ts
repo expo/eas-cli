@@ -55,7 +55,7 @@ import {
   resolveRegionAsync,
 } from '../../../integrations/supabase/provision';
 
-const SDK_PACKAGES = ['@supabase/supabase-js', 'react-native-url-polyfill', 'expo-sqlite'];
+const SDK_PACKAGES = ['@supabase/supabase-js', 'expo-sqlite'];
 const CONFIG_PLUGIN = 'expo-sqlite';
 
 const PrimaryProvisionResultSchema = z.object({
@@ -637,7 +637,7 @@ export default class IntegrationsSupabaseConnect extends EasCommand {
     Log.newLine();
     Log.log('Next steps:');
     Log.log(
-      `  1. Create a Supabase client (e.g. ${chalk.bold('lib/supabase.ts')}) following our guide (${chalk.cyan('https://docs.expo.dev/guides/using-supabase')}). It reads ${chalk.bold(EAS_SUPABASE_URL_ENV_VAR_NAME)} and ${chalk.bold(EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME)} — no extra config plugin or dev build needed.`
+      `  1. Create a Supabase client (e.g. ${chalk.bold('src/lib/supabase.ts')}) following our guide (${chalk.cyan('https://docs.expo.dev/guides/using-supabase')}). It reads ${chalk.bold(EAS_SUPABASE_URL_ENV_VAR_NAME)} and ${chalk.bold(EAS_SUPABASE_PUBLISHABLE_KEY_ENV_VAR_NAME)}, and runs in Expo Go.`
     );
     Log.log(
       `  2. For local development, run ${chalk.cyan('supabase start')} and point ${chalk.bold(EAS_SUPABASE_URL_ENV_VAR_NAME)} at the local stack (see the guide).`
