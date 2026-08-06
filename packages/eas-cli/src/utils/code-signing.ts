@@ -32,7 +32,7 @@ export async function getCodeSigningInfoAsync(
   if (!codeSigningCertificatePath) {
     if (privateKeyPath) {
       throw new Error(
-        'Must specify codeSigningCertificate under the "updates" field of your app config file to use EAS code signing'
+        '--private-key-path was specified, but updates.codeSigningCertificate is not set in the resolved app config. Code signing requires both the certificate in app config and the private key. Ensure codeSigningCertificate (and codeSigningMetadata) are present for this publish, or omit --private-key-path if you do not intend to sign.\nLearn more: https://docs.expo.dev/eas-update/code-signing/'
       );
     }
     return undefined;

@@ -50,7 +50,7 @@ describe(getCodeSigningInfoAsync, () => {
         'test'
       )
     ).rejects.toThrow(
-      'Must specify codeSigningCertificate under the "updates" field of your app config file to use EAS code signing'
+      '--private-key-path was specified, but updates.codeSigningCertificate is not set in the resolved app config'
     );
   });
 
