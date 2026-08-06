@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { createServer } from 'node:net';
+import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -122,55 +123,80 @@ export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
   logger,
-  signal,
+  maxDurationSeconds,
+  signal: cancelSignal,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   logger: bunyan;
+  maxDurationSeconds?: number;
   signal?: AbortSignal;
 }): Promise<void> {
-  logger.info(
-    `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-  );
-  let pollErrorCount = 0;
+  const durationAbortController = new AbortController();
+  const signal = cancelSignal
+    ? AbortSignal.any([cancelSignal, durationAbortController.signal])
+    : durationAbortController.signal;
+  const durationTimeout =
+    maxDurationSeconds === undefined || signal.aborted
+      ? undefined
+      : setTimeout(() => {
+          logger.info(`Device run session ${deviceRunSessionId} reached its maximum duration.`);
+          durationAbortController.abort();
+        }, maxDurationSeconds * 1_000);
 
-  while (!signal?.aborted) {
-    try {
-      const result = await ctx.graphqlClient
-        .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
-        .toPromise();
-      if (result.error) {
-        throw result.error;
-      }
-
-      const status = result.data?.deviceRunSessions?.byId?.status;
-      if (!status) {
-        throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
-      }
-      pollErrorCount = 0;
-      if (status === 'STOPPED') {
-        logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
-        return;
-      }
-      if (status === 'ERRORED') {
-        throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
-      }
-    } catch (err) {
-      if (err instanceof SystemError) {
-        throw err;
-      }
-
-      const error = err instanceof Error ? err : new Error(String(err));
-      pollErrorCount += 1;
-      if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
-        Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
-        logger.warn(
-          { err: error, failedStatusPollCount: pollErrorCount },
-          'Could not poll device run session status; will retry.'
-        );
-      }
+  try {
+    logger.info(
+      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+    );
+    if (durationTimeout !== undefined) {
+      logger.info(
+        `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
+      );
     }
-    await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    let pollErrorCount = 0;
+
+    while (!signal.aborted) {
+      try {
+        const result = await ctx.graphqlClient
+          .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+          .toPromise();
+        if (result.error) {
+          throw result.error;
+        }
+
+        const status = result.data?.deviceRunSessions?.byId?.status;
+        if (!status) {
+          throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
+        }
+        pollErrorCount = 0;
+        if (status === 'STOPPED') {
+          logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+          return;
+        }
+        if (status === 'ERRORED') {
+          throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+        }
+      } catch (err) {
+        if (err instanceof SystemError) {
+          throw err;
+        }
+
+        const error = err instanceof Error ? err : new Error(String(err));
+        pollErrorCount += 1;
+        if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+          Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+          logger.warn(
+            { err: error, failedStatusPollCount: pollErrorCount },
+            'Could not poll device run session status; will retry.'
+          );
+        }
+      }
+      await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    }
+  } finally {
+    if (durationTimeout !== undefined) {
+      clearTimeout(durationTimeout);
+    }
   }
 }
 

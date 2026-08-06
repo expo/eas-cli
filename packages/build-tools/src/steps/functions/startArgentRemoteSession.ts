@@ -68,6 +68,11 @@ export function createStartArgentRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
@@ -79,6 +84,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
@@ -214,6 +220,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           logger,
+          maxDurationSeconds,
           signal,
         });
       } finally {

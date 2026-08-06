@@ -2,6 +2,10 @@ import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
+import {
+  clearTimeout as clearTimeoutCallback,
+  setTimeout as setTimeoutCallback,
+} from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
@@ -20,6 +24,7 @@ import {
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
+jest.mock('node:timers');
 jest.mock('node:timers/promises');
 jest.mock('../../../utils/turtleFetch');
 jest.mock('../../../utils/retry', () => ({ sleepAsync: jest.fn() }));
@@ -343,8 +348,13 @@ describe(fetchServeSimTurnArgsAsync, () => {
 });
 
 describe(waitForDeviceRunSessionStoppedAsync, () => {
+  const durationTimeout = {} as NodeJS.Timeout;
+
   beforeEach(() => {
     jest.mocked(Sentry).capture.mockReset();
+    jest.mocked(setTimeoutCallback).mockReset();
+    jest.mocked(setTimeoutCallback).mockReturnValue(durationTimeout);
+    jest.mocked(clearTimeoutCallback).mockReset();
     jest.mocked(setTimeoutAsync).mockReset();
     jest.mocked(setTimeoutAsync).mockResolvedValue(undefined);
   });
@@ -361,6 +371,57 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
     expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(2);
     expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
+    expect(setTimeoutCallback).not.toHaveBeenCalled();
+  });
+
+  it('returns normally when the maximum duration elapses', async () => {
+    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const logger = createLoggerMock();
+    const waitPromise = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger,
+      maxDurationSeconds: 1,
+    });
+
+    expect(setTimeoutCallback).toHaveBeenCalledWith(expect.any(Function), 1_000);
+    const durationTimeoutCallback = jest.mocked(setTimeoutCallback).mock.calls[0][0];
+    durationTimeoutCallback();
+    await waitPromise;
+
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      'Device run session drs-id reached its maximum duration.'
+    );
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('clears the duration timeout when the session stops first', async () => {
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx: createStatusCtxMock([{ status: 'STOPPED' }]),
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      maxDurationSeconds: 30,
+    });
+
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('does not poll when the build step is already aborted', async () => {
+    const ctx = createStatusCtxMock([]);
+    const abortController = new AbortController();
+    abortController.abort();
+
+    await waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      maxDurationSeconds: 30,
+      signal: abortController.signal,
+    });
+
+    expect(ctx.graphqlClient.query).not.toHaveBeenCalled();
+    expect(setTimeoutCallback).not.toHaveBeenCalled();
   });
 
   it('throws when the device run session errors', async () => {
@@ -371,8 +432,28 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         ctx,
         deviceRunSessionId: 'drs-id',
         logger: createLoggerMock(),
+        maxDurationSeconds: 30,
       })
     ).rejects.toThrow('Device run session drs-id errored.');
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('clears the duration timeout when the build step is aborted', async () => {
+    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    const abortController = new AbortController();
+    const waitPromise = waitForDeviceRunSessionStoppedAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      maxDurationSeconds: 30,
+      signal: abortController.signal,
+    });
+
+    abortController.abort();
+    await waitPromise;
+
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
+    expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
   });
 
   it('logs and retries transient polling errors', async () => {
