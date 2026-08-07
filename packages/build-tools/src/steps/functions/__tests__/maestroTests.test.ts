@@ -134,6 +134,116 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(args!.join(' ')).toMatch(/--output=.*android-maestro-junit-attempt-0\.xml/);
   });
 
+  it('uses direct DADB when android_connection_mode is dadb and restores ADB', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const writeFileSpy = jest.spyOn(fs, 'writeFile');
+    const rmSpy = jest.spyOn(fs, 'rm');
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' } }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(3);
+    expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
+    expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
+    expect(mockedSpawn.mock.calls[2].slice(0, 2)).toEqual(['adb', ['start-server']]);
+
+    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
+    expect(maestroEnv?.PATH).toMatch(
+      new RegExp(`^${os.tmpdir()}/maestro-tests-adb-override-.+${path.delimiter}/usr/bin$`)
+    );
+    expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).toBe(mockedSpawn.mock.calls[0][2]?.env?.PATH);
+    expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).not.toContain('maestro-tests-adb-override-');
+
+    expect(writeFileSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-.+\/adb$/),
+      '#!/bin/sh\nexit 1\n',
+      { mode: 0o755 }
+    );
+    expect(rmSpy).toHaveBeenCalledWith(expect.stringMatching(/maestro-tests-adb-override-/), {
+      force: true,
+      recursive: true,
+    });
+  });
+
+  it('uses the same direct DADB environment for all retries', async () => {
+    let maestroAttempt = 0;
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'maestro' && maestroAttempt++ === 0) {
+        throw rejectExit1();
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(null);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        retries: 1,
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' } }
+    );
+
+    await step.executeAsync();
+
+    const maestroCalls = mockedSpawn.mock.calls.filter(([command]) => command === 'maestro');
+    expect(maestroCalls).toHaveLength(2);
+    expect(maestroCalls[0][2]?.env?.PATH).toBe(maestroCalls[1][2]?.env?.PATH);
+    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(2);
+  });
+
+  it('rejects invalid android_connection_mode values', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      android_connection_mode: 'automatic',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects direct DADB mode on iOS', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'ios',
+      android_connection_mode: 'dadb',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('restores ADB without masking a Maestro failure', async () => {
+    mockedSpawn.mockImplementation((async (command: string, args: string[]) => {
+      if (command === 'maestro') {
+        throw new Error('maestro crashed');
+      }
+      if (command === 'adb' && args?.[0] === 'start-server') {
+        throw new Error('adb failed to restart');
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' } }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow('Unexpected spawn failure invoking maestro');
+    expect(mockedSpawn.mock.calls.at(-1)?.slice(0, 2)).toEqual(['adb', ['start-server']]);
+  });
+
   it('throws SystemError when spawn fails with ENOENT (binary missing)', async () => {
     mockedSpawn.mockRejectedValue(Object.assign(new Error('not found'), { code: 'ENOENT' }));
     const step = createStep({ flow_path: ['a.yaml'], platform: 'android' });

@@ -35,6 +35,7 @@ import { sleepAsync } from '../../utils/retry';
 const FlowPathSchema = z.array(z.string().min(1)).min(1);
 const RetriesSchema = z.number().int().min(0).default(0);
 const ShardsSchema = z.number().int().min(1).optional();
+const AndroidConnectionModeSchema = z.enum(['adb', 'dadb']).default('adb');
 
 function parseInput<S extends z.ZodTypeAny>(
   schema: S,
@@ -143,6 +144,12 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'android_connection_mode',
+        required: false,
+        defaultValue: 'adb',
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({ id: 'junit_report_directory', required: true }),
@@ -206,6 +213,17 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         inputs.shards.value,
         'shards must be a positive integer.'
       );
+      const androidConnectionMode = parseInput(
+        AndroidConnectionModeSchema,
+        inputs.android_connection_mode.value,
+        'android_connection_mode must be either "adb" or "dadb".'
+      );
+      if (androidConnectionMode === 'dadb' && platform !== 'android') {
+        throw new UserError(
+          'ERR_MAESTRO_INVALID_INPUT',
+          'android_connection_mode "dadb" can only be used with the Android platform.'
+        );
+      }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
       try {
@@ -231,105 +249,114 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       let lastAttemptExitCode: number | null = null;
       const harvested: HarvestedScreenshot[] = [];
 
+      const restoreAndroidConnectionMode =
+        androidConnectionMode === 'dadb'
+          ? await enableDirectDadbConnectionAsync({ spawnEnv, logger })
+          : null;
+
       const totalAttempts = retries + 1;
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        const outputPath =
-          outputFormat === 'junit'
-            ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
-            : outputFormat
-              ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
-              : null;
+      try {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          const outputPath =
+            outputFormat === 'junit'
+              ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
+              : outputFormat
+                ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
+                : null;
 
-        const maestroArgs = buildMaestroArgs({
-          flow_path: flowsToRun,
-          outputPath,
-          output_format: outputFormat,
-          shards,
-          include_tags: includeTags,
-          exclude_tags: excludeTags,
-        });
-        logger.info(
-          `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
-        );
-
-        const attemptStartedAtMs = Date.now();
-
-        try {
-          await spawn('maestro', maestroArgs, {
-            cwd: stepCtx.workingDirectory,
-            env: spawnEnv,
-            logger,
-            signal,
+          const maestroArgs = buildMaestroArgs({
+            flow_path: flowsToRun,
+            outputPath,
+            output_format: outputFormat,
+            shards,
+            include_tags: includeTags,
+            exclude_tags: excludeTags,
           });
-          lastAttemptExitCode = 0;
-        } catch (err: any) {
-          if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
-            throw new SystemError('Failed to invoke maestro', { cause: err });
-          }
-          if (err && typeof err.status === 'number') {
-            lastAttemptExitCode = err.status;
-          } else {
-            throw new SystemError('Unexpected spawn failure invoking maestro', { cause: err });
-          }
-        }
-
-        // Harvest this attempt's failure screenshots before any retry subsetting. Gated on
-        // junit: test-case-result rows (and therefore the summary icons) only exist for junit
-        // runs, so harvesting other formats would just create orphan artifacts the website hides.
-        if (outputFormat === 'junit') {
-          const failedFlowNames = outputPath
-            ? await parseFailedFlowNamesFromJUnitFile(outputPath)
-            : new Set<string>();
-          harvested.push(
-            ...(await harvestFailureScreenshotsAsync({
-              testsDirectory,
-              capturedSinceMs: attemptStartedAtMs,
-              attemptIndex: attempt,
-              failedFlowNames,
-              logger,
-            }))
+          logger.info(
+            `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
           );
-        }
 
-        if (lastAttemptExitCode === 0 || attempt === retries) {
-          break;
-        }
+          const attemptStartedAtMs = Date.now();
 
-        if (retryFailedOnly && outputFormat === 'junit' && outputPath) {
-          let failed: string[] | null;
-          if (await junitFileHasFileAttrs(outputPath)) {
-            failed = await parseFailedFlowsFromFileAttrs({
-              junitFile: outputPath,
-              workingDirectory: stepCtx.workingDirectory,
-            });
-          } else {
-            // Legacy (Maestro < 2.6.0): map failed testcase names back to flow
-            // paths via the flow-file scan. DELETE this arm once the fleet is
-            // on >= 2.6.0.
-            const nameToPath = await (nameToPathPromise ??= buildFlowNameToPathMap({
-              inputFlowPaths: flowPaths,
-              projectRoot: stepCtx.workingDirectory,
+          try {
+            await spawn('maestro', maestroArgs, {
+              cwd: stepCtx.workingDirectory,
+              env: spawnEnv,
               logger,
-            }));
-            failed = nameToPath
-              ? await parseFailedFlowsFromJUnit({ junitFile: outputPath, nameToPath })
-              : null;
+              signal,
+            });
+            lastAttemptExitCode = 0;
+          } catch (err: any) {
+            if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+              throw new SystemError('Failed to invoke maestro', { cause: err });
+            }
+            if (err && typeof err.status === 'number') {
+              lastAttemptExitCode = err.status;
+            } else {
+              throw new SystemError('Unexpected spawn failure invoking maestro', { cause: err });
+            }
           }
-          if (failed !== null && failed.length > 0) {
-            flowsToRun = failed;
-            logger.info(
-              `Test failed; retrying ${failed.length} failed flow(s): ${failed.join(', ')}`
+
+          // Harvest this attempt's failure screenshots before any retry subsetting. Gated on
+          // junit: test-case-result rows (and therefore the summary icons) only exist for junit
+          // runs, so harvesting other formats would just create orphan artifacts the website hides.
+          if (outputFormat === 'junit') {
+            const failedFlowNames = outputPath
+              ? await parseFailedFlowNamesFromJUnitFile(outputPath)
+              : new Set<string>();
+            harvested.push(
+              ...(await harvestFailureScreenshotsAsync({
+                testsDirectory,
+                capturedSinceMs: attemptStartedAtMs,
+                attemptIndex: attempt,
+                failedFlowNames,
+                logger,
+              }))
             );
+          }
+
+          if (lastAttemptExitCode === 0 || attempt === retries) {
+            break;
+          }
+
+          if (retryFailedOnly && outputFormat === 'junit' && outputPath) {
+            let failed: string[] | null;
+            if (await junitFileHasFileAttrs(outputPath)) {
+              failed = await parseFailedFlowsFromFileAttrs({
+                junitFile: outputPath,
+                workingDirectory: stepCtx.workingDirectory,
+              });
+            } else {
+              // Legacy (Maestro < 2.6.0): map failed testcase names back to flow
+              // paths via the flow-file scan. DELETE this arm once the fleet is
+              // on >= 2.6.0.
+              const nameToPath = await (nameToPathPromise ??= buildFlowNameToPathMap({
+                inputFlowPaths: flowPaths,
+                projectRoot: stepCtx.workingDirectory,
+                logger,
+              }));
+              failed = nameToPath
+                ? await parseFailedFlowsFromJUnit({ junitFile: outputPath, nameToPath })
+                : null;
+            }
+            if (failed !== null && failed.length > 0) {
+              flowsToRun = failed;
+              logger.info(
+                `Test failed; retrying ${failed.length} failed flow(s): ${failed.join(', ')}`
+              );
+            } else {
+              flowsToRun = flowPaths;
+              logger.info('Test failed; could not determine failed subset, retrying all flows');
+            }
           } else {
             flowsToRun = flowPaths;
-            logger.info('Test failed; could not determine failed subset, retrying all flows');
+            logger.info('Test failed, retrying all flows');
           }
-        } else {
-          flowsToRun = flowPaths;
-          logger.info('Test failed, retrying all flows');
-        }
 
-        await sleepAsync(2000);
+          await sleepAsync(2000);
+        }
+      } finally {
+        await restoreAndroidConnectionMode?.();
       }
 
       // Smart merge first; on data errors (bad XML, missing input) fall back
@@ -380,6 +407,54 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
     },
   });
+}
+
+async function enableDirectDadbConnectionAsync({
+  spawnEnv,
+  logger,
+}: {
+  spawnEnv: NodeJS.ProcessEnv;
+  logger: bunyan;
+}): Promise<() => Promise<void>> {
+  const adbEnv = { ...spawnEnv };
+  const adbOverrideDirectoryPath = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'maestro-tests-adb-override-')
+  );
+
+  try {
+    await fs.writeFile(path.join(adbOverrideDirectoryPath, 'adb'), '#!/bin/sh\nexit 1\n', {
+      mode: 0o755,
+    });
+
+    // DADB starts an ADB server when it can find an adb binary. Stop the existing
+    // server first, then make only the Maestro process find the failing shim.
+    await spawn('adb', ['kill-server'], { env: adbEnv, logger });
+    spawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${spawnEnv.PATH ?? ''}`;
+    logger.info('Using a direct DADB connection for Android Maestro tests.');
+  } catch (err) {
+    try {
+      await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
+    } catch (cleanupErr) {
+      logger.warn({ err: cleanupErr }, 'Failed to remove the temporary Maestro adb override.');
+    }
+    throw new SystemError('Failed to enable direct DADB connection for Maestro', { cause: err });
+  }
+
+  return async () => {
+    try {
+      await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
+    } catch (err) {
+      logger.warn({ err }, 'Failed to remove the temporary Maestro adb override.');
+    }
+
+    try {
+      await spawn('adb', ['start-server'], { env: adbEnv, logger });
+    } catch (err) {
+      // Restoration supports later best-effort recording and log collection. It
+      // must not replace the Maestro test result with a cleanup failure.
+      logger.warn({ err }, 'Failed to restart the ADB server after Maestro tests.');
+    }
+  };
 }
 
 // Reduce harvested failure screenshots to what's worth uploading, then upload them as workflow
