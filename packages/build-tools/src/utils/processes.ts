@@ -1,5 +1,18 @@
 import spawn from '@expo/turtle-spawn';
 
+/**
+ * Whether a spawned child is still running. Prefer this over checking exitCode alone —
+ * signal-terminated children can have exitCode null with a non-null signalCode.
+ */
+export function isChildProcessAlive(
+  child:
+    | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }
+    | null
+    | undefined
+): boolean {
+  return child != null && child.exitCode === null && child.signalCode === null && !child.killed;
+}
+
 async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {
   try {
     const result = await spawn('pgrep', ['-P', parentPids.join(',')], {
