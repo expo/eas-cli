@@ -12,7 +12,7 @@ runs:
   using: 'composite'
   steps:
     - name: Get previous workflow run status
-      uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       id: run-status
       with:
         script: |
@@ -28,7 +28,7 @@ runs:
 
     - name: Send Slack Success Notification
       if: fromJSON(steps.run-status.outputs.result).previous == 'failure' && fromJSON(steps.run-status.outputs.result).current == 'success'
-      uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+      uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2
       env:
         SLACK_CHANNEL: ${{ inputs.channel }}
         SLACK_COLOR: good
@@ -41,7 +41,7 @@ runs:
 
     - name: Send Slack Failure Notification
       if: fromJSON(steps.run-status.outputs.result).current == 'failure'
-      uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
+      uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2
       env:
         SLACK_CHANNEL: ${{ inputs.channel }}
         SLACK_COLOR: danger

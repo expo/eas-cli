@@ -17,7 +17,7 @@ jobs:
     name: Ensure GraphQL schema and generated code is up-to-date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v2
       - name: Setup tools
         uses: ./.github/actions/setup-mise
       - run: yarn install --immutable

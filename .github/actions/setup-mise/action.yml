@@ -4,7 +4,7 @@ description: Install tools via mise
 runs:
   using: "composite"
   steps:
-    - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
+    - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
       with:
         install: true
         cache: true
