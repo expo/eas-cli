@@ -8,14 +8,20 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [21.7.0](https://github.com/expo/eas-cli/releases/tag/v21.7.0) - 2026-08-07
+
+### 🎉 New features
+
 - [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Set the artifact kind for Argent session artifacts from the MIME type reported by the tool server, so screenshots and screen recordings are grouped and labelled on the simulator session page instead of appearing in an unclassified file list. ([#4154](https://github.com/expo/eas-cli/pull/4154) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
 - [eas-cli] Fail when `--private-key-path` is passed without `updates.codeSigningCertificate` in the resolved app config, instead of ignoring the flag and publishing an unsigned update. ([#4161](https://github.com/expo/eas-cli/pull/4161) by [@gwdp](https://github.com/gwdp))
-
-### 🧹 Chores
 
 ## [21.6.0](https://github.com/expo/eas-cli/releases/tag/v21.6.0) - 2026-08-05
 
