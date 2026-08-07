@@ -1,6 +1,7 @@
 import { AppJSONConfig, PackageJSONConfig, getConfig } from '@expo/config';
 import chalk from 'chalk';
 import { vol } from 'memfs';
+import resolveFrom from 'resolve-from';
 import { instance, mock } from 'ts-mockito';
 
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
@@ -22,6 +23,11 @@ import ProjectInit from '../init';
 
 jest.mock('fs');
 jest.mock('@expo/config');
+jest.mock('resolve-from', () => {
+  const resolveFrom: any = jest.fn();
+  resolveFrom.silent = jest.fn();
+  return resolveFrom;
+});
 jest.mock('../../../project/expoConfig', () => ({
   ...jest.requireActual('../../../project/expoConfig'),
   createOrModifyExpoConfigAsync: jest.fn(),
@@ -101,6 +107,9 @@ function mockTestProject(options: {
   // NOTE(@kitten): Updating this test is easiest by letting it fallback to `@expo/config`
   // This isn't a great solution, but the test is pretty involved
   jest.mocked(isExpoInstalled).mockReturnValue(false);
+  // Simulate an old SDK project: `expo` is installed but doesn't include Expo CLI, so the config
+  // is read with the copy of `@expo/config` bundled with EAS CLI.
+  jest.mocked(resolveFrom.silent).mockReturnValue(projectRoot + '/node_modules/expo/package.json');
 }
 
 const commandOptions = getMockOclifConfig({ root: '/test-project' });
