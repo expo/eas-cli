@@ -187,7 +187,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       // Public docs (EAS workflows pre-packaged-jobs) document
       // `${MAESTRO_TESTS_DIR}` for users to save screenshots/recordings into
       // the uploaded dir.
-      const spawnEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
+      const spawnEnv: NodeJS.ProcessEnv = { ...env, MAESTRO_TESTS_DIR: testsDirectory };
 
       // Outputs are published BEFORE any throw below so downstream
       // `if: always()` upload steps still see populated values when this
@@ -249,13 +249,45 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       let lastAttemptExitCode: number | null = null;
       const harvested: HarvestedScreenshot[] = [];
 
-      const restoreAndroidConnectionMode =
-        androidConnectionMode === 'dadb'
-          ? await enableDirectDadbConnectionAsync({ mutatingSpawnEnv: spawnEnv, logger })
-          : null;
-
+      const adbEnv = { ...spawnEnv };
+      const originalSpawnPath = spawnEnv.PATH;
+      let adbOverrideDirectoryPath: string | undefined;
+      let directDadbEnabled = false;
       const totalAttempts = retries + 1;
       try {
+        if (androidConnectionMode === 'dadb') {
+          try {
+            adbOverrideDirectoryPath = await fs.mkdtemp(
+              path.join(os.tmpdir(), 'maestro-tests-adb-override-')
+            );
+            await fs.writeFile(path.join(adbOverrideDirectoryPath, 'adb'), '#!/bin/sh\nexit 1\n', {
+              mode: 0o755,
+            });
+
+            // DADB starts an ADB server when it can find an adb binary. Stop the existing
+            // server first, then make only the Maestro process find the failing shim.
+            await spawn('adb', ['kill-server'], { env: adbEnv, logger });
+            spawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${originalSpawnPath ?? ''}`;
+            logger.info('Using a direct DADB connection for Android Maestro tests.');
+            directDadbEnabled = true;
+          } catch (err) {
+            spawnEnv.PATH = originalSpawnPath;
+            if (adbOverrideDirectoryPath) {
+              try {
+                await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
+              } catch (cleanupErr) {
+                logger.warn(
+                  { err: cleanupErr },
+                  'Failed to remove the temporary Maestro adb override.'
+                );
+              }
+            }
+            throw new SystemError('Failed to enable direct DADB connection for Maestro', {
+              cause: err,
+            });
+          }
+        }
+
         for (let attempt = 0; attempt <= retries; attempt++) {
           const outputPath =
             outputFormat === 'junit'
@@ -356,7 +388,24 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           await sleepAsync(2000);
         }
       } finally {
-        await restoreAndroidConnectionMode?.();
+        if (directDadbEnabled) {
+          spawnEnv.PATH = originalSpawnPath;
+          if (adbOverrideDirectoryPath) {
+            try {
+              await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
+            } catch (err) {
+              logger.warn({ err }, 'Failed to remove the temporary Maestro adb override.');
+            }
+          }
+
+          try {
+            await spawn('adb', ['start-server'], { env: adbEnv, logger });
+          } catch (err) {
+            // Restoration supports later best-effort recording and log collection. It
+            // must not replace the Maestro test result with a cleanup failure.
+            logger.warn({ err }, 'Failed to restart the ADB server after Maestro tests.');
+          }
+        }
       }
 
       // Smart merge first; on data errors (bad XML, missing input) fall back
@@ -407,65 +456,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
     },
   });
-}
-
-async function enableDirectDadbConnectionAsync({
-  mutatingSpawnEnv,
-  logger,
-}: {
-  mutatingSpawnEnv: NodeJS.ProcessEnv;
-  logger: bunyan;
-}): Promise<() => Promise<void>> {
-  const adbEnv = { ...mutatingSpawnEnv };
-  const originalPath = mutatingSpawnEnv.PATH;
-  const hadOriginalPath = Object.hasOwn(mutatingSpawnEnv, 'PATH');
-  const restoreSpawnEnv = (): void => {
-    if (hadOriginalPath) {
-      mutatingSpawnEnv.PATH = originalPath;
-    } else {
-      delete mutatingSpawnEnv.PATH;
-    }
-  };
-  const adbOverrideDirectoryPath = await fs.mkdtemp(
-    path.join(os.tmpdir(), 'maestro-tests-adb-override-')
-  );
-
-  try {
-    await fs.writeFile(path.join(adbOverrideDirectoryPath, 'adb'), '#!/bin/sh\nexit 1\n', {
-      mode: 0o755,
-    });
-
-    // DADB starts an ADB server when it can find an adb binary. Stop the existing
-    // server first, then make only the Maestro process find the failing shim.
-    await spawn('adb', ['kill-server'], { env: adbEnv, logger });
-    mutatingSpawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${originalPath ?? ''}`;
-    logger.info('Using a direct DADB connection for Android Maestro tests.');
-  } catch (err) {
-    restoreSpawnEnv();
-    try {
-      await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
-    } catch (cleanupErr) {
-      logger.warn({ err: cleanupErr }, 'Failed to remove the temporary Maestro adb override.');
-    }
-    throw new SystemError('Failed to enable direct DADB connection for Maestro', { cause: err });
-  }
-
-  return async () => {
-    restoreSpawnEnv();
-    try {
-      await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
-    } catch (err) {
-      logger.warn({ err }, 'Failed to remove the temporary Maestro adb override.');
-    }
-
-    try {
-      await spawn('adb', ['start-server'], { env: adbEnv, logger });
-    } catch (err) {
-      // Restoration supports later best-effort recording and log collection. It
-      // must not replace the Maestro test result with a cleanup failure.
-      logger.warn({ err }, 'Failed to restart the ADB server after Maestro tests.');
-    }
-  };
 }
 
 // Reduce harvested failure screenshots to what's worth uploading, then upload them as workflow
