@@ -18,7 +18,7 @@ jest.unmock('fs');
 jest.unmock('node:fs');
 
 describe('AndroidEmulatorUtils', () => {
-  const buildLogsDirectory = path.join(os.tmpdir(), 'android-emulator-utils-integration-logs');
+  const logcatDirectory = path.join(os.tmpdir(), 'android-emulator-utils-integration-logs');
 
   beforeEach(async () => {
     const devices = await AndroidEmulatorUtils.getAttachedDevicesAsync({ env: process.env });
@@ -46,7 +46,7 @@ describe('AndroidEmulatorUtils', () => {
         console.error('Failed to delete emulator', error);
       }
     }
-    await fs.promises.rm(buildLogsDirectory, { force: true, recursive: true });
+    await fs.promises.rm(logcatDirectory, { force: true, recursive: true });
   });
 
   describe('getAvailableDevicesAsync', () => {
@@ -74,9 +74,9 @@ describe('AndroidEmulatorUtils', () => {
         logger: createMockLogger({ logToConsole: true }),
       });
       ({ serialId } = await AndroidEmulatorUtils.startAsync({
-        buildLogsDirectory,
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcatDirectory,
       }));
       await AndroidEmulatorUtils.waitForReadyAsync({
         serialId,
@@ -98,9 +98,9 @@ describe('AndroidEmulatorUtils', () => {
       logger: createMockLogger({ logToConsole: true }),
     });
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      buildLogsDirectory,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId,
@@ -128,9 +128,9 @@ describe('AndroidEmulatorUtils', () => {
 
     const { serialId: serialIdClone, emulatorPromise: emulatorPromiseClone } =
       await AndroidEmulatorUtils.startAsync({
-        buildLogsDirectory,
         deviceName: cloneDeviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcatDirectory,
       });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId: serialIdClone,
@@ -162,9 +162,9 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      buildLogsDirectory,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
     await AndroidEmulatorUtils.waitForReadyAsync({
       serialId,
@@ -213,9 +213,9 @@ describe('AndroidEmulatorUtils', () => {
           });
 
           const startResult = await AndroidEmulatorUtils.startAsync({
-            buildLogsDirectory,
             deviceName,
             env: envForAttempt,
+            logcatDirectory,
           });
           serialId = startResult.serialId;
           emulatorPromise = asyncResult(startResult.emulatorPromise);
@@ -283,9 +283,9 @@ describe('AndroidEmulatorUtils', () => {
     });
 
     const { serialId, emulatorPromise } = await AndroidEmulatorUtils.startAsync({
-      buildLogsDirectory,
       deviceName,
       env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+      logcatDirectory,
     });
 
     await AndroidEmulatorUtils.waitForReadyAsync({

@@ -1,4 +1,5 @@
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -34,6 +35,7 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 const mockedAndroidUtils = jest.mocked(AndroidEmulatorUtils);
+const mockedMkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
 function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.ProcessEnv) {
   const logger = createMockLogger();
   const fn = createStartAndroidEmulatorBuildFunction();
@@ -54,6 +56,7 @@ function createStartResult(serialId: string) {
 
 describe(createStartAndroidEmulatorBuildFunction, () => {
   beforeEach(() => {
+    mockedMkdtemp.mockResolvedValue('/tmp/logcat-directory');
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedAndroidUtils.getAvailableDevicesAsync.mockResolvedValue([]);
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
@@ -74,6 +77,10 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
       }
       throw lastErr;
     });
+  });
+
+  afterAll(() => {
+    mockedMkdtemp.mockRestore();
   });
 
   it('retries base emulator startup with increasing readiness timeouts', async () => {
@@ -109,15 +116,15 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -190,20 +197,20 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'eas-simulator-1',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'eas-simulator-2',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
 
@@ -235,14 +242,16 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
   });
 
-  it('passes the build logs directory when starting an emulator', async () => {
-    await createStep().executeAsync();
+  it('outputs and uses a temporary logcat directory', async () => {
+    const step = createStep();
+    await step.executeAsync();
 
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        buildLogsDirectory: '/non/existent/dir',
+        logcatDirectory: '/tmp/logcat-directory',
       })
     );
+    expect(step.getOutputValueByName('logcat_directory')).toBe('/tmp/logcat-directory');
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         serialId: 'emulator-default',

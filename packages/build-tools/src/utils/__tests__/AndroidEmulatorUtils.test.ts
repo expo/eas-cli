@@ -64,13 +64,13 @@ describe('AndroidEmulatorUtils', () => {
       const { child } = mockSuccessfulStart(deviceName);
 
       const result = await AndroidEmulatorUtils.startAsync({
-        buildLogsDirectory: outputDir,
         deviceName,
         env: process.env,
+        logcatDirectory: outputDir,
       });
 
       expect(result.logcatOutputPath).toMatch(
-        new RegExp(`^${outputDir}/android-emulator-logcat/eas-simulator-[^/]+/logcat\\.log$`)
+        new RegExp(`^${outputDir}/eas-simulator-[^/]+/logcat\\.log$`)
       );
       await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
       expect(mockedSpawn).toHaveBeenCalledWith(
@@ -95,9 +95,9 @@ describe('AndroidEmulatorUtils', () => {
       try {
         await expect(
           AndroidEmulatorUtils.startAsync({
-            buildLogsDirectory: outputDir,
             deviceName,
             env: process.env,
+            logcatDirectory: outputDir,
           })
         ).rejects.toEqual(
           new SystemError('Failed to prepare Android emulator logcat output for eas-simulator.', {

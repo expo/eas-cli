@@ -25,14 +25,6 @@ export namespace AndroidEmulatorUtils {
     process.arch === 'arm64' ? 'arm64-v8a' : 'x86_64'
   }`;
 
-  export function getLogcatStagingDirectoryPath({
-    buildLogsDirectory,
-  }: {
-    buildLogsDirectory: string;
-  }): string {
-    return path.join(buildLogsDirectory, 'android-emulator-logcat');
-  }
-
   export async function getAvailableDevicesAsync({
     env,
   }: {
@@ -301,25 +293,24 @@ export namespace AndroidEmulatorUtils {
   }
 
   export async function startAsync({
-    buildLogsDirectory,
     deviceName,
     env,
+    logcatDirectory,
   }: {
-    buildLogsDirectory: string;
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
+    logcatDirectory: string;
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
     logcatOutputPath: string;
   }> {
-    const logcatStagingDirectory = getLogcatStagingDirectoryPath({ buildLogsDirectory });
     let logcatOutputPath: string;
     try {
-      await fs.promises.mkdir(logcatStagingDirectory, { recursive: true });
+      await fs.promises.mkdir(logcatDirectory, { recursive: true });
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const logcatOutputDirectory = await fs.promises.mkdtemp(
-        path.join(logcatStagingDirectory, `${safeDeviceName}-`)
+        path.join(logcatDirectory, `${safeDeviceName}-`)
       );
       logcatOutputPath = path.join(logcatOutputDirectory, 'logcat.log');
       await fs.promises.writeFile(logcatOutputPath, '', { flag: 'wx' });
