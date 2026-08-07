@@ -1,9 +1,9 @@
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
 import FastGlob from 'fast-glob';
-import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -301,31 +301,32 @@ export namespace AndroidEmulatorUtils {
   }
 
   export async function startAsync({
+    buildLogsDirectory,
     deviceName,
     env,
-    logcat,
   }: {
+    buildLogsDirectory: string;
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
-    logcat?: { outputDir: string; logger: bunyan };
   }): Promise<{
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
-    logcatOutputPath: string | null;
+    logcatOutputPath: string;
   }> {
-    let logcatOutputPath: string | null = null;
-    if (logcat) {
-      try {
-        await fs.promises.mkdir(logcat.outputDir, { recursive: true });
-        const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-        logcatOutputPath = path.join(logcat.outputDir, `${safeDeviceName}-${randomUUID()}.log`);
-        await fs.promises.writeFile(logcatOutputPath, '', { flag: 'wx' });
-      } catch (err) {
-        logcat.logger.warn(
-          { err },
-          `Failed to prepare Android emulator logcat output for ${deviceName}.`
-        );
-      }
+    const logcatStagingDirectory = getLogcatStagingDirectoryPath({ buildLogsDirectory });
+    let logcatOutputPath: string;
+    try {
+      await fs.promises.mkdir(logcatStagingDirectory, { recursive: true });
+      const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const logcatOutputDirectory = await fs.promises.mkdtemp(
+        path.join(logcatStagingDirectory, `${safeDeviceName}-`)
+      );
+      logcatOutputPath = path.join(logcatOutputDirectory, 'logcat.log');
+      await fs.promises.writeFile(logcatOutputPath, '', { flag: 'wx' });
+    } catch (err) {
+      throw new SystemError(`Failed to prepare Android emulator logcat output for ${deviceName}.`, {
+        cause: err,
+      });
     }
 
     const emulatorPromise = spawn(
@@ -336,7 +337,10 @@ export namespace AndroidEmulatorUtils {
         '-writable-system',
         '-noaudio',
         '-no-snapshot-save',
-        ...(logcatOutputPath ? ['-logcat', '*:v', '-logcat-output', logcatOutputPath] : []),
+        '-logcat',
+        '*:v',
+        '-logcat-output',
+        logcatOutputPath,
         '-avd',
         deviceName,
         '-accel',

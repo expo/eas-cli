@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -59,19 +60,19 @@ describe('AndroidEmulatorUtils', () => {
     it('captures logcat through the emulator process', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
-      const logger = createMockLogger();
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
       const { child } = mockSuccessfulStart(deviceName);
 
       const result = await AndroidEmulatorUtils.startAsync({
+        buildLogsDirectory: outputDir,
         deviceName,
         env: process.env,
-        logcat: { outputDir, logger },
       });
 
       expect(result.logcatOutputPath).toMatch(
-        new RegExp(`^${outputDir}/eas-simulator-[0-9a-f-]+\\.log$`)
+        new RegExp(`^${outputDir}/android-emulator-logcat/eas-simulator-[^/]+/logcat\\.log$`)
       );
+      await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
       expect(mockedSpawn).toHaveBeenCalledWith(
         expect.stringMatching(/\/emulator\/emulator$/),
         expect.arrayContaining(['-logcat', '*:v', '-logcat-output', result.logcatOutputPath]),
@@ -85,30 +86,25 @@ describe('AndroidEmulatorUtils', () => {
       expect(child.unref).toHaveBeenCalled();
     });
 
-    it('starts without logcat capture when the staging directory cannot be prepared', async () => {
+    it('throws a SystemError when the staging directory cannot be prepared', async () => {
       const outputDir = '/unwritable/logcat-staging';
-      const logger = createMockLogger();
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
-      mockSuccessfulStart(deviceName);
       const mkdirError = new Error('mkdir failed');
       const mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockRejectedValueOnce(mkdirError);
 
       try {
-        const result = await AndroidEmulatorUtils.startAsync({
-          deviceName,
-          env: process.env,
-          logcat: { outputDir, logger },
-        });
-
-        expect(result.logcatOutputPath).toBeNull();
-        expect(logger.warn).toHaveBeenCalledWith(
-          expect.objectContaining({ err: mkdirError }),
-          'Failed to prepare Android emulator logcat output for eas-simulator.'
+        await expect(
+          AndroidEmulatorUtils.startAsync({
+            buildLogsDirectory: outputDir,
+            deviceName,
+            env: process.env,
+          })
+        ).rejects.toEqual(
+          new SystemError('Failed to prepare Android emulator logcat output for eas-simulator.', {
+            cause: mkdirError,
+          })
         );
-        const emulatorArgs = mockedSpawn.mock.calls.find(([command]) =>
-          command.endsWith('/emulator/emulator')
-        )?.[1];
-        expect(emulatorArgs).not.toContain('-logcat');
+        expect(mockedSpawn).not.toHaveBeenCalled();
       } finally {
         mkdirSpy.mockRestore();
       }

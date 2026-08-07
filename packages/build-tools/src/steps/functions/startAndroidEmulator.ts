@@ -100,9 +100,6 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
       let emulatorPromise = null;
       let serialId = null;
-      const logcatOutputDir = AndroidEmulatorUtils.getLogcatStagingDirectoryPath({
-        buildLogsDirectory: global.buildLogsDirectory,
-      });
       await retryAsync(
         async attemptCount => {
           const timeoutMs = ANDROID_STARTUP_ATTEMPT_TIMEOUT_MS[attemptCount];
@@ -123,9 +120,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
             logger.info(`Starting emulator device${attemptSuffix}.`);
             const startResult = await AndroidEmulatorUtils.startAsync({
+              buildLogsDirectory: global.buildLogsDirectory,
               deviceName,
               env,
-              logcat: { outputDir: logcatOutputDir, logger },
             });
             attemptSerialId = startResult.serialId;
             await AndroidEmulatorUtils.waitForReadyAsync({
@@ -213,9 +210,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
 
                 logger.info(`Starting emulator device${attemptSuffix}.`);
                 const startResult = await AndroidEmulatorUtils.startAsync({
+                  buildLogsDirectory: global.buildLogsDirectory,
                   deviceName: cloneIdentifier,
                   env,
-                  logcat: { outputDir: logcatOutputDir, logger },
                 });
                 cloneSerialId = startResult.serialId;
 
