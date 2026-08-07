@@ -5,12 +5,14 @@ import path from 'path';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createTestIosJob } from '../../../__tests__/utils/job';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import { BuildContext } from '../../../context';
+import { ArtifactToUpload, BuildContext } from '../../../context';
 import { CustomBuildContext } from '../../../customBuildContext';
 import { createUploadArtifactBuildFunction } from '../uploadArtifact';
 
 describe(createUploadArtifactBuildFunction, () => {
-  const contextUploadArtifact = jest.fn(async () => ({ artifactId: randomUUID() }));
+  const contextUploadArtifact = jest.fn(async (_spec: { artifact: ArtifactToUpload }) => ({
+    artifactId: randomUUID(),
+  }));
   const ctx = new BuildContext(createTestIosJob({}), {
     env: {
       __API_SERVER_URL: 'http://api.expo.test',
@@ -96,6 +98,43 @@ describe(createUploadArtifactBuildFunction, () => {
       for (const path of [directArtifactPath, debugPath, releasePath]) {
         await fs.promises.rm(path, { recursive: true, force: true });
       }
+    }
+  });
+
+  it('copies artifacts to a temporary directory before uploading when requested', async () => {
+    const globalContext = createGlobalContextMock({});
+    const sourceDirectory = path.join(globalContext.defaultWorkingDirectory, 'live-logs');
+    const sourceFile = path.join(sourceDirectory, 'emulator.log');
+    let snapshotPath: string | undefined;
+
+    try {
+      await fs.promises.mkdir(sourceDirectory, { recursive: true });
+      await fs.promises.writeFile(sourceFile, 'log contents');
+      contextUploadArtifact.mockImplementationOnce(async ({ artifact }) => {
+        const [currentSnapshotPath] = artifact.paths;
+        snapshotPath = currentSnapshotPath;
+        expect(currentSnapshotPath).not.toBe(sourceDirectory);
+        await expect(
+          fs.promises.readFile(path.join(currentSnapshotPath, 'emulator.log'), 'utf-8')
+        ).resolves.toBe('log contents');
+        return { artifactId: randomUUID() };
+      });
+
+      const buildStep = uploadArtifact.createBuildStepFromFunctionCall(globalContext, {
+        callInputs: {
+          copy_before_upload: true,
+          path: sourceDirectory,
+          type: 'other',
+        },
+      });
+
+      await buildStep.executeAsync();
+
+      expect(snapshotPath).toBeDefined();
+      await expect(fs.promises.access(snapshotPath!)).rejects.toThrow();
+      await expect(fs.promises.readFile(sourceFile, 'utf-8')).resolves.toBe('log contents');
+    } finally {
+      await fs.promises.rm(sourceDirectory, { force: true, recursive: true });
     }
   });
 
