@@ -9,13 +9,13 @@ const userStub: Actor = {
   primaryAccount: {
     id: 'account_id_777',
     name: 'username',
-    users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+    viewerUserPermission: { role: Role.Owner },
   },
   accounts: [
     {
       id: 'account_id_777',
       name: 'username',
-      users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,
@@ -29,13 +29,13 @@ const ssoUserStub: Actor = {
   primaryAccount: {
     id: 'account_id_888',
     name: 'ssoUsername',
-    users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+    viewerUserPermission: { role: Role.Owner },
   },
   accounts: [
     {
       id: 'account_id_888',
       name: 'ssoUsername',
-      users: [{ role: Role.Owner, actor: { id: 'ssoUserId' } }],
+      viewerUserPermission: { role: Role.Owner },
     },
   ],
   isExpoAdmin: false,
@@ -81,24 +81,24 @@ describe('getCreatableAccountNames', () => {
         {
           id: 'account_id_1',
           name: 'some-org',
-          users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+          viewerUserPermission: { role: Role.Owner },
         },
         {
           id: 'account_id_2',
           name: 'other-user-team',
           ownerUserActor: { id: 'otherUserId', username: 'other-user' },
-          users: [{ role: Role.Admin, actor: { id: 'userId' } }],
+          viewerUserPermission: { role: Role.Admin },
         },
         {
           id: 'account_id_3',
           name: 'view-only-org',
-          users: [{ role: Role.ViewOnly, actor: { id: 'userId' } }],
+          viewerUserPermission: { role: Role.ViewOnly },
         },
         {
           id: 'account_id_4',
           name: 'username',
           ownerUserActor: { id: 'userId', username: 'username' },
-          users: [{ role: Role.Owner, actor: { id: 'userId' } }],
+          viewerUserPermission: { role: Role.Owner },
         },
       ],
     };

@@ -26,7 +26,7 @@ const insightsResponse = {
       id: 'u1',
       group: 'group-a',
       message: 'first',
-      runtimeVersion: '1.0.0',
+      runtime: { __typename: 'Runtime' as const, id: 'u1-runtime', version: '1.0.0' },
       platform: 'ios',
       insights: { __typename: 'UpdateInsights' as const, id: 'u1-i', totalUniqueUsers: 200 },
     },

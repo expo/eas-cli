@@ -40,14 +40,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission: { role: Role.Owner },
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -71,14 +64,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission: { role: Role.Owner },
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -102,14 +88,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission: { role: Role.Owner },
       };
       const appleTeam = {
         id: 'apple-team-id',
@@ -133,14 +112,7 @@ describe(DeviceCreateAction, () => {
       const account: AccountFragment = {
         id: 'account_id',
         name: 'foobar',
-        users: [
-          {
-            role: Role.Owner,
-            actor: {
-              id: 'user_id',
-            },
-          },
-        ],
+        viewerUserPermission: { role: Role.Owner },
       };
       const appleTeam = {
         id: 'apple-team-id',

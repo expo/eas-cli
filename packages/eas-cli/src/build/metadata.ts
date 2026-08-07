@@ -76,7 +76,6 @@ export async function collectMetadataAsync<T extends Platform>(
     customWorkflowName: ctx.customBuildConfigMetadata?.workflowName,
     developmentClient: ctx.developmentClient,
     requiredPackageManager: ctx.requiredPackageManager ?? undefined,
-    selectedImage: ctx.buildProfile.image,
     customNodeVersion: ctx.buildProfile.node,
     simulator: 'simulator' in ctx.buildProfile && ctx.buildProfile.simulator,
   };

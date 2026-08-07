@@ -6,9 +6,7 @@ export function getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(
   actor: Actor
 ): Set<string> {
   return new Set(
-    actor.accounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
+    actor.accounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
   );
 }
 
