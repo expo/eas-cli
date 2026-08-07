@@ -40,8 +40,9 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
       path.join(os.tmpdir(), 'logcat-destination-')
     );
     temporaryDirectories.push(destinationPath);
-    await fs.promises.mkdir(sourcePath, { recursive: true });
-    const logPath = path.join(sourcePath, 'emulator-5554.log');
+    const logDirectory = path.join(sourcePath, 'EasAndroidDevice01-abc123');
+    await fs.promises.mkdir(logDirectory, { recursive: true });
+    const logPath = path.join(logDirectory, 'logcat.log');
     await fs.promises.writeFile(logPath, 'log line\n');
 
     await createStep(
@@ -54,7 +55,7 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
     ).executeAsync();
 
     await expect(
-      fs.promises.readFile(path.join(destinationPath, 'emulator-5554.log'), 'utf-8')
+      fs.promises.readFile(path.join(destinationPath, 'EasAndroidDevice01-abc123.log'), 'utf-8')
     ).resolves.toBe('log line\n');
   });
 
@@ -66,10 +67,15 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
       path.join(os.tmpdir(), 'logcat-destination-')
     );
     temporaryDirectories.push(destinationPath);
-    await fs.promises.mkdir(sourcePath, { recursive: true });
-    await fs.promises.writeFile(path.join(sourcePath, '1234-emulator-5554.log'), 'first\n');
-    await fs.promises.writeFile(path.join(sourcePath, '5678-emulator-5556.log'), 'second\n');
-    await fs.promises.writeFile(path.join(sourcePath, '5678-emulator-5556.log.json'), '{}\n');
+    const firstLogDirectory = path.join(sourcePath, 'EasAndroidDevice01-abc123');
+    const secondLogDirectory = path.join(sourcePath, 'eas-simulator-1-def456');
+    await Promise.all([
+      fs.promises.mkdir(firstLogDirectory, { recursive: true }),
+      fs.promises.mkdir(secondLogDirectory, { recursive: true }),
+    ]);
+    await fs.promises.writeFile(path.join(firstLogDirectory, 'logcat.log'), 'first\n');
+    await fs.promises.writeFile(path.join(secondLogDirectory, 'logcat.log'), 'second\n');
+    await fs.promises.writeFile(path.join(secondLogDirectory, 'metadata.json'), '{}\n');
 
     const step = createStep(
       {
@@ -81,14 +87,12 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
     );
     await expect(step.executeAsync()).resolves.toBeUndefined();
     await expect(
-      fs.promises.readFile(path.join(destinationPath, '1234-emulator-5554.log'), 'utf-8')
+      fs.promises.readFile(path.join(destinationPath, 'EasAndroidDevice01-abc123.log'), 'utf-8')
     ).resolves.toBe('first\n');
     await expect(
-      fs.promises.readFile(path.join(destinationPath, '5678-emulator-5556.log'), 'utf-8')
+      fs.promises.readFile(path.join(destinationPath, 'eas-simulator-1-def456.log'), 'utf-8')
     ).resolves.toBe('second\n');
-    await expect(
-      fs.promises.access(path.join(destinationPath, '5678-emulator-5556.log.json'))
-    ).rejects.toThrow();
+    await expect(fs.promises.access(path.join(destinationPath, 'metadata.json'))).rejects.toThrow();
   });
 
   it('warns but does not fail when the staging directory is missing', async () => {

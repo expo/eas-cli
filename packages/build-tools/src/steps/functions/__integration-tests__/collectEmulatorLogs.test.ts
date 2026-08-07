@@ -26,10 +26,15 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
       const destinationPath = path.join(tempDir, 'maestro-tests', 'emulator-logs');
       const sourcePath = AndroidEmulatorUtils.getLogcatStagingDirectoryPath({ buildLogsDirectory });
 
-      await fs.promises.mkdir(sourcePath, { recursive: true });
-      await fs.promises.writeFile(path.join(sourcePath, '1111-emulator-5554.log'), 'first log\n');
-      await fs.promises.writeFile(path.join(sourcePath, '2222-emulator-5556.log'), 'second log\n');
-      await fs.promises.writeFile(path.join(sourcePath, '2222-emulator-5556.log.json'), '{}\n');
+      const firstLogDirectory = path.join(sourcePath, 'EasAndroidDevice01-abc123');
+      const secondLogDirectory = path.join(sourcePath, 'eas-simulator-1-def456');
+      await Promise.all([
+        fs.promises.mkdir(firstLogDirectory, { recursive: true }),
+        fs.promises.mkdir(secondLogDirectory, { recursive: true }),
+      ]);
+      await fs.promises.writeFile(path.join(firstLogDirectory, 'logcat.log'), 'first log\n');
+      await fs.promises.writeFile(path.join(secondLogDirectory, 'logcat.log'), 'second log\n');
+      await fs.promises.writeFile(path.join(secondLogDirectory, 'metadata.json'), '{}\n');
 
       const collectEmulatorLogs = createCollectEmulatorLogsBuildFunction();
       const step = collectEmulatorLogs.createBuildStepFromFunctionCall(
@@ -47,13 +52,13 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
       await expect(step.executeAsync()).resolves.not.toThrow();
 
       await expect(
-        fs.promises.readFile(path.join(destinationPath, '1111-emulator-5554.log'), 'utf-8')
+        fs.promises.readFile(path.join(destinationPath, 'EasAndroidDevice01-abc123.log'), 'utf-8')
       ).resolves.toBe('first log\n');
       await expect(
-        fs.promises.readFile(path.join(destinationPath, '2222-emulator-5556.log'), 'utf-8')
+        fs.promises.readFile(path.join(destinationPath, 'eas-simulator-1-def456.log'), 'utf-8')
       ).resolves.toBe('second log\n');
       await expect(
-        fs.promises.access(path.join(destinationPath, '2222-emulator-5556.log.json'))
+        fs.promises.access(path.join(destinationPath, 'metadata.json'))
       ).rejects.toThrow();
     } finally {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
@@ -71,7 +76,6 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
       const logger = createMockLogger({ logToConsole: true });
       const buildLogsDirectory = path.join(tempDir, 'build-logs');
       const destinationPath = path.join(tempDir, 'maestro-tests', 'emulator-logs');
-      const sourcePath = AndroidEmulatorUtils.getLogcatStagingDirectoryPath({ buildLogsDirectory });
       const marker = `ENG-20762-${randomUUID()}`;
 
       await AndroidEmulatorUtils.createAsync({
@@ -83,13 +87,12 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
       });
 
       const startResult = await AndroidEmulatorUtils.startAsync({
+        buildLogsDirectory,
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
-        logcat: { outputDir: sourcePath, logger },
       });
       serialId = startResult.serialId;
       emulatorPromise = asyncResult(startResult.emulatorPromise);
-      expect(startResult.logcatOutputPath).not.toBeNull();
 
       await AndroidEmulatorUtils.waitForReadyAsync({
         serialId: startResult.serialId,
@@ -106,12 +109,7 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
 
       await retryAsync(
         async () => {
-          const stagedLogFiles = (await fs.promises.readdir(sourcePath)).filter(entry =>
-            entry.endsWith('.log')
-          );
-          expect(stagedLogFiles.length).toBeGreaterThan(0);
-          const stagedLogPath = path.join(sourcePath, stagedLogFiles[0]);
-          const contents = await fs.promises.readFile(stagedLogPath, 'utf-8');
+          const contents = await fs.promises.readFile(startResult.logcatOutputPath, 'utf-8');
           if (!contents.includes(marker)) {
             throw new Error(`Did not find marker ${marker} in staged log yet.`);
           }

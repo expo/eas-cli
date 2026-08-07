@@ -1,5 +1,6 @@
 import { bunyan } from '@expo/logger';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
+import FastGlob from 'fast-glob';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -39,9 +40,8 @@ async function collectEmulatorLogsAsync({
   destinationPath: string;
   logger: bunyan;
 }): Promise<void> {
-  let directoryEntries: string[];
   try {
-    directoryEntries = await fs.promises.readdir(sourcePath);
+    await fs.promises.access(sourcePath);
   } catch (err: any) {
     if (err?.code === 'ENOENT') {
       logger.warn(`No Android emulator logcat staging directory found at ${sourcePath}.`);
@@ -51,7 +51,18 @@ async function collectEmulatorLogsAsync({
     return;
   }
 
-  const logFiles = directoryEntries.filter(entry => entry.endsWith('.log'));
+  let logFiles: string[];
+  try {
+    logFiles = await FastGlob('**/*.log', {
+      absolute: true,
+      cwd: sourcePath,
+      followSymbolicLinks: false,
+      onlyFiles: true,
+    });
+  } catch (err) {
+    logger.warn({ err }, `Failed to find Android emulator logcat files at ${sourcePath}.`);
+    return;
+  }
   if (logFiles.length === 0) {
     logger.warn(`No Android emulator logcat files found at ${sourcePath}.`);
     return;
@@ -65,9 +76,9 @@ async function collectEmulatorLogsAsync({
   }
 
   const copyResults = await Promise.all(
-    logFiles.map(async logFile => {
-      const sourceFilePath = path.join(sourcePath, logFile);
-      const destinationFilePath = path.join(destinationPath, logFile);
+    logFiles.map(async sourceFilePath => {
+      const stagingDirectoryName = path.basename(path.dirname(sourceFilePath));
+      const destinationFilePath = path.join(destinationPath, `${stagingDirectoryName}.log`);
       try {
         await fs.promises.copyFile(sourceFilePath, destinationFilePath);
         return true;
