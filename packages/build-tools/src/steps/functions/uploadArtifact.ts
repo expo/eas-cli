@@ -11,6 +11,9 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import assert from 'assert';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { FindArtifactsError, findArtifacts } from '../../utils/artifacts';
@@ -71,6 +74,12 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
       }),
       BuildStepInput.createProvider({
+        id: 'copy_before_upload',
+        required: false,
+        defaultValue: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
         id: 'metadata',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
@@ -118,22 +127,29 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         throw result.reason;
       });
 
-      const artifactSpec = {
-        type: parseArtifactTypeInput({
-          platform: ctx.job.platform,
-          inputValue: `${inputs.type.value ?? ''}`,
-        }),
-        paths: artifactPaths,
-        name: (inputs.name.value || inputs.key.value) as string,
-      };
-      const artifact = isGenericArtifact(artifactSpec)
-        ? {
-            ...artifactSpec,
-            metadata: inputs.metadata.value as Record<string, unknown> | undefined,
-          }
-        : artifactSpec;
-
+      const artifactType = parseArtifactTypeInput({
+        platform: ctx.job.platform,
+        inputValue: `${inputs.type.value ?? ''}`,
+      });
+      let artifactSnapshot: ArtifactSnapshot | null = null;
       try {
+        if (inputs.copy_before_upload.value && artifactPaths.length > 0) {
+          artifactSnapshot = await copyArtifactsToTemporaryDirectoryAsync(artifactPaths);
+          logger.info('Copied artifacts to a temporary directory before upload.');
+        }
+
+        const artifactSpec = {
+          type: artifactType,
+          paths: artifactSnapshot?.paths ?? artifactPaths,
+          name: (inputs.name.value || inputs.key.value) as string,
+        };
+        const artifact = isGenericArtifact(artifactSpec)
+          ? {
+              ...artifactSpec,
+              metadata: inputs.metadata.value as Record<string, unknown> | undefined,
+            }
+          : artifactSpec;
+
         const { artifactId } = await ctx.runtimeApi.uploadArtifact({ artifact, logger });
 
         if (artifactId) {
@@ -141,15 +157,73 @@ export function createUploadArtifactBuildFunction(ctx: CustomBuildContext): Buil
         }
       } catch (error) {
         if (inputs.ignore_error.value) {
-          logger.error({ err: error }, `Failed to upload ${artifact.type}. Ignoring error.`);
+          logger.error({ err: error }, `Failed to upload ${artifactType}. Ignoring error.`);
           // Ignoring error.
           return;
         }
 
         throw error;
+      } finally {
+        if (artifactSnapshot) {
+          await fs.promises.rm(artifactSnapshot.directory, { force: true, recursive: true });
+        }
       }
     },
   });
+}
+
+interface ArtifactSnapshot {
+  directory: string;
+  paths: string[];
+}
+
+async function copyArtifactsToTemporaryDirectoryAsync(
+  artifactPaths: string[]
+): Promise<ArtifactSnapshot> {
+  const snapshotDirectory = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'eas-upload-artifact-')
+  );
+
+  try {
+    const commonParentDirectory = getCommonParentDirectory(artifactPaths);
+    const snapshotPaths = await Promise.all(
+      artifactPaths.map(async artifactPath => {
+        const snapshotPath = path.join(
+          snapshotDirectory,
+          path.relative(commonParentDirectory, artifactPath)
+        );
+        await fs.promises.mkdir(path.dirname(snapshotPath), { recursive: true });
+        await fs.promises.cp(artifactPath, snapshotPath, {
+          errorOnExist: true,
+          force: false,
+          recursive: true,
+        });
+        return snapshotPath;
+      })
+    );
+    return { directory: snapshotDirectory, paths: snapshotPaths };
+  } catch (error) {
+    await fs.promises.rm(snapshotDirectory, { force: true, recursive: true });
+    throw error;
+  }
+}
+
+function getCommonParentDirectory(artifactPaths: string[]): string {
+  let commonParentDirectory = path.dirname(path.resolve(artifactPaths[0]));
+  for (const artifactPath of artifactPaths.slice(1)) {
+    const resolvedArtifactPath = path.resolve(artifactPath);
+    while (
+      resolvedArtifactPath !== commonParentDirectory &&
+      !resolvedArtifactPath.startsWith(`${commonParentDirectory}${path.sep}`)
+    ) {
+      const parentDirectory = path.dirname(commonParentDirectory);
+      if (parentDirectory === commonParentDirectory) {
+        break;
+      }
+      commonParentDirectory = parentDirectory;
+    }
+  }
+  return commonParentDirectory;
 }
 
 /**

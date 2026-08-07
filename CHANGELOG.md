@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Add a `copy_before_upload` option to `eas/upload_artifact` to copy changing files before they are archived. ([#4164](https://github.com/expo/eas-cli/pull/4164) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
