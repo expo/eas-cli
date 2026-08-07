@@ -9,12 +9,12 @@ import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
-import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
+import { BuildStepInput, BuildStepInputById, makeBuildStepInputById } from './BuildStepInput';
 import {
   BuildStepOutput,
   BuildStepOutputById,
   SerializedBuildStepOutput,
-  makeBuildStepOutputByIdMap,
+  makeBuildStepOutputById,
 } from './BuildStepOutput';
 import {
   cleanUpStepTemporaryDirectoriesAsync,
@@ -35,6 +35,7 @@ import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
 import { interpolateWithInputs, interpolateWithOutputs } from './utils/template';
+import { createEmptyRecord } from './utils/record';
 
 export enum BuildStepStatus {
   NEW = 'new',
@@ -50,6 +51,8 @@ export enum BuildStepLogMarker {
   END_STEP = 'end-step',
 }
 
+export type BuildStepFunctionInputs = Record<string, { value: unknown }>;
+
 export type BuildStepFunction = (
   ctx: BuildStepContext,
   {
@@ -57,7 +60,7 @@ export type BuildStepFunction = (
     outputs,
     env,
   }: {
-    inputs: { [key: string]: { value: unknown } };
+    inputs: BuildStepFunctionInputs;
     outputs: BuildStepOutputById;
     env: BuildStepEnv;
     signal?: AbortSignal;
@@ -96,7 +99,7 @@ export class BuildStepOutputAccessor {
   }
 
   public hasOutputParameter(name: string): boolean {
-    return name in this.outputById;
+    return Object.hasOwn(this.outputById, name);
   }
 
   public serialize(): SerializedBuildStepOutputAccessor {
@@ -113,12 +116,10 @@ export class BuildStepOutputAccessor {
   public static deserialize(
     serialized: SerializedBuildStepOutputAccessor
   ): BuildStepOutputAccessor {
-    const outputById = Object.fromEntries(
-      Object.entries(serialized.outputById).map(([key, value]) => [
-        key,
-        BuildStepOutput.deserialize(value),
-      ])
-    );
+    const outputById = createEmptyRecord<BuildStepOutputById>();
+    for (const [key, value] of Object.entries(serialized.outputById)) {
+      outputById[key] = BuildStepOutput.deserialize(value);
+    }
     return new BuildStepOutputAccessor(
       serialized.id,
       serialized.displayName,
@@ -194,14 +195,14 @@ export class BuildStep extends BuildStepOutputAccessor {
   ) {
     assert(command !== undefined || fn !== undefined, 'Either command or fn must be defined.');
     assert(!(command !== undefined && fn !== undefined), 'Command and fn cannot be both set.');
-    const outputById = makeBuildStepOutputByIdMap(outputs);
+    const outputById = makeBuildStepOutputById(outputs);
     super(id, displayName, false, outputById);
 
     this.id = id;
     this.displayName = displayName;
     this.supportedRuntimePlatforms = maybeSupportedRuntimePlatforms;
     this.inputs = inputs;
-    this.inputById = makeBuildStepInputByIdMap(inputs);
+    this.inputById = makeBuildStepInputById(inputs);
     this.outputById = outputById;
     this.fn = fn;
     this.command = command;
@@ -351,18 +352,14 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private evaluateOwnStepInputs(): Record<string, unknown> {
-    return (
-      this.inputs?.reduce(
-        (acc, input) => {
-          acc[input.id] = input.getValue({
-            interpolationContext: this.getInterpolationContext(),
-            skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
-          });
-          return acc;
-        },
-        {} as Record<string, unknown>
-      ) ?? {}
-    );
+    const inputsById = createEmptyRecord<Record<string, unknown>>();
+    for (const input of this.inputs ?? []) {
+      inputsById[input.id] = input.getValue({
+        interpolationContext: this.getInterpolationContext(),
+        skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+      });
+    }
+    return inputsById;
   }
 
   private evaluateIfCondition(
@@ -491,23 +488,26 @@ export class BuildStep extends BuildStepOutputAccessor {
     assert(this.fn, 'Function (fn) must be defined');
 
     await this.fn(this.ctx, {
-      inputs: Object.fromEntries(
-        Object.entries(this.inputById).map(([key, input]) => [
-          key,
-          {
-            value: input.getValue({
-              interpolationContext: this.getInterpolationContext(),
-              skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
-            }),
-          },
-        ])
-      ),
+      inputs: this.getFunctionInputs(),
       outputs: this.outputById,
       env: this.getScriptEnv(),
       signal: signal ?? undefined,
     });
 
     this.ctx.logger.debug(`Script completed successfully`);
+  }
+
+  private getFunctionInputs(): BuildStepFunctionInputs {
+    const functionInputs = createEmptyRecord<BuildStepFunctionInputs>();
+    for (const [key, input] of Object.entries(this.inputById)) {
+      functionInputs[key] = {
+        value: input.getValue({
+          interpolationContext: this.getInterpolationContext(),
+          skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+        }),
+      };
+    }
+    return functionInputs;
   }
 
   private interpolateInputsOutputsAndGlobalContextInTemplate(
@@ -525,18 +525,15 @@ export class BuildStep extends BuildStepOutputAccessor {
             this.getLegacyStepOutputValue(path)
           );
     }
-    const vars = inputs.reduce(
-      (acc, input) => {
-        const value = input.getValue({
-          interpolationContext: this.getInterpolationContext(),
-          skipLegacyOutputInterpolation,
-        });
-        acc[input.id] =
-          typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
-        return acc;
-      },
-      {} as Record<string, string>
-    );
+    const vars = createEmptyRecord<Record<string, string>>();
+    for (const input of inputs) {
+      const value = input.getValue({
+        interpolationContext: this.getInterpolationContext(),
+        skipLegacyOutputInterpolation,
+      });
+      vars[input.id] =
+        typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
+    }
     const interpolatedWithInputsAndGlobalContext = interpolateWithInputs(
       this.ctx.global.interpolate(template),
       vars
@@ -556,7 +553,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     const files = await fs.readdir(outputsDir);
 
     for (const outputId of files) {
-      if (!(outputId in this.outputById)) {
+      if (!Object.hasOwn(this.outputById, outputId)) {
         const newOutput = new BuildStepOutput(this.ctx.global, {
           id: outputId,
           stepDisplayName: this.displayName,
