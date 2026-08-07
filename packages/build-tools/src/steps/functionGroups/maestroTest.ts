@@ -140,11 +140,13 @@ export function createEasMaestroTestFunctionGroup(
         );
       }
 
-      steps.push(
-        createCollectEmulatorLogsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-          ifCondition: '${ always() }',
-        })
-      );
+      if (buildToolsContext.job.platform === Platform.ANDROID) {
+        steps.push(
+          createCollectEmulatorLogsBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
+            ifCondition: '${ always() }',
+          })
+        );
+      }
 
       steps.push(
         createUploadArtifactBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(

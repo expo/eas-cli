@@ -22,12 +22,24 @@ function createStep(callInputs?: Record<string, unknown>, envOverrides?: NodeJS.
 }
 
 describe(createCollectEmulatorLogsBuildFunction, () => {
+  const temporaryDirectories: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.splice(0).map(async temporaryDirectory => {
+        await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
+      })
+    );
+  });
+
   it('copies staged logs to the destination path', async () => {
     const buildLogsDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'build-logs-'));
+    temporaryDirectories.push(buildLogsDirectory);
     const sourcePath = path.join(buildLogsDirectory, 'android-emulator-logcat');
     const destinationPath = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'logcat-destination-')
     );
+    temporaryDirectories.push(destinationPath);
     await fs.promises.mkdir(sourcePath, { recursive: true });
     const logPath = path.join(sourcePath, 'emulator-5554.log');
     await fs.promises.writeFile(logPath, 'log line\n');
@@ -48,10 +60,12 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
 
   it('copies staged logs in parallel and skips metadata files', async () => {
     const buildLogsDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'build-logs-'));
+    temporaryDirectories.push(buildLogsDirectory);
     const sourcePath = path.join(buildLogsDirectory, 'android-emulator-logcat');
     const destinationPath = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'logcat-destination-')
     );
+    temporaryDirectories.push(destinationPath);
     await fs.promises.mkdir(sourcePath, { recursive: true });
     await fs.promises.writeFile(path.join(sourcePath, '1234-emulator-5554.log'), 'first\n');
     await fs.promises.writeFile(path.join(sourcePath, '5678-emulator-5556.log'), 'second\n');
@@ -79,10 +93,15 @@ describe(createCollectEmulatorLogsBuildFunction, () => {
 
   it('warns but does not fail when the staging directory is missing', async () => {
     const buildLogsDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'build-logs-'));
+    temporaryDirectories.push(buildLogsDirectory);
     const sourcePath = path.join(buildLogsDirectory, 'android-emulator-logcat');
+    const destinationPath = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'logcat-destination-')
+    );
+    temporaryDirectories.push(destinationPath);
     const step = createStep(
       {
-        destination_path: await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-destination-')),
+        destination_path: destinationPath,
       },
       {
         BUILD_LOGS_DIRECTORY: buildLogsDirectory,

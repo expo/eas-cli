@@ -59,4 +59,24 @@ describe(getEasFunctionGroups, () => {
     expect(steps[5].ifCondition).toBe('${ always() }');
     expect(steps[6].ifCondition).toBe('${ always() }');
   });
+
+  it('does not collect Android emulator logs for iOS Maestro tests', () => {
+    const ctx = {
+      job: {
+        platform: Platform.IOS,
+      },
+    } as unknown as Parameters<typeof createEasMaestroTestFunctionGroup>[0];
+    const globalCtx = createGlobalContextMock();
+
+    const steps = createEasMaestroTestFunctionGroup(ctx).createBuildStepsFromFunctionGroupCall(
+      globalCtx,
+      {
+        callInputs: {
+          flow_path: 'maestro/home.yml',
+        },
+      }
+    );
+
+    expect(steps.map(step => step.displayName)).not.toContain('Collect Android emulator logs');
+  });
 });
