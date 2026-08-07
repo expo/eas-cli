@@ -134,14 +134,8 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(args!.join(' ')).toMatch(/--output=.*android-maestro-junit-attempt-0\.xml/);
   });
 
-  it('uses direct DADB when android_connection_mode is dadb and restores ADB', async () => {
-    let maestroPathDuringRun: string | undefined;
-    mockedSpawn.mockImplementation((async (command: string, _args: string[], options: any) => {
-      if (command === 'maestro') {
-        maestroPathDuringRun = options.env.PATH;
-      }
-      return SPAWN_SUCCESS;
-    }) as any);
+  it('uses direct DADB when android_connection_mode is dadb without cleanup', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     const writeFileSpy = jest.spyOn(fs, 'writeFile');
     const rmSpy = jest.spyOn(fs, 'rm');
     const step = createStep(
@@ -155,28 +149,25 @@ describe('createMaestroTestsBuildFunction', () => {
 
     await step.executeAsync();
 
-    expect(mockedSpawn).toHaveBeenCalledTimes(3);
+    expect(mockedSpawn).toHaveBeenCalledTimes(2);
     expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
     expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
-    expect(mockedSpawn.mock.calls[2].slice(0, 2)).toEqual(['adb', ['start-server']]);
 
-    expect(maestroPathDuringRun).toMatch(
+    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
+    expect(maestroEnv?.PATH).toMatch(
       new RegExp(`^${os.tmpdir()}/maestro-tests-adb-override-.+${path.delimiter}/usr/bin$`)
     );
-    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
-    expect(maestroEnv?.PATH).toBe(mockedSpawn.mock.calls[0][2]?.env?.PATH);
-    expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).toBe(mockedSpawn.mock.calls[0][2]?.env?.PATH);
-    expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).not.toContain('maestro-tests-adb-override-');
+    expect(mockedSpawn.mock.calls[0][2]?.env?.PATH).not.toContain('maestro-tests-adb-override-');
 
     expect(writeFileSpy).toHaveBeenCalledWith(
       expect.stringMatching(/maestro-tests-adb-override-.+\/adb$/),
       '#!/bin/sh\nexit 1\n',
       { mode: 0o755 }
     );
-    expect(rmSpy).toHaveBeenCalledWith(expect.stringMatching(/maestro-tests-adb-override-/), {
-      force: true,
-      recursive: true,
-    });
+    expect(rmSpy).not.toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-/),
+      expect.anything()
+    );
   });
 
   it('uses the same direct DADB environment for all retries', async () => {
@@ -203,7 +194,7 @@ describe('createMaestroTestsBuildFunction', () => {
     const maestroCalls = mockedSpawn.mock.calls.filter(([command]) => command === 'maestro');
     expect(maestroCalls).toHaveLength(2);
     expect(maestroCalls[0][2]?.env?.PATH).toBe(maestroCalls[1][2]?.env?.PATH);
-    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(2);
+    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(1);
   });
 
   it('rejects invalid android_connection_mode values', async () => {
@@ -228,16 +219,14 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('restores ADB without masking a Maestro failure', async () => {
-    mockedSpawn.mockImplementation((async (command: string, args: string[]) => {
+  it('does not clean up direct DADB mode when Maestro fails', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
       if (command === 'maestro') {
         throw new Error('maestro crashed');
       }
-      if (command === 'adb' && args?.[0] === 'start-server') {
-        throw new Error('adb failed to restart');
-      }
       return SPAWN_SUCCESS;
     }) as any);
+    const rmSpy = jest.spyOn(fs, 'rm');
     const step = createStep(
       {
         flow_path: ['flows/a.yaml'],
@@ -248,7 +237,11 @@ describe('createMaestroTestsBuildFunction', () => {
     );
 
     await expect(step.executeAsync()).rejects.toThrow('Unexpected spawn failure invoking maestro');
-    expect(mockedSpawn.mock.calls.at(-1)?.slice(0, 2)).toEqual(['adb', ['start-server']]);
+    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(1);
+    expect(rmSpy).not.toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-/),
+      expect.anything()
+    );
   });
 
   it('throws SystemError when spawn fails with ENOENT (binary missing)', async () => {
