@@ -17,9 +17,10 @@ import {
   getPrivateExpoConfigAsync,
 } from '../../../project/expoConfig';
 import { fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { getUnconfiguredProjectError } from '../../../project/projectNotConfiguredError';
 import { promptAsync } from '../../../prompts';
 import SessionManager from '../../../user/SessionManager';
-import { Actor, getActorUsername, getCreatableAccountNames } from '../../../user/User';
+import { Actor, getActorUsername } from '../../../user/User';
 
 /**
  * Save an EAS project ID to the appropriate field in the app config.
@@ -183,7 +184,9 @@ export async function validateOrSetProjectIdAsync({
     throw new Error('This command must be run inside a project directory.');
   }
 
-  Log.warn('EAS project not configured.');
+  if (!options.nonInteractive) {
+    Log.warn('EAS project not configured.');
+  }
 
   const accountName = await chooseAccountNameForEASProjectAsync(exp, actor, options);
 
@@ -226,11 +229,11 @@ async function chooseAccountNameForEASProjectAsync(
   }
 
   if (actor.__typename === 'Robot') {
-    throw new Error(
-      `Project is not configured. When using a robot access token, run "eas init --account <name> --non-interactive" or set the "owner" field in your app config before managing the project. Accounts this token can create projects in: ${getCreatableAccountNames(
-        actor
-      ).join(', ')}`
-    );
+    throw getUnconfiguredProjectError({
+      actor,
+      reason: 'A robot access token cannot configure it interactively.',
+      additionalFix: 'Alternatively, set the "owner" field in your app config.',
+    });
   }
 
   const allAccounts = actor.accounts;
@@ -239,9 +242,7 @@ async function chooseAccountNameForEASProjectAsync(
   }
 
   if (options.nonInteractive) {
-    throw new Error(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
-    );
+    throw getUnconfiguredProjectError({ actor });
   }
 
   const choices = getAccountChoices(
