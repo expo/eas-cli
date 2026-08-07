@@ -1,4 +1,4 @@
-import { JobInterpolationContext } from '@expo/eas-build-job';
+import { CompositeFunctionInputValueTypeName, JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
@@ -25,6 +25,12 @@ export type BuildStepInputValueType<
     : T extends BuildStepInputValueTypeName.NUMBER
       ? number
       : Record<string, unknown>;
+
+export function parseBuildStepInputValueTypeName(
+  type: CompositeFunctionInputValueTypeName
+): BuildStepInputValueTypeName {
+  return type satisfies `${BuildStepInputValueTypeName}` as BuildStepInputValueTypeName;
+}
 
 export type BuildStepInputById = Record<string, BuildStepInput>;
 export type BuildStepInputProvider = (

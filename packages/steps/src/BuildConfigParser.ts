@@ -31,7 +31,11 @@ import {
   BuildStepInputProvider,
   BuildStepInputValueTypeName,
 } from './BuildStepInput';
-import { BuildStepOutput, BuildStepOutputProvider } from './BuildStepOutput';
+import {
+  BuildStepOutput,
+  BuildStepOutputProvider,
+  createBuildStepOutputProviderFromDefinition,
+} from './BuildStepOutput';
 import { BuildConfigError } from './errors';
 import { AnchorHooks } from './hooks';
 
@@ -362,11 +366,7 @@ export class BuildConfigParser extends AbstractConfigParser {
   private createBuildStepOutputProvidersFromBuildFunctionOutputs(
     buildFunctionOutputs: BuildFunctionOutputs
   ): BuildStepOutputProvider[] {
-    return buildFunctionOutputs.map(entry =>
-      typeof entry === 'string'
-        ? BuildStepOutput.createProvider({ id: entry, required: true })
-        : BuildStepOutput.createProvider({ id: entry.name, required: entry.required ?? true })
-    );
+    return buildFunctionOutputs.map(createBuildStepOutputProviderFromDefinition);
   }
 
   private mergeBuildFunctionsWithExternal(
