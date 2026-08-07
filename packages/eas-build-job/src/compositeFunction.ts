@@ -1,16 +1,16 @@
 /**
- * Schema for local composite functions, reusable step groups referenced via `uses:` in EAS
- * workflows (`.eas/workflows/*.yml`) or inline job step definitions.
- *
- * This module defines the shape of a composite function configuration file (`function.yml`).
- * Callers that load composite function files format validation errors from `CompositeFunctionConfigZ`.
- * Local composite functions are not supported in `.eas/build/*.yml` custom build config files.
+ * Schema for the composite shape of a local function: a reusable group of steps declared under
+ * `runs.steps` in a `function.yml` file. One branch of `LocalFunctionConfigZ` in `./localFunction`.
  */
 import { z } from 'zod';
 
 import { StepZ } from './step';
 
 const CompositeFunctionInputValueTypeNameZ = z.enum(['string', 'boolean', 'number', 'json']);
+
+export type CompositeFunctionInputValueTypeName = z.infer<
+  typeof CompositeFunctionInputValueTypeNameZ
+>;
 
 const CompositeFunctionInputValueZ = z.union([
   z.string(),
@@ -20,7 +20,7 @@ const CompositeFunctionInputValueZ = z.union([
   z.record(z.string(), z.unknown()),
 ]);
 
-const CompositeFunctionInputZ = z.union([
+export const CompositeFunctionInputZ = z.union([
   z
     .string()
     .describe('Shorthand for an input name with default type "string" and no default value.'),
@@ -91,6 +91,10 @@ export const CompositeFunctionConfigZ = z
         })
         .describe('Steps executed when the composite function is invoked.'),
     }),
+    command: z.never().optional(),
+    path: z.never().optional(),
+    shell: z.never().optional(),
+    supported_platforms: z.never().optional(),
   })
   .strict();
 
@@ -110,5 +114,3 @@ export const CompositeFunctionConfigZ = z
  *       run: set-output version "1.0.0"
  */
 export type CompositeFunctionConfig = z.infer<typeof CompositeFunctionConfigZ>;
-
-export type CompositeFunctionCatalog = Record<string, CompositeFunctionConfig>;
