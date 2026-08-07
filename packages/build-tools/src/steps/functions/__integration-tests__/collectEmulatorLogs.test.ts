@@ -60,7 +60,7 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
     }
   });
 
-  it('collects streamed logcat output from a running emulator', async () => {
+  it('collects native logcat output across an ADB server restart', async () => {
     const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'collect-emulator-logs-'));
     const deviceName =
       `android-emulator-logcat-e2e-${randomUUID().slice(0, 8)}` as AndroidVirtualDeviceName;
@@ -85,23 +85,19 @@ describe('createCollectEmulatorLogsBuildFunction', () => {
       const startResult = await AndroidEmulatorUtils.startAsync({
         deviceName,
         env: { ...process.env, ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: '1' },
+        logcat: { outputDir: sourcePath, logger },
       });
       serialId = startResult.serialId;
       emulatorPromise = asyncResult(startResult.emulatorPromise);
-
-      const streamResult = await AndroidEmulatorUtils.startLogcatStreamingAsync({
-        serialId: startResult.serialId,
-        outputDir: sourcePath,
-        env: process.env,
-        logger,
-      });
-      expect(streamResult).not.toBeNull();
+      expect(startResult.logcatOutputPath).not.toBeNull();
 
       await AndroidEmulatorUtils.waitForReadyAsync({
         serialId: startResult.serialId,
         env: process.env,
       });
 
+      await spawn('adb', ['kill-server'], { env: process.env });
+      await spawn('adb', ['start-server'], { env: process.env });
       await spawn(
         'adb',
         ['-s', startResult.serialId, 'shell', 'log', '-t', 'EAS_CLI_TEST', marker],
