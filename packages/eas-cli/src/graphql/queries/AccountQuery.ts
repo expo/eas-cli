@@ -4,8 +4,12 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  AccountByNameQuery as AccountByNameQueryType,
+  AccountByNameQueryVariables,
   AccountFullUsageQuery as AccountFullUsageQueryType,
   AccountFullUsageQueryVariables,
+  AccountSubscriptionQuery as AccountSubscriptionQueryType,
+  AccountSubscriptionQueryVariables,
   AccountUsageForOverageWarningQuery,
   AccountUsageForOverageWarningQueryVariables,
 } from '../generated';
@@ -17,21 +21,28 @@ import {
 } from '../types/Account';
 
 export type AccountFullUsageData = NonNullable<AccountFullUsageQueryType['account']['byId']>;
+export type AccountSubscriptionInfo = NonNullable<
+  NonNullable<AccountSubscriptionQueryType['account']['byId']>['subscription']
+>;
 
 export const AccountQuery = {
   async getByNameAsync(
     graphqlClient: ExpoGraphqlClient,
     accountName: string
-  ): Promise<{ id: string; name: string } | null> {
+  ): Promise<AccountByNameQueryType['account']['byName'] | null> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<{ account: { byName: { id: string; name: string } | null } }>(
+        .query<AccountByNameQueryType, AccountByNameQueryVariables>(
           gql`
             query AccountByName($accountName: String!) {
               account {
                 byName(accountName: $accountName) {
                   id
                   name
+                  viewerUserPermission {
+                    id
+                    permissions
+                  }
                 }
               }
             }
@@ -275,5 +286,37 @@ export const AccountQuery = {
       start: new Date(start),
       end: new Date(end),
     };
+  },
+
+  async getSubscriptionAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string
+  ): Promise<AccountSubscriptionInfo | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AccountSubscriptionQueryType, AccountSubscriptionQueryVariables>(
+          gql`
+            query AccountSubscription($accountId: String!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  subscription {
+                    id
+                    name
+                    planId
+                    status
+                    willCancel
+                  }
+                }
+              }
+            }
+          `,
+          { accountId },
+          { additionalTypenames: ['Account', 'SubscriptionDetails'] }
+        )
+        .toPromise()
+    );
+
+    return data.account.byId?.subscription ?? null;
   },
 };
