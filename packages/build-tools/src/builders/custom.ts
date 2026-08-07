@@ -4,6 +4,8 @@ import {
   BuildStepGlobalContext,
   BuildWorkflow,
   StepsConfigParser,
+  buildLocalCompositeFunctionCatalogAsync,
+  createLocalCompositeFunctionLoader,
   errors,
 } from '@expo/steps';
 import assert from 'assert';
@@ -17,10 +19,6 @@ import { Artifacts, BuildContext } from '../context';
 import { CustomBuildContext } from '../customBuildContext';
 import { Datadog } from '../datadog';
 import { findAndUploadXcodeBuildLogsAsync } from '../ios/xcodeBuildLogs';
-import {
-  buildCompositeFunctionCatalogAsync,
-  createCompositeFunctionLoader,
-} from '../steps/compositeFunctions';
 import { getEasFunctionGroups } from '../steps/easFunctionGroups';
 import { getEasFunctions } from '../steps/easFunctions';
 import { retryAsync } from '../utils/retry';
@@ -72,11 +70,13 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
             steps: ctx.job.steps,
             hooks: ctx.job.hooks,
             // Eager for job steps (always run), lazy loader for hooks (running anchors only).
-            compositeFunctionCatalog: await buildCompositeFunctionCatalogAsync(projectRoot, {
-              steps: ctx.job.steps,
+            compositeFunctionCatalog: await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+              rootSteps: ctx.job.steps,
               logger: ctx.logger,
             }),
-            loadCompositeFunction: createCompositeFunctionLoader(projectRoot, ctx.logger),
+            loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, {
+              logger: ctx.logger,
+            }),
           })
         : new BuildConfigParser(globalContext, {
             externalFunctions: easFunctions,

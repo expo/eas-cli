@@ -159,6 +159,37 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     );
   });
 
+  it('tracks the local arrival time of the most recent event', async () => {
+    const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
+    const eventsDir = path.join(stateDir, 'sessions', 'default');
+    await fs.promises.mkdir(eventsDir, { recursive: true });
+    const collection = await startAgentDeviceEventCollectionAsync({
+      ctx: createContext(),
+      deviceRunSessionId: 'session-id',
+      stateDir,
+      logger: createLogger(),
+      pollIntervalMs: 10,
+    });
+
+    try {
+      expect(collection.getLastEventObservedAt()).toBeUndefined();
+
+      const before = new Date();
+      await fs.promises.writeFile(
+        path.join(eventsDir, 'events.ndjson'),
+        `${JSON.stringify(createAgentDeviceEvent({ requestId: 'request-1', command: 'tap' }))}\n`
+      );
+      await waitForAsync(() => expect(mockEventLogStream.write).toHaveBeenCalledTimes(1));
+
+      const observedAt = collection.getLastEventObservedAt();
+      expect(observedAt).toBeInstanceOf(Date);
+      expect(observedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    } finally {
+      await collection.stopAsync();
+      await fs.promises.rm(stateDir, { recursive: true, force: true });
+    }
+  });
+
   it('preserves unknown kinds and tolerates optional upstream field changes', async () => {
     const stateDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-events-'));
     const eventsDir = path.join(stateDir, 'sessions', 'default');
@@ -547,6 +578,9 @@ describe(startAgentDeviceEventCollectionAsync, () => {
     );
     expect(mockEventLogStream.init).not.toHaveBeenCalled();
     expect(HttpLogStream).not.toHaveBeenCalled();
+    // Without collection, activity is invisible: the collection reports fresh
+    // activity so an enabled idle timeout never stops the session.
+    expect(collection.getLastEventObservedAt()).toBeInstanceOf(Date);
   });
 
   it('continues persisting the artifact when real-time log setup fails', async () => {

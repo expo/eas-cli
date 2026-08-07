@@ -19,7 +19,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.6.0' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.10.0' }}
 
 concurrency:
   group: ai-code-review-cmd-${{ github.event.issue.number }}
@@ -116,13 +116,20 @@ jobs:
           curl -fsSL https://getunblocked.com/install.sh | bash
           echo "$HOME/.unblocked/bin" >> "$GITHUB_PATH"
 
+      # The anthropic/… models run through the Claude Code CLI (claude-code
+      # engine). Pinned exactly — see expo-code-review.yml.
+      - name: Install Claude Code CLI
+        if: steps.cmd.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.212
+
       - name: Run AI review
         if: steps.cmd.outputs.run == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CODEX_OAUTH_ACCESS_TOKEN: ${{ secrets.CODEX_OAUTH_ACCESS_TOKEN }}
-          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CODEX_OAUTH_ACCESS_TOKEN' }}
+          # Shared Anthropic review credential — see expo-code-review.yml.
+          CLAUDE_CODE_REVIEW_SHARED_API_TOKEN: ${{ secrets.CLAUDE_CODE_REVIEW_SHARED_API_TOKEN }}
+          ECR_EXPECTED_TOKEN_ENV: ${{ vars.ECR_EXPECTED_TOKEN_ENV || 'CLAUDE_CODE_REVIEW_SHARED_API_TOKEN' }}
           # Unblocked CLI headless auth (PAT or team access token). Absent =>
           # the CLI stays unauthenticated; the review still runs.
           UNBLOCKED_API_TOKEN: ${{ secrets.UNBLOCKED_API_TOKEN }}

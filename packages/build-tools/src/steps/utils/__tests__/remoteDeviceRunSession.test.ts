@@ -51,7 +51,8 @@ function createStatusCtxMock(
     | { status: 'NEW' | 'IN_PROGRESS' | 'STOPPED' | 'ERRORED' }
     | { error: Error }
     | { data: unknown }
-  )[]
+  )[],
+  { ensureStoppedError }: { ensureStoppedError?: Error } = {}
 ): CustomBuildContext {
   const query = jest.fn(() => {
     const result = results.shift();
@@ -80,9 +81,25 @@ function createStatusCtxMock(
     };
   });
 
+  const mutation = jest.fn(() => ({
+    toPromise: async () => {
+      if (ensureStoppedError) {
+        return { error: ensureStoppedError };
+      }
+      return {
+        data: {
+          deviceRunSession: {
+            ensureDeviceRunSessionStopped: { id: 'drs-id', status: 'STOPPED' },
+          },
+        },
+      };
+    },
+  }));
+
   return {
     graphqlClient: {
       query,
+      mutation,
     },
   } as unknown as CustomBuildContext;
 }
@@ -422,6 +439,97 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
       }),
       { level: 'warning' }
     );
+  });
+
+  describe('with an idle timeout', () => {
+    beforeEach(() => {
+      // Fake timers make Date.now() advance by exactly the poll interval per
+      // loop iteration, so idle time accumulates deterministically.
+      jest.useFakeTimers();
+      jest.mocked(setTimeoutAsync).mockImplementation(async delayMs => {
+        jest.advanceTimersByTime(delayMs ?? 0);
+        return undefined;
+      });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    function manyInProgressStatuses(): { status: 'IN_PROGRESS' }[] {
+      return Array.from({ length: 20 }, () => ({ status: 'IN_PROGRESS' as const }));
+    }
+
+    it('stops the session when no activity is observed within the max idle time', async () => {
+      const ctx = createStatusCtxMock(manyInProgressStatuses());
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+        },
+      });
+
+      // One minute at the 5-second poll interval is 12 status polls.
+      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(12);
+      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith(
+        'Device run session drs-id had no activity for 1 minute(s) (max idle time). Stopping the session.'
+      );
+    });
+
+    it('keeps the session alive while events keep arriving', async () => {
+      const ctx = createStatusCtxMock([...manyInProgressStatuses(), { status: 'STOPPED' }]);
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          // Fresh activity on every check; 20 polls exceed one minute, so the
+          // session would have been stopped without these events.
+          getLastEventObservedAt: () => new Date(),
+        },
+      });
+
+      expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(21);
+      expect(ctx.graphqlClient.mutation).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith('Device run session drs-id was stopped.');
+    });
+
+    it('still returns when the session cannot be marked stopped', async () => {
+      const ctx = createStatusCtxMock(manyInProgressStatuses(), {
+        ensureStoppedError: new Error('forbidden'),
+      });
+      const logger = createLoggerMock();
+
+      await waitForDeviceRunSessionStoppedAsync({
+        ctx,
+        deviceRunSessionId: 'drs-id',
+        logger,
+        idleTimeout: {
+          maxIdleTimeMinutes: 1,
+          getLastEventObservedAt: () => undefined,
+        },
+      });
+
+      expect(ctx.graphqlClient.mutation).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        { err: expect.any(Error) },
+        'Could not mark device run session drs-id as stopped. The session job ends anyway.'
+      );
+      expect(jest.mocked(Sentry).capture).toHaveBeenCalledWith(
+        'Could not mark idle device run session as stopped',
+        expect.any(Error),
+        { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
+      );
+    });
   });
 });
 

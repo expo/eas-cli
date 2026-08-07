@@ -9,12 +9,30 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Set the artifact kind for Argent session artifacts from the MIME type reported by the tool server, so screenshots and screen recordings are grouped and labelled on the simulator session page instead of appearing in an unclassified file list. ([#4154](https://github.com/expo/eas-cli/pull/4154) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 
+### 🧹 Chores
+
+## [21.6.0](https://github.com/expo/eas-cli/releases/tag/v21.6.0) - 2026-08-05
+
+### 🎉 New features
+
+- [eas-build-job] Replace eas-cli npm dist-tags with cli-versions.json. ([#4147](https://github.com/expo/eas-cli/pull/4147) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Support an optional `max_idle_time_minutes` input on `eas/start_argent_remote_session` and `eas/start_agent_device_remote_session`; the step stops the device run session after that many minutes without observed session events. ([#4157](https://github.com/expo/eas-cli/pull/4157) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Point accounts without EAS Simulator access at the waitlist: `eas simulator:availability` includes the link (and a `waitlistUrl` field in `--json`), and `eas simulator` now fails early with the same message instead of a generic permission error. ([#4151](https://github.com/expo/eas-cli/pull/4151) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
 
 ### 🧹 Chores
+
+- [reviewer] Migrate AI code reviews from GPT to Claude models on the claude-code engine (Sonnet 5 by default, Opus 5 for the security agent). ([#4148](https://github.com/expo/eas-cli/pull/4148) by [@brentvatne](https://github.com/brentvatne))
 
 ## [21.5.1](https://github.com/expo/eas-cli/releases/tag/v21.5.1) - 2026-08-03
 
@@ -31,6 +49,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Pass a metrics CORS origin to serve-sim so the dashboard can read a session's live CPU/memory stream cross-origin. ([#3990](https://github.com/expo/eas-cli/pull/3990) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Collect each iOS session's serve-sim CPU/memory `/metrics` to a file and upload it as a device run session artifact at teardown. ([#3995](https://github.com/expo/eas-cli/pull/3995) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Load local composite function catalogs for hook steps, in both steps-based and native builds. ([#4063](https://github.com/expo/eas-cli/pull/4063) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `--name` filter to `eas simulator:list`. ([#4118](https://github.com/expo/eas-cli/pull/4118) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
 

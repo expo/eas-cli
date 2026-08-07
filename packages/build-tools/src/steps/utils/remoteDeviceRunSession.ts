@@ -50,6 +50,17 @@ const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
   }
 `);
 
+const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
+  mutation EnsureDeviceRunSessionStopped($deviceRunSessionId: ID!) {
+    deviceRunSession {
+      ensureDeviceRunSessionStopped(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
 const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
@@ -118,23 +129,56 @@ export async function selectXcodeDeveloperDirectoryAsync({
   });
 }
 
+export type DeviceRunSessionIdleTimeout = {
+  /** Stop the session after this many minutes without observed activity. */
+  maxIdleTimeMinutes: number;
+  /**
+   * Local arrival time of the most recent session event, or `undefined` when
+   * no event has been observed yet. The idle clock starts when the wait
+   * begins, so a session nobody ever connects to still times out.
+   */
+  getLastEventObservedAt: () => Date | undefined;
+};
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
   logger,
   signal,
+  idleTimeout,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   logger: bunyan;
   signal?: AbortSignal;
+  idleTimeout?: DeviceRunSessionIdleTimeout;
 }): Promise<void> {
   logger.info(
     `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
   );
+  if (idleTimeout) {
+    logger.info(
+      `The session stops automatically after ${idleTimeout.maxIdleTimeMinutes} minute(s) without activity.`
+    );
+  }
   let pollErrorCount = 0;
+  let lastActivityAt = new Date();
 
   while (!signal?.aborted) {
+    if (idleTimeout) {
+      const lastEventObservedAt = idleTimeout.getLastEventObservedAt();
+      if (lastEventObservedAt && lastEventObservedAt > lastActivityAt) {
+        lastActivityAt = lastEventObservedAt;
+      }
+      if (Date.now() - lastActivityAt.getTime() >= idleTimeout.maxIdleTimeMinutes * 60_000) {
+        logger.info(
+          `Device run session ${deviceRunSessionId} had no activity for ` +
+            `${idleTimeout.maxIdleTimeMinutes} minute(s) (max idle time). Stopping the session.`
+        );
+        await ensureDeviceRunSessionStoppedSafelyAsync({ ctx, deviceRunSessionId, logger });
+        return;
+      }
+    }
     try {
       const result = await ctx.graphqlClient
         .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
@@ -171,6 +215,37 @@ export async function waitForDeviceRunSessionStoppedAsync({
       }
     }
     await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+  }
+}
+
+// Best effort: when this fails, the caller still tears the session down and the
+// job run finishes, which clients also treat as the session ending.
+async function ensureDeviceRunSessionStoppedSafelyAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    const result = await ctx.graphqlClient
+      .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })
+      .toPromise();
+    if (result.error) {
+      throw result.error;
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not mark idle device run session as stopped', error, {
+      level: 'warning',
+      extras: { deviceRunSessionId },
+    });
+    logger.warn(
+      { err: error },
+      `Could not mark device run session ${deviceRunSessionId} as stopped. The session job ends anyway.`
+    );
   }
 }
 

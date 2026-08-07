@@ -1,4 +1,10 @@
-import { EnvSchema, SshSettingsZ, StaticWorkflowInterpolationContextZ } from '../common';
+import {
+  EasCliVersionsFetchTimeoutError,
+  EnvSchema,
+  SshSettingsZ,
+  StaticWorkflowInterpolationContextZ,
+  fetchEasCliVersionsAsync,
+} from '../common';
 
 describe('EnvSchema', () => {
   it('accepts explicit undefined values', () => {
@@ -592,5 +598,80 @@ describe('GitHub context event payload passthrough', () => {
     const parsed = StaticWorkflowInterpolationContextZ.parse(context);
 
     expect(parsed.github?.event).toMatchObject(context.github.event);
+  });
+});
+
+describe('fetchEasCliVersionsAsync', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('fetches and parses cli-versions.json', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).resolves.toEqual({
+      STAGING: '21.5.1',
+      PRODUCTION: '21.5.0',
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://raw.githubusercontent.com/expo/eas-cli/main/cli-versions.json',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('throws on a non-OK response', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow(/HTTP 404/);
+  });
+
+  it('throws when the payload is missing a required property', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws when a version is not valid semver', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: 'latest-eas-build-staging', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws a timeout error when the request exceeds the timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.spyOn(global, 'fetch').mockImplementation(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            (init?.signal as AbortSignal | undefined)?.addEventListener('abort', () => {
+              reject(new Error('The operation was aborted.'));
+            });
+          })
+      );
+
+      const assertion = expect(fetchEasCliVersionsAsync()).rejects.toBeInstanceOf(
+        EasCliVersionsFetchTimeoutError
+      );
+      await jest.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
