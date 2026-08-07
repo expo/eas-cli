@@ -42,6 +42,7 @@ describe('AndroidEmulatorUtils', () => {
   describe('AndroidEmulatorUtils.startLogcatStreamingAsync', () => {
     function createSpawnPromise() {
       const child = Object.assign(new EventEmitter(), {
+        kill: jest.fn(),
         pid: 1234,
         stdout: new PassThrough(),
         unref: jest.fn(),
@@ -123,6 +124,38 @@ describe('AndroidEmulatorUtils', () => {
         }),
         'Failed to start Android emulator logcat stream for emulator-5554.'
       );
+    });
+
+    it('returns null and stops logcat when the output file cannot open', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const logger = createMockLogger();
+      const { child, spawnPromise } = createSpawnPromise();
+      mockedSpawn.mockReturnValueOnce(spawnPromise);
+      const writeStream = new PassThrough();
+      const openError = new Error('open failed');
+      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockImplementation(() => {
+        process.nextTick(() => writeStream.emit('error', openError));
+        return writeStream as unknown as fs.WriteStream;
+      });
+
+      try {
+        const resultPromise = AndroidEmulatorUtils.startLogcatStreamingAsync({
+          serialId: 'emulator-5554' as any,
+          outputDir,
+          env: process.env,
+          logger,
+        });
+
+        await expect(resultPromise).resolves.toBeNull();
+        expect(child.kill).toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.objectContaining({ err: openError }),
+          'Failed to start Android emulator logcat stream for emulator-5554.'
+        );
+      } finally {
+        createWriteStreamSpy.mockRestore();
+      }
     });
 
     it('returns null when logcat child pid is missing', async () => {

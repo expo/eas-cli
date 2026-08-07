@@ -3,6 +3,7 @@ import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
 import FastGlob from 'fast-glob';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -534,6 +535,12 @@ export namespace AndroidEmulatorUtils {
       const safeSerialId = serialId.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const outputPath = path.join(outputDir, `${child.pid}-${safeSerialId}.log`);
       const writeStream = fs.createWriteStream(outputPath);
+      try {
+        await once(writeStream, 'open');
+      } catch (err) {
+        child.kill();
+        throw err;
+      }
       void pipeline(childStdout, writeStream).catch(err => {
         logger.warn({ err }, `Android emulator logcat stream for ${serialId} failed.`);
       });
