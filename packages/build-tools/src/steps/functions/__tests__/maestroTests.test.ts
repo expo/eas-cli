@@ -135,7 +135,13 @@ describe('createMaestroTestsBuildFunction', () => {
   });
 
   it('uses direct DADB when android_connection_mode is dadb and restores ADB', async () => {
-    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    let maestroPathDuringRun: string | undefined;
+    mockedSpawn.mockImplementation((async (command: string, _args: string[], options: any) => {
+      if (command === 'maestro') {
+        maestroPathDuringRun = options.env.PATH;
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
     const writeFileSpy = jest.spyOn(fs, 'writeFile');
     const rmSpy = jest.spyOn(fs, 'rm');
     const step = createStep(
@@ -154,10 +160,11 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
     expect(mockedSpawn.mock.calls[2].slice(0, 2)).toEqual(['adb', ['start-server']]);
 
-    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
-    expect(maestroEnv?.PATH).toMatch(
+    expect(maestroPathDuringRun).toMatch(
       new RegExp(`^${os.tmpdir()}/maestro-tests-adb-override-.+${path.delimiter}/usr/bin$`)
     );
+    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
+    expect(maestroEnv?.PATH).toBe(mockedSpawn.mock.calls[0][2]?.env?.PATH);
     expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).toBe(mockedSpawn.mock.calls[0][2]?.env?.PATH);
     expect(mockedSpawn.mock.calls[2][2]?.env?.PATH).not.toContain('maestro-tests-adb-override-');
 

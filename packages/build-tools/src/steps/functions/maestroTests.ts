@@ -251,7 +251,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
 
       const restoreAndroidConnectionMode =
         androidConnectionMode === 'dadb'
-          ? await enableDirectDadbConnectionAsync({ spawnEnv, logger })
+          ? await enableDirectDadbConnectionAsync({ mutatingSpawnEnv: spawnEnv, logger })
           : null;
 
       const totalAttempts = retries + 1;
@@ -410,13 +410,22 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
 }
 
 async function enableDirectDadbConnectionAsync({
-  spawnEnv,
+  mutatingSpawnEnv,
   logger,
 }: {
-  spawnEnv: NodeJS.ProcessEnv;
+  mutatingSpawnEnv: NodeJS.ProcessEnv;
   logger: bunyan;
 }): Promise<() => Promise<void>> {
-  const adbEnv = { ...spawnEnv };
+  const adbEnv = { ...mutatingSpawnEnv };
+  const originalPath = mutatingSpawnEnv.PATH;
+  const hadOriginalPath = Object.hasOwn(mutatingSpawnEnv, 'PATH');
+  const restoreSpawnEnv = (): void => {
+    if (hadOriginalPath) {
+      mutatingSpawnEnv.PATH = originalPath;
+    } else {
+      delete mutatingSpawnEnv.PATH;
+    }
+  };
   const adbOverrideDirectoryPath = await fs.mkdtemp(
     path.join(os.tmpdir(), 'maestro-tests-adb-override-')
   );
@@ -429,9 +438,10 @@ async function enableDirectDadbConnectionAsync({
     // DADB starts an ADB server when it can find an adb binary. Stop the existing
     // server first, then make only the Maestro process find the failing shim.
     await spawn('adb', ['kill-server'], { env: adbEnv, logger });
-    spawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${spawnEnv.PATH ?? ''}`;
+    mutatingSpawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${originalPath ?? ''}`;
     logger.info('Using a direct DADB connection for Android Maestro tests.');
   } catch (err) {
+    restoreSpawnEnv();
     try {
       await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
     } catch (cleanupErr) {
@@ -441,6 +451,7 @@ async function enableDirectDadbConnectionAsync({
   }
 
   return async () => {
+    restoreSpawnEnv();
     try {
       await fs.rm(adbOverrideDirectoryPath, { force: true, recursive: true });
     } catch (err) {
