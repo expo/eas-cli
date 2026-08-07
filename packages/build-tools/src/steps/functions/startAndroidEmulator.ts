@@ -125,14 +125,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
             const startResult = await AndroidEmulatorUtils.startAsync({
               deviceName,
               env,
+              logcat: { outputDir: logcatOutputDir, logger },
             });
             attemptSerialId = startResult.serialId;
-            await AndroidEmulatorUtils.startLogcatStreamingAsync({
-              serialId: attemptSerialId,
-              outputDir: logcatOutputDir,
-              env,
-              logger,
-            });
             await AndroidEmulatorUtils.waitForReadyAsync({
               env,
               serialId: attemptSerialId,
@@ -220,14 +215,9 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                 const startResult = await AndroidEmulatorUtils.startAsync({
                   deviceName: cloneIdentifier,
                   env,
+                  logcat: { outputDir: logcatOutputDir, logger },
                 });
                 cloneSerialId = startResult.serialId;
-                await AndroidEmulatorUtils.startLogcatStreamingAsync({
-                  serialId: cloneSerialId,
-                  outputDir: logcatOutputDir,
-                  env,
-                  logger,
-                });
 
                 logger.info('Waiting for emulator to become ready');
                 await AndroidEmulatorUtils.waitForReadyAsync({

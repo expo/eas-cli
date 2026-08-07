@@ -1,13 +1,10 @@
 import spawn from '@expo/turtle-spawn';
-import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PassThrough } from 'node:stream';
-import { finished } from 'node:stream/promises';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
-import { AndroidEmulatorUtils } from '../AndroidEmulatorUtils';
+import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -39,154 +36,82 @@ describe('AndroidEmulatorUtils', () => {
     );
   });
 
-  describe('AndroidEmulatorUtils.startLogcatStreamingAsync', () => {
-    function createSpawnPromise() {
-      const child = Object.assign(new EventEmitter(), {
-        kill: jest.fn(),
-        pid: 1234,
-        stdout: new PassThrough(),
-        unref: jest.fn(),
-      });
+  describe(AndroidEmulatorUtils.startAsync, () => {
+    function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+      const child = { pid: 1234, unref: jest.fn() };
       const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
       spawnPromise.child = child;
-      return { child, spawnPromise };
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
+        }
+        if (command === 'adb' && args[0] === '-s' && args[2] === 'emu') {
+          return Promise.resolve({ stdout: `${deviceName}\nOK\n`, stderr: '' });
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+      return { child };
     }
 
-    it('streams logcat to a staged file', async () => {
+    it('captures logcat through the emulator process', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const logger = createMockLogger();
-      const { child, spawnPromise } = createSpawnPromise();
-      mockedSpawn.mockReturnValueOnce(spawnPromise);
-      const originalCreateWriteStream = fs.createWriteStream.bind(fs);
-      let writeStream: fs.WriteStream | undefined;
-      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockImplementation(((
-        ...args
-      ) => {
-        writeStream = originalCreateWriteStream(...args);
-        return writeStream;
-      }) as typeof fs.createWriteStream);
-      try {
-        const result = await AndroidEmulatorUtils.startLogcatStreamingAsync({
-          serialId: 'emulator-5554' as any,
-          outputDir,
-          env: process.env,
-          logger,
-        });
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
 
-        expect(result).not.toBeNull();
-        expect(mockedSpawn).toHaveBeenCalledWith(
-          'adb',
-          ['-s', 'emulator-5554', 'logcat', '-v', 'threadtime'],
-          {
-            env: process.env,
-            stdio: ['ignore', 'pipe', 'ignore'],
-          }
-        );
-        expect(child.unref).toHaveBeenCalled();
-
-        expect(writeStream).toBeDefined();
-        const finishPromise = finished(writeStream!);
-        child.stdout.write('log line\n');
-        child.stdout.end();
-        await finishPromise;
-
-        expect(result!.outputPath.startsWith(outputDir)).toBe(true);
-        await expect(fs.promises.readFile(result!.outputPath, 'utf-8')).resolves.toContain(
-          'log line'
-        );
-        expect(path.basename(result!.outputPath)).toBe('1234-emulator-5554.log');
-      } finally {
-        createWriteStreamSpy.mockRestore();
-      }
-    });
-
-    it('returns null and warns when logcat cannot start', async () => {
-      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
-      temporaryDirectories.push(outputDir);
-      const logger = createMockLogger();
-      mockedSpawn.mockImplementationOnce(() => {
-        throw new Error('spawn failed');
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: process.env,
+        logcat: { outputDir, logger },
       });
 
-      await expect(
-        AndroidEmulatorUtils.startLogcatStreamingAsync({
-          serialId: 'emulator-5554' as any,
-          outputDir,
-          env: process.env,
-          logger,
-        })
-      ).resolves.toBeNull();
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'spawn failed' }),
-        }),
-        'Failed to start Android emulator logcat stream for emulator-5554.'
+      expect(result.logcatOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[0-9a-f-]+\\.log$`)
       );
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        expect.stringMatching(/\/emulator\/emulator$/),
+        expect.arrayContaining(['-logcat', '*:v', '-logcat-output', result.logcatOutputPath]),
+        expect.objectContaining({ detached: true, stdio: 'inherit' })
+      );
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        expect.arrayContaining(['logcat']),
+        expect.anything()
+      );
+      expect(child.unref).toHaveBeenCalled();
     });
 
-    it('returns null and stops logcat when the output file cannot open', async () => {
-      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
-      temporaryDirectories.push(outputDir);
+    it('starts without logcat capture when the staging directory cannot be prepared', async () => {
+      const outputDir = '/unwritable/logcat-staging';
       const logger = createMockLogger();
-      const { child, spawnPromise } = createSpawnPromise();
-      mockedSpawn.mockReturnValueOnce(spawnPromise);
-      const writeStream = new PassThrough();
-      const openError = new Error('open failed');
-      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream').mockImplementation(() => {
-        process.nextTick(() => writeStream.emit('error', openError));
-        return writeStream as unknown as fs.WriteStream;
-      });
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      mockSuccessfulStart(deviceName);
+      const mkdirError = new Error('mkdir failed');
+      const mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockRejectedValueOnce(mkdirError);
 
       try {
-        const resultPromise = AndroidEmulatorUtils.startLogcatStreamingAsync({
-          serialId: 'emulator-5554' as any,
-          outputDir,
+        const result = await AndroidEmulatorUtils.startAsync({
+          deviceName,
           env: process.env,
-          logger,
+          logcat: { outputDir, logger },
         });
 
-        await expect(resultPromise).resolves.toBeNull();
-        expect(child.kill).toHaveBeenCalled();
+        expect(result.logcatOutputPath).toBeNull();
         expect(logger.warn).toHaveBeenCalledWith(
-          expect.objectContaining({ err: openError }),
-          'Failed to start Android emulator logcat stream for emulator-5554.'
+          expect.objectContaining({ err: mkdirError }),
+          'Failed to prepare Android emulator logcat output for eas-simulator.'
         );
+        const emulatorArgs = mockedSpawn.mock.calls.find(([command]) =>
+          command.endsWith('/emulator/emulator')
+        )?.[1];
+        expect(emulatorArgs).not.toContain('-logcat');
       } finally {
-        createWriteStreamSpy.mockRestore();
+        mkdirSpy.mockRestore();
       }
-    });
-
-    it('returns null when logcat child pid is missing', async () => {
-      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
-      temporaryDirectories.push(outputDir);
-      const logger = createMockLogger();
-      const child = Object.assign(new EventEmitter(), {
-        pid: undefined,
-        stdout: new PassThrough(),
-        unref: jest.fn(),
-      });
-      const spawnError = new Error('spawn failed');
-      const spawnPromise = Promise.reject(spawnError) as any;
-      spawnPromise.child = child;
-      mockedSpawn.mockReturnValueOnce(spawnPromise);
-
-      await expect(
-        AndroidEmulatorUtils.startLogcatStreamingAsync({
-          serialId: 'emulator-5554' as any,
-          outputDir,
-          env: process.env,
-          logger,
-        })
-      ).resolves.toBeNull();
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'spawn failed' }),
-        }),
-        'Failed to start Android emulator logcat stream for emulator-5554.'
-      );
     });
   });
 
