@@ -78,16 +78,16 @@ export function createEasMaestroTestFunctionGroup(
           interpolationContext: globalCtx.getInterpolationContext(),
         });
         steps.push(
-          createStartAndroidEmulatorBuildFunction().createBuildStepFromFunctionCall(globalCtx, {
-            id: 'start_android_emulator',
-            ...(system_image_package
+          createStartAndroidEmulatorBuildFunction().createBuildStepFromFunctionCall(
+            globalCtx,
+            system_image_package
               ? {
                   callInputs: {
                     system_image_package,
                   },
                 }
-              : {}),
-          })
+              : undefined
+          )
         );
         const searchPath =
           inputs.app_path.getValue({
@@ -136,25 +136,6 @@ export function createEasMaestroTestFunctionGroup(
             displayName: `maestro test ${flowPath}`,
             command: `maestro test ${flowPath}`,
           })
-        );
-      }
-
-      if (buildToolsContext.job.platform === Platform.ANDROID) {
-        steps.push(
-          createUploadArtifactBuildFunction(buildToolsContext).createBuildStepFromFunctionCall(
-            globalCtx,
-            {
-              ifCondition: '${ always() }',
-              name: 'Upload Android emulator logs',
-              callInputs: {
-                copy_before_upload: true,
-                ignore_error: true,
-                name: 'Android emulator logs',
-                path: '${{ steps.start_android_emulator.outputs.logcat_directory }}',
-                type: 'other',
-              },
-            }
-          )
         );
       }
 
