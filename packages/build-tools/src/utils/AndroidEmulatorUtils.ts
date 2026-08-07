@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
@@ -294,10 +295,31 @@ export namespace AndroidEmulatorUtils {
   export async function startAsync({
     deviceName,
     env,
+    logcatDirectory,
   }: {
     deviceName: AndroidVirtualDeviceName;
     env: NodeJS.ProcessEnv;
-  }): Promise<{ emulatorPromise: SpawnPromise<SpawnResult>; serialId: AndroidDeviceSerialId }> {
+    logcatDirectory: string;
+  }): Promise<{
+    emulatorPromise: SpawnPromise<SpawnResult>;
+    serialId: AndroidDeviceSerialId;
+    logcatOutputPath: string;
+  }> {
+    let logcatOutputPath: string;
+    try {
+      await fs.promises.mkdir(logcatDirectory, { recursive: true });
+      const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const logcatOutputDirectory = await fs.promises.mkdtemp(
+        path.join(logcatDirectory, `${safeDeviceName}-`)
+      );
+      logcatOutputPath = path.join(logcatOutputDirectory, 'logcat.log');
+      await fs.promises.writeFile(logcatOutputPath, '', { flag: 'wx' });
+    } catch (err) {
+      throw new SystemError(`Failed to prepare Android emulator logcat output for ${deviceName}.`, {
+        cause: err,
+      });
+    }
+
     const emulatorPromise = spawn(
       `${process.env.ANDROID_HOME}/emulator/emulator`,
       [
@@ -306,6 +328,10 @@ export namespace AndroidEmulatorUtils {
         '-writable-system',
         '-noaudio',
         '-no-snapshot-save',
+        '-logcat',
+        '*:v',
+        '-logcat-output',
+        logcatOutputPath,
         '-avd',
         deviceName,
         '-accel',
@@ -352,7 +378,7 @@ export namespace AndroidEmulatorUtils {
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
-    return { emulatorPromise, serialId };
+    return { emulatorPromise, serialId, logcatOutputPath };
   }
 
   export async function waitForReadyAsync({
