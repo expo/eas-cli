@@ -25,7 +25,6 @@ jest.mock('../../../utils/AndroidEmulatorUtils', () => ({
     createAsync: jest.fn(),
     cloneAsync: jest.fn(),
     startAsync: jest.fn(),
-    getLogcatStagingDirectoryPath: jest.fn(),
     waitForReadyAsync: jest.fn(),
     disableWindowAndTransitionAnimationsAsync: jest.fn(),
     deleteAsync: jest.fn(),
@@ -60,9 +59,6 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     mockedAndroidUtils.createAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.cloneAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.startAsync.mockResolvedValue(createStartResult('emulator-default'));
-    mockedAndroidUtils.getLogcatStagingDirectoryPath.mockReturnValue(
-      '/non/existent/dir/android-emulator-logcat'
-    );
     mockedAndroidUtils.waitForReadyAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.disableWindowAndTransitionAnimationsAsync.mockResolvedValue(undefined);
     mockedAndroidUtils.deleteAsync.mockResolvedValue(undefined);
@@ -113,19 +109,15 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
+        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
-        logcat: expect.objectContaining({
-          outputDir: '/non/existent/dir/android-emulator-logcat',
-        }),
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
+        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
-        logcat: expect.objectContaining({
-          outputDir: '/non/existent/dir/android-emulator-logcat',
-        }),
       })
     );
     expect(mockedAndroidUtils.deleteAsync).toHaveBeenCalledWith(
@@ -198,20 +190,20 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
+        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'EasAndroidDevice01',
-        logcat: expect.any(Object),
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
+        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'eas-simulator-1',
-        logcat: expect.any(Object),
       })
     );
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
+        buildLogsDirectory: '/non/existent/dir',
         deviceName: 'eas-simulator-2',
-        logcat: expect.any(Object),
       })
     );
 
@@ -243,14 +235,12 @@ describe(createStartAndroidEmulatorBuildFunction, () => {
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledTimes(3);
   });
 
-  it('passes the logcat staging directory when starting an emulator', async () => {
+  it('passes the build logs directory when starting an emulator', async () => {
     await createStep().executeAsync();
 
     expect(mockedAndroidUtils.startAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        logcat: expect.objectContaining({
-          outputDir: '/non/existent/dir/android-emulator-logcat',
-        }),
+        buildLogsDirectory: '/non/existent/dir',
       })
     );
     expect(mockedAndroidUtils.waitForReadyAsync).toHaveBeenCalledWith(
