@@ -60,6 +60,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
       - run: yarn lint
       - run: yarn fmt:check
+      - run: yarn actionlint
       - name: Install scripts dependencies
         if: ${{ matrix.coverage }}
         run: yarn install --immutable
