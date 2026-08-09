@@ -1,4 +1,5 @@
 name: setup-gcloud
+description: Authenticate to Google Cloud via workload identity federation and set up the gcloud CLI.
 
 runs:
   using: "composite"

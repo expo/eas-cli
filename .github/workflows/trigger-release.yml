@@ -42,5 +42,5 @@ jobs:
             yarn release
           else
             echo "Releasing with version $INPUT_VERSION"
-            yarn release $INPUT_VERSION
+            yarn release "$INPUT_VERSION"
           fi
