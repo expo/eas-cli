@@ -214,7 +214,9 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       );
       const androidConnectionMode = parseInput(
         AndroidConnectionModeSchema,
-        inputs.android_connection_mode.value ?? env.EAS_MAESTRO_ANDROID_CONNECTION_MODE,
+        inputs.android_connection_mode.value ||
+          env.EAS_MAESTRO_ANDROID_CONNECTION_MODE ||
+          undefined,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
@@ -256,13 +258,18 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           // server first, then make only the Maestro process find the failing shim.
           try {
             await spawn('adb', ['kill-server'], { env: { ...spawnEnv }, logger, signal });
+            logger.info(
+              'Using a direct DADB connection for Android Maestro tests after stopping the ADB server.'
+            );
           } catch (err) {
-            logger.warn({ err }, 'Failed to stop the ADB server before Maestro tests; continuing.');
+            logger.warn(
+              { err },
+              'Using a direct DADB connection for Android Maestro tests, but failed to stop the ADB server.'
+            );
           }
           spawnEnv.PATH = spawnEnv.PATH
             ? `${adbOverrideDirectoryPath}${path.delimiter}${spawnEnv.PATH}`
             : adbOverrideDirectoryPath;
-          logger.info('Using a direct DADB connection for Android Maestro tests.');
         } catch (err) {
           // Intentionally skip cleanup because the worker is disposable.
           throw new SystemError('Failed to enable direct DADB connection for Maestro', {
