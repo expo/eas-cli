@@ -170,6 +170,51 @@ describe('createMaestroTestsBuildFunction', () => {
     );
   });
 
+  it('uses direct DADB when EAS_MAESTRO_ANDROID_CONNECTION_MODE is dadb', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+      },
+      {
+        env: {
+          HOME: '/home/expo',
+          PATH: '/usr/bin',
+          EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb',
+        },
+      }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
+    expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
+  });
+
+  it('prefers android_connection_mode over EAS_MAESTRO_ANDROID_CONNECTION_MODE', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'adb',
+      },
+      {
+        env: {
+          HOME: '/home/expo',
+          PATH: '/usr/bin',
+          EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb',
+        },
+      }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
   it('uses the same direct DADB environment for all retries', async () => {
     let maestroAttempt = 0;
     mockedSpawn.mockImplementation((async (command: string) => {
@@ -203,6 +248,19 @@ describe('createMaestroTestsBuildFunction', () => {
       platform: 'android',
       android_connection_mode: 'automatic',
     });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid EAS_MAESTRO_ANDROID_CONNECTION_MODE values', async () => {
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+      },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'automatic' } }
+    );
 
     await expect(step.executeAsync()).rejects.toThrow(UserError);
     expect(mockedSpawn).not.toHaveBeenCalled();

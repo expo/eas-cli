@@ -147,7 +147,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       BuildStepInput.createProvider({
         id: 'android_connection_mode',
         required: false,
-        defaultValue: 'adb',
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
@@ -215,8 +214,8 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       );
       const androidConnectionMode = parseInput(
         AndroidConnectionModeSchema,
-        inputs.android_connection_mode.value,
-        'android_connection_mode must be either "adb" or "dadb".'
+        inputs.android_connection_mode.value ?? env.EAS_MAESTRO_ANDROID_CONNECTION_MODE,
+        'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
       if (androidConnectionMode === 'dadb' && platform !== 'android') {
         throw new UserError(
