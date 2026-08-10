@@ -63,11 +63,14 @@ const rejectExit1 = (): Error => {
 
 function createStep(
   callInputs?: Record<string, unknown>,
-  options: { env?: Record<string, string | undefined> } = {}
+  options: {
+    env?: Record<string, string | undefined>;
+    logger?: ReturnType<typeof createMockLogger>;
+  } = {}
 ): ReturnType<
   ReturnType<typeof createMaestroTestsBuildFunction>['createBuildStepFromFunctionCall']
 > {
-  const logger = createMockLogger();
+  const logger = options.logger ?? createMockLogger();
   const ctx = {
     runtimeApi: { uploadArtifact: mockUploadArtifact },
   } as unknown as CustomBuildContext;
@@ -152,6 +155,7 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).toHaveBeenCalledTimes(2);
     expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
     expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
+    expect(mockedSpawn.mock.calls[0][2]?.signal).toBe(mockedSpawn.mock.calls[1][2]?.signal);
 
     const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
     expect(maestroEnv?.PATH).toMatch(
@@ -167,6 +171,34 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(rmSpy).not.toHaveBeenCalledWith(
       expect.stringMatching(/maestro-tests-adb-override-/),
       expect.anything()
+    );
+  });
+
+  it('continues with direct DADB and warns when adb kill-server fails', async () => {
+    const killServerError = new Error('ADB server is unavailable');
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'adb') {
+        throw killServerError;
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' }, logger }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls.map(([command]) => command)).toEqual(['adb', 'maestro']);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: killServerError },
+      'Failed to stop the ADB server before Maestro tests; continuing.'
     );
   });
 

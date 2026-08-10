@@ -254,8 +254,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
 
           // DADB starts an ADB server when it can find an adb binary. Stop the existing
           // server first, then make only the Maestro process find the failing shim.
-          await spawn('adb', ['kill-server'], { env: { ...spawnEnv }, logger });
-          spawnEnv.PATH = `${adbOverrideDirectoryPath}${path.delimiter}${spawnEnv.PATH ?? ''}`;
+          try {
+            await spawn('adb', ['kill-server'], { env: { ...spawnEnv }, logger, signal });
+          } catch (err) {
+            logger.warn({ err }, 'Failed to stop the ADB server before Maestro tests; continuing.');
+          }
+          spawnEnv.PATH = spawnEnv.PATH
+            ? `${adbOverrideDirectoryPath}${path.delimiter}${spawnEnv.PATH}`
+            : adbOverrideDirectoryPath;
           logger.info('Using a direct DADB connection for Android Maestro tests.');
         } catch (err) {
           // Intentionally skip cleanup because the worker is disposable.
