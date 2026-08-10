@@ -60,6 +60,25 @@ export async function withUpgradeRequiredErrorHandlingAsync<T>(
   }
 }
 
+/**
+ * Whether a failed request will keep failing the same way. True only when the server attributes
+ * every error to the caller (`errorType: USER`): a rejected input, a missing permission, a
+ * resource this account can't see. Server faults, network errors, and anything we can't classify
+ * stay retriable, since giving up on those turns a blip into a failed command. Polling loops use
+ * this to stop early instead of waiting out their deadline.
+ */
+export function isPermanentGraphqlError(error: unknown): boolean {
+  if (!(error instanceof GraphqlError) || error.networkError) {
+    return false;
+  }
+  return (
+    error.graphQLErrors.length > 0 &&
+    error.graphQLErrors.every(
+      e => e?.extensions?.errorType === 'USER' && !e?.extensions?.isTransient
+    )
+  );
+}
+
 function isUpgradeRequiredError(error: unknown): boolean {
   if (!(error instanceof GraphqlError)) {
     return false;
