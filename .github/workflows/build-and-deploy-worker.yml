@@ -38,7 +38,7 @@ jobs:
           for platform in android ios; do
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
 
-            if ! gsutil stat gs://eas-build-worker-tarballs/$GCP_TARBALL; then
+            if ! gsutil stat "gs://eas-build-worker-tarballs/$GCP_TARBALL"; then
               echo "worker_exists=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -191,8 +191,8 @@ jobs:
         run: |
           IOS_GCP_TARBALL="worker-ios-sha1-$GITHUB_SHA.tar.gz"
           ANDROID_GCP_TARBALL="worker-android-sha1-$GITHUB_SHA.tar.gz"
-          curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL
-          curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL
+          curl -L "${{ steps.eas_artifacts.outputs.download_ios_url }}" | gsutil cp - "gs://eas-build-worker-tarballs/$IOS_GCP_TARBALL"
+          curl -L "${{ steps.eas_artifacts.outputs.download_android_url }}" | gsutil cp - "gs://eas-build-worker-tarballs/$ANDROID_GCP_TARBALL"
 
       - name: Promote worker to ${{ inputs.environment }}
         if: inputs.environment != ''
@@ -201,5 +201,5 @@ jobs:
             GCP_TARBALL="worker-$platform-sha1-$GITHUB_SHA.tar.gz"
             WORKER_STAGING_TARBALL="worker-$platform-${{ inputs.environment }}.tar.gz"
 
-            gsutil cp gs://eas-build-worker-tarballs/$GCP_TARBALL gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL
+            gsutil cp "gs://eas-build-worker-tarballs/$GCP_TARBALL" "gs://eas-build-worker-tarballs/$WORKER_STAGING_TARBALL"
           done

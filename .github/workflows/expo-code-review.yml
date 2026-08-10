@@ -74,9 +74,11 @@ jobs:
           else
             route=true # bare `ai-review` => let the router pick
           fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
-          echo "agents=$agents" >> "$GITHUB_OUTPUT"
-          echo "route=$route" >> "$GITHUB_OUTPUT"
+          {
+            echo "run=true"
+            echo "agents=$agents"
+            echo "route=$route"
+          } >> "$GITHUB_OUTPUT"
 
       # SECURITY: check out the PR's immutable BASE commit, never the PR head or
       # merge ref — everything on this runner's disk comes from a commit that
@@ -172,13 +174,13 @@ jobs:
           AGENTS: ${{ steps.resolve.outputs.agents }}
           ROUTE: ${{ steps.resolve.outputs.route }}
         run: |
-          ARGS=""
+          ARGS=()
           if [ -n "$AGENTS" ]; then
-            ARGS="--agents $AGENTS"
+            ARGS=(--agents "$AGENTS")
           elif [ "$ROUTE" = "true" ]; then
-            ARGS="--route"
+            ARGS=(--route)
           fi
-          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci $ARGS
+          npx --yes -p "@expo/code-review-cli@$ECR_VERSION" ecr ci "${ARGS[@]}"
 
       # Persist the run log (decision, per-agent cost, duration, token/cache
       # metrics) so cost/latency/cache reuse are observable over time — CI is

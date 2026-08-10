@@ -66,12 +66,12 @@ jobs:
         working-directory: ./scripts
         run: yarn install --immutable
       - name: Resolve version
-        run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: echo "EAS_CLI_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
       - name: Update changelog
         working-directory: ./scripts
-        run: yarn release-changelog $EAS_CLI_VERSION > /tmp/current-changelog
+        run: yarn release-changelog "$EAS_CLI_VERSION" > /tmp/current-changelog
       - name: Publish release
-        run: gh release edit v$EAS_CLI_VERSION --draft=false -F /tmp/current-changelog
+        run: gh release edit "v$EAS_CLI_VERSION" --draft=false -F /tmp/current-changelog
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Commit and push
@@ -90,9 +90,11 @@ jobs:
         run: |
           tail -n +3 /tmp/current-changelog > /tmp/changelog.md
           npx slackmd /tmp/changelog.md
-          echo 'SLACK_CHANGELOG<<EOF' >> $GITHUB_ENV
-          cat /tmp/changelog.slack.md >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+          {
+            echo 'SLACK_CHANGELOG<<EOF'
+            cat /tmp/changelog.slack.md
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2
         env:
