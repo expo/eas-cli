@@ -217,12 +217,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         inputs.android_connection_mode.value ?? env.EAS_MAESTRO_ANDROID_CONNECTION_MODE,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
-      if (androidConnectionMode === 'dadb' && platform !== 'android') {
-        throw new UserError(
-          'ERR_MAESTRO_INVALID_INPUT',
-          'android_connection_mode "dadb" can only be used with the Android platform.'
-        );
-      }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
       try {
@@ -249,7 +243,7 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       const harvested: HarvestedScreenshot[] = [];
 
       const totalAttempts = retries + 1;
-      if (androidConnectionMode === 'dadb') {
+      if (platform === 'android' && androidConnectionMode === 'dadb') {
         try {
           const adbOverrideDirectoryPath = await fs.mkdtemp(
             path.join(os.tmpdir(), 'maestro-tests-adb-override-')

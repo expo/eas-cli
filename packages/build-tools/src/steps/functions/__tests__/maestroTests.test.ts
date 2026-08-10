@@ -266,15 +266,34 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('rejects direct DADB mode on iOS', async () => {
+  it('ignores direct DADB input mode on iOS', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     const step = createStep({
       flow_path: ['flows/a.yaml'],
       platform: 'ios',
       android_connection_mode: 'dadb',
     });
 
-    await expect(step.executeAsync()).rejects.toThrow(UserError);
-    expect(mockedSpawn).not.toHaveBeenCalled();
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('ignores direct DADB environment mode on iOS', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'ios',
+      },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb' } }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
   });
 
   it('does not clean up direct DADB mode when Maestro fails', async () => {
