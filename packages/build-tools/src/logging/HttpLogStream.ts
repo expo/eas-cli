@@ -6,6 +6,7 @@ import { Writable } from 'stream';
 import { retryAsync } from '../utils/retry';
 
 const MAX_BATCH_BYTES = 200_000;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 interface BufferedLogEntry {
   enqueuedAt: number;
@@ -161,6 +162,7 @@ export default class HttpLogStream extends Writable {
             'Content-Type': 'application/x-ndjson',
           },
           body: logs.map(log => log.serialized).join('\n'),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
 
         if (!response.ok) {
