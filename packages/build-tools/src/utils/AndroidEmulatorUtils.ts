@@ -4,6 +4,7 @@ import { asyncResult } from '@expo/results';
 import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import assert from 'assert';
 import FastGlob from 'fast-glob';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -309,11 +310,11 @@ export namespace AndroidEmulatorUtils {
     try {
       await fs.promises.mkdir(logcatDirectory, { recursive: true });
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const logcatOutputDirectory = await fs.promises.mkdtemp(
-        path.join(logcatDirectory, `${safeDeviceName}-`)
+      logcatOutputPath = path.join(
+        logcatDirectory,
+        `${safeDeviceName}-${randomBytes(6).toString('hex')}.log`
       );
-      logcatOutputPath = path.join(logcatOutputDirectory, 'logcat.log');
-      await fs.promises.writeFile(logcatOutputPath, '', { flag: 'wx' });
+      await fs.promises.writeFile(logcatOutputPath, '');
     } catch (err) {
       throw new SystemError(`Failed to prepare Android emulator logcat output for ${deviceName}.`, {
         cause: err,

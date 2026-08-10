@@ -70,7 +70,7 @@ describe('AndroidEmulatorUtils', () => {
       });
 
       expect(result.logcatOutputPath).toMatch(
-        new RegExp(`^${outputDir}/eas-simulator-[^/]+/logcat\\.log$`)
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{12}\\.log$`)
       );
       await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
       expect(mockedSpawn).toHaveBeenCalledWith(
