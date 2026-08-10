@@ -228,12 +228,12 @@ class RudderstackAnalytics implements AnalyticsWithOrchestration {
   private getRudderStackContext(): Record<string, any> {
     const platform = PLATFORM_TO_ANALYTICS_PLATFORM[os.platform()] || os.platform();
     const agent = getAgentTelemetryContext();
-    const sandboxId = getSandboxTelemetryContext();
+    const sandboxProvider = getSandboxTelemetryContext();
     return {
       os: { name: platform, version: os.release() },
       device: { type: platform, model: platform },
       app: { name: 'eas cli', version: easCliVersion ?? undefined },
-      ...(sandboxId ? { sandbox_id: sandboxId } : {}),
+      ...(sandboxProvider ? { sandbox_provider: sandboxProvider } : {}),
       ...(agent ? { agent } : {}),
     };
   }

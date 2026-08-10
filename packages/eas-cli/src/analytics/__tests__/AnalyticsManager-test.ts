@@ -84,7 +84,7 @@ it('omits agent and sandbox context when neither is detected', async () => {
     expect.objectContaining({
       context: expect.not.objectContaining({
         agent: expect.anything(),
-        sandbox_id: expect.anything(),
+        sandbox_provider: expect.anything(),
       }),
     })
   );
@@ -117,7 +117,7 @@ it('adds detected sandbox context to analytics events', async () => {
   expect(mockTrack).toHaveBeenCalledWith(
     expect.objectContaining({
       context: expect.objectContaining({
-        sandbox_id: 'e2b',
+        sandbox_provider: 'e2b',
       }),
     })
   );
