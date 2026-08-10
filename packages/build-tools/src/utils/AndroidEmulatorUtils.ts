@@ -310,9 +310,10 @@ export namespace AndroidEmulatorUtils {
     try {
       await fs.promises.mkdir(logcatDirectory, { recursive: true });
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const timestamp = Date.now().toString(16).padStart(12, '0');
       logcatOutputPath = path.join(
         logcatDirectory,
-        `${safeDeviceName}-${randomBytes(6).toString('hex')}.log`
+        `${safeDeviceName}-${timestamp}-${randomBytes(6).toString('hex')}.log`
       );
       await fs.promises.writeFile(logcatOutputPath, '');
     } catch (err) {
