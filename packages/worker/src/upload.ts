@@ -137,6 +137,59 @@ export async function uploadBuildArtifactsAsync(
   }
 }
 
+export async function uploadSourceMapAsync(
+  ctx: BuildContext,
+  {
+    sourceMapPath,
+    buildId,
+    logger,
+  }: {
+    sourceMapPath: string;
+    buildId: string;
+    logger: bunyan;
+  }
+): Promise<{ filename: string | null }> {
+  const { localPath, size } = await prepareArtifactsForUploadAsync(logger, [sourceMapPath]);
+  const filename = `source-map-${buildId}.map`;
+
+  let uploadSession: GCS.SignedUrl | null = null;
+
+  try {
+    const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
+      filename,
+      name: 'Source Map',
+      size,
+      artifactType: 'sourceMap',
+    });
+
+    uploadSession = signedUrl;
+
+    await GCS.uploadWithSignedUrl({
+      signedUrl,
+      srcGeneratorAsync: async () => {
+        return fs.createReadStream(localPath);
+      },
+    });
+
+    await saveArtifactAsync(ctx, { bucketKey, type: 'sourceMap', storageType });
+
+    return { filename: null };
+  } catch (err: any) {
+    logger.error({ err, filename, size }, 'Source map upload failed');
+
+    throw new errors.SystemError('Failed to upload source map.', {
+      trackingCode: 'EAS_BUILD_UPLOAD_SOURCE_MAP_FAILED',
+      metadata: {
+        filename,
+        size,
+        ...uploadSession,
+        ...(err instanceof ErrorWithMetadata ? err.metadata : {}),
+      },
+      cause: err,
+    });
+  }
+}
+
 export async function uploadWorkflowArtifactAsync(
   ctx: BuildContext,
   {
@@ -246,7 +299,14 @@ async function createUploadSessionAsync(
     name,
     size,
     metadata,
-  }: { filename: string; name: string; size: number; metadata?: Record<string, unknown> }
+    artifactType,
+  }: {
+    filename: string;
+    name: string;
+    size: number;
+    metadata?: Record<string, unknown>;
+    artifactType?: 'sourceMap';
+  }
 ): Promise<{
   bucketKey: string;
   signedUrl: SignedUrl;
@@ -273,7 +333,13 @@ async function createUploadSessionAsync(
         'POST',
         // 'name' is ignored by Turtle Build router, but provide it for potential use for telemetry, etc.
         {
-          json: { filename, name, size, metadata },
+          json: {
+            filename,
+            name,
+            size,
+            metadata,
+            ...(artifactType ? { type: artifactType } : {}),
+          },
           headers: {
             Authorization: `Bearer ${robotAccessToken}`,
           },
@@ -377,7 +443,7 @@ async function saveArtifactAsync(
     storageType,
   }: {
     bucketKey: string;
-    type: 'applicationArchive' | 'buildArtifacts';
+    type: 'applicationArchive' | 'buildArtifacts' | 'sourceMap';
     storageType: ArchiveSourceType | null;
   }
 ): Promise<void> {

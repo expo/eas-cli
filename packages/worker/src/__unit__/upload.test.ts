@@ -8,6 +8,7 @@ import { Response } from 'node-fetch';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadSourceMapAsync,
   uploadWorkflowArtifactAsync,
 } from '../upload';
 import { turtleFetch } from '../utils/turtleFetch';
@@ -462,6 +463,90 @@ describe(uploadBuildArtifactsAsync.name, () => {
       }),
       cause: uploadError,
     });
+  });
+});
+
+describe(uploadSourceMapAsync.name, () => {
+  it('uploads and registers a source map with its dedicated artifact type', async () => {
+    vol.fromJSON({
+      './source-map.map': JSON.stringify({ version: 3, sources: [], names: [], mappings: '' }),
+    });
+    const buildId = randomUUID();
+    // @ts-expect-error
+    const ctx: BuildContext<Job> = {
+      env: {
+        EAS_BUILD_ID: buildId,
+      },
+      job: {
+        platform: 'android',
+        secrets: {
+          robotAccessToken: 'fake-token',
+        },
+      } as Job,
+      logger: mockLogger,
+    };
+    const bucketKey = `source-maps/${buildId}/source-map.map`;
+    const uploadUrl = `https://upload.url/${randomUUID()}`;
+    const authorization = randomUUID();
+
+    turtleFetchMock.mockImplementation(async url => {
+      if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`) {
+        return {
+          ok: true,
+          status: 200,
+        } as Response;
+      } else if (url === `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              bucketKey,
+              url: uploadUrl,
+              headers: { authorization },
+              storageType: 'GCS',
+            },
+          }),
+        } as Response;
+      }
+      return { ok: false, status: 404 } as Response;
+    });
+
+    await uploadSourceMapAsync(ctx, {
+      sourceMapPath: './source-map.map',
+      buildId,
+      logger: ctx.logger,
+    });
+
+    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedUrl: {
+          url: uploadUrl,
+          headers: { authorization },
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      1,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/upload-sessions/`,
+      'POST',
+      expect.objectContaining({
+        json: {
+          filename: `source-map-${buildId}.map`,
+          name: 'Source Map',
+          size: expect.any(Number),
+          type: 'sourceMap',
+        },
+      })
+    );
+    expect(turtleFetchMock).toHaveBeenNthCalledWith(
+      2,
+      `https://api.expo.test/v2/turtle-builds/${buildId}/artifacts/`,
+      'POST',
+      expect.objectContaining({
+        json: { source: { bucketKey, type: 'GCS' }, type: 'sourceMap' },
+      })
+    );
   });
 });
 

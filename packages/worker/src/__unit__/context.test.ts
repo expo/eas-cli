@@ -1,10 +1,11 @@
 import { RuntimeSettings } from '@expo/build-tools';
-import { Platform, Workflow } from '@expo/eas-build-job';
+import { ManagedArtifactType, Platform, Workflow } from '@expo/eas-build-job';
 
 import config from '../config';
 import { createBuildContext } from '../context';
 import { getBuildEnv } from '../env';
 import { prepareRuntimeEnvironmentConfigFiles } from '../runtimeEnvironment';
+import { uploadSourceMapAsync } from '../upload';
 
 jest.mock('../env', () => ({
   getBuildEnv: jest.fn(() => ({
@@ -14,6 +15,11 @@ jest.mock('../env', () => ({
 }));
 jest.mock('../runtimeEnvironment', () => ({
   prepareRuntimeEnvironmentConfigFiles: jest.fn(async () => {}),
+}));
+jest.mock('../upload', () => ({
+  ...jest.requireActual('../upload'),
+  uploadSourceMapAsync: jest.fn(async () => ({ filename: null })),
+  uploadWithAnalyticsAsync: jest.fn(async fn => await fn()),
 }));
 
 describe(createBuildContext.name, () => {
@@ -83,5 +89,30 @@ describe(createBuildContext.name, () => {
         env: undefined,
       })
     );
+  });
+
+  it('routes managed source maps to the source-map uploader', async () => {
+    const ctx = await createBuildContext({
+      ...baseOptions,
+      job: {
+        platform: Platform.ANDROID,
+        type: Workflow.GENERIC,
+        secrets: { environmentSecrets: [] },
+      } as any,
+    });
+
+    await ctx.uploadArtifact({
+      artifact: {
+        type: ManagedArtifactType.SOURCE_MAP,
+        paths: ['/workingdir/observe-source-maps/android.map'],
+      },
+      logger: childLogger,
+    });
+
+    expect(uploadSourceMapAsync).toHaveBeenCalledWith(ctx, {
+      sourceMapPath: '/workingdir/observe-source-maps/android.map',
+      buildId: baseOptions.buildId,
+      logger: childLogger,
+    });
   });
 });

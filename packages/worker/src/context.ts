@@ -13,6 +13,7 @@ import sentry from './sentry';
 import {
   uploadApplicationArchiveAsync,
   uploadBuildArtifactsAsync,
+  uploadSourceMapAsync,
   uploadWithAnalyticsAsync,
   uploadWorkflowArtifactAsync,
 } from './upload';
@@ -64,6 +65,13 @@ export async function createBuildContext<TJob extends Job>({
         assert(job.platform, 'Uploading build artifacts outside of builds is not supported.');
         return await uploadWithAnalyticsAsync(
           () => uploadBuildArtifactsAsync(ctx, { artifactPaths: paths, buildId, logger }),
+          analytics
+        );
+      }
+      case ManagedArtifactType.SOURCE_MAP: {
+        assert(job.platform, 'Uploading source maps outside of builds is not supported.');
+        return await uploadWithAnalyticsAsync(
+          () => uploadSourceMapAsync(ctx, { sourceMapPath: paths[0], buildId, logger }),
           analytics
         );
       }
