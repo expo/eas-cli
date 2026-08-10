@@ -1,6 +1,6 @@
 {
   "name": "@expo/build-tools",
-  "version": "21.7.0",
+  "version": "21.7.1",
   "bugs": "https://github.com/expo/eas-cli/issues",
   "license": "BUSL-1.1",
   "author": "Expo <support@expo.io>",
@@ -46,7 +46,7 @@
     "@expo/plist": "^0.3.5",
     "@expo/results": "^1.0.0",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "21.6.0",
+    "@expo/steps": "21.7.1",
     "@expo/template-file": "21.0.2",
     "@expo/turtle-spawn": "21.0.0",
     "@expo/xcpretty": "^4.3.1",
