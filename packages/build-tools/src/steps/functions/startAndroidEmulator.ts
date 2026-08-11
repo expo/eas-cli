@@ -5,8 +5,12 @@ import {
   BuildRuntimePlatform,
   BuildStepInput,
   BuildStepInputValueTypeName,
+  BuildStepOutput,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import {
   AndroidDeviceName,
@@ -49,7 +53,18 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
-    fn: async ({ logger }, { inputs, env }) => {
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'logcat_directory',
+        required: true,
+      }),
+    ],
+    fn: async ({ logger }, { inputs, outputs, env }) => {
+      const logcatDirectory = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), 'eas-android-emulator-logcat-')
+      );
+      outputs.logcat_directory.set(logcatDirectory);
+
       if (env.EAS_NO_EMULATOR_HOST_SUPPORT_CHECK !== '1') {
         await assertAndroidEmulatorHostSupportAsync({ env });
       } else {
@@ -122,6 +137,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
             const startResult = await AndroidEmulatorUtils.startAsync({
               deviceName,
               env,
+              logcatDirectory,
             });
             attemptSerialId = startResult.serialId;
             await AndroidEmulatorUtils.waitForReadyAsync({
@@ -211,6 +227,7 @@ export function createStartAndroidEmulatorBuildFunction(): BuildFunction {
                 const startResult = await AndroidEmulatorUtils.startAsync({
                   deviceName: cloneIdentifier,
                   env,
+                  logcatDirectory,
                 });
                 cloneSerialId = startResult.serialId;
 
