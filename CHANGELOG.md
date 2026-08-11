@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `metadata:pull` rewriting unchanged screenshots on every pull. App Store Connect stamps a unique asset ID into each download's PNG metadata chunks; pulls now skip writing when the local file only differs in those volatile chunks. ([#3846](https://github.com/expo/eas-cli/pull/3846) by [@ahmdshrif](https://github.com/ahmdshrif))
+
 ### 🧹 Chores
 
 ## [21.7.1](https://github.com/expo/eas-cli/releases/tag/v21.7.1) - 2026-08-10
