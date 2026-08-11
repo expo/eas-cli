@@ -8,10 +8,8 @@ import { BuildContext } from '../context';
 const ANDROID_SOURCE_MAP_PATTERN = 'android/**/build/generated/sourcemaps/react/**/*.map';
 const SOURCE_MAP_UPLOAD_DIRECTORY = 'observe-source-maps';
 
-export const OBSERVE_SOURCE_MAPS_UPLOAD_ENV = 'EAS_OBSERVE_EXPERIMENTAL_UPLOAD_SOURCE_MAPS';
-
-export function isObserveSourceMapUploadEnabled(ctx: BuildContext<BuildJob>): boolean {
-  return !ctx.isLocal && ctx.env[OBSERVE_SOURCE_MAPS_UPLOAD_ENV] === '1';
+export function isSourceMapUploadEnabled(ctx: BuildContext<BuildJob>): boolean {
+  return !ctx.isLocal && ctx.job.experimental?.uploadSourceMaps === true;
 }
 
 export async function prepareIosSourceMapPathAsync(ctx: BuildContext<BuildJob>): Promise<string> {
@@ -25,7 +23,7 @@ export async function prepareIosSourceMapPathAsync(ctx: BuildContext<BuildJob>):
 }
 
 export async function maybeUploadSourceMapAsync(ctx: BuildContext<BuildJob>): Promise<void> {
-  if (!isObserveSourceMapUploadEnabled(ctx)) {
+  if (!isSourceMapUploadEnabled(ctx)) {
     return;
   }
 

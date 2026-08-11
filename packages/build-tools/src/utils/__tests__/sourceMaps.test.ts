@@ -5,11 +5,17 @@ import { vol } from 'memfs';
 import { createTestAndroidJob, createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
-import {
-  OBSERVE_SOURCE_MAPS_UPLOAD_ENV,
-  maybeUploadSourceMapAsync,
-  prepareIosSourceMapPathAsync,
-} from '../sourceMaps';
+import { maybeUploadSourceMapAsync, prepareIosSourceMapPathAsync } from '../sourceMaps';
+
+function enableSourceMapUpload<TJob extends BuildJob>(job: TJob): TJob {
+  return {
+    ...job,
+    experimental: {
+      ...job.experimental,
+      uploadSourceMaps: true,
+    },
+  };
+}
 
 function createContext<TJob extends BuildJob>(
   job: TJob,
@@ -56,9 +62,7 @@ describe(maybeUploadSourceMapAsync.name, () => {
       [`${finalSourceMapPath.slice(0, -4)}.packager.map`]: JSON.stringify({ version: 3 }),
       [`${finalSourceMapPath.slice(0, -4)}.compiler.map`]: JSON.stringify({ version: 3 }),
     });
-    const { ctx, uploadArtifact } = createContext(createTestAndroidJob(), {
-      [OBSERVE_SOURCE_MAPS_UPLOAD_ENV]: '1',
-    });
+    const { ctx, uploadArtifact } = createContext(enableSourceMapUpload(createTestAndroidJob()));
 
     await maybeUploadSourceMapAsync(ctx);
 
@@ -81,9 +85,7 @@ describe(maybeUploadSourceMapAsync.name, () => {
       '/workingdir/build/android/other/build/generated/sourcemaps/react/release/two.map':
         JSON.stringify({ version: 3 }),
     });
-    const { ctx, uploadArtifact } = createContext(createTestAndroidJob(), {
-      [OBSERVE_SOURCE_MAPS_UPLOAD_ENV]: '1',
-    });
+    const { ctx, uploadArtifact } = createContext(enableSourceMapUpload(createTestAndroidJob()));
     const markBuildPhaseHasWarnings = jest.spyOn(ctx, 'markBuildPhaseHasWarnings');
 
     await expect(maybeUploadSourceMapAsync(ctx)).resolves.toBeUndefined();
@@ -105,9 +107,8 @@ describe(maybeUploadSourceMapAsync.name, () => {
   });
 
   it('does not upload source maps from local builds', async () => {
-    const { ctx, uploadArtifact } = createContext(createTestAndroidJob(), {
+    const { ctx, uploadArtifact } = createContext(enableSourceMapUpload(createTestAndroidJob()), {
       EAS_BUILD_RUNNER: 'local-build-plugin',
-      [OBSERVE_SOURCE_MAPS_UPLOAD_ENV]: '1',
     });
 
     await maybeUploadSourceMapAsync(ctx);
