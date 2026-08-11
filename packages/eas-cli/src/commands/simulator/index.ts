@@ -55,8 +55,10 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
 export default class Simulator extends EasCommand {
   static override hidden = true;
   static override aliases = ['simulator:start', 'sim', 'sim:start'];
-  static override description =
+  static override summary =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
+  static override description =
+    'Send feedback about EAS Simulator with `eas simulator:feedback "<message>"`.';
 
   static override flags = {
     platform: Flags.option({
