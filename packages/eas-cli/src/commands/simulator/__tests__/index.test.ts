@@ -411,6 +411,48 @@ describe(Simulator, () => {
     );
   });
 
+  it('forwards --device to the create mutation as deviceIdentifier', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--device',
+      'iPhone 16 Pro',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+    );
+  });
+
+  it('trims --device before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--device',
+      '  iPhone 16 Pro  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+    );
+  });
+
+  it('omits a blank --device', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--device', '  ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: undefined })
+    );
+  });
+
   it('stops the simulator session when interrupted before the session is ready', async () => {
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);

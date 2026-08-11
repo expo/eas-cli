@@ -5154,6 +5154,13 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
+   * Identifier of the virtual device to start for the session. On iOS this is a
+   * Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android this is an
+   * AVD hardware profile id (e.g. "pixel_7"). If omitted, the runner picks a
+   * default device.
+   */
+  deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
    * duration (2 hours, or maxRunTimeMinutes when set). Only supported for
