@@ -147,8 +147,8 @@ export async function authorizeViaBrowserAsync(
   Log.log(
     `Authorize Expo to access your Supabase account in the browser. You'll need an existing Supabase account.`
   );
-  const opened = await openBrowserAsync(url).catch(() => false);
-  Log.log(opened ? `Opened ${link(url)}` : `Open this URL to authorize: ${link(url)}`);
+  Log.log(`If your browser doesn't open automatically, authorize at this link: ${link(url)}`);
+  void openBrowserAsync(url).catch(() => false);
 
   const spinner = ora(
     'Waiting for you to authorize in Supabase (up to 15 minutes; press Ctrl-C to cancel)'
