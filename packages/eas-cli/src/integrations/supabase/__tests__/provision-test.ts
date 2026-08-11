@@ -233,7 +233,7 @@ describe('authorizeViaBrowserAsync / loadOrganizationsBestEffortAsync / pollForC
     jest.mocked(SupabaseMutation.listSupabaseOrganizationsAsync).mockResolvedValue([]);
 
     await expect(authorizeViaBrowserAsync(client, account, false)).resolves.toEqual(connection);
-    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('Open this URL'));
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('authorize at this link'));
   });
 
   it('authorizeViaBrowserAsync succeeds when organization listing fails', async () => {
