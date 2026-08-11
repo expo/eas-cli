@@ -1,4 +1,5 @@
 import { Flags } from '@oclif/core';
+import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -6,6 +7,7 @@ import {
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
+import Log from '../../log';
 import { ora } from '../../ora';
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -70,6 +72,8 @@ export default class SimulatorStop extends EasCommand {
 
     if (jsonFlag) {
       printJsonOnlyOutput({ id: session.id, status: session.status });
+    } else {
+      Log.log(chalk.dim('Have feedback about EAS Simulator? Run `eas simulator:feedback`.'));
     }
   }
 }
