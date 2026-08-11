@@ -10,8 +10,47 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Make the non-interactive "EAS project not configured" error actionable on every path: list the exact `eas init --id` / `eas init --account` commands and the accounts you can create projects in, instead of suggesting bare `eas init`, which fails the same way. ([#4153](https://github.com/expo/eas-cli/pull/4153) by [@williamgrosset](https://github.com/williamgrosset))
+
+### 🧹 Chores
+
+## [21.8.0](https://github.com/expo/eas-cli/releases/tag/v21.8.0) - 2026-08-11
+
+### 🎉 New features
+
+- [eas-cli] Add Supabase integration foundation: GraphQL client, shared integration helpers, and provisioning utilities. ([#4130](https://github.com/expo/eas-cli/pull/4130) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:supabase:connect` command. ([#4106](https://github.com/expo/eas-cli/pull/4106) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:supabase:dashboard` command. ([#4107](https://github.com/expo/eas-cli/pull/4107) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `eas integrations:supabase:disconnect` command. ([#4108](https://github.com/expo/eas-cli/pull/4108) by [@gwdp](https://github.com/gwdp))
+
+## [21.7.1](https://github.com/expo/eas-cli/releases/tag/v21.7.1) - 2026-08-10
+
+## [21.7.0](https://github.com/expo/eas-cli/releases/tag/v21.7.0) - 2026-08-07
+
+### 🎉 New features
+
+- [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Set the artifact kind for Argent session artifacts from the MIME type reported by the tool server, so screenshots and screen recordings are grouped and labelled on the simulator session page instead of appearing in an unclassified file list. ([#4154](https://github.com/expo/eas-cli/pull/4154) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Fail when `--private-key-path` is passed without `updates.codeSigningCertificate` in the resolved app config, instead of ignoring the flag and publishing an unsigned update. ([#4161](https://github.com/expo/eas-cli/pull/4161) by [@gwdp](https://github.com/gwdp))
+
+## [21.6.0](https://github.com/expo/eas-cli/releases/tag/v21.6.0) - 2026-08-05
+
+### 🎉 New features
+
+- [eas-build-job] Replace eas-cli npm dist-tags with cli-versions.json. ([#4147](https://github.com/expo/eas-cli/pull/4147) by [@douglowder](https://github.com/douglowder))
+- [eas-cli] Make `eas simulator` the canonical command and keep `eas simulator:start` as an alias. ([#4112](https://github.com/expo/eas-cli/pull/4112) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Validate local composite functions referenced from workflow job hooks during `eas workflow:validate`. ([#4064](https://github.com/expo/eas-cli/pull/4064) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Add `eas sim` as a shortcut for `eas simulator` commands, e.g. `eas sim:list` runs `eas simulator:list`. ([#4150](https://github.com/expo/eas-cli/pull/4150) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Support an optional `max_idle_time_minutes` input on `eas/start_argent_remote_session` and `eas/start_agent_device_remote_session`; the step stops the device run session after that many minutes without observed session events. ([#4157](https://github.com/expo/eas-cli/pull/4157) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🐛 Bug fixes
+
+- [eas-cli] Point accounts without EAS Simulator access at the waitlist: `eas simulator:availability` includes the link (and a `waitlistUrl` field in `--json`), and `eas simulator` now fails early with the same message instead of a generic permission error. ([#4151](https://github.com/expo/eas-cli/pull/4151) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Revert "Pin the default `agent-device` version for remote sessions" now that `agent-device` 0.20.5 fixes the broken release. ([#4144](https://github.com/expo/eas-cli/pull/4144) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Make the configure-version gradle script compatible with AGP 9, which removes the `applicationVariants` API; per-output version overrides now fall back to the `androidComponents` variant API. ([#4155](https://github.com/expo/eas-cli/pull/4155) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 
 ### 🧹 Chores
 

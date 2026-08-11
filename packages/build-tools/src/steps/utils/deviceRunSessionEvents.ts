@@ -94,6 +94,17 @@ type EventFileState = {
   decoder: StringDecoder;
 };
 
+export type DeviceRunSessionEventCollection = {
+  stopAsync: () => Promise<void>;
+  /**
+   * Local arrival time of the most recently collected event, or `undefined`
+   * when no event has been observed yet. Uses the collector's clock rather
+   * than the event's embedded timestamp so producer clock skew cannot affect
+   * idle detection.
+   */
+  getLastEventObservedAt: () => Date | undefined;
+};
+
 export async function startDeviceRunSessionEventCollectionAsync({
   ctx,
   deviceRunSessionId,
@@ -106,7 +117,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
   source: DeviceRunSessionEventSource;
   logger: bunyan;
   pollIntervalMs?: number;
-}): Promise<{ stopAsync: () => Promise<void> }> {
+}): Promise<DeviceRunSessionEventCollection> {
   const { producer } = source;
   let didReportEventLogFailure = false;
   const reportEventLogFailure = (error: Error, operation: 'setup' | 'cleanup'): void => {
@@ -136,7 +147,13 @@ export async function startDeviceRunSessionEventCollectionAsync({
     const error = err instanceof Error ? err : new Error(String(err));
     logger.warn({ err: error }, 'Could not persist device run session events to the artifact.');
     reportEventLogFailure(error, 'setup');
-    return { stopAsync: async () => {} };
+    return {
+      stopAsync: async () => {},
+      // Collection is disabled, so session activity is invisible here. Report
+      // fresh activity so an enabled idle timeout never stops a session it
+      // cannot observe.
+      getLastEventObservedAt: () => new Date(),
+    };
   }
 
   let didReportRealtimeLogFailure = false;
@@ -166,6 +183,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
 
   const states = new Map<string, EventFileState>();
   const controller = new AbortController();
+  let lastEventObservedAt: Date | undefined;
   let parseFailureCount = 0;
   const parseFailureCounts: Record<DeviceRunSessionEventParseFailure, number> = {
     'invalid-json': 0,
@@ -190,6 +208,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
           source,
           deviceRunSessionId,
           writeEvent: event => {
+            lastEventObservedAt = new Date();
             eventLogStream.write(event);
             realtimeLogStream?.write({ ...event, logId: event.eventId });
           },
@@ -259,6 +278,7 @@ export async function startDeviceRunSessionEventCollectionAsync({
     });
 
   return {
+    getLastEventObservedAt: () => lastEventObservedAt,
     stopAsync: async () => {
       controller.abort();
       await pollingPromise;
@@ -310,7 +330,7 @@ function createRealtimeLogStream(
     ? 'http://localhost:4999/logs/'
     : ctx.env.EXPO_STAGING
       ? 'https://staging-logs.expo.dev/logs/'
-      : undefined;
+      : 'https://logs.expo.dev/logs/';
   const jobRunId = ctx.env.EAS_BUILD_ID;
   const robotAccessToken = ctx.job.secrets?.robotAccessToken;
   if (!baseUrl || !jobRunId || !robotAccessToken) {

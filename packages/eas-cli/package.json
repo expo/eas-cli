@@ -1,6 +1,6 @@
 {
   "name": "eas-cli",
-  "version": "21.5.0",
+  "version": "21.8.0",
   "description": "EAS command line tool",
   "keywords": [
     "cli",
@@ -48,8 +48,8 @@
     "@expo/code-signing-certificates": "0.0.5",
     "@expo/config": "55.0.10",
     "@expo/config-plugins": "55.0.7",
-    "@expo/eas-build-job": "21.5.0",
-    "@expo/eas-json": "21.5.0",
+    "@expo/eas-build-job": "21.6.0",
+    "@expo/eas-json": "21.6.0",
     "@expo/env": "^1.0.0",
     "@expo/json-file": "8.3.3",
     "@expo/logger": "21.0.0",
@@ -64,7 +64,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "21.5.0",
+    "@expo/steps": "21.7.1",
     "@expo/timeago.js": "1.0.0",
     "@oclif/core": "^4.8.3",
     "@oclif/plugin-autocomplete": "^3.2.40",
@@ -118,6 +118,7 @@
     "prompts": "2.4.2",
     "qrcode-terminal": "0.12.0",
     "resolve-from": "5.0.0",
+    "sandbox-cli-detector": "0.2.0",
     "semver": "7.5.4",
     "set-interval-async": "3.0.3",
     "slash": "3.0.0",
@@ -220,6 +221,9 @@
       },
       "secret": {
         "description": "manage project and account secrets"
+      },
+      "simulator": {
+        "description": "manage remote simulator sessions"
       },
       "testflight": {
         "description": "read TestFlight feedback and crashes"

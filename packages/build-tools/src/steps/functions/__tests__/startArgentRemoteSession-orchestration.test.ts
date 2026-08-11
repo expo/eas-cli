@@ -68,7 +68,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     jest.mocked(pollArgentArtifactsForUploadAsync).mockResolvedValue(undefined);
     mockStopAsync.mockResolvedValue(undefined);
     mockTunnelStopAsync.mockResolvedValue(undefined);
-    jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({ stopAsync: mockStopAsync });
+    jest.mocked(startArgentEventCollectionAsync).mockResolvedValue({
+      stopAsync: mockStopAsync,
+      getLastEventObservedAt: () => undefined,
+    });
 
     jest.mocked(getDeviceRunSessionIdOrThrow).mockReturnValue('device-run-session-id');
     jest.mocked(getNgrokTunnelDomainOrThrow).mockReturnValue('tunnel.example.com');
@@ -108,7 +111,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
         global: { runtimePlatform: BuildRuntimePlatform.LINUX },
       } as unknown as BuildStepContext,
       {
-        inputs: { package_version: { value: undefined } },
+        inputs: {
+          package_version: { value: undefined },
+          max_idle_time_minutes: { value: undefined },
+        },
         outputs: {},
         env: { EXISTING: 'value' },
       } as never

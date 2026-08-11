@@ -1,5 +1,13 @@
-import { CompositeFunctionCatalog, CompositeFunctionConfig, Step } from '@expo/eas-build-job';
+import {
+  CompositeFunctionCatalog,
+  CompositeFunctionConfig,
+  CompositeFunctionConfigZ,
+  Step,
+} from '@expo/eas-build-job';
+import fs from 'fs/promises';
 import path from 'path';
+import YAML from 'yaml';
+import { z } from 'zod';
 
 import { BuildConfigError } from '../errors';
 
@@ -88,6 +96,88 @@ export function resolveLocalCompositeFunctionPath(
   compositeFunctionPath: string
 ): string {
   return path.resolve(projectRoot, compositeFunctionPath);
+}
+
+export interface LocalCompositeFunctionLogger {
+  debug(message: string): void;
+}
+
+/**
+ * Reads and validates the function.yml (or function.yaml) file of a local composite function.
+ * `compositeFunctionPath` is the normalized ref returned by {@link parseLocalCompositeFunctionPath}.
+ */
+export async function loadLocalCompositeFunctionConfigAsync(
+  projectRoot: string,
+  compositeFunctionPath: string,
+  { logger }: { logger?: LocalCompositeFunctionLogger } = {}
+): Promise<CompositeFunctionConfig> {
+  const resolvedPath = resolveLocalCompositeFunctionPath(projectRoot, compositeFunctionPath);
+
+  for (const ext of ['yml', 'yaml'] as const) {
+    const absolutePath = path.join(resolvedPath, `function.${ext}`);
+    let rawContents: string;
+    try {
+      rawContents = await fs.readFile(absolutePath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        continue;
+      }
+      throw new Error(
+        `Failed to read local composite function "${compositeFunctionPath}" from ${absolutePath}`,
+        {
+          cause: err as Error,
+        }
+      );
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = YAML.parse(rawContents);
+    } catch (err) {
+      throw new Error(
+        `Failed to parse local composite function "${compositeFunctionPath}" YAML at ${absolutePath}`,
+        {
+          cause: err as Error,
+        }
+      );
+    }
+
+    const result = CompositeFunctionConfigZ.safeParse(parsed);
+    if (!result.success) {
+      throw new Error(
+        `Invalid composite function "${compositeFunctionPath}": ${z.prettifyError(result.error)}`
+      );
+    }
+
+    logger?.debug(
+      `Loaded local composite function "${compositeFunctionPath}" from ${path.relative(projectRoot, absolutePath)}`
+    );
+    return result.data;
+  }
+
+  throw new Error(
+    `Local composite function "${compositeFunctionPath}" was referenced by a step but no such composite function exists. A local composite function is resolved from a "function.yml" (or "function.yaml") file at the referenced path relative to the EAS project root (e.g. "uses: ${compositeFunctionPath}" resolves "${compositeFunctionPath}/function.yml"). The recommended convention is to keep composite functions under ".eas/functions/<name>".`
+  );
+}
+
+/** Loader for the lazy hook path: bound to a project root, passed to {@link StepsConfigParser}. */
+export function createLocalCompositeFunctionLoader(
+  projectRoot: string,
+  { logger }: { logger?: LocalCompositeFunctionLogger } = {}
+): (compositeFunctionPath: string) => Promise<CompositeFunctionConfig> {
+  return async compositeFunctionPath =>
+    await loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger });
+}
+
+/** Builds the catalog of composite functions transitively referenced by `rootSteps`, loading each from disk. */
+export async function buildLocalCompositeFunctionCatalogAsync(
+  projectRoot: string,
+  { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalCompositeFunctionLogger }
+): Promise<CompositeFunctionCatalog> {
+  return await buildCompositeFunctionCatalogFromStepsAsync({
+    rootSteps,
+    loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, { logger }),
+  });
 }
 
 function collectLocalCompositeFunctionPathsFromSteps(steps: readonly Step[]): Set<string> {

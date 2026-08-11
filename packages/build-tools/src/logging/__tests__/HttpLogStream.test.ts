@@ -186,4 +186,21 @@ describe(HttpLogStream.name, () => {
     const [firstAttemptLogs, secondAttemptLogs] = parseRequestLogs();
     expect(secondAttemptLogs).toEqual(firstAttemptLogs);
   });
+
+  it('sets a ten-second timeout on HTTP uploads', async () => {
+    fetchMock.mockResolvedValue(createResponse());
+    const abortSignalTimeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    const stream = new HttpLogStream({
+      url: 'https://logs.expo.test/build-id',
+      headers: { Authorization: 'Bearer token' },
+      logger: createLogger({ name: 'test' }),
+    });
+
+    stream.write({ logId: 'stable-id', msg: 'Do not hang' });
+    await stream.cleanUp();
+
+    expect(abortSignalTimeoutSpy).toHaveBeenCalledWith(10_000);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    abortSignalTimeoutSpy.mockRestore();
+  });
 });

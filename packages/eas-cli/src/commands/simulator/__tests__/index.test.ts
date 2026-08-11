@@ -11,6 +11,7 @@ import {
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
+import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
@@ -22,10 +23,11 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
-import SimulatorStart from '../start';
+import Simulator from '../index';
 
 jest.mock('fs-extra');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
+jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log', () => ({
   __esModule: true,
@@ -72,6 +74,7 @@ const mockCreateDeviceRunSessionAsync = jest.mocked(
 const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
   DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
 );
+const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
@@ -142,13 +145,14 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-describe(SimulatorStart, () => {
+describe(Simulator, () => {
   const mockConfig = getMockOclifConfig();
   const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
       id: 'session-123',
@@ -168,19 +172,48 @@ describe(SimulatorStart, () => {
     }
   });
 
-  function createCommand(argv: string[]): {
-    command: SimulatorStart;
+  function createCommand(
+    argv: string[],
+    { isExpoAdmin = false }: { isExpoAdmin?: boolean } = {}
+  ): {
+    command: Simulator;
     getContextAsync: jest.SpyInstance;
   } {
-    const command = new SimulatorStart(argv, mockConfig);
+    const command = new Simulator(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
-      loggedIn: { graphqlClient },
+      loggedIn: { actor: { isExpoAdmin }, graphqlClient },
       projectDir,
       projectId: 'project-123',
     });
     return { command, getContextAsync };
   }
+
+  it('fails with the waitlist link without creating a session when the account is gated', async () => {
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
+        'Join the waitlist to get access: https://expo.dev/services/simulators'
+    );
+    expect(mockAvailabilityByAppIdAsync).toHaveBeenCalledWith(graphqlClient, 'project-123');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    expect(mockPromptAsync).not.toHaveBeenCalled();
+  });
+
+  it('skips the gate check for Expo admins on a gated account', async () => {
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive'], {
+      isExpoAdmin: true,
+    });
+    await command.runAsync();
+
+    expect(mockAvailabilityByAppIdAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalled();
+  });
 
   it('prints environment variables without saving when outputting env', async () => {
     const { command, getContextAsync } = createCommand([
@@ -192,7 +225,7 @@ describe(SimulatorStart, () => {
     ]);
     await command.runAsync();
 
-    expect(getContextAsync).toHaveBeenCalledWith(SimulatorStart, {
+    expect(getContextAsync).toHaveBeenCalledWith(Simulator, {
       nonInteractive: true,
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {

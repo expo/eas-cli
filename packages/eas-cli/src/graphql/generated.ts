@@ -14340,6 +14340,69 @@ export type RetrySubmissionMutationVariables = Exact<{
 
 export type RetrySubmissionMutation = { __typename?: 'RootMutation', submission: { __typename?: 'SubmissionMutation', retrySubmission: { __typename?: 'CreateSubmissionResult', submission: { __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, logFiles: Array<string>, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null } } } };
 
+export type BeginSupabaseOAuthMutationVariables = Exact<{
+  input: BeginSupabaseOAuthInput;
+}>;
+
+
+export type BeginSupabaseOAuthMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', beginSupabaseOAuth: { __typename?: 'SupabaseOAuthStart', url: string } } };
+
+export type SetSupabaseConnectionOrganizationMutationVariables = Exact<{
+  input: SetSupabaseConnectionOrganizationInput;
+}>;
+
+
+export type SetSupabaseConnectionOrganizationMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', setSupabaseConnectionOrganization: { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any } } };
+
+export type DisconnectSupabaseMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DisconnectSupabaseMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', disconnectSupabase: string } };
+
+export type ProvisionSupabaseProjectMutationVariables = Exact<{
+  input: ProvisionSupabaseProjectInput;
+}>;
+
+
+export type ProvisionSupabaseProjectMutation = { __typename?: 'RootMutation', supabaseProject: { __typename?: 'SupabaseProjectMutation', provisionSupabaseProject: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
+
+export type ProvisionAdditionalSupabaseProjectMutationVariables = Exact<{
+  input: ProvisionAdditionalSupabaseProjectInput;
+}>;
+
+
+export type ProvisionAdditionalSupabaseProjectMutation = { __typename?: 'RootMutation', supabaseProject: { __typename?: 'SupabaseProjectMutation', provisionAdditionalSupabaseProject: { __typename?: 'BackgroundJobReceipt', id: string, state: BackgroundJobState, tries: number, willRetry: boolean, resultId?: string | null, resultType: BackgroundJobResultType, resultData?: any | null, errorCode?: string | null, errorMessage?: string | null, createdAt: any, updatedAt: any } } };
+
+export type LinkSupabaseProjectMutationVariables = Exact<{
+  input: LinkSupabaseProjectInput;
+}>;
+
+
+export type LinkSupabaseProjectMutation = { __typename?: 'RootMutation', supabaseProject: { __typename?: 'SupabaseProjectMutation', linkSupabaseProject: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } } };
+
+export type DeleteSupabaseProjectMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeleteSupabaseProjectMutation = { __typename?: 'RootMutation', supabaseProject: { __typename?: 'SupabaseProjectMutation', deleteSupabaseProject: string } };
+
+export type ListSupabaseOrganizationsMutationVariables = Exact<{
+  accountId: Scalars['ID']['input'];
+}>;
+
+
+export type ListSupabaseOrganizationsMutation = { __typename?: 'RootMutation', supabaseConnection: { __typename?: 'SupabaseConnectionMutation', listSupabaseOrganizations: Array<{ __typename?: 'SupabaseOrganization', id: string, slug: string, name: string }> } };
+
+export type FetchSupabasePublishableKeyMutationVariables = Exact<{
+  appId: Scalars['ID']['input'];
+}>;
+
+
+export type FetchSupabasePublishableKeyMutation = { __typename?: 'RootMutation', supabaseProject: { __typename?: 'SupabaseProjectMutation', fetchSupabasePublishableKey?: string | null } };
+
 export type CreateUploadSessionMutationVariables = Exact<{
   type: UploadSessionType;
   filename?: InputMaybe<Scalars['String']['input']>;
@@ -15069,6 +15132,20 @@ export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __
             | { __typename: 'Snack', id: string, name: string, slug: string }
           , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
 
+export type SupabaseConnectionByAccountIdQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type SupabaseConnectionByAccountIdQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, supabaseConnection?: { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any } | null } } };
+
+export type SupabaseProjectByAppIdQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+}>;
+
+
+export type SupabaseProjectByAppIdQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, supabaseProject?: { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any } | null } } };
+
 export type ViewUpdateGroupInsightsQueryVariables = Exact<{
   groupId: Scalars['ID']['input'];
   timespan: InsightsTimespan;
@@ -15414,6 +15491,10 @@ export type SubmissionWithSubmittedBuildFragment = { __typename?: 'Submission', 
       | { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }
       | { __typename: 'Snack', id: string, name: string, slug: string }
     , metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null };
+
+export type SupabaseConnectionFragment = { __typename?: 'SupabaseConnection', id: string, supabaseOrganizationSlug: string, supabaseOrganizationName: string, createdAt: any, updatedAt: any };
+
+export type SupabaseProjectFragment = { __typename?: 'SupabaseProject', id: string, supabaseProjectRef: string, supabaseProjectName: string, supabaseProjectUrl: string, supabaseRegion: string, createdAt: any, updatedAt: any };
 
 export type UpdateFragment = { __typename?: 'Update', id: string, group: string, message?: string | null, createdAt: any, runtimeVersion: string, platform: string, manifestFragment: string, isRollBackToEmbedded: boolean, manifestPermalink: string, gitCommitHash?: string | null, isGitWorkingTreeDirty: boolean, environment?: any | null, rolloutPercentage?: number | null, manifestHostOverride?: string | null, assetHostOverride?: string | null, actor?:
     | { __typename: 'PartnerActor', username: string, id: string }

@@ -83,6 +83,36 @@ describe(uploadServeSimMetricsFileAsync, () => {
     );
   });
 
+  it('labels the artifact with the device name when the meta carries one', async () => {
+    await writeFile(filePath, NDJSON);
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementation(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadServeSimMetricsFileAsync(ctx, {
+      deviceRunSessionId: 'session-id',
+      udid: 'AAAA',
+      filePath,
+      metadata: {
+        deviceName: 'iPhone 15 Pro',
+        hostCores: 8,
+        sampleIntervalMs: 1000,
+        schemaVersion: 1,
+      },
+      logger: createLoggerMock(),
+    });
+
+    expect(uploadDeviceRunSessionArtifactAsync).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        name: 'Performance metrics (iPhone 15 Pro)',
+        metadata: expect.objectContaining({ deviceName: 'iPhone 15 Pro', udid: 'AAAA' }),
+      })
+    );
+  });
+
   it('skips the upload when the file is missing', async () => {
     await uploadServeSimMetricsFileAsync(ctx, {
       deviceRunSessionId: 'session-id',

@@ -68,6 +68,11 @@ export function createStartArgentRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_idle_time_minutes',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
@@ -79,6 +84,8 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      // A missing or non-positive value disables the idle timeout (opt-in feature).
+      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
@@ -215,6 +222,13 @@ export function createStartArgentRemoteSessionBuildFunction(
           deviceRunSessionId,
           logger,
           signal,
+          idleTimeout:
+            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+              ? {
+                  maxIdleTimeMinutes,
+                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                }
+              : undefined,
         });
       } finally {
         if (serveSim) {

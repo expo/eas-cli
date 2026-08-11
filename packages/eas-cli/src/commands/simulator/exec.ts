@@ -5,6 +5,7 @@ import { SIMULATOR_DOTENV_FILE_NAME, loadSimulatorEnvAsync } from '../../simulat
 
 export default class SimulatorExec extends EasCommand {
   static override hidden = true;
+  static override aliases = ['sim:exec'];
   static override description = `[EXPERIMENTAL] execute a simulator command with ${SIMULATOR_DOTENV_FILE_NAME} environment loaded`;
   static override strict = false;
 

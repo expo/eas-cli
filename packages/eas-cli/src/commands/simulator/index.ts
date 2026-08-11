@@ -4,6 +4,7 @@ import nullthrows from 'nullthrows';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
@@ -15,6 +16,7 @@ import {
   JobRunStatus,
 } from '../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
+import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -31,6 +33,7 @@ import {
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
+  formatSimulatorUnavailableMessage,
   getRemoteSessionEnvironmentVariables,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -49,9 +52,9 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   ios: AppPlatform.Ios,
 };
 
-export default class SimulatorStart extends EasCommand {
+export default class Simulator extends EasCommand {
   static override hidden = true;
-  static override aliases = ['simulator'];
+  static override aliases = ['simulator:start', 'sim', 'sim:start'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -100,7 +103,7 @@ export default class SimulatorStart extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(SimulatorStart);
+    const { flags } = await this.parse(Simulator);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -110,10 +113,23 @@ export default class SimulatorStart extends EasCommand {
     const {
       projectId,
       projectDir,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(SimulatorStart, {
+      loggedIn: { actor, graphqlClient },
+    } = await this.getContextAsync(Simulator, {
       nonInteractive,
     });
+
+    // The server would reject the session anyway, but check the gate first so gated
+    // accounts get the waitlist link instead of a generic permission error. Expo admins
+    // skip the check so they can work on any account and let the server decide.
+    if (!actor.isExpoAdmin) {
+      const { accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
+        graphqlClient,
+        projectId
+      );
+      if (!available) {
+        throw new EasCommandError(formatSimulatorUnavailableMessage(accountName));
+      }
+    }
 
     // The server rejects blank names, so trim here and treat a whitespace-only
     // --name as if it had been omitted rather than surfacing a validation error.
