@@ -6,6 +6,7 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { maybeSetProjectIconFromAppConfigAsync } from '../../project/projectIcon';
 import {
   ProjectInitResult,
   ensureOwnerSlugConsistencyAsync,
@@ -36,6 +37,12 @@ export default class ProjectInit extends EasCommand {
     force: Flags.boolean({
       description:
         'Whether to create a new project/link an existing project without additional prompts or overwrite any existing project ID when running with --id flag',
+    }),
+    icon: Flags.boolean({
+      description:
+        'Set the icon shown on the EAS dashboard from the app config, when the project does not have one yet',
+      default: true,
+      allowNo: true,
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -82,6 +89,13 @@ export default class ProjectInit extends EasCommand {
       }
     );
 
+    const iconResult = flags.icon
+      ? await maybeSetProjectIconFromAppConfigAsync(graphqlClient, {
+          projectId: result.projectId,
+          projectDir,
+        })
+      : null;
+
     if (jsonFlag) {
       printJsonOnlyOutput({
         status: result.status,
@@ -89,6 +103,7 @@ export default class ProjectInit extends EasCommand {
         owner,
         slug,
         dashboardUrl: getProjectDashboardUrl(owner, slug),
+        ...(iconResult?.status === 'set' ? { icon: { source: iconResult.icon.field } } : {}),
       });
     }
   }
