@@ -518,7 +518,7 @@ describe(uploadSourceMapAsync.name, () => {
       logger: ctx.logger,
     });
 
-    expect(GCS.uploadWithSignedUrl).toHaveBeenCalledWith(
+    expect(uploadWithSignedUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         signedUrl: {
           url: uploadUrl,

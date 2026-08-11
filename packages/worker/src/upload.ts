@@ -152,7 +152,7 @@ export async function uploadSourceMapAsync(
   const { localPath, size } = await prepareArtifactsForUploadAsync(logger, [sourceMapPath]);
   const filename = `source-map-${buildId}.map`;
 
-  let uploadSession: GCS.SignedUrl | null = null;
+  let uploadSession: SignedUrl | null = null;
 
   try {
     const { signedUrl, bucketKey, storageType } = await createUploadSessionAsync(ctx, {
@@ -164,7 +164,7 @@ export async function uploadSourceMapAsync(
 
     uploadSession = signedUrl;
 
-    await GCS.uploadWithSignedUrl({
+    await uploadWithSignedUrl({
       signedUrl,
       srcGeneratorAsync: async () => {
         return fs.createReadStream(localPath);
