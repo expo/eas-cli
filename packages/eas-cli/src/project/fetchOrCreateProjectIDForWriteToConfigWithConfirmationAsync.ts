@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { getUnconfiguredProjectError } from './projectNotConfiguredError';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../graphql/generated';
@@ -8,7 +9,7 @@ import { AppQuery } from '../graphql/queries/AppQuery';
 import { link } from '../log';
 import { ora } from '../ora';
 import { confirmAsync } from '../prompts';
-import { Actor, getCreatableAccountNames } from '../user/User';
+import { Actor } from '../user/User';
 
 /**
  * 1. Looks for an existing project on EAS servers. If found, ask the user whether this is the
@@ -38,13 +39,7 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   );
 
   if (options.nonInteractive) {
-    throw new Error(
-      `EAS project not configured. To configure it non-interactively, choose the account that should own the project and run:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNames(
-        actor
-      ).join(
-        ', '
-      )}\n\nAlternatively, set the "owner" field in your app config, or run "eas init" to configure it interactively.`
-    );
+    throw getUnconfiguredProjectError({ actor, accountName });
   }
   const account = allAccounts.find(a => a.name === accountName);
   if (!account) {
