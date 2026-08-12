@@ -3,6 +3,7 @@ import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@exp
 import spawn from '@expo/turtle-spawn';
 
 import { installNodeModules } from './installNodeModules';
+import { getExpoCommandEnv } from '../../utils/environmentMode';
 import { PackageManager, resolvePackageManager } from '../../utils/packageManager';
 
 export function createPrebuildBuildFunction(): BuildFunction {
@@ -45,11 +46,11 @@ export function createPrebuildBuildFunction(): BuildFunction {
       const options = {
         cwd: stepCtx.workingDirectory,
         logger,
-        env: {
+        env: getExpoCommandEnv({
           EXPO_IMAGE_UTILS_NO_SHARP: '1',
           ...env,
           ...(appleTeamId ? { APPLE_TEAM_ID: appleTeamId } : {}),
-        },
+        }),
       };
       if (packageManager === PackageManager.NPM) {
         await spawn('npx', argsWithExpo, options);
