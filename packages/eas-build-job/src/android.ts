@@ -119,6 +119,7 @@ export interface Job {
 
   experimental?: {
     prebuildCommand?: string;
+    uploadSourceMaps?: boolean;
   };
   expoBuildUrl?: string;
   githubTriggerOptions?: {
@@ -186,6 +187,7 @@ export const JobSchema = Joi.object({
 
   experimental: Joi.object({
     prebuildCommand: Joi.string(),
+    uploadSourceMaps: Joi.boolean(),
   }),
   expoBuildUrl: Joi.string().uri().optional(),
   githubTriggerOptions: Joi.object({

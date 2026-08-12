@@ -61,6 +61,7 @@ const CommonBuildProfileSchema = Joi.object({
 
   // artifacts
   buildArtifactPaths: Joi.array().items(Joi.string()),
+  uploadSourceMaps: Joi.boolean(),
 
   // cache
   cache: CacheSchema,
