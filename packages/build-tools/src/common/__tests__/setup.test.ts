@@ -1,4 +1,5 @@
 import { Android, BuildTrigger } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 
 import { createTestAndroidJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
@@ -9,7 +10,10 @@ import { JobHooksRef, setupAsync } from '../setup';
 import { ParsedJobHooks, parseJobHooksAsync } from '../jobHooks';
 import { prepareProjectSourcesAsync } from '../projectSources';
 import { runHookIfPresent } from '../../utils/hooks';
+import { isAtLeastNpm7Async } from '../../utils/packageManager';
+import { readPackageJson } from '../../utils/project';
 
+jest.mock('@expo/turtle-spawn');
 jest.mock('../projectSources', () => ({ prepareProjectSourcesAsync: jest.fn() }));
 jest.mock('../easBuildInternal', () => ({
   resolveEnvFromBuildProfileAsync: jest.fn(),
@@ -26,6 +30,10 @@ jest.mock('../../utils/project', () => ({
   readAndLogPackageJson: jest.fn(() => ({})),
   readEasJsonContents: jest.fn(() => '{}'),
   readPackageJson: jest.fn(() => ({})),
+}));
+jest.mock('../../utils/packageManager', () => ({
+  ...jest.requireActual('../../utils/packageManager'),
+  isAtLeastNpm7Async: jest.fn(),
 }));
 jest.mock('../../ios/xcodeEnv', () => ({ deleteXcodeEnvLocalIfExistsAsync: jest.fn() }));
 
@@ -127,5 +135,31 @@ describe(setupAsync, () => {
     expect(runHookableBuildPhaseAsync).toHaveBeenCalledWith(
       expect.objectContaining({ hooks: PARSED, anchor: 'install_node_modules' })
     );
+  });
+
+  it('uses production mode for Expo Doctor', async () => {
+    jest.mocked(readPackageJson).mockReturnValue({ dependencies: { expo: 'latest' } });
+    jest.mocked(isAtLeastNpm7Async).mockResolvedValue(true);
+    jest.mocked(spawn).mockResolvedValue({} as never);
+    const ctx = createCtx(BuildTrigger.EAS_CLI);
+    ctx.env.NODE_ENV = 'staging';
+    ctx.env.EXPO_CONFIG_MODE = 'staging';
+
+    await setupAsync(ctx, {
+      wrappedAnchors: ['install_node_modules'],
+      jobHooksRef: { current: null },
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      ['-y', 'expo-doctor'],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          NODE_ENV: 'production',
+          EXPO_CONFIG_MODE: 'production',
+        }),
+      })
+    );
+    expect(ctx.env).toMatchObject({ NODE_ENV: 'staging', EXPO_CONFIG_MODE: 'staging' });
   });
 });
