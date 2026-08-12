@@ -676,6 +676,38 @@ describe(buildLocalFunctionCatalogAsync, () => {
     expect(localFunction.outputs).toEqual(['greeting']);
   });
 
+  it('normalizes the camelCase spellings of a single-step function to snake_case', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      [
+        'name: Say hi',
+        'inputs:',
+        '  - name: greeting',
+        '    allowedValueType: string',
+        '    defaultValue: Hi',
+        '    allowedValues:',
+        '      - Hi',
+        '      - Hello',
+        'command: echo "${ inputs.greeting }!"',
+        'supportedRuntimePlatforms:',
+        '  - linux',
+      ].join('\n')
+    );
+
+    const catalog = await buildLocalFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
+    });
+
+    const localFunction = catalog['./.eas/functions/say-hi'];
+    assert(isLegacyFunctionConfig(localFunction));
+    expect(localFunction.supported_platforms).toEqual(['linux']);
+    expect(localFunction.inputs).toEqual([
+      { name: 'greeting', type: 'string', default_value: 'Hi', allowed_values: ['Hi', 'Hello'] },
+    ]);
+  });
+
   it('rewrites the "path" of a single-step function to an absolute module path', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-catalog-'));
     await makeCompositeFunctionAsync(
