@@ -5,7 +5,7 @@ import { vol } from 'memfs';
 import { createTestAndroidJob, createTestIosJob } from '../../__tests__/utils/job';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
-import { maybeUploadSourceMapAsync, prepareIosSourceMapPathAsync } from '../sourceMaps';
+import { maybeUploadSourceMapAsync, resolveIosSourceMapPathAsync } from '../sourceMaps';
 
 function enableSourceMapUpload<TJob extends BuildJob>(job: TJob): TJob {
   return {
@@ -117,11 +117,11 @@ describe(maybeUploadSourceMapAsync.name, () => {
   });
 });
 
-describe(prepareIosSourceMapPathAsync.name, () => {
+describe(resolveIosSourceMapPathAsync.name, () => {
   it('uses an absolute worker-owned path by default', async () => {
     const { ctx } = createContext(createTestIosJob());
 
-    await expect(prepareIosSourceMapPathAsync(ctx)).resolves.toBe(
+    await expect(resolveIosSourceMapPathAsync(ctx)).resolves.toBe(
       '/workingdir/observe-source-maps/main.jsbundle.map'
     );
   });
@@ -131,7 +131,7 @@ describe(prepareIosSourceMapPathAsync.name, () => {
       SOURCEMAP_FILE: 'build/custom/main.jsbundle.map',
     });
 
-    await expect(prepareIosSourceMapPathAsync(ctx)).resolves.toBe(
+    await expect(resolveIosSourceMapPathAsync(ctx)).resolves.toBe(
       '/workingdir/build/ios/build/custom/main.jsbundle.map'
     );
   });
