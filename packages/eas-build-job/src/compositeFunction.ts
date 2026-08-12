@@ -114,3 +114,6 @@ export const CompositeFunctionConfigZ = z
  *       run: set-output version "1.0.0"
  */
 export type CompositeFunctionConfig = z.infer<typeof CompositeFunctionConfigZ>;
+
+/** @deprecated Use `LocalFunctionCatalog` for catalogs that may contain legacy functions. */
+export type CompositeFunctionCatalog = Record<string, CompositeFunctionConfig>;
