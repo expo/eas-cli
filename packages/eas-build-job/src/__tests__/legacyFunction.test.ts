@@ -33,6 +33,65 @@ describe('LegacyCommandFunctionConfigZ', () => {
     expect(LegacyCommandFunctionConfigZ.parse(config)).toEqual(config);
   });
 
+  it('accepts camelCase supportedRuntimePlatforms and normalizes it to supported_platforms', () => {
+    const config = { command: 'echo hi', supportedRuntimePlatforms: ['darwin'] };
+    expect(LegacyCommandFunctionConfigZ.parse(config)).toEqual({
+      command: 'echo hi',
+      supported_platforms: ['darwin'],
+    });
+  });
+
+  it('accepts camelCase input keys and normalizes them to the snake_case spellings', () => {
+    const config = {
+      command: 'echo hi',
+      inputs: [
+        {
+          name: 'greeting',
+          allowedValueType: 'string',
+          defaultValue: 'Hi',
+          allowedValues: ['Hi', 'Hello'],
+        },
+      ],
+    };
+    expect(LegacyCommandFunctionConfigZ.parse(config)).toEqual({
+      command: 'echo hi',
+      inputs: [
+        { name: 'greeting', type: 'string', default_value: 'Hi', allowed_values: ['Hi', 'Hello'] },
+      ],
+    });
+  });
+
+  it('accepts mixed spellings across different fields', () => {
+    const config = {
+      command: 'echo hi',
+      supportedRuntimePlatforms: ['linux'],
+      inputs: [{ name: 'greeting', type: 'string', defaultValue: 'Hi', allowed_values: ['Hi'] }],
+    };
+    expect(LegacyCommandFunctionConfigZ.parse(config)).toEqual({
+      command: 'echo hi',
+      supported_platforms: ['linux'],
+      inputs: [{ name: 'greeting', type: 'string', default_value: 'Hi', allowed_values: ['Hi'] }],
+    });
+  });
+
+  it('rejects a config declaring both spellings of the same field', () => {
+    const config = {
+      command: 'echo hi',
+      supported_platforms: ['darwin'],
+      supportedRuntimePlatforms: ['linux'],
+    };
+    expect(() => LegacyCommandFunctionConfigZ.parse(config)).toThrow(ZodError);
+    expect(() => LegacyCommandFunctionConfigZ.parse(config)).toThrow(/supportedRuntimePlatforms/);
+  });
+
+  it('rejects an input declaring both spellings of the same field', () => {
+    const config = {
+      command: 'echo hi',
+      inputs: [{ name: 'greeting', default_value: 'Hi', defaultValue: 'Hello' }],
+    };
+    expect(() => LegacyCommandFunctionConfigZ.parse(config)).toThrow(ZodError);
+  });
+
   it('rejects unknown top-level keys', () => {
     const config = { command: 'echo hi', runz: {} };
     expect(() => LegacyCommandFunctionConfigZ.parse(config)).toThrow(ZodError);
@@ -74,6 +133,14 @@ describe('LegacyPathFunctionConfigZ', () => {
   it('accepts shell alongside path', () => {
     const config = { path: './my-function', shell: 'sh' };
     expect(LegacyPathFunctionConfigZ.parse(config)).toEqual(config);
+  });
+
+  it('accepts camelCase supportedRuntimePlatforms and normalizes it to supported_platforms', () => {
+    const config = { path: './my-function', supportedRuntimePlatforms: ['linux'] };
+    expect(LegacyPathFunctionConfigZ.parse(config)).toEqual({
+      path: './my-function',
+      supported_platforms: ['linux'],
+    });
   });
 
   it('rejects unknown top-level keys', () => {

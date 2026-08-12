@@ -37,6 +37,15 @@ describe('LocalFunctionConfigZ', () => {
     expect(isLegacyFunctionConfig(parsed)).toBe(true);
   });
 
+  it('parses a command function using the camelCase spellings of custom build configs', () => {
+    const parsed = LocalFunctionConfigZ.parse({
+      command: 'echo hi',
+      supportedRuntimePlatforms: ['darwin'],
+    });
+    expect(parsed).toEqual({ command: 'echo hi', supported_platforms: ['darwin'] });
+    expect(isLegacyFunctionConfig(parsed)).toBe(true);
+  });
+
   it.each<[string, unknown]>([
     ['unknown top-level keys on a command function', { command: 'echo hi', runz: {} }],
     ['unknown top-level keys on a path function', { path: './fn', run: 'echo' }],
