@@ -1140,3 +1140,40 @@ describe('StepsConfigParser hook validation view', () => {
     expect((error as BuildWorkflowError).errors[0].message).toMatch(/not allowed on platform/);
   });
 });
+
+describe('deprecated composite function option keys', () => {
+  let ctx: BuildStepGlobalContext;
+
+  beforeEach(() => {
+    ctx = createGlobalContextMock();
+  });
+
+  it('StepsConfigParser accepts compositeFunctionCatalog and loadCompositeFunction', async () => {
+    const parser = new StepsConfigParser(ctx, {
+      steps: [
+        { uses: './.eas/functions/setup', id: 'setup' },
+        { uses: 'eas/install_node_modules' },
+      ],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/hook-fn' }] },
+      externalFunctions: [createInstallNodeModulesFunction()],
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+      }),
+      loadCompositeFunction: async () =>
+        CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo hook' }] } }),
+    });
+    const workflow = await parser.parseAsync();
+    expect(workflow.buildSteps).toHaveLength(2);
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+  });
+
+  it('constructHookEntriesAsync accepts compositeFunctionCatalog', async () => {
+    const entries = await constructHookEntriesAsync(ctx, [{ uses: './.eas/functions/setup' }], {
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+      }),
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].steps).toHaveLength(1);
+  });
+});

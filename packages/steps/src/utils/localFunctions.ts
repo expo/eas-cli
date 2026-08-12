@@ -1,4 +1,6 @@
 import {
+  CompositeFunctionCatalog,
+  CompositeFunctionConfig,
   LocalFunctionCatalog,
   LocalFunctionConfig,
   LocalFunctionConfigZ,
@@ -217,6 +219,95 @@ export async function buildLocalFunctionCatalogAsync(
   return await buildLocalFunctionCatalogFromStepsAsync({
     rootSteps,
     loadLocalFunction: createLocalFunctionLoader(projectRoot, { logger }),
+  });
+}
+
+// Deprecated aliases for the pre-rename "local composite function" API, published up to v21.8.0.
+// The wrappers keep the composite-only contract of that API: a legacy command/path function fails
+// to load, exactly like it failed CompositeFunctionConfigZ validation before the rename.
+
+/** @deprecated Use `parseLocalFunctionPath`. */
+export const parseLocalCompositeFunctionPath = parseLocalFunctionPath;
+
+/** @deprecated Use `isLocalFunctionPath`. */
+export const isLocalCompositeFunctionPath = isLocalFunctionPath;
+
+/** @deprecated Use `getLocalFunctionCallWorkingDirectoryError`. */
+export const getLocalCompositeFunctionCallWorkingDirectoryError =
+  getLocalFunctionCallWorkingDirectoryError;
+
+/** @deprecated Use `resolveLocalFunctionPath`. */
+export const resolveLocalCompositeFunctionPath = resolveLocalFunctionPath;
+
+/** @deprecated Use `LocalFunctionLogger`. */
+export type LocalCompositeFunctionLogger = LocalFunctionLogger;
+
+/** @deprecated Use `loadLocalFunctionConfigAsync`, which also loads legacy command/path functions. */
+export async function loadLocalCompositeFunctionConfigAsync(
+  projectRoot: string,
+  compositeFunctionPath: string,
+  { logger }: { logger?: LocalCompositeFunctionLogger } = {}
+): Promise<CompositeFunctionConfig> {
+  const config = await loadLocalFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger });
+  if (isLegacyFunctionConfig(config)) {
+    throw new Error(
+      `Local function "${compositeFunctionPath}" declares "command" or "path". Use loadLocalFunctionConfigAsync to load legacy functions.`
+    );
+  }
+  return config;
+}
+
+/** @deprecated Use `createLocalFunctionLoader`, which also loads legacy command/path functions. */
+export function createLocalCompositeFunctionLoader(
+  projectRoot: string,
+  { logger }: { logger?: LocalCompositeFunctionLogger } = {}
+): (compositeFunctionPath: string) => Promise<CompositeFunctionConfig> {
+  return async compositeFunctionPath =>
+    await loadLocalCompositeFunctionConfigAsync(projectRoot, compositeFunctionPath, { logger });
+}
+
+/** @deprecated Use `buildLocalFunctionCatalogFromStepsAsync`. */
+export async function buildCompositeFunctionCatalogFromStepsAsync({
+  rootSteps,
+  loadCompositeFunction,
+}: {
+  rootSteps: readonly Step[];
+  loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+}): Promise<CompositeFunctionCatalog> {
+  const catalog: CompositeFunctionCatalog = {};
+  await extendLocalFunctionCatalogFromStepsAsync({
+    catalog,
+    rootSteps,
+    loadLocalFunction: loadCompositeFunction,
+  });
+  return catalog;
+}
+
+/** @deprecated Use `extendLocalFunctionCatalogFromStepsAsync`. */
+export async function extendCompositeFunctionCatalogFromStepsAsync({
+  catalog,
+  rootSteps,
+  loadCompositeFunction,
+}: {
+  catalog: CompositeFunctionCatalog;
+  rootSteps: readonly Step[];
+  loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+}): Promise<void> {
+  await extendLocalFunctionCatalogFromStepsAsync({
+    catalog,
+    rootSteps,
+    loadLocalFunction: loadCompositeFunction,
+  });
+}
+
+/** @deprecated Use `buildLocalFunctionCatalogAsync`, which also loads legacy command/path functions. */
+export async function buildLocalCompositeFunctionCatalogAsync(
+  projectRoot: string,
+  { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalCompositeFunctionLogger }
+): Promise<CompositeFunctionCatalog> {
+  return await buildCompositeFunctionCatalogFromStepsAsync({
+    rootSteps,
+    loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, { logger }),
   });
 }
 

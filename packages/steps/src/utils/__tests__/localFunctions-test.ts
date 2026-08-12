@@ -9,13 +9,23 @@ import os from 'os';
 import path from 'path';
 
 import {
+  buildCompositeFunctionCatalogFromStepsAsync,
+  buildLocalCompositeFunctionCatalogAsync,
   buildLocalFunctionCatalogAsync,
   buildLocalFunctionCatalogFromStepsAsync,
+  createLocalCompositeFunctionLoader,
   createLocalFunctionLoader,
+  extendCompositeFunctionCatalogFromStepsAsync,
   extendLocalFunctionCatalogFromStepsAsync,
+  getLocalCompositeFunctionCallWorkingDirectoryError,
+  getLocalFunctionCallWorkingDirectoryError,
+  isLocalCompositeFunctionPath,
   isLocalFunctionPath,
+  loadLocalCompositeFunctionConfigAsync,
   loadLocalFunctionConfigAsync,
+  parseLocalCompositeFunctionPath,
   parseLocalFunctionPath,
+  resolveLocalCompositeFunctionPath,
   resolveLocalFunctionPath,
 } from '../localFunctions';
 
@@ -759,5 +769,114 @@ describe(buildLocalFunctionCatalogAsync, () => {
         rootSteps: [{ uses: './.eas/functions/say-hi', id: 'greet' }],
       })
     ).rejects.toThrow(/does not contain a package.json file/);
+  });
+});
+
+describe('deprecated local composite function aliases', () => {
+  it('keeps the pre-rename names as aliases of the renamed functions', () => {
+    expect(parseLocalCompositeFunctionPath).toBe(parseLocalFunctionPath);
+    expect(isLocalCompositeFunctionPath).toBe(isLocalFunctionPath);
+    expect(getLocalCompositeFunctionCallWorkingDirectoryError).toBe(
+      getLocalFunctionCallWorkingDirectoryError
+    );
+    expect(resolveLocalCompositeFunctionPath).toBe(resolveLocalFunctionPath);
+  });
+
+  it('loadLocalCompositeFunctionConfigAsync loads a composite function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-deprecated-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'setup',
+      ['name: Setup', 'runs:', '  steps:', '    - run: echo setup'].join('\n')
+    );
+
+    const config = await loadLocalCompositeFunctionConfigAsync(
+      projectRoot,
+      './.eas/functions/setup'
+    );
+
+    expect(config.name).toBe('Setup');
+    expect(config.runs.steps).toHaveLength(1);
+  });
+
+  it('loadLocalCompositeFunctionConfigAsync rejects a legacy command function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-deprecated-'));
+    await makeCompositeFunctionAsync(projectRoot, 'say-hi', 'command: echo hi');
+
+    await expect(
+      loadLocalCompositeFunctionConfigAsync(projectRoot, './.eas/functions/say-hi')
+    ).rejects.toThrow(/declares "command" or "path"/);
+  });
+
+  it('buildLocalCompositeFunctionCatalogAsync builds a composite-only catalog', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-deprecated-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'setup',
+      ['runs:', '  steps:', '    - run: echo setup'].join('\n')
+    );
+
+    const catalog = await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+      rootSteps: [{ uses: './.eas/functions/setup' }],
+    });
+
+    expect(catalog['./.eas/functions/setup'].runs.steps).toHaveLength(1);
+  });
+
+  it('buildLocalCompositeFunctionCatalogAsync rejects a referenced legacy function', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-deprecated-'));
+    await makeCompositeFunctionAsync(projectRoot, 'say-hi', 'command: echo hi');
+
+    await expect(
+      buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+        rootSteps: [{ uses: './.eas/functions/say-hi' }],
+      })
+    ).rejects.toThrow(/declares "command" or "path"/);
+  });
+
+  it('createLocalCompositeFunctionLoader loads composite and rejects legacy functions', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-deprecated-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'setup',
+      ['runs:', '  steps:', '    - run: echo setup'].join('\n')
+    );
+    await makeCompositeFunctionAsync(projectRoot, 'say-hi', 'command: echo hi');
+
+    const loader = createLocalCompositeFunctionLoader(projectRoot);
+
+    const config = await loader('./.eas/functions/setup');
+    expect(config.runs.steps).toHaveLength(1);
+    await expect(loader('./.eas/functions/say-hi')).rejects.toThrow(/declares "command" or "path"/);
+  });
+
+  it('buildCompositeFunctionCatalogFromStepsAsync accepts the loadCompositeFunction key', async () => {
+    const catalog = await buildCompositeFunctionCatalogFromStepsAsync({
+      rootSteps: [{ uses: './.eas/functions/setup' }],
+      loadCompositeFunction: async () =>
+        CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
+    });
+
+    expect(catalog['./.eas/functions/setup'].runs.steps).toHaveLength(1);
+  });
+
+  it('extendCompositeFunctionCatalogFromStepsAsync accepts the loadCompositeFunction key', async () => {
+    const catalog = {
+      './.eas/functions/existing': CompositeFunctionConfigZ.parse({
+        runs: { steps: [{ run: 'echo existing' }] },
+      }),
+    };
+
+    await extendCompositeFunctionCatalogFromStepsAsync({
+      catalog,
+      rootSteps: [{ uses: './.eas/functions/setup' }],
+      loadCompositeFunction: async () =>
+        CompositeFunctionConfigZ.parse({ runs: { steps: [{ run: 'echo setup' }] } }),
+    });
+
+    expect(Object.keys(catalog).sort()).toEqual([
+      './.eas/functions/existing',
+      './.eas/functions/setup',
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import {
+  CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
   HookKey,
@@ -56,6 +57,8 @@ export class StepsConfigParser extends AbstractConfigParser {
       externalFunctionGroups,
       localFunctionCatalog,
       loadLocalFunction,
+      compositeFunctionCatalog,
+      loadCompositeFunction,
     }: {
       steps: Step[];
       // Required (not `hooks?:`) so a call site cannot silently forget to pass
@@ -66,6 +69,10 @@ export class StepsConfigParser extends AbstractConfigParser {
       localFunctionCatalog?: LocalFunctionCatalog;
       /** Loads a hook local function missing from the catalog. When omitted, missing entries fail as unknown. */
       loadLocalFunction?: (functionPath: string) => Promise<LocalFunctionConfig>;
+      /** @deprecated Use `localFunctionCatalog`. */
+      compositeFunctionCatalog?: LocalFunctionCatalog;
+      /** @deprecated Use `loadLocalFunction`. */
+      loadCompositeFunction?: (functionPath: string) => Promise<CompositeFunctionConfig>;
     }
   ) {
     super(ctx, {
@@ -76,8 +83,8 @@ export class StepsConfigParser extends AbstractConfigParser {
     this.steps = steps;
     this.hooks = hooks ?? {};
     // Shallow copy so lazy loading never mutates a caller-owned catalog.
-    this.localFunctionCatalog = { ...(localFunctionCatalog ?? {}) };
-    this.loadLocalFunction = loadLocalFunction;
+    this.localFunctionCatalog = { ...(localFunctionCatalog ?? compositeFunctionCatalog ?? {}) };
+    this.loadLocalFunction = loadLocalFunction ?? loadCompositeFunction;
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{

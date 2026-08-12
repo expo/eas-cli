@@ -71,11 +71,14 @@ export async function constructHookEntriesAsync(
     externalFunctions,
     externalFunctionGroups,
     localFunctionCatalog,
+    compositeFunctionCatalog,
   }: {
     externalFunctions?: BuildFunction[];
     externalFunctionGroups?: BuildFunctionGroup[];
     /** When omitted, local `uses:` paths fail as missing from an empty catalog. */
     localFunctionCatalog?: LocalFunctionCatalog;
+    /** @deprecated Use `localFunctionCatalog`. */
+    compositeFunctionCatalog?: LocalFunctionCatalog;
   }
 ): Promise<HookEntry[]> {
   // An empty array is a valid no-op (e.g. opting out of a default hook);
@@ -95,7 +98,7 @@ export async function constructHookEntriesAsync(
   return constructHookEntriesFromValidatedSteps(
     ctx,
     validatedSteps,
-    new LocalFunctionExpander(ctx, localFunctionCatalog ?? {}, {
+    new LocalFunctionExpander(ctx, localFunctionCatalog ?? compositeFunctionCatalog ?? {}, {
       buildFunctionById,
       buildFunctionGroupById,
     })
