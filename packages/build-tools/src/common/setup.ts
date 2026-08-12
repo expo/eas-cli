@@ -21,6 +21,7 @@ import { ParsedJobHooks, parseJobHooksAsync } from './jobHooks';
 import { prepareProjectSourcesAsync } from './projectSources';
 import { BuildContext } from '../context';
 import { deleteXcodeEnvLocalIfExistsAsync } from '../ios/xcodeEnv';
+import { getExpoCommandEnv } from '../utils/environmentMode';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { setUpNpmrcAsync } from '../utils/npmrc';
 import {
@@ -203,7 +204,7 @@ async function runExpoDoctor<TJob extends Job>(ctx: BuildContext<TJob>): Promise
     const promise = spawn('npx', [...argsPrefix, 'expo-doctor'], {
       cwd: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
-      env: ctx.env,
+      env: getExpoCommandEnv(ctx.env),
     });
     timeout = setTimeout(async () => {
       timedOut = true;
