@@ -3,6 +3,8 @@ import { Env } from '@expo/eas-build-job';
 import { load } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
+
+import { getEasBuildEnv, getExpoCommandEnv } from './environmentMode';
 import { expoCommandAsync } from './expoCli';
 
 interface ReadAppConfigParams {
@@ -13,13 +15,13 @@ interface ReadAppConfigParams {
 }
 
 export async function readAppConfig(params: ReadAppConfigParams): Promise<ProjectConfig> {
+  let env = getEasBuildEnv(params.env);
   const shouldLoadEnvVarsFromDotenvFile =
     params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
   if (shouldLoadEnvVarsFromDotenvFile) {
-    const envVarsFromDotenvFile = load(params.projectDir) as Env;
-    const env = { ...params.env, ...envVarsFromDotenvFile };
-    params = { ...params, env };
+    env = loadEnvVarsFromDotenvFile(params.projectDir, env);
   }
+  params = { ...params, env };
 
   // Reading the app config is done in two steps/attempts. We first attempt to run `expo config` as a CLI,
   try {
@@ -43,7 +45,7 @@ async function getAppConfigFromExpo({
   const result = await expoCommandAsync(
     projectDir,
     ['config', '--json', '--full', '--type', 'public'],
-    { env }
+    { env: getExpoCommandEnv(env) }
   );
 
   let parsed: any;
@@ -60,6 +62,18 @@ async function getAppConfigFromExpo({
   }
 
   return parsed;
+}
+
+function loadEnvVarsFromDotenvFile(projectDir: string, env: Env): Env {
+  const originalProcessEnv = process.env;
+  try {
+    // @expo/env 0.4 reads the mode from NODE_ENV.
+    process.env = { ...env };
+    load(projectDir);
+    return getEasBuildEnv(process.env as Env);
+  } finally {
+    process.env = originalProcessEnv;
+  }
 }
 
 function getAppConfigFromExpoConfig({
