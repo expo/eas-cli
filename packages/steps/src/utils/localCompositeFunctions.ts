@@ -1,4 +1,5 @@
 import {
+  CompositeFunctionCatalog,
   CompositeFunctionConfig,
   CompositeFunctionConfigZ,
   LocalFunctionCatalog,
@@ -57,8 +58,8 @@ export async function buildCompositeFunctionCatalogFromStepsAsync({
 }: {
   rootSteps: readonly Step[];
   loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
-}): Promise<LocalFunctionCatalog> {
-  const catalog: LocalFunctionCatalog = {};
+}): Promise<CompositeFunctionCatalog> {
+  const catalog: CompositeFunctionCatalog = {};
   await extendCompositeFunctionCatalogFromStepsAsync({ catalog, rootSteps, loadCompositeFunction });
   return catalog;
 }
@@ -173,7 +174,7 @@ export function createLocalCompositeFunctionLoader(
 export async function buildLocalCompositeFunctionCatalogAsync(
   projectRoot: string,
   { rootSteps, logger }: { rootSteps: readonly Step[]; logger?: LocalCompositeFunctionLogger }
-): Promise<LocalFunctionCatalog> {
+): Promise<CompositeFunctionCatalog> {
   return await buildCompositeFunctionCatalogFromStepsAsync({
     rootSteps,
     loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, { logger }),
