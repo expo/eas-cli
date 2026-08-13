@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved out of `.eas/build` configs into local `function.yml` files can be called from workflows. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Validate local functions declaring `command` or `path` referenced from workflows, including that the module directory of a `path` function exists. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Make the non-interactive "EAS project not configured" error actionable on every path: list the exact `eas init --id` / `eas init --account` commands and the accounts you can create projects in, instead of suggesting bare `eas init`, which fails the same way. ([#4153](https://github.com/expo/eas-cli/pull/4153) by [@williamgrosset](https://github.com/williamgrosset))
@@ -31,8 +34,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Label serve-sim metrics artifacts with the sim's device name (from the metrics meta) instead of the raw udid. ([#4127](https://github.com/expo/eas-cli/pull/4127) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Set the artifact kind for Argent session artifacts from the MIME type reported by the tool server, so screenshots and screen recordings are grouped and labelled on the simulator session page instead of appearing in an unclassified file list. ([#4154](https://github.com/expo/eas-cli/pull/4154) by [@szdziedzic](https://github.com/szdziedzic))
-- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved out of `.eas/build` configs into local `function.yml` files can be called from workflows. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
-- [eas-cli] Validate local functions declaring `command` or `path` referenced from workflows, including that the module directory of a `path` function exists. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
 
 ### 🐛 Bug fixes
 
