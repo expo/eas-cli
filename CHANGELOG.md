@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas metadata:pull` from silently discarding App Store screenshots that share a file name. App Store Connect allows duplicate file names within a screenshot set, but every duplicate resolved to the same local path, so each download overwrote the previous one and the config listed the same file several times. Duplicates now get a numeric suffix (`home.png`, `home-2.png`), while names that don't collide are kept as-is so they still match their remote counterpart on push. ([#4182](https://github.com/expo/eas-cli/pull/4182) by [@giaBaoJS](https://github.com/giaBaoJS))
+
 ### 🧹 Chores
 
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
