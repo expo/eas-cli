@@ -239,6 +239,7 @@ describe('StepsConfigParser local single-step functions', () => {
             inputs: [
               { name: 'count', type: 'number', default_value: '42', required: false },
               { name: 'verbose', type: 'boolean', default_value: 'true', required: false },
+              { name: 'clean', type: 'boolean', default_value: 'True', required: false },
             ],
             command: 'echo hi',
           },
@@ -249,6 +250,7 @@ describe('StepsConfigParser local single-step functions', () => {
       const [step] = workflow.buildSteps;
       expect(step.inputs?.find(input => input.id === 'count')?.rawValue).toBe(42);
       expect(step.inputs?.find(input => input.id === 'verbose')?.rawValue).toBe(true);
+      expect(step.inputs?.find(input => input.id === 'clean')?.rawValue).toBe(true);
     });
 
     it('coerces quoted allowed values and accepts a quoted default among them', async () => {

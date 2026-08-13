@@ -83,8 +83,11 @@ function coerceLegacyFunctionInputValue<V extends LegacyFunctionInputValue>(
   if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) {
     return Number(value);
   }
-  if (type === 'boolean' && (value === 'true' || value === 'false')) {
-    return value === 'true';
+  if (type === 'boolean') {
+    const lowercased = value.toLowerCase();
+    if (lowercased === 'true' || lowercased === 'false') {
+      return lowercased === 'true';
+    }
   }
   return value;
 }

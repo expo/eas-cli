@@ -598,6 +598,26 @@ describe(loadLocalFunctionConfigAsync, () => {
       ]);
     });
 
+    it('coerces mixed-case quoted boolean defaults and allowed values', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: verbose',
+        '    type: boolean',
+        '    default_value: "True"',
+        '    allowed_values: ["True", "FALSE"]',
+        '  - name: clean',
+        '    type: boolean',
+        '    default_value: "FALSE"',
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([
+        { name: 'verbose', type: 'boolean', default_value: true, allowed_values: [true, false] },
+        { name: 'clean', type: 'boolean', default_value: false },
+      ]);
+    });
+
     it('coerces camelCase spellings the same way', async () => {
       const config = await loadLegacyFunctionAsync([
         'inputs:',
