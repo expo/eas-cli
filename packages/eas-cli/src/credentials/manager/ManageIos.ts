@@ -256,17 +256,24 @@ export class ManageIos {
       return;
     }
 
-    const distributionType = await new SelectIosDistributionTypeGraphqlFromBuildProfile(
-      buildProfile
-    ).runAsync(ctx);
+    // Resolving the distribution type throws for build profiles with `ios.simulator: true`.
+    // Resolve it lazily, so that only the actions which actually consume a distribution type
+    // are gated by that check, and app-level credentials (push keys, App Store Connect API keys)
+    // can still be managed from a simulator build profile.
+    const resolveDistributionTypeAsync = async (): Promise<IosDistributionTypeGraphql> =>
+      await new SelectIosDistributionTypeGraphqlFromBuildProfile(buildProfile).runAsync(ctx);
 
     if (action === IosActionType.SetUpBuildCredentialsFromCredentialsJson) {
-      await new SetUpBuildCredentialsFromCredentialsJson(app, targets, distributionType).runAsync(
-        ctx
-      );
+      await new SetUpBuildCredentialsFromCredentialsJson(
+        app,
+        targets,
+        await resolveDistributionTypeAsync()
+      ).runAsync(ctx);
       return;
     } else if (action === IosActionType.UpdateCredentialsJson) {
-      await new UpdateCredentialsJson(app, targets, distributionType).runAsync(ctx);
+      await new UpdateCredentialsJson(app, targets, await resolveDistributionTypeAsync()).runAsync(
+        ctx
+      );
       return;
     }
 
@@ -274,6 +281,7 @@ export class ManageIos {
     const appLookupParams = await getAppLookupParamsFromContextAsync(ctx, target);
     switch (action) {
       case IosActionType.UseExistingDistributionCertificate: {
+        const distributionType = await resolveDistributionTypeAsync();
         const distCert = await selectValidDistributionCertificateAsync(ctx, appLookupParams);
         if (!distCert) {
           return;
@@ -288,6 +296,7 @@ export class ManageIos {
         return;
       }
       case IosActionType.CreateDistributionCertificate: {
+        const distributionType = await resolveDistributionTypeAsync();
         const distCert = await new CreateDistributionCertificate(appLookupParams.account).runAsync(
           ctx
         );
@@ -306,6 +315,7 @@ export class ManageIos {
         return;
       }
       case IosActionType.RemoveProvisioningProfile: {
+        const distributionType = await resolveDistributionTypeAsync();
         const iosAppCredentials = await ctx.ios.getIosAppCredentialsWithCommonFieldsAsync(
           ctx.graphqlClient,
           appLookupParams
