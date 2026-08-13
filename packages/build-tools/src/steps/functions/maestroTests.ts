@@ -13,6 +13,7 @@ import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 
+import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { buildFlowNameToPathMap } from './maestroFlowDiscovery';
 import {
   copyLatestAttemptXml,
@@ -27,6 +28,7 @@ import {
   type HarvestedScreenshot,
   computePureFailureFlowNames,
   harvestFailureScreenshotsAsync,
+  harvestMaestroRunnerFailureScreenshotsAsync,
   selectFailureScreenshots,
 } from './maestroScreenshots';
 import { CustomBuildContext } from '../../customBuildContext';
@@ -62,35 +64,74 @@ function isFilesystemError(err: any): boolean {
   );
 }
 
-// `outputPath: null` means "let maestro pick" (no --output flag). Junit and
-// other declared formats pass an explicit path so downstream upload steps
-// know where to find the result.
-function buildMaestroArgs(args: {
-  flow_path: string[];
+function buildMaestroArgs({
+  backend,
+  platform,
+  flowPaths,
+  outputPath,
+  runnerOutputDirectory,
+  outputFormat,
+  shards,
+  includeTags,
+  excludeTags,
+}: {
+  backend: MaestroBackend;
+  platform: 'ios' | 'android';
+  flowPaths: string[];
   outputPath: string | null;
-  output_format: string | undefined;
+  runnerOutputDirectory: string;
+  outputFormat: string | undefined;
   shards: number | undefined;
-  include_tags: string | undefined;
-  exclude_tags: string | undefined;
-}): string[] {
-  const out: string[] = ['test'];
-  if (args.output_format) {
-    out.push(`--format=${args.output_format.toUpperCase()}`);
+  includeTags: string | undefined;
+  excludeTags: string | undefined;
+}): { executable: MaestroBackend; args: string[] } {
+  switch (backend) {
+    case 'maestro': {
+      const args = ['test'];
+      if (outputFormat) {
+        args.push(`--format=${outputFormat.toUpperCase()}`);
+      }
+      if (outputPath) {
+        args.push(`--output=${outputPath}`);
+      }
+      if (shards !== undefined) {
+        args.push(`--shard-split=${shards}`);
+      }
+      appendTagsAndFlows(args, { includeTags, excludeTags, flowPaths });
+      return { executable: 'maestro', args };
+    }
+    case 'maestro-runner': {
+      const args = [
+        `--platform=${platform}`,
+        'test',
+        `--output=${runnerOutputDirectory}`,
+        '--flatten',
+      ];
+      appendTagsAndFlows(args, { includeTags, excludeTags, flowPaths });
+      return { executable: 'maestro-runner', args };
+    }
   }
-  if (args.outputPath) {
-    out.push(`--output=${args.outputPath}`);
+}
+
+function appendTagsAndFlows(
+  args: string[],
+  {
+    includeTags,
+    excludeTags,
+    flowPaths,
+  }: {
+    includeTags: string | undefined;
+    excludeTags: string | undefined;
+    flowPaths: string[];
   }
-  if (args.shards !== undefined) {
-    out.push(`--shard-split=${args.shards}`);
+): void {
+  if (includeTags) {
+    args.push(`--include-tags=${includeTags}`);
   }
-  if (args.include_tags) {
-    out.push(`--include-tags=${args.include_tags}`);
+  if (excludeTags) {
+    args.push(`--exclude-tags=${excludeTags}`);
   }
-  if (args.exclude_tags) {
-    out.push(`--exclude-tags=${args.exclude_tags}`);
-  }
-  out.push(...args.flow_path);
-  return out;
+  args.push(...flowPaths);
 }
 
 export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildFunction {
@@ -149,6 +190,11 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'backend',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({ id: 'junit_report_directory', required: true }),
@@ -161,6 +207,10 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       const outputFormat = (inputs.output_format.value as string | undefined)?.toLowerCase();
       const includeTags = inputs.include_tags.value as string | undefined;
       const excludeTags = inputs.exclude_tags.value as string | undefined;
+      const backend = resolveMaestroBackend({
+        input: inputs.backend.value,
+        env,
+      });
 
       const platform: 'ios' | 'android' =
         platformInput === 'ios' || platformInput === 'android'
@@ -219,6 +269,12 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           undefined,
         'android_connection_mode and EAS_MAESTRO_ANDROID_CONNECTION_MODE must be either "adb" or "dadb".'
       );
+      if (backend === 'maestro-runner' && shards !== undefined && shards > 1) {
+        throw new UserError(
+          'ERR_MAESTRO_INVALID_INPUT',
+          'maestro-runner does not support EAS Maestro test sharding. Remove shards or set it to 1.'
+        );
+      }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
       try {
@@ -245,7 +301,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       const harvested: HarvestedScreenshot[] = [];
 
       const totalAttempts = retries + 1;
-      if (platform === 'android' && androidConnectionMode === 'dadb') {
+      if (
+        backend === 'maestro-runner' &&
+        platform === 'android' &&
+        androidConnectionMode === 'dadb'
+      ) {
+        logger.info('maestro-runner does not support DADB. Using the default ADB connection.');
+      }
+      if (backend === 'maestro' && platform === 'android' && androidConnectionMode === 'dadb') {
         try {
           const adbOverrideDirectoryPath = await fs.mkdtemp(
             path.join(os.tmpdir(), 'maestro-tests-adb-override-')
@@ -280,29 +343,36 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       }
 
       for (let attempt = 0; attempt <= retries; attempt++) {
+        // maestro-runner writes its JUnit report and screenshot metadata to this directory.
+        const runnerOutputDirectory = path.join(
+          testsDirectory,
+          `${platform}-maestro-runner-attempt-${attempt}`
+        );
         const outputPath =
           outputFormat === 'junit'
             ? path.join(junitReportDirectory, `${platform}-maestro-junit-attempt-${attempt}.xml`)
-            : outputFormat
+            : backend === 'maestro' && outputFormat
               ? path.join(testsDirectory, `${platform}-maestro-${outputFormat}.${outputFormat}`)
               : null;
-
-        const maestroArgs = buildMaestroArgs({
-          flow_path: flowsToRun,
+        const { executable, args: maestroArgs } = buildMaestroArgs({
+          backend,
+          platform,
+          flowPaths: flowsToRun,
           outputPath,
-          output_format: outputFormat,
+          runnerOutputDirectory,
+          outputFormat,
           shards,
-          include_tags: includeTags,
-          exclude_tags: excludeTags,
+          includeTags,
+          excludeTags,
         });
         logger.info(
-          `Running maestro (attempt ${attempt + 1}/${totalAttempts}): maestro ${maestroArgs.join(' ')}`
+          `Running ${executable} (attempt ${attempt + 1}/${totalAttempts}): ${executable} ${maestroArgs.join(' ')}`
         );
 
         const attemptStartedAtMs = Date.now();
 
         try {
-          await spawn('maestro', maestroArgs, {
+          await spawn(executable, maestroArgs, {
             cwd: stepCtx.workingDirectory,
             env: spawnEnv,
             logger,
@@ -311,12 +381,27 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           lastAttemptExitCode = 0;
         } catch (err: any) {
           if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
-            throw new SystemError('Failed to invoke maestro', { cause: err });
+            throw new SystemError(`Failed to invoke ${executable}`, { cause: err });
           }
           if (err && typeof err.status === 'number') {
             lastAttemptExitCode = err.status;
           } else {
-            throw new SystemError('Unexpected spawn failure invoking maestro', { cause: err });
+            throw new SystemError(`Unexpected spawn failure invoking ${executable}`, {
+              cause: err,
+            });
+          }
+        }
+
+        // maestro-runner writes a report directory. Copy its JUnit file into the existing
+        // per-attempt directory so retry parsing and final report merging remain shared.
+        if (backend === 'maestro-runner' && outputPath) {
+          try {
+            await fs.copyFile(path.join(runnerOutputDirectory, 'junit-report.xml'), outputPath);
+          } catch (err: any) {
+            logger.warn(
+              { err },
+              `Failed to collect the maestro-runner JUnit report for attempt ${attempt + 1}.`
+            );
           }
         }
 
@@ -327,15 +412,27 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           const failedFlowNames = outputPath
             ? await parseFailedFlowNamesFromJUnitFile(outputPath)
             : new Set<string>();
-          harvested.push(
-            ...(await harvestFailureScreenshotsAsync({
-              testsDirectory,
-              capturedSinceMs: attemptStartedAtMs,
-              attemptIndex: attempt,
-              failedFlowNames,
-              logger,
-            }))
-          );
+          let screenshots: HarvestedScreenshot[];
+          switch (backend) {
+            case 'maestro':
+              screenshots = await harvestFailureScreenshotsAsync({
+                testsDirectory,
+                capturedSinceMs: attemptStartedAtMs,
+                attemptIndex: attempt,
+                failedFlowNames,
+                logger,
+              });
+              break;
+            case 'maestro-runner':
+              screenshots = await harvestMaestroRunnerFailureScreenshotsAsync({
+                reportDirectory: runnerOutputDirectory,
+                capturedSinceMs: attemptStartedAtMs,
+                attemptIndex: attempt,
+                logger,
+              });
+              break;
+          }
+          harvested.push(...screenshots);
         }
 
         if (lastAttemptExitCode === 0 || attempt === retries) {
@@ -359,7 +456,10 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
               logger,
             }));
             failed = nameToPath
-              ? await parseFailedFlowsFromJUnit({ junitFile: outputPath, nameToPath })
+              ? await parseFailedFlowsFromJUnit({
+                  junitFile: outputPath,
+                  nameToPath,
+                })
               : null;
           }
           if (failed !== null && failed.length > 0) {
