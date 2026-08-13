@@ -235,6 +235,44 @@ describe(BillingSubscribe, () => {
     });
   });
 
+  it('returns the current plan when the only account is already subscribed', async () => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
+      id: 'sub_1',
+      name: 'Starter',
+      planId: 'price_1RZD7tEnlKOkR6exdebL1Fhi',
+      status: 'active',
+      willCancel: false,
+    });
+
+    await createCommand(['production', '--json']).runAsync();
+
+    expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
+    expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+      checkoutUrl: null,
+      alreadySubscribed: true,
+      currentPlan: 'Starter',
+    });
+  });
+
+  it('reports an explicitly selected subscribed account before prompting for a plan', async () => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
+      id: 'sub_1',
+      name: 'Starter',
+      planId: 'price_1RZD7tEnlKOkR6exdebL1Fhi',
+      status: 'active',
+      willCancel: false,
+    });
+
+    await createCommand(['--account', 'testaccount']).runAsync();
+
+    expect(selectAsync).not.toHaveBeenCalled();
+    expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
+    expect(Log.warn).toHaveBeenCalledWith(
+      'Account testaccount is already subscribed to the Starter plan.'
+    );
+    expect(Log.log).toHaveBeenCalledWith('To change or cancel your plan, run eas billing:manage.');
+  });
+
   it('treats the free plan as not subscribed', async () => {
     jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
       id: 'sub_free',
@@ -260,6 +298,18 @@ describe(BillingSubscribe, () => {
 
     expect(open).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
+  });
+
+  it('prints the checkout URL without opening a browser with --no-open', async () => {
+    createCheckoutSessionAsync.mockResolvedValue({
+      id: 'cs',
+      url: 'https://checkout.stripe.com/pay',
+    });
+
+    await createCommand(['starter', '--no-open']).runAsync();
+
+    expect(open).not.toHaveBeenCalled();
     expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
   });
 

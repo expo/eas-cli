@@ -16,11 +16,11 @@ import { selectAsync } from '../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BillingSubscribe extends EasCommand {
-  static override description = 'subscribe an account to an EAS plan via Stripe checkout';
+  static override description = 'subscribe a Free account to an EAS plan';
 
   static override args = {
     PLAN: Args.string({
-      description: `plan to subscribe to (${PLAN_SLUGS.join(', ')}). Required in non-interactive mode.`,
+      description: 'plan to subscribe to. Required in non-interactive mode.',
       required: false,
       options: [...PLAN_SLUGS],
     }),
@@ -31,11 +31,8 @@ export default class BillingSubscribe extends EasCommand {
       char: 'a',
       description: 'Account to subscribe. Defaults to your account when you only have one.',
     }),
-    open: Flags.boolean({
-      allowNo: true,
-      default: true,
-      description:
-        'Open the Stripe checkout page in a browser (use --no-open to only print the URL)',
+    'no-open': Flags.boolean({
+      description: 'Only print the checkout page URL instead of opening it in a browser',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -55,9 +52,6 @@ export default class BillingSubscribe extends EasCommand {
     }
 
     let planSlug = PLAN as PlanSlug | undefined;
-    if (!planSlug && nonInteractive) {
-      throw new Error('The plan argument is required in non-interactive mode.');
-    }
 
     const {
       loggedIn: { graphqlClient, actor, authenticationInfo },
@@ -71,27 +65,12 @@ export default class BillingSubscribe extends EasCommand {
       subscriptionFilter: 'unsubscribed',
     });
 
-    if (!planSlug) {
-      planSlug = await selectAsync(
-        'Select a plan:',
-        PLAN_SLUGS.map(slug => ({
-          title: SUBSCRIBABLE_PLANS[slug].label,
-          value: slug,
-        }))
-      );
-    }
-
-    const plan = SUBSCRIBABLE_PLANS[planSlug];
-
     const subscription =
       account.subscription === undefined
         ? await AccountQuery.getSubscriptionAsync(graphqlClient, account.id)
         : account.subscription;
 
     if (hasPaidSubscription(subscription)) {
-      // Creating a new checkout session for an account that already has a paid subscription would
-      // create a second, parallel subscription. Route plan changes and cancellation through the
-      // Stripe customer portal (`eas billing:manage`), which handles proration natively.
       if (json) {
         printJsonOnlyOutput({
           checkoutUrl: null,
@@ -108,6 +87,22 @@ export default class BillingSubscribe extends EasCommand {
       Log.log('To change or cancel your plan, run eas billing:manage.');
       return;
     }
+
+    if (!planSlug && nonInteractive) {
+      throw new Error('The plan argument is required in non-interactive mode.');
+    }
+
+    if (!planSlug) {
+      planSlug = await selectAsync(
+        'Select a plan:',
+        PLAN_SLUGS.map(slug => ({
+          title: SUBSCRIBABLE_PLANS[slug].label,
+          value: slug,
+        }))
+      );
+    }
+
+    const plan = SUBSCRIBABLE_PLANS[planSlug];
 
     const billingClient = new BillingClient(authenticationInfo);
 
@@ -135,7 +130,7 @@ export default class BillingSubscribe extends EasCommand {
     );
     await openOrPrintUrlAsync(checkoutUrl, {
       label: 'Checkout page',
-      open: flags.open && !nonInteractive,
+      open: !flags['no-open'] && !nonInteractive,
     });
   }
 }

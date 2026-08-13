@@ -12,18 +12,16 @@ import { ora } from '../../ora';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class BillingManage extends EasCommand {
-  static override description =
-    'open the Stripe customer portal to manage billing (change plan, update payment method, or cancel)';
+  static override description = 'manage billing for an account with an active paid EAS plan';
 
   static override flags = {
     account: Flags.string({
       char: 'a',
-      description: 'Account to manage. Defaults to your account when you only have one.',
+      description:
+        'Account with an active paid plan to manage. Defaults to your account when only one is eligible.',
     }),
-    open: Flags.boolean({
-      allowNo: true,
-      default: true,
-      description: 'Open the customer portal in a browser (use --no-open to only print the URL)',
+    'no-open': Flags.boolean({
+      description: 'Only print the customer portal URL instead of opening it in a browser',
     }),
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -71,7 +69,7 @@ export default class BillingManage extends EasCommand {
 
     await openOrPrintUrlAsync(portalUrl, {
       label: 'Customer portal',
-      open: flags.open && !nonInteractive,
+      open: !flags['no-open'] && !nonInteractive,
     });
   }
 }

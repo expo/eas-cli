@@ -89,6 +89,16 @@ describe(BillingManage, () => {
     expect(open).toHaveBeenCalledWith(url);
   });
 
+  it('prints the customer portal URL without opening a browser with --no-open', async () => {
+    createCustomerPortalSessionAsync.mockResolvedValue({
+      url: 'https://billing.stripe.com/session/abc',
+    });
+
+    await createCommand(['--no-open']).runAsync();
+
+    expect(open).not.toHaveBeenCalled();
+  });
+
   it('only shows accounts with active paid plans', async () => {
     const freeAccount = {
       id: 'free-account-id',

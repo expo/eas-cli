@@ -117,6 +117,9 @@ export async function resolveBillingAccountAsync({
     const accountsWithSubscriptions = await Promise.all(
       billingAccounts.map(account => getAccountWithSubscriptionAsync(graphqlClient, account))
     );
+    if (subscriptionFilter === 'unsubscribed' && accountsWithSubscriptions.length === 1) {
+      return accountsWithSubscriptions[0];
+    }
     const subscribedAccounts = accountsWithSubscriptions.filter(account =>
       hasPaidSubscription(account.subscription ?? null)
     );

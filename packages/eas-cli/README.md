@@ -416,46 +416,46 @@ _See code: [@oclif/plugin-autocomplete](https://github.com/oclif/plugin-autocomp
 
 ## `eas billing:manage`
 
-open the Stripe customer portal to manage billing (change plan, update payment method, or cancel)
+manage billing for an account with an active paid EAS plan
 
 ```
 USAGE
-  $ eas billing:manage [-a <value>] [--open] [--json] [--non-interactive]
+  $ eas billing:manage [-a <value>] [--no-open] [--json] [--non-interactive]
 
 FLAGS
-  -a, --account=<value>  Account to manage. Defaults to your account when you only have one.
+  -a, --account=<value>  Account with an active paid plan to manage. Defaults to your account when only one is eligible.
       --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --no-open          Only print the customer portal URL instead of opening it in a browser
       --non-interactive  Run the command in non-interactive mode.
-      --[no-]open        Open the customer portal in a browser (use --no-open to only print the URL)
 
 DESCRIPTION
-  open the Stripe customer portal to manage billing (change plan, update payment method, or cancel)
+  manage billing for an account with an active paid EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/billing/manage.ts)_
+_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v21.4.0/packages/eas-cli/src/commands/billing/manage.ts)_
 
 ## `eas billing:subscribe [PLAN]`
 
-subscribe an account to an EAS plan via Stripe checkout
+subscribe a Free account to an EAS plan
 
 ```
 USAGE
-  $ eas billing:subscribe [PLAN] [-a <value>] [--open] [--json] [--non-interactive]
+  $ eas billing:subscribe [PLAN] [-a <value>] [--no-open] [--json] [--non-interactive]
 
 ARGUMENTS
-  [PLAN]  (starter|production) plan to subscribe to (starter, production). Required in non-interactive mode.
+  [PLAN]  (starter|production) plan to subscribe to. Required in non-interactive mode.
 
 FLAGS
   -a, --account=<value>  Account to subscribe. Defaults to your account when you only have one.
       --json             Enable JSON output, non-JSON messages will be printed to stderr. Implies --non-interactive.
+      --no-open          Only print the checkout page URL instead of opening it in a browser
       --non-interactive  Run the command in non-interactive mode.
-      --[no-]open        Open the Stripe checkout page in a browser (use --no-open to only print the URL)
 
 DESCRIPTION
-  subscribe an account to an EAS plan via Stripe checkout
+  subscribe a Free account to an EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v20.5.1/packages/eas-cli/src/commands/billing/subscribe.ts)_
+_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v21.4.0/packages/eas-cli/src/commands/billing/subscribe.ts)_
 
 ## `eas branch:create [NAME]`
 
