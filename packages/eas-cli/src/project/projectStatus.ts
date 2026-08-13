@@ -125,19 +125,19 @@ export async function getProjectStatusAsync(
   graphqlClient: ExpoGraphqlClient,
   { projectId, limit }: { projectId: string; limit: number }
 ): Promise<ProjectStatusSummary> {
-  const queryLimit = limit + 1;
+  const queryLimitForHasMore = limit + 1;
   const [app, productionBuilds, developmentBuilds, workflowRuns, submissions, updateGroups] =
     await Promise.all([
       AppQuery.byIdAsync(graphqlClient, projectId),
       BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
         appId: projectId,
-        limit: queryLimit,
+        limit: queryLimitForHasMore,
         offset: 0,
         filter: { developmentClient: false, distribution: DistributionType.Store },
       }),
       BuildQuery.viewBuildsOnAppAsync(graphqlClient, {
         appId: projectId,
-        limit: queryLimit,
+        limit: queryLimitForHasMore,
         offset: 0,
         filter: { developmentClient: true },
       }),
@@ -145,15 +145,15 @@ export async function getProjectStatusAsync(
         graphqlClient,
         projectId,
         undefined,
-        queryLimit
+        queryLimitForHasMore
       ),
       SubmissionQuery.forProjectStatusAsync(graphqlClient, projectId, {
-        limit: queryLimit,
+        limit: queryLimitForHasMore,
         offset: 0,
       }),
       UpdateQuery.viewUpdateGroupsOnAppAsync(graphqlClient, {
         appId: projectId,
-        limit: queryLimit,
+        limit: queryLimitForHasMore,
         offset: 0,
       }),
     ]);
