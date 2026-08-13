@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Fix `eas credentials` failing with "A simulator distribution does not require credentials to be configured." when managing push keys or App Store Connect API keys on a build profile with `ios.simulator: true`. These are app-level credentials and do not depend on the build distribution type, so the distribution type is now only resolved for the actions that actually use it. ([#4183](https://github.com/expo/eas-cli/pull/4183) by [@giaBaoJS](https://github.com/giaBaoJS))
+
 ### 🧹 Chores
 
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
