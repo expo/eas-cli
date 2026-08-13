@@ -2,13 +2,7 @@ import { z } from 'zod';
 
 import { LocalFunctionConfigZ, isLegacyFunctionConfig } from '../localFunction';
 
-function parseErrorMessages(schema: z.ZodType, config: unknown): string[] {
-  const result = schema.safeParse(config);
-  expect(result.success).toBe(false);
-  return result.error!.issues.map(issue => issue.message);
-}
-
-const UNION_ERROR_MESSAGE =
+const GENERIC_ERROR_MESSAGE =
   'A local function must declare exactly one of "runs.steps" (a composite function), "command" (a shell script) or "path" (a JavaScript function module), and its fields must match that shape.';
 
 describe('LocalFunctionConfigZ', () => {
@@ -46,14 +40,52 @@ describe('LocalFunctionConfigZ', () => {
     expect(isLegacyFunctionConfig(parsed)).toBe(true);
   });
 
-  it.each<[string, unknown]>([
-    ['unknown top-level keys on a command function', { command: 'echo hi', runz: {} }],
-    ['unknown top-level keys on a path function', { path: './fn', run: 'echo' }],
-    ['unknown supported platforms', { command: 'echo hi', supported_platforms: ['windows'] }],
+  it('surfaces the min-steps issue of the composite branch with its field path', () => {
+    const result = LocalFunctionConfigZ.safeParse({ runs: { steps: [] } });
+    expect(result.success).toBe(false);
+    expect(z.prettifyError(result.error!)).toMatch(
+      /must declare at least one step under "runs.steps"\.\n {2}→ at runs.steps/
+    );
+  });
+
+  it.each<[string, unknown, string]>([
+    [
+      'an unknown top-level key on a composite function',
+      { shel: 'bash', runs: { steps: [{ run: 'echo hi' }] } },
+      '✖ Unrecognized key: "shel"',
+    ],
+    [
+      'an unknown top-level key on a command function',
+      { command: 'echo hi', runz: {} },
+      '✖ Unrecognized key: "runz"',
+    ],
+    [
+      'an unknown top-level key on a path function',
+      { path: './fn', run: 'echo' },
+      '✖ Unrecognized key: "run"',
+    ],
+    [
+      'an unknown supported platform',
+      { command: 'echo hi', supported_platforms: ['windows'] },
+      '✖ Invalid option: expected one of "darwin"|"linux" (at supported_platforms.0)',
+    ],
     [
       'the composite output shape on a single-step function',
       { command: 'echo hi', outputs: { version: { value: '1.0.0' } } },
+      '✖ Invalid input: expected array, received object (at outputs)',
     ],
+    [
+      'a non-string command',
+      { command: 42 },
+      '✖ Invalid input: expected string, received number (at command)',
+    ],
+  ])('rejects %s with the field-level branch error', (_description, config, expectedError) => {
+    const result = LocalFunctionConfigZ.safeParse(config);
+    expect(result.success).toBe(false);
+    expect(z.prettifyError(result.error!)).toBe(expectedError);
+  });
+
+  it.each<[string, unknown]>([
     [
       'a config mixing runs.steps with command',
       { command: 'echo hi', runs: { steps: [{ run: 'echo hello' }] } },
@@ -69,20 +101,8 @@ describe('LocalFunctionConfigZ', () => {
     ['an array in place of a mapping', [{ command: 'echo hi' }]],
     ['null in place of a mapping', null],
   ])('rejects %s with the generic union message', (_description, config) => {
-    expect(parseErrorMessages(LocalFunctionConfigZ, config)).toEqual([UNION_ERROR_MESSAGE]);
-  });
-
-  it('collapses branch errors into the union message in formatted output', () => {
-    const result = LocalFunctionConfigZ.safeParse({ command: 42 });
+    const result = LocalFunctionConfigZ.safeParse(config);
     expect(result.success).toBe(false);
-    expect(z.prettifyError(result.error!)).toBe(`✖ ${UNION_ERROR_MESSAGE}`);
-  });
-
-  it('surfaces the min-steps issue of the composite branch with its field path', () => {
-    const result = LocalFunctionConfigZ.safeParse({ runs: { steps: [] } });
-    expect(result.success).toBe(false);
-    expect(z.prettifyError(result.error!)).toMatch(
-      /must declare at least one step under "runs.steps"\.\n {2}→ at runs.steps/
-    );
+    expect(result.error!.issues.map(issue => issue.message)).toEqual([GENERIC_ERROR_MESSAGE]);
   });
 });
