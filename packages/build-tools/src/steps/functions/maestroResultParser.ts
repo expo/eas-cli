@@ -34,10 +34,16 @@ const xmlParser = new XMLParser({
   isArray: name => ['testsuite', 'testcase', 'property'].includes(name),
 });
 
-// A `file=` attribute counts as present only when it is a non-empty string.
+// Official Maestro writes the flow path as a `file=` testcase attribute. maestro-runner writes
+// the same value as a `<property name="file" value="..."/>` child.
 function fileAttrOf(tc: any): string | undefined {
   const f = tc?.['@_file'];
-  return typeof f === 'string' && f.length > 0 ? f : undefined;
+  if (typeof f === 'string' && f.length > 0) {
+    return f;
+  }
+  const properties: { '@_name'?: unknown; '@_value'?: unknown }[] = tc?.properties?.property ?? [];
+  const fileProperty = properties.find(property => property['@_name'] === 'file')?.['@_value'];
+  return typeof fileProperty === 'string' && fileProperty.length > 0 ? fileProperty : undefined;
 }
 
 function parseJUnitContent(content: string): JUnitTestCaseResult[] {
@@ -68,7 +74,6 @@ function parseJUnitContent(content: string): JUnitTestCaseResult[] {
         const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
         const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
 
-        const status: 'passed' | 'failed' = tc['@_status'] === 'SUCCESS' ? 'passed' : 'failed';
         const failureText =
           tc.failure != null
             ? typeof tc.failure === 'string'
@@ -82,6 +87,17 @@ function parseJUnitContent(content: string): JUnitTestCaseResult[] {
               : (tc.error?.['#text'] ?? null)
             : null;
         const errorMessage: string | null = failureText ?? errorText ?? null;
+        // Official Maestro uses status="SUCCESS". maestro-runner uses standard JUnit semantics:
+        // a testcase passes when it has no failure or error child.
+        const statusAttribute = tc['@_status'];
+        const status: 'passed' | 'failed' =
+          typeof statusAttribute === 'string'
+            ? statusAttribute === 'SUCCESS'
+              ? 'passed'
+              : 'failed'
+            : tc.failure == null && tc.error == null
+              ? 'passed'
+              : 'failed';
 
         const rawProperties: { '@_name': string; '@_value': string }[] =
           tc.properties?.property ?? [];

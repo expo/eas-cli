@@ -453,6 +453,20 @@ describe('junitFileHasFileAttrs', () => {
     expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(false);
   });
 
+  it('returns true for a maestro-runner report with a file property', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" time="1.0">',
+        '    <properties><property name="file" value="flows/a.yaml"/></properties>',
+        '  </testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(true);
+  });
+
   it('returns false when the file cannot be read', async () => {
     expect(await junitFileHasFileAttrs('/missing.xml')).toBe(false);
   });
@@ -476,6 +490,25 @@ describe(parseJUnitTestCases, () => {
     });
     const results = await parseJUnitTestCases('/junit');
     expect(results[0].file).toBe('.maestro/login.yaml');
+  });
+
+  it('parses maestro-runner file properties and standard JUnit pass status', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" time="1.0">',
+        '    <properties><property name="file" value="flows/login.yaml"/></properties>',
+        '  </testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+
+    const results = await parseJUnitTestCases('/junit');
+
+    expect(results[0]).toEqual(
+      expect.objectContaining({ file: 'flows/login.yaml', status: 'passed' })
+    );
   });
 
   it('treats a missing or empty file= attribute as undefined', async () => {

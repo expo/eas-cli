@@ -7,9 +7,95 @@ import {
   type HarvestedScreenshot,
   computePureFailureFlowNames,
   harvestFailureScreenshotsAsync,
+  harvestMaestroRunnerFailureScreenshotsAsync,
   parseFailureScreenshotFilename,
   selectFailureScreenshots,
 } from '../maestroScreenshots';
+
+describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
+  const logger = createMockLogger();
+  let reportDirectory: string;
+
+  beforeEach(async () => {
+    reportDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'maestro-runner-harvest-test-'));
+    await fs.mkdir(path.join(reportDirectory, 'flows'));
+    await fs.mkdir(path.join(reportDirectory, 'assets', 'flow-000'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(reportDirectory, { recursive: true, force: true });
+  });
+
+  it('reads the failed command screenshot from a maestro-runner report bundle', async () => {
+    const capturedSinceMs = Date.now() - 1_000;
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          {
+            name: 'authentication/Login',
+            status: 'failed',
+            dataFile: 'flows/flow-000.json',
+          },
+        ],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [
+          {
+            status: 'failed',
+            artifacts: { screenshotAfter: 'assets/flow-000/cmd-001-after.png' },
+          },
+        ],
+      })
+    );
+    const screenshotPath = path.join(reportDirectory, 'assets', 'flow-000', 'cmd-001-after.png');
+    await fs.writeFile(screenshotPath, 'png');
+
+    const shots = await harvestMaestroRunnerFailureScreenshotsAsync({
+      reportDirectory,
+      capturedSinceMs,
+      attemptIndex: 1,
+      logger,
+    });
+
+    expect(shots).toEqual([
+      {
+        fileAbsPath: screenshotPath,
+        displayName: 'Failure Screenshot: authentication_Login (attempt 2)',
+        metadata: {
+          kind: 'maestro-test-screenshot',
+          flowName: 'authentication_Login',
+          attemptIndex: 1,
+          capturedAtMs: expect.any(Number),
+        },
+      },
+    ]);
+  });
+
+  it('ignores passing flows and paths outside the report directory', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          { name: 'Passing', status: 'passed', dataFile: 'flows/flow-000.json' },
+          { name: 'Unsafe', status: 'failed', dataFile: '../outside.json' },
+        ],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+});
 
 describe(parseFailureScreenshotFilename, () => {
   it('parses a plain failure screenshot', () => {
