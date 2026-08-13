@@ -4,7 +4,7 @@ import { load } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
 
-import { getEasBuildEnv, getExpoCommandEnv } from './environmentMode';
+import { type EnvMode, getExpoCommandEnv } from './environmentMode';
 import { expoCommandAsync } from './expoCli';
 
 interface ReadAppConfigParams {
@@ -15,7 +15,7 @@ interface ReadAppConfigParams {
 }
 
 export async function readAppConfig(params: ReadAppConfigParams): Promise<ProjectConfig> {
-  let env = getEasBuildEnv(params.env);
+  let env = getLegacyExpoConfigEnv(params.env, 'production');
   const shouldLoadEnvVarsFromDotenvFile =
     params.sdkVersion && semver.satisfies(params.sdkVersion, '>=49');
   if (shouldLoadEnvVarsFromDotenvFile) {
@@ -45,7 +45,7 @@ async function getAppConfigFromExpo({
   const result = await expoCommandAsync(
     projectDir,
     ['config', '--json', '--full', '--type', 'public'],
-    { env: getExpoCommandEnv(env) }
+    { env: getExpoCommandEnv(env, 'production') }
   );
 
   let parsed: any;
@@ -67,13 +67,19 @@ async function getAppConfigFromExpo({
 function loadEnvVarsFromDotenvFile(projectDir: string, env: Env): Env {
   const originalProcessEnv = process.env;
   try {
-    // @expo/env 0.4 reads the mode from NODE_ENV.
+    // @expo/env@0.4 reads the mode from NODE_ENV.
     process.env = { ...env };
     load(projectDir);
-    return getEasBuildEnv(process.env as Env);
+    return getLegacyExpoConfigEnv(process.env as Env, 'production');
   } finally {
     process.env = originalProcessEnv;
   }
+}
+
+function getLegacyExpoConfigEnv(env: Env, mode: EnvMode): Env {
+  const result: Env = { ...env, NODE_ENV: mode };
+  delete result.EXPO_CONFIG_MODE;
+  return result;
 }
 
 function getAppConfigFromExpoConfig({

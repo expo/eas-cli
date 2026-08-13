@@ -1,16 +1,12 @@
 import type { Env } from '@expo/eas-build-job';
 
-const EAS_BUILD_MODE = 'production';
+export type EnvMode = 'development' | 'production';
 
-export function getEasBuildEnv(env: Env): Env {
-  const result: Env = { ...env, NODE_ENV: EAS_BUILD_MODE };
-  delete result.EXPO_CONFIG_MODE;
-  return result;
-}
-
-export function getExpoCommandEnv(env: Env): Env {
+/** Set EXPO_CONFIG_MODE and keep NODE_ENV working for older Expo commands. */
+export function getExpoCommandEnv(env: Env, mode: EnvMode): Env {
   return {
-    ...getEasBuildEnv(env),
-    EXPO_CONFIG_MODE: EAS_BUILD_MODE,
+    ...env,
+    NODE_ENV: mode,
+    EXPO_CONFIG_MODE: mode,
   };
 }

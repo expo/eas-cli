@@ -46,11 +46,14 @@ export function createPrebuildBuildFunction(): BuildFunction {
       const options = {
         cwd: stepCtx.workingDirectory,
         logger,
-        env: getExpoCommandEnv({
-          EXPO_IMAGE_UTILS_NO_SHARP: '1',
-          ...env,
-          ...(appleTeamId ? { APPLE_TEAM_ID: appleTeamId } : {}),
-        }),
+        env: getExpoCommandEnv(
+          {
+            EXPO_IMAGE_UTILS_NO_SHARP: '1',
+            ...env,
+            ...(appleTeamId ? { APPLE_TEAM_ID: appleTeamId } : {}),
+          },
+          'production'
+        ),
       };
       if (packageManager === PackageManager.NPM) {
         await spawn('npx', argsWithExpo, options);
