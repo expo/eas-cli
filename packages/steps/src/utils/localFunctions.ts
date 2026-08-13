@@ -12,6 +12,7 @@ import path from 'path';
 import YAML from 'yaml';
 import { z } from 'zod';
 
+import { normalizeLegacyFunctionConfigInputs } from './legacyFunction';
 import { BuildConfigError } from '../errors';
 
 // Local functions referenced via `uses: ./path` or `uses: ../path` in EAS workflows.
@@ -182,13 +183,16 @@ export async function loadLocalFunctionConfigAsync(
     }
 
     const config = result.data;
-    // Steps parser expects an absolute module path.
-    if (isLegacyFunctionConfig(config) && config.path !== undefined) {
-      config.path = await resolveAndValidateLegacyFunctionModulePathAsync({
-        projectRoot,
-        functionPath,
-        modulePath: config.path,
-      });
+    if (isLegacyFunctionConfig(config)) {
+      normalizeLegacyFunctionConfigInputs(functionPath, config);
+      // Steps parser expects an absolute module path.
+      if (config.path !== undefined) {
+        config.path = await resolveAndValidateLegacyFunctionModulePathAsync({
+          projectRoot,
+          functionPath,
+          modulePath: config.path,
+        });
+      }
     }
 
     logger?.debug(

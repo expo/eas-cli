@@ -1,5 +1,6 @@
 import { CompositeFunctionInputValueTypeName, JobInterpolationContext } from '@expo/eas-build-job';
 import assert from 'assert';
+import { isDeepStrictEqual } from 'util';
 
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepRuntimeError } from './errors';
@@ -164,7 +165,7 @@ export class BuildStepInput<
     if (this.allowedValues === undefined || value === undefined) {
       return true;
     }
-    return this.allowedValues.includes(value);
+    return this.allowedValues.some(allowedValue => isDeepStrictEqual(allowedValue, value));
   }
 
   public isRawValueStepOrContextReference(): boolean {

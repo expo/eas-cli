@@ -291,4 +291,60 @@ describe(validateWorkflowLocalFunctionsAsync, () => {
       validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
     ).resolves.toBeUndefined();
   });
+
+  it('accepts a single-step function with a quoted scalar default', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-functions-coerce-'));
+    await makeProjectWithCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      [
+        'inputs:',
+        '  - name: count',
+        '    type: number',
+        '    default_value: "42"',
+        '    required: false',
+        'command: echo hi',
+      ].join('\n')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          steps: [{ uses: './.eas/functions/say-hi' }],
+        },
+      },
+    };
+
+    await expect(
+      validateWorkflowLocalFunctionsAsync(workflow, projectRoot)
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects a single-step function with a mistyped default at validate time', async () => {
+    const projectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'eas-workflow-functions-mistyped-')
+    );
+    await makeProjectWithCompositeFunctionAsync(
+      projectRoot,
+      'say-hi',
+      [
+        'inputs:',
+        '  - name: count',
+        '    type: number',
+        '    default_value: abc',
+        '    required: false',
+        'command: echo hi',
+      ].join('\n')
+    );
+    const workflow = {
+      jobs: {
+        job: {
+          steps: [{ uses: './.eas/functions/say-hi' }],
+        },
+      },
+    };
+
+    await expect(validateWorkflowLocalFunctionsAsync(workflow, projectRoot)).rejects.toThrow(
+      'Invalid local function "./.eas/functions/say-hi": "default_value" of input "count" is set to "abc" which is not of type "number" or a step or context reference.'
+    );
+  });
 });

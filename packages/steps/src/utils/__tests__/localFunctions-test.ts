@@ -1,5 +1,6 @@
 import {
   CompositeFunctionConfigZ,
+  LocalFunctionConfig,
   LocalFunctionConfigZ,
   isLegacyFunctionConfig,
 } from '@expo/eas-build-job';
@@ -523,6 +524,216 @@ describe(loadLocalFunctionConfigAsync, () => {
         'function.yml'
       )}`
     );
+  });
+
+  describe('legacy input normalization', () => {
+    async function loadLegacyFunctionAsync(lines: string[]): Promise<LocalFunctionConfig> {
+      const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-legacy-inputs-'));
+      await makeCompositeFunctionAsync(projectRoot, 'say-hi', lines.join('\n'));
+      return await loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/say-hi');
+    }
+
+    it('coerces quoted number defaults and allowed values like the custom build schema', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: count',
+        '    type: number',
+        '    default_value: "2"',
+        '    allowed_values: ["1", "2"]',
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([
+        { name: 'count', type: 'number', default_value: 2, allowed_values: [1, 2] },
+      ]);
+    });
+
+    it('coerces quoted boolean defaults', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: verbose',
+        '    type: boolean',
+        '    default_value: "true"',
+        '  - name: clean',
+        '    type: boolean',
+        '    default_value: "false"',
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([
+        { name: 'verbose', type: 'boolean', default_value: true },
+        { name: 'clean', type: 'boolean', default_value: false },
+      ]);
+    });
+
+    it('coerces camelCase spellings the same way', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: count',
+        '    allowedValueType: number',
+        '    defaultValue: "42"',
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([{ name: 'count', type: 'number', default_value: 42 }]);
+    });
+
+    it('keeps a step or context reference default untouched', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: count',
+        '    type: number',
+        "    default_value: '${ eas.job.version }'",
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([
+        { name: 'count', type: 'number', default_value: '${ eas.job.version }' },
+      ]);
+    });
+
+    it('accepts a json default structurally equal to an allowed value', async () => {
+      const config = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: payload',
+        '    type: json',
+        '    default_value: { a: 1 }',
+        '    allowed_values: [{ a: 1 }, { b: 2 }]',
+        'command: echo hi',
+      ]);
+
+      assert(isLegacyFunctionConfig(config));
+      expect(config.inputs).toEqual([
+        {
+          name: 'payload',
+          type: 'json',
+          default_value: { a: 1 },
+          allowed_values: [{ a: 1 }, { b: 2 }],
+        },
+      ]);
+    });
+
+    it('rejects a number default that does not parse as a number', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: count',
+          '    type: number',
+          '    default_value: abc',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        'Invalid local function "./.eas/functions/say-hi": "default_value" of input "count" is set to "abc" which is not of type "number" or a step or context reference.'
+      );
+    });
+
+    it('rejects a non-string default for a string input', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: label',
+          '    default_value: 42',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"default_value" of input "label" is set to "42" which is not of type "string".'
+      );
+    });
+
+    it('rejects an array or plain string default for a json input', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: payload',
+          '    type: json',
+          '    default_value: [1, 2]',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"default_value" of input "payload" is set to [1,2] which is not of type "json" or a step or context reference.'
+      );
+
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: payload',
+          '    type: json',
+          '    default_value: hello',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"default_value" of input "payload" is set to "hello" which is not of type "json" or a step or context reference.'
+      );
+    });
+
+    it('rejects an allowed value that does not match the declared type', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: count',
+          '    type: number',
+          '    allowed_values: [1, abc]',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"allowed_values" of input "count" contains "abc" which is not of type "number".'
+      );
+    });
+
+    it('rejects a default outside the allowed values after coercion', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: count',
+          '    type: number',
+          '    default_value: "3"',
+          '    allowed_values: [1, 2]',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"default_value" of input "count" is set to "3" which is not one of the allowed values: "1", "2".'
+      );
+    });
+
+    it('rejects a reference default when allowed values are declared, like the custom build schema', async () => {
+      await expect(
+        loadLegacyFunctionAsync([
+          'inputs:',
+          '  - name: count',
+          '    type: number',
+          "    default_value: '${ eas.job.version }'",
+          '    allowed_values: [1, 2]',
+          'command: echo hi',
+        ])
+      ).rejects.toThrow(
+        '"default_value" of input "count" is set to "${ eas.job.version }" which is not one of the allowed values: "1", "2".'
+      );
+    });
+
+    it('aggregates issues from multiple inputs into one error', async () => {
+      const error: Error = await loadLegacyFunctionAsync([
+        'inputs:',
+        '  - name: count',
+        '    type: number',
+        '    default_value: abc',
+        '  - name: verbose',
+        '    type: boolean',
+        '    default_value: yes-please',
+        'command: echo hi',
+      ]).then(
+        () => {
+          throw new Error('expected loadLocalFunctionConfigAsync to throw');
+        },
+        err => err
+      );
+
+      expect(error.message).toContain('"default_value" of input "count"');
+      expect(error.message).toContain('"default_value" of input "verbose"');
+    });
   });
 });
 

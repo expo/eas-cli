@@ -231,6 +231,96 @@ describe('StepsConfigParser local single-step functions', () => {
         'Input parameter "platform" for step "./.eas/functions/say-hi" is set to "web" which is not one of the allowed values: "ios", "android".'
       );
     });
+
+    it('coerces quoted number and boolean defaults like the custom build schema', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SAY_HI]: {
+            inputs: [
+              { name: 'count', type: 'number', default_value: '42', required: false },
+              { name: 'verbose', type: 'boolean', default_value: 'true', required: false },
+            ],
+            command: 'echo hi',
+          },
+        },
+        steps: [{ uses: SAY_HI, id: 'greet' }],
+      });
+
+      const [step] = workflow.buildSteps;
+      expect(step.inputs?.find(input => input.id === 'count')?.rawValue).toBe(42);
+      expect(step.inputs?.find(input => input.id === 'verbose')?.rawValue).toBe(true);
+    });
+
+    it('coerces quoted allowed values and accepts a quoted default among them', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SAY_HI]: {
+            inputs: [
+              {
+                name: 'count',
+                type: 'number',
+                default_value: '1',
+                allowed_values: ['1', '2'],
+                required: false,
+              },
+            ],
+            command: 'echo hi',
+          },
+        },
+        steps: [{ uses: SAY_HI, id: 'greet' }],
+      });
+
+      const input = workflow.buildSteps[0].inputs?.find(i => i.id === 'count');
+      expect(input?.rawValue).toBe(1);
+      expect(input?.allowedValues).toEqual([1, 2]);
+    });
+
+    it('accepts a caller json value structurally equal to an allowed value', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SAY_HI]: {
+            inputs: [
+              {
+                name: 'payload',
+                type: 'json',
+                allowed_values: [{ a: 1 }, { b: 2 }],
+                required: false,
+              },
+            ],
+            command: 'echo hi',
+          },
+        },
+        steps: [{ uses: SAY_HI, id: 'greet', with: { payload: { a: 1 } } }],
+      });
+
+      expect(workflow.buildSteps[0].inputs?.find(i => i.id === 'payload')?.rawValue).toEqual({
+        a: 1,
+      });
+    });
+
+    it('accepts a json default structurally equal to an allowed value', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SAY_HI]: {
+            inputs: [
+              {
+                name: 'payload',
+                type: 'json',
+                default_value: { a: 1 },
+                allowed_values: [{ a: 1 }],
+                required: false,
+              },
+            ],
+            command: 'echo hi',
+          },
+        },
+        steps: [{ uses: SAY_HI, id: 'greet' }],
+      });
+
+      expect(workflow.buildSteps[0].inputs?.find(i => i.id === 'payload')?.rawValue).toEqual({
+        a: 1,
+      });
+    });
   });
 
   describe('outputs', () => {
