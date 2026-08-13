@@ -1,10 +1,12 @@
 /**
  * Maps a single-step local function config (`command` or `path` in `function.yml`, the shape
- * custom build functions use in `.eas/build/*.yml`) onto a {@link BuildFunction}, so calling one
- * from a workflow runs it exactly like a custom build does.
+ * custom build functions use in `.eas/build/*.yml`) onto a {@link BuildFunction}.
  *
  * Legacy semantics are preserved: inputs and outputs are required unless declared otherwise,
  * which is the opposite of the composite function default.
+ *
+ * One difference between the original custom build behavior and the new function is that
+ * function-level `shell:` is honored.
  */
 import { isDeepStrictEqual } from 'util';
 
