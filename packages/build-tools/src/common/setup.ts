@@ -204,7 +204,7 @@ async function runExpoDoctor<TJob extends Job>(ctx: BuildContext<TJob>): Promise
     const promise = spawn('npx', [...argsPrefix, 'expo-doctor'], {
       cwd: ctx.getReactNativeProjectDirectory(),
       logger: ctx.logger,
-      env: getExpoCommandEnv(ctx.env),
+      env: getExpoCommandEnv(ctx.env, 'production'),
     });
     timeout = setTimeout(async () => {
       timedOut = true;

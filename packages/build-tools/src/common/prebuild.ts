@@ -21,11 +21,14 @@ export async function prebuildAsync<TJob extends BuildJob>(
   const spawnOptions: SpawnOptions = {
     cwd: workingDir,
     logger,
-    env: getExpoCommandEnv({
-      EXPO_IMAGE_UTILS_NO_SHARP: '1',
-      ...options?.extraEnvs,
-      ...ctx.env,
-    }),
+    env: getExpoCommandEnv(
+      {
+        EXPO_IMAGE_UTILS_NO_SHARP: '1',
+        ...options?.extraEnvs,
+        ...ctx.env,
+      },
+      'production'
+    ),
   };
 
   const prebuildCommandArgs = getPrebuildCommandArgs(ctx);
