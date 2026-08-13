@@ -456,6 +456,36 @@ describe(loadLocalFunctionConfigAsync, () => {
     );
   });
 
+  it('reports the unrecognized key of a composite function instead of the generic union message', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'broken',
+      ['shel: bash', 'runs:', '  steps:', '    - run: echo hi'].join('\n')
+    );
+
+    await expect(
+      loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/broken')
+    ).rejects.toThrow(
+      /Invalid local function "\.\/\.eas\/functions\/broken": .*Unrecognized key: "shel"/s
+    );
+  });
+
+  it('reports the invalid field of a legacy command function instead of the generic union message', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
+    await makeCompositeFunctionAsync(
+      projectRoot,
+      'broken',
+      ['command: echo hi', 'supported_platforms: [windows]'].join('\n')
+    );
+
+    await expect(
+      loadLocalFunctionConfigAsync(projectRoot, './.eas/functions/broken')
+    ).rejects.toThrow(
+      /Invalid local function "\.\/\.eas\/functions\/broken": .*expected one of "darwin"\|"linux".*supported_platforms/s
+    );
+  });
+
   it('throws a read error with a cause for a non-ENOENT filesystem error', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-functions-test-'));
     // A directory named function.yml makes readFile fail with EISDIR instead of ENOENT.
