@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Report EAS Simulator as available to Expo admins in `eas simulator:availability`, even when the project account's feature gate is disabled. ([#4181](https://github.com/expo/eas-cli/pull/4181) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Make the non-interactive "EAS project not configured" error actionable on every path: list the exact `eas init --id` / `eas init --account` commands and the accounts you can create projects in, instead of suggesting bare `eas init`, which fails the same way. ([#4153](https://github.com/expo/eas-cli/pull/4153) by [@williamgrosset](https://github.com/williamgrosset))
 
 ### 🧹 Chores
