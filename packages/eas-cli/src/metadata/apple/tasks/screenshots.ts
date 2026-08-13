@@ -78,15 +78,31 @@ export class ScreenshotsTask extends AppleTask {
         // the download will fail, but we still preserve the entry pointing at
         // its expected local path so users can either drop in a replacement
         // file or remove the entry to delete the broken ASC record.
+        // App Store Connect does not enforce unique file names within a
+        // screenshot set, so several screenshots can report the same
+        // `fileName`. They would all resolve to the same local path, meaning
+        // every download but the last is overwritten and config lists the same
+        // file several times - silently losing screenshots on every pull. Keep
+        // track of the names already used in this set and give the duplicates a
+        // suffixed name so every screenshot keeps its own file.
+        const usedFileNames = new Set<string>();
         const paths: string[] = [];
         for (let i = 0; i < screenshotModels.length; i++) {
           const screenshot = screenshotModels[i];
+          const originalFileName =
+            screenshot.attributes.fileName || `${String(i + 1).padStart(2, '0')}.png`;
+          const fileName = resolveUniqueFileName(originalFileName, usedFileNames);
+          if (fileName !== originalFileName) {
+            Log.warn(
+              chalk`{yellow Multiple ${displayType} screenshots for ${localeCode} are named ${originalFileName}, storing this one as ${fileName}}`
+            );
+          }
           const downloaded = await downloadScreenshotAsync(
             context.projectDir,
             localeCode,
             displayType,
             screenshot,
-            i
+            fileName
           );
           if (downloaded) {
             paths.push(downloaded);
@@ -96,8 +112,6 @@ export class ScreenshotsTask extends AppleTask {
           // config. Push will detect that the existing screenshot isn't
           // complete and either re-upload (if a local file exists at this
           // path) or warn and skip (if it doesn't).
-          const fileName =
-            screenshot.attributes.fileName || `${String(i + 1).padStart(2, '0')}.png`;
           paths.push(path.join('store', 'apple', 'screenshot', localeCode, displayType, fileName));
         }
 
@@ -281,6 +295,30 @@ async function syncScreenshotSetAsync(
 }
 
 /**
+ * Resolve a file name that isn't used yet within a single screenshot set, by
+ * adding a numeric suffix before the extension on collision.
+ * E.g. `home.png` -> `home-2.png` -> `home-3.png`.
+ * Names that don't collide are returned untouched, so they keep matching their
+ * App Store Connect counterpart when pushing the config back.
+ * The returned name is added to `usedFileNames`.
+ */
+function resolveUniqueFileName(fileName: string, usedFileNames: Set<string>): string {
+  let uniqueFileName = fileName;
+  if (usedFileNames.has(uniqueFileName)) {
+    const extension = path.extname(fileName);
+    const baseName = path.basename(fileName, extension);
+    let counter = 2;
+    do {
+      uniqueFileName = `${baseName}-${counter}${extension}`;
+      counter++;
+    } while (usedFileNames.has(uniqueFileName));
+  }
+
+  usedFileNames.add(uniqueFileName);
+  return uniqueFileName;
+}
+
+/**
  * Download a screenshot to the local filesystem.
  * Returns the relative path to the downloaded file.
  */
@@ -289,7 +327,7 @@ async function downloadScreenshotAsync(
   locale: string,
   displayType: ScreenshotDisplayType,
   screenshot: AppScreenshot,
-  index: number
+  fileName: string
 ): Promise<string | null> {
   const imageUrl = screenshot.getImageAssetUrl({ type: 'png' });
   if (!imageUrl) {
@@ -303,8 +341,7 @@ async function downloadScreenshotAsync(
   const screenshotsDir = path.join(projectDir, 'store', 'apple', 'screenshot', locale, displayType);
   await fs.promises.mkdir(screenshotsDir, { recursive: true });
 
-  // Use original filename for matching during sync
-  const fileName = screenshot.attributes.fileName || `${String(index + 1).padStart(2, '0')}.png`;
+  // Uses the original file name where possible, for matching during sync
   const outputPath = path.join(screenshotsDir, fileName);
   const relativePath = path.relative(projectDir, outputPath);
 

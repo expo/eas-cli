@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
 - [build-tools] Install FFmpeg before launching `expo-device-hub` in Android device sessions. ([#4332](https://github.com/expo/eas-cli/pull/4332) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Stop `eas metadata:pull` from silently discarding App Store screenshots that share a file name. App Store Connect allows duplicate file names within a screenshot set, but every duplicate resolved to the same local path, so each download overwrote the previous one and the config listed the same file several times. Duplicates now get a numeric suffix (`home.png`, `home-2.png`), while names that don't collide are kept as-is so they still match their remote counterpart on push. ([#4182](https://github.com/expo/eas-cli/pull/4182) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 
