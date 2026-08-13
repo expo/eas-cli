@@ -92,6 +92,11 @@ export const DeviceRunSessionQuery = {
                       toolsAuthToken
                       webPreviewUrl
                     }
+                    ... on AppiumRunSessionRemoteConfig {
+                      appiumUrl
+                      capabilities
+                      webPreviewUrl
+                    }
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
                     }

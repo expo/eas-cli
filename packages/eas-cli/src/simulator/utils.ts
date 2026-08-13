@@ -22,6 +22,7 @@ export function formatSimulatorUnavailableMessage(accountName: string): string {
 // so adding a new enum value in codegen fails the build until it is wired up here.
 export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
+  [DeviceRunSessionType.Appium]: 'appium',
   [DeviceRunSessionType.Argent]: 'argent',
   [DeviceRunSessionType.ServeSim]: 'serve-sim',
 };
@@ -49,6 +50,11 @@ export function getRemoteSessionEnvironmentVariables(
       return {
         ARGENT_TOOLS_URL: remoteConfig.toolsUrl,
         ...(remoteConfig.toolsAuthToken ? { ARGENT_AUTH_TOKEN: remoteConfig.toolsAuthToken } : {}),
+      };
+    case 'AppiumRunSessionRemoteConfig':
+      return {
+        APPIUM_URL: remoteConfig.appiumUrl,
+        APPIUM_CAPS: JSON.stringify(remoteConfig.capabilities),
       };
     case 'ServeSimRunSessionRemoteConfig':
       return {};
@@ -123,6 +129,29 @@ export function formatRemoteSessionInstructions(
           '',
           remoteConfig.webPreviewUrl
         );
+      }
+      return lines.join('\n');
+    }
+    case 'AppiumRunSessionRemoteConfig': {
+      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const lines =
+        configType === 'dotenv'
+          ? [
+              'Run an Appium client with the simulator session environment:',
+              '',
+              'eas simulator:exec <appium-client> [args...]',
+            ]
+          : [
+              'Run the following in your shell to attach an Appium client to this session:',
+              '',
+              ...Object.entries(environmentVariables).map(
+                ([key, value]) => `export ${key}='${value}'`
+              ),
+              '',
+              '<appium-client> [args...]',
+            ];
+      if (remoteConfig.webPreviewUrl) {
+        lines.push('', 'Open the iOS simulator preview:', '', remoteConfig.webPreviewUrl);
       }
       return lines.join('\n');
     }

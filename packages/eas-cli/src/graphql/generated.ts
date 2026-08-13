@@ -1078,6 +1078,19 @@ export type AgentDeviceRunSessionRemoteConfig = {
   webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
 
+export type AppiumRunSessionRemoteConfig = {
+  __typename?: 'AppiumRunSessionRemoteConfig';
+  /** Authenticated Appium server URL. Treat this value as a secret. */
+  appiumUrl: Scalars['String']['output'];
+  /** W3C capabilities for the device that backs this session. */
+  capabilities: Scalars['JSONObject']['output'];
+  /**
+   * URL of the web preview surface for the session. Null when web previews are
+   * not available for the platform (e.g. Android).
+   */
+  webPreviewUrl?: Maybe<Scalars['String']['output']>;
+};
+
 export type AndroidAppBuildCredentials = {
   __typename?: 'AndroidAppBuildCredentials';
   androidKeystore?: Maybe<AndroidKeystore>;
@@ -6069,7 +6082,7 @@ export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -6080,6 +6093,7 @@ export enum DeviceRunSessionStatus {
 
 export enum DeviceRunSessionType {
   AgentDevice = 'AGENT_DEVICE',
+  Appium = 'APPIUM',
   Argent = 'ARGENT',
   ServeSim = 'SERVE_SIM'
 }
@@ -14917,6 +14931,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null }
+        | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };

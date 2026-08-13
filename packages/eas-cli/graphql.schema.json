@@ -6526,6 +6526,61 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AppiumRunSessionRemoteConfig",
+        "description": null,
+        "fields": [
+          {
+            "name": "appiumUrl",
+            "description": "Authenticated Appium server URL. Treat this value as a secret.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "capabilities",
+            "description": "W3C capabilities for the device that backs this session.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "webPreviewUrl",
+            "description": "URL of the web preview surface for the session. Null when web previews are\nnot available for the platform (e.g. Android).",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AndroidAppBuildCredentials",
         "description": null,
         "fields": [
@@ -43122,6 +43177,11 @@
           },
           {
             "kind": "OBJECT",
+            "name": "AppiumRunSessionRemoteConfig",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
             "name": "ArgentRunSessionRemoteConfig",
             "ofType": null
           },
@@ -43177,6 +43237,12 @@
         "enumValues": [
           {
             "name": "AGENT_DEVICE",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "APPIUM",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
