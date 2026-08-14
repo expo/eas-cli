@@ -15,6 +15,7 @@ import { AppMutation } from '../../../graphql/mutations/AppMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { createOrModifyExpoConfigAsync } from '../../../project/expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
+import { maybeSetProjectIconFromAppConfigAsync } from '../../../project/projectIcon';
 import { isExpoInstalled } from '../../../project/projectUtils';
 import { confirmAsync, promptAsync } from '../../../prompts';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
@@ -36,6 +37,7 @@ jest.mock('../../../ora', () => ({
   }),
 }));
 jest.mock('../../../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync');
+jest.mock('../../../project/projectIcon');
 jest.mock('../../../commandUtils/context/contextUtils/getProjectIdAsync');
 jest.mock('../../../project/projectUtils');
 jest.mock('../../../utils/json');
@@ -885,6 +887,69 @@ describe(ProjectInit.name, () => {
 
       expect(enableJsonOutput).not.toHaveBeenCalled();
       expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('project icon', () => {
+    beforeEach(() => {
+      mockTestProject({ configuredProjectId: '1234', configuredOwner: jester.accounts[0].name });
+      jest.mocked(AppQuery.byIdAsync).mockResolvedValue({
+        id: '1234',
+        slug: 'testing-123',
+        name: 'testing-123',
+        fullName: '@jester/testing-123',
+        ownerAccount: jester.accounts[0],
+      });
+    });
+
+    it('sets the icon from the app config', async () => {
+      await new ProjectInit([], commandOptions).run();
+
+      expect(jest.mocked(maybeSetProjectIconFromAppConfigAsync).mock.calls[0][1]).toEqual({
+        projectId: '1234',
+        projectDir: '/test-project',
+      });
+    });
+
+    it('does not set the icon with --no-icon', async () => {
+      await new ProjectInit(['--no-icon'], commandOptions).run();
+
+      expect(maybeSetProjectIconFromAppConfigAsync).not.toHaveBeenCalled();
+    });
+
+    it('reports the icon source in JSON output', async () => {
+      jest.mocked(maybeSetProjectIconFromAppConfigAsync).mockResolvedValue({
+        status: 'set',
+        icon: { field: 'icon', path: '/test-project/assets/icon.png' },
+      });
+
+      await new ProjectInit(['--json', '--non-interactive'], commandOptions).run();
+
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'already-linked',
+        projectId: '1234',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+        icon: { source: 'icon' },
+      });
+    });
+
+    it('omits the icon from JSON output when it was not set', async () => {
+      jest.mocked(maybeSetProjectIconFromAppConfigAsync).mockResolvedValue({
+        status: 'skipped',
+        reason: 'no-icon-in-app-config',
+      });
+
+      await new ProjectInit(['--json', '--non-interactive'], commandOptions).run();
+
+      expect(printJsonOnlyOutput).toHaveBeenCalledWith({
+        status: 'already-linked',
+        projectId: '1234',
+        owner: 'jester',
+        slug: 'testing-123',
+        dashboardUrl: 'https://expo.dev/accounts/jester/projects/testing-123',
+      });
     });
   });
 });
