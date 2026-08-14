@@ -319,6 +319,140 @@ describe('StepsConfigParser local composite functions', () => {
       expect(outputsStep.getOutputValueByName('version_expr')).toBe('');
     });
 
+    it('skips the outputs step when an earlier failure suppressed every inner step', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SETUP]: {
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [{ id: 'read', uses: 'test/set-version' }],
+            },
+          },
+        },
+        steps: [
+          { id: 'boom', uses: 'test/fail' },
+          { uses: SETUP, id: 'setup', if: '${{ always() }}' },
+          {
+            id: 'after',
+            uses: 'test/passthrough',
+            if: '${{ always() }}',
+            with: { value: '${{ steps.setup.outputs.version }}' },
+          },
+        ],
+        externalFunctions: [setVersionFunction(), failingFunction(), passThroughFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      const innerStep = workflow.buildSteps.find(s => s.id === 'setup__read');
+      const outputsStep = workflow.buildSteps.find(s => s.id === 'setup');
+      const afterStep = workflow.buildSteps.find(s => s.id === 'after');
+      expect(innerStep?.status).toBe(BuildStepStatus.SKIPPED);
+      expect(outputsStep?.status).toBe(BuildStepStatus.SKIPPED);
+      expect(afterStep?.getOutputValueByName('out')).toBe('');
+      expect(() => outputsStep?.getOutputValueByName('version')).toThrow(
+        'has not been executed yet'
+      );
+    });
+
+    it('runs the outputs step when an inner step opted past the earlier failure with always()', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          [SETUP]: {
+            outputs: {
+              version: { value: '${{ steps.read.outputs.version }}' },
+              skipped: { value: '${{ steps.later.outputs.out }}' },
+            },
+            runs: {
+              steps: [
+                { id: 'read', uses: 'test/set-version', if: '${{ always() }}' },
+                { id: 'later', uses: 'test/passthrough', with: { value: 'x' } },
+              ],
+            },
+          },
+        },
+        steps: [
+          { id: 'boom', uses: 'test/fail' },
+          { uses: SETUP, id: 'setup', if: '${{ always() }}' },
+        ],
+        externalFunctions: [setVersionFunction(), failingFunction(), passThroughFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      const outputsStep = workflow.buildSteps.find(s => s.id === 'setup');
+      expect(workflow.buildSteps.find(s => s.id === 'setup__read')?.status).toBe(
+        BuildStepStatus.SUCCESS
+      );
+      expect(workflow.buildSteps.find(s => s.id === 'setup__later')?.status).toBe(
+        BuildStepStatus.SKIPPED
+      );
+      expect(outputsStep?.status).toBe(BuildStepStatus.SUCCESS);
+      expect(outputsStep?.getOutputValueByName('version')).toBe('$(echo injected)');
+      expect(outputsStep?.getOutputValueByName('skipped')).toBe('');
+    });
+
+    it('skips the outer outputs step when a nested call without outputs was fully suppressed', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          './.eas/functions/outer': {
+            outputs: { version: { value: '${{ steps.mid.outputs.version }}' } },
+            runs: { steps: [{ uses: './.eas/functions/inner', id: 'mid' }] },
+          },
+          './.eas/functions/inner': {
+            runs: { steps: [{ id: 'read', uses: 'test/set-version' }] },
+          },
+        },
+        steps: [
+          { id: 'boom', uses: 'test/fail' },
+          { uses: './.eas/functions/outer', id: 'top', if: '${{ always() }}' },
+        ],
+        externalFunctions: [setVersionFunction(), failingFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      expect(workflow.buildSteps.find(s => s.id === 'top__mid__read')?.status).toBe(
+        BuildStepStatus.SKIPPED
+      );
+      expect(workflow.buildSteps.find(s => s.id === 'top')?.status).toBe(BuildStepStatus.SKIPPED);
+    });
+
+    it('runs the outer outputs step when a grandchild of a nested call executed', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          './.eas/functions/outer': {
+            outputs: { version: { value: '${{ steps.mid.outputs.inner_version }}' } },
+            runs: {
+              steps: [{ uses: './.eas/functions/inner', id: 'mid', if: '${{ always() }}' }],
+            },
+          },
+          './.eas/functions/inner': {
+            outputs: { inner_version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: { steps: [{ id: 'read', uses: 'test/set-version', if: '${{ always() }}' }] },
+          },
+        },
+        steps: [
+          { id: 'boom', uses: 'test/fail' },
+          { uses: './.eas/functions/outer', id: 'top', if: '${{ always() }}' },
+        ],
+        externalFunctions: [setVersionFunction(), failingFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      expect(workflow.buildSteps.find(s => s.id === 'top__mid__read')?.status).toBe(
+        BuildStepStatus.SUCCESS
+      );
+      expect(workflow.buildSteps.find(s => s.id === 'top')?.getOutputValueByName('version')).toBe(
+        '$(echo injected)'
+      );
+    });
+
     it('resolves an out-of-scope action output reference to an empty string', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {

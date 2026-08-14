@@ -835,6 +835,80 @@ describe('BuildWorkflow hook execution', () => {
       expect(statuses['setup']).toBe(BuildStepStatus.SKIPPED);
     });
 
+    it('skips the outputs node of an always() composite entry whose children an earlier entry suppressed', async () => {
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [
+            { uses: 'test/first-boom', id: 'first-boom' },
+            { uses: './.eas/functions/setup', id: 'setup', if: '${{ always() }}' },
+          ],
+        },
+        externalFunctions: [
+          anchorFunction(),
+          recordingFunction('first-boom', { failWith: new Error('first failed') }),
+          recordingFunction('plain-child'),
+          versionFunction('read-version', '1.2.3'),
+        ],
+        compositeFunctionCatalog: {
+          './.eas/functions/setup': {
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: {
+              steps: [
+                { id: 'plain', uses: 'test/plain-child' },
+                { id: 'read', uses: 'test/read-version' },
+              ],
+            },
+          },
+        },
+      });
+      await expect(workflow.executeAsync()).rejects.toThrow('first failed');
+      expect(executionLog).toEqual(['first-boom']);
+      const statuses = hookStepStatuses(workflow);
+      expect(statuses['setup__plain']).toBe(BuildStepStatus.SKIPPED);
+      expect(statuses['setup__read']).toBe(BuildStepStatus.SKIPPED);
+      expect(statuses['setup']).toBe(BuildStepStatus.SKIPPED);
+      expect(metrics).toEqual([
+        { anchor: 'install_node_modules', timing: 'before', result: 'failed' },
+      ]);
+    });
+
+    it('skips the outputs node of an after composite entry whose first child has an unevaluable if', async () => {
+      const workflow = await parseAsync({
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          after_install_node_modules: [{ uses: './.eas/functions/cleanup', id: 'cleanup' }],
+        },
+        externalFunctions: [
+          anchorFunction(),
+          recordingFunction('broken-gate'),
+          recordingFunction('plain-child'),
+        ],
+        compositeFunctionCatalog: {
+          './.eas/functions/cleanup': {
+            outputs: { note: { value: 'done' } },
+            runs: {
+              steps: [
+                {
+                  id: 'broken',
+                  uses: 'test/broken-gate',
+                  if: '${{ nonexistent.object.property }}',
+                },
+                { id: 'plain', uses: 'test/plain-child' },
+              ],
+            },
+          },
+        },
+      });
+      await expect(workflow.executeAsync()).rejects.toThrow();
+      expect(executionLog).toEqual(['anchor']);
+      const statuses = hookStepStatuses(workflow);
+      expect(statuses['cleanup__broken']).toBe(BuildStepStatus.SKIPPED);
+      expect(statuses['cleanup__plain']).toBe(BuildStepStatus.SKIPPED);
+      expect(statuses['cleanup']).toBe(BuildStepStatus.SKIPPED);
+      expect(metrics).toEqual([]);
+    });
+
     it('a later hook step consumes the composite call outputs via steps.<call-id>', async () => {
       const captured: unknown[] = [];
       const workflow = await parseAsync({

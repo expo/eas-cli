@@ -59,7 +59,7 @@ export class CompositeBuildStep extends BuildStep {
       displayName,
       outputs,
       fn,
-      // `scope` already applies the call-site `if`, so `always()` disables the default skip-on-failure.
+      // Call-site `if` lives on `scope`. `always()` survives a child failure; `shouldExecuteStep` still skips a call that never ran so outputs stay unset.
       ifCondition: '${{ always() }}',
       compositeFunctionScope: scope,
     });
@@ -85,6 +85,19 @@ export class CompositeBuildStep extends BuildStep {
     if (this.hasDeclaredOutputs) {
       super.registerSelf(ctx);
     }
+  }
+
+  public override shouldExecuteStep(options: { runByDefault: boolean }): boolean {
+    if (!super.shouldExecuteStep(options)) {
+      return false;
+    }
+    return options.runByDefault || this.anyAuthoredChildExecuted();
+  }
+
+  private anyAuthoredChildExecuted(): boolean {
+    return this.children.some(child =>
+      child instanceof CompositeBuildStep ? child.anyAuthoredChildExecuted() : child.wasExecuted
+    );
   }
 
   public getFlattenedSteps(): BuildStep[] {
