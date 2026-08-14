@@ -27,6 +27,9 @@ jobs:
 
       - uses: ./.github/actions/setup-mise
 
+      - name: Install eas-cli
+        run: npm install --global eas-cli@latest
+
       - uses: ./.github/internal-actions/setup-gcloud
 
       - name: Check if worker already exists
@@ -61,7 +64,7 @@ jobs:
           SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
 
           # Run workflow and capture output (includes run ID)
-          WORKFLOW_OUTPUT=$(npx -y eas-cli@latest workflow:run build-worker.yml \
+          WORKFLOW_OUTPUT=$(eas workflow:run build-worker.yml \
             --ref ${{ github.sha }} \
             --input upload_artifact=$SHOULD_UPLOAD_ARTIFACT \
             --non-interactive \
@@ -96,7 +99,7 @@ jobs:
           SHOULD_UPLOAD_ARTIFACT="${{ inputs.environment != '' && steps.check_worker_exists.outputs.worker_exists == 'false' }}"
 
           while true; do
-            VIEW_OUTPUT=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" \
+            VIEW_OUTPUT=$(eas workflow:view "$WORKFLOW_RUN_ID" \
               --non-interactive \
               --json)
             STATUS=$(echo "$VIEW_OUTPUT" | jq -r '.status')
@@ -181,7 +184,7 @@ jobs:
 
           WORKFLOW_RUN_ID="${{ steps.eas_workflow.outputs.workflow_run_id }}"
           if [ -n "$WORKFLOW_RUN_ID" ]; then
-            npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
+            eas workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive
           fi
 
       - name: Upload worker tarballs to GCP
