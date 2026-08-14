@@ -18,6 +18,9 @@ import path from 'path';
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
 
+const MAESTRO_RUNNER_WDA_CACHE_URL =
+  'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache';
+
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -143,6 +146,13 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
         throw new Error(`Failed to ensure ${backend} is installed.`);
       }
 
+      if (backend === 'maestro-runner' && global.runtimePlatform === BuildRuntimePlatform.DARWIN) {
+        await installMaestroRunnerWdaCache({
+          logger,
+          env,
+        });
+      }
+
       logger.info(`${backend} ${maestroVersionResult.value} is ready.`);
       outputs.maestro_version.set(maestroVersionResult.value);
 
@@ -152,6 +162,146 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
       });
     },
   });
+}
+
+async function installMaestroRunnerWdaCache({
+  logger,
+  env,
+}: {
+  logger: bunyan;
+  env: BuildStepEnv;
+}): Promise<void> {
+  const maestroRunnerHome =
+    env.MAESTRO_RUNNER_HOME ?? (env.HOME ? path.join(env.HOME, '.maestro-runner') : undefined);
+  if (!maestroRunnerHome) {
+    logger.warn(
+      'Skipping the prebuilt WebDriverAgent cache because the $HOME environment variable is empty.'
+    );
+    return;
+  }
+
+  try {
+    const wdaVersion = await getMaestroRunnerWdaVersion({ maestroRunnerHome });
+    if (!wdaVersion) {
+      logger.info(
+        'Skipping the prebuilt WebDriverAgent cache because the installed WDA version is unknown.'
+      );
+      return;
+    }
+    const xcodeVersion = await getXcodeVersion({ env });
+    const iosRuntimeVersions = await getAvailableIosRuntimeVersions({ env });
+    if (iosRuntimeVersions.length === 0) {
+      logger.info(
+        'Skipping the prebuilt WebDriverAgent cache because no iOS runtime is available.'
+      );
+      return;
+    }
+
+    const tempDirectory = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'install_maestro_runner_wda_cache')
+    );
+    try {
+      const archiveName = `xcode-${xcodeVersion}-wda-${wdaVersion}.tar.gz`;
+      const archivePath = path.join(tempDirectory, archiveName);
+      const archiveUrl = `${MAESTRO_RUNNER_WDA_CACHE_URL}/${archiveName}`;
+
+      logger.info(`Downloading the prebuilt WebDriverAgent cache for Xcode ${xcodeVersion}`);
+      await spawn(
+        'curl',
+        ['--fail', '--location', '--silent', '--show-error', archiveUrl, '--output', archivePath],
+        { logger, env }
+      );
+      await fs.promises.mkdir(maestroRunnerHome, { recursive: true });
+      await spawn('tar', ['-xzf', archivePath, '-C', maestroRunnerHome], { logger, env });
+
+      const genericProductsDirectory = path.join(
+        maestroRunnerHome,
+        'cache',
+        'wda-builds',
+        'generic',
+        'DerivedData',
+        'Build',
+        'Products'
+      );
+      for (const runtimeVersion of iosRuntimeVersions) {
+        const productsDirectory = path.join(
+          maestroRunnerHome,
+          'cache',
+          'wda-builds',
+          `sim-ios${runtimeVersion}-iphone`,
+          'DerivedData',
+          'Build',
+          'Products'
+        );
+        await fs.promises.cp(genericProductsDirectory, productsDirectory, { recursive: true });
+      }
+
+      logger.info(
+        `Installed the prebuilt WebDriverAgent cache for iOS ${iosRuntimeVersions.join(', ')}.`
+      );
+    } finally {
+      await fs.promises.rm(tempDirectory, { force: true, recursive: true });
+    }
+  } catch (err: any) {
+    logger.warn(
+      { err },
+      'Failed to install the prebuilt WebDriverAgent cache. maestro-runner will build WebDriverAgent when it is needed.'
+    );
+  }
+}
+
+async function getMaestroRunnerWdaVersion({
+  maestroRunnerHome,
+}: {
+  maestroRunnerHome: string;
+}): Promise<string | null> {
+  try {
+    const packageJson = JSON.parse(
+      await fs.promises.readFile(
+        path.join(maestroRunnerHome, 'drivers', 'ios', 'WebDriverAgent', 'package.json'),
+        'utf8'
+      )
+    );
+    return typeof packageJson.version === 'string' && packageJson.version.match(/^\d+\.\d+\.\d+$/)
+      ? packageJson.version
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getXcodeVersion({ env }: { env: BuildStepEnv }): Promise<string> {
+  const { stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env });
+  const version = /^Xcode\s+(\d+(?:\.\d+)*)$/m.exec(stdout)?.[1];
+  if (!version) {
+    throw new Error(`Failed to parse Xcode version from: ${stdout.trim()}`);
+  }
+  return version;
+}
+
+async function getAvailableIosRuntimeVersions({ env }: { env: BuildStepEnv }): Promise<string[]> {
+  const { stdout } = await spawn('xcrun', ['simctl', 'list', 'runtimes', '--json'], {
+    stdio: 'pipe',
+    env,
+  });
+  const runtimes = JSON.parse(stdout).runtimes as {
+    identifier?: string;
+    isAvailable?: boolean;
+    version?: string;
+  }[];
+
+  return [
+    ...new Set(
+      runtimes
+        .filter(
+          runtime =>
+            runtime.isAvailable !== false &&
+            runtime.identifier?.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-') &&
+            runtime.version?.match(/^\d+(?:\.\d+)*$/)
+        )
+        .map(runtime => runtime.version as string)
+    ),
+  ];
 }
 
 async function getMaestroVersion({
