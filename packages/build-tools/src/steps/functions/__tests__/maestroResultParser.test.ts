@@ -10,10 +10,91 @@ import {
   parseFailedFlowNamesFromJUnitFile,
   parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
+  parseFailedFlowsFromMaestroRunnerReport,
   parseJUnitTestCases,
   parseMaestroResults,
   parseMaestroResultsFromFileAttrs,
+  parseMaestroRunnerReport,
 } from '../maestroResultParser';
+
+describe(parseFailedFlowsFromMaestroRunnerReport, () => {
+  it('returns exact sourceFile paths for failed flows', async () => {
+    vol.fromJSON({
+      '/project/flows/pass.yml': '',
+      '/project/flows/nested/fail.yml': '',
+      '/reports/attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'Passing flow', sourceFile: 'flows/pass.yml', status: 'passed' },
+          {
+            name: 'Failing flow',
+            sourceFile: 'flows/nested/fail.yml',
+            status: 'failed',
+          },
+          { status: 'skipped' },
+        ],
+      }),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toEqual(['flows/nested/fail.yml']);
+    await expect(parseMaestroRunnerReport('/reports/attempt-0')).resolves.toEqual({
+      flows: [
+        { name: 'Passing flow', sourceFile: 'flows/pass.yml', status: 'passed' },
+        {
+          name: 'Failing flow',
+          sourceFile: 'flows/nested/fail.yml',
+          status: 'failed',
+        },
+      ],
+    });
+  });
+
+  it.each([
+    {
+      name: 'incomplete flow',
+      report: {
+        version: '1.0.0',
+        status: 'failed',
+        summary: { total: 1 },
+        flows: [{ name: 'Failing flow', sourceFile: 'flows/fail.yml', status: 'running' }],
+      },
+    },
+  ])('returns null for an $name', async ({ report }) => {
+    vol.fromJSON({
+      '/project/flows/fail.yml': '',
+      '/reports/attempt-0/report.json': JSON.stringify(report),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toBeNull();
+  });
+
+  it('returns null when a failed sourceFile does not exist', async () => {
+    vol.fromJSON({
+      '/reports/attempt-0/report.json': JSON.stringify({
+        version: '1.0.0',
+        status: 'failed',
+        summary: { total: 1 },
+        flows: [{ name: 'Failing flow', sourceFile: 'flows/missing.yml', status: 'failed' }],
+      }),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toBeNull();
+  });
+});
 
 describe(parseFailedFlowNamesFromJUnitFile, () => {
   it('returns the names of failed testcases, keeping slashes', async () => {
