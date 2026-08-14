@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Revert the removal of deprecated GraphQL field usage from [#4021](https://github.com/expo/eas-cli/pull/4021). ([#4206](https://github.com/expo/eas-cli/pull/4206) by [@tchayen](https://github.com/tchayen))
+
 ### 🧹 Chores
 
 ## [22.0.0](https://github.com/expo/eas-cli/releases/tag/v22.0.0) - 2026-08-14
