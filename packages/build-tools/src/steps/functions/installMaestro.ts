@@ -22,9 +22,7 @@ import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
 import { getXcodeVersionAsync } from '../../ios/xcode';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
-
-const MAESTRO_RUNNER_WDA_CACHE_URL =
-  'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache';
+import { getProxiedDownloadUrl } from '../../utils/download';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -154,11 +152,13 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
               (requestedVersion === undefined &&
                 (!currentMaestroRunnerVersion || semver.gt(currentMaestroRunnerVersion, '1.1.15'))))
           ) {
-            const xcodeVersion = await getXcodeVersion({ env });
+            // `getXcodeVersionAsync` returns the raw version (e.g. "16.4"), which
+            // `semver.coerce` normalizes (e.g. "16.4.0") for comparison and display.
+            const xcodeVersion = semver.coerce(await getXcodeVersionAsync({ env }));
 
             // maestro-runner 1.1.16 added `arch` to its xcodebuild destination. Xcode versions
             // below 26 reject that option, so use the last compatible maestro-runner version.
-            if (semver.lt(xcodeVersion, '26.0.0')) {
+            if (xcodeVersion && semver.lt(xcodeVersion, '26.0.0')) {
               if (requestedMaestroRunnerVersion) {
                 throw new UserError(
                   'ERR_MAESTRO_INVALID_INPUT',
@@ -214,21 +214,6 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
   });
 }
 
-async function getXcodeVersion({ env }: { env: BuildStepEnv }): Promise<string> {
-  let stdout: string;
-  try {
-    ({ stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env }));
-  } catch (error) {
-    throw new SystemError('Failed to get Xcode version', { cause: error });
-  }
-
-  const xcodeVersion = semver.coerce(/^Xcode\s+(\S+)/m.exec(stdout)?.[1])?.version;
-  if (!xcodeVersion) {
-    throw new SystemError(`Failed to parse Xcode version from xcodebuild output: ${stdout.trim()}`);
-  }
-  return xcodeVersion;
-}
-
 async function installMaestroRunnerWdaCache({
   logger,
   env,
@@ -266,12 +251,28 @@ async function installMaestroRunnerWdaCache({
     );
     try {
       const archivePath = path.join(tempDirectory, 'wda-cache.tar.gz');
-      const archiveUrl = `${MAESTRO_RUNNER_WDA_CACHE_URL}/xcode-${encodeURIComponent(
-        xcodeVersion
-      )}-wda-${encodeURIComponent(wdaVersion)}.tar.gz`;
+      const directArchiveUrl =
+        `https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/` +
+        `xcode-${encodeURIComponent(xcodeVersion)}-wda-${encodeURIComponent(wdaVersion)}.tar.gz`;
+      const proxiedArchiveUrl = getProxiedDownloadUrl({
+        directUrl: directArchiveUrl,
+        proxyBaseUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
+      });
 
       logger.info(`Downloading the prebuilt WebDriverAgent cache for Xcode ${xcodeVersion}`);
-      await downloadFile(archiveUrl, archivePath, { retry: 3 });
+      if (proxiedArchiveUrl) {
+        try {
+          await downloadFile(proxiedArchiveUrl, archivePath, { retry: 3 });
+        } catch (err) {
+          logger.debug(
+            { err },
+            'Failed to download the prebuilt WebDriverAgent cache via the proxy; falling back to the direct URL.'
+          );
+          await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+        }
+      } else {
+        await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+      }
       await fs.promises.mkdir(maestroRunnerHome, { recursive: true });
       await spawn('tar', ['-xzf', archivePath, '-C', maestroRunnerHome], { logger, env });
 

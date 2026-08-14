@@ -525,6 +525,7 @@ describe('createInstallMaestroBuildFunction', () => {
       });
       globalCtx.updateEnv({
         EAS_BUILD_RUNNER: 'eas-build',
+        EAS_BUILD_COCOAPODS_CACHE_URL: 'https://cache.example.com',
         HOME: homeDirectory,
       });
       const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
@@ -534,7 +535,7 @@ describe('createInstallMaestroBuildFunction', () => {
       await step.executeAsync();
 
       expect(mockedDownloadFile).toHaveBeenCalledWith(
-        'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.0-wda-11.1.3.tar.gz',
+        'https://cache.example.com/storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.0-wda-11.1.3.tar.gz',
         expect.stringMatching(/install_maestro_runner_wda_cache.*\/wda-cache\.tar\.gz$/),
         { retry: 3 }
       );
@@ -567,7 +568,10 @@ describe('createInstallMaestroBuildFunction', () => {
   });
 
   it('does not download the WDA cache when the installed WDA version is unknown', async () => {
-    mockedSpawn.mockResolvedValue({ stdout: 'maestro-runner 1.2.3\n' } as any);
+    mockedSpawn.mockImplementation((async (command: string) => ({
+      stdout:
+        command === 'xcodebuild' ? 'Xcode 26.5\nBuild version 17F90\n' : 'maestro-runner 1.2.3\n',
+    })) as any);
     const installMaestro = createInstallMaestroBuildFunction();
     const globalCtx = createGlobalContextMock({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -579,10 +583,10 @@ describe('createInstallMaestroBuildFunction', () => {
 
     await step.executeAsync();
 
-    expect(mockedSpawn.mock.calls.map(([command]) => command)).toEqual([
-      'maestro-runner',
-      'maestro-runner',
-    ]);
+    // The installed WDA version is unknown (no package.json under $HOME), so the
+    // cache download is skipped before resolving the Xcode/runtime versions.
+    expect(mockedDownloadFile).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls.map(([command]) => command)).not.toContain('xcrun');
   });
 
   it('continues when the prebuilt WDA cache is not available', async () => {
@@ -619,13 +623,21 @@ describe('createInstallMaestroBuildFunction', () => {
       const globalCtx = createGlobalContextMock({
         runtimePlatform: BuildRuntimePlatform.DARWIN,
       });
-      globalCtx.updateEnv({ EAS_BUILD_RUNNER: 'eas-build', HOME: homeDirectory });
+      globalCtx.updateEnv({
+        EAS_BUILD_RUNNER: 'eas-build',
+        EAS_BUILD_COCOAPODS_CACHE_URL: 'https://cache.example.com',
+        HOME: homeDirectory,
+      });
       const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
         callInputs: { backend: 'maestro-runner' },
       });
 
       await expect(step.executeAsync()).resolves.toBeUndefined();
       expect(step.getOutputValueByName('maestro_version')).toBe('1.2.3');
+      expect(mockedDownloadFile.mock.calls.map(([url]) => url)).toEqual([
+        'https://cache.example.com/storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.5-wda-11.1.3.tar.gz',
+        'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.5-wda-11.1.3.tar.gz',
+      ]);
     } finally {
       await fs.promises.rm(homeDirectory, { force: true, recursive: true });
     }
