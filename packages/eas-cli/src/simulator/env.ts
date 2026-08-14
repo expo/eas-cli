@@ -1,4 +1,5 @@
 import { loadEnvFiles, loadProjectEnv } from '@expo/env';
+import { parse as parseDotenv } from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
 
@@ -33,10 +34,17 @@ export async function writeSimulatorEnvAsync(
   await fs.writeFile(simulatorDotenvFilePath, simulatorDotenvContent);
 }
 
-export async function resetSimulatorEnvAsync(projectDir: string): Promise<void> {
+export async function resetSimulatorEnvAsync(
+  projectDir: string,
+  expectedDeviceRunSessionId: string
+): Promise<void> {
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
 
   try {
+    const currentEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
+    if (currentEnv[EAS_SIMULATOR_SESSION_ID] !== expectedDeviceRunSessionId) {
+      return;
+    }
     await fs.writeFile(simulatorDotenvFilePath, SIMULATOR_DOTENV_FILE_HEADER, { flag: 'r+' });
     await fs.truncate(simulatorDotenvFilePath, Buffer.byteLength(SIMULATOR_DOTENV_FILE_HEADER));
   } catch (err) {
