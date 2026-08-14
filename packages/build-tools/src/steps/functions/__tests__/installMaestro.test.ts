@@ -1,4 +1,5 @@
 import downloadFile from '@expo/downloader';
+import { SystemError, UserError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { BuildRuntimePlatform } from '@expo/steps';
 import fs from 'fs';
@@ -8,6 +9,9 @@ import path from 'path';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { Datadog } from '../../../datadog';
 import { createInstallMaestroBuildFunction } from '../installMaestro';
+
+jest.unmock('fs');
+jest.unmock('fs/promises');
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -213,6 +217,217 @@ describe('createInstallMaestroBuildFunction', () => {
     }
   });
 
+  it('installs maestro-runner 1.1.15 on Xcode versions below 26', async () => {
+    let versionChecks = 0;
+    mockedSpawn.mockImplementation((async (command: string) => {
+      switch (command) {
+        case 'xcodebuild':
+          return { stdout: 'Xcode 16.4\nBuild version 16F6\n' };
+        case 'maestro-runner':
+          return {
+            stdout: versionChecks++ === 0 ? 'maestro-runner 1.1.23\n' : 'maestro-runner 1.1.15\n',
+          };
+        default:
+          return { stdout: '' };
+      }
+    }) as any);
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      text: async () => '#!/bin/sh\n',
+    } as Response);
+    const originalPath = process.env.PATH;
+
+    try {
+      const installMaestro = createInstallMaestroBuildFunction();
+      const globalCtx = createGlobalContextMock({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+      });
+      globalCtx.updateEnv({
+        EAS_BUILD_RUNNER: 'eas-build',
+        HOME: '/home/expo',
+        PATH: '/usr/bin',
+      });
+      const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+        callInputs: { backend: 'maestro-runner' },
+      });
+
+      await step.executeAsync();
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        expect.stringMatching(/install_maestro_runner.*\/install_maestro_runner\.sh$/),
+        ['--version', '1.1.15'],
+        expect.objectContaining({ env: expect.objectContaining({ HOME: '/home/expo' }) })
+      );
+      expect(step.getOutputValueByName('maestro_version')).toBe('1.1.15');
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.PATH = originalPath;
+    }
+  });
+
+  it('does not check Xcode when a compatible maestro-runner version is installed', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'xcodebuild') {
+        throw new Error('xcodebuild should not be called');
+      }
+      return { stdout: command === 'maestro-runner' ? 'maestro-runner 1.1.15\n' : '' };
+    }) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+    });
+    globalCtx.updateEnv({
+      EAS_BUILD_RUNNER: 'eas-build',
+      HOME: '/home/expo',
+      PATH: '/usr/bin',
+    });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: { backend: 'maestro-runner' },
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).not.toHaveBeenCalledWith(
+      'xcodebuild',
+      expect.anything(),
+      expect.anything()
+    );
+    expect(step.getOutputValueByName('maestro_version')).toBe('1.1.15');
+  });
+
+  it('checks Xcode for latest when a compatible maestro-runner version is installed', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      switch (command) {
+        case 'xcodebuild':
+          return { stdout: 'Xcode 16.4\nBuild version 16F6\n' };
+        case 'maestro-runner':
+          return { stdout: 'maestro-runner 1.1.15\n' };
+        default:
+          return { stdout: '' };
+      }
+    }) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+    });
+    globalCtx.updateEnv({
+      EAS_BUILD_RUNNER: 'eas-build',
+      HOME: '/home/expo',
+      PATH: '/usr/bin',
+    });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: { backend: 'maestro-runner', maestro_version: 'latest' },
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'xcodebuild',
+      ['-version'],
+      expect.objectContaining({ env: expect.anything() })
+    );
+    expect(step.getOutputValueByName('maestro_version')).toBe('1.1.15');
+  });
+
+  it('installs the latest maestro-runner version on Xcode 26', async () => {
+    let versionChecks = 0;
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'xcodebuild') {
+        return { stdout: 'Xcode 26.0\nBuild version 17A324\n' };
+      }
+      if (command === 'maestro-runner' && versionChecks++ === 0) {
+        throw Object.assign(new Error('not found'), { code: 'ENOENT' });
+      }
+      return { stdout: command === 'maestro-runner' ? 'maestro-runner 1.1.23\n' : '' };
+    }) as any);
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      text: async () => '#!/bin/sh\n',
+    } as Response);
+    const originalPath = process.env.PATH;
+
+    try {
+      const installMaestro = createInstallMaestroBuildFunction();
+      const globalCtx = createGlobalContextMock({
+        runtimePlatform: BuildRuntimePlatform.DARWIN,
+      });
+      globalCtx.updateEnv({
+        EAS_BUILD_RUNNER: 'eas-build',
+        HOME: '/home/expo',
+        PATH: '/usr/bin',
+      });
+      const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+        callInputs: { backend: 'maestro-runner' },
+      });
+
+      await step.executeAsync();
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        expect.stringMatching(/install_maestro_runner.*\/install_maestro_runner\.sh$/),
+        [],
+        expect.objectContaining({ env: expect.objectContaining({ HOME: '/home/expo' }) })
+      );
+      expect(step.getOutputValueByName('maestro_version')).toBe('1.1.23');
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.PATH = originalPath;
+    }
+  });
+
+  it('throws a system error when the Xcode version cannot be determined', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'xcodebuild') {
+        return { stdout: 'unexpected output' };
+      }
+      throw Object.assign(new Error('not found'), { code: 'ENOENT' });
+    }) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+    });
+    globalCtx.updateEnv({
+      EAS_BUILD_RUNNER: 'eas-build',
+      HOME: '/home/expo',
+      PATH: '/usr/bin',
+    });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: { backend: 'maestro-runner' },
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(SystemError);
+  });
+
+  it('rejects a requested maestro-runner version that is incompatible with Xcode', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'xcodebuild') {
+        return { stdout: 'Xcode 16.4\nBuild version 16F6\n' };
+      }
+      throw Object.assign(new Error('not found'), { code: 'ENOENT' });
+    }) as any);
+
+    const installMaestro = createInstallMaestroBuildFunction();
+    const globalCtx = createGlobalContextMock({
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+    });
+    globalCtx.updateEnv({
+      EAS_BUILD_RUNNER: 'eas-build',
+      HOME: '/home/expo',
+      PATH: '/usr/bin',
+    });
+    const step = installMaestro.createBuildStepFromFunctionCall(globalCtx, {
+      callInputs: { backend: 'maestro-runner', maestro_version: '1.1.23' },
+    });
+
+    const executePromise = step.executeAsync();
+    await expect(executePromise).rejects.toThrow(UserError);
+    await expect(executePromise).rejects.toMatchObject({
+      errorCode: 'ERR_MAESTRO_INVALID_INPUT',
+      message:
+        'maestro-runner 1.1.23 is not compatible with Xcode 16.4.0. Use maestro-runner 1.1.15 or an Xcode 26+ image.',
+    });
+  });
+
   it('installs the requested maestro-runner version', async () => {
     let versionChecks = 0;
     mockedSpawn.mockImplementation((async (command: string) => {
@@ -356,7 +571,10 @@ describe('createInstallMaestroBuildFunction', () => {
   });
 
   it('does not download the WDA cache when the installed WDA version is unknown', async () => {
-    mockedSpawn.mockResolvedValue({ stdout: 'maestro-runner 1.2.3\n' } as any);
+    mockedSpawn.mockImplementation((async (command: string) => ({
+      stdout:
+        command === 'xcodebuild' ? 'Xcode 26.0\nBuild version 17A324\n' : 'maestro-runner 1.2.3\n',
+    })) as any);
     const installMaestro = createInstallMaestroBuildFunction();
     const globalCtx = createGlobalContextMock({
       runtimePlatform: BuildRuntimePlatform.DARWIN,
@@ -370,6 +588,7 @@ describe('createInstallMaestroBuildFunction', () => {
 
     expect(mockedSpawn.mock.calls.map(([command]) => command)).toEqual([
       'maestro-runner',
+      'xcodebuild',
       'maestro-runner',
     ]);
   });

@@ -1,4 +1,5 @@
 import downloadFile from '@expo/downloader';
+import { UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -15,6 +16,7 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import semver from 'semver';
 
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
@@ -124,19 +126,64 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
         await installIdbFromBrew({ logger, env });
       }
 
-      // Skip installing if the input sets a specific Maestro version to install
-      // and it is already installed which happens when developing on a local computer.
-      if (
-        !currentMaestroVersion ||
-        (requestedVersion && requestedVersion !== currentMaestroVersion)
-      ) {
-        switch (backend) {
-          case 'maestro':
+      switch (backend) {
+        case 'maestro':
+          // Skip installing if the input sets a specific Maestro version to install
+          // and it is already installed, either on a build image or a local computer.
+          if (
+            !currentMaestroVersion ||
+            (requestedVersion && requestedVersion !== currentMaestroVersion)
+          ) {
             await installMaestro({ version: requestedVersion, global, logger, env });
-            break;
-          case 'maestro-runner':
-            await installMaestroRunner({ version: requestedVersion, global, logger, env });
-            break;
+          }
+          break;
+        case 'maestro-runner': {
+          let maestroRunnerVersionToInstall = requestedVersion;
+          const currentMaestroRunnerVersion = semver.coerce(currentMaestroVersion)?.version;
+          const requestedMaestroRunnerVersion =
+            requestedVersion && requestedVersion !== 'latest'
+              ? semver.valid(requestedVersion)
+              : null;
+          if (
+            global.runtimePlatform === BuildRuntimePlatform.DARWIN &&
+            ((requestedMaestroRunnerVersion &&
+              semver.gte(requestedMaestroRunnerVersion, '1.1.16')) ||
+              requestedVersion === 'latest' ||
+              (requestedVersion === undefined &&
+                (!currentMaestroRunnerVersion || semver.gt(currentMaestroRunnerVersion, '1.1.15'))))
+          ) {
+            const xcodeVersion = semver.coerce(await getXcodeVersionAsync({ env }))?.version;
+            assert(xcodeVersion, 'Failed to parse the Xcode version.');
+
+            // maestro-runner 1.1.16 added `arch` to its xcodebuild destination. Xcode versions
+            // below 26 reject that option, so use the last compatible maestro-runner version.
+            if (semver.lt(xcodeVersion, '26.0.0')) {
+              if (requestedMaestroRunnerVersion) {
+                throw new UserError(
+                  'ERR_MAESTRO_INVALID_INPUT',
+                  `maestro-runner ${requestedVersion} is not compatible with Xcode ${xcodeVersion}. Use maestro-runner 1.1.15 or an Xcode 26+ image.`
+                );
+              }
+              maestroRunnerVersionToInstall = '1.1.15';
+              logger.info(
+                `Xcode ${xcodeVersion} requires maestro-runner ${maestroRunnerVersionToInstall}.`
+              );
+            }
+          }
+
+          if (
+            !currentMaestroVersion ||
+            (maestroRunnerVersionToInstall &&
+              maestroRunnerVersionToInstall !== currentMaestroVersion)
+          ) {
+            await installMaestroRunner({
+              version: maestroRunnerVersionToInstall,
+              global,
+              logger,
+              env,
+            });
+          }
+          break;
         }
       }
 

@@ -133,6 +133,118 @@ export async function harvestFailureScreenshotsAsync(args: {
   return [...legacyShots, ...dedupeBundleShotsByFlowName(bundleShots)];
 }
 
+interface MaestroRunnerCommand {
+  status?: string;
+  artifacts?: {
+    screenshotBefore?: string;
+    screenshotAfter?: string;
+  };
+  subCommands?: MaestroRunnerCommand[];
+}
+
+// maestro-runner records failure screenshot paths in its report JSON instead of using the
+// official Maestro debug-directory layout. Never throws, so screenshots cannot change the test
+// result.
+export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
+  reportDirectory: string;
+  capturedSinceMs: number;
+  attemptIndex: number;
+  logger: bunyan;
+}): Promise<HarvestedScreenshot[]> {
+  let report: {
+    flows?: { name?: string; status?: string; dataFile?: string }[];
+  };
+  try {
+    report = JSON.parse(await fs.readFile(path.join(args.reportDirectory, 'report.json'), 'utf8'));
+  } catch (err: any) {
+    args.logger.info(
+      { err },
+      `Skipping maestro-runner screenshot harvest: cannot read ${args.reportDirectory}.`
+    );
+    return [];
+  }
+
+  const shots: HarvestedScreenshot[] = [];
+  for (const flow of report.flows ?? []) {
+    if (flow.status !== 'failed' || !flow.name || !flow.dataFile) {
+      continue;
+    }
+    const flowDataPath = resolvePathInsideDirectory(args.reportDirectory, flow.dataFile);
+    if (!flowDataPath) {
+      args.logger.info(`Skipping maestro-runner flow data outside the report directory.`);
+      continue;
+    }
+
+    let screenshotPath: string | undefined;
+    try {
+      const detail = JSON.parse(await fs.readFile(flowDataPath, 'utf8')) as {
+        commands?: MaestroRunnerCommand[];
+      };
+      screenshotPath = findFailedMaestroRunnerScreenshot(detail.commands ?? []);
+    } catch (err: any) {
+      args.logger.info({ err }, `Skipping unreadable maestro-runner flow data ${flowDataPath}.`);
+      continue;
+    }
+    if (!screenshotPath) {
+      continue;
+    }
+
+    const fileAbsPath = resolvePathInsideDirectory(args.reportDirectory, screenshotPath);
+    if (!fileAbsPath) {
+      args.logger.info(`Skipping maestro-runner screenshot outside the report directory.`);
+      continue;
+    }
+    let capturedAtMs: number;
+    try {
+      capturedAtMs = Math.round((await fs.stat(fileAbsPath)).mtimeMs);
+    } catch (err: any) {
+      args.logger.info({ err }, `Skipping unreadable screenshot ${fileAbsPath}.`);
+      continue;
+    }
+    if (capturedAtMs < args.capturedSinceMs) {
+      continue;
+    }
+
+    const flowName = normalizeFlowName(flow.name);
+    shots.push({
+      fileAbsPath,
+      displayName: `Failure Screenshot: ${flowName} (attempt ${args.attemptIndex + 1})`,
+      metadata: {
+        kind: 'maestro-test-screenshot',
+        flowName,
+        attemptIndex: args.attemptIndex,
+        capturedAtMs,
+      },
+    });
+  }
+  return shots;
+}
+
+function findFailedMaestroRunnerScreenshot(
+  commands: readonly MaestroRunnerCommand[]
+): string | undefined {
+  for (const command of commands) {
+    if (command.status !== 'failed') {
+      continue;
+    }
+    const nested = findFailedMaestroRunnerScreenshot(command.subCommands ?? []);
+    const screenshot =
+      nested ?? command.artifacts?.screenshotAfter ?? command.artifacts?.screenshotBefore;
+    if (screenshot) {
+      return screenshot;
+    }
+  }
+  return undefined;
+}
+
+function resolvePathInsideDirectory(directory: string, relativePath: string): string | null {
+  const candidate = path.resolve(directory, relativePath);
+  const relative = path.relative(directory, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+    ? candidate
+    : null;
+}
+
 // Maestro >= 2.7.0: resolve a bundle dir to its owning failed flow and return that flow's failure
 // screenshot — the highest-numbered step in `screenshots/`. A required failure halts the flow, so
 // the failed step is normally the last (highest-numbered) captured step; earlier warned steps have
