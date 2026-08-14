@@ -30,6 +30,7 @@ import config from './config';
 import { createBuildContext } from './context';
 import { Analytics } from './external/analytics';
 import { LauncherMessage, Worker, WorkerMessage } from './external/turtle';
+import { startXcodeBuildToolsPrewarming } from './ios/prewarmXcodeBuildTools';
 import logger, { createBuildLoggerWithSecretsFilter } from './logger';
 import sentry from './sentry';
 import State from './state';
@@ -302,6 +303,8 @@ export default class BuildService {
         buildLogger,
       });
       this.buildContext = ctx;
+
+      void startXcodeBuildToolsPrewarming({ env: ctx.env, logger: ctx.logger });
 
       const artifacts = await build({
         ctx,
