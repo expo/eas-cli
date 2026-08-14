@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Disallow 0-length uploads. ([#4192](https://github.com/expo/eas-cli/pull/4192) by [@wschurman](https://github.com/wschurman))
+
 ### 🧹 Chores
 
 ## [22.0.0](https://github.com/expo/eas-cli/releases/tag/v22.0.0) - 2026-08-14
