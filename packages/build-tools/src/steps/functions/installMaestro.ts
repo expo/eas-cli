@@ -20,9 +20,7 @@ import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
 import { getXcodeVersionAsync } from '../../ios/xcode';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
-
-const MAESTRO_RUNNER_WDA_CACHE_URL =
-  'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache';
+import { getProxiedDownloadUrl } from '../../utils/download';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -204,12 +202,28 @@ async function installMaestroRunnerWdaCache({
     );
     try {
       const archivePath = path.join(tempDirectory, 'wda-cache.tar.gz');
-      const archiveUrl = `${MAESTRO_RUNNER_WDA_CACHE_URL}/xcode-${encodeURIComponent(
-        xcodeVersion
-      )}-wda-${encodeURIComponent(wdaVersion)}.tar.gz`;
+      const directArchiveUrl =
+        `https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/` +
+        `xcode-${encodeURIComponent(xcodeVersion)}-wda-${encodeURIComponent(wdaVersion)}.tar.gz`;
+      const proxiedArchiveUrl = getProxiedDownloadUrl({
+        directUrl: directArchiveUrl,
+        proxyBaseUrl: env.EAS_BUILD_COCOAPODS_CACHE_URL,
+      });
 
       logger.info(`Downloading the prebuilt WebDriverAgent cache for Xcode ${xcodeVersion}`);
-      await downloadFile(archiveUrl, archivePath, { retry: 3 });
+      if (proxiedArchiveUrl) {
+        try {
+          await downloadFile(proxiedArchiveUrl, archivePath, { retry: 3 });
+        } catch (err) {
+          logger.debug(
+            { err },
+            'Failed to download the prebuilt WebDriverAgent cache via the proxy; falling back to the direct URL.'
+          );
+          await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+        }
+      } else {
+        await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+      }
       await fs.promises.mkdir(maestroRunnerHome, { recursive: true });
       await spawn('tar', ['-xzf', archivePath, '-C', maestroRunnerHome], { logger, env });
 
