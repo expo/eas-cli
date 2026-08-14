@@ -1,3 +1,4 @@
+import downloadFile from '@expo/downloader';
 import spawn from '@expo/turtle-spawn';
 import { BuildRuntimePlatform } from '@expo/steps';
 import fs from 'fs';
@@ -13,6 +14,11 @@ jest.mock('@expo/turtle-spawn', () => ({
   default: jest.fn(),
 }));
 
+jest.mock('@expo/downloader', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('../../../datadog', () => ({
   Datadog: {
     distribution: jest.fn(),
@@ -20,6 +26,7 @@ jest.mock('../../../datadog', () => ({
 }));
 
 const mockedSpawn = jest.mocked(spawn);
+const mockedDownloadFile = jest.mocked(downloadFile);
 
 async function writeInstalledWdaVersion(homeDirectory: string, version: string): Promise<void> {
   const wdaDirectory = path.join(
@@ -36,6 +43,7 @@ async function writeInstalledWdaVersion(homeDirectory: string, version: string):
 describe('createInstallMaestroBuildFunction', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedDownloadFile.mockResolvedValue(undefined);
     // `maestro --version` reports an installed version; `java -version` succeeds.
     // With no requested version and Maestro present, the step skips installation.
     mockedSpawn.mockImplementation((async (command: string) => ({
@@ -313,12 +321,10 @@ describe('createInstallMaestroBuildFunction', () => {
 
       await step.executeAsync();
 
-      expect(mockedSpawn).toHaveBeenCalledWith(
-        'curl',
-        expect.arrayContaining([
-          'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.0-wda-11.1.3.tar.gz',
-        ]),
-        expect.objectContaining({ env: expect.objectContaining({ HOME: homeDirectory }) })
+      expect(mockedDownloadFile).toHaveBeenCalledWith(
+        'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.0-wda-11.1.3.tar.gz',
+        expect.stringMatching(/install_maestro_runner_wda_cache.*\/wda-cache\.tar\.gz$/),
+        { retry: 3 }
       );
       for (const runtimeVersion of ['18.3', '26.0']) {
         await expect(
@@ -386,12 +392,11 @@ describe('createInstallMaestroBuildFunction', () => {
               ],
             }),
           };
-        case 'curl':
-          throw new Error('HTTP 404');
         default:
           return { stdout: '' };
       }
     }) as any);
+    mockedDownloadFile.mockRejectedValue(new Error('HTTP 404'));
     const homeDirectory = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'install-maestro-test-')
     );

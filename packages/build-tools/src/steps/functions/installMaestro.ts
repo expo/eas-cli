@@ -1,3 +1,4 @@
+import downloadFile from '@expo/downloader';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -17,6 +18,8 @@ import path from 'path';
 
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
+import { getXcodeVersionAsync } from '../../ios/xcode';
+import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 
 const MAESTRO_RUNNER_WDA_CACHE_URL =
   'https://storage.googleapis.com/turtle-v2/maestro-runner-wda-cache';
@@ -171,14 +174,13 @@ async function installMaestroRunnerWdaCache({
   logger: bunyan;
   env: BuildStepEnv;
 }): Promise<void> {
-  const maestroRunnerHome =
-    env.MAESTRO_RUNNER_HOME ?? (env.HOME ? path.join(env.HOME, '.maestro-runner') : undefined);
-  if (!maestroRunnerHome) {
+  if (!env.HOME) {
     logger.warn(
       'Skipping the prebuilt WebDriverAgent cache because the $HOME environment variable is empty.'
     );
     return;
   }
+  const maestroRunnerHome = path.join(env.HOME, '.maestro-runner');
 
   try {
     const wdaVersion = await getMaestroRunnerWdaVersion({ maestroRunnerHome });
@@ -188,8 +190,8 @@ async function installMaestroRunnerWdaCache({
       );
       return;
     }
-    const xcodeVersion = await getXcodeVersion({ env });
-    const iosRuntimeVersions = await getAvailableIosRuntimeVersions({ env });
+    const xcodeVersion = await getXcodeVersionAsync({ env });
+    const iosRuntimeVersions = await IosSimulatorUtils.getAvailableRuntimeVersionsAsync({ env });
     if (iosRuntimeVersions.length === 0) {
       logger.info(
         'Skipping the prebuilt WebDriverAgent cache because no iOS runtime is available.'
@@ -201,16 +203,13 @@ async function installMaestroRunnerWdaCache({
       path.join(os.tmpdir(), 'install_maestro_runner_wda_cache')
     );
     try {
-      const archiveName = `xcode-${xcodeVersion}-wda-${wdaVersion}.tar.gz`;
-      const archivePath = path.join(tempDirectory, archiveName);
-      const archiveUrl = `${MAESTRO_RUNNER_WDA_CACHE_URL}/${archiveName}`;
+      const archivePath = path.join(tempDirectory, 'wda-cache.tar.gz');
+      const archiveUrl = `${MAESTRO_RUNNER_WDA_CACHE_URL}/xcode-${encodeURIComponent(
+        xcodeVersion
+      )}-wda-${encodeURIComponent(wdaVersion)}.tar.gz`;
 
       logger.info(`Downloading the prebuilt WebDriverAgent cache for Xcode ${xcodeVersion}`);
-      await spawn(
-        'curl',
-        ['--fail', '--location', '--silent', '--show-error', archiveUrl, '--output', archivePath],
-        { logger, env }
-      );
+      await downloadFile(archiveUrl, archivePath, { retry: 3 });
       await fs.promises.mkdir(maestroRunnerHome, { recursive: true });
       await spawn('tar', ['-xzf', archivePath, '-C', maestroRunnerHome], { logger, env });
 
@@ -262,46 +261,10 @@ async function getMaestroRunnerWdaVersion({
         'utf8'
       )
     );
-    return typeof packageJson.version === 'string' && packageJson.version.match(/^\d+\.\d+\.\d+$/)
-      ? packageJson.version
-      : null;
+    return typeof packageJson.version === 'string' ? packageJson.version : null;
   } catch {
     return null;
   }
-}
-
-async function getXcodeVersion({ env }: { env: BuildStepEnv }): Promise<string> {
-  const { stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env });
-  const version = /^Xcode\s+(\d+(?:\.\d+)*)$/m.exec(stdout)?.[1];
-  if (!version) {
-    throw new Error(`Failed to parse Xcode version from: ${stdout.trim()}`);
-  }
-  return version;
-}
-
-async function getAvailableIosRuntimeVersions({ env }: { env: BuildStepEnv }): Promise<string[]> {
-  const { stdout } = await spawn('xcrun', ['simctl', 'list', 'runtimes', '--json'], {
-    stdio: 'pipe',
-    env,
-  });
-  const runtimes = JSON.parse(stdout).runtimes as {
-    identifier?: string;
-    isAvailable?: boolean;
-    version?: string;
-  }[];
-
-  return [
-    ...new Set(
-      runtimes
-        .filter(
-          runtime =>
-            runtime.isAvailable !== false &&
-            runtime.identifier?.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-') &&
-            runtime.version?.match(/^\d+(?:\.\d+)*$/)
-        )
-        .map(runtime => runtime.version as string)
-    ),
-  ];
 }
 
 async function getMaestroVersion({
