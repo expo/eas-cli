@@ -273,7 +273,7 @@ describe('AndroidEmulatorUtils', () => {
     expect(attemptCounter).toBe(2);
   }, 360_000);
 
-  it('captures native logcat output across an ADB server restart', async () => {
+  it('captures emulator and native logcat output across an ADB server restart', async () => {
     const testLogcatDirectory = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'android-emulator-logcat-e2e-')
     );
@@ -302,6 +302,21 @@ describe('AndroidEmulatorUtils', () => {
       emulatorPromise = asyncResult(startResult.emulatorPromise);
 
       await AndroidEmulatorUtils.waitForReadyAsync({ serialId, env: process.env });
+      await retryAsync(
+        async () => {
+          const contents = await fs.promises.readFile(startResult.emulatorOutputPath, 'utf-8');
+          if (!contents.includes('Android emulator version')) {
+            throw new Error('Did not find the emulator version in emulator process output yet.');
+          }
+        },
+        {
+          logger,
+          retryOptions: {
+            retries: 10,
+            retryIntervalMs: 1_000,
+          },
+        }
+      );
       await spawn('adb', ['kill-server'], { env: process.env });
       await spawn('adb', ['start-server'], { env: process.env });
       await spawn('adb', ['-s', serialId, 'shell', 'log', '-t', 'EAS_CLI_TEST', marker], {

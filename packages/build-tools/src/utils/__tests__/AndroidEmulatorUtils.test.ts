@@ -1,8 +1,10 @@
 import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { PassThrough } from 'node:stream';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
@@ -30,6 +32,7 @@ describe('AndroidEmulatorUtils', () => {
   });
 
   afterEach(async () => {
+    jest.restoreAllMocks();
     await Promise.all(
       temporaryDirectories.map(async temporaryDirectory => {
         await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
@@ -39,7 +42,12 @@ describe('AndroidEmulatorUtils', () => {
 
   describe(AndroidEmulatorUtils.startAsync, () => {
     function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
-      const child = { pid: 1234, unref: jest.fn() };
+      const child = Object.assign(new EventEmitter(), {
+        pid: 1234,
+        unref: jest.fn(),
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      });
       const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
       spawnPromise.child = child;
       mockedSpawn.mockImplementation(((command: string, args: string[]) => {
@@ -57,11 +65,12 @@ describe('AndroidEmulatorUtils', () => {
       return { child };
     }
 
-    it('captures logcat through the emulator process', async () => {
+    it('captures logcat and emulator process output', async () => {
       const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
       temporaryDirectories.push(outputDir);
       const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
       const { child } = mockSuccessfulStart(deviceName);
+      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream');
 
       const result = await AndroidEmulatorUtils.startAsync({
         deviceName,
@@ -70,13 +79,21 @@ describe('AndroidEmulatorUtils', () => {
       });
 
       expect(result.logcatOutputPath).toMatch(
-        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}\\.log$`)
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-logcat\\.log$`)
+      );
+      expect(result.emulatorOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-emulator\\.log$`)
       );
       await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
+      await expect(fs.promises.access(result.emulatorOutputPath)).resolves.toBeUndefined();
       expect(mockedSpawn).toHaveBeenCalledWith(
         expect.stringMatching(/\/emulator\/emulator$/),
         expect.arrayContaining(['-logcat', '*:v', '-logcat-output', result.logcatOutputPath]),
-        expect.objectContaining({ detached: true, stdio: 'inherit' })
+        expect.objectContaining({
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          ignoreStdio: true,
+        })
       );
       expect(mockedSpawn).not.toHaveBeenCalledWith(
         'adb',
@@ -84,6 +101,10 @@ describe('AndroidEmulatorUtils', () => {
         expect.anything()
       );
       expect(child.unref).toHaveBeenCalled();
+      const emulatorOutputStream = createWriteStreamSpy.mock.results[0].value;
+      const emulatorOutputStreamClosed = once(emulatorOutputStream, 'close');
+      child.emit('close');
+      await emulatorOutputStreamClosed;
     });
 
     it('throws a SystemError when the staging directory cannot be prepared', async () => {
@@ -100,7 +121,7 @@ describe('AndroidEmulatorUtils', () => {
             logcatDirectory: outputDir,
           })
         ).rejects.toEqual(
-          new SystemError('Failed to prepare Android emulator logcat output for eas-simulator.', {
+          new SystemError('Failed to prepare Android emulator output for eas-simulator.', {
             cause: mkdirError,
           })
         );

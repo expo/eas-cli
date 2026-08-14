@@ -305,21 +305,23 @@ export namespace AndroidEmulatorUtils {
     emulatorPromise: SpawnPromise<SpawnResult>;
     serialId: AndroidDeviceSerialId;
     logcatOutputPath: string;
+    emulatorOutputPath: string;
   }> {
     let logcatOutputPath: string;
+    let emulatorOutputPath: string;
     try {
       await fs.promises.mkdir(logcatDirectory, { recursive: true });
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const timestamp = Math.floor(Date.now() / 1000)
         .toString(16)
         .padStart(8, '0');
-      logcatOutputPath = path.join(
-        logcatDirectory,
-        `${safeDeviceName}-${timestamp}-${randomBytes(2).toString('hex')}.log`
-      );
+      const outputName = `${safeDeviceName}-${timestamp}-${randomBytes(2).toString('hex')}`;
+      logcatOutputPath = path.join(logcatDirectory, `${outputName}-logcat.log`);
+      emulatorOutputPath = path.join(logcatDirectory, `${outputName}-emulator.log`);
       await fs.promises.writeFile(logcatOutputPath, '');
+      await fs.promises.writeFile(emulatorOutputPath, '');
     } catch (err) {
-      throw new SystemError(`Failed to prepare Android emulator logcat output for ${deviceName}.`, {
+      throw new SystemError(`Failed to prepare Android emulator output for ${deviceName}.`, {
         cause: err,
       });
     }
@@ -346,7 +348,8 @@ export namespace AndroidEmulatorUtils {
       ],
       {
         detached: true,
-        stdio: 'inherit',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        ignoreStdio: true,
         env: {
           ...env,
           // We don't need to wait for emulator to exit gracefully.
@@ -354,6 +357,19 @@ export namespace AndroidEmulatorUtils {
         },
       }
     );
+    const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
+    emulatorOutputStream.on('error', err => {
+      process.stderr.write(
+        `Failed to write Android emulator output to ${emulatorOutputPath}: ${err}\n`
+      );
+    });
+    emulatorPromise.child.stdout?.pipe(process.stdout, { end: false });
+    emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
+    emulatorPromise.child.stderr?.pipe(process.stderr, { end: false });
+    emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
+    emulatorPromise.child.once('close', () => {
+      emulatorOutputStream.end();
+    });
     // If emulator fails to start, throw its error.
     if (!emulatorPromise.child.pid) {
       await emulatorPromise;
@@ -382,7 +398,7 @@ export namespace AndroidEmulatorUtils {
 
     // We don't want to await the SpawnPromise here.
     // eslint-disable-next-line @typescript-eslint/return-await
-    return { emulatorPromise, serialId, logcatOutputPath };
+    return { emulatorPromise, serialId, logcatOutputPath, emulatorOutputPath };
   }
 
   export async function waitForReadyAsync({
