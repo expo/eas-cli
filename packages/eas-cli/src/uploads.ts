@@ -148,6 +148,11 @@ async function uploadWithSignedUrlWithProgressAsync(
 ): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
+  if (fileSize === 0) {
+    throw new Error(
+      `Failed to upload ${file}: the file is empty. It may not have been written correctly. Retry the command, and report this issue if it persists.`
+    );
+  }
 
   const readStream = fs.createReadStream(file);
   const uploadPromise = fetch(signedUrl.url, {
@@ -155,6 +160,7 @@ async function uploadWithSignedUrlWithProgressAsync(
     body: readStream,
     headers: {
       ...signedUrl.headers,
+      'Content-Length': String(fileSize), // make GCS reject the request if the file size changes during the upload
     },
   });
 
@@ -171,6 +177,11 @@ async function uploadWithSignedUrlWithProgressAsync(
   });
   try {
     const response = await uploadPromise;
+    if (currentSize !== fileSize) {
+      throw new Error(
+        `Failed to upload ${file}: sent ${currentSize} of ${fileSize} bytes. The file may have changed during the upload. Retry the command, and report this issue if it persists.`
+      );
+    }
     handleProgressEvent({ isComplete: true });
     return response;
   } catch (error: any) {
