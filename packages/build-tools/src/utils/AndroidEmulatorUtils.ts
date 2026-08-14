@@ -11,6 +11,7 @@ import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { z } from 'zod';
 
+import { Sentry } from '../sentry';
 import { retryAsync } from './retry';
 
 /** Android Virtual Device is the device we run. */
@@ -358,10 +359,24 @@ export namespace AndroidEmulatorUtils {
       }
     );
     const emulatorOutputStream = fs.createWriteStream(emulatorOutputPath, { flags: 'a' });
+    let reportedEmulatorOutputError = false;
     emulatorOutputStream.on('error', err => {
       process.stderr.write(
         `Failed to write Android emulator output to ${emulatorOutputPath}: ${err}\n`
       );
+      if (!reportedEmulatorOutputError) {
+        reportedEmulatorOutputError = true;
+        Sentry.capture('Failed to write Android emulator process output', err, {
+          level: 'warning',
+          tags: {
+            errorCode: (err as NodeJS.ErrnoException).code ?? 'unknown',
+          },
+          extras: {
+            deviceName,
+            emulatorOutputPath,
+          },
+        });
+      }
     });
     emulatorPromise.child.stdout?.pipe(process.stdout, { end: false });
     emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });

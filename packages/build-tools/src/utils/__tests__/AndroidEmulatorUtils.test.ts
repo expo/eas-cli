@@ -7,6 +7,7 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
+import { Sentry } from '../../sentry';
 import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
@@ -19,6 +20,12 @@ jest.mock('../retry', () => ({
   retryAsync: jest.fn(async fn => await fn(0)),
 }));
 
+jest.mock('../../sentry', () => ({
+  Sentry: {
+    capture: jest.fn(),
+  },
+}));
+
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 
@@ -27,6 +34,7 @@ describe('AndroidEmulatorUtils', () => {
 
   beforeEach(() => {
     temporaryDirectories = [];
+    jest.mocked(Sentry.capture).mockReset();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedRetryAsync.mockImplementation(async fn => await fn(0));
   });
@@ -102,6 +110,24 @@ describe('AndroidEmulatorUtils', () => {
       );
       expect(child.unref).toHaveBeenCalled();
       const emulatorOutputStream = createWriteStreamSpy.mock.results[0].value;
+      const stderrWriteSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const writeError = Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+      emulatorOutputStream.emit('error', writeError);
+      emulatorOutputStream.emit('error', writeError);
+      expect(stderrWriteSpy).toHaveBeenCalledTimes(2);
+      expect(Sentry.capture).toHaveBeenCalledTimes(1);
+      expect(Sentry.capture).toHaveBeenCalledWith(
+        'Failed to write Android emulator process output',
+        writeError,
+        {
+          level: 'warning',
+          tags: { errorCode: 'ENOSPC' },
+          extras: {
+            deviceName,
+            emulatorOutputPath: result.emulatorOutputPath,
+          },
+        }
+      );
       const emulatorOutputStreamClosed = once(emulatorOutputStream, 'close');
       child.emit('close');
       await emulatorOutputStreamClosed;
