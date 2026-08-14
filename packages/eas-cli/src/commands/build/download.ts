@@ -235,7 +235,7 @@ export default class Download extends EasCommand {
 
   async getPathToBuildArtifactAsync(build: BuildFragment, platform: AppPlatform): Promise<string> {
     const cachedBuildArtifactPath = getEasBuildRunCachedAppPath(
-      build.project.id,
+      build.app.id,
       build.id,
       platform
     );

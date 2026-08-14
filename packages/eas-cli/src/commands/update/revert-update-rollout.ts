@@ -322,7 +322,7 @@ export default class UpdateRevertUpdateRollout extends EasCommand {
     });
 
     const platforms = rolloutUpdateGroup.map(update => update.platform) as UpdatePublishPlatform[];
-    const runtimeVersion = rolloutUpdateGroup[0].runtimeVersion;
+    const runtimeVersion = rolloutUpdateGroup[0].runtime.version;
     const targetBranch = {
       name: rolloutUpdateGroup[0].branchName,
       id: rolloutUpdateGroup[0].branchId,

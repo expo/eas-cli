@@ -62,7 +62,12 @@ describe(IntegrationsPostHogConnect, () => {
     email: 'user@example.com',
     featureGates: {},
     isExpoAdmin: false,
-    primaryAccount: { id: testAccountId, name: testAccountName, ownerUserActor: null, users: [] },
+    primaryAccount: {
+      id: testAccountId,
+      name: testAccountName,
+      ownerUserActor: null,
+      viewerUserPermission: { role: Role.Owner },
+    },
     accounts: [],
   };
 
@@ -70,7 +75,7 @@ describe(IntegrationsPostHogConnect, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    users: [{ role: Role.Owner, actor: { id: 'test-user-id' } }],
+    viewerUserPermission: { role: Role.Owner },
   };
 
   const mockConnection: PostHogOrganizationConnectionData = {

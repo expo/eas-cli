@@ -49,7 +49,7 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
       ? [
           {
             label: 'Application Identifier',
-            value: sanitize(submission.androidConfig?.applicationIdentifier),
+            value: sanitize(submittedBuild?.appIdentifier),
           },
           { label: 'Track', value: sanitize(submission.androidConfig?.track)?.toLowerCase() },
           {
@@ -65,7 +65,7 @@ export function formatGraphQLSubmission(submission: SubmissionWithSubmittedBuild
       label: submission.platform === AppPlatform.Android ? 'Version code' : 'Build number',
       value: sanitize(submittedBuild?.appBuildVersion),
     },
-    { label: 'Runtime Version', value: sanitize(submittedBuild?.runtimeVersion) },
+    { label: 'Runtime Version', value: sanitize(submittedBuild?.runtime?.version) },
     { label: 'Fingerprint', value: submittedBuild?.fingerprint?.hash },
     { label: 'Commit', value: sanitize(submittedBuild?.gitCommitHash) },
     { label: 'Error Code', value: sanitize(submission.error?.errorCode) },
