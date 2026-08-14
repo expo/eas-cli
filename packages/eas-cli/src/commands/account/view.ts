@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import nullthrows from 'nullthrows';
 
 import EasCommand from '../../commandUtils/EasCommand';
 import { Role } from '../../graphql/generated';
@@ -51,7 +52,7 @@ export default class AccountView extends EasCommand {
       return Role.Owner;
     }
 
-    return account.viewerUserPermission.role;
+    return nullthrows(account.users.find(user => user.actor.id === actor.id)?.role);
   }
 
   private static getLabelForRole(role: Role): string {

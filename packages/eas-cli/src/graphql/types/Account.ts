@@ -10,7 +10,10 @@ export const AccountFragmentNode = gql`
       id
       username
     }
-    viewerUserPermission {
+    users {
+      actor {
+        id
+      }
       role
     }
   }

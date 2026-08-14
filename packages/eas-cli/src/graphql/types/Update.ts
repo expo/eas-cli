@@ -6,10 +6,7 @@ export const UpdateFragmentNode = gql`
     group
     message
     createdAt
-    runtime {
-      id
-      version
-    }
+    runtimeVersion
     platform
     manifestFragment
     isRollBackToEmbedded

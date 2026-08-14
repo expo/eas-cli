@@ -1,7 +1,7 @@
 import { CredentialsSource } from '@expo/eas-json';
 import { vol } from 'memfs';
 
-import { IosAppBuildCredentialsFragment, Role } from '../../../graphql/generated';
+import { IosAppBuildCredentialsFragment } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { findApplicationTarget } from '../../../project/ios/target';
 import { getAppstoreMock } from '../../__tests__/fixtures-appstore';
@@ -58,7 +58,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
-              viewerUserPermission: { role: Role.Owner },
+              users: [],
             },
             projectName: appLookupParams.projectName,
           },
@@ -102,7 +102,7 @@ describe(IosCredentialsProvider, () => {
             account: {
               id: `id-${appLookupParams.account.name}`,
               name: appLookupParams.account.name,
-              viewerUserPermission: { role: Role.Owner },
+              users: [],
             },
             projectName: appLookupParams.projectName,
           },

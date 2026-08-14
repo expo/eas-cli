@@ -76,22 +76,18 @@ export const AppleDeviceQuery = {
               account {
                 byName(accountName: $accountName) {
                   id
-                  appleTeamsPaginated(first: 1, filter: { appleTeamIdentifier: $appleTeamIdentifier }) {
-                    edges {
-                      node {
-                        id
-                        appleTeamIdentifier
-                        appleTeamName
-                        appleDevices(offset: $offset, limit: $limit) {
-                          id
-                          identifier
-                          name
-                          deviceClass
-                          enabled
-                          model
-                          createdAt
-                        }
-                      }
+                  appleTeams(appleTeamIdentifier: $appleTeamIdentifier) {
+                    id
+                    appleTeamIdentifier
+                    appleTeamName
+                    appleDevices(offset: $offset, limit: $limit) {
+                      id
+                      identifier
+                      name
+                      deviceClass
+                      enabled
+                      model
+                      createdAt
                     }
                   }
                 }
@@ -105,12 +101,7 @@ export const AppleDeviceQuery = {
         )
         .toPromise()
     );
-    const appleTeam = data.account.byName.appleTeamsPaginated.edges[0]?.node;
-    if (!appleTeam) {
-      throw new Error(
-        `Could not find Apple team with the identifier ${appleTeamIdentifier} on account ${accountName}`
-      );
-    }
+    const [appleTeam] = data.account.byName.appleTeams;
     const { appleDevices } = appleTeam;
     if (!appleDevices) {
       throw new Error(`Could not find devices on Apple team -- ${formatAppleTeam(appleTeam)}`);

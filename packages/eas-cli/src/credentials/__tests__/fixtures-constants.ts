@@ -11,18 +11,18 @@ export const jester: Actor = {
   primaryAccount: {
     id: 'jester-account-id',
     name: 'jester',
-    viewerUserPermission: { role: Role.Admin },
+    users: [{ role: Role.Admin, actor: { id: 'jester-id' } }],
   },
   accounts: [
     {
       id: 'jester-account-id',
       name: 'jester',
-      viewerUserPermission: { role: Role.Admin },
+      users: [{ role: Role.Admin, actor: { id: 'jester-id' } }],
     },
     {
       id: 'other-account-id',
       name: 'other',
-      viewerUserPermission: { role: Role.ViewOnly },
+      users: [{ role: Role.ViewOnly, actor: { id: 'jester-id' } }],
     },
   ],
   isExpoAdmin: false,
@@ -37,7 +37,7 @@ export const jester2 = {
     {
       id: 'jester2-account-id',
       name: 'jester2',
-      viewerUserPermission: { role: Role.Admin },
+      users: [{ role: Role.Admin, actor: { id: 'jester2-id' } }],
     },
   ],
   isExpoAdmin: false,
@@ -52,7 +52,7 @@ export const robot: Actor = {
     {
       id: 'robot-account-id',
       name: 'robot-account',
-      viewerUserPermission: { role: Role.Owner },
+      users: [],
     },
   ],
   isExpoAdmin: false,

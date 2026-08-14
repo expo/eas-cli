@@ -33,7 +33,9 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
 
   const allAccounts = actor.accounts;
   const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
-    allAccounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
+    allAccounts
+      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
+      .map(it => it.name)
   );
 
   if (options.nonInteractive) {

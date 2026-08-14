@@ -5,100 +5,35 @@ import { ExpoGraphqlClient } from '../../../../../commandUtils/context/contextUt
 import { withErrorHandlingAsync } from '../../../../../graphql/client';
 import {
   AppleTeamByIdentifierQuery,
-  AppleTeamFilterInput,
   AppleTeamFragment,
-  AppleTeamsPaginatedByAccountQuery,
+  AppleTeamsByAccountNameQuery,
+  AppleTeamsByAccountNameQueryVariables,
 } from '../../../../../graphql/generated';
 import { AppleTeamFragmentNode } from '../../../../../graphql/types/credentials/AppleTeam';
-import { Connection } from '../../../../../utils/relay';
 
 export const AppleTeamQuery = {
   async getAllForAccountAsync(
     graphqlClient: ExpoGraphqlClient,
-    {
-      accountName,
-      offset,
-      limit,
-    }: { accountName: string; offset?: number | null; limit?: number | null }
+    { accountName, offset, limit }: AppleTeamsByAccountNameQueryVariables
   ): Promise<AppleTeamFragment[]> {
-    // appleTeamsPaginated is cursor-based, so emulate offset/limit by fetching
-    // pages from the start until enough nodes are collected
-    const start = offset ?? 0;
-    const teams: AppleTeamFragment[] = [];
-    let after: string | undefined;
-    while (limit == null || teams.length < start + limit) {
-      const connection = await AppleTeamQuery.getAllForAccountPaginatedAsync(
-        graphqlClient,
-        accountName,
-        { first: 100, after }
-      );
-      teams.push(...connection.edges.map(edge => edge.node));
-      if (!connection.pageInfo.hasNextPage) {
-        break;
-      }
-      after = connection.pageInfo.endCursor ?? undefined;
-    }
-    return limit == null ? teams.slice(start) : teams.slice(start, start + limit);
-  },
-  async getAllForAccountPaginatedAsync(
-    graphqlClient: ExpoGraphqlClient,
-    accountName: string,
-    {
-      after,
-      first,
-      before,
-      last,
-      filter,
-    }: {
-      after?: string;
-      first?: number;
-      before?: string;
-      last?: number;
-      filter?: AppleTeamFilterInput;
-    }
-  ): Promise<Connection<AppleTeamFragment>> {
     const data = await withErrorHandlingAsync(
       graphqlClient
-        .query<AppleTeamsPaginatedByAccountQuery>(
+        .query<AppleTeamsByAccountNameQuery>(
           gql`
-            query AppleTeamsPaginatedByAccountQuery(
-              $accountName: String!
-              $after: String
-              $first: Int
-              $before: String
-              $last: Int
-              $filter: AppleTeamFilterInput
-            ) {
+            query AppleTeamsByAccountName($accountName: String!, $offset: Int, $limit: Int) {
               account {
                 byName(accountName: $accountName) {
                   id
-                  appleTeamsPaginated(
-                    after: $after
-                    first: $first
-                    before: $before
-                    last: $last
-                    filter: $filter
-                  ) {
-                    edges {
-                      cursor
-                      node {
-                        id
-                        ...AppleTeamFragment
-                      }
-                    }
-                    pageInfo {
-                      hasNextPage
-                      hasPreviousPage
-                      startCursor
-                      endCursor
-                    }
+                  appleTeams(offset: $offset, limit: $limit) {
+                    id
+                    ...AppleTeamFragment
                   }
                 }
               }
             }
             ${print(AppleTeamFragmentNode)}
           `,
-          { accountName, after, first, before, last, filter },
+          { accountName, offset, limit },
           {
             additionalTypenames: ['AppleTeam'],
           }
@@ -106,7 +41,7 @@ export const AppleTeamQuery = {
         .toPromise()
     );
 
-    return data.account.byName.appleTeamsPaginated;
+    return data.account.byName.appleTeams ?? [];
   },
   async getByAppleTeamIdentifierAsync(
     graphqlClient: ExpoGraphqlClient,

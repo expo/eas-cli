@@ -29,18 +29,18 @@ describe(AccountResolver, () => {
       primaryAccount: {
         id: 'account_id_777',
         name: 'dominik',
-        viewerUserPermission: { role: Role.Owner },
+        users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
       },
       accounts: [
         {
           id: 'account_id_777',
           name: 'dominik',
-          viewerUserPermission: { role: Role.Owner },
+          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
         },
         {
           id: 'account_id_888',
           name: 'foo',
-          viewerUserPermission: { role: Role.Owner },
+          users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
         },
       ],
       isExpoAdmin: false,
@@ -57,7 +57,7 @@ describe(AccountResolver, () => {
           ownerAccount: {
             id: 'account_id_888',
             name: 'foo',
-            viewerUserPermission: { role: Role.Owner },
+            users: [{ role: Role.Owner, actor: { id: 'user_id_666' } }],
           },
         });
       });
@@ -73,7 +73,7 @@ describe(AccountResolver, () => {
         expect(account).toEqual({
           id: user.accounts[1].id,
           name: user.accounts[1].name,
-          viewerUserPermission: user.accounts[1].viewerUserPermission,
+          users: user.accounts[1].users,
         });
       });
 

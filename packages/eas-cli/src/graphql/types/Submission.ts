@@ -15,6 +15,7 @@ export const SubmissionFragmentNode = gql`
       }
     }
     androidConfig {
+      applicationIdentifier
       track
       releaseStatus
       rollout

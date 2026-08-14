@@ -161,7 +161,6 @@ function mockUpdateChannel({
       pageInfo: { hasNextPage: false, hasPreviousPage: false },
     },
     embeddedUpdateCount: 0,
-    isProtected: false,
     latestRuntimes: { edges: [], pageInfo: { hasNextPage: false, hasPreviousPage: false } },
     runtimeInsights: {} as UpdateChannelRuntimeInsights,
     name: channelName ?? 'default-channel-name',

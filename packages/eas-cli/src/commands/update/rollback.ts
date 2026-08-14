@@ -147,7 +147,7 @@ async function getSourceUpdateGroupAsync(
   return {
     groupId,
     branchName: arbitraryUpdate.branch.name,
-    runtimeVersion: arbitraryUpdate.runtime.version,
+    runtimeVersion: arbitraryUpdate.runtimeVersion,
   };
 }
 

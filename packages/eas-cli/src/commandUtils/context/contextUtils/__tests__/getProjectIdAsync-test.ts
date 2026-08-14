@@ -48,18 +48,18 @@ describe(getProjectIdAsync, () => {
         primaryAccount: {
           id: 'account_id_1',
           name: 'notnotbrent',
-          viewerUserPermission: { role: Role.Owner },
+          users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
         },
         accounts: [
           {
             id: 'account_id_1',
             name: 'notnotbrent',
-            viewerUserPermission: { role: Role.Owner },
+            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
           },
           {
             id: 'account_id_2',
             name: 'dominik',
-            viewerUserPermission: { role: Role.ViewOnly },
+            users: [{ role: Role.ViewOnly, actor: { id: 'user_id' } }],
           },
         ],
         isExpoAdmin: false,
@@ -198,12 +198,12 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
             },
             {
               id: 'account_id_2',
               name: 'dominik',
-              viewerUserPermission: { role: Role.ViewOnly },
+              users: [{ role: Role.ViewOnly, actor: { id: 'robot_id' } }],
             },
           ],
           isExpoAdmin: false,
@@ -423,13 +423,13 @@ describe(getProjectIdAsync, () => {
           primaryAccount: {
             id: 'account_id_1',
             name: 'notnotbrent',
-            viewerUserPermission: { role: Role.Owner },
+            users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
           },
           accounts: [
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Owner },
+              users: [{ role: Role.Owner, actor: { id: 'user_id' } }],
             },
           ],
           isExpoAdmin: false,
@@ -465,7 +465,7 @@ describe(getProjectIdAsync, () => {
             {
               id: 'account_id_1',
               name: 'notnotbrent',
-              viewerUserPermission: { role: Role.Admin },
+              users: [{ role: Role.Admin, actor: { id: 'robot_id' } }],
             },
           ],
           isExpoAdmin: false,

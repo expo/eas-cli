@@ -99,7 +99,7 @@ function toEasBuildLinkage(
   return {
     easSubmissionId: easSubmission?.id ?? null,
     easBuildId: easSubmission?.submittedBuild?.id ?? null,
-    runtimeVersion: easSubmission?.submittedBuild?.runtime?.version ?? null,
+    runtimeVersion: easSubmission?.submittedBuild?.runtimeVersion ?? null,
     fingerprintHash: easSubmission?.submittedBuild?.fingerprint?.hash ?? null,
   };
 }

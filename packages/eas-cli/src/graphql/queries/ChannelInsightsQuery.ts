@@ -52,10 +52,7 @@ export const ChannelInsightsQuery = {
                         id
                         group
                         message
-                        runtime {
-                          id
-                          version
-                        }
+                        runtimeVersion
                         platform
                         insights {
                           id

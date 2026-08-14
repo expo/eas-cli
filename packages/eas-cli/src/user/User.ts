@@ -9,7 +9,7 @@ export type Actor = NonNullable<CurrentUserQuery['meActor']>;
  */
 export function getCreatableAccountNames(actor: Actor): string[] {
   const creatableAccounts = actor.accounts.filter(
-    a => a.viewerUserPermission.role !== Role.ViewOnly
+    a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly
   );
   if (actor.__typename === 'Robot') {
     return creatableAccounts.map(it => it.name);

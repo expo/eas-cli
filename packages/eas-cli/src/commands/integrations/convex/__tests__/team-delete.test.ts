@@ -32,7 +32,7 @@ describe(IntegrationsConvexTeamDelete, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    viewerUserPermission: { role: 'OWNER' as any },
+    users: [{ role: 'OWNER' as any, actor: { id: 'test-user-id' } }],
   };
 
   const mockConnection: ConvexTeamConnectionData = {

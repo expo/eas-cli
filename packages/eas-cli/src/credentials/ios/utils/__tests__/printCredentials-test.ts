@@ -7,7 +7,6 @@ import Log from '../../../../log';
 import { IosAppCredentialsQuery } from '../../api/graphql/queries/IosAppCredentialsQuery';
 import { App, Target } from '../../types';
 import { displayIosCredentials } from '../printCredentials';
-import { Role } from '../../../../graphql/generated';
 
 jest.mock('../../../../log');
 jest.mock('chalk', () => ({
@@ -30,7 +29,7 @@ describe('print credentials', () => {
       account: {
         id: 'account-id',
         name: 'quinlanj',
-        viewerUserPermission: { role: Role.Owner },
+        users: [],
       },
       projectName: 'test52',
     };
