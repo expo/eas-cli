@@ -165,6 +165,20 @@ RSpec.describe ExpoCocoaPodsProxy do
       expect(downloader).to have_attributes(url: url)
     end
 
+    it 'falls back to Maven Central when an already proxied Maven download fails' do
+      path = Pathname.new('some/fake/path')
+      url = 'http://localhost:9001/repo1.maven.org/maven2/com/facebook/react/react-native.tar.gz'
+      downloader = Pod::Downloader::Http.new(path, url, {})
+
+      expect(downloader).to receive(:orig_download_file).once.and_raise
+      expect(downloader).to receive(:orig_download_file).once {}
+
+      downloader.download_file(path.to_s)
+      expect(downloader).to have_attributes(
+        url: 'https://repo1.maven.org/maven2/com/facebook/react/react-native.tar.gz'
+      )
+    end
+
     it 'does not proxy when curlrc is present in home directory' do
       path = Pathname.new('some/fake/path')
       url = 'https://github.com/expo/test-repo/archive/main.tar.gz'
