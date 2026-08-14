@@ -1,4 +1,5 @@
 import config from './config';
+import { startXcodeBuildToolsPrewarming } from './ios/prewarmXcodeBuildTools';
 import logger from './logger';
 import { startServer } from './metricsServer';
 import sentry from './sentry';
@@ -6,6 +7,7 @@ import { prepareWorkingdir } from './workingdir';
 import startWsServer from './ws';
 
 async function main(): Promise<void> {
+  void startXcodeBuildToolsPrewarming({ env: process.env, logger });
   await prepareWorkingdir();
   startWsServer();
   if (config.runMetricsServer) {

@@ -16,6 +16,7 @@ import omit from 'lodash/omit';
 import config from './config';
 import { displayWorkerRuntimeInfo } from './displayRuntimeInfo';
 import { Analytics, Event, logProjectDependenciesAsync } from './external/analytics';
+import { startXcodeBuildToolsPrewarming } from './ios/prewarmXcodeBuildTools';
 import { prepareRuntimeEnvironment } from './runtimeEnvironment';
 import { cleanUpWorkingdir } from './workingdir';
 
@@ -35,6 +36,7 @@ export async function build({
     await ctx.runBuildPhase(
       BuildPhase.SPIN_UP_BUILDER,
       async () => {
+        await startXcodeBuildToolsPrewarming({ env: ctx.env, logger: ctx.logger });
         displayWorkerRuntimeInfo(ctx);
         ctx.logger.info(
           { job: omit(ctx.job, 'secrets', 'projectArchive') },
