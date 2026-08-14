@@ -2,6 +2,7 @@ import { asyncResult } from '@expo/results';
 import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
 export interface MaestroFlowResult {
   name: string;
@@ -190,6 +191,69 @@ export async function junitFileHasFileAttrs(junitFile: string): Promise<boolean>
 
 async function fileExists(absPath: string): Promise<boolean> {
   return (await asyncResult(fs.stat(absPath))).ok;
+}
+
+// maestro-runner writes report.json as the source of truth for a run. Use it for runner control
+// flow because sourceFile preserves the exact flow path, while older runner JUnit reports flatten
+// it to a basename. Keep only passed and failed flows so the result matches Maestro JUnit reports,
+// which do not include skipped flows.
+const MaestroRunnerRecordedFlowSchema = z.object({
+  name: z.string().min(1),
+  sourceFile: z.string().min(1),
+  status: z.enum(['passed', 'failed']),
+});
+const MaestroRunnerReportSchema = z.object({
+  flows: z
+    .array(
+      z.discriminatedUnion('status', [
+        MaestroRunnerRecordedFlowSchema,
+        z.object({ status: z.literal('skipped') }),
+      ])
+    )
+    .transform(flows =>
+      flows.filter(
+        (flow): flow is z.infer<typeof MaestroRunnerRecordedFlowSchema> => flow.status !== 'skipped'
+      )
+    ),
+});
+
+type MaestroRunnerReport = z.infer<typeof MaestroRunnerReportSchema>;
+
+export async function parseFailedFlowsFromMaestroRunnerReport(args: {
+  reportDirectory: string;
+  workingDirectory: string;
+}): Promise<string[] | null> {
+  const report = await parseMaestroRunnerReport(args.reportDirectory);
+  if (report === null) {
+    return null;
+  }
+
+  const failedPaths = [
+    ...new Set(report.flows.filter(flow => flow.status === 'failed').map(flow => flow.sourceFile)),
+  ];
+  if (failedPaths.length === 0) {
+    return null;
+  }
+
+  for (const flowPath of failedPaths) {
+    if (!(await fileExists(path.resolve(args.workingDirectory, flowPath)))) {
+      return null;
+    }
+  }
+  return failedPaths;
+}
+
+export async function parseMaestroRunnerReport(
+  reportDirectory: string
+): Promise<MaestroRunnerReport | null> {
+  let report: unknown;
+  try {
+    report = JSON.parse(await fs.readFile(path.join(reportDirectory, 'report.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  const result = MaestroRunnerReportSchema.safeParse(report);
+  return result.success ? result.data : null;
 }
 
 // Group by `file=` so two same-named flows in different files stay separate.
