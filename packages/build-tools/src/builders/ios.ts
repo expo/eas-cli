@@ -18,8 +18,12 @@ import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
 import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreXcodeCompilationCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveXcodeCompilationCacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -100,13 +104,21 @@ async function buildInnerAsync(
         return;
       }
       await ctx.cacheManager?.restoreCache(ctx);
-      await restoreCcacheAsync({
-        logger: ctx.logger,
-        workingDirectory,
-        platform: ctx.job.platform,
-        env: ctx.env,
-        secrets: ctx.job.secrets,
-      });
+      await Promise.all([
+        restoreCcacheAsync({
+          logger: ctx.logger,
+          workingDirectory,
+          platform: ctx.job.platform,
+          env: ctx.env,
+          secrets: ctx.job.secrets,
+        }),
+        restoreXcodeCompilationCacheAsync({
+          logger: ctx.logger,
+          workingDirectory,
+          env: ctx.env,
+          secrets: ctx.job.secrets,
+        }),
+      ]);
     });
 
     await ctx.runBuildPhase(BuildPhase.INSTALL_PODS, async () => {
@@ -242,14 +254,22 @@ async function buildInnerAsync(
       return;
     }
     await ctx.cacheManager?.saveCache(ctx);
-    await saveCcacheAsync({
-      logger: ctx.logger,
-      workingDirectory,
-      platform: ctx.job.platform,
-      evictUsedBefore,
-      env: ctx.env,
-      secrets: ctx.job.secrets,
-    });
+    await Promise.all([
+      saveCcacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
+        platform: ctx.job.platform,
+        evictUsedBefore,
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      }),
+      saveXcodeCompilationCacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      }),
+    ]);
   });
 
   await ctx.runBuildPhase(BuildPhase.CACHE_STATS, async () => {

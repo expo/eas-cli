@@ -14,6 +14,12 @@ import os from 'os';
 import path from 'path';
 
 import { compressCacheAsync, uploadCacheAsync } from './saveCache';
+import {
+  XCODE_COMPILATION_CACHE_ENV,
+  XCODE_COMPILATION_CACHE_RELATIVE_PATH,
+  compressXcodeCompilationCacheAsync,
+  generateXcodeCompilationCacheKeyAsync,
+} from '../../ios/compilationCache';
 import { formatBytes } from '../../utils/artifacts';
 import { generateDefaultBuildCacheKeyAsync, getCcachePath } from '../../utils/cacheKey';
 import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
@@ -43,25 +49,85 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
         );
       }
 
-      await saveCcacheAsync({
-        logger,
-        workingDirectory,
-        platform,
-        evictUsedBefore,
-        env,
-        secrets: stepCtx.global.staticContext.job.secrets,
-      });
-
-      if (platform === Platform.ANDROID) {
-        await saveGradleCacheAsync({
+      await Promise.all([
+        saveCcacheAsync({
           logger,
           workingDirectory,
+          platform,
+          evictUsedBefore,
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
-        });
-      }
+        }),
+        platform === Platform.IOS
+          ? saveXcodeCompilationCacheAsync({
+              logger,
+              workingDirectory,
+              env,
+              secrets: stepCtx.global.staticContext.job.secrets,
+            })
+          : saveGradleCacheAsync({
+              logger,
+              workingDirectory,
+              env,
+              secrets: stepCtx.global.staticContext.job.secrets,
+            }),
+      ]);
     },
   });
+}
+
+export async function saveXcodeCompilationCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  const buildCacheEnabled =
+    env.EAS_SAVE_CACHE === '1' || (env.EAS_USE_CACHE === '1' && env.EAS_SAVE_CACHE !== '0');
+  if (!buildCacheEnabled || env[XCODE_COMPILATION_CACHE_ENV] !== '1') {
+    return;
+  }
+
+  try {
+    const { key, xcodeVersion } = await generateXcodeCompilationCacheKeyAsync({
+      workingDirectory,
+      env,
+      logger,
+    });
+    logger.info(`Saving Xcode compilation cache for ${xcodeVersion} with key: ${key}`);
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const { archivePath } = await compressXcodeCompilationCacheAsync({
+      workingDirectory,
+      env,
+      logger,
+    });
+    const { size } = await fs.promises.stat(archivePath);
+    logger.info(`Xcode compilation cache archive size: ${formatBytes(size)}`);
+
+    await uploadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      archivePath,
+      key,
+      paths: [XCODE_COMPILATION_CACHE_RELATIVE_PATH],
+      size,
+      platform: Platform.IOS,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to save Xcode compilation cache');
+  }
 }
 
 export async function saveCcacheAsync({
