@@ -6,6 +6,16 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
+### 🎉 New features
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [22.0.0](https://github.com/expo/eas-cli/releases/tag/v22.0.0) - 2026-08-14
+
+### 🛠 Breaking changes
+
 - [eas-cli] Build objects in `--json` output (`eas build`, `eas build:list`, `eas build:view`, `eas build:resign`) now have `app`, `updateChannel` (object with `id` and `name`), and `runtime` (object with `id` and `version`) instead of `project`, `channel`, and `runtimeVersion`. `eas update:republish --json` output likewise has `runtime` instead of `runtimeVersion`. Other update commands' `--json` output and `eas-update-metadata.json` are unchanged. ([#4021](https://github.com/expo/eas-cli/pull/4021) by [@tchayen](https://github.com/tchayen))
 
 ### 🎉 New features
@@ -17,8 +27,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Make the non-interactive "EAS project not configured" error actionable on every path: list the exact `eas init --id` / `eas init --account` commands and the accounts you can create projects in, instead of suggesting bare `eas init`, which fails the same way. ([#4153](https://github.com/expo/eas-cli/pull/4153) by [@williamgrosset](https://github.com/williamgrosset))
 - [eas-cli] Set up the internal TestFlight group and invite admin testers when submitting interactively with an existing `ascAppId`, with `--no-auto-testflight-setup` to disable it, and fix the TestFlight group URL printed when adding testers partially fails. ([#4136](https://github.com/expo/eas-cli/pull/4136) by [@tchayen](https://github.com/tchayen))
-
-### 🧹 Chores
 
 ## [21.8.0](https://github.com/expo/eas-cli/releases/tag/v21.8.0) - 2026-08-11
 
