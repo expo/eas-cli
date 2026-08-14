@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import FormData from 'form-data';
 import fs from 'fs-extra';
 import { Response } from 'node-fetch';
@@ -154,6 +156,8 @@ async function uploadWithSignedUrlWithProgressAsync(
     );
   }
 
+  const contentMd5 = await computeFileMd5Base64Async(file);
+
   const readStream = fs.createReadStream(file);
   const uploadPromise = fetch(signedUrl.url, {
     method: 'PUT',
@@ -161,6 +165,7 @@ async function uploadWithSignedUrlWithProgressAsync(
     headers: {
       ...signedUrl.headers,
       'Content-Length': String(fileSize), // make GCS reject the request if the file size changes during the upload
+      'Content-MD5': contentMd5, // make GCS reject the request if the uploaded bytes do not match this checksum
     },
   });
 
@@ -188,4 +193,16 @@ async function uploadWithSignedUrlWithProgressAsync(
     handleProgressEvent({ isComplete: true, error });
     throw error;
   }
+}
+
+/**
+ * Computes the base64-encoded MD5 checksum of a file, the format GCS expects
+ * in the `Content-MD5` request header.
+ */
+export async function computeFileMd5Base64Async(file: string): Promise<string> {
+  const hash = crypto.createHash('md5');
+  for await (const chunk of fs.createReadStream(file)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest('base64');
 }
