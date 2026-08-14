@@ -14,6 +14,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [eas-cli] Make the non-interactive "EAS project not configured" error actionable on every path: list the exact `eas init --id` / `eas init --account` commands and the accounts you can create projects in, instead of suggesting bare `eas init`, which fails the same way. ([#4153](https://github.com/expo/eas-cli/pull/4153) by [@williamgrosset](https://github.com/williamgrosset))
+- [eas-cli] Set up the internal TestFlight group and invite admin testers when submitting interactively with an existing `ascAppId`, with `--no-auto-testflight-setup` to disable it, and fix the TestFlight group URL printed when adding testers partially fails. ([#4136](https://github.com/expo/eas-cli/pull/4136) by [@tchayen](https://github.com/tchayen))
 
 ### 🧹 Chores
 

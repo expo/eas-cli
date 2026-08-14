@@ -1,5 +1,5 @@
 import { ExpoConfig, getConfigFilePaths } from '@expo/config';
-import { App, User, UserRole } from '@expo/apple-utils';
+import { App } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
@@ -15,6 +15,7 @@ import { SetUpAscApiKey } from '../credentials/ios/actions/SetUpAscApiKey';
 import { SetUpBuildCredentials } from '../credentials/ios/actions/SetUpBuildCredentials';
 import { SetUpPushKey } from '../credentials/ios/actions/SetUpPushKey';
 import { ensureAppExistsAsync } from '../credentials/ios/appstore/ensureAppExists';
+import { ensureTestFlightGroupExistsAsync } from '../credentials/ios/appstore/ensureTestFlightGroup';
 import { Target } from '../credentials/ios/types';
 import {
   WorkflowJobStatus,
@@ -60,62 +61,8 @@ export async function detectProjectSdkVersionAsync(
   }
 }
 
-const TESTFLIGHT_GROUP_NAME = 'Team (Expo)';
-
 async function setupTestFlightAsync(ascApp: App): Promise<void> {
-  let group;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const groups = await ascApp.getBetaGroupsAsync({
-        query: { includes: ['betaTesters'] },
-      });
-
-      group = groups.find(
-        g => g.attributes.isInternalGroup && g.attributes.name === TESTFLIGHT_GROUP_NAME
-      );
-
-      if (!group) {
-        group = await ascApp.createBetaGroupAsync({
-          name: TESTFLIGHT_GROUP_NAME,
-          isInternalGroup: true,
-          hasAccessToAllBuilds: true,
-        });
-      }
-      break;
-    } catch (error: any) {
-      // Apple returns this error when the app isn't ready yet
-      if (error?.data?.errors?.some((e: any) => e.code === 'ENTITY_ERROR.RELATIONSHIP.INVALID')) {
-        if (attempt < 9) {
-          await sleepAsync(10_000);
-          continue;
-        }
-      }
-      throw error;
-    }
-  }
-
-  if (!group) {
-    throw new Error('Failed to create TestFlight group');
-  }
-
-  const users = await User.getAsync(ascApp.context);
-  const admins = users.filter(u => u.attributes.roles?.includes(UserRole.ADMIN));
-
-  const existingEmails = new Set(
-    group.attributes.betaTesters?.map((t: any) => t.attributes.email?.toLowerCase()) ?? []
-  );
-
-  const newTesters = admins
-    .filter(u => u.attributes.email && !existingEmails.has(u.attributes.email.toLowerCase()))
-    .map(u => ({
-      email: u.attributes.email!,
-      firstName: u.attributes.firstName ?? '',
-      lastName: u.attributes.lastName ?? '',
-    }));
-
-  if (newTesters.length > 0) {
-    await group.createBulkBetaTesterAssignmentsAsync(newTesters);
-  }
+  await ensureTestFlightGroupExistsAsync(ascApp);
 }
 
 /* eslint-disable no-console */
