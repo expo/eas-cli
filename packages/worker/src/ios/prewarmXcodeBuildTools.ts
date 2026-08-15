@@ -60,10 +60,7 @@ const COLOR_SET_CONTENTS = JSON.stringify({
 
 let prewarmPromise: Promise<void> | undefined;
 
-/**
- * The worker starts this promise during process startup. The SPIN_UP_BUILDER phase calls this
- * function again and waits for the same promise before any project work starts.
- */
+/** Starts prewarming at most once without making a prewarm failure fail the build. */
 export function startXcodeBuildToolsPrewarming({
   env,
   logger,
@@ -113,7 +110,7 @@ async function prewarmXcodeBuildToolsAsync({
       fs.ensureDir(deviceOutputPath),
     ]);
 
-    logger.info('Prewarming Xcode interface and asset build tools during worker startup.');
+    logger.info('Prewarming Xcode interface and asset build tools in the background.');
 
     // ibtool performs the expensive shared Interface Builder initialization. Start actool only
     // after it finishes to avoid running two instances of the same initialization concurrently.
