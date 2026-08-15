@@ -56,12 +56,19 @@ function makeBuild(overrides: Partial<BuildFragment> = {}): BuildFragment {
     buildProfile: 'production',
     appVersion: '1.0.0',
     appBuildVersion: '42',
+    runtime: { id: 'runtime-1', version: '1.0.0' },
+    updateChannel: { id: 'channel-1', name: 'production' },
     gitCommitHash: 'abcdef1234567890',
     gitCommitMessage: 'Ship it\nlonger body',
     createdAt: '2026-07-01T00:00:00.000Z',
     completedAt: '2026-07-01T00:10:00.000Z',
     initiatingActor: { id: 'actor-1', displayName: 'jester' },
-    project: { id: projectId, name: 'my-app', slug: 'my-app', ownerAccount: { name: 'jester' } },
+    app: {
+      id: projectId,
+      name: 'my-app',
+      slug: 'my-app',
+      ownerAccount: { id: 'account-1', name: 'jester' },
+    },
     ...overrides,
   } as unknown as BuildFragment;
 }
@@ -108,7 +115,7 @@ function makeUpdateGroup(): UpdateFragment[] {
       group: 'group-1',
       message: 'Fix crash on launch',
       createdAt: '2026-07-03T00:00:00.000Z',
-      runtimeVersion: '1.0.0',
+      runtime: { id: 'runtime-1', version: '1.0.0' },
       platform: 'ios',
       isRollBackToEmbedded: false,
       gitCommitHash: '1234567890abcdef',
@@ -122,7 +129,7 @@ function makeUpdateGroup(): UpdateFragment[] {
       group: 'group-1',
       message: 'Fix crash on launch',
       createdAt: '2026-07-03T00:00:00.000Z',
-      runtimeVersion: '1.0.0',
+      runtime: { id: 'runtime-1', version: '1.0.0' },
       platform: 'android',
       isRollBackToEmbedded: false,
       gitCommitHash: '1234567890abcdef',
@@ -248,7 +255,7 @@ describe(ProjectStatus, () => {
       id: 'build-1',
       status: BuildStatus.Finished,
       gitCommitMessage: 'Ship it',
-      url: 'https://expo.dev/builds/build-1',
+      url: 'https://expo.dev/accounts/jester/projects/my-app/builds/build-1',
     });
     expect(output.developmentBuilds).toHaveLength(1);
     expect(output.workflowRuns[0]).toMatchObject({

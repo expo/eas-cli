@@ -2532,7 +2532,7 @@ EXAMPLES
   $ eas status --json --limit 10 	 # Include more activity from each section
 ```
 
-_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v21.8.0/packages/eas-cli/src/commands/project/status.ts)_
+_See code: [packages/eas-cli/src/commands/project/status.ts](https://github.com/expo/eas-cli/blob/v22.0.0/packages/eas-cli/src/commands/project/status.ts)_
 
 ## `eas sim`
 
@@ -2788,7 +2788,7 @@ ALIASES
   $ eas sim:start
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/start.ts](https://github.com/expo/eas-cli/blob/v21.8.0/packages/eas-cli/src/commands/simulator/start.ts)_
+_See code: [packages/eas-cli/src/commands/simulator/start.ts](https://github.com/expo/eas-cli/blob/v22.0.0/packages/eas-cli/src/commands/simulator/start.ts)_
 
 ## `eas status`
 
