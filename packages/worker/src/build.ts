@@ -37,7 +37,11 @@ export async function build({
       BuildPhase.SPIN_UP_BUILDER,
       async () => {
         displayWorkerRuntimeInfo(ctx);
-        if (job.platform === Platform.IOS && job.mode === BuildMode.BUILD) {
+        if (
+          job.platform === Platform.IOS &&
+          job.mode === BuildMode.BUILD &&
+          ctx.env.EAS_BUILD_DISABLE_XCODE_BUILD_TOOL_PREWARMING !== '1'
+        ) {
           void startXcodeBuildToolsPrewarming({ env: ctx.env, logger: ctx.logger });
         }
         ctx.logger.info(
