@@ -58,7 +58,7 @@ export async function build({
       }
     });
 
-    if (TurtleSshSession.isWorkflowSshEnabled(ctx.job)) {
+    if (TurtleSshSession.isSshEnabled(ctx.job)) {
       ({ done: sshSessionDone } = await startSshSessionPhaseAsync({
         ctx,
         buildId,

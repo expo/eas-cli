@@ -1,16 +1,8 @@
-import { BuildContext, TurtleSshSession } from '@expo/build-tools';
+import { BuildContext, TurtleSshSession, formatSecondsForLog } from '@expo/build-tools';
 import { BuildPhase, BuildPhaseResult, LogMarker } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
+import { performance } from 'node:perf_hooks';
 
-/**
- * Opens the job's SSH session. `done` settles once the tunnel is torn down, and is absent when
- * the session could not be opened. It is wrapped in an object because an async function flattens
- * a returned promise, which would make callers wait for the whole session.
- *
- * SSH_SESSION stays open in the log UI for as long as the tunnel lives: we emit START here, skip
- * the automatic END (doNotMarkEnd), and write END on teardown. That way there is still a running
- * step while the worker stays up for SSH.
- */
 export async function startSshSessionPhaseAsync({
   ctx,
   buildId,
@@ -27,24 +19,20 @@ export async function startSshSessionPhaseAsync({
   await ctx.runBuildPhase(
     BuildPhase.SSH_SESSION,
     async () => {
-      const phaseStartedAt = Date.now();
+      const phaseStartedAt = performance.now();
       try {
         ctx.logger.info('Opening an SSH session for this job.');
-        const workflowJobId = TurtleSshSession.getWorkflowJobIdOrThrow(ctx.env);
-        const target = TurtleSshSession.getTurtleSshTarget({
-          buildId,
-          hasPlatform: Boolean(ctx.job.platform),
-        });
+        const target = ctx.job.platform ? { turtleBuildId: buildId } : { turtleJobRunId: buildId };
         const { handle, idleTimeoutSeconds } = await TurtleSshSession.startSshSessionAsync(ctx, {
           target,
           relayServerUrl: TurtleSshSession.getSshRelayServerUrl(ctx.job),
           idleTimeoutSeconds: TurtleSshSession.getSshIdleTimeoutSeconds(ctx.job),
         });
-        ctx.logger.info(`SSH session ready. Connect with: eas workflow:ssh ${workflowJobId}`);
+        ctx.logger.info(`SSH session ready. Connect with: eas workflow:ssh ${buildId}`);
         ctx.logger.info(
           idleTimeoutSeconds === 0
             ? 'It stays open for the whole job and closes once the job finishes and no client is connected.'
-            : `It stays open for the whole job, then closes after ${TurtleSshSession.formatSshIdleTimeoutForLog(idleTimeoutSeconds)} with no client connected. The worker stays up until then.`
+            : `It stays open for the whole job, then closes after ${formatSecondsForLog(idleTimeoutSeconds)} with no client connected. The worker stays up until then.`
         );
 
         const sshLogger = logger.child({ phase: BuildPhase.SSH_SESSION });
@@ -52,8 +40,7 @@ export async function startSshSessionPhaseAsync({
           let result = BuildPhaseResult.SUCCESS;
           try {
             await TurtleSshSession.superviseSshSessionAsync({
-              getConnectedClientCount: () => handle.getConnectedClientCountAsync(),
-              ensureConnected: () => handle.ensureConnectedAsync(),
+              handle,
               idleTimeoutSeconds,
               hasJobFinished,
               logger: sshLogger,
@@ -69,7 +56,7 @@ export async function startSshSessionPhaseAsync({
               {
                 marker: LogMarker.END_PHASE,
                 result,
-                durationMs: Date.now() - phaseStartedAt,
+                durationMs: Math.round(performance.now() - phaseStartedAt),
               },
               `End phase: ${BuildPhase.SSH_SESSION}`
             );
@@ -81,12 +68,11 @@ export async function startSshSessionPhaseAsync({
           'Failed to open the SSH session. The job will continue without it.'
         );
         ctx.markBuildPhaseHasWarnings();
-        // Setup failed: close the phase now so doNotMarkEnd does not leave it open forever.
         ctx.logger.info(
           {
             marker: LogMarker.END_PHASE,
             result: BuildPhaseResult.WARNING,
-            durationMs: Date.now() - phaseStartedAt,
+            durationMs: Math.round(performance.now() - phaseStartedAt),
           },
           `End phase: ${BuildPhase.SSH_SESSION}`
         );

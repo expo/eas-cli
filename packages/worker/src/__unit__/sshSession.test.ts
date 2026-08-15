@@ -5,14 +5,12 @@ import { startSshSessionPhaseAsync } from '../sshSession';
 
 jest.mock('@expo/build-tools', () => ({
   TurtleSshSession: {
-    getWorkflowJobIdOrThrow: jest.fn(() => 'wj-1'),
-    getTurtleSshTarget: jest.fn(() => ({ turtleJobRunId: 'jr-1' })),
     getSshRelayServerUrl: jest.fn(() => 'wss://relay.expo.dev'),
     getSshIdleTimeoutSeconds: jest.fn(() => 0),
-    formatSshIdleTimeoutForLog: jest.fn(() => '15 minutes'),
     startSshSessionAsync: jest.fn(),
     superviseSshSessionAsync: jest.fn(),
   },
+  formatSecondsForLog: jest.fn(() => '15 minutes'),
 }));
 
 const mocked = jest.mocked(TurtleSshSession);
@@ -85,7 +83,7 @@ describe(startSshSessionPhaseAsync, () => {
       idleTimeoutSeconds: 0,
     });
     expect(logger.info).toHaveBeenCalledWith(
-      'SSH session ready. Connect with: eas workflow:ssh wj-1'
+      'SSH session ready. Connect with: eas workflow:ssh jr-1'
     );
     expect(done).toBeInstanceOf(Promise);
     await done;
@@ -166,15 +164,12 @@ describe(startSshSessionPhaseAsync, () => {
     });
     await done;
 
-    const { hasJobFinished, getConnectedClientCount, ensureConnected } =
+    const { hasJobFinished, handle: passedHandle } =
       mocked.superviseSshSessionAsync.mock.calls[0][0];
     expect(hasJobFinished()).toBe(false);
     jobFinished = true;
     expect(hasJobFinished()).toBe(true);
-    await getConnectedClientCount();
-    await ensureConnected();
-    expect(handle.getConnectedClientCountAsync).toHaveBeenCalled();
-    expect(handle.ensureConnectedAsync).toHaveBeenCalled();
+    expect(passedHandle).toBe(handle);
   });
 
   it('closes the phase with a warning when supervision throws', async () => {
