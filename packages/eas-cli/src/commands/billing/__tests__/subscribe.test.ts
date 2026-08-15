@@ -81,7 +81,6 @@ describe(BillingSubscribe, () => {
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_123',
       alreadySubscribed: false,
-      currentPlan: null,
     });
   });
 
@@ -229,7 +228,6 @@ describe(BillingSubscribe, () => {
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
-      checkoutUrl: null,
       alreadySubscribed: true,
       currentPlan: 'Starter',
     });
@@ -248,7 +246,6 @@ describe(BillingSubscribe, () => {
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
-      checkoutUrl: null,
       alreadySubscribed: true,
       currentPlan: 'Starter',
     });
@@ -325,9 +322,27 @@ describe(BillingSubscribe, () => {
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
       checkoutUrl: 'https://checkout.stripe.com/pay',
       alreadySubscribed: false,
-      currentPlan: null,
     });
   });
+
+  it.each([
+    ['checkout', null],
+    [
+      'already subscribed',
+      { id: 'sub_1', name: 'Starter', planId: 'price_paid', status: 'active', willCancel: false },
+    ],
+  ])(
+    'does not emit null JSON values, which printJsonOnlyOutput strips (%s)',
+    async (_case, subscription) => {
+      jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(subscription);
+      createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
+
+      await createCommand(['starter', '--json']).runAsync();
+
+      const [payload] = jest.mocked(printJsonOnlyOutput).mock.calls[0];
+      expect(Object.values(payload)).not.toContain(null);
+    }
+  );
 
   it('throws when the checkout session has no URL', async () => {
     jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);

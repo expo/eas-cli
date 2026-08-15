@@ -73,7 +73,6 @@ export default class BillingSubscribe extends EasCommand {
     if (hasPaidSubscription(subscription)) {
       if (json) {
         printJsonOnlyOutput({
-          checkoutUrl: null,
           alreadySubscribed: true,
           currentPlan: subscription?.name ?? null,
         });
@@ -121,7 +120,7 @@ export default class BillingSubscribe extends EasCommand {
     }
 
     if (json) {
-      printJsonOnlyOutput({ checkoutUrl, alreadySubscribed: false, currentPlan: null });
+      printJsonOnlyOutput({ checkoutUrl, alreadySubscribed: false });
       return;
     }
 
