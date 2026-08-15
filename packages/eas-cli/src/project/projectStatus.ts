@@ -469,6 +469,6 @@ function colorWorkflowStatus(status: string): string {
     case WorkflowRunStatus.InProgress:
       return chalk.blue(status.toLowerCase().replace(/_/g, ' '));
     default:
-      return status.toLowerCase();
+      return status.toLowerCase().replace(/_/g, ' ');
   }
 }
