@@ -19,6 +19,7 @@ import {
   CcacheBuildTarget,
   generateDefaultBuildCacheKeyAsync,
   getCcachePath,
+  getExpoModulesJsiXcframeworkCachePath,
 } from '../../utils/cacheKey';
 import {
   compressCocoapodsCacheAsync,
@@ -199,6 +200,13 @@ export async function saveCcacheAsync({
     );
     const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
     const cachePath = getCcachePath(env);
+    const cachePaths = [cachePath];
+    if (target.platform === Platform.IOS) {
+      const expoModulesJsiCachePath = getExpoModulesJsiXcframeworkCachePath(env);
+      await fs.promises.mkdir(expoModulesJsiCachePath, { recursive: true });
+      await pruneExpoModulesJsiCacheAsync(expoModulesJsiCachePath, evictUsedBefore);
+      cachePaths.push(expoModulesJsiCachePath);
+    }
 
     // Cache size can blow up over time over many builds, so evict stale files
     // and only upload what was used within this build's time window
@@ -216,7 +224,7 @@ export async function saveCcacheAsync({
     logger.info('Preparing cache archive...');
 
     const { archivePath } = await compressCacheAsync({
-      paths: [cachePath],
+      paths: cachePaths,
       workingDirectory,
       verbose: env.EXPO_DEBUG === '1',
       logger,
@@ -231,12 +239,34 @@ export async function saveCcacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: [cachePath],
+      paths: cachePaths,
       size,
       platform: target.platform,
     });
   } catch (err) {
     logger.error({ err }, 'Failed to save cache');
+  }
+}
+
+async function pruneExpoModulesJsiCacheAsync(cachePath: string, usedAfter: Date): Promise<void> {
+  const hashDirectories = await fs.promises.readdir(cachePath, { withFileTypes: true });
+  for (const hashDirectory of hashDirectories) {
+    if (!hashDirectory.isDirectory()) {
+      continue;
+    }
+    const hashDirectoryPath = path.join(cachePath, hashDirectory.name);
+    const entries = await fs.promises.readdir(hashDirectoryPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.tar.gz')) {
+        continue;
+      }
+      const entryPath = path.join(hashDirectoryPath, entry.name);
+      const stat = await fs.promises.stat(entryPath);
+      if (stat.mtime < usedAfter) {
+        await fs.promises.unlink(entryPath);
+      }
+    }
+    await fs.promises.rmdir(hashDirectoryPath).catch(() => undefined);
   }
 }
 

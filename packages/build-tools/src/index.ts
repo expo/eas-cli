@@ -27,6 +27,10 @@ export {
 } from './context';
 
 export { PackageManager } from './utils/packageManager';
+export {
+  EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_ENV,
+  getExpoModulesJsiXcframeworkCachePath,
+} from './utils/cacheKey';
 
 export * as TurtleSshSession from './utils/turtleSshSession';
 export { formatSecondsForLog } from './utils/formatDuration';

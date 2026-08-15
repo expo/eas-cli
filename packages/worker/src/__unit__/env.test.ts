@@ -128,6 +128,31 @@ describe(getBuildEnv.name, () => {
     expect(env.EAS_USE_PRECOMPILED_MODULES).toBe('1');
   });
 
+  it('adds the ExpoModulesJSI xcframework cache directory to cached iOS builds', () => {
+    const env = getBuildEnv({
+      job: {
+        platform: Platform.IOS,
+        type: Workflow.GENERIC,
+        builderEnvironment: {
+          env: {
+            EAS_USE_CACHE: '1',
+          },
+        },
+      } as any,
+      projectId: 'project-id',
+      metadata: {
+        buildProfile: 'production',
+        gitCommitHash: 'abc123',
+        username: 'expo-user',
+      } as any,
+      buildId: 'build-id',
+    });
+
+    expect(env.EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_DIR).toBe(
+      `${env.HOME}/Library/Caches/expo-modules-jsi/xcframeworks`
+    );
+  });
+
   it('does not add precompiled modules env vars for Android jobs when enabled', () => {
     jest.mocked(RuntimeSettings.isUsingIosPrecompiledModulesEnabled).mockReturnValue(true);
 

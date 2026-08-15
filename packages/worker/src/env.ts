@@ -1,4 +1,8 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import {
+  EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_ENV,
+  RuntimeSettings,
+  getExpoModulesJsiXcframeworkCachePath,
+} from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -65,6 +69,11 @@ export function getBuildEnv({
     }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
+      setEnv(
+        env,
+        EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_ENV,
+        getExpoModulesJsiXcframeworkCachePath(env)
+      );
       setEnv(env, 'USE_CCACHE', '1');
       setEnv(env, 'CCACHE_CPP2', '1');
 

@@ -14,6 +14,9 @@ const PUBLIC_IOS_CACHE_KEY_PREFIX = 'public-ios-ccache-';
 const PUBLIC_ANDROID_CACHE_KEY_PREFIX = 'public-android-ccache-';
 const DARWIN_CACHE_PATH = 'Library/Caches/ccache';
 const LINUX_CACHE_PATH = '.cache/ccache';
+const EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_PATH = 'Library/Caches/expo-modules-jsi/xcframeworks';
+
+export const EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_ENV = 'EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_DIR';
 
 export type CcacheBuildTarget =
   | { platform: Platform.ANDROID }
@@ -39,6 +42,17 @@ const PATH_BY_PLATFORM: Record<string, string> = {
 export function getCcachePath(env: Record<string, string | undefined>): string {
   assert(env.HOME, 'Failed to infer directory: $HOME environment variable is empty.');
   return path.join(env.HOME, PATH_BY_PLATFORM[os.platform()]);
+}
+
+export function getExpoModulesJsiXcframeworkCachePath(
+  env: Record<string, string | undefined>
+): string {
+  const configuredPath = env[EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_ENV];
+  if (configuredPath) {
+    return configuredPath;
+  }
+  assert(env.HOME, 'Failed to infer directory: $HOME environment variable is empty.');
+  return path.join(env.HOME, EXPO_MODULES_JSI_XCFRAMEWORK_CACHE_PATH);
 }
 
 export async function generateDefaultBuildCacheKeyAsync(

@@ -19,6 +19,7 @@ import {
   generateDefaultBuildCacheKeyAsync,
   getCcacheKeyPrefix,
   getCcachePath,
+  getExpoModulesJsiXcframeworkCachePath,
 } from '../../utils/cacheKey';
 import {
   getCocoapodsCachePaths,
@@ -142,6 +143,12 @@ export async function restoreCcacheAsync({
   );
   const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
   const cachePath = getCcachePath(env);
+  const cachePaths = [cachePath];
+  if (platform === Platform.IOS) {
+    const expoModulesJsiCachePath = getExpoModulesJsiXcframeworkCachePath(env);
+    await fs.promises.mkdir(expoModulesJsiCachePath, { recursive: true });
+    cachePaths.push(expoModulesJsiCachePath);
+  }
 
   // Check if ccache is installed before proceeding
   const checkInstall = await asyncResult(
@@ -173,7 +180,7 @@ export async function restoreCcacheAsync({
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: [cachePath],
+      paths: cachePaths,
       key: cacheKey,
       keyPrefixes: [getCcacheKeyPrefix(target)],
       platform: target.platform,
