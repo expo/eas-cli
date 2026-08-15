@@ -4,12 +4,10 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
-  formatSshIdleTimeoutForLog,
   getSshIdleTimeoutSeconds,
   getSshRelayServerUrl,
-  getTurtleSshTarget,
-  getWorkflowJobIdOrThrow,
-  isWorkflowSshEnabled,
+  isSshEnabled,
+  SshSessionHandle,
   startSshSessionAsync,
   superviseSshSessionAsync,
 } from '../turtleSshSession';
@@ -29,23 +27,23 @@ function sshJob(idleTimeoutSeconds: number): { ssh: SshSettings } {
   return { ssh: { idleTimeoutSeconds, relayServerUrl: 'wss://relay.expo.dev' } };
 }
 
-describe(isWorkflowSshEnabled, () => {
+function superviseHandle(
+  overrides: Partial<SshSessionHandle> &
+    Pick<SshSessionHandle, 'getConnectedClientCountAsync' | 'ensureConnectedAsync'>
+): SshSessionHandle {
+  return {
+    stopAsync: async () => {},
+    ...overrides,
+  };
+}
+
+describe(isSshEnabled, () => {
   it('is true when job.ssh is present', () => {
-    expect(isWorkflowSshEnabled(sshJob(0))).toBe(true);
+    expect(isSshEnabled(sshJob(0))).toBe(true);
   });
 
   it('is false otherwise', () => {
-    expect(isWorkflowSshEnabled({})).toBe(false);
-  });
-});
-
-describe(getWorkflowJobIdOrThrow, () => {
-  it('returns the injected workflow job id', () => {
-    expect(getWorkflowJobIdOrThrow({ __WORKFLOW_JOB_ID: 'wj-1' })).toBe('wj-1');
-  });
-
-  it('throws when not set', () => {
-    expect(() => getWorkflowJobIdOrThrow({})).toThrow(SystemError);
+    expect(isSshEnabled({})).toBe(false);
   });
 });
 
@@ -67,43 +65,13 @@ describe(getSshIdleTimeoutSeconds, () => {
   });
 });
 
-describe(getTurtleSshTarget, () => {
-  it('uses turtleBuildId when the job has a platform', () => {
-    expect(getTurtleSshTarget({ buildId: 'b-1', hasPlatform: true })).toEqual({
-      turtleBuildId: 'b-1',
-    });
-  });
-
-  it('uses turtleJobRunId otherwise', () => {
-    expect(getTurtleSshTarget({ buildId: 'jr-1', hasPlatform: false })).toEqual({
-      turtleJobRunId: 'jr-1',
-    });
-  });
-});
-
 describe(getSshRelayServerUrl, () => {
   it('returns the relay url from the job ssh settings', () => {
     expect(getSshRelayServerUrl(sshJob(0))).toBe('wss://relay.expo.dev');
   });
 
   it('throws when the job carries no relay url', () => {
-    expect(() => getSshRelayServerUrl({})).toThrow(/job\.ssh\.relayServerUrl/);
-  });
-});
-
-describe(formatSshIdleTimeoutForLog, () => {
-  it.each([
-    [0, '0 seconds'],
-    [1, '1 second'],
-    [45, '45 seconds'],
-    [60, '1 minute'],
-    [90, '1 minute 30 seconds'],
-    [120, '2 minutes'],
-    [3600, '1 hour'],
-    [3661, '1 hour 1 minute 1 second'],
-    [7200, '2 hours'],
-  ] as const)('formats %i as %s', (seconds, expected) => {
-    expect(formatSshIdleTimeoutForLog(seconds)).toBe(expected);
+    expect(() => getSshRelayServerUrl({})).toThrow(/no relay server URL/);
   });
 });
 
@@ -369,15 +337,17 @@ describe(superviseSshSessionAsync, () => {
   it('keeps the session open while the job is running, even with a 0 idle timeout', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {
-        if (polls >= 5) {
-          throw new SystemError('stop the loop');
-        }
-      },
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return 0;
-      },
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {
+          if (polls >= 5) {
+            throw new SystemError('stop the loop');
+          }
+        },
+        getConnectedClientCountAsync: async () => {
+          polls += 1;
+          return 0;
+        },
+      }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => false,
       logger,
@@ -388,11 +358,13 @@ describe(superviseSshSessionAsync, () => {
   it('closes as soon as the job finishes when the idle timeout is 0', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {},
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return 0;
-      },
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {},
+        getConnectedClientCountAsync: async () => {
+          polls += 1;
+          return 0;
+        },
+      }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
@@ -407,11 +379,13 @@ describe(superviseSshSessionAsync, () => {
     const clientCounts = [1, 1, 0];
     let polls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {},
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return clientCounts.shift() ?? 0;
-      },
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {},
+        getConnectedClientCountAsync: async () => {
+          polls += 1;
+          return clientCounts.shift() ?? 0;
+        },
+      }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
@@ -429,14 +403,16 @@ describe(superviseSshSessionAsync, () => {
         jest.setSystemTime(Date.now() + 60_000);
       });
       await superviseSshSessionAsync({
-        ensureConnected: async () => {},
-        getConnectedClientCount: async () => {
-          polls += 1;
-          if (polls >= 5) {
-            jobHasFinished = true;
-          }
-          return 0;
-        },
+        handle: superviseHandle({
+          ensureConnectedAsync: async () => {},
+          getConnectedClientCountAsync: async () => {
+            polls += 1;
+            if (polls >= 5) {
+              jobHasFinished = true;
+            }
+            return 0;
+          },
+        }),
         idleTimeoutSeconds: 300,
         hasJobFinished: () => jobHasFinished,
         logger,
@@ -449,31 +425,35 @@ describe(superviseSshSessionAsync, () => {
     }
   });
 
-  it('logs each client connecting and disconnecting with the current count', async () => {
+  it('logs the connected client count whenever it changes', async () => {
     const clientCounts = [1, 2, 1, 0];
     await superviseSshSessionAsync({
-      ensureConnected: async () => {},
-      getConnectedClientCount: async () => clientCounts.shift() ?? 0,
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {},
+        getConnectedClientCountAsync: async () => clientCounts.shift() ?? 0,
+      }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
     });
-    expect(logger.info).toHaveBeenCalledWith('An SSH client connected.');
-    expect(logger.info).toHaveBeenCalledWith('An SSH client connected (2 connected).');
-    expect(logger.info).toHaveBeenCalledWith('An SSH client disconnected (1 still connected).');
-    expect(logger.info).toHaveBeenCalledWith('The SSH client disconnected.');
+    expect(logger.info).toHaveBeenCalledWith('SSH clients connected: 1');
+    expect(logger.info).toHaveBeenCalledWith('SSH clients connected: 2');
+    expect(logger.info).toHaveBeenCalledWith('SSH clients connected: 1');
+    expect(logger.info).toHaveBeenCalledWith('SSH clients connected: 0');
   });
 
   it('closes the session when the relay connection cannot be restored', async () => {
     let clientCountCalls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {
-        throw new SystemError('relay down');
-      },
-      getConnectedClientCount: async () => {
-        clientCountCalls += 1;
-        return 1;
-      },
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {
+          throw new SystemError('relay down');
+        },
+        getConnectedClientCountAsync: async () => {
+          clientCountCalls += 1;
+          return 1;
+        },
+      }),
       idleTimeoutSeconds: 300,
       hasJobFinished: () => false,
       logger,
@@ -484,15 +464,17 @@ describe(superviseSshSessionAsync, () => {
   it('does not close while a client stays connected, even past the idle timeout', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {
-        if (polls > 3) {
-          throw new SystemError('stop the loop');
-        }
-      },
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return 1;
-      },
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {
+          if (polls > 3) {
+            throw new SystemError('stop the loop');
+          }
+        },
+        getConnectedClientCountAsync: async () => {
+          polls += 1;
+          return 1;
+        },
+      }),
       idleTimeoutSeconds: 0,
       hasJobFinished: () => true,
       logger,
@@ -500,72 +482,26 @@ describe(superviseSshSessionAsync, () => {
     expect(polls).toBeGreaterThan(3);
   });
 
-  it('does not close on a single unknown client count after the job finishes', async () => {
+  it('closes when the client count cannot be read', async () => {
     let polls = 0;
     await superviseSshSessionAsync({
-      ensureConnected: async () => {
-        if (polls >= 2) {
-          throw new SystemError('stop the loop');
-        }
-      },
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return null;
-      },
-      idleTimeoutSeconds: 0,
-      hasJobFinished: () => true,
-      logger,
-    });
-    expect(polls).toBeGreaterThanOrEqual(2);
-    expect(logger.info).not.toHaveBeenCalledWith(
-      'The job finished and no SSH client is connected. Closing the session.'
-    );
-  });
-
-  it('ignores unknown client counts while the job is still running', async () => {
-    let polls = 0;
-    await superviseSshSessionAsync({
-      ensureConnected: async () => {
-        if (polls >= 2) {
-          throw new SystemError('stop the loop');
-        }
-      },
-      getConnectedClientCount: async () => {
-        polls += 1;
-        return null;
-      },
-      idleTimeoutSeconds: 0,
+      handle: superviseHandle({
+        ensureConnectedAsync: async () => {},
+        getConnectedClientCountAsync: async () => {
+          polls += 1;
+          throw new SystemError(
+            'Could not read the SSH client count from the upterm admin socket.'
+          );
+        },
+      }),
+      idleTimeoutSeconds: 300,
       hasJobFinished: () => false,
       logger,
     });
-    expect(polls).toBeGreaterThanOrEqual(2);
-  });
-
-  it('closes after unknown client count persists past the grace window', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(0);
-    try {
-      mockedSleep.mockImplementation(async () => {
-        jest.setSystemTime(Date.now() + 10_000);
-      });
-      let polls = 0;
-      await superviseSshSessionAsync({
-        ensureConnected: async () => {},
-        getConnectedClientCount: async () => {
-          polls += 1;
-          return null;
-        },
-        idleTimeoutSeconds: 0,
-        hasJobFinished: () => true,
-        logger,
-      });
-      // 30s grace / 10s per poll → closes on the poll after grace is reached.
-      expect(polls).toBeGreaterThan(1);
-      expect(logger.info).toHaveBeenCalledWith(
-        'Could not determine whether an SSH client is still connected after the job finished. Closing the session.'
-      );
-    } finally {
-      jest.useRealTimers();
-    }
+    expect(polls).toBe(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.anything(),
+      'Could not read the SSH client count. Closing the session.'
+    );
   });
 });

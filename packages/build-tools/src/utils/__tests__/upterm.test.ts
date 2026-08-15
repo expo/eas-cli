@@ -7,7 +7,7 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
-  parseUptermSessionJson,
+  connectionConfigFromUptermSession,
   redactConnectionSecrets,
   redactSpawnErrorForLog,
   resolveUptermGcsObjectName,
@@ -42,16 +42,13 @@ describe(resolveUptermGcsObjectName, () => {
   });
 });
 
-describe(parseUptermSessionJson, () => {
-  it('parses sessionId and host from json', () => {
+describe(connectionConfigFromUptermSession, () => {
+  it('parses sessionId and host from session current fields', () => {
     expect(
-      parseUptermSessionJson(
-        JSON.stringify({
-          sessionId: 'TOKENabc123',
-          host: 'ssh://relay.expo.dev:22',
-          clientCount: 0,
-        })
-      )
+      connectionConfigFromUptermSession({
+        sessionId: 'TOKENabc123',
+        host: 'ssh://relay.expo.dev:22',
+      })
     ).toEqual({
       type: 'upterm-v1',
       host: 'relay.expo.dev',
@@ -60,20 +57,21 @@ describe(parseUptermSessionJson, () => {
   });
 
   it('accepts a bare hostname', () => {
-    expect(
-      parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'relay.expo.dev' }))
-    ).toEqual({
-      type: 'upterm-v1',
-      host: 'relay.expo.dev',
-      secret: 'tok',
-    });
+    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'relay.expo.dev' })).toEqual(
+      {
+        type: 'upterm-v1',
+        host: 'relay.expo.dev',
+        secret: 'tok',
+      }
+    );
   });
 
   it('keeps a non-default port so the CLI can pass it to ssh -p', () => {
     expect(
-      parseUptermSessionJson(
-        JSON.stringify({ sessionId: 'tok', host: 'ssh://relay.expo.dev:2222' })
-      )
+      connectionConfigFromUptermSession({
+        sessionId: 'tok',
+        host: 'ssh://relay.expo.dev:2222',
+      })
     ).toEqual({
       type: 'upterm-v1',
       host: 'relay.expo.dev:2222',
@@ -81,16 +79,9 @@ describe(parseUptermSessionJson, () => {
     });
   });
 
-  it('returns null for incomplete json', () => {
-    expect(parseUptermSessionJson('{}')).toBeNull();
-    expect(parseUptermSessionJson('not-json')).toBeNull();
-  });
-
   it('returns null when the host is not a parseable url', () => {
-    expect(parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://' }))).toBeNull();
-    expect(
-      parseUptermSessionJson(JSON.stringify({ sessionId: 'tok', host: 'ssh://[' }))
-    ).toBeNull();
+    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'ssh://' })).toBeNull();
+    expect(connectionConfigFromUptermSession({ sessionId: 'tok', host: 'ssh://[' })).toBeNull();
   });
 });
 
@@ -235,10 +226,10 @@ describe(startUptermHostAsync, () => {
       clientCount: 0,
     });
     mockedSleep.mockResolvedValue(undefined);
-    mockedFs.access.mockRejectedValue(new Error('ENOENT') as never);
     mockedFs.mkdir.mockResolvedValue(undefined as never);
     mockedFs.chmod.mockResolvedValue(undefined as never);
-    mockedFs.mkdtemp.mockResolvedValue('/tmp/eas-ssh-1' as never);
+    mockedFs.mkdtemp.mockImplementation((async (prefix: string) =>
+      String(prefix).includes('eas-upterm') ? '/tmp/eas-upterm-1' : '/tmp/eas-ssh-1') as never);
     mockedFs.writeFile.mockResolvedValue(undefined as never);
     mockedFs.rm.mockResolvedValue(undefined as never);
     mockedFs.readdir.mockResolvedValue(['default.sock'] as never);
@@ -284,30 +275,19 @@ describe(startUptermHostAsync, () => {
     );
   });
 
-  it('downloads from GCS when upterm is not on PATH', async () => {
+  it('downloads from GCS into a fresh temp dir when upterm is not on PATH', async () => {
     uptermOnPath = false;
-    mockedFs.access.mockRejectedValue(new Error('ENOENT') as never);
 
     const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
 
     expect(host.connectionConfig.secret).toBe('TOKENx');
     expect(mockedDownloadFile).toHaveBeenCalledWith(
       expect.stringMatching(/storage\.googleapis\.com\/turtle-v2\/upterm\/upterm-/),
-      expect.stringContaining('eas-upterm'),
+      expect.stringContaining('/tmp/eas-upterm-1'),
       expect.objectContaining({ retry: 3 })
     );
-  });
-
-  it('reuses a previously downloaded binary from the cache dir', async () => {
-    uptermOnPath = false;
-    mockedFs.access.mockResolvedValue(undefined as never);
-
-    const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://relay.expo.dev' });
-
-    expect(host.connectionConfig.secret).toBe('TOKENx');
-    expect(mockedDownloadFile).not.toHaveBeenCalled();
     expect(mockedSpawn).toHaveBeenCalledWith(
-      expect.stringContaining('eas-upterm'),
+      expect.stringContaining('/tmp/eas-upterm-1'),
       expect.arrayContaining(['host']),
       expect.anything()
     );
@@ -322,7 +302,7 @@ describe(startUptermHostAsync, () => {
     );
   });
 
-  it('still throws when download fails with a non-Error and cache cleanup also fails', async () => {
+  it('still throws when download fails with a non-Error and temp cleanup also fails', async () => {
     uptermOnPath = false;
     mockedDownloadFile.mockRejectedValue('network down' as never);
     mockedFs.rm.mockRejectedValue(new Error('EPERM') as never);
@@ -445,10 +425,10 @@ describe(startUptermHostAsync, () => {
   });
 
   describe('getConnectedClientCountAsync', () => {
-    it('returns null (unknown) when no admin socket exists yet', async () => {
+    it('throws when no admin socket exists yet (after retries)', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
       mockedFs.readdir.mockResolvedValue([] as never);
-      expect(await host.getConnectedClientCountAsync()).toBeNull();
+      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
     });
 
     it('returns the client count reported by the admin socket', async () => {
@@ -461,26 +441,26 @@ describe(startUptermHostAsync, () => {
       expect(await host.getConnectedClientCountAsync()).toBe(4);
     });
 
-    it('returns null (unknown) when the count query fails', async () => {
+    it('throws when the count query fails (after retries)', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
       mockedSpawn.mockImplementation((() => Promise.reject(new Error('socket gone'))) as never);
-      expect(await host.getConnectedClientCountAsync()).toBeNull();
+      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
     });
 
-    it('returns null (unknown) when the reported count is not a number', async () => {
+    it('throws when the reported count is not a number (after retries)', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
       sessionStdout = JSON.stringify({
         sessionId: 'TOKENx',
         host: 'relay.expo.dev',
         clientCount: 'nope',
       });
-      expect(await host.getConnectedClientCountAsync()).toBeNull();
+      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
     });
 
-    it('returns 0 when the socket dir cannot be read', async () => {
+    it('throws when the socket dir cannot be read (after retries)', async () => {
       const host = await startUptermHostAsync(makeCtx(), { relayServerUrl: 'wss://r' });
       mockedFs.readdir.mockRejectedValue(new Error('no dir') as never);
-      expect(await host.getConnectedClientCountAsync()).toBeNull();
+      await expect(host.getConnectedClientCountAsync()).rejects.toThrow(/client count/i);
     });
   });
 });

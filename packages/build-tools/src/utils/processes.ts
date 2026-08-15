@@ -1,16 +1,24 @@
+import { ChildProcess } from 'node:child_process';
+
 import spawn from '@expo/turtle-spawn';
 
+export function isChildProcessAlive(child: ChildProcess): boolean {
+  return child.exitCode === null && child.signalCode === null && !child.killed;
+}
+
 /**
- * Whether a spawned child is still running. Prefer this over checking exitCode alone —
- * signal-terminated children can have exitCode null with a non-null signalCode.
+ * Kill a detached spawn's process group. Negated pid targets the group so bash/sleep
+ * children cannot survive after the parent is gone (e.g. across upterm redial).
  */
-export function isChildProcessAlive(
-  child:
-    | { exitCode: number | null; signalCode: NodeJS.Signals | null; killed: boolean }
-    | null
-    | undefined
-): boolean {
-  return child != null && child.exitCode === null && child.signalCode === null && !child.killed;
+export function killProcessGroup(child: ChildProcess): void {
+  if (child.pid == null) {
+    return;
+  }
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    child.kill();
+  }
 }
 
 async function getChildrenPidsAsync(parentPids: number[]): Promise<number[]> {

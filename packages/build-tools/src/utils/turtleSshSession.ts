@@ -1,17 +1,15 @@
-import { Env, SshSettings, SystemError } from '@expo/eas-build-job';
+import { Generic, SshSettings, SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { graphql } from 'gql.tada';
 
+import { formatSecondsForLog } from './formatDuration';
 import { sleepAsync } from './retry';
 import { SshConnectionConfig, startUptermHostAsync } from './upterm';
 import { BuildContext } from '../context';
 
-// ~60s of backoff across failed dials (9 × 6s), plus dial time itself.
 const MAX_SSH_REDIALS = 10;
 const REDIAL_BACKOFF_MS = 6_000;
 const CLIENT_COUNT_POLL_INTERVAL_MS = 5_000;
-/** Cap how long an unreadable client count can block teardown after the job finishes. */
-const UNKNOWN_CLIENT_COUNT_GRACE_MS = 30_000;
 const MAX_SSH_IDLE_TIMEOUT_SECONDS = 3600;
 
 const CREATE_OR_UPDATE_TURTLE_SSH_SESSION_MUTATION = graphql(`
@@ -41,26 +39,16 @@ export type TurtleSshTarget =
   | { turtleJobRunId: string; turtleBuildId?: never }
   | { turtleJobRunId?: never; turtleBuildId: string };
 
-export type JobWithOptionalSsh = { ssh?: SshSettings };
-
-export function isWorkflowSshEnabled(job: JobWithOptionalSsh): boolean {
+export function isSshEnabled(job: Pick<Generic.Job, 'ssh'>): boolean {
   return job.ssh != null;
 }
 
-export function getWorkflowJobIdOrThrow(env: Env): string {
-  const workflowJobId = env.__WORKFLOW_JOB_ID;
-  if (!workflowJobId) {
-    throw new SystemError(
-      '__WORKFLOW_JOB_ID is not set. It should be present in the job environment when ssh is enabled.'
-    );
-  }
-  return workflowJobId;
-}
-
-export function getSshIdleTimeoutSeconds(job: JobWithOptionalSsh): number {
+export function getSshIdleTimeoutSeconds(job: Pick<Generic.Job, 'ssh'>): number {
   const idleTimeoutSeconds = job.ssh?.idleTimeoutSeconds;
   if (idleTimeoutSeconds == null) {
-    throw new SystemError('job.ssh.idleTimeoutSeconds is required when ssh is enabled on the job.');
+    throw new SystemError('SSH is enabled but the job is missing an idle timeout.', {
+      trackingCode: 'SSH_IDLE_TIMEOUT_MISSING',
+    });
   }
   if (
     !Number.isFinite(idleTimeoutSeconds) ||
@@ -69,37 +57,25 @@ export function getSshIdleTimeoutSeconds(job: JobWithOptionalSsh): number {
     idleTimeoutSeconds > MAX_SSH_IDLE_TIMEOUT_SECONDS
   ) {
     throw new SystemError(
-      `job.ssh.idleTimeoutSeconds must be an integer between 0 and ${MAX_SSH_IDLE_TIMEOUT_SECONDS}, got "${idleTimeoutSeconds}".`
+      `SSH idle timeout must be an integer between 0 and ${MAX_SSH_IDLE_TIMEOUT_SECONDS} seconds.`,
+      { trackingCode: 'SSH_IDLE_TIMEOUT_INVALID' }
     );
   }
   return idleTimeoutSeconds;
 }
 
-export function getSshRelayServerUrl(job: JobWithOptionalSsh): string {
+export function getSshRelayServerUrl(job: Pick<Generic.Job, 'ssh'>): string {
   const relayServerUrl = job.ssh?.relayServerUrl;
   if (!relayServerUrl) {
-    throw new SystemError(
-      'job.ssh.relayServerUrl is required when ssh is enabled on the job. The worker dials our SSH relay; the public upterm host is not allowed.'
-    );
+    throw new SystemError('SSH is enabled but no relay server URL was configured on the job.', {
+      trackingCode: 'SSH_RELAY_SERVER_URL_MISSING',
+    });
   }
   return relayServerUrl;
 }
 
-export function getTurtleSshTarget({
-  buildId,
-  hasPlatform,
-}: {
-  buildId: string;
-  hasPlatform: boolean;
-}): TurtleSshTarget {
-  if (hasPlatform) {
-    return { turtleBuildId: buildId };
-  }
-  return { turtleJobRunId: buildId };
-}
-
 export type SshSessionHandle = {
-  getConnectedClientCountAsync: () => Promise<number | null>;
+  getConnectedClientCountAsync: () => Promise<number>;
   ensureConnectedAsync: () => Promise<void>;
   stopAsync: () => Promise<void>;
 };
@@ -108,23 +84,6 @@ export type StartedSshSession = {
   handle: SshSessionHandle;
   idleTimeoutSeconds: number;
 };
-
-export function formatSshIdleTimeoutForLog(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts: string[] = [];
-  if (hours > 0) {
-    parts.push(hours === 1 ? '1 hour' : `${hours} hours`);
-  }
-  if (minutes > 0) {
-    parts.push(minutes === 1 ? '1 minute' : `${minutes} minutes`);
-  }
-  if (seconds > 0 || parts.length === 0) {
-    parts.push(seconds === 1 ? '1 second' : `${seconds} seconds`);
-  }
-  return parts.join(' ');
-}
 
 async function createOrUpdateSessionAsync(
   ctx: BuildContext,
@@ -151,12 +110,11 @@ async function createOrUpdateSessionAsync(
     .toPromise();
   if (result.error || !result.data) {
     throw new SystemError(
-      `Failed to create or update the SSH session: ${result.error?.message ?? 'no data returned'}`
+      `Failed to create or update the SSH session: ${result.error?.message ?? 'no data returned'}`,
+      { cause: result.error }
     );
   }
-  const session = result.data.turtleSshSession.createOrUpdateTurtleSshSession as {
-    sessionSettings: Pick<SshSettings, 'idleTimeoutSeconds'>;
-  };
+  const session = result.data.turtleSshSession.createOrUpdateTurtleSshSession;
   return { idleTimeoutSeconds: session.sessionSettings.idleTimeoutSeconds };
 }
 
@@ -228,79 +186,46 @@ export async function startSshSessionAsync(
   };
 }
 
-/**
- * Keeps the tunnel alive for as long as the session should stay reachable, and resolves once it
- * should be torn down. The idle timeout only starts counting once the job has finished, so the
- * tunnel is reachable for the whole job even when `idleTimeoutSeconds` is 0.
- */
 export async function superviseSshSessionAsync({
-  getConnectedClientCount,
-  ensureConnected,
+  handle,
   idleTimeoutSeconds,
   hasJobFinished,
   logger,
 }: {
-  getConnectedClientCount: () => Promise<number | null>;
-  ensureConnected: () => Promise<void>;
+  handle: SshSessionHandle;
   idleTimeoutSeconds: number;
   hasJobFinished: () => boolean;
   logger: bunyan;
 }): Promise<void> {
   const idleTimeoutMs = idleTimeoutSeconds * 1_000;
-  // When idle is 0, still allow a short window of unknown polls so a single failed
-  // `session current` does not tear down a live client. Cap it so we cannot hang forever.
-  const unknownGraceMs =
-    idleTimeoutSeconds === 0
-      ? UNKNOWN_CLIENT_COUNT_GRACE_MS
-      : Math.max(idleTimeoutMs, UNKNOWN_CLIENT_COUNT_GRACE_MS);
   let idleSince: number | null = null;
-  let unknownSince: number | null = null;
   let previousClientCount = 0;
 
   for (;;) {
     try {
-      await ensureConnected();
+      await handle.ensureConnectedAsync();
     } catch (err) {
       logger.warn({ err }, 'Could not restore the SSH relay connection. Closing the session.');
       return;
     }
-    const connectedClientCount = await getConnectedClientCount();
-    if (connectedClientCount !== null) {
-      if (connectedClientCount > previousClientCount) {
-        logger.info(
-          connectedClientCount === 1
-            ? 'An SSH client connected.'
-            : `An SSH client connected (${connectedClientCount} connected).`
-        );
-      } else if (connectedClientCount < previousClientCount) {
-        logger.info(
-          connectedClientCount === 0
-            ? 'The SSH client disconnected.'
-            : `An SSH client disconnected (${connectedClientCount} still connected).`
-        );
-      }
+
+    let connectedClientCount: number;
+    try {
+      connectedClientCount = await handle.getConnectedClientCountAsync();
+    } catch (err) {
+      logger.warn({ err }, 'Could not read the SSH client count. Closing the session.');
+      return;
+    }
+    if (connectedClientCount !== previousClientCount) {
+      logger.info(`SSH clients connected: ${connectedClientCount}`);
       previousClientCount = connectedClientCount;
     }
 
     const jobHasFinished = hasJobFinished();
-    if (connectedClientCount !== null && connectedClientCount > 0) {
+    if (connectedClientCount > 0 || !jobHasFinished) {
       idleSince = null;
-      unknownSince = null;
-    } else if (connectedClientCount === 0) {
-      unknownSince = null;
-      if (!jobHasFinished) {
-        idleSince = null;
-      } else if (idleSince === null) {
-        idleSince = Date.now();
-      }
-    } else {
-      // null = unknown: do not treat as idle (could still have a live client), but bound the wait.
-      idleSince = null;
-      if (!jobHasFinished) {
-        unknownSince = null;
-      } else if (unknownSince === null) {
-        unknownSince = Date.now();
-      }
+    } else if (idleSince === null) {
+      idleSince = Date.now();
     }
 
     if (jobHasFinished && connectedClientCount === 0) {
@@ -310,21 +235,10 @@ export async function superviseSshSessionAsync({
       }
       if (idleSince !== null && Date.now() - idleSince >= idleTimeoutMs) {
         logger.info(
-          `No SSH client connected for ${formatSshIdleTimeoutForLog(idleTimeoutSeconds)} after the job finished. Closing the session.`
+          `No SSH client connected for ${formatSecondsForLog(idleTimeoutSeconds)} after the job finished. Closing the session.`
         );
         return;
       }
-    }
-    if (
-      jobHasFinished &&
-      connectedClientCount === null &&
-      unknownSince !== null &&
-      Date.now() - unknownSince >= unknownGraceMs
-    ) {
-      logger.info(
-        'Could not determine whether an SSH client is still connected after the job finished. Closing the session.'
-      );
-      return;
     }
     await sleepAsync(CLIENT_COUNT_POLL_INTERVAL_MS);
   }

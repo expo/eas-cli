@@ -19,6 +19,7 @@ export {
 export { PackageManager } from './utils/packageManager';
 
 export * as TurtleSshSession from './utils/turtleSshSession';
+export { formatSecondsForLog } from './utils/formatDuration';
 
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
 
