@@ -36,8 +36,8 @@ export async function build({
     await ctx.runBuildPhase(
       BuildPhase.SPIN_UP_BUILDER,
       async () => {
-        await startXcodeBuildToolsPrewarming({ env: ctx.env, logger: ctx.logger });
         displayWorkerRuntimeInfo(ctx);
+        void startXcodeBuildToolsPrewarming({ env: ctx.env, logger: ctx.logger });
         ctx.logger.info(
           { job: omit(ctx.job, 'secrets', 'projectArchive') },
           'Builder is ready, starting build'
