@@ -2788,8 +2788,6 @@ ALIASES
   $ eas sim:start
 ```
 
-_See code: [packages/eas-cli/src/commands/simulator/start.ts](https://github.com/expo/eas-cli/blob/v22.0.0/packages/eas-cli/src/commands/simulator/start.ts)_
-
 ## `eas status`
 
 show a snapshot of the project: recent builds, dev builds, workflow runs, submissions, and updates
