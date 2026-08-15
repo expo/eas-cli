@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [worker] Prewarm Xcode interface and asset build tools in the background to reduce iOS build times. ([#4211](https://github.com/expo/eas-cli/pull/4211) by [@sjchmiela](https://github.com/sjchmiela))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Disallow 0-length uploads. ([#4192](https://github.com/expo/eas-cli/pull/4192) by [@wschurman](https://github.com/wschurman))
