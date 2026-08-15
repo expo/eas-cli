@@ -217,6 +217,17 @@ describe(ProjectStatus, () => {
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('waiting for capacity'));
   });
 
+  it('renders workflow run statuses unknown to this CLI version', async () => {
+    mockWorkflowRunsAsync.mockResolvedValue([
+      makeWorkflowRun({ status: 'PENDING_CANCEL' as WorkflowRunStatus }),
+    ]);
+
+    const command = createCommand([]);
+    await command.runAsync();
+
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('pending cancel'));
+  });
+
   it('handles a project with no activity in any section', async () => {
     mockViewBuildsOnAppAsync.mockResolvedValue([]);
     mockWorkflowRunsAsync.mockResolvedValue([]);
