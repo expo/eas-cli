@@ -2,7 +2,7 @@ import gql from 'graphql-tag';
 
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { GraphqlError, withErrorHandlingAsync } from '../client';
-import { WorkflowJobStatus, WorkflowJobType } from '../generated';
+import { WorkflowJobStatus } from '../generated';
 
 const FINAL_WORKFLOW_JOB_STATUSES = new Set<WorkflowJobStatus>([
   WorkflowJobStatus.Success,
@@ -33,7 +33,6 @@ type WorkflowJobSshPollQuery = {
     byId: {
       id: string;
       status: WorkflowJobStatus;
-      type: WorkflowJobType;
       workflowRun: {
         id: string;
         sshSettings: { idleTimeoutSeconds: number } | null;
@@ -53,10 +52,7 @@ function toConnectInfo(
 ): WorkflowJobSshConnectInfo {
   const hasTurtleTarget = job.turtleJobRun != null || job.turtleBuild != null;
   return {
-    sshRequested:
-      job.type !== WorkflowJobType.GetBuild &&
-      hasTurtleTarget &&
-      job.workflowRun.sshSettings != null,
+    sshRequested: hasTurtleTarget && job.workflowRun.sshSettings != null,
     jobCompleted: FINAL_WORKFLOW_JOB_STATUSES.has(job.status),
     session: job.turtleJobRun?.sshSession ?? job.turtleBuild?.sshSession ?? null,
   };
@@ -92,7 +88,6 @@ export const WorkflowJobSshQuery = {
                   byId(workflowJobId: $workflowJobId) {
                     id
                     status
-                    type
                     workflowRun {
                       id
                       sshSettings {

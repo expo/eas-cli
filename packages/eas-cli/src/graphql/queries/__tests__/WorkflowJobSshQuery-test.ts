@@ -1,6 +1,6 @@
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { GraphqlError } from '../../client';
-import { WorkflowJobStatus, WorkflowJobType } from '../../generated';
+import { WorkflowJobStatus } from '../../generated';
 import { WorkflowJobSshQuery } from '../WorkflowJobSshQuery';
 
 describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
@@ -18,7 +18,6 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
     const { graphqlClient, query } = makeClient({
       id: 'job-1',
       status: WorkflowJobStatus.InProgress,
-      type: WorkflowJobType.Custom,
       workflowRun: { sshSettings: { idleTimeoutSeconds: 0 } },
       turtleJobRun: {
         sshSession: {
@@ -46,12 +45,11 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
     );
   });
 
-  it('treats GET_BUILD as not ssh-requested even when the run has sshSettings', async () => {
+  it('is not ssh-requested when the run has no sshSettings', async () => {
     const { graphqlClient } = makeClient({
       id: 'job-1',
       status: WorkflowJobStatus.InProgress,
-      type: WorkflowJobType.GetBuild,
-      workflowRun: { sshSettings: { idleTimeoutSeconds: 0 } },
+      workflowRun: { sshSettings: null },
       turtleJobRun: null,
       turtleBuild: { sshSession: null },
     });
@@ -106,7 +104,6 @@ describe(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync.name, () => {
     const { graphqlClient } = makeClient({
       id: 'job-1',
       status: WorkflowJobStatus.Success,
-      type: WorkflowJobType.Build,
       workflowRun: { sshSettings: { idleTimeoutSeconds: 60 } },
       turtleJobRun: null,
       turtleBuild: {
