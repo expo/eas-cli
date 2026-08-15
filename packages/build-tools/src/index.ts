@@ -32,6 +32,11 @@ export * as TurtleSshSession from './utils/turtleSshSession';
 export { formatSecondsForLog } from './utils/formatDuration';
 
 export { findAndUploadXcodeBuildLogsAsync } from './ios/xcodeBuildLogs';
+export {
+  isXcodeCcacheCompilerLauncherSupported,
+  XCODE_CCACHE_COMPILER_LAUNCHER_ENV,
+  XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV,
+} from './ios/ccache';
 
 export { Hook, runHookIfPresent } from './utils/hooks';
 export { detectPnpmUnsupportedNodeVersionError } from './buildErrors/pnpmUnsupportedNodeVersionError';

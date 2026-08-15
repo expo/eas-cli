@@ -1,4 +1,9 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import {
+  RuntimeSettings,
+  XCODE_CCACHE_COMPILER_LAUNCHER_ENV,
+  XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV,
+  isXcodeCcacheCompilerLauncherSupported,
+} from '@expo/build-tools';
 import { Env, Job, Metadata, Platform, Workflow } from '@expo/eas-build-job';
 import { spawnSync } from 'child_process';
 import micromatch from 'micromatch';
@@ -65,7 +70,6 @@ export function getBuildEnv({
     }
 
     if (job.builderEnvironment?.env?.EAS_USE_CACHE === '1') {
-      setEnv(env, 'USE_CCACHE', '1');
       setEnv(env, 'CCACHE_CPP2', '1');
 
       // Locate ccache binary path if installed, otherwise command will provide a null value
@@ -73,6 +77,23 @@ export function getBuildEnv({
       const binPath = ccachePath.stdout?.toString().trim();
       if (binPath) {
         setEnv(env, 'CCACHE_BINARY', binPath);
+      }
+
+      // React Native's USE_CCACHE mode replaces Xcode's compiler settings with wrapper scripts.
+      // Xcode 26 cannot use explicit modules with those wrappers. An opted-in compatible build
+      // instead passes ccache through Xcode's compiler launcher setting when Fastlane starts.
+      const useCompilerLauncher =
+        job.builderEnvironment.env[XCODE_CCACHE_COMPILER_LAUNCHER_ENV] === '1' &&
+        binPath !== undefined &&
+        binPath.length > 0 &&
+        !/\s/.test(binPath) &&
+        isXcodeCcacheCompilerLauncherSupported(
+          spawnSync('xcodebuild', ['-version'], { env }).stdout?.toString() ?? ''
+        );
+      if (useCompilerLauncher) {
+        setEnv(env, XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV, '1');
+      } else {
+        setEnv(env, 'USE_CCACHE', '1');
       }
     }
   } else if (runnerPlatform === Platform.ANDROID) {

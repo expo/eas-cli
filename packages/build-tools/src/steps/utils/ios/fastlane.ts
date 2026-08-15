@@ -5,6 +5,7 @@ import path from 'path';
 
 import { COMMON_FASTLANE_ENV } from '../../../common/fastlane';
 import { XcodeBuildLogger } from '../../../common/xcpretty';
+import { getXcodeCcacheCompilerLauncherEnv } from '../../../ios/ccache';
 
 export async function runFastlaneGym({
   workingDir,
@@ -22,11 +23,14 @@ export async function runFastlaneGym({
   const buildLogger = new XcodeBuildLogger(logger, workingDir);
   void buildLogger.watchLogFiles(buildLogsDirectory);
   try {
+    const fastlaneEnv = { ...env, ...extraEnv };
     await runFastlane(['gym'], {
       cwd: path.join(workingDir, 'ios'),
       logger,
-      env,
-      extraEnv,
+      env: {
+        ...fastlaneEnv,
+        ...getXcodeCcacheCompilerLauncherEnv(fastlaneEnv, workingDir),
+      },
     });
   } finally {
     await buildLogger.flush();

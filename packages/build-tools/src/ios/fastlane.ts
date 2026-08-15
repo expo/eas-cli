@@ -7,6 +7,7 @@ import os from 'os';
 import path from 'path';
 
 import type { Credentials } from './credentials/manager';
+import { getXcodeCcacheCompilerLauncherEnv } from './ccache';
 import { createFastfileForResigningBuild } from './fastfile';
 import { createGymfileForArchiveBuild, createGymfileForSimulatorBuild } from './gymfile';
 import { isTVOS } from './tvos';
@@ -49,10 +50,14 @@ export async function runFastlaneGym<TJob extends Ios.Job>(
   const buildLogger = new XcodeBuildLogger(ctx.logger, ctx.getReactNativeProjectDirectory());
   void buildLogger.watchLogFiles(ctx.buildLogsDirectory);
   try {
+    const env = { ...ctx.env, ...extraEnv };
     await runFastlane(['gym'], {
       cwd: workspacePath,
       logger: ctx.logger,
-      env: { ...ctx.env, ...extraEnv },
+      env: {
+        ...env,
+        ...getXcodeCcacheCompilerLauncherEnv(env, ctx.getReactNativeProjectDirectory()),
+      },
     });
   } finally {
     await buildLogger.flush();

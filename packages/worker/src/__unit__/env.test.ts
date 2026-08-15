@@ -1,10 +1,19 @@
-import { RuntimeSettings } from '@expo/build-tools';
+import {
+  RuntimeSettings,
+  XCODE_CCACHE_COMPILER_LAUNCHER_ENV,
+  XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV,
+} from '@expo/build-tools';
 import { Platform, Workflow } from '@expo/eas-build-job';
+import { spawnSync } from 'child_process';
 import os from 'os';
 import v8 from 'v8';
 
 import config from '../config';
 import { getBuildEnv, getGradleMemoryOptions, getNodeMemoryOptions } from '../env';
+
+jest.mock('child_process', () => ({
+  spawnSync: jest.fn(),
+}));
 
 describe(getBuildEnv.name, () => {
   const originalSentryDsn = config.sentry.dsn;
@@ -24,6 +33,15 @@ describe(getBuildEnv.name, () => {
   };
 
   beforeEach(() => {
+    jest.mocked(spawnSync).mockImplementation((command: any) => {
+      if (command === 'command -v ccache') {
+        return { stdout: Buffer.from('/opt/homebrew/bin/ccache\n') } as any;
+      }
+      if (command === 'xcodebuild') {
+        return { stdout: Buffer.from('Xcode 26.6\nBuild version 17F113\n') } as any;
+      }
+      return { stdout: Buffer.alloc(0) } as any;
+    });
     delete process.env.EAS_BUILD_NPM_CACHE_URL;
     delete process.env.NPM_CACHE_URL;
     delete process.env.NVM_NODEJS_ORG_MIRROR;
@@ -176,6 +194,66 @@ describe(getBuildEnv.name, () => {
     });
 
     expect({ ...baseEnv, ...job.builderEnvironment.env }.EAS_USE_PRECOMPILED_MODULES).toBe('0');
+  });
+
+  it('uses the React Native ccache wrapper by default', () => {
+    const env = getBuildEnv({
+      job: createIosCacheJob(),
+      projectId: 'project-id',
+      metadata: createMetadata(),
+      buildId: 'build-id',
+    });
+
+    expect(env.USE_CCACHE).toBe('1');
+    expect(env.CCACHE_BINARY).toBe('/opt/homebrew/bin/ccache');
+    expect(env[XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV]).toBeUndefined();
+  });
+
+  it('selects the Xcode compiler launcher for an opted-in Xcode 26 build', () => {
+    const env = getBuildEnv({
+      job: createIosCacheJob({ [XCODE_CCACHE_COMPILER_LAUNCHER_ENV]: '1' }),
+      projectId: 'project-id',
+      metadata: createMetadata(),
+      buildId: 'build-id',
+    });
+
+    expect(env.USE_CCACHE).toBeUndefined();
+    expect(env.CCACHE_BINARY).toBe('/opt/homebrew/bin/ccache');
+    expect(env[XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV]).toBe('1');
+  });
+
+  it('keeps the React Native ccache wrapper on Xcode 25', () => {
+    jest.mocked(spawnSync).mockImplementation((command: any) => {
+      if (command === 'command -v ccache') {
+        return { stdout: Buffer.from('/opt/homebrew/bin/ccache\n') } as any;
+      }
+      return { stdout: Buffer.from('Xcode 25.4\nBuild version 16F6\n') } as any;
+    });
+
+    const env = getBuildEnv({
+      job: createIosCacheJob({ [XCODE_CCACHE_COMPILER_LAUNCHER_ENV]: '1' }),
+      projectId: 'project-id',
+      metadata: createMetadata(),
+      buildId: 'build-id',
+    });
+
+    expect(env.USE_CCACHE).toBe('1');
+    expect(env[XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV]).toBeUndefined();
+  });
+
+  it('keeps the React Native ccache wrapper when ccache is missing', () => {
+    jest.mocked(spawnSync).mockReturnValue({ stdout: Buffer.alloc(0) } as any);
+
+    const env = getBuildEnv({
+      job: createIosCacheJob({ [XCODE_CCACHE_COMPILER_LAUNCHER_ENV]: '1' }),
+      projectId: 'project-id',
+      metadata: createMetadata(),
+      buildId: 'build-id',
+    });
+
+    expect(env.USE_CCACHE).toBe('1');
+    expect(env.CCACHE_BINARY).toBeUndefined();
+    expect(env[XCODE_CCACHE_COMPILER_LAUNCHER_SUPPORTED_ENV]).toBeUndefined();
   });
 
   it('does not expose disabled Linux cache URLs in build env', () => {
@@ -375,4 +453,25 @@ function restoreEnv(key: string, value: string | undefined): void {
   } else {
     process.env[key] = value;
   }
+}
+
+function createIosCacheJob(extraEnv: Record<string, string> = {}): any {
+  return {
+    platform: Platform.IOS,
+    type: Workflow.GENERIC,
+    builderEnvironment: {
+      env: {
+        EAS_USE_CACHE: '1',
+        ...extraEnv,
+      },
+    },
+  };
+}
+
+function createMetadata(): any {
+  return {
+    buildProfile: 'production',
+    gitCommitHash: 'abc123',
+    username: 'expo-user',
+  };
 }
