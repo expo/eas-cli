@@ -11,6 +11,8 @@ import WorkflowSsh, {
   parseSshArgv,
   resolveSshConnectStatus,
   splitConnectionHost,
+  sshHostAliasForResource,
+  terminalSshStatusMessage,
 } from '../ssh';
 
 jest.mock('@expo/spawn-async', () => ({ __esModule: true, default: jest.fn() }));
@@ -175,6 +177,33 @@ describe(splitConnectionHost, () => {
   });
 });
 
+describe(terminalSshStatusMessage, () => {
+  it('has no message while the session can still open', () => {
+    expect(terminalSshStatusMessage('pending', 'job-1')).toBeNull();
+    expect(terminalSshStatusMessage('ready', 'job-1')).toBeNull();
+  });
+
+  it('distinguishes not-enabled from ended', () => {
+    expect(terminalSshStatusMessage('not-enabled', 'job-1')).toMatch(/SSH was not enabled/);
+    expect(terminalSshStatusMessage('ended', 'job-1')).toMatch(/has ended/);
+    expect(terminalSshStatusMessage('unknown', 'job-1')).toMatch(/No workflow job found/);
+  });
+});
+
+describe(sshHostAliasForResource, () => {
+  it('suffixes the alias with the start of the resource id', () => {
+    expect(sshHostAliasForResource('job-1')).toBe('eas-workflow-ssh-job1');
+  });
+
+  it('drops characters that are not safe in an ssh config host alias', () => {
+    expect(sshHostAliasForResource('a b\nHost evil')).toBe('eas-workflow-ssh-abHostev');
+  });
+
+  it('falls back to the bare alias when nothing usable remains', () => {
+    expect(sshHostAliasForResource('---')).toBe('eas-workflow-ssh');
+  });
+});
+
 describe(WorkflowSsh, () => {
   const graphqlClient = {} as never;
   const mockConnectInfo = jest.mocked(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync);
@@ -291,9 +320,14 @@ describe(WorkflowSsh, () => {
       expect.stringContaining('HostName relay.expo.dev'),
       { mode: 0o600 }
     );
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/tmp/eas-ssh-1/config',
+      expect.stringContaining('Host eas-workflow-ssh-job1'),
+      { mode: 0o600 }
+    );
     expect(mockSpawn).toHaveBeenCalledWith(
       'ssh',
-      ['-F', '/tmp/eas-ssh-1/config', 'eas-workflow-ssh', 'ls', '-la'],
+      ['-F', '/tmp/eas-ssh-1/config', 'eas-workflow-ssh-job1', 'ls', '-la'],
       { stdio: 'inherit' }
     );
     expect(mockRm).toHaveBeenCalledWith('/tmp/eas-ssh-1', { recursive: true, force: true });

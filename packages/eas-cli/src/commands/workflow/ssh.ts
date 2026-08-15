@@ -56,6 +56,28 @@ export function resolveSshConnectStatus(
   return jobCompleted ? 'ended' : 'pending';
 }
 
+export function terminalSshStatusMessage(
+  status: SshConnectStatus,
+  resourceId: string
+): string | null {
+  switch (status) {
+    case 'unknown':
+      return `No workflow job found for "${resourceId}". Pass a workflow job id from a run started with \`eas workflow:run --ssh\`.`;
+    case 'not-enabled':
+      return `SSH was not enabled for "${resourceId}". Start the run with \`eas workflow:run --ssh\` to enable it.`;
+    case 'ended':
+      return 'This ssh session has ended.';
+    case 'pending':
+    case 'ready':
+      return null;
+  }
+}
+
+export function sshHostAliasForResource(resourceId: string): string {
+  const suffix = resourceId.replace(/[^A-Za-z0-9]/g, '').slice(0, 8);
+  return suffix ? `eas-workflow-ssh-${suffix}` : 'eas-workflow-ssh';
+}
+
 export function parseSshArgv(rawArgv: readonly string[]): {
   showConnect: boolean;
   resourceId: string | undefined;
@@ -116,22 +138,9 @@ export default class WorkflowSsh extends EasCommand {
       resourceId
     );
     const status = resolveSshConnectStatus(connectInfo);
-    if (status === 'unknown') {
-      Log.error(
-        `No workflow job found for "${resourceId}". Pass a workflow job id from a run started with \`eas workflow:run --ssh\`.`
-      );
-      process.exitCode = 1;
-      return;
-    }
-    if (status === 'not-enabled') {
-      Log.error(
-        `SSH was not enabled for "${resourceId}". Start the run with \`eas workflow:run --ssh\` to enable it.`
-      );
-      process.exitCode = 1;
-      return;
-    }
-    if (status === 'ended') {
-      Log.error('This ssh session has ended.');
+    const statusMessage = terminalSshStatusMessage(status, resourceId);
+    if (statusMessage) {
+      Log.error(statusMessage);
       process.exitCode = 1;
       return;
     }
@@ -176,10 +185,11 @@ export default class WorkflowSsh extends EasCommand {
     const configDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-workflow-ssh-'));
     try {
       const configPath = path.join(configDir, 'config');
+      const hostAlias = sshHostAliasForResource(resourceId);
       await fs.promises.writeFile(
         configPath,
         [
-          'Host eas-workflow-ssh',
+          `Host ${hostAlias}`,
           `  HostName ${host}`,
           ...(port !== undefined ? [`  Port ${port}`] : []),
           `  User ${secret}`,
@@ -191,7 +201,7 @@ export default class WorkflowSsh extends EasCommand {
       );
 
       this.isRunningSubprocess = true;
-      await spawnAsync('ssh', ['-F', configPath, 'eas-workflow-ssh', ...command], {
+      await spawnAsync('ssh', ['-F', configPath, hostAlias, ...command], {
         stdio: 'inherit',
       });
     } finally {
@@ -229,8 +239,9 @@ async function waitForSessionToOpenAsync(
         workflowJobId
       );
       const status = resolveSshConnectStatus(connectInfo);
-      if (status === 'unknown' || status === 'not-enabled' || status === 'ended') {
-        spinner.fail('The ssh session ended before it opened.');
+      const statusMessage = terminalSshStatusMessage(status, workflowJobId);
+      if (statusMessage) {
+        spinner.fail(statusMessage);
         return null;
       }
       if (status === 'ready') {
