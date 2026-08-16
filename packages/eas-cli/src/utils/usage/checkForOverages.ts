@@ -137,6 +137,7 @@ export function displayOverageWarning({
   overageCostCents: number;
 }): void {
   const billingUrl = `https://expo.dev/accounts/${name}/settings/billing`;
+  const upgradeHint = ` Run ${formatStarterSubscribeCommand(name)} to upgrade to the Starter plan.`;
 
   if (tier === 'approaching') {
     const percentUsed = calculatePercentUsed(planValue, limit);
@@ -151,7 +152,7 @@ export function displayOverageWarning({
       hasFreePlan
         ? "You won't be able to start new builds once you reach the limit. " +
             link(billingUrl, { text: 'Upgrade your plan to continue service.', dim: false }) +
-            ` Run ${formatStarterSubscribeCommand(name)} to upgrade to the Starter plan.`
+            upgradeHint
         : 'Additional usage beyond your limit will be charged at pay-as-you-go rates. ' +
             link(billingUrl, { text: 'See usage in billing.', dim: false })
     );
@@ -166,7 +167,7 @@ export function displayOverageWarning({
       hasFreePlan
         ? 'New builds are blocked until your billing period resets. ' +
             link(billingUrl, { text: 'Upgrade your plan to continue building.', dim: false }) +
-            ` Run ${formatStarterSubscribeCommand(name)} to upgrade to the Starter plan.`
+            upgradeHint
         : 'Additional builds will be charged at pay-as-you-go rates. ' +
             link(billingUrl, { text: 'See usage in billing.', dim: false })
     );

@@ -14680,7 +14680,7 @@ export type AccountSubscriptionQueryVariables = Exact<{
 }>;
 
 
-export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null, status?: string | null, willCancel?: boolean | null } | null } } };
+export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null } | null } } };
 
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

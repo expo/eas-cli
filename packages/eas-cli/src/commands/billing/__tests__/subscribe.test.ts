@@ -17,32 +17,28 @@ jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log');
 jest.mock('../../../prompts');
 jest.mock('../../../utils/json');
-jest.mock('../../../ora', () => ({
-  ora: jest.fn(() => ({
-    start: jest.fn().mockReturnThis(),
-    succeed: jest.fn().mockReturnThis(),
-    fail: jest.fn().mockReturnThis(),
-  })),
-}));
+jest.mock('../../../ora');
+
+function billingAccount(
+  id: string,
+  name: string
+): { id: string; name: string; users: { actor: { id: string }; role: Role }[] } {
+  return { id, name, users: [{ actor: { id: 'actor-id' }, role: Role.Admin }] };
+}
+
+const STARTER_SUBSCRIPTION = { id: 'sub_1', name: 'Starter', planId: 'price_paid' };
+const FREE_SUBSCRIPTION = { id: 'sub_free', name: 'Free', planId: 'price_free' };
 
 describe(BillingSubscribe, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
-  const account = {
-    id: 'account-id',
-    name: 'testaccount',
-    users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-  };
+  const account = billingAccount('account-id', 'testaccount');
 
   const createCheckoutSessionAsync = jest.fn();
 
   function createCommand(
     argv: string[],
-    accounts: {
-      id: string;
-      name: string;
-      users: { actor: { id: string }; role: Role }[];
-    }[] = [account]
+    accounts: ReturnType<typeof billingAccount>[] = [account]
   ): BillingSubscribe {
     const command = new BillingSubscribe(argv, mockConfig);
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
@@ -69,7 +65,6 @@ describe(BillingSubscribe, () => {
   });
 
   it('creates a checkout session for a plan and prints the URL as JSON', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({
       id: 'cs_123',
       url: 'https://checkout.stripe.com/c/pay/cs_123',
@@ -85,7 +80,6 @@ describe(BillingSubscribe, () => {
   });
 
   it('maps each plan slug to its server PlanType', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
 
     await createCommand(['production', '--json']).runAsync();
@@ -110,18 +104,16 @@ describe(BillingSubscribe, () => {
   });
 
   it('prompts for an account before prompting for a plan', async () => {
-    const secondAccount = {
-      id: 'second-account-id',
-      name: 'second-account',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
     jest
       .mocked(selectAsync)
       .mockImplementationOnce(async (_message, choices) => choices[0].value)
       .mockResolvedValueOnce('production');
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
 
-    await createCommand([], [account, secondAccount]).runAsync();
+    await createCommand(
+      [],
+      [account, billingAccount('second-account-id', 'second-account')]
+    ).runAsync();
 
     expect(jest.mocked(selectAsync).mock.calls.map(([message]) => message)).toEqual([
       'Select an account:',
@@ -138,34 +130,14 @@ describe(BillingSubscribe, () => {
   });
 
   it('shows current plans and disables subscribed accounts in the account prompt', async () => {
-    const subscribedAccount = {
-      id: 'subscribed-id',
-      name: 'subscribed',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
-    const freeAccount = {
-      id: 'free-id',
-      name: 'free',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
-    const secondFreeAccount = {
-      id: 'second-free-id',
-      name: 'second-free',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
+    const subscribedAccount = billingAccount('subscribed-id', 'subscribed');
+    const freeAccount = billingAccount('free-id', 'free');
+    const secondFreeAccount = billingAccount('second-free-id', 'second-free');
     jest
       .mocked(AccountQuery.getSubscriptionAsync)
-      .mockImplementation(async (_client, accountId) => {
-        return accountId === subscribedAccount.id
-          ? {
-              id: 'sub_1',
-              name: 'Starter',
-              planId: 'price_paid',
-              status: 'active',
-              willCancel: false,
-            }
-          : null;
-      });
+      .mockImplementation(async (_client, accountId) =>
+        accountId === subscribedAccount.id ? STARTER_SUBSCRIPTION : null
+      );
     jest.mocked(selectAsync).mockImplementation(async (_message, choices) => choices[0].value);
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
 
@@ -194,13 +166,7 @@ describe(BillingSubscribe, () => {
           value: {
             id: 'subscribed-id',
             name: 'subscribed',
-            subscription: {
-              id: 'sub_1',
-              name: 'Starter',
-              planId: 'price_paid',
-              status: 'active',
-              willCancel: false,
-            },
+            subscription: STARTER_SUBSCRIPTION,
           },
           description: 'Current plan: Starter',
           disabled: true,
@@ -215,34 +181,13 @@ describe(BillingSubscribe, () => {
     expect(createCheckoutSessionAsync).toHaveBeenCalledWith('free-id', 'STARTER');
   });
 
-  it('returns the current plan when an explicitly selected account is already subscribed', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
-      id: 'sub_1',
-      name: 'Starter',
-      planId: 'price_1RZD7tEnlKOkR6exdebL1Fhi',
-      status: 'active',
-      willCancel: false,
-    });
+  it.each([
+    ['an explicitly selected account is', ['production', '--account', 'testaccount', '--json']],
+    ['the only account is', ['production', '--json']],
+  ])('returns the current plan when %s already subscribed', async (_case, argv) => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(STARTER_SUBSCRIPTION);
 
-    await createCommand(['production', '--account', 'testaccount', '--json']).runAsync();
-
-    expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
-    expect(printJsonOnlyOutput).toHaveBeenCalledWith({
-      alreadySubscribed: true,
-      currentPlan: 'Starter',
-    });
-  });
-
-  it('returns the current plan when the only account is already subscribed', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
-      id: 'sub_1',
-      name: 'Starter',
-      planId: 'price_1RZD7tEnlKOkR6exdebL1Fhi',
-      status: 'active',
-      willCancel: false,
-    });
-
-    await createCommand(['production', '--json']).runAsync();
+    await createCommand(argv).runAsync();
 
     expect(createCheckoutSessionAsync).not.toHaveBeenCalled();
     expect(printJsonOnlyOutput).toHaveBeenCalledWith({
@@ -252,13 +197,7 @@ describe(BillingSubscribe, () => {
   });
 
   it('reports an explicitly selected subscribed account before prompting for a plan', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
-      id: 'sub_1',
-      name: 'Starter',
-      planId: 'price_1RZD7tEnlKOkR6exdebL1Fhi',
-      status: 'active',
-      willCancel: false,
-    });
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(STARTER_SUBSCRIPTION);
 
     await createCommand(['--account', 'testaccount']).runAsync();
 
@@ -271,13 +210,7 @@ describe(BillingSubscribe, () => {
   });
 
   it('treats the free plan as not subscribed', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
-      id: 'sub_free',
-      name: 'Free',
-      planId: 'price_free',
-      status: 'active',
-      willCancel: false,
-    });
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(FREE_SUBSCRIPTION);
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
 
     await createCommand(['starter', '--json']).runAsync();
@@ -285,37 +218,28 @@ describe(BillingSubscribe, () => {
     expect(createCheckoutSessionAsync).toHaveBeenCalledWith('account-id', 'STARTER');
   });
 
-  it('prints the checkout URL as text without opening a browser in non-interactive mode', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
-    createCheckoutSessionAsync.mockResolvedValue({
-      id: 'cs',
-      url: 'https://checkout.stripe.com/pay',
-    });
-    await createCommand(['starter', '--non-interactive']).runAsync();
+  it.each([['--non-interactive'], ['--no-open']])(
+    'prints the checkout URL without opening a browser with %s',
+    async flag => {
+      createCheckoutSessionAsync.mockResolvedValue({
+        id: 'cs',
+        url: 'https://checkout.stripe.com/pay',
+      });
 
-    expect(open).not.toHaveBeenCalled();
-    expect(printJsonOnlyOutput).not.toHaveBeenCalled();
-    expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
-  });
+      await createCommand(['starter', flag]).runAsync();
 
-  it('prints the checkout URL without opening a browser with --no-open', async () => {
-    createCheckoutSessionAsync.mockResolvedValue({
-      id: 'cs',
-      url: 'https://checkout.stripe.com/pay',
-    });
-
-    await createCommand(['starter', '--no-open']).runAsync();
-
-    expect(open).not.toHaveBeenCalled();
-    expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
-  });
+      expect(open).not.toHaveBeenCalled();
+      expect(printJsonOnlyOutput).not.toHaveBeenCalled();
+      expect(link).toHaveBeenCalledWith('https://checkout.stripe.com/pay');
+    }
+  );
 
   it('returns structured JSON with the checkout URL and does not open a browser', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({
       id: 'cs',
       url: 'https://checkout.stripe.com/pay',
     });
+
     await createCommand(['starter', '--json']).runAsync();
 
     expect(open).not.toHaveBeenCalled();
@@ -327,10 +251,7 @@ describe(BillingSubscribe, () => {
 
   it.each([
     ['checkout', null],
-    [
-      'already subscribed',
-      { id: 'sub_1', name: 'Starter', planId: 'price_paid', status: 'active', willCancel: false },
-    ],
+    ['already subscribed', STARTER_SUBSCRIPTION],
   ])(
     'does not emit null JSON values, which printJsonOnlyOutput strips (%s)',
     async (_case, subscription) => {
@@ -345,7 +266,6 @@ describe(BillingSubscribe, () => {
   );
 
   it('throws when the checkout session has no URL', async () => {
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: null });
 
     await expect(createCommand(['starter', '--json']).runAsync()).rejects.toThrow(

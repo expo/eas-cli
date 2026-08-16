@@ -11,6 +11,7 @@ describe(resolveBillingAccountAsync, () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(null);
   });
 
   function account(name: string, role: Role): Actor['accounts'][number] {
@@ -25,43 +26,34 @@ describe(resolveBillingAccountAsync, () => {
     return { id: 'actor-id', accounts } as Actor;
   }
 
+  async function resolveAsync(
+    accounts: Actor['accounts'],
+    accountName?: string
+  ): ReturnType<typeof resolveBillingAccountAsync> {
+    return await resolveBillingAccountAsync({
+      graphqlClient,
+      actor: actor(accounts),
+      accountName,
+      nonInteractive: true,
+      subscriptionFilter: 'unsubscribed',
+    });
+  }
+
   it('automatically selects the only account with billing permission', async () => {
-    const adminAccount = account('admin', Role.Admin);
-
     await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([account('viewer', Role.ViewOnly), adminAccount]),
-        accountName: undefined,
-        nonInteractive: true,
-      })
-    ).resolves.toBe(adminAccount);
+      resolveAsync([account('viewer', Role.ViewOnly), account('admin', Role.Admin)])
+    ).resolves.toEqual({ id: 'admin-id', name: 'admin', subscription: null });
   });
 
-  it('allows account owners to manage billing', async () => {
-    const ownerAccount = account('owner', Role.Owner);
-
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([ownerAccount]),
-        accountName: undefined,
-        nonInteractive: true,
-      })
-    ).resolves.toBe(ownerAccount);
-  });
-
-  it('allows custom roles with admin permission to manage billing', async () => {
-    const adminAccount = account('custom-admin', Role.HasAdmin);
-
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([adminAccount]),
-        accountName: undefined,
-        nonInteractive: true,
-      })
-    ).resolves.toBe(adminAccount);
+  it.each([
+    ['account owners', Role.Owner],
+    ['custom roles with admin permission', Role.HasAdmin],
+  ])('allows %s to manage billing', async (_case, role) => {
+    await expect(resolveAsync([account('team', role)])).resolves.toEqual({
+      id: 'team-id',
+      name: 'team',
+      subscription: null,
+    });
   });
 
   it('allows the owner of a personal account to manage billing', async () => {
@@ -71,25 +63,17 @@ describe(resolveBillingAccountAsync, () => {
       users: [],
     } as Actor['accounts'][number];
 
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([ownerAccount]),
-        accountName: undefined,
-        nonInteractive: true,
-      })
-    ).resolves.toBe(ownerAccount);
+    await expect(resolveAsync([ownerAccount])).resolves.toEqual({
+      id: 'personal-id',
+      name: 'personal',
+      subscription: null,
+    });
   });
 
   it('rejects an explicitly selected account without billing permission', async () => {
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([account('developer', Role.Developer)]),
-        accountName: 'developer',
-        nonInteractive: true,
-      })
-    ).rejects.toThrow('You must be an Owner or Admin of account "developer" to manage billing.');
+    await expect(resolveAsync([account('developer', Role.Developer)], 'developer')).rejects.toThrow(
+      'You must be an Owner or Admin of account "developer" to manage billing.'
+    );
     expect(AccountQuery.getByNameAsync).not.toHaveBeenCalled();
   });
 
@@ -100,24 +84,14 @@ describe(resolveBillingAccountAsync, () => {
       viewerUserPermission: { id: 'viewer-permission-id', permissions: [Permission.View] },
     });
 
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([]),
-        accountName: 'viewer',
-        nonInteractive: true,
-      })
-    ).rejects.toThrow('You must be an Owner or Admin of account "viewer" to manage billing.');
+    await expect(resolveAsync([], 'viewer')).rejects.toThrow(
+      'You must be an Owner or Admin of account "viewer" to manage billing.'
+    );
   });
 
   it('fails when no account has billing permission', async () => {
-    await expect(
-      resolveBillingAccountAsync({
-        graphqlClient,
-        actor: actor([account('viewer', Role.ViewOnly)]),
-        accountName: undefined,
-        nonInteractive: true,
-      })
-    ).rejects.toThrow('You must be an Owner or Admin of at least one account to manage billing.');
+    await expect(resolveAsync([account('viewer', Role.ViewOnly)])).rejects.toThrow(
+      'You must be an Owner or Admin of at least one account to manage billing.'
+    );
   });
 });

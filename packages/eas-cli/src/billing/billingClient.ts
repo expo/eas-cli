@@ -11,10 +11,6 @@ export type CustomerPortalSession = {
   url: string;
 };
 
-/**
- * Wraps the `stripe-auth` apiv2 REST endpoints. These require an account ADMIN actor and
- * work with either a session secret or an access token (`EXPO_TOKEN`).
- */
 export class BillingClient {
   private readonly apiV2Client: ApiV2Client;
 
@@ -26,7 +22,6 @@ export class BillingClient {
     accountId: string,
     planType: CheckoutPlanType
   ): Promise<CheckoutSession> {
-    // apiv2 wraps JSON responses as `{ data: <payload> }`, so unwrap `data` here.
     const { data } = await this.apiV2Client.postAsync('stripe-auth/checkout', {
       body: { accountId, planType },
     });

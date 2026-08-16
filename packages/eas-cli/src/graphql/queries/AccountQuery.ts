@@ -304,8 +304,6 @@ export const AccountQuery = {
                     id
                     name
                     planId
-                    status
-                    willCancel
                   }
                 }
               }

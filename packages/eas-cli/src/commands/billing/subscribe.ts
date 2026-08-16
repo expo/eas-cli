@@ -9,7 +9,6 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
-import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
 import { selectAsync } from '../../prompts';
@@ -65,10 +64,7 @@ export default class BillingSubscribe extends EasCommand {
       subscriptionFilter: 'unsubscribed',
     });
 
-    const subscription =
-      account.subscription === undefined
-        ? await AccountQuery.getSubscriptionAsync(graphqlClient, account.id)
-        : account.subscription;
+    const { subscription } = account;
 
     if (hasPaidSubscription(subscription)) {
       if (json) {

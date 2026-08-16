@@ -16,26 +16,28 @@ jest.mock('../../../graphql/queries/AccountQuery');
 jest.mock('../../../log');
 jest.mock('../../../prompts');
 jest.mock('../../../utils/json');
-jest.mock('../../../ora', () => ({
-  ora: jest.fn(() => ({
-    start: jest.fn().mockReturnThis(),
-    succeed: jest.fn().mockReturnThis(),
-    fail: jest.fn().mockReturnThis(),
-  })),
-}));
+jest.mock('../../../ora');
+
+function billingAccount(
+  id: string,
+  name: string
+): { id: string; name: string; users: { actor: { id: string }; role: Role }[] } {
+  return { id, name, users: [{ actor: { id: 'actor-id' }, role: Role.Admin }] };
+}
+
+const STARTER_SUBSCRIPTION = { id: 'sub_1', name: 'Starter', planId: 'price_paid' };
 
 describe(BillingManage, () => {
   const graphqlClient = {} as ExpoGraphqlClient;
   const mockConfig = getMockOclifConfig();
-  const account = {
-    id: 'account-id',
-    name: 'testaccount',
-    users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-  };
+  const account = billingAccount('account-id', 'testaccount');
 
   const createCustomerPortalSessionAsync = jest.fn();
 
-  function createCommand(argv: string[], accounts = [account]): BillingManage {
+  function createCommand(
+    argv: string[],
+    accounts: ReturnType<typeof billingAccount>[] = [account]
+  ): BillingManage {
     const command = new BillingManage(argv, mockConfig);
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
       loggedIn: {
@@ -49,13 +51,7 @@ describe(BillingManage, () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue({
-      id: 'sub_1',
-      name: 'Starter',
-      planId: 'price_paid',
-      status: 'active',
-      willCancel: false,
-    });
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(STARTER_SUBSCRIPTION);
     jest.mocked(ora).mockReturnValue({
       start: jest.fn().mockReturnThis(),
       succeed: jest.fn().mockReturnThis(),
@@ -100,30 +96,17 @@ describe(BillingManage, () => {
   });
 
   it('only shows accounts with active paid plans', async () => {
-    const freeAccount = {
-      id: 'free-account-id',
-      name: 'free-account',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
-    const productionAccount = {
-      id: 'production-account-id',
-      name: 'production-account',
-      users: [{ actor: { id: 'actor-id' }, role: Role.Admin }],
-    };
-    jest
-      .mocked(AccountQuery.getSubscriptionAsync)
-      .mockImplementation(async (_client, accountId) => {
-        if (accountId === freeAccount.id) {
-          return null;
-        }
-        return {
-          id: `subscription-${accountId}`,
-          name: accountId === productionAccount.id ? 'Production' : 'Starter',
-          planId: `price-${accountId}`,
-          status: 'active',
-          willCancel: false,
-        };
-      });
+    const freeAccount = billingAccount('free-account-id', 'free-account');
+    const productionAccount = billingAccount('production-account-id', 'production-account');
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockImplementation(async (_client, accountId) =>
+      accountId === freeAccount.id
+        ? null
+        : {
+            id: `subscription-${accountId}`,
+            name: accountId === productionAccount.id ? 'Production' : 'Starter',
+            planId: `price-${accountId}`,
+          }
+    );
     jest.mocked(selectAsync).mockImplementation(async (_message, choices) => choices[1].value);
     createCustomerPortalSessionAsync.mockResolvedValue({
       url: 'https://billing.stripe.com/session',
@@ -143,11 +126,10 @@ describe(BillingManage, () => {
               id: 'subscription-account-id',
               name: 'Starter',
               planId: 'price-account-id',
-              status: 'active',
-              willCancel: false,
             },
           },
           description: 'Current plan: Starter',
+          disabled: false,
         },
         {
           title: 'production-account',
@@ -158,11 +140,10 @@ describe(BillingManage, () => {
               id: 'subscription-production-account-id',
               name: 'Production',
               planId: 'price-production-account-id',
-              status: 'active',
-              willCancel: false,
             },
           },
           description: 'Current plan: Production',
+          disabled: false,
         },
       ],
       expect.any(Object)
