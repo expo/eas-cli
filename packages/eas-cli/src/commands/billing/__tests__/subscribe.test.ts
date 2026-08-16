@@ -35,6 +35,7 @@ describe(BillingSubscribe, () => {
   const account = billingAccount('account-id', 'testaccount');
 
   const createCheckoutSessionAsync = jest.fn();
+  const logEvent = jest.fn();
 
   function createCommand(
     argv: string[],
@@ -42,6 +43,7 @@ describe(BillingSubscribe, () => {
   ): BillingSubscribe {
     const command = new BillingSubscribe(argv, mockConfig);
     jest.spyOn(command as any, 'getContextAsync').mockResolvedValue({
+      analytics: { logEvent },
       loggedIn: {
         graphqlClient,
         actor: { id: 'actor-id', accounts },
@@ -264,6 +266,36 @@ describe(BillingSubscribe, () => {
       expect(Object.values(payload)).not.toContain(null);
     }
   );
+
+  it.each([
+    ['--json', true],
+    ['--no-open', false],
+  ])('reports the subscribe command to analytics (%s)', async (flag, json) => {
+    createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: 'https://checkout' });
+
+    await createCommand(['production', flag]).runAsync();
+
+    expect(logEvent).toHaveBeenCalledWith('billing cli subscribe command', {
+      account_id: 'account-id',
+      json,
+      non_interactive: json,
+      already_subscribed: false,
+      plan: 'production',
+    });
+  });
+
+  it('reports an idempotent subscribe to analytics without a plan', async () => {
+    jest.mocked(AccountQuery.getSubscriptionAsync).mockResolvedValue(STARTER_SUBSCRIPTION);
+
+    await createCommand(['production', '--json']).runAsync();
+
+    expect(logEvent).toHaveBeenCalledWith('billing cli subscribe command', {
+      account_id: 'account-id',
+      json: true,
+      non_interactive: true,
+      already_subscribed: true,
+    });
+  });
 
   it('throws when the checkout session has no URL', async () => {
     createCheckoutSessionAsync.mockResolvedValue({ id: 'cs', url: null });

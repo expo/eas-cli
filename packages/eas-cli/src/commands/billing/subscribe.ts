@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 
+import { BillingEvent } from '../../analytics/AnalyticsManager';
 import { BillingClient } from '../../billing/billingClient';
 import { openOrPrintUrlAsync } from '../../billing/openUrl';
 import { PLAN_SLUGS, PlanSlug, SUBSCRIBABLE_PLANS, hasPaidSubscription } from '../../billing/plans';
@@ -38,6 +39,7 @@ export default class BillingSubscribe extends EasCommand {
 
   static override contextDefinition = {
     ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Analytics,
   };
 
   async runAsync(): Promise<void> {
@@ -53,6 +55,7 @@ export default class BillingSubscribe extends EasCommand {
     let planSlug = PLAN as PlanSlug | undefined;
 
     const {
+      analytics,
       loggedIn: { graphqlClient, actor, authenticationInfo },
     } = await this.getContextAsync(BillingSubscribe, { nonInteractive });
 
@@ -64,9 +67,19 @@ export default class BillingSubscribe extends EasCommand {
       subscriptionFilter: 'unsubscribed',
     });
 
+    const analyticsProperties = {
+      account_id: account.id,
+      json,
+      non_interactive: nonInteractive,
+    };
+
     const { subscription } = account;
 
     if (hasPaidSubscription(subscription)) {
+      analytics.logEvent(BillingEvent.SUBSCRIBE_COMMAND, {
+        ...analyticsProperties,
+        already_subscribed: true,
+      });
       if (json) {
         printJsonOnlyOutput({
           alreadySubscribed: true,
@@ -98,6 +111,12 @@ export default class BillingSubscribe extends EasCommand {
     }
 
     const plan = SUBSCRIBABLE_PLANS[planSlug];
+
+    analytics.logEvent(BillingEvent.SUBSCRIBE_COMMAND, {
+      ...analyticsProperties,
+      already_subscribed: false,
+      plan: planSlug,
+    });
 
     const billingClient = new BillingClient(authenticationInfo);
 
