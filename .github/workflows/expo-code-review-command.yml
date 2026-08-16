@@ -85,7 +85,7 @@ jobs:
       # model as the pull_request workflow.
       - name: Checkout (base ref only — never the PR head)
         if: steps.cmd.outputs.run == 'true'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           # The CLI's git fetches authenticate through `gh` from GH_TOKEN; keep the
@@ -100,7 +100,7 @@ jobs:
 
       - name: Set up Node
         if: steps.cmd.outputs.run == 'true'
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           # No yarn install here (runs via npx) — disable the auto yarn cache so the
