@@ -21,8 +21,8 @@ jest.mock('../../../ora');
 function billingAccount(
   id: string,
   name: string
-): { id: string; name: string; users: { actor: { id: string }; role: Role }[] } {
-  return { id, name, users: [{ actor: { id: 'actor-id' }, role: Role.Admin }] };
+): { id: string; name: string; viewerUserPermission: { role: Role } } {
+  return { id, name, viewerUserPermission: { role: Role.Admin } };
 }
 
 const STARTER_SUBSCRIPTION = { id: 'sub_1', name: 'Starter', planId: 'price_paid' };

@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add support for Appium EAS Simulator sessions. ([#4190](https://github.com/expo/eas-cli/pull/4190) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Add `eas billing:subscribe <plan>` to start a Stripe checkout for an EAS plan, and `eas billing:manage` to open the Stripe customer portal. ([#4007](https://github.com/expo/eas-cli/pull/4007) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 
@@ -215,7 +216,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Add `eas/posthog_upload_sourcemaps` workflow function to upload source maps to PostHog. ([#3947](https://github.com/expo/eas-cli/pull/3947) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/posthog_annotation` workflow function to create PostHog annotations from workflow runs. ([#3948](https://github.com/expo/eas-cli/pull/3948) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add `eas/posthog_wait_for_query` workflow function to gate workflow runs on a PostHog query. ([#3949](https://github.com/expo/eas-cli/pull/3949) by [@gwdp](https://github.com/gwdp))
-- [eas-cli] Add `eas billing:subscribe <plan>` to start a Stripe checkout for an EAS plan, and `eas billing:manage` to open the Stripe customer portal. ([#4007](https://github.com/expo/eas-cli/pull/4007) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 

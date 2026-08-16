@@ -432,7 +432,7 @@ DESCRIPTION
   manage billing for an account with an active paid EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v21.4.0/packages/eas-cli/src/commands/billing/manage.ts)_
+_See code: [packages/eas-cli/src/commands/billing/manage.ts](https://github.com/expo/eas-cli/blob/v22.0.0/packages/eas-cli/src/commands/billing/manage.ts)_
 
 ## `eas billing:subscribe [PLAN]`
 
@@ -455,7 +455,7 @@ DESCRIPTION
   subscribe a Free account to an EAS plan
 ```
 
-_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v21.4.0/packages/eas-cli/src/commands/billing/subscribe.ts)_
+_See code: [packages/eas-cli/src/commands/billing/subscribe.ts](https://github.com/expo/eas-cli/blob/v22.0.0/packages/eas-cli/src/commands/billing/subscribe.ts)_
 
 ## `eas branch:create [NAME]`
 

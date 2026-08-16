@@ -21,7 +21,7 @@ function hasBillingRole(actor: Actor, account: Actor['accounts'][number]): boole
   if (account.ownerUserActor?.id === actor.id) {
     return true;
   }
-  const role = account.users.find(user => user.actor.id === actor.id)?.role;
+  const { role } = account.viewerUserPermission;
   return role === Role.Admin || role === Role.Owner || role === Role.HasAdmin;
 }
 

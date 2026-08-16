@@ -18,7 +18,7 @@ describe(resolveBillingAccountAsync, () => {
     return {
       id: `${name}-id`,
       name,
-      users: [{ actor: { id: 'actor-id' }, role }],
+      viewerUserPermission: { role },
     } as Actor['accounts'][number];
   }
 
@@ -60,7 +60,6 @@ describe(resolveBillingAccountAsync, () => {
     const ownerAccount = {
       ...account('personal', Role.ViewOnly),
       ownerUserActor: { __typename: 'User', id: 'actor-id', username: 'personal' },
-      users: [],
     } as Actor['accounts'][number];
 
     await expect(resolveAsync([ownerAccount])).resolves.toEqual({
