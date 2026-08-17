@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
+import semver from 'semver';
 import { Analytics } from '../analytics/AnalyticsManager';
 import EasCommand from '../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -59,6 +60,11 @@ export async function detectProjectSdkVersionAsync(
   } catch {
     return;
   }
+}
+
+export function toRepackTargetSdkVersion(sdkVersion: string | undefined): string | undefined {
+  const coerced = semver.coerce(sdkVersion);
+  return coerced ? `${coerced.major}.0.0` : sdkVersion;
 }
 
 async function setupTestFlightAsync(ascApp: App): Promise<void> {
@@ -120,7 +126,8 @@ export default class Go extends EasCommand {
       default: 'My Expo Go',
     }),
     'sdk-version': Flags.string({
-      description: 'Expo Go SDK version to prepare (default: latest)',
+      description:
+        'Expo Go SDK version to prepare, for example 57 (default: the SDK version of the current project)',
       required: false,
     }),
     credentials: Flags.boolean({
@@ -157,7 +164,7 @@ export default class Go extends EasCommand {
         `Current project using SDK ${detectedSdkVersion.split('.')[0]}. Auto-selected same version. To use a different version, pass --sdk-version.`
       );
     }
-    let sdkVersion = flags['sdk-version'] ?? detectedSdkVersion;
+    let sdkVersion = toRepackTargetSdkVersion(flags['sdk-version'] ?? detectedSdkVersion);
     if (!sdkVersion) {
       ({ sdkVersion } = await this.selectSdkVersionAsync(graphqlClient));
     }

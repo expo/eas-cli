@@ -11,7 +11,7 @@ import { getPrivateExpoConfigAsync } from '../../project/expoConfig';
 import { uploadAccountScopedFileAsync } from '../../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../../project/uploadAccountScopedProjectSourceAsync';
 import { ensureActorHasPrimaryAccount } from '../../user/actions';
-import { detectProjectSdkVersionAsync } from '../../commands/go';
+import { detectProjectSdkVersionAsync, toRepackTargetSdkVersion } from '../../commands/go';
 import { mockTestCommand } from './utils';
 
 jest.mock('@expo/config', () => ({
@@ -81,6 +81,25 @@ describe('detectProjectSdkVersionAsync', () => {
   });
 });
 
+describe('toRepackTargetSdkVersion', () => {
+  it.each([
+    ['57', '57.0.0'],
+    ['57.0.0', '57.0.0'],
+    ['57.0.9', '57.0.0'],
+    ['57.0.0-canary-20260101', '57.0.0'],
+  ])('resolves %s to the %s repack target', (sdkVersion, expected) => {
+    expect(toRepackTargetSdkVersion(sdkVersion)).toBe(expected);
+  });
+
+  it('returns undefined when no version is requested', () => {
+    expect(toRepackTargetSdkVersion(undefined)).toBeUndefined();
+  });
+
+  it('returns the requested version unchanged when it holds no version number', () => {
+    expect(toRepackTargetSdkVersion('latest')).toBe('latest');
+  });
+});
+
 const mockAccount = { id: 'account-id', name: 'testuser' };
 const mockActor = {
   __typename: 'User' as const,
@@ -147,6 +166,17 @@ describe('Go command', () => {
     await makeCmd(['--sdk-version', '55.0.0']).run();
 
     expect(Log.log).not.toHaveBeenCalledWith(expect.stringContaining('Auto-selected'));
+  });
+
+  it('requests the repack configuration with the repack target SDK version', async () => {
+    mockGetConfigFilePaths.mockReturnValue({ staticConfigPath: null, dynamicConfigPath: null });
+
+    await makeCmd(['--sdk-version', '57']).run();
+
+    expect(WorkflowRunQuery.expoGoRepackConfigurationAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ sdkVersion: '57.0.0' })
+    );
   });
 
   it('prompts for SDK version when no project config is found', async () => {
