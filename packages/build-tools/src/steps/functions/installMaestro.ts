@@ -272,7 +272,7 @@ async function installMaestro({
 
 async function isIdbInstalled({ env }: { env: BuildStepEnv }): Promise<boolean> {
   try {
-    await spawn('idb', ['-h'], { ignoreStdio: true, env });
+    await spawn('idb_companion', ['--version'], { ignoreStdio: true, env });
     return true;
   } catch {
     return false;
