@@ -50,11 +50,12 @@ describe('AndroidEmulatorUtils', () => {
 
   describe(AndroidEmulatorUtils.startAsync, () => {
     function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+      // Under `stdio: 'pipe'` these are net.Sockets, so they carry `unref()`.
       const child = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: jest.fn(),
-        stdout: new PassThrough(),
-        stderr: new PassThrough(),
+        stdout: Object.assign(new PassThrough(), { unref: jest.fn() }),
+        stderr: Object.assign(new PassThrough(), { unref: jest.fn() }),
       });
       const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
       spawnPromise.child = child;
@@ -109,6 +110,10 @@ describe('AndroidEmulatorUtils', () => {
         expect.anything()
       );
       expect(child.unref).toHaveBeenCalled();
+      // Piped stdio would otherwise keep this process' event loop alive
+      // for as long as the emulator runs.
+      expect(child.stdout.unref).toHaveBeenCalled();
+      expect(child.stderr.unref).toHaveBeenCalled();
       const emulatorOutputStream = createWriteStreamSpy.mock.results[0].value;
       const stderrWriteSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
       const writeError = Object.assign(new Error('disk full'), { code: 'ENOSPC' });

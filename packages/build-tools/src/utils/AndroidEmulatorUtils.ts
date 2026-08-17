@@ -6,6 +6,7 @@ import assert from 'assert';
 import FastGlob from 'fast-glob';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { Socket } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -385,6 +386,13 @@ export namespace AndroidEmulatorUtils {
     emulatorPromise.child.once('close', () => {
       emulatorOutputStream.end();
     });
+    // Piped stdio creates socket handles in this process which, unlike inherited
+    // file descriptors, keep the event loop alive for as long as the emulator runs.
+    // We never stop the emulator explicitly, so without unref-ing these the process
+    // would never exit on its own -- defeating the `detached` + `unref()` below.
+    // Output is still captured for as long as this process lives.
+    (emulatorPromise.child.stdout as unknown as Socket | undefined)?.unref();
+    (emulatorPromise.child.stderr as unknown as Socket | undefined)?.unref();
     // If emulator fails to start, throw its error.
     if (!emulatorPromise.child.pid) {
       await emulatorPromise;
