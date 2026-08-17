@@ -379,9 +379,8 @@ export namespace AndroidEmulatorUtils {
         });
       }
     });
-    emulatorPromise.child.stdout?.pipe(process.stdout, { end: false });
+    // Only into the log file -- this process' stdout/stderr is not watched or uploaded.
     emulatorPromise.child.stdout?.pipe(emulatorOutputStream, { end: false });
-    emulatorPromise.child.stderr?.pipe(process.stderr, { end: false });
     emulatorPromise.child.stderr?.pipe(emulatorOutputStream, { end: false });
     emulatorPromise.child.once('close', () => {
       emulatorOutputStream.end();
