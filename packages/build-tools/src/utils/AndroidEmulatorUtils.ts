@@ -390,8 +390,12 @@ export namespace AndroidEmulatorUtils {
     // We never stop the emulator explicitly, so without unref-ing these the process
     // would never exit on its own -- defeating the `detached` + `unref()` below.
     // Output is still captured for as long as this process lives.
-    (emulatorPromise.child.stdout as unknown as Socket | undefined)?.unref();
-    (emulatorPromise.child.stderr as unknown as Socket | undefined)?.unref();
+    if (emulatorPromise.child.stdout instanceof Socket) {
+      emulatorPromise.child.stdout.unref();
+    }
+    if (emulatorPromise.child.stderr instanceof Socket) {
+      emulatorPromise.child.stderr.unref();
+    }
     // If emulator fails to start, throw its error.
     if (!emulatorPromise.child.pid) {
       await emulatorPromise;

@@ -2,9 +2,9 @@ import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 import { EventEmitter, once } from 'node:events';
 import fs from 'node:fs';
+import { Socket } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { PassThrough } from 'node:stream';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
@@ -50,12 +50,17 @@ describe('AndroidEmulatorUtils', () => {
 
   describe(AndroidEmulatorUtils.startAsync, () => {
     function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
-      // Under `stdio: 'pipe'` these are net.Sockets, so they carry `unref()`.
+      // Under `stdio: 'pipe'` these are net.Sockets, which is what startAsync
+      // narrows on before unref-ing them.
+      const stdout = new Socket();
+      const stderr = new Socket();
+      jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
+      jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
       const child = Object.assign(new EventEmitter(), {
         pid: 1234,
         unref: jest.fn(),
-        stdout: Object.assign(new PassThrough(), { unref: jest.fn() }),
-        stderr: Object.assign(new PassThrough(), { unref: jest.fn() }),
+        stdout,
+        stderr,
       });
       const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
       spawnPromise.child = child;
