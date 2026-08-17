@@ -299,7 +299,25 @@ async function installIdbFromBrew({
     env: localEnv,
     logger,
   });
-  await spawn(brewPath, ['install', 'idb-companion'], {
+
+  const brewRepo = await spawn(brewPath, ['--repo', 'facebook/fb'], {
+    env: localEnv,
+  });
+
+  const tapPath = brewRepo.stdout;
+
+  // b4f3751720e6b86eed28a8112e1fc1b92d9176ef is hash for 1.1.8 version,
+  // last known compatible version.
+  await spawn('git', ['fetch', 'origin', 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef'], {
+    cwd: tapPath,
+    logger,
+  });
+  await spawn('git', ['checkout', 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef'], {
+    cwd: tapPath,
+    logger,
+  });
+
+  await spawn(brewPath, ['install', 'facebook/fb/idb-companion'], {
     env: localEnv,
     logger,
   });
