@@ -83,6 +83,10 @@ export class BuildStepOutputAccessor {
     return Object.values(this.outputById);
   }
 
+  public get wasExecuted(): boolean {
+    return this.executed;
+  }
+
   public getOutputValueByName(name: string): string | undefined {
     if (!this.executed) {
       throw new BuildStepRuntimeError(
