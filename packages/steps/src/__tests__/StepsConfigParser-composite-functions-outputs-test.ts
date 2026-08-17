@@ -453,6 +453,38 @@ describe('StepsConfigParser local composite functions', () => {
       );
     });
 
+    it('runs the outer outputs step when a grandchild of a nested call without outputs executed via always()', async () => {
+      const workflow = await parseCompositeFunctions({
+        catalog: {
+          './.eas/functions/outer': {
+            outputs: { version: { value: '${{ steps.mid.outputs.version }}' } },
+            runs: {
+              steps: [{ uses: './.eas/functions/inner', id: 'mid', if: '${{ always() }}' }],
+            },
+          },
+          './.eas/functions/inner': {
+            runs: { steps: [{ id: 'read', uses: 'test/set-version', if: '${{ always() }}' }] },
+          },
+        },
+        steps: [
+          { id: 'boom', uses: 'test/fail' },
+          { uses: './.eas/functions/outer', id: 'top', if: '${{ always() }}' },
+        ],
+        externalFunctions: [setVersionFunction(), failingFunction()],
+      });
+
+      const error = await getErrorAsync<Error>(() => workflow.executeAsync());
+      expect(error.message).toBe('inner failed');
+
+      expect(workflow.buildSteps.find(s => s.id === 'top__mid__read')?.status).toBe(
+        BuildStepStatus.SUCCESS
+      );
+      expect(workflow.buildSteps.find(s => s.id === 'top__mid')).toBeUndefined();
+      const outputsStep = workflow.buildSteps.find(s => s.id === 'top');
+      expect(outputsStep?.status).toBe(BuildStepStatus.SUCCESS);
+      expect(outputsStep?.getOutputValueByName('version')).toBe('');
+    });
+
     it('resolves an out-of-scope action output reference to an empty string', async () => {
       const workflow = await parseCompositeFunctions({
         catalog: {
