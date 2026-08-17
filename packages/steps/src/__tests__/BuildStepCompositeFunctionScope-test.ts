@@ -2,16 +2,26 @@ import { JobInterpolationContext } from '@expo/eas-build-job';
 import { instance, mock, when } from 'ts-mockito';
 
 import { createGlobalContextMock } from './utils/context';
+import { getError } from './utils/error';
 import { BuildStep } from '../BuildStep';
 import { BuildStepCompositeFunctionScope } from '../BuildStepCompositeFunctionScope';
 import { BuildStepInput, BuildStepInputValueTypeName } from '../BuildStepInput';
 import { BuildStepOutput } from '../BuildStepOutput';
+import { BuildStepConditionEvaluationError } from '../errors';
 import { interpolateJobContext } from '../interpolation';
 
 describe(BuildStepCompositeFunctionScope, () => {
   const baseContext = {} as unknown as JobInterpolationContext;
 
-  function makeScope(): BuildStepCompositeFunctionScope {
+  function makeScope({
+    ifCondition,
+    parent,
+    compositeFunctionPath = 'test-action',
+  }: {
+    ifCondition?: string;
+    parent?: BuildStepCompositeFunctionScope;
+    compositeFunctionPath?: string;
+  } = {}): BuildStepCompositeFunctionScope {
     const ctx = createGlobalContextMock();
 
     const versionOutput = mock<BuildStepOutput>();
@@ -29,7 +39,9 @@ describe(BuildStepCompositeFunctionScope, () => {
     greeting.set('hello');
     return new BuildStepCompositeFunctionScope({
       ctx,
-      compositeFunctionPath: 'test-action',
+      parent,
+      ifCondition,
+      compositeFunctionPath,
       inputs: new Map([['greeting', greeting]]),
       providedInputKeys: new Set(['greeting']),
       childrenByLocalId: new Map([['build', instance(innerStep)]]),
@@ -68,6 +80,48 @@ describe(BuildStepCompositeFunctionScope, () => {
       const scope = makeScope();
       expect(scope.isActive(neverEvaluate, true)).toBe(true);
       expect(scope.isActive(neverEvaluate, false)).toBe(true);
+    });
+
+    it('wraps an evaluation failure with the call as subject, its condition, and the raw cause', () => {
+      const rawError = new Error('boom');
+      const scope = makeScope({ ifCondition: '${{ broken }}' });
+      const error = getError(() =>
+        scope.isActive(() => {
+          throw rawError;
+        }, true)
+      );
+      expect(error).toBeInstanceOf(BuildStepConditionEvaluationError);
+      expect(error.subject).toBe('composite function call "test-action"');
+      expect(error.ifCondition).toBe('${{ broken }}');
+      expect(error.cause).toBe(rawError);
+    });
+
+    it('memoizes an evaluation failure; later calls rethrow the same error without re-evaluating', () => {
+      let evaluations = 0;
+      const evaluate = (): boolean => {
+        evaluations += 1;
+        throw new Error('boom');
+      };
+      const scope = makeScope({ ifCondition: '${{ broken }}' });
+      const first = getError(() => scope.isActive(evaluate, true));
+      const second = getError(() => scope.isActive(evaluate, true));
+      expect(second).toBe(first);
+      expect(evaluations).toBe(1);
+    });
+
+    it('propagates a parent call-site failure naming the parent scope, not the child', () => {
+      const parent = makeScope({
+        ifCondition: '${{ broken }}',
+        compositeFunctionPath: 'parent-action',
+      });
+      const child = makeScope({ parent });
+      const error = getError(() =>
+        child.isActive(() => {
+          throw new Error('boom');
+        }, true)
+      );
+      expect(error).toBeInstanceOf(BuildStepConditionEvaluationError);
+      expect(error.subject).toBe('composite function call "parent-action"');
     });
   });
 });

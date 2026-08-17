@@ -23,6 +23,23 @@ export class BuildInternalError extends Error {}
 
 export class BuildStepRuntimeError extends UserError {}
 
+// Unevaluable `if:` gate. Carries the failed condition so catch sites do not
+// blame a nearby step's `if:`. `reported` logs the rethrow once.
+export class BuildStepConditionEvaluationError extends UserError {
+  public reported = false;
+
+  constructor(
+    public override readonly message: string,
+    public readonly subject: string,
+    public readonly ifCondition: string,
+    extra?: {
+      cause?: Error;
+    }
+  ) {
+    super(message, extra);
+  }
+}
+
 export class BuildWorkflowError extends UserError {
   constructor(
     public override readonly message: string,

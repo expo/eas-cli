@@ -12,7 +12,7 @@ import type { BuildStepOutputAccessor } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput } from './BuildStepInput';
-import { BuildStepRuntimeError } from './errors';
+import { BuildStepConditionEvaluationError, BuildStepRuntimeError } from './errors';
 import {
   resolveInterpolatedTarget,
   stringifyInterpolatedResult,
@@ -36,6 +36,7 @@ export class BuildStepCompositeFunctionScope {
   // Filled by the expander after construction; children and scope need each other.
   private readonly childrenByLocalId: Map<string, BuildStepOutputAccessor>;
   private cachedIsActive?: boolean;
+  private cachedError?: BuildStepConditionEvaluationError;
   // Detects cycles while resolving input default values.
   private readonly resolvingInputs = new Set<string>();
 
@@ -71,13 +72,32 @@ export class BuildStepCompositeFunctionScope {
   /**
    * Walks the parent chain; the call-site `if` gates the whole composite function call, not individual inner steps.
    * Memoized: global status can change mid-expansion, and re-evaluating would flip a passed
-   * success() gate and skip remaining always()/failure() inner steps.
+   * success() gate and skip remaining always()/failure() inner steps. Failures memoize too
+   * so remaining children rethrow the same error and catch sites log it once.
    */
   public isActive(evaluate: EvaluateIfExpression, runByDefault: boolean): boolean {
     if (this.parent && !this.parent.isActive(evaluate, runByDefault)) {
       return false;
     }
-    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate, runByDefault);
+    if (this.cachedError) {
+      throw this.cachedError;
+    }
+    if (this.cachedIsActive === undefined) {
+      try {
+        this.cachedIsActive = this.evaluateCallIfCondition(evaluate, runByDefault);
+      } catch (err) {
+        // Throw means ifCondition is set, the no-condition path returns early.
+        const ifCondition = this.ifCondition ?? '';
+        const subject = `composite function call "${this.compositeFunctionPath}"`;
+        this.cachedError = new BuildStepConditionEvaluationError(
+          `Failed to evaluate the if condition "${ifCondition}" of ${subject}.`,
+          subject,
+          ifCondition,
+          { cause: err instanceof Error ? err : undefined }
+        );
+        throw this.cachedError;
+      }
+    }
     return this.cachedIsActive;
   }
 
