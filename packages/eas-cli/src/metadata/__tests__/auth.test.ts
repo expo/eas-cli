@@ -61,7 +61,7 @@ const { AppStoreConnectApiKeyQuery } =
 
 const mockApp = { id: '123', bundleId: 'com.example.app' };
 
-function createMockCredentialsCtx(ensureAuthResult?: any) {
+function createMockCredentialsCtx(ensureAuthResult?: any): any {
   return {
     appStore: {
       ensureAuthenticatedAsync: jest.fn(() => ({
@@ -73,7 +73,7 @@ function createMockCredentialsCtx(ensureAuthResult?: any) {
   } as any;
 }
 
-function createBaseArgs(overrides: Record<string, any> = {}) {
+function createBaseArgs(overrides: Record<string, any> = {}): any {
   return {
     projectDir: '/app',
     profile: { bundleIdentifier: 'com.example.app' } as SubmitProfile,

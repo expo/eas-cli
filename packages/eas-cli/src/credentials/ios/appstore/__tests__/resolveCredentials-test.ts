@@ -6,8 +6,8 @@ import { promptAsync } from '../../../../prompts';
 import { AppleTeamType } from '../authenticateTypes';
 import * as Keychain from '../keychain';
 import {
-  resolveAppleTeamTypeFromEnvironment,
   resolveAppleTeamAsync,
+  resolveAppleTeamTypeFromEnvironment,
   resolveAscApiKeyAsync,
   resolveUserCredentialsAsync,
 } from '../resolveCredentials';

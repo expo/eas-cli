@@ -24,7 +24,7 @@ import { assignBuildCredentialsAsync, getBuildCredentialsAsync } from '../BuildC
 import { chooseDevicesAsync } from '../DeviceUtils';
 import { SetUpAdhocProvisioningProfile, doUDIDsMatch } from '../SetUpAdhocProvisioningProfile';
 import { getAscApiKeyForAppSubmissionsAsync } from '../../api/GraphqlClient';
-import { AuthenticationMode, AppleTeamType } from '../../appstore/authenticateTypes';
+import { AppleTeamType, AuthenticationMode } from '../../appstore/authenticateTypes';
 import { hasAscEnvVars } from '../../appstore/resolveCredentials';
 import { AppStoreConnectApiKeyQuery } from '../../../../graphql/queries/AppStoreConnectApiKeyQuery';
 

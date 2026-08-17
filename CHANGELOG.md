@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Fix lint and enforce max-warnings=0. ([#4219](https://github.com/expo/eas-cli/pull/4219) by [@wschurman](https://github.com/wschurman))
+
 ## [22.0.0](https://github.com/expo/eas-cli/releases/tag/v22.0.0) - 2026-08-14
 
 ### 🛠 Breaking changes

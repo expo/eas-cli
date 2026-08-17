@@ -36,7 +36,9 @@ describe(ensurePNGIsNotTransparentAsync, () => {
         fs.createReadStream(transparentPngPath).pipe(response);
       });
       await new Promise<void>((res, rej) => {
-        const onError = (error: Error): void => rej(error);
+        const onError = (error: Error): void => {
+          rej(error);
+        };
         server.once('error', onError);
         server.listen(0, '127.0.0.1', () => {
           server.off('error', onError);

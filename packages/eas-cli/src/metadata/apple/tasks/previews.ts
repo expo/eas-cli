@@ -278,7 +278,7 @@ async function syncPreviewSetAsync(
   await logAsync(
     () =>
       AppPreview.uploadAsync(localization.context, {
-        id: previewSet!.id,
+        id: previewSet.id,
         filePath: absolutePath,
         waitForProcessing: true,
         previewFrameTimeCode: previewConfig.previewFrameTimeCode,

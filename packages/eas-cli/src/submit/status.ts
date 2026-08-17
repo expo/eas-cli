@@ -1,4 +1,4 @@
-import { App, Platform as ApplePlatform, AppStoreVersion, Build } from '@expo/apple-utils';
+import { App, AppStoreVersion, Platform as ApplePlatform, Build } from '@expo/apple-utils';
 import chalk from 'chalk';
 
 import { getSubmissionDetailsUrl } from './utils/urls';

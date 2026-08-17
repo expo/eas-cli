@@ -112,7 +112,7 @@ describe('Go command', () => {
     jest.clearAllMocks();
   });
 
-  function makeCmd(argv: string[] = []) {
+  function makeCmd(argv: string[] = []): Go {
     const ctx = {
       loggedIn: { actor: mockActor as any, graphqlClient: {} as any },
       analytics: {} as any,
