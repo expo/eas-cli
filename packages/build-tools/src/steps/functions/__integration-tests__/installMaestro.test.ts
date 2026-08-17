@@ -1,5 +1,3 @@
-import spawn from '@expo/turtle-spawn';
-import { PipeMode } from '@expo/logger';
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
 import { createInstallMaestroBuildFunction, installIdbFromBrew } from '../installMaestro';
