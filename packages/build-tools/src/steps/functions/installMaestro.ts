@@ -17,6 +17,7 @@ import path from 'path';
 
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
+import { SystemError } from '@expo/eas-build-job';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -279,48 +280,57 @@ async function isIdbInstalled({ env }: { env: BuildStepEnv }): Promise<boolean> 
   }
 }
 
-async function installIdbFromBrew({
+export async function installIdbFromBrew({
   logger,
   env,
 }: {
   logger: bunyan;
   env: BuildStepEnv;
 }): Promise<void> {
-  // Unfortunately our Mac images sometimes have two Homebrew
-  // installations. We should use the ARM64 one, located in /opt/homebrew.
-  const brewPath = '/opt/homebrew/bin/brew';
-  const localEnv = {
-    ...env,
-    HOMEBREW_NO_AUTO_UPDATE: '1',
-    HOMEBREW_NO_INSTALL_CLEANUP: '1',
-  };
+  try {
+    // Unfortunately our Mac images sometimes have two Homebrew
+    // installations. We should use the ARM64 one, located in /opt/homebrew.
+    const brewPath = '/opt/homebrew/bin/brew';
+    const localEnv = {
+      ...env,
+      HOMEBREW_NO_AUTO_UPDATE: '1',
+      HOMEBREW_NO_INSTALL_CLEANUP: '1',
+    };
 
-  await spawn(brewPath, ['tap', 'facebook/fb'], {
-    env: localEnv,
-    logger,
-  });
+    logger.info('Tapping facebook/fb...');
+    await spawn(brewPath, ['tap', 'facebook/fb'], {
+      env: localEnv,
+      logger,
+    });
 
-  const brewRepo = await spawn(brewPath, ['--repo', 'facebook/fb'], {
-    env: localEnv,
-  });
+    const brewRepo = await spawn(brewPath, ['--repo', 'facebook/fb'], {
+      env: localEnv,
+    });
+    const tapPath = brewRepo.stdout.trim();
 
-  const tapPath = brewRepo.stdout;
+    // b4f3751720e6b86eed28a8112e1fc1b92d9176ef is hash for 1.1.8 release,
+    // last known compatible version.
+    const gitSha = 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef';
+    logger.info('Checking out facebook/fb at idb_companion@1.1.8...');
+    await spawn('git', ['fetch', 'origin', gitSha], {
+      cwd: tapPath,
+      logger,
+    });
+    await spawn('git', ['checkout', gitSha], {
+      cwd: tapPath,
+      logger,
+    });
 
-  // b4f3751720e6b86eed28a8112e1fc1b92d9176ef is hash for 1.1.8 version,
-  // last known compatible version.
-  await spawn('git', ['fetch', 'origin', 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef'], {
-    cwd: tapPath,
-    logger,
-  });
-  await spawn('git', ['checkout', 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef'], {
-    cwd: tapPath,
-    logger,
-  });
-
-  await spawn(brewPath, ['install', 'facebook/fb/idb-companion'], {
-    env: localEnv,
-    logger,
-  });
+    logger.info('Installing idb_companion v1.1.8...');
+    await spawn(brewPath, ['install', 'facebook/fb/idb-companion'], {
+      env: localEnv,
+      logger,
+    });
+  } catch (err) {
+    throw new SystemError('Failed to install idb-companion required for Maestro to run.', {
+      cause: err,
+    });
+  }
 }
 
 async function isJavaInstalled({ env }: { env: BuildStepEnv }): Promise<boolean> {
