@@ -308,9 +308,9 @@ export async function installIdbFromBrew({
     });
     const tapPath = brewRepo.stdout.trim();
 
-    // b4f3751720e6b86eed28a8112e1fc1b92d9176ef is hash for 1.1.8 release,
-    // last known compatible version.
-    const gitSha = 'b4f3751720e6b86eed28a8112e1fc1b92d9176ef';
+    // c0386793f59da10c619787f2aa18d938ef1d69c9 is hash for 1.1.8 release,
+    // last known compatible version + post_install fix.
+    const gitSha = 'c0386793f59da10c619787f2aa18d938ef1d69c9';
     logger.info('Checking out facebook/fb at idb_companion@1.1.8...');
     await spawn('git', ['fetch', 'origin', gitSha], {
       cwd: tapPath,
