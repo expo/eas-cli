@@ -7,6 +7,7 @@ import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { CompositeBuildStep } from './CompositeBuildStep';
 import { StepMetricResult } from './StepMetrics';
+import { BuildStepConditionEvaluationError } from './errors';
 import { AnchorHooks, HookEntry } from './hooks';
 import { evaluateIfCondition } from './utils/jsepEval';
 
@@ -279,15 +280,20 @@ export async function executeHookStepsAsync(
   return { failedLocally, firstError };
 }
 
-// Shared wording for unevaluable `if:` gates. Callers pass the step's own
-// `if:`, but the throw may come from a composite call-site `if:` evaluated via
-// the step's scope. In that case the quoted condition is not the one that failed.
+// Shared wording for unevaluable `if:` gates.
 function logConditionEvaluationError(
   logger: bunyan,
   err: unknown,
   subject: string,
   ifCondition: string | undefined
 ): void {
+  if (err instanceof BuildStepConditionEvaluationError) {
+    logger.error({ err: err.cause ?? err });
+    logger.error(
+      `Runner failed to evaluate if it should execute ${err.subject}, using its if condition "${err.ifCondition}". This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
+    );
+    return;
+  }
   logger.error({ err });
   logger.error(
     `Runner failed to evaluate if it should execute ${subject}${

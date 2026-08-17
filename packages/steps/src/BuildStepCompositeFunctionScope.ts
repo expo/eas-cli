@@ -12,7 +12,7 @@ import type { BuildStepOutputAccessor } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput } from './BuildStepInput';
-import { BuildStepRuntimeError } from './errors';
+import { BuildStepConditionEvaluationError, BuildStepRuntimeError } from './errors';
 import {
   resolveInterpolatedTarget,
   stringifyInterpolatedResult,
@@ -77,7 +77,23 @@ export class BuildStepCompositeFunctionScope {
     if (this.parent && !this.parent.isActive(evaluate, runByDefault)) {
       return false;
     }
-    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate, runByDefault);
+    if (this.cachedIsActive === undefined) {
+      try {
+        this.cachedIsActive = this.evaluateCallIfCondition(evaluate, runByDefault);
+      } catch (err) {
+        // An unevaluable gate skips the call, cache the skip before throwing.
+        // Only the first child reports the error, the rest skip silently.
+        this.cachedIsActive = false;
+        const ifCondition = this.ifCondition ?? '';
+        const subject = `composite function call "${this.compositeFunctionPath}"`;
+        throw new BuildStepConditionEvaluationError(
+          `Failed to evaluate the if condition "${ifCondition}" of ${subject}.`,
+          subject,
+          ifCondition,
+          { cause: err instanceof Error ? err : undefined }
+        );
+      }
+    }
     return this.cachedIsActive;
   }
 
