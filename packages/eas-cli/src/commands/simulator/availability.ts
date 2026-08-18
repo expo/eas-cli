@@ -37,7 +37,7 @@ export default class SimulatorAvailability extends EasCommand {
 
     const {
       projectId,
-      loggedIn: { graphqlClient },
+      loggedIn: { actor, graphqlClient },
     } = await this.getContextAsync(SimulatorAvailability, {
       nonInteractive,
     });
@@ -50,6 +50,7 @@ export default class SimulatorAvailability extends EasCommand {
         graphqlClient,
         projectId
       ));
+      available ||= actor.isExpoAdmin;
       fetchSpinner?.stop();
     } catch (err) {
       fetchSpinner?.fail('Failed to check EAS Simulator availability');

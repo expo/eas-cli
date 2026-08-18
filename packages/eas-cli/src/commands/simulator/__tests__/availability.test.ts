@@ -52,12 +52,15 @@ describe(SimulatorAvailability, () => {
     jest.clearAllMocks();
   });
 
-  function createCommand(argv: string[]): SimulatorAvailability {
+  function createCommand(
+    argv: string[],
+    { isExpoAdmin = false }: { isExpoAdmin?: boolean } = {}
+  ): SimulatorAvailability {
     const command = new SimulatorAvailability(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       projectId,
-      loggedIn: { graphqlClient },
+      loggedIn: { actor: { isExpoAdmin }, graphqlClient },
     });
     return command;
   }
@@ -95,6 +98,19 @@ describe(SimulatorAvailability, () => {
     const command = createCommand(['--json']);
     await command.runAsync();
 
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      available: true,
+      accountName: 'testuser',
+    });
+  });
+
+  it('emits JSON with available true for Expo admins when the account is gated', async () => {
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const command = createCommand(['--json'], { isExpoAdmin: true });
+    await command.runAsync();
+
+    expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       available: true,
       accountName: 'testuser',
