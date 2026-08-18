@@ -72,6 +72,15 @@ export default class Simulator extends EasCommand {
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
     }),
+    'build-id': Flags.string({
+      description: 'EAS Build to install and launch before the simulator session is ready.',
+      exclusive: ['build-artifact-url'],
+    }),
+    'build-artifact-url': Flags.string({
+      description:
+        'Build artifact URL to download, install, and launch before the simulator session is ready.',
+      exclusive: ['build-id'],
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -139,6 +148,8 @@ export default class Simulator extends EasCommand {
     // --name as if it had been omitted rather than surfacing a validation error.
     const name = flags.name?.trim() || undefined;
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const buildId = flags['build-id']?.trim() || undefined;
+    const buildArtifactUrl = flags['build-artifact-url']?.trim() || undefined;
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -171,6 +182,8 @@ export default class Simulator extends EasCommand {
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
         deviceIdentifier,
+        ...(buildId ? { buildId } : {}),
+        ...(buildArtifactUrl ? { buildArtifactUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
