@@ -49,7 +49,12 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'build_id',
-        required: true,
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'artifact_url',
+        required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
@@ -70,12 +75,26 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 
       const extensions = z.array(z.string()).parse(inputs.extensions.value);
       logger.info(`Expected extensions: [${extensions.join(', ')}]`);
-      const buildId = z.string().uuid().parse(inputs.build_id.value);
-      logger.info(`Downloading build ${buildId}...`);
+      const buildId = inputs.build_id.value
+        ? z.string().uuid().parse(inputs.build_id.value)
+        : undefined;
+      const artifactUrl = inputs.artifact_url.value
+        ? parseHttpArtifactUrl(inputs.artifact_url.value)
+        : undefined;
+
+      if (Number(Boolean(buildId)) + Number(Boolean(artifactUrl)) !== 1) {
+        throw new UserError(
+          'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+          'Pass exactly one of build_id or artifact_url.'
+        );
+      }
+
+      logger.info(buildId ? `Downloading build ${buildId}...` : `Downloading build artifact...`);
 
       const { artifactPath } = await downloadBuildAsync({
         logger,
         buildId,
+        artifactUrl,
         graphqlClient: ctx.graphqlClient,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
@@ -118,24 +137,44 @@ async function fetchApplicationArchiveUrlAsync({
 export async function downloadBuildAsync({
   logger,
   buildId,
+  artifactUrl,
   graphqlClient,
   robotAccessToken,
   extensions,
 }: {
   logger: bunyan;
-  buildId: string;
+  buildId?: string;
+  artifactUrl?: string;
   graphqlClient: Client;
   robotAccessToken: string | null;
   extensions: string[];
 }): Promise<{ artifactPath: string }> {
+  const validatedArtifactUrl = artifactUrl ? parseHttpArtifactUrl(artifactUrl) : undefined;
+  if (Number(Boolean(buildId)) + Number(Boolean(validatedArtifactUrl)) !== 1) {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      'Pass exactly one of buildId or artifactUrl.'
+    );
+  }
+
   const downloadDestinationDirectory = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient });
+  const isDirectArtifactUrl = validatedArtifactUrl !== undefined;
+  const downloadUrl =
+    validatedArtifactUrl ??
+    (await fetchApplicationArchiveUrlAsync({
+      buildId: z.string().uuid().parse(buildId),
+      graphqlClient,
+    }));
 
   const response = await retryOnDNSFailure(fetch)(downloadUrl, {
-    headers: robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined,
+    // A direct URL is user-controlled, so never send the scoped EAS token to it.
+    headers:
+      !isDirectArtifactUrl && robotAccessToken
+        ? { Authorization: `Bearer ${robotAccessToken}` }
+        : undefined,
   });
 
   if (!response.ok) {
@@ -193,4 +232,24 @@ export async function downloadBuildAsync({
   );
 
   return { artifactPath: matchingFiles[0] };
+}
+
+function parseHttpArtifactUrl(value: unknown): string {
+  const artifactUrl = z.string().parse(value);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(artifactUrl);
+  } catch {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_ARTIFACT_URL',
+      'artifact_url must be a valid HTTP or HTTPS URL.'
+    );
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_ARTIFACT_URL',
+      'artifact_url must be a valid HTTP or HTTPS URL.'
+    );
+  }
+  return artifactUrl;
 }
