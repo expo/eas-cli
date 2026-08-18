@@ -48,4 +48,36 @@ describe('cache compress/decompress round trip', () => {
       )
     ).toBe('inception=1');
   });
+
+  it('preserves file modification times so journal-fallback entries can still age out', async () => {
+    const logger = createLoggerMock();
+
+    const sourceDir = path.join(os.tmpdir(), 'mtime-source');
+    await fs.promises.mkdir(sourceDir, { recursive: true });
+    const filePath = path.join(sourceDir, 'entry');
+    await fs.promises.writeFile(filePath, 'cache entry');
+
+    // A whole-second value in the past — tar stores mtimes at one-second resolution.
+    const mtime = new Date('2026-08-01T00:00:00.000Z');
+    await fs.promises.utimes(filePath, mtime, mtime);
+
+    const { archivePath } = await compressCacheAsync({
+      paths: [sourceDir],
+      workingDirectory: sourceDir,
+      verbose: false,
+      logger,
+    });
+
+    const restoreDir = path.join(os.tmpdir(), 'mtime-restored');
+    await fs.promises.mkdir(restoreDir, { recursive: true });
+    await decompressCacheAsync({
+      archivePath,
+      workingDirectory: restoreDir,
+      verbose: false,
+      logger,
+    });
+
+    const restoredStat = await fs.promises.stat(path.join(restoreDir, 'entry'));
+    expect(Math.floor(restoredStat.mtimeMs / 1000)).toBe(Math.floor(mtime.getTime() / 1000));
+  });
 });
