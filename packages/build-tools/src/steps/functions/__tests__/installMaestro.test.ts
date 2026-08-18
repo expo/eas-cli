@@ -181,7 +181,7 @@ describe('createInstallMaestroBuildFunction', () => {
         ['--version'],
         expect.objectContaining({
           env: expect.objectContaining({
-            PATH: expect.stringMatching(/:\/home\/expo\/\.maestro-runner\/bin$/),
+            PATH: expect.stringMatching(/^\/home\/expo\/\.maestro-runner\/bin:/),
           }),
         })
       );

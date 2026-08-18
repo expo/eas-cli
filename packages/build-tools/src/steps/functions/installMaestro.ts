@@ -19,7 +19,6 @@ import semver from 'semver';
 
 import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
-import { SystemError } from '@expo/eas-build-job';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -179,6 +178,7 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
               env,
             });
           }
+
           break;
         }
       }
@@ -202,10 +202,16 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
 }
 
 async function getXcodeVersion({ env }: { env: BuildStepEnv }): Promise<string> {
-  const { stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env });
+  let stdout: string;
+  try {
+    ({ stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env }));
+  } catch (error) {
+    throw new SystemError('Failed to get Xcode version', { cause: error });
+  }
+
   const xcodeVersion = semver.coerce(/^Xcode\s+(\S+)/m.exec(stdout)?.[1])?.version;
   if (!xcodeVersion) {
-    throw new SystemError(`Failed to determine Xcode version from: ${stdout.trim()}`);
+    throw new SystemError(`Failed to parse Xcode version from xcodebuild output: ${stdout.trim()}`);
   }
   return xcodeVersion;
 }
@@ -267,10 +273,10 @@ async function installMaestroRunner({
     const binDir = path.join(env.HOME, '.maestro-runner', 'bin');
     global.updateEnv({
       ...global.env,
-      PATH: `${global.env.PATH}:${binDir}`,
+      PATH: `${binDir}:${global.env.PATH}`,
     });
-    env.PATH = `${env.PATH}:${binDir}`;
-    process.env.PATH = `${process.env.PATH}:${binDir}`;
+    env.PATH = `${binDir}:${env.PATH}`;
+    process.env.PATH = `${binDir}:${process.env.PATH}`;
   } finally {
     await fs.promises.rm(tempDirectory, { force: true, recursive: true });
   }
@@ -317,10 +323,10 @@ async function installMaestro({
     const maestroBinDir = path.join(maestroDir, 'bin');
     global.updateEnv({
       ...global.env,
-      PATH: `${global.env.PATH}:${maestroBinDir}`,
+      PATH: `${maestroBinDir}:${global.env.PATH}`,
     });
-    env.PATH = `${env.PATH}:${maestroBinDir}`;
-    process.env.PATH = `${process.env.PATH}:${maestroBinDir}`;
+    env.PATH = `${maestroBinDir}:${env.PATH}`;
+    process.env.PATH = `${maestroBinDir}:${process.env.PATH}`;
   } finally {
     await fs.promises.rm(tempDirectory, { force: true, recursive: true });
   }
