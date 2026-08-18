@@ -7,7 +7,6 @@ import {
   resolvePackagerDir,
 } from './installDependencies';
 import { BuildContext } from '../context';
-import { getExpoCommandEnv } from '../utils/environmentMode';
 import { runExpoCliCommand } from '../utils/project';
 
 export interface PrebuildOptions {
@@ -21,14 +20,11 @@ export async function prebuildAsync<TJob extends BuildJob>(
   const spawnOptions: SpawnOptions = {
     cwd: workingDir,
     logger,
-    env: getExpoCommandEnv(
-      {
-        EXPO_IMAGE_UTILS_NO_SHARP: '1',
-        ...options?.extraEnvs,
-        ...ctx.env,
-      },
-      'production'
-    ),
+    env: {
+      EXPO_IMAGE_UTILS_NO_SHARP: '1',
+      ...options?.extraEnvs,
+      ...ctx.env,
+    },
   };
 
   const prebuildCommandArgs = getPrebuildCommandArgs(ctx);
@@ -36,6 +32,7 @@ export async function prebuildAsync<TJob extends BuildJob>(
     args: prebuildCommandArgs,
     options: spawnOptions,
     packageManager: ctx.packageManager,
+    envMode: 'production',
   });
   await installDependenciesWithNpmCacheFallbackAsync({
     packageManager: ctx.packageManager,
