@@ -8,10 +8,12 @@ export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
 export class ExpoUpdatesCLIInvalidCommandError extends Error {}
 export class ExpoUpdatesCLICommandFailedError extends Error {}
 
+type EnvMode = 'development' | 'production';
+
 export async function expoUpdatesCommandAsync(
   projectDir: string,
   args: string[],
-  options: { env: Env | undefined; cwd?: string }
+  options: { env: Env | undefined; cwd?: string; mode: EnvMode }
 ): Promise<string> {
   let expoUpdatesCli;
   try {
@@ -33,7 +35,12 @@ export async function expoUpdatesCommandAsync(
     return (
       await spawnAsync(expoUpdatesCli, args, {
         stdio: 'pipe',
-        env: { ...process.env, ...options.env },
+        env: {
+          ...process.env,
+          ...options.env,
+          NODE_ENV: options.mode,
+          __EXPO_CONFIG_MODE: options.mode,
+        },
         cwd: options.cwd,
       })
     ).stdout;
