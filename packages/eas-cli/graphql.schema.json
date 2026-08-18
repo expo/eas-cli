@@ -36705,6 +36705,30 @@
             "deprecationReason": null
           },
           {
+            "name": "buildArtifactUrl",
+            "description": "Build artifact URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildId",
+            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with buildArtifactUrl.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deviceIdentifier",
             "description": "Identifier of the virtual device to start for the session. On iOS this is a\nSimulator device name or UDID (e.g. \"iPhone 16 Pro\"). On Android this is an\nAVD hardware profile id (e.g. \"pixel_7\"). If omitted, the runner picks a\ndefault device.",
             "type": {
