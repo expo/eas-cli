@@ -348,14 +348,11 @@ export async function compressCacheAsync({
     for (const { absolutePath, archivePath: targetRelativePath } of allFiles) {
       const targetPath = path.join(tempDir, targetRelativePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
-      await fs.promises.copyFile(absolutePath, targetPath);
-      // Preserve the source mtime instead of letting fs.copyFile reset it to "now". Gradle's build
-      // cache cleanup reads its file access time journal, but for entries the journal has no record
-      // of it falls back to max(journalInceptionTimestamp, file.lastModified()). A reset "now" mtime
-      // would make those fallback entries look permanently fresh so they never age out; keeping the
-      // real mtime lets them be evicted. Entries the journal does track are unaffected (their stored
-      // access time is used and the mtime ignored).
+      // Preserve the source timestamps; copyFile alone resets them to "now". Gradle's build cache
+      // cleanup falls back to file mtime for entries missing from its access-time journal, so a
+      // reset mtime would stop those entries from ever aging out.
       const { atime, mtime } = await fs.promises.stat(absolutePath);
+      await fs.promises.copyFile(absolutePath, targetPath);
       await fs.promises.utimes(targetPath, atime, mtime);
 
       if (verbose) {
