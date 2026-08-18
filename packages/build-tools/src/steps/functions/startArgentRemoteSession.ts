@@ -73,6 +73,11 @@ export function createStartArgentRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
@@ -86,6 +91,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       const packageVersion = inputs.package_version.value as string | undefined;
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
+      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
@@ -221,6 +227,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           logger,
+          maxDurationSeconds,
           signal,
           idleTimeout:
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
