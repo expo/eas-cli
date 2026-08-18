@@ -4,6 +4,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
 
+import { Sentry } from '../../sentry';
+
 export interface ParsedFailureScreenshot {
   flowName: string;
   capturedAtMs: number;
@@ -134,9 +136,6 @@ export async function harvestFailureScreenshotsAsync(args: {
   return [...legacyShots, ...dedupeBundleShotsByFlowName(bundleShots)];
 }
 
-// maestro-runner's per-flow command tree; failed leaves point at their failure screenshots.
-// Recursive via a getter (zod v4). Unknown keys are stripped, so real reports (which carry many
-// more fields) still validate.
 const MaestroRunnerCommandSchema = z.object({
   status: z.string().optional(),
   artifacts: z
@@ -151,14 +150,10 @@ const MaestroRunnerCommandSchema = z.object({
 });
 type MaestroRunnerCommand = z.infer<typeof MaestroRunnerCommandSchema>;
 
-// maestro-runner's per-flow detail file (referenced by `flow.dataFile`).
 const MaestroRunnerFlowDetailSchema = z.object({
   commands: z.array(MaestroRunnerCommandSchema).optional(),
 });
 
-// maestro-runner's report.json, narrowed to what the screenshot harvest needs. Tolerant by
-// design: an unexpected shape (`null`, `{ "flows": 5 }`, `{ "flows": [null] }`) fails safeParse
-// and yields no flows rather than throwing out of this "never throws" harvest.
 const MaestroRunnerScreenshotReportSchema = z.object({
   flows: z
     .array(
@@ -192,7 +187,15 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
   }
 
   const parsedReport = MaestroRunnerScreenshotReportSchema.safeParse(report);
-  const flows = parsedReport.success ? (parsedReport.data.flows ?? []) : [];
+  if (!parsedReport.success) {
+    args.logger.warn(
+      { err: parsedReport.error },
+      `Skipping maestro-runner screenshot harvest: unexpected report.json shape in ${args.reportDirectory}.`
+    );
+    Sentry.capture('maestro-runner report.json failed schema validation', parsedReport.error);
+    return [];
+  }
+  const flows = parsedReport.data.flows ?? [];
 
   const shots: HarvestedScreenshot[] = [];
   for (const { name, status, dataFile } of flows) {
@@ -211,10 +214,11 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
         JSON.parse(await fs.readFile(flowDataPath, 'utf8'))
       );
       if (!detail.success) {
-        args.logger.info(
+        args.logger.warn(
           { err: detail.error },
           `Skipping malformed maestro-runner flow data ${flowDataPath}.`
         );
+        Sentry.capture('maestro-runner flow data failed schema validation', detail.error);
         continue;
       }
       screenshotPath = findFailedMaestroRunnerScreenshot(detail.data.commands ?? []);

@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
 import {
   type HarvestedScreenshot,
   computePureFailureFlowNames,
@@ -15,15 +16,18 @@ import {
 describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
   const logger = createMockLogger();
   let reportDirectory: string;
+  let captureSpy: jest.SpiedFunction<typeof Sentry.capture>;
 
   beforeEach(async () => {
     reportDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'maestro-runner-harvest-test-'));
     await fs.mkdir(path.join(reportDirectory, 'flows'));
     await fs.mkdir(path.join(reportDirectory, 'assets', 'flow-000'), { recursive: true });
+    captureSpy = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
   });
 
   afterEach(async () => {
     await fs.rm(reportDirectory, { recursive: true, force: true });
+    captureSpy.mockRestore();
   });
 
   it('reads the failed command screenshot from a maestro-runner report bundle', async () => {
@@ -100,8 +104,7 @@ describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
     ['null', 'null'],
     ['a non-object flows value', JSON.stringify({ flows: 5 })],
     ['a null flow entry', JSON.stringify({ flows: [null] })],
-    ['not JSON at all', 'not-json'],
-  ])('returns [] without throwing when report.json is %s', async (_label, contents) => {
+  ])('reports to Sentry and returns [] when report.json is %s', async (_label, contents) => {
     await fs.writeFile(path.join(reportDirectory, 'report.json'), contents);
 
     await expect(
@@ -112,6 +115,21 @@ describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
         logger,
       })
     ).resolves.toEqual([]);
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns [] without reporting to Sentry when report.json is not valid JSON', async () => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), 'not-json');
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+    expect(captureSpy).not.toHaveBeenCalled();
   });
 });
 
