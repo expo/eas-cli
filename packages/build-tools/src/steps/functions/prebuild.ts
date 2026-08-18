@@ -1,10 +1,9 @@
 import { Platform } from '@expo/config';
 import { BuildFunction, BuildStepInput, BuildStepInputValueTypeName } from '@expo/steps';
-import spawn from '@expo/turtle-spawn';
 
 import { installNodeModules } from './installNodeModules';
-import { getExpoCommandEnv } from '../../utils/environmentMode';
-import { PackageManager, resolvePackageManager } from '../../utils/packageManager';
+import { resolvePackageManager } from '../../utils/packageManager';
+import { runExpoCliCommand } from '../../utils/project';
 
 export function createPrebuildBuildFunction(): BuildFunction {
   return new BuildFunction({
@@ -42,30 +41,21 @@ export function createPrebuildBuildFunction(): BuildFunction {
         customPrebuildCommand: job.platform ? job.experimental?.prebuildCommand : undefined,
         clean: inputs.clean.value as boolean,
       });
-      const argsWithExpo = ['expo', ...prebuildCommandArgs];
       const options = {
         cwd: stepCtx.workingDirectory,
         logger,
-        env: getExpoCommandEnv(
-          {
-            EXPO_IMAGE_UTILS_NO_SHARP: '1',
-            ...env,
-            ...(appleTeamId ? { APPLE_TEAM_ID: appleTeamId } : {}),
-          },
-          'production'
-        ),
+        env: {
+          EXPO_IMAGE_UTILS_NO_SHARP: '1',
+          ...env,
+          ...(appleTeamId ? { APPLE_TEAM_ID: appleTeamId } : {}),
+        },
       };
-      if (packageManager === PackageManager.NPM) {
-        await spawn('npx', argsWithExpo, options);
-      } else if (packageManager === PackageManager.YARN) {
-        await spawn('yarn', argsWithExpo, options);
-      } else if (packageManager === PackageManager.PNPM) {
-        await spawn('pnpm', argsWithExpo, options);
-      } else if (packageManager === PackageManager.BUN) {
-        await spawn('bun', argsWithExpo, options);
-      } else {
-        throw new Error(`Unsupported package manager: ${packageManager}`);
-      }
+      await runExpoCliCommand({
+        packageManager,
+        args: prebuildCommandArgs,
+        options,
+        envMode: 'production',
+      });
       await installNodeModules(stepCtx, env);
     },
   });
