@@ -69,6 +69,13 @@ function parseJUnitContent(content: string): JUnitTestCaseResult[] {
           continue;
         }
 
+        // Standard JUnit marks skipped tests with a <skipped/> child (no failure/error). Exclude
+        // them so they aren't miscounted as passed, matching the report.json path which drops
+        // skipped flows.
+        if (tc.skipped != null) {
+          continue;
+        }
+
         const file = fileAttrOf(tc);
 
         const timeStr = tc['@_time'];

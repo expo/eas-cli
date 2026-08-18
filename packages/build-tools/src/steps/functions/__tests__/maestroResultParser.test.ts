@@ -592,6 +592,22 @@ describe(parseJUnitTestCases, () => {
     );
   });
 
+  it('excludes skipped testcases instead of counting them as passed', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="passing" time="1.0"/>',
+        '  <testcase name="skipped-flow" time="0"><skipped/></testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+
+    const results = await parseJUnitTestCases('/junit');
+
+    expect(results.map(r => r.name)).toEqual(['passing']);
+  });
+
   it('treats a missing or empty file= attribute as undefined', async () => {
     vol.fromJSON({
       '/junit/report.xml': [

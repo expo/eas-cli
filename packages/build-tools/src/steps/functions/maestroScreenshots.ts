@@ -281,7 +281,7 @@ function findFailedMaestroRunnerScreenshot(
 function resolvePathInsideDirectory(directory: string, relativePath: string): string | null {
   const candidate = path.resolve(directory, relativePath);
   const relative = path.relative(directory, candidate);
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
     ? candidate
     : null;
 }

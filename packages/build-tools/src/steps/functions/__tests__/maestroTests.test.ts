@@ -181,6 +181,27 @@ describe('createMaestroTestsBuildFunction', () => {
     });
   });
 
+  it('clears the deterministic maestro-runner output directory before each attempt', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'junit',
+      platform: 'ios',
+      backend: 'maestro-runner',
+    });
+
+    await step.executeAsync();
+
+    expect(rmSpy).toHaveBeenCalledWith('/home/expo/.maestro/tests/ios-maestro-runner-attempt-0', {
+      recursive: true,
+      force: true,
+    });
+    // Cleared before the run, so a crash before fresh output can't resurrect stale results.
+    expect(rmSpy.mock.invocationCallOrder[0]).toBeLessThan(mockedSpawn.mock.invocationCallOrder[0]);
+  });
+
   it('selects maestro-runner from EAS_MAESTRO_BACKEND', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     jest.spyOn(fs, 'copyFile').mockResolvedValue();

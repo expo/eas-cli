@@ -359,6 +359,16 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           `Running ${executable} (attempt ${attempt + 1}/${totalAttempts}): ${executable} ${maestroArgs.join(' ')}`
         );
 
+        // The runner output directory is deterministic and can survive a prior run; clear it
+        // best-effort so a crash before it writes fresh output can't resurrect stale results.
+        if (backend === 'maestro-runner') {
+          try {
+            await fs.rm(runnerOutputDirectory, { recursive: true, force: true });
+          } catch (err) {
+            logger.warn({ err }, `Failed to clear ${runnerOutputDirectory} before the attempt.`);
+          }
+        }
+
         const attemptStartedAtMs = Date.now();
 
         try {

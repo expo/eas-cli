@@ -79,6 +79,30 @@ describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
     ]);
   });
 
+  it('rejects a screenshot path that resolves to the parent directory (exact "..")', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [{ name: 'Login', status: 'failed', dataFile: 'flows/flow-000.json' }],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [{ status: 'failed', artifacts: { screenshotAfter: '..' } }],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+
   it('ignores passing flows and paths outside the report directory', async () => {
     await fs.writeFile(
       path.join(reportDirectory, 'report.json'),
