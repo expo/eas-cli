@@ -8,6 +8,9 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Load local functions declaring `command` or `path`, so custom build functions moved out of `.eas/build` configs into local `function.yml` files can be called from workflows. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+- [eas-cli] Validate local functions declaring `command` or `path` referenced from workflows, including that the module directory of a `path` function exists. ([#4096](https://github.com/expo/eas-cli/pull/4096) by [@sswrk](https://github.com/sswrk))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Disallow 0-length uploads. ([#4192](https://github.com/expo/eas-cli/pull/4192) by [@wschurman](https://github.com/wschurman))
