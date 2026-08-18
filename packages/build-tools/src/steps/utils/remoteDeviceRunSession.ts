@@ -160,8 +160,13 @@ export async function waitForDeviceRunSessionStoppedAsync({
   const signal = cancelSignal
     ? AbortSignal.any([cancelSignal, durationAbortController.signal])
     : durationAbortController.signal;
+  // Nothing to wait for if the step was already aborted before we started;
+  // return before logging so we don't claim to be polling a session we never poll.
+  if (signal.aborted) {
+    return;
+  }
   const durationTimeout =
-    maxDurationSeconds === undefined || signal.aborted
+    maxDurationSeconds === undefined
       ? undefined
       : setTimeout(() => {
           logger.info(`Device run session ${deviceRunSessionId} reached its maximum duration.`);
