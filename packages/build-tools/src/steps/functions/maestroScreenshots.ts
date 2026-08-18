@@ -2,6 +2,7 @@ import { bunyan } from '@expo/logger';
 import { type Dirent } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
 export interface ParsedFailureScreenshot {
   flowName: string;
@@ -133,14 +134,42 @@ export async function harvestFailureScreenshotsAsync(args: {
   return [...legacyShots, ...dedupeBundleShotsByFlowName(bundleShots)];
 }
 
-interface MaestroRunnerCommand {
-  status?: string;
-  artifacts?: {
-    screenshotBefore?: string;
-    screenshotAfter?: string;
-  };
-  subCommands?: MaestroRunnerCommand[];
-}
+// maestro-runner's per-flow command tree; failed leaves point at their failure screenshots.
+// Recursive via a getter (zod v4). Unknown keys are stripped, so real reports (which carry many
+// more fields) still validate.
+const MaestroRunnerCommandSchema = z.object({
+  status: z.string().optional(),
+  artifacts: z
+    .object({
+      screenshotBefore: z.string().optional(),
+      screenshotAfter: z.string().optional(),
+    })
+    .optional(),
+  get subCommands() {
+    return z.array(MaestroRunnerCommandSchema).optional();
+  },
+});
+type MaestroRunnerCommand = z.infer<typeof MaestroRunnerCommandSchema>;
+
+// maestro-runner's per-flow detail file (referenced by `flow.dataFile`).
+const MaestroRunnerFlowDetailSchema = z.object({
+  commands: z.array(MaestroRunnerCommandSchema).optional(),
+});
+
+// maestro-runner's report.json, narrowed to what the screenshot harvest needs. Tolerant by
+// design: an unexpected shape (`null`, `{ "flows": 5 }`, `{ "flows": [null] }`) fails safeParse
+// and yields no flows rather than throwing out of this "never throws" harvest.
+const MaestroRunnerScreenshotReportSchema = z.object({
+  flows: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        status: z.string().optional(),
+        dataFile: z.string().optional(),
+      })
+    )
+    .optional(),
+});
 
 // maestro-runner records failure screenshot paths in its report JSON instead of using the
 // official Maestro debug-directory layout. Never throws, so screenshots cannot change the test
@@ -162,23 +191,11 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
     return [];
   }
 
-  // Validate the shape before iterating: valid JSON of an unexpected shape (`null`,
-  // `{ "flows": 5 }`, `{ "flows": [null] }`) must not throw out of this "never throws" harvest.
-  const flows =
-    typeof report === 'object' && report !== null && Array.isArray((report as any).flows)
-      ? (report as { flows: unknown[] }).flows
-      : [];
+  const parsedReport = MaestroRunnerScreenshotReportSchema.safeParse(report);
+  const flows = parsedReport.success ? (parsedReport.data.flows ?? []) : [];
 
   const shots: HarvestedScreenshot[] = [];
-  for (const flow of flows) {
-    if (typeof flow !== 'object' || flow === null) {
-      continue;
-    }
-    const { name, status, dataFile } = flow as {
-      name?: string;
-      status?: string;
-      dataFile?: string;
-    };
+  for (const { name, status, dataFile } of flows) {
     if (status !== 'failed' || !name || !dataFile) {
       continue;
     }
@@ -190,10 +207,17 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
 
     let screenshotPath: string | undefined;
     try {
-      const detail = JSON.parse(await fs.readFile(flowDataPath, 'utf8')) as {
-        commands?: MaestroRunnerCommand[];
-      };
-      screenshotPath = findFailedMaestroRunnerScreenshot(detail.commands ?? []);
+      const detail = MaestroRunnerFlowDetailSchema.safeParse(
+        JSON.parse(await fs.readFile(flowDataPath, 'utf8'))
+      );
+      if (!detail.success) {
+        args.logger.info(
+          { err: detail.error },
+          `Skipping malformed maestro-runner flow data ${flowDataPath}.`
+        );
+        continue;
+      }
+      screenshotPath = findFailedMaestroRunnerScreenshot(detail.data.commands ?? []);
     } catch (err: any) {
       args.logger.info({ err }, `Skipping unreadable maestro-runner flow data ${flowDataPath}.`);
       continue;

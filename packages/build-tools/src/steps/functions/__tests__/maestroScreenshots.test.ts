@@ -95,6 +95,24 @@ describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
       })
     ).resolves.toEqual([]);
   });
+
+  it.each([
+    ['null', 'null'],
+    ['a non-object flows value', JSON.stringify({ flows: 5 })],
+    ['a null flow entry', JSON.stringify({ flows: [null] })],
+    ['not JSON at all', 'not-json'],
+  ])('returns [] without throwing when report.json is %s', async (_label, contents) => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), contents);
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
 });
 
 describe(parseFailureScreenshotFilename, () => {
