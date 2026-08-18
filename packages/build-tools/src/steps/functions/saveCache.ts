@@ -348,9 +348,7 @@ export async function compressCacheAsync({
     for (const { absolutePath, archivePath: targetRelativePath } of allFiles) {
       const targetPath = path.join(tempDir, targetRelativePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
-      // Preserve the source timestamps; copyFile alone resets them to "now". Gradle's build cache
-      // cleanup falls back to file mtime for entries missing from its access-time journal, so a
-      // reset mtime would stop those entries from ever aging out.
+      // We want to keep source timestamps since Gradle may check them when pruning cache.
       const { atime, mtime } = await fs.promises.stat(absolutePath);
       await fs.promises.copyFile(absolutePath, targetPath);
       await fs.promises.utimes(targetPath, atime, mtime);
