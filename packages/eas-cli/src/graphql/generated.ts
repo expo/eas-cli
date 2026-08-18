@@ -1472,6 +1472,12 @@ export type App = Project & {
   internalDistributionBuildPrivacy: AppInternalDistributionBuildPrivacy;
   /** iOS app credentials for the project */
   iosAppCredentials: Array<IosAppCredentials>;
+  /**
+   * Tells you if the project can show the Observe promotional notification. This field is part of
+   * the observe-notification experiment.
+   * @deprecated This field is deprecated from its first release. It supplies data for the observe-notification promotion on the project page. It will be removed when the promotion ends. Do not rely on it.
+   */
+  isEligibleForObserveNotice: Scalars['Boolean']['output'];
   lastDeletionAttemptTime?: Maybe<Scalars['DateTime']['output']>;
   /** Time of the last user activity (update, branch, submission). */
   latestActivity: Scalars['DateTime']['output'];
@@ -3438,6 +3444,8 @@ export type AppUsageMetricTotal = {
   planMetrics: Array<EstimatedUsage>;
   /** Total cost of overages, in cents */
   totalCost: Scalars['Float']['output'];
+  /** Services whose estimates could not be computed and are omitted from the other fields. */
+  unavailableServiceUsageMetrics: Array<UnavailableServiceUsageMetric>;
 };
 
 export type AppUsageMetrics = {
@@ -10547,6 +10555,13 @@ export enum TurtleSshTransportType {
   UptermV1 = 'UPTERM_V1'
 }
 
+export type UnavailableServiceUsageMetric = {
+  __typename?: 'UnavailableServiceUsageMetric';
+  /** User-displayable explanation of why the service's estimate is missing. */
+  message: Scalars['String']['output'];
+  service: EasService;
+};
+
 export type UniqueUsersOverTimeData = {
   __typename?: 'UniqueUsersOverTimeData';
   data: LineChartData;
@@ -11225,6 +11240,8 @@ export type UsageMetricTotal = {
   planMetrics: Array<EstimatedUsage>;
   /** Total cost of overages, in cents */
   totalCost: Scalars['Float']['output'];
+  /** Services whose estimates could not be computed and are omitted from the other fields. */
+  unavailableServiceUsageMetrics: Array<UnavailableServiceUsageMetric>;
 };
 
 export enum UsageMetricType {

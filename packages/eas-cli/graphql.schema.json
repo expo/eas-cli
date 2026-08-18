@@ -10455,6 +10455,22 @@
             "deprecationReason": null
           },
           {
+            "name": "isEligibleForObserveNotice",
+            "description": "Tells you if the project can show the Observe promotional notification. This field is part of\nthe observe-notification experiment.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": true,
+            "deprecationReason": "This field is deprecated from its first release. It supplies data for the observe-notification promotion on the project page. It will be removed when the promotion ends. Do not rely on it."
+          },
+          {
             "name": "lastDeletionAttemptTime",
             "description": null,
             "args": [],
@@ -24164,6 +24180,30 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "unavailableServiceUsageMetrics",
+            "description": "Services whose estimates could not be computed and are omitted from the other fields.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "UnavailableServiceUsageMetric",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -36659,6 +36699,18 @@
                 "name": "ID",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deviceIdentifier",
+            "description": "Identifier of the virtual device to start for the session. On iOS this is a\nSimulator device name or UDID (e.g. \"iPhone 16 Pro\"). On Android this is an\nAVD hardware profile id (e.g. \"pixel_7\"). If omitted, the runner picks a\ndefault device.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -74488,6 +74540,49 @@
       },
       {
         "kind": "OBJECT",
+        "name": "UnavailableServiceUsageMetric",
+        "description": null,
+        "fields": [
+          {
+            "name": "message",
+            "description": "User-displayable explanation of why the service's estimate is missing.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "service",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "EASService",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "UniqueUsersOverTimeData",
         "description": null,
         "fields": [
@@ -79568,6 +79663,30 @@
                 "kind": "SCALAR",
                 "name": "Float",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "unavailableServiceUsageMetrics",
+            "description": "Services whose estimates could not be computed and are omitted from the other fields.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "UnavailableServiceUsageMetric",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
