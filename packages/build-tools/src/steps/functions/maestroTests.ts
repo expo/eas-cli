@@ -193,10 +193,6 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       const outputFormat = (inputs.output_format.value as string | undefined)?.toLowerCase();
       const includeTags = inputs.include_tags.value as string | undefined;
       const excludeTags = inputs.exclude_tags.value as string | undefined;
-      const backend = resolveMaestroBackend({
-        input: inputs.backend.value,
-        env,
-      });
 
       const platform: 'ios' | 'android' =
         platformInput === 'ios' || platformInput === 'android'
@@ -232,6 +228,14 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
       if (finalReportPath !== undefined) {
         outputs.final_report_path.set(finalReportPath);
       }
+
+      // Resolved after the output assignments above: an invalid backend input or
+      // EAS_MAESTRO_BACKEND throws, and downstream `if: always()` upload steps still
+      // need the outputs interpolated.
+      const backend = resolveMaestroBackend({
+        input: inputs.backend.value,
+        env,
+      });
 
       const flowPaths = parseInput(
         FlowPathSchema,
@@ -565,7 +569,7 @@ async function uploadFailureScreenshotsAsync({
   // test verdict (the whole step is verdict-neutral for screenshots).
   let selected: HarvestedScreenshot[];
   try {
-    let flowResults: { name: string; status: 'passed' | 'failed' }[] | null;
+    let flowResults: { name: string; status: 'passed' | 'failed' }[];
     switch (backend) {
       case 'maestro':
         flowResults = (
@@ -576,15 +580,12 @@ async function uploadFailureScreenshotsAsync({
         const results = await Promise.all(
           reportDirectories.map(directory => parseMaestroRunnerReport(directory))
         );
-        flowResults = results.some(result => result === null)
-          ? null
-          : results.flatMap(result => result?.flows ?? []);
+        // Use whichever reports parsed. An unreadable report (e.g. a final retry that crashed
+        // before writing report.json) contributes no flows rather than discarding screenshots
+        // harvested from the attempts that did report — mirroring the maestro path above.
+        flowResults = results.flatMap(result => result?.flows ?? []);
         break;
       }
-    }
-    if (flowResults === null) {
-      logger.warn('Failed to classify failure screenshots; skipping upload.');
-      return;
     }
     const pureFailureFlowNames = computePureFailureFlowNames(flowResults);
     selected = selectFailureScreenshots(harvested, pureFailureFlowNames);

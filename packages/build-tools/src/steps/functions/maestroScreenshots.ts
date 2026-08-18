@@ -151,9 +151,7 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
   attemptIndex: number;
   logger: bunyan;
 }): Promise<HarvestedScreenshot[]> {
-  let report: {
-    flows?: { name?: string; status?: string; dataFile?: string }[];
-  };
+  let report: unknown;
   try {
     report = JSON.parse(await fs.readFile(path.join(args.reportDirectory, 'report.json'), 'utf8'));
   } catch (err: any) {
@@ -164,12 +162,27 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
     return [];
   }
 
+  // Validate the shape before iterating: valid JSON of an unexpected shape (`null`,
+  // `{ "flows": 5 }`, `{ "flows": [null] }`) must not throw out of this "never throws" harvest.
+  const flows =
+    typeof report === 'object' && report !== null && Array.isArray((report as any).flows)
+      ? (report as { flows: unknown[] }).flows
+      : [];
+
   const shots: HarvestedScreenshot[] = [];
-  for (const flow of report.flows ?? []) {
-    if (flow.status !== 'failed' || !flow.name || !flow.dataFile) {
+  for (const flow of flows) {
+    if (typeof flow !== 'object' || flow === null) {
       continue;
     }
-    const flowDataPath = resolvePathInsideDirectory(args.reportDirectory, flow.dataFile);
+    const { name, status, dataFile } = flow as {
+      name?: string;
+      status?: string;
+      dataFile?: string;
+    };
+    if (status !== 'failed' || !name || !dataFile) {
+      continue;
+    }
+    const flowDataPath = resolvePathInsideDirectory(args.reportDirectory, dataFile);
     if (!flowDataPath) {
       args.logger.info(`Skipping maestro-runner flow data outside the report directory.`);
       continue;
@@ -205,7 +218,7 @@ export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
       continue;
     }
 
-    const flowName = normalizeFlowName(flow.name);
+    const flowName = normalizeFlowName(name);
     shots.push({
       fileAbsPath,
       displayName: `Failure Screenshot: ${flowName} (attempt ${args.attemptIndex + 1})`,

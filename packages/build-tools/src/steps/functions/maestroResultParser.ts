@@ -75,17 +75,20 @@ function parseJUnitContent(content: string): JUnitTestCaseResult[] {
         const timeSeconds = timeStr ? parseFloat(timeStr) : 0;
         const duration = Number.isFinite(timeSeconds) ? Math.round(timeSeconds * 1000) : 0;
 
+        // maestro-runner puts the real error in the `message` attribute and the command
+        // label (e.g. `tapOn`) in the body; official Maestro only writes the body. Prefer
+        // `@_message` and fall back to `#text` so both stay correct.
         const failureText =
           tc.failure != null
             ? typeof tc.failure === 'string'
               ? tc.failure
-              : (tc.failure?.['#text'] ?? null)
+              : (tc.failure?.['@_message'] ?? tc.failure?.['#text'] ?? null)
             : null;
         const errorText =
           tc.error != null
             ? typeof tc.error === 'string'
               ? tc.error
-              : (tc.error?.['#text'] ?? null)
+              : (tc.error?.['@_message'] ?? tc.error?.['#text'] ?? null)
             : null;
         const errorMessage: string | null = failureText ?? errorText ?? null;
         // Official Maestro uses status="SUCCESS". maestro-runner uses standard JUnit semantics:
