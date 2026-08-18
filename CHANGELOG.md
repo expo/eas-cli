@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🐛 Bug fixes
 
 - [eas-cli] Disallow 0-length uploads. ([#4192](https://github.com/expo/eas-cli/pull/4192) by [@wschurman](https://github.com/wschurman))
