@@ -4,7 +4,7 @@ import { load } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
 
-import { type EnvMode, getExpoCommandEnv } from './environmentMode';
+import { type EnvMode } from './environmentMode';
 import { expoCommandAsync } from './expoCli';
 
 interface ReadAppConfigParams {
@@ -45,7 +45,7 @@ async function getAppConfigFromExpo({
   const result = await expoCommandAsync(
     projectDir,
     ['config', '--json', '--full', '--type', 'public'],
-    { env: getExpoCommandEnv(env, 'production') }
+    { env, envMode: 'production' }
   );
 
   let parsed: any;
@@ -78,7 +78,7 @@ function loadEnvVarsFromDotenvFile(projectDir: string, env: Env): Env {
 
 function getLegacyExpoConfigEnv(env: Env, mode: EnvMode): Env {
   const result: Env = { ...env, NODE_ENV: mode };
-  delete result.EXPO_CONFIG_MODE;
+  delete result.__EXPO_CONFIG_MODE;
   return result;
 }
 
