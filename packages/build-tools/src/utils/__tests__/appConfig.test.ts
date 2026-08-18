@@ -28,7 +28,7 @@ const logger = { warn: jest.fn(), info: jest.fn(), error: jest.fn() } as unknown
 
 const baseParams = {
   projectDir: '/project',
-  env: { NODE_ENV: 'staging', EXPO_CONFIG_MODE: 'staging' },
+  env: { NODE_ENV: 'staging', __EXPO_CONFIG_MODE: 'staging' },
   logger,
 };
 
@@ -50,7 +50,7 @@ describe(readAppConfig, () => {
     expect(expoCommandAsync).toHaveBeenCalledWith(
       '/project',
       ['config', '--json', '--full', '--type', 'public'],
-      { env: { NODE_ENV: 'production', EXPO_CONFIG_MODE: 'production' } }
+      { env: { NODE_ENV: 'production' }, envMode: 'production' }
     );
     expect(getConfig).not.toHaveBeenCalled();
   });
@@ -72,7 +72,7 @@ describe(readAppConfig, () => {
       isPublicConfig: true,
     });
     expect(fallbackEnv).toMatchObject({ NODE_ENV: 'production' });
-    expect(fallbackEnv?.EXPO_CONFIG_MODE).toBeUndefined();
+    expect(fallbackEnv?.__EXPO_CONFIG_MODE).toBeUndefined();
   });
 
   it('throws when expo CLI returns invalid JSON and @expo/config also fails', async () => {
@@ -106,7 +106,7 @@ describe(readAppConfig, () => {
       nodeEnvWhenLoaded = process.env.NODE_ENV;
       process.env.FROM_BUILD ??= 'from-dotenv';
       process.env.FROM_DOTENV = 'true';
-      process.env.EXPO_CONFIG_MODE = 'development';
+      process.env.__EXPO_CONFIG_MODE = 'development';
       return process.env;
     });
 
@@ -122,10 +122,10 @@ describe(readAppConfig, () => {
     expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
       env: {
         NODE_ENV: 'production',
-        EXPO_CONFIG_MODE: 'production',
         FROM_BUILD: 'true',
         FROM_DOTENV: 'true',
       },
+      envMode: 'production',
     });
   });
 

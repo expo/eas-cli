@@ -137,13 +137,13 @@ describe(setupAsync, () => {
     );
   });
 
-  it('uses production mode for Expo Doctor', async () => {
+  it('uses production mode for Expo Doctor and keeps the original build env', async () => {
     jest.mocked(readPackageJson).mockReturnValue({ dependencies: { expo: 'latest' } });
     jest.mocked(isAtLeastNpm7Async).mockResolvedValue(true);
     jest.mocked(spawn).mockResolvedValue({} as never);
     const ctx = createCtx(BuildTrigger.EAS_CLI);
     ctx.env.NODE_ENV = 'staging';
-    ctx.env.EXPO_CONFIG_MODE = 'staging';
+    ctx.env.__EXPO_CONFIG_MODE = 'staging';
 
     await setupAsync(ctx, {
       wrappedAnchors: ['install_node_modules'],
@@ -156,10 +156,10 @@ describe(setupAsync, () => {
       expect.objectContaining({
         env: expect.objectContaining({
           NODE_ENV: 'production',
-          EXPO_CONFIG_MODE: 'production',
+          __EXPO_CONFIG_MODE: 'production',
         }),
       })
     );
-    expect(ctx.env).toMatchObject({ NODE_ENV: 'staging', EXPO_CONFIG_MODE: 'staging' });
+    expect(ctx.env).toMatchObject({ NODE_ENV: 'staging', __EXPO_CONFIG_MODE: 'staging' });
   });
 });

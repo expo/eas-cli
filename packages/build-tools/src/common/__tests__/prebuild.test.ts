@@ -14,8 +14,8 @@ import { installDependenciesWithNpmCacheFallbackAsync } from '../installDependen
 import { prebuildAsync } from '../prebuild';
 
 describe(prebuildAsync, () => {
-  it('uses production mode for Expo CLI and keeps the install env', async () => {
-    const env = { NODE_ENV: 'staging', EXPO_CONFIG_MODE: 'staging', FROM_BUILD: 'true' };
+  it('uses production mode for Expo CLI and keeps the original env for dependency installation', async () => {
+    const env = { NODE_ENV: 'staging', __EXPO_CONFIG_MODE: 'staging', FROM_BUILD: 'true' };
     const ctx = {
       env,
       job: { platform: 'android', experimental: {} },
@@ -30,16 +30,17 @@ describe(prebuildAsync, () => {
         args: ['prebuild', '--no-install', '--platform', 'android'],
         options: expect.objectContaining({
           env: expect.objectContaining({
-            NODE_ENV: 'production',
-            EXPO_CONFIG_MODE: 'production',
+            NODE_ENV: 'staging',
+            __EXPO_CONFIG_MODE: 'staging',
             FROM_BUILD: 'true',
           }),
         }),
+        envMode: 'production',
       })
     );
     expect(installDependenciesWithNpmCacheFallbackAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        env: { NODE_ENV: 'staging', EXPO_CONFIG_MODE: 'staging', FROM_BUILD: 'true' },
+        env: { NODE_ENV: 'staging', __EXPO_CONFIG_MODE: 'staging', FROM_BUILD: 'true' },
       })
     );
   });
