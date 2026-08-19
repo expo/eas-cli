@@ -3,7 +3,7 @@ import { bunyan } from '@expo/logger';
 import { readAppConfig } from '../appConfig';
 
 jest.mock('@expo/env', () => ({
-  load: jest.fn(),
+  parseProjectEnv: jest.fn(),
 }));
 
 jest.mock('@expo/config', () => ({
@@ -20,8 +20,8 @@ const { getConfig } = jest.requireMock('@expo/config') as {
   getConfig: jest.Mock;
 };
 
-const { load: loadEnv } = jest.requireMock('@expo/env') as {
-  load: jest.Mock;
+const { parseProjectEnv } = jest.requireMock('@expo/env') as {
+  parseProjectEnv: jest.Mock;
 };
 
 const logger = { warn: jest.fn(), info: jest.fn(), error: jest.fn() } as unknown as bunyan;
@@ -35,6 +35,7 @@ const baseParams = {
 describe(readAppConfig, () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    parseProjectEnv.mockReturnValue({ env: {}, files: [] });
     getConfig.mockReturnValue({
       exp: { name: 'fallback-app', slug: 'fallback-app' },
     });
@@ -101,13 +102,18 @@ describe(readAppConfig, () => {
     const config = { exp: { name: 'test-app', slug: 'test-app' } };
     expoCommandAsync.mockResolvedValue({ stdout: JSON.stringify(config) });
     const originalProcessEnv = process.env;
-    let nodeEnvWhenLoaded: string | undefined;
-    loadEnv.mockImplementation(() => {
-      nodeEnvWhenLoaded = process.env.NODE_ENV;
-      process.env.FROM_BUILD ??= 'from-dotenv';
-      process.env.FROM_DOTENV = 'true';
-      process.env.__EXPO_CONFIG_MODE = 'development';
-      return process.env;
+    let nodeEnvWhenParsed: string | undefined;
+    parseProjectEnv.mockImplementation(() => {
+      nodeEnvWhenParsed = process.env.NODE_ENV;
+      return {
+        env: {
+          NODE_ENV: 'development',
+          FROM_BUILD: 'from-dotenv',
+          FROM_DOTENV: 'true',
+          __EXPO_CONFIG_MODE: 'development',
+        },
+        files: [],
+      };
     });
 
     await readAppConfig({
@@ -116,8 +122,14 @@ describe(readAppConfig, () => {
       sdkVersion: '49.0.0',
     });
 
-    expect(loadEnv).toHaveBeenCalledWith('/project');
-    expect(nodeEnvWhenLoaded).toBe('production');
+    expect(parseProjectEnv).toHaveBeenCalledWith('/project', {
+      mode: 'production',
+      systemEnv: {
+        NODE_ENV: 'production',
+        FROM_BUILD: 'true',
+      },
+    });
+    expect(nodeEnvWhenParsed).toBe('production');
     expect(process.env).toBe(originalProcessEnv);
     expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
       env: {
@@ -129,12 +141,32 @@ describe(readAppConfig, () => {
     });
   });
 
+  it('uses EXPO_NO_DOTENV from the build env', async () => {
+    const config = { exp: { name: 'test-app', slug: 'test-app' } };
+    expoCommandAsync.mockResolvedValue({ stdout: JSON.stringify(config) });
+    const originalProcessEnv = process.env;
+    let noDotenvWhenParsed: string | undefined;
+    parseProjectEnv.mockImplementation(() => {
+      noDotenvWhenParsed = process.env.EXPO_NO_DOTENV;
+      return { env: {}, files: [] };
+    });
+
+    await readAppConfig({
+      ...baseParams,
+      env: { ...baseParams.env, EXPO_NO_DOTENV: '1' },
+      sdkVersion: '49.0.0',
+    });
+
+    expect(noDotenvWhenParsed).toBe('1');
+    expect(process.env).toBe(originalProcessEnv);
+  });
+
   it('does not load env vars from dotenv for SDK < 49', async () => {
     const config = { exp: { name: 'test-app', slug: 'test-app' } };
     expoCommandAsync.mockResolvedValue({ stdout: JSON.stringify(config) });
 
     await readAppConfig({ ...baseParams, sdkVersion: '48.0.0' });
 
-    expect(loadEnv).not.toHaveBeenCalled();
+    expect(parseProjectEnv).not.toHaveBeenCalled();
   });
 });
