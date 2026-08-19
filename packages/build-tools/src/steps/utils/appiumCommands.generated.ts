@@ -1,7 +1,7 @@
 // AUTO-GENERATED. Do not edit by hand.
 // Run `yarn workspace @expo/build-tools generate-appium-commands` to refresh this
 // list from @appium/base-driver (installed on demand by the generator script).
-export const UPSTREAM_APPIUM_COMMANDS: readonly string[] = [
+export const UPSTREAM_APPIUM_COMMANDS = [
   'activateApp',
   'activateIMEEngine',
   'active',
@@ -136,4 +136,4 @@ export const UPSTREAM_APPIUM_COMMANDS: readonly string[] = [
   'updateSettings',
   'updateVirtualPressureSource',
   'updateVirtualSensorReading',
-];
+] as const;
