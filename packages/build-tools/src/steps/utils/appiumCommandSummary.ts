@@ -3,16 +3,25 @@
 // event's `data.command`; the summary is what surfaces in the session timeline,
 // so it should read like a short past-tense description of what happened.
 //
-// Keys are Appium command names as they appear in event timings. Most come from
-// `@appium/base-driver`'s command set (see the coverage test, which imports the
-// upstream list so newly added commands don't slip through uncategorized); a few
-// are driver-level commands (e.g. clipboard) that base-driver does not declare.
+// Keys are Appium command names as they appear in event timings. Every command
+// declared by `@appium/base-driver` must have an entry here (enforced by the
+// coverage test, which reads the generated upstream list); a few extra keys are
+// driver-level commands (e.g. clipboard) that base-driver does not declare.
 export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   // Session lifecycle
   createSession: 'Started the session',
   deleteSession: 'Ended the session',
   getSession: 'Read the session details',
   getStatus: 'Checked the server status',
+  getAppiumSessions: 'Listed Appium sessions',
+  getAppiumSessionCapabilities: 'Read the session capabilities',
+  getTimeouts: 'Read timeouts',
+  timeouts: 'Set timeouts',
+  getSettings: 'Read Appium settings',
+  updateSettings: 'Updated Appium settings',
+  listCommands: 'Listed available commands',
+  listExtensions: 'Listed available extensions',
+  receiveAsyncResponse: 'Received an async response',
 
   // Screen and media
   getScreenshot: 'Took a screenshot',
@@ -23,6 +32,16 @@ export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   // Window and orientation
   getWindowRect: 'Read the screen size',
   setWindowRect: 'Resized the window',
+  maximizeWindow: 'Maximized the window',
+  minimizeWindow: 'Minimized the window',
+  fullScreenWindow: 'Made the window full screen',
+  getWindowHandle: 'Read the current window',
+  getWindowHandles: 'Listed open windows',
+  setWindow: 'Switched window',
+  closeWindow: 'Closed the window',
+  createNewWindow: 'Opened a new window',
+  setFrame: 'Switched to a frame',
+  switchToParentFrame: 'Switched to the parent frame',
   getOrientation: 'Read the screen orientation',
   setOrientation: 'Changed the screen orientation',
   getRotation: 'Read the device rotation',
@@ -34,12 +53,18 @@ export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   setGeoLocation: 'Set the device location',
   getNetworkConnection: 'Read the network connection',
   setNetworkConnection: 'Changed the network connection',
+  setDevicePosture: 'Set the device posture',
+  clearDevicePosture: 'Cleared the device posture',
+  setPermissions: 'Set app permissions',
 
   // Element discovery
   findElement: 'Found an element',
   findElements: 'Found elements',
   findElementFromElement: 'Found a nested element',
   findElementsFromElement: 'Found nested elements',
+  findElementFromShadowRoot: 'Found an element in a shadow root',
+  findElementsFromShadowRoot: 'Found elements in a shadow root',
+  elementShadowRoot: 'Read an element shadow root',
   active: 'Read the focused element',
 
   // Element interaction
@@ -84,15 +109,27 @@ export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   refresh: 'Refreshed the page',
   title: 'Read the page title',
 
+  // Cookies
+  getCookie: 'Read a cookie',
+  getCookies: 'Read all cookies',
+  setCookie: 'Set a cookie',
+  deleteCookie: 'Deleted a cookie',
+  deleteCookies: 'Deleted all cookies',
+
   // Alerts
   getAlertText: 'Read an alert',
   setAlertText: 'Typed into an alert',
   postAcceptAlert: 'Accepted an alert',
   postDismissAlert: 'Dismissed an alert',
 
-  // Keyboard
+  // Keyboard and input methods
   hideKeyboard: 'Hid the keyboard',
   isKeyboardShown: 'Checked if the keyboard was shown',
+  activateIMEEngine: 'Activated an input method',
+  deactivateIMEEngine: 'Deactivated the input method',
+  getActiveIMEEngine: 'Read the active input method',
+  availableIMEEngines: 'Listed input methods',
+  isIMEActivated: 'Checked if an input method was active',
 
   // Clipboard (driver-level, not declared by base-driver)
   getClipboard: 'Read the clipboard',
@@ -106,40 +143,59 @@ export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   // Logs
   getLog: 'Read device logs',
   getLogTypes: 'Listed log types',
+  getLogEvents: 'Read logged events',
   logCustomEvent: 'Logged a custom event',
+  generateTestReport: 'Generated a test report',
 
-  // Settings
-  getSettings: 'Read Appium settings',
-  updateSettings: 'Updated Appium settings',
-
-  // Scripts and timeouts
+  // Scripts
   execute: 'Ran a script command',
   executeAsync: 'Ran an async script command',
   executeCdp: 'Ran a Chrome DevTools command',
-  timeouts: 'Set timeouts',
-  getTimeouts: 'Read timeouts',
+
+  // Web authentication (virtual authenticators)
+  addVirtualAuthenticator: 'Added a virtual authenticator',
+  removeVirtualAuthenticator: 'Removed a virtual authenticator',
+  addAuthCredential: 'Added an auth credential',
+  getAuthCredential: 'Read auth credentials',
+  removeAuthCredential: 'Removed an auth credential',
+  removeAllAuthCredentials: 'Removed all auth credentials',
+  setUserAuthVerified: 'Set the user verification state',
+
+  // Federated sign-in (FedCM)
+  fedCMGetAccounts: 'Listed federated sign-in accounts',
+  fedCMSelectAccount: 'Selected a federated sign-in account',
+  fedCMGetDialogType: 'Read the federated sign-in dialog type',
+  fedCMGetTitle: 'Read the federated sign-in dialog title',
+  fedCMClickDialogButton: 'Clicked a federated sign-in dialog button',
+  fedCMCancelDialog: 'Canceled the federated sign-in dialog',
+  fedCMResetCooldown: 'Reset the federated sign-in cooldown',
+  fedCMSetDelayEnabled: 'Toggled the federated sign-in delay',
+
+  // Virtual sensors and pressure sources
+  createVirtualSensor: 'Created a virtual sensor',
+  updateVirtualSensorReading: 'Updated a virtual sensor reading',
+  getVirtualSensorInfo: 'Read virtual sensor info',
+  deleteVirtualSensor: 'Removed a virtual sensor',
+  createVirtualPressureSource: 'Created a virtual pressure source',
+  updateVirtualPressureSource: 'Updated a virtual pressure source',
+  deleteVirtualPressureSource: 'Removed a virtual pressure source',
+
+  // Privacy / experimental web platform
+  getGlobalPrivacyControl: 'Read the Global Privacy Control setting',
+  setGlobalPrivacyControl: 'Set the Global Privacy Control setting',
+  setStorageAccess: 'Set storage access',
+  setRPHRegistrationMode: 'Set the protocol handler registration mode',
+  setSPCTransactionMode: 'Set the payment transaction mode',
 };
 
 /**
  * Translate a raw Appium command name into a short, human-readable summary.
  *
- * Known commands map to a curated phrase; unknown commands fall back to a
- * best-effort humanization that splits camelCase into words, so a new Appium
- * command still renders as e.g. "Get device info" rather than "getDeviceInfo".
+ * If a command has no curated summary, the raw command name is returned
+ * unchanged — we intentionally do not guess a phrasing. A coverage test keeps
+ * APPIUM_COMMAND_SUMMARIES in sync with the upstream command set so new
+ * commands are given a real summary rather than relying on this passthrough.
  */
 export function humanizeAppiumCommand(command: string): string {
-  const known = APPIUM_COMMAND_SUMMARIES[command];
-  if (known) {
-    return known;
-  }
-  const words = command
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .trim()
-    .toLowerCase();
-  if (!words) {
-    return command;
-  }
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return APPIUM_COMMAND_SUMMARIES[command] ?? command;
 }
