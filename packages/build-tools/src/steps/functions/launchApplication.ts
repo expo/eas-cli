@@ -8,8 +8,6 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import fs from 'node:fs';
-import path from 'node:path';
 import { z } from 'zod';
 
 export function createLaunchApplicationFunction(): BuildFunction {
@@ -20,15 +18,24 @@ export function createLaunchApplicationFunction(): BuildFunction {
     __metricsId: 'eas/launch_application',
     inputProviders: [
       BuildStepInput.createProvider({
-        id: 'artifact_path',
+        id: 'application_identifier',
         required: true,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'activity_name',
+        required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
     fn: async ({ global, logger }, { inputs, env }) => {
-      const artifactPath = z.string().min(1).parse(inputs.artifact_path.value);
+      const applicationIdentifier = z.string().min(1).parse(inputs.application_identifier.value);
+      const activityName = inputs.activity_name.value
+        ? z.string().min(1).parse(inputs.activity_name.value)
+        : undefined;
       await launchApplicationAsync({
-        artifactPath,
+        applicationIdentifier,
+        activityName,
         runtimePlatform: global.runtimePlatform,
         env,
         logger,
@@ -38,73 +45,36 @@ export function createLaunchApplicationFunction(): BuildFunction {
 }
 
 export async function launchApplicationAsync({
-  artifactPath,
+  applicationIdentifier,
+  activityName,
   runtimePlatform,
   env,
   logger,
 }: {
-  artifactPath: string;
+  applicationIdentifier: string;
+  activityName?: string;
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
-  const artifactStat = await fs.promises.stat(artifactPath).catch(err => {
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_INVALID_ARTIFACT',
-      `Build artifact does not exist at ${artifactPath}.`,
-      { cause: err }
-    );
-  });
-
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    if (path.extname(artifactPath) !== '.app' || !artifactStat.isDirectory()) {
-      throw new UserError(
-        'EAS_LAUNCH_APPLICATION_INVALID_ARTIFACT',
-        'iOS Simulator sessions require a .app build artifact.'
-      );
-    }
-
-    const infoPlistPath = path.join(artifactPath, 'Info.plist');
-    const { stdout } = await spawn(
-      'plutil',
-      ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
-      { stdio: 'pipe', env }
-    );
-    const bundleIdentifier = stdout.trim();
-    if (!bundleIdentifier) {
-      throw new UserError(
-        'EAS_LAUNCH_APPLICATION_MISSING_IDENTIFIER',
-        `Could not read CFBundleIdentifier from ${infoPlistPath}.`
-      );
-    }
-
-    logger.info(`Launching ${bundleIdentifier}.`);
-    await spawn('xcrun', ['simctl', 'launch', 'booted', bundleIdentifier], { env, logger });
+    logger.info(`Launching ${applicationIdentifier}.`);
+    await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier], {
+      env,
+      logger,
+    });
     return;
   }
 
-  if (path.extname(artifactPath) !== '.apk' || !artifactStat.isFile()) {
+  if (!activityName) {
     throw new UserError(
-      'EAS_LAUNCH_APPLICATION_INVALID_ARTIFACT',
-      'Android Emulator sessions require an .apk build artifact.'
+      'EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY',
+      'Launching an Android application requires activity_name.'
     );
   }
 
-  const { stdout } = await spawn('aapt', ['dump', 'badging', artifactPath], {
-    stdio: 'pipe',
-    env,
-  });
-  const packageName = stdout.match(/package: name='([^']+)'/)?.[1];
-  const activityName = stdout.match(/launchable-activity: name='([^']+)'/)?.[1];
-  if (!packageName || !activityName) {
-    throw new UserError(
-      'EAS_LAUNCH_APPLICATION_MISSING_IDENTIFIER',
-      `Could not read a launchable Android application from ${artifactPath}.`
-    );
-  }
-
-  logger.info(`Launching ${packageName}.`);
-  await spawn('adb', ['shell', 'am', 'start', '-n', `${packageName}/${activityName}`], {
+  logger.info(`Launching ${applicationIdentifier}.`);
+  await spawn('adb', ['shell', 'am', 'start', '-n', `${applicationIdentifier}/${activityName}`], {
     env,
     logger,
   });
