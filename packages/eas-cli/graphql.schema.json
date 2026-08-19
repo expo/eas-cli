@@ -36705,8 +36705,8 @@
             "deprecationReason": null
           },
           {
-            "name": "buildArtifactUrl",
-            "description": "Build artifact URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId.",
+            "name": "applicationArchiveUrl",
+            "description": "Application archive URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -36718,7 +36718,7 @@
           },
           {
             "name": "buildId",
-            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with buildArtifactUrl.",
+            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with applicationArchiveUrl.",
             "type": {
               "kind": "SCALAR",
               "name": "ID",
