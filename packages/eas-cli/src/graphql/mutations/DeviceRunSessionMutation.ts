@@ -13,7 +13,7 @@ import {
 export const DeviceRunSessionMutation = {
   async createDeviceRunSessionAsync(
     graphqlClient: ExpoGraphqlClient,
-    deviceRunSessionInput: CreateDeviceRunSessionInput
+    deviceRunSessionInput: CreateDeviceRunSessionInput & { workflowJobId?: string }
   ): Promise<CreateDeviceRunSessionMutation['deviceRunSession']['createDeviceRunSession']> {
     const data = await withErrorHandlingAsync(
       graphqlClient
