@@ -45,6 +45,7 @@ import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
+import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
@@ -94,6 +95,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     parseXcactivitylogFunction(),
     createStartAgentDeviceRemoteSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
