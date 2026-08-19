@@ -2,6 +2,9 @@ import { bunyan } from '@expo/logger';
 import { type Dirent } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
+
+import { Sentry } from '../../sentry';
 
 export interface ParsedFailureScreenshot {
   flowName: string;
@@ -131,6 +134,156 @@ export async function harvestFailureScreenshotsAsync(args: {
   // Legacy shots need no dedupe: a flat filename is emitted once per failed flow, so there is no
   // `<flow>-2` collision to collapse (and deduping them would change historical behavior).
   return [...legacyShots, ...dedupeBundleShotsByFlowName(bundleShots)];
+}
+
+const MaestroRunnerCommandSchema = z.object({
+  status: z.string().optional(),
+  artifacts: z
+    .object({
+      screenshotBefore: z.string().optional(),
+      screenshotAfter: z.string().optional(),
+    })
+    .optional(),
+  get subCommands() {
+    return z.array(MaestroRunnerCommandSchema).optional();
+  },
+});
+type MaestroRunnerCommand = z.infer<typeof MaestroRunnerCommandSchema>;
+
+const MaestroRunnerFlowDetailSchema = z.object({
+  commands: z.array(MaestroRunnerCommandSchema).optional(),
+});
+
+const MaestroRunnerScreenshotReportSchema = z.object({
+  flows: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        status: z.string().optional(),
+        dataFile: z.string().optional(),
+      })
+    )
+    .optional(),
+});
+
+// maestro-runner records failure screenshot paths in its report JSON instead of using the
+// official Maestro debug-directory layout. Never throws, so screenshots cannot change the test
+// result.
+export async function harvestMaestroRunnerFailureScreenshotsAsync(args: {
+  reportDirectory: string;
+  capturedSinceMs: number;
+  attemptIndex: number;
+  logger: bunyan;
+}): Promise<HarvestedScreenshot[]> {
+  let report: unknown;
+  try {
+    report = JSON.parse(await fs.readFile(path.join(args.reportDirectory, 'report.json'), 'utf8'));
+  } catch (err: any) {
+    args.logger.info(
+      { err },
+      `Skipping maestro-runner screenshot harvest: cannot read ${args.reportDirectory}.`
+    );
+    return [];
+  }
+
+  const parsedReport = MaestroRunnerScreenshotReportSchema.safeParse(report);
+  if (!parsedReport.success) {
+    args.logger.warn(
+      { err: parsedReport.error },
+      `Skipping maestro-runner screenshot harvest: unexpected report.json shape in ${args.reportDirectory}.`
+    );
+    Sentry.capture('maestro-runner report.json failed schema validation', parsedReport.error);
+    return [];
+  }
+  const flows = parsedReport.data.flows ?? [];
+
+  const shots: HarvestedScreenshot[] = [];
+  for (const { name, status, dataFile } of flows) {
+    if (status !== 'failed' || !name || !dataFile) {
+      continue;
+    }
+    const flowDataPath = resolvePathInsideDirectory(args.reportDirectory, dataFile);
+    if (!flowDataPath) {
+      args.logger.info(`Skipping maestro-runner flow data outside the report directory.`);
+      continue;
+    }
+
+    let screenshotPath: string | undefined;
+    try {
+      const detail = MaestroRunnerFlowDetailSchema.safeParse(
+        JSON.parse(await fs.readFile(flowDataPath, 'utf8'))
+      );
+      if (!detail.success) {
+        args.logger.warn(
+          { err: detail.error },
+          `Skipping malformed maestro-runner flow data ${flowDataPath}.`
+        );
+        Sentry.capture('maestro-runner flow data failed schema validation', detail.error);
+        continue;
+      }
+      screenshotPath = findFailedMaestroRunnerScreenshot(detail.data.commands ?? []);
+    } catch (err: any) {
+      args.logger.info({ err }, `Skipping unreadable maestro-runner flow data ${flowDataPath}.`);
+      continue;
+    }
+    if (!screenshotPath) {
+      continue;
+    }
+
+    const fileAbsPath = resolvePathInsideDirectory(args.reportDirectory, screenshotPath);
+    if (!fileAbsPath) {
+      args.logger.info(`Skipping maestro-runner screenshot outside the report directory.`);
+      continue;
+    }
+    let capturedAtMs: number;
+    try {
+      capturedAtMs = Math.round((await fs.stat(fileAbsPath)).mtimeMs);
+    } catch (err: any) {
+      args.logger.info({ err }, `Skipping unreadable screenshot ${fileAbsPath}.`);
+      continue;
+    }
+    if (capturedAtMs < args.capturedSinceMs) {
+      continue;
+    }
+
+    const flowName = normalizeFlowName(name);
+    shots.push({
+      fileAbsPath,
+      displayName: `Failure Screenshot: ${flowName} (attempt ${args.attemptIndex + 1})`,
+      metadata: {
+        kind: 'maestro-test-screenshot',
+        flowName,
+        attemptIndex: args.attemptIndex,
+        capturedAtMs,
+      },
+    });
+  }
+  return shots;
+}
+
+function findFailedMaestroRunnerScreenshot(
+  commands: readonly MaestroRunnerCommand[]
+): string | undefined {
+  for (const command of commands) {
+    if (command.status !== 'failed') {
+      continue;
+    }
+    const nested = findFailedMaestroRunnerScreenshot(command.subCommands ?? []);
+    const screenshot =
+      nested ?? command.artifacts?.screenshotAfter ?? command.artifacts?.screenshotBefore;
+    if (screenshot) {
+      return screenshot;
+    }
+  }
+  return undefined;
+}
+
+function resolvePathInsideDirectory(directory: string, relativePath: string): string | null {
+  const candidate = path.resolve(directory, relativePath);
+  const relative = path.relative(directory, candidate);
+  return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+    ? candidate
+    : null;
 }
 
 // Maestro >= 2.7.0: resolve a bundle dir to its owning failed flow and return that flow's failure
