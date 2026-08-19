@@ -527,7 +527,7 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({
-        buildArtifactUrl: 'https://example.test/builds/app.apk',
+        applicationArchiveUrl: 'https://example.test/builds/app.apk',
       })
     );
   });

@@ -183,7 +183,7 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         ...(buildId ? { buildId } : {}),
-        ...(buildArtifactUrl ? { buildArtifactUrl } : {}),
+        ...(buildArtifactUrl ? { applicationArchiveUrl: buildArtifactUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;

@@ -5235,13 +5235,13 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
-   * Build artifact URL to download, install, and launch before the simulator session
+   * Application archive URL to download, install, and launch before the simulator session
    * becomes available. Mutually exclusive with buildId.
    */
-  buildArtifactUrl?: InputMaybe<Scalars['String']['input']>;
+  applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
   /**
    * EAS Build to install and launch before the simulator session becomes available.
-   * Mutually exclusive with buildArtifactUrl.
+   * Mutually exclusive with applicationArchiveUrl.
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
