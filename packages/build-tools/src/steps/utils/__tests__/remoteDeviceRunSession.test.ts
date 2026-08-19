@@ -221,14 +221,14 @@ describe(startNgrokTunnelAsync, () => {
   it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
     const close = jest.fn().mockResolvedValue(undefined);
     jest.mocked(ngrok.forward).mockResolvedValue({
-      url: () => 'https://serve-sim.example.test',
+      url: () => 'https://web-preview.example.test',
       close,
     } as never);
 
     const tunnel = await startNgrokTunnelAsync({
       port: 4321,
-      subdomainPrefix: 'serve-sim',
-      baseDomain: 'tunnel.example.test',
+      subdomainPrefix: 'web-preview',
+      baseDomain: 'eas-simulator.ngrok.dev',
       authtoken: 'token',
       logger: createLoggerMock(),
     });
@@ -237,10 +237,10 @@ describe(startNgrokTunnelAsync, () => {
       expect.objectContaining({
         addr: 4321,
         authtoken: 'token',
-        domain: expect.stringMatching(/^serve-sim-[a-f0-9]{32}\.tunnel\.example\.test$/),
+        domain: expect.stringMatching(/^web-preview-[a-f0-9]{32}\.eas-simulator\.ngrok\.dev$/),
       })
     );
-    expect(tunnel.url).toBe('https://serve-sim.example.test');
+    expect(tunnel.url).toBe('https://web-preview.example.test');
     await tunnel.stopAsync();
     await tunnel.stopAsync();
     expect(close).toHaveBeenCalledTimes(1);
