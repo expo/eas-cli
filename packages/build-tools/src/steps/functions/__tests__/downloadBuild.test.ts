@@ -140,6 +140,7 @@ describe('downloadBuild', () => {
     });
 
     await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
       downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
         graphqlClient,
@@ -152,6 +153,7 @@ describe('downloadBuild', () => {
     });
 
     await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
       downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
         buildId: randomUUID(),
