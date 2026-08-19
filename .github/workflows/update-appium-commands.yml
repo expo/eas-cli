@@ -26,9 +26,9 @@ jobs:
         uses: ./.github/actions/setup-mise
       - name: Install dependencies
         run: yarn install --immutable
-      - name: Update @appium/base-driver to the latest supported version
-        run: yarn up '@appium/base-driver'
       - name: Regenerate the Appium command list
+        # The generator installs @appium/base-driver on demand into a temp
+        # directory, so it always picks up the latest supported command set.
         run: yarn workspace @expo/build-tools generate-appium-commands
       - name: Open a pull request when the command list changed
         env:
@@ -46,13 +46,13 @@ jobs:
           git config user.name 'Expo Bot'
           git config user.email bot@expo.dev
           git checkout -B "$branch"
-          git add yarn.lock packages/build-tools/package.json \
-            packages/build-tools/src/steps/utils/appiumCommands.generated.ts
+          git add packages/build-tools/src/steps/utils/appiumCommands.generated.ts
           git commit -m "$title"
           git push --force-with-lease origin "$branch"
 
           if gh pr view "$branch" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$branch" --title "$title" --body "$body"
+            gh pr edit "$branch" --title "$title" --body "$body" --add-reviewer sjchmiela
           else
-            gh pr create --base main --head "$branch" --title "$title" --body "$body" --label 'no changelog'
+            gh pr create --base main --head "$branch" --title "$title" --body "$body" \
+              --label 'no changelog' --reviewer sjchmiela
           fi
