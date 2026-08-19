@@ -26,6 +26,17 @@ import { pluralize } from '../../utils/strings';
 
 const streamPipeline = promisify(stream.pipeline);
 
+type DownloadBuildSource =
+  | { buildId: string; applicationArchiveUrl?: never }
+  | { buildId?: never; applicationArchiveUrl: string };
+
+type DownloadBuildParams = DownloadBuildSource & {
+  logger: bunyan;
+  graphqlClient: Client;
+  robotAccessToken: string | null;
+  extensions: string[];
+};
+
 const BUILD_BY_ID_QUERY = graphql(`
   query DownloadBuildByIdQuery($buildId: ID!) {
     builds {
@@ -82,17 +93,23 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         ? parseHttpApplicationArchiveUrl(inputs.application_archive_url.value)
         : undefined;
 
-      if (!buildId && !applicationArchiveUrl) {
-        throw new UserError(
-          'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-          'Pass build_id or application_archive_url.'
-        );
-      }
-      if (buildId && applicationArchiveUrl) {
-        throw new UserError(
-          'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-          'Pass only one of build_id or application_archive_url.'
-        );
+      let source: DownloadBuildSource;
+      if (buildId) {
+        if (applicationArchiveUrl) {
+          throw new UserError(
+            'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+            'Pass only one of build_id or application_archive_url.'
+          );
+        }
+        source = { buildId };
+      } else {
+        if (!applicationArchiveUrl) {
+          throw new UserError(
+            'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+            'Pass build_id or application_archive_url.'
+          );
+        }
+        source = { applicationArchiveUrl };
       }
 
       logger.info(
@@ -101,8 +118,7 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 
       const { artifactPath } = await downloadBuildAsync({
         logger,
-        buildId,
-        applicationArchiveUrl,
+        ...source,
         graphqlClient: ctx.graphqlClient,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
@@ -149,14 +165,7 @@ export async function downloadBuildAsync({
   graphqlClient,
   robotAccessToken,
   extensions,
-}: {
-  logger: bunyan;
-  buildId?: string;
-  applicationArchiveUrl?: string;
-  graphqlClient: Client;
-  robotAccessToken: string | null;
-  extensions: string[];
-}): Promise<{ artifactPath: string }> {
+}: DownloadBuildParams): Promise<{ artifactPath: string }> {
   const validatedApplicationArchiveUrl = applicationArchiveUrl
     ? parseHttpApplicationArchiveUrl(applicationArchiveUrl)
     : undefined;
