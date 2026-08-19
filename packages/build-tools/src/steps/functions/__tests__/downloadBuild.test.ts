@@ -146,7 +146,10 @@ describe('downloadBuild', () => {
         robotAccessToken: null,
         extensions: ['app'],
       })
-    ).rejects.toMatchObject({ errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE' });
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass buildId or applicationArchiveUrl.',
+    });
 
     await expect(
       downloadBuildAsync({
@@ -157,7 +160,10 @@ describe('downloadBuild', () => {
         robotAccessToken: null,
         extensions: ['app'],
       })
-    ).rejects.toMatchObject({ errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE' });
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass only one of buildId or applicationArchiveUrl.',
+    });
 
     expect(graphqlClient.query).not.toHaveBeenCalled();
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();

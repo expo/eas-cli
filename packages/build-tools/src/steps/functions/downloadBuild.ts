@@ -82,10 +82,16 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         ? parseHttpApplicationArchiveUrl(inputs.application_archive_url.value)
         : undefined;
 
-      if (Number(Boolean(buildId)) + Number(Boolean(applicationArchiveUrl)) !== 1) {
+      if (!buildId && !applicationArchiveUrl) {
         throw new UserError(
           'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-          'Pass exactly one of build_id or application_archive_url.'
+          'Pass build_id or application_archive_url.'
+        );
+      }
+      if (buildId && applicationArchiveUrl) {
+        throw new UserError(
+          'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+          'Pass only one of build_id or application_archive_url.'
         );
       }
 
@@ -154,10 +160,16 @@ export async function downloadBuildAsync({
   const validatedApplicationArchiveUrl = applicationArchiveUrl
     ? parseHttpApplicationArchiveUrl(applicationArchiveUrl)
     : undefined;
-  if (Number(Boolean(buildId)) + Number(Boolean(validatedApplicationArchiveUrl)) !== 1) {
+  if (!buildId && !validatedApplicationArchiveUrl) {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-      'Pass exactly one of buildId or applicationArchiveUrl.'
+      'Pass buildId or applicationArchiveUrl.'
+    );
+  }
+  if (buildId && validatedApplicationArchiveUrl) {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      'Pass only one of buildId or applicationArchiveUrl.'
     );
   }
 
