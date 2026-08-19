@@ -31,6 +31,7 @@ type RawUpdateFlags = {
   message?: string;
   platform: string;
   'private-key-path'?: string;
+  'force-end-active-rollout': boolean;
   'non-interactive': boolean;
   json: boolean;
 };
@@ -42,6 +43,7 @@ type UpdateFlags = {
   runtimeVersion?: string;
   updateMessage?: string;
   privateKeyPath?: string;
+  forceEndActiveRollout: boolean;
   json: boolean;
   nonInteractive: boolean;
 };
@@ -80,6 +82,11 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
+    'force-end-active-rollout': Flags.boolean({
+      description:
+        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it. The update being rolled out is then served to every user until they receive this one.',
+      default: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -98,6 +105,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       updateMessage: updateMessageArg,
       runtimeVersion: runtimeVersionArg,
       privateKeyPath,
+      forceEndActiveRollout,
       json: jsonFlag,
       nonInteractive,
       branchName: branchNameArg,
@@ -194,6 +202,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       platforms: realizedPlatforms,
       runtimeVersion: selectedRuntime,
       json: jsonFlag,
+      activeRollout: { forceEndActiveRollout, nonInteractive },
     });
   }
 
@@ -223,6 +232,7 @@ export default class UpdateRollBackToEmbedded extends EasCommand {
       runtimeVersion,
       platform: flags.platform as RequestedPlatform,
       privateKeyPath: flags['private-key-path'],
+      forceEndActiveRollout: flags['force-end-active-rollout'],
       nonInteractive,
       json,
     };

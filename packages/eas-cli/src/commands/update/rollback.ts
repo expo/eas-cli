@@ -51,6 +51,11 @@ export default class UpdateRollback extends EasCommand {
       description: `File containing the PEM-encoded private key corresponding to the certificate in expo-updates' configuration. Defaults to a file named "private-key.pem" in the certificate's directory. Only relevant if you are using code signing: https://docs.expo.dev/eas-update/code-signing/`,
       required: false,
     }),
+    'force-end-active-rollout': Flags.boolean({
+      description:
+        'Skip the confirmation prompt and end an in-progress rollout on the runtime version being rolled back, so this roll back supersedes it. The update being rolled out is then served to every user until they receive this one.',
+      default: false,
+    }),
     ...EasNonInteractiveAndJsonFlags,
   };
 
@@ -65,6 +70,9 @@ export default class UpdateRollback extends EasCommand {
     const groupId = args.groupId;
     const platform = flags.platform;
     const messageArg = flags.message;
+    const forceEndActiveRolloutArg = flags['force-end-active-rollout']
+      ? ['--force-end-active-rollout']
+      : [];
     const privateKeyPathArg = flags['private-key-path']
       ? ['--private-key-path', flags['private-key-path']]
       : [];
@@ -85,9 +93,9 @@ export default class UpdateRollback extends EasCommand {
       });
 
       if (choice === 'published') {
-        await UpdateRepublish.run(privateKeyPathArg);
+        await UpdateRepublish.run([...privateKeyPathArg, ...forceEndActiveRolloutArg]);
       } else {
-        await UpdateRollBackToEmbedded.run(privateKeyPathArg);
+        await UpdateRollBackToEmbedded.run([...privateKeyPathArg, ...forceEndActiveRolloutArg]);
       }
       return;
     }
@@ -108,6 +116,7 @@ export default class UpdateRollback extends EasCommand {
       '--platform',
       platform,
       ...privateKeyPathArg,
+      ...forceEndActiveRolloutArg,
       ...(json ? ['--json'] : []),
     ];
 

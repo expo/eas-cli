@@ -1,6 +1,7 @@
 import { ExpoConfig } from '@expo/config';
 import nullthrows from 'nullthrows';
 
+import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from './active-rollout';
 import { UpdatePublishPlatform, getUpdateJsonInfosForUpdates } from './utils';
 import { getUpdateGroupUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
@@ -34,6 +35,7 @@ export async function publishRollBackToEmbeddedUpdateAsync({
   platforms,
   runtimeVersion,
   json,
+  activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
@@ -44,6 +46,7 @@ export async function publishRollBackToEmbeddedUpdateAsync({
   platforms: UpdatePublishPlatform[];
   runtimeVersion: string;
   json: boolean;
+  activeRollout?: { forceEndActiveRollout: boolean; nonInteractive: boolean };
 }): Promise<void> {
   const runtimeToPlatformsAndFingerprintInfoMapping =
     getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
@@ -67,6 +70,9 @@ export async function publishRollBackToEmbeddedUpdateAsync({
       codeSigningInfo,
       runtimeToPlatformsAndFingerprintInfoMapping,
       platforms,
+      projectId,
+      branchName: branch.name,
+      activeRollout,
     });
     publishSpinner.succeed('Published!');
   } catch (e) {
@@ -127,6 +133,9 @@ async function publishRollbacksAsync({
   codeSigningInfo,
   runtimeToPlatformsAndFingerprintInfoMapping,
   platforms,
+  projectId,
+  branchName,
+  activeRollout,
 }: {
   graphqlClient: ExpoGraphqlClient;
   updateMessage: string | undefined;
@@ -136,6 +145,9 @@ async function publishRollbacksAsync({
     platforms: UpdatePublishPlatform[];
   })[];
   platforms: UpdatePublishPlatform[];
+  projectId: string;
+  branchName: string;
+  activeRollout?: { forceEndActiveRollout: boolean; nonInteractive: boolean };
 }): Promise<UpdatePublishMutation['updateBranch']['publishUpdateGroups']> {
   const rollbackInfoGroups = Object.fromEntries(platforms.map(platform => [platform, true]));
 
@@ -156,7 +168,17 @@ async function publishRollbacksAsync({
     }
   );
 
-  const newUpdates = await PublishMutation.publishUpdateGroupAsync(graphqlClient, updateGroups);
+  const newUpdates = await PublishMutation.publishUpdateGroupAsync(
+    graphqlClient,
+    activeRollout
+      ? await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, updateGroups, {
+          appId: projectId,
+          branchName,
+          nonInteractive: activeRollout.nonInteractive,
+          forceEndActiveRollout: activeRollout.forceEndActiveRollout,
+        })
+      : updateGroups
+  );
 
   if (codeSigningInfo) {
     Log.log('🔒 Signing roll back');
