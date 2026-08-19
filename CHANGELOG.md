@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Show human-readable summaries (e.g. "Read the screen size", "Took a screenshot") for Appium commands in simulator session events. ([#4227](https://github.com/expo/eas-cli/pull/4227) by [@sjchmiela](https://github.com/sjchmiela))
 
 ### 🐛 Bug fixes
 
