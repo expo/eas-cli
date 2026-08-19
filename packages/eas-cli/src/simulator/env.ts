@@ -29,7 +29,7 @@ export async function writeSimulatorEnvAsync(
   const simulatorDotenvContent =
     SIMULATOR_DOTENV_FILE_HEADER +
     Object.entries(environmentVariables)
-      .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+      .map(([key, value]) => `${key}='${value}'`)
       .join('\n') +
     '\n';
 

@@ -161,7 +161,7 @@ describe(SimulatorList, () => {
       '--status',
       'new',
       '--type',
-      'argent',
+      'appium',
       '--platform',
       'ios',
       '--name',
@@ -179,7 +179,7 @@ describe(SimulatorList, () => {
       after: 'page-cursor',
       filter: {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Argent],
+        types: [DeviceRunSessionType.Appium],
         platforms: [AppPlatform.Ios],
         name: 'checkout',
       },

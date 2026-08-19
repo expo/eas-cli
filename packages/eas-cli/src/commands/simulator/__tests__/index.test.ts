@@ -252,15 +252,15 @@ describe(Simulator, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
       simulatorDotenvPath,
       SIMULATOR_DOTENV_FILE_HEADER +
-        'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
-        `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+        "AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'\n" +
+        "AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'\n" +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(jest.mocked(fs.writeFile).mock.invocationCallOrder[0]).toBeLessThan(
       mockByIdAsync.mock.invocationCallOrder[0]
@@ -282,6 +282,51 @@ describe(Simulator, () => {
     );
   });
 
+  it('writes the Appium environment and capabilities to the simulator dotenv', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type: DeviceRunSessionType.Appium,
+        platform: AppPlatform.Ios,
+        remoteConfig: {
+          __typename: 'AppiumRunSessionRemoteConfig',
+          appiumUrl: 'https://appium.example.test',
+          capabilities: {
+            platformName: 'iOS',
+            'appium:automationName': 'XCUITest',
+            'appium:udid': 'simulator-id',
+          },
+          webPreviewUrl: 'https://preview.example.test',
+        },
+      })
+    );
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      'appium',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ type: DeviceRunSessionType.Appium })
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      simulatorDotenvPath,
+      expect.stringContaining(
+        `APPIUM_CAPS='{"platformName":"iOS","appium:automationName":"XCUITest","appium:udid":"simulator-id"}'`
+      )
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:exec <appium-client> [args...]')
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('https://appium.example.test')
+    );
+  });
+
   it('overwrites .env.eas-simulator when outputting dotenv and the file exists', async () => {
     const { command } = createCommand([
       '--platform',
@@ -295,15 +340,15 @@ describe(Simulator, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
       simulatorDotenvPath,
       SIMULATOR_DOTENV_FILE_HEADER +
-        'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
-        `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+        "AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'\n" +
+        "AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'\n" +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
   });
 

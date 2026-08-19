@@ -2191,6 +2191,8 @@ export type AppObserve = {
   navigationRoutes: AppObserveNavigationRoutesConnection;
   /** Active users and sessions for the Overview engagement band, across all versions. */
   overviewEngagement: AppObserveOverviewEngagement;
+  /** Crash-free rates with previous-period comparison for the Overview stability tiles. */
+  overviewStability: AppObserveOverviewStability;
   /** Per-update comparison within one app version: the embedded bundle plus each OTA update. */
   overviewUpdateComparison: AppObserveOverviewUpdateComparison;
   /** Per-version, per-platform metric summaries for the Overview version-comparison matrix. */
@@ -2293,6 +2295,11 @@ export type AppObserveNavigationRoutesArgs = {
 
 export type AppObserveOverviewEngagementArgs = {
   input: AppObserveOverviewEngagementInput;
+};
+
+
+export type AppObserveOverviewStabilityArgs = {
+  input: AppObserveOverviewStabilityInput;
 };
 
 
@@ -2445,6 +2452,8 @@ export type AppObserveCustomEvent = {
   sessionId?: Maybe<Scalars['String']['output']>;
   severityNumber?: Maybe<Scalars['Int']['output']>;
   severityText?: Maybe<Scalars['String']['output']>;
+  /** Build whose uploaded source map symbolicated exceptionStacktrace; null when the stack trace is shown as reported. */
+  symbolicationBuild?: Maybe<Build>;
   timestamp: Scalars['DateTime']['output'];
 };
 
@@ -2651,6 +2660,24 @@ export enum AppObserveErrorGroupsOrderBy {
   MostFrequent = 'MOST_FREQUENT',
   MostUsers = 'MOST_USERS'
 }
+
+/** AppObserveErrorStats for one platform; iOS includes iPadOS and tvOS. */
+export type AppObserveErrorPlatformStats = {
+  __typename?: 'AppObserveErrorPlatformStats';
+  /** Distinct sessions on this platform that hit any exception. */
+  affectedSessions: Scalars['Int']['output'];
+  /** Distinct users on this platform that hit any exception. */
+  affectedUsers: Scalars['Int']['output'];
+  /** Fraction (0..1) of this platform's active sessions without a fatal error. */
+  crashFreeSessions: Scalars['Float']['output'];
+  /** Fraction (0..1) of this platform's active users without a fatal error. */
+  crashFreeUsers: Scalars['Float']['output'];
+  fatalCount: Scalars['Int']['output'];
+  nonFatalCount: Scalars['Int']['output'];
+  platform: AppObservePlatform;
+  /** Total exception events in range on this platform. */
+  totalErrors: Scalars['Int']['output'];
+};
 
 export enum AppObserveErrorSeverity {
   Error = 'ERROR',
@@ -2873,7 +2900,7 @@ export type AppObserveNavigationStat = {
 
 export type AppObserveOverviewAllReleases = {
   __typename?: 'AppObserveOverviewAllReleases';
-  /** One entry per (metric, platform) with data in range; iOS includes tvOS and iPadOS. */
+  /** One entry per (metric, platform) with data in range; one entry per exact device platform. */
   metrics: Array<AppObserveOverviewVersionMetric>;
   uniqueUserCount: Scalars['Int']['output'];
 };
@@ -2910,12 +2937,41 @@ export type AppObserveOverviewEngagementStat = {
 
 export type AppObserveOverviewStability = {
   __typename?: 'AppObserveOverviewStability';
-  affectedUsers: Scalars['Int']['output'];
+  /** Fatal exception events in range. */
+  crashCount: Scalars['Int']['output'];
   /** Fraction (0..1) of active sessions without a fatal error. */
   crashFreeSessions: Scalars['Float']['output'];
   /** Fraction (0..1) of active users without a fatal error. */
   crashFreeUsers: Scalars['Float']['output'];
+  /** Distinct users that hit a fatal error in range. */
+  crashedUsers: Scalars['Int']['output'];
+  /** Fatal exception events in the equal-length window before startTime. */
+  previousPeriodCrashCount: Scalars['Int']['output'];
+  /** Same fractions for the equal-length window before startTime; null when it had no activity. */
+  previousPeriodCrashFreeSessions?: Maybe<Scalars['Float']['output']>;
+  previousPeriodCrashFreeUsers?: Maybe<Scalars['Float']['output']>;
+  previousPeriodCrashedUsers: Scalars['Int']['output'];
+  series: Array<AppObserveOverviewStabilityBucket>;
+  /** All exception events in range, for distinguishing quiet apps from crash-free ones. */
   totalErrors: Scalars['Int']['output'];
+};
+
+export type AppObserveOverviewStabilityBucket = {
+  __typename?: 'AppObserveOverviewStabilityBucket';
+  /** Approximate unique users that hit any exception in this bucket. Not summable across buckets. */
+  affectedUsers: Scalars['Int']['output'];
+  bucketStart: Scalars['DateTime']['output'];
+  crashCount: Scalars['Int']['output'];
+};
+
+/** Stability-tile filters. No release filters: the tiles always span all versions. */
+export type AppObserveOverviewStabilityInput = {
+  /** Series bucket size. Defaults to one day. */
+  bucketIntervalMinutes?: InputMaybe<Scalars['Int']['input']>;
+  endTime: Scalars['DateTime']['input'];
+  environment?: InputMaybe<Scalars['String']['input']>;
+  platform?: InputMaybe<AppObservePlatform>;
+  startTime: Scalars['DateTime']['input'];
 };
 
 export type AppObserveOverviewUpdate = {
@@ -2935,7 +2991,8 @@ export type AppObserveOverviewUpdate = {
   metrics: Array<AppObserveOverviewUpdateMetric>;
   /** When the update was published; null for the embedded bundle. */
   publishedAt?: Maybe<Scalars['DateTime']['output']>;
-  stability: AppObserveOverviewStability;
+  /** Error stats for this update, one entry per platform with activity; iOS includes iPadOS and tvOS. */
+  stability: Array<AppObserveErrorPlatformStats>;
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -2973,10 +3030,10 @@ export type AppObserveOverviewVersion = {
   __typename?: 'AppObserveOverviewVersion';
   appVersion: Scalars['String']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
-  /** One entry per (metric, platform) with data in range; iOS includes tvOS and iPadOS. */
+  /** One entry per (metric, platform) with data in range; each device OS (iOS, iPadOS, tvOS, macOS, Android) is a separate platform. */
   metrics: Array<AppObserveOverviewVersionMetric>;
-  /** Error stats for this version, all platforms combined. */
-  stability: AppObserveOverviewStability;
+  /** Error stats for this version, one entry per platform with activity; iOS includes iPadOS and tvOS. */
+  stability: Array<AppObserveErrorPlatformStats>;
   uniqueUserCount: Scalars['Int']['output'];
 };
 
@@ -3017,7 +3074,10 @@ export type AppObserveOverviewVersionSummary = {
 
 export enum AppObservePlatform {
   Android = 'ANDROID',
-  Ios = 'IOS'
+  Ios = 'IOS',
+  Ipados = 'IPADOS',
+  Macos = 'MACOS',
+  Tvos = 'TVOS'
 }
 
 export enum AppObservePropertyType {
@@ -3606,6 +3666,19 @@ export type AppWorkflowsInsightsWorkflowsArgs = {
   filters?: InputMaybe<WorkflowsInsightsFiltersInput>;
   first: Scalars['Int']['input'];
   timespan: WorkflowsInsightsTimespanInput;
+};
+
+export type AppiumRunSessionRemoteConfig = {
+  __typename?: 'AppiumRunSessionRemoteConfig';
+  /** Appium server URL for the remote device. */
+  appiumUrl: Scalars['String']['output'];
+  /** W3C capabilities for the device that backs this session. */
+  capabilities: Scalars['JSONObject']['output'];
+  /**
+   * URL of the web preview surface for the session. Null when web previews are
+   * not available for the platform (e.g. Android).
+   */
+  webPreviewUrl?: Maybe<Scalars['String']['output']>;
 };
 
 export type AppleAppIdentifier = {
@@ -5172,14 +5245,15 @@ export type CreateDeviceRunSessionInput = {
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
    * duration (2 hours, or maxRunTimeMinutes when set). Only supported for
-   * agent-device and argent sessions. If omitted, the session has no idle
+   * agent-device, argent, and Appium sessions. If omitted, the session has no idle
    * timeout.
    */
   maxIdleTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
   /**
-   * Override for the underlying turtle job run's max run time, in minutes. Must
-   * be non-negative and smaller than 120 (2 hours). Only customizable on paid
-   * plans. If omitted, the default is derived based on the job run's priority.
+   * Maximum usable session duration, in minutes, starting when the remote session
+   * is ready. Must be non-negative and no greater than 40 for normal-priority
+   * accounts or 115 for high-priority accounts. The backing job receives an
+   * additional five minutes for cleanup.
    */
   maxRunTimeMinutes?: InputMaybe<Scalars['Int']['input']>;
   /**
@@ -6069,7 +6143,7 @@ export type DeviceRunSessionQueryByIdArgs = {
   deviceRunSessionId: Scalars['ID']['input'];
 };
 
-export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
+export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -6080,6 +6154,7 @@ export enum DeviceRunSessionStatus {
 
 export enum DeviceRunSessionType {
   AgentDevice = 'AGENT_DEVICE',
+  Appium = 'APPIUM',
   Argent = 'ARGENT',
   ServeSim = 'SERVE_SIM'
 }
@@ -14917,6 +14992,7 @@ export type DeviceRunSessionByIdQueryVariables = Exact<{
 
 export type DeviceRunSessionByIdQuery = { __typename?: 'RootQuery', deviceRunSessions: { __typename?: 'DeviceRunSessionQuery', byId: { __typename?: 'DeviceRunSession', id: string, name?: string | null, status: DeviceRunSessionStatus, type: DeviceRunSessionType, platform: AppPlatform, createdAt: any, startedAt?: any | null, finishedAt?: any | null, updatedAt: any, app: { __typename?: 'App', id: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, artifacts: Array<{ __typename?: 'DeviceRunSessionArtifact', id: string, name: string, filename: string, downloadUrl: string, fileSizeBytes?: number | null, metadata?: any | null, createdAt: any, updatedAt: any }>, remoteConfig?:
         | { __typename: 'AgentDeviceRunSessionRemoteConfig', agentDeviceRemoteSessionUrl: string, agentDeviceRemoteSessionToken: string, webPreviewUrl?: string | null }
+        | { __typename: 'AppiumRunSessionRemoteConfig', appiumUrl: string, capabilities: any, webPreviewUrl?: string | null }
         | { __typename: 'ArgentRunSessionRemoteConfig', toolsUrl: string, toolsAuthToken?: string | null, webPreviewUrl?: string | null }
         | { __typename: 'ServeSimRunSessionRemoteConfig', previewUrl: string }
        | null, turtleJobRun?: { __typename?: 'JobRun', id: string, status: JobRunStatus } | null } } };

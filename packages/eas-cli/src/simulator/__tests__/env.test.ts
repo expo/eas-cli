@@ -1,4 +1,5 @@
 import * as fs from 'fs-extra';
+import { parse as parseDotenv } from 'dotenv';
 
 import {
   EAS_SIMULATOR_SESSION_ID,
@@ -18,7 +19,7 @@ describe(resetSimulatorEnvAsync, () => {
     jest.clearAllMocks();
     jest
       .mocked(fs.readFile)
-      .mockResolvedValue(`${EAS_SIMULATOR_SESSION_ID}="session-123"\n` as never);
+      .mockResolvedValue(`${EAS_SIMULATOR_SESSION_ID}='session-123'\n` as never);
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
     jest.mocked(fs.truncate).mockResolvedValue(undefined as never);
   });
@@ -81,9 +82,21 @@ describe(writeSimulatorEnvAsync, () => {
     expect(fs.writeFile).toHaveBeenCalledWith(
       simulatorDotenvPath,
       SIMULATOR_DOTENV_FILE_HEADER +
-        'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
-        `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+        "AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'\n" +
+        "AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'\n" +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
+  });
+
+  it('preserves serialized Appium capabilities as one dotenv value', async () => {
+    const capabilities = JSON.stringify({
+      platformName: 'iOS',
+      note: `It's important to preserve "quotes" and \\slashes`,
+    });
+
+    await writeSimulatorEnvAsync(projectDir, { APPIUM_CAPS: capabilities });
+
+    const writtenContent = jest.mocked(fs.writeFile).mock.calls[0][1];
+    expect(parseDotenv(String(writtenContent)).APPIUM_CAPS).toBe(capabilities);
   });
 });
