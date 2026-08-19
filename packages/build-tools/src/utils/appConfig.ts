@@ -67,7 +67,7 @@ async function getAppConfigFromExpo({
 function loadEnvVarsFromDotenvFile(projectDir: string, env: Env): Env {
   const originalProcessEnv = process.env;
   try {
-    // @expo/env@0.4 reads the mode from NODE_ENV.
+    // The legacy @expo/env API reads the mode from NODE_ENV.
     process.env = { ...env };
     load(projectDir);
     return getLegacyExpoConfigEnv(process.env as Env, 'production');
