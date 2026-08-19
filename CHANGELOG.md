@@ -12,6 +12,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Stabilize EAS Simulator tunnels by supervising ngrok forwarding and backing processes. ([#4226](https://github.com/expo/eas-cli/pull/4226) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Disallow 0-length uploads. ([#4192](https://github.com/expo/eas-cli/pull/4192) by [@wschurman](https://github.com/wschurman))
 - [eas-cli] Send the expected `Content-MD5` checksum with GCS signed URL uploads so GCS rejects corrupted uploads. ([#4208](https://github.com/expo/eas-cli/pull/4208) by [@wschurman](https://github.com/wschurman))
 - [eas-cli] Resolve the `eas go` SDK version to its repack target, so `--sdk-version 57` no longer fails with "No Expo Go repack target is published for SDK 57". ([#4215](https://github.com/expo/eas-cli/pull/4215) by [@gwdp](https://github.com/gwdp))
