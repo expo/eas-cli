@@ -8,6 +8,9 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import semver from 'semver';
 import { z } from 'zod';
 
@@ -72,10 +75,15 @@ export function createStartAppiumRemoteSessionBuildFunction(
         `Starting Appium remote session (version: ${versionSpec}, runtime: ${runtimePlatform}).`
       );
       const device = await resolveAppiumDeviceAsync({ runtimePlatform, env, logger });
-      await installAppiumAsync({ versionSpec, driverName: device.driverName, env, logger });
+      const { appiumHome, appiumBinPath, appiumEnv } = await installAppiumAsync({
+        versionSpec,
+        driverName: device.driverName,
+        env,
+        logger,
+      });
 
       const appiumProcess = spawnDetached({
-        command: 'appium',
+        command: appiumBinPath,
         args: [
           '--address',
           APPIUM_HOST,
@@ -91,12 +99,13 @@ export function createStartAppiumRemoteSessionBuildFunction(
           '--allow-insecure',
           '*:session_discovery',
         ],
-        env,
+        env: appiumEnv,
       });
       try {
         await waitForAppiumReadyAsync({ appiumProcess, logger });
       } catch (error) {
         await appiumProcess.stopAsync();
+        await fs.promises.rm(appiumHome, { recursive: true, force: true });
         throw error;
       }
 
@@ -168,6 +177,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
         }
         await eventCollection.stopAsync();
         await appiumProcess.stopAsync();
+        await fs.promises.rm(appiumHome, { recursive: true, force: true });
       }
     },
   });
@@ -243,21 +253,33 @@ async function installAppiumAsync({
   driverName: AppiumDevice['driverName'];
   env: BuildStepEnv;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<{ appiumHome: string; appiumBinPath: string; appiumEnv: BuildStepEnv }> {
+  const appiumHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'eas-appium-home-'));
+  await fs.promises.writeFile(
+    path.join(appiumHome, 'package.json'),
+    `${JSON.stringify({ name: 'eas-appium-home', private: true })}\n`
+  );
+  const appiumEnv: BuildStepEnv = { ...env, APPIUM_HOME: appiumHome };
+  const appiumBinPath = path.join(appiumHome, 'node_modules', '.bin', 'appium');
+
   logger.info(`Installing appium@${versionSpec}.`);
-  await spawn('npm', ['install', '--global', `appium@${versionSpec}`], { env, logger });
-  const { stdout } = await spawn('appium', ['driver', 'list', '--installed', '--json'], {
-    env,
+  await spawn('npm', ['install', '--prefix', appiumHome, `appium@${versionSpec}`], {
+    env: appiumEnv,
+    logger,
+  });
+  const { stdout } = await spawn(appiumBinPath, ['driver', 'list', '--installed', '--json'], {
+    env: appiumEnv,
     stdio: 'pipe',
   });
   const installedDrivers = AppiumInstalledDriversSchema.parse(JSON.parse(stdout));
   if (installedDrivers[driverName]?.installed) {
     logger.info(`Updating the installed Appium ${driverName} driver.`);
-    await spawn('appium', ['driver', 'update', driverName], { env, logger });
+    await spawn(appiumBinPath, ['driver', 'update', driverName], { env: appiumEnv, logger });
   } else {
     logger.info(`Installing the Appium ${driverName} driver.`);
-    await spawn('appium', ['driver', 'install', driverName], { env, logger });
+    await spawn(appiumBinPath, ['driver', 'install', driverName], { env: appiumEnv, logger });
   }
+  return { appiumHome, appiumBinPath, appiumEnv };
 }
 
 async function waitForAppiumReadyAsync({
