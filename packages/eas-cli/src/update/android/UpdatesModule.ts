@@ -30,7 +30,7 @@ export async function syncUpdatesConfigurationAsync({
     await expoUpdatesCommandAsync(
       projectDir,
       ['configuration:syncnative', '--platform', 'android', '--workflow', workflow],
-      { env, mode: 'production' }
+      { env }
     );
     return;
   }
