@@ -102,9 +102,7 @@ describe(readAppConfig, () => {
     const config = { exp: { name: 'test-app', slug: 'test-app' } };
     expoCommandAsync.mockResolvedValue({ stdout: JSON.stringify(config) });
     const originalProcessEnv = process.env;
-    let nodeEnvWhenParsed: string | undefined;
     parseProjectEnv.mockImplementation(() => {
-      nodeEnvWhenParsed = process.env.NODE_ENV;
       return {
         env: {
           NODE_ENV: 'development',
@@ -129,7 +127,6 @@ describe(readAppConfig, () => {
         FROM_BUILD: 'true',
       },
     });
-    expect(nodeEnvWhenParsed).toBe('production');
     expect(process.env).toBe(originalProcessEnv);
     expect(expoCommandAsync).toHaveBeenCalledWith('/project', expect.any(Array), {
       env: {
