@@ -6526,61 +6526,6 @@
       },
       {
         "kind": "OBJECT",
-        "name": "AppiumRunSessionRemoteConfig",
-        "description": null,
-        "fields": [
-          {
-            "name": "appiumUrl",
-            "description": "Authenticated Appium server URL. Treat this value as a secret.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "capabilities",
-            "description": "W3C capabilities for the device that backs this session.",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "JSONObject",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "webPreviewUrl",
-            "description": "URL of the web preview surface for the session. Null when web previews are\nnot available for the platform (e.g. Android).",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
         "name": "AndroidAppBuildCredentials",
         "description": null,
         "fields": [
@@ -14901,6 +14846,39 @@
             "deprecationReason": null
           },
           {
+            "name": "overviewStability",
+            "description": "Crash-free rates with previous-period comparison for the Overview stability tiles.",
+            "args": [
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "AppObserveOverviewStabilityInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "AppObserveOverviewStability",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "overviewUpdateComparison",
             "description": "Per-update comparison within one app version: the embedded bundle plus each OTA update.",
             "args": [
@@ -16157,6 +16135,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "symbolicationBuild",
+            "description": "Build whose uploaded source map symbolicated exceptionStacktrace; null when the stack trace is shown as reported.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "Build",
               "ofType": null
             },
             "isDeprecated": false,
@@ -17885,6 +17875,145 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AppObserveErrorPlatformStats",
+        "description": "AppObserveErrorStats for one platform; iOS includes iPadOS and tvOS.",
+        "fields": [
+          {
+            "name": "affectedSessions",
+            "description": "Distinct sessions on this platform that hit any exception.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "affectedUsers",
+            "description": "Distinct users on this platform that hit any exception.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "crashFreeSessions",
+            "description": "Fraction (0..1) of this platform's active sessions without a fatal error.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "crashFreeUsers",
+            "description": "Fraction (0..1) of this platform's active users without a fatal error.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Float",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "fatalCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "nonFatalCount",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platform",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "AppObservePlatform",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "totalErrors",
+            "description": "Total exception events in range on this platform.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -19777,7 +19906,7 @@
         "fields": [
           {
             "name": "metrics",
-            "description": "One entry per (metric, platform) with data in range; iOS includes tvOS and iPadOS.",
+            "description": "One entry per (metric, platform) with data in range; one entry per exact device platform.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20059,8 +20188,8 @@
         "description": null,
         "fields": [
           {
-            "name": "affectedUsers",
-            "description": null,
+            "name": "crashCount",
+            "description": "Fatal exception events in range.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20107,7 +20236,162 @@
             "deprecationReason": null
           },
           {
+            "name": "crashedUsers",
+            "description": "Distinct users that hit a fatal error in range.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousPeriodCrashCount",
+            "description": "Fatal exception events in the equal-length window before startTime.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousPeriodCrashFreeSessions",
+            "description": "Same fractions for the equal-length window before startTime; null when it had no activity.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousPeriodCrashFreeUsers",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "previousPeriodCrashedUsers",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "series",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveOverviewStabilityBucket",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "totalErrors",
+            "description": "All exception events in range, for distinguishing quiet apps from crash-free ones.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AppObserveOverviewStabilityBucket",
+        "description": null,
+        "fields": [
+          {
+            "name": "affectedUsers",
+            "description": "Approximate unique users that hit any exception in this bucket. Not summable across buckets.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "bucketStart",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "crashCount",
             "description": null,
             "args": [],
             "type": {
@@ -20125,6 +20409,85 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "AppObserveOverviewStabilityInput",
+        "description": "Stability-tile filters. No release filters: the tiles always span all versions.",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "bucketIntervalMinutes",
+            "description": "Series bucket size. Defaults to one day.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "endTime",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "environment",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platform",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "AppObservePlatform",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "startTime",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -20279,15 +20642,23 @@
           },
           {
             "name": "stability",
-            "description": null,
+            "description": "Error stats for this update, one entry per platform with activity; iOS includes iPadOS and tvOS.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "OBJECT",
-                "name": "AppObserveOverviewStability",
-                "ofType": null
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveErrorPlatformStats",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -20614,7 +20985,7 @@
           },
           {
             "name": "metrics",
-            "description": "One entry per (metric, platform) with data in range; iOS includes tvOS and iPadOS.",
+            "description": "One entry per (metric, platform) with data in range; each device OS (iOS, iPadOS, tvOS, macOS, Android) is a separate platform.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -20638,15 +21009,23 @@
           },
           {
             "name": "stability",
-            "description": "Error stats for this version, all platforms combined.",
+            "description": "Error stats for this version, one entry per platform with activity; iOS includes iPadOS and tvOS.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "OBJECT",
-                "name": "AppObserveOverviewStability",
-                "ofType": null
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "AppObserveErrorPlatformStats",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,
@@ -20994,6 +21373,24 @@
           },
           {
             "name": "IOS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "IPADOS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MACOS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TVOS",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null
@@ -25358,6 +25755,61 @@
                 "name": "WorkflowsInsightsWorkflowConnection",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AppiumRunSessionRemoteConfig",
+        "description": null,
+        "fields": [
+          {
+            "name": "appiumUrl",
+            "description": "Appium server URL for the remote device.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "capabilities",
+            "description": "W3C capabilities for the device that backs this session.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "JSONObject",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "webPreviewUrl",
+            "description": "URL of the web preview surface for the session. Null when web previews are\nnot available for the platform (e.g. Android).",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -36773,7 +37225,7 @@
           },
           {
             "name": "maxIdleTimeMinutes",
-            "description": "Stop the session automatically after this many minutes without observed\nsession activity. Must be positive and smaller than the session's maximum\nduration (2 hours, or maxRunTimeMinutes when set). Only supported for\nagent-device and argent sessions. If omitted, the session has no idle\ntimeout.",
+            "description": "Stop the session automatically after this many minutes without observed\nsession activity. Must be positive and smaller than the session's maximum\nduration (2 hours, or maxRunTimeMinutes when set). Only supported for\nagent-device, argent, and Appium sessions. If omitted, the session has no idle\ntimeout.",
             "type": {
               "kind": "SCALAR",
               "name": "Int",
@@ -36785,7 +37237,7 @@
           },
           {
             "name": "maxRunTimeMinutes",
-            "description": "Override for the underlying turtle job run's max run time, in minutes. Must\nbe non-negative and smaller than 120 (2 hours). Only customizable on paid\nplans. If omitted, the default is derived based on the job run's priority.",
+            "description": "Maximum usable session duration, in minutes, starting when the remote session\nis ready. Must be non-negative and no greater than 40 for normal-priority\naccounts or 115 for high-priority accounts. The backing job receives an\nadditional five minutes for cleanup.",
             "type": {
               "kind": "SCALAR",
               "name": "Int",
