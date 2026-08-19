@@ -265,6 +265,12 @@ export function createMaestroTestsBuildFunction(ctx: CustomBuildContext): BuildF
           'maestro-runner does not support EAS Maestro test sharding. Remove shards or set it to 1.'
         );
       }
+      if (backend === 'maestro-runner' && outputFormat !== undefined && outputFormat !== 'junit') {
+        throw new UserError(
+          'ERR_MAESTRO_INVALID_INPUT',
+          `maestro-runner only supports the "junit" output_format, but received "${outputFormat}".`
+        );
+      }
       const retryFailedOnly = inputs.retry_failed_only.value as boolean;
 
       try {

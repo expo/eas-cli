@@ -270,6 +270,20 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
+  it('rejects a non-junit output_format with maestro-runner', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'html',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(
+      'maestro-runner only supports the "junit" output_format'
+    );
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
   it('logs that maestro-runner does not support direct DADB', async () => {
     mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
     jest.spyOn(fs, 'copyFile').mockResolvedValue();
@@ -610,38 +624,35 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(a1Args).not.toContain('flows/c.yaml');
   });
 
-  it.each(['junit', 'html'])(
-    'uses maestro-runner report.json for %s retries',
-    async outputFormat => {
-      mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
-      jest.spyOn(fs, 'copyFile').mockResolvedValue();
-      const runnerReportSpy = jest
-        .spyOn(parser, 'parseFailedFlowsFromMaestroRunnerReport')
-        .mockResolvedValue(['flows/b.yaml']);
-      const junitParseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+  it('uses maestro-runner report.json for junit retries', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const runnerReportSpy = jest
+      .spyOn(parser, 'parseFailedFlowsFromMaestroRunnerReport')
+      .mockResolvedValue(['flows/b.yaml']);
+    const junitParseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
 
-      const step = createStep({
-        flow_path: ['flows/a.yaml', 'flows/b.yaml'],
-        retries: 1,
-        output_format: outputFormat,
-        platform: 'ios',
-        backend: 'maestro-runner',
-      });
-      await step.executeAsync();
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      platform: 'ios',
+      backend: 'maestro-runner',
+    });
+    await step.executeAsync();
 
-      expect(runnerReportSpy).toHaveBeenCalledWith({
-        reportDirectory: '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0',
-        workingDirectory: expect.any(String),
-      });
-      expect(junitParseSpy).not.toHaveBeenCalled();
-      expect(mockedSpawn.mock.calls[0][1]).toEqual(
-        expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
-      );
-      const retryArgs = mockedSpawn.mock.calls[1][1]!;
-      expect(retryArgs).toContain('flows/b.yaml');
-      expect(retryArgs).not.toContain('flows/a.yaml');
-    }
-  );
+    expect(runnerReportSpy).toHaveBeenCalledWith({
+      reportDirectory: '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0',
+      workingDirectory: expect.any(String),
+    });
+    expect(junitParseSpy).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls[0][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+    const retryArgs = mockedSpawn.mock.calls[1][1]!;
+    expect(retryArgs).toContain('flows/b.yaml');
+    expect(retryArgs).not.toContain('flows/a.yaml');
+  });
 
   it('retries all flows when parseFailedFlowsFromJUnit returns null', async () => {
     const spawnMock = mockedSpawn
