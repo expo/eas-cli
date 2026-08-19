@@ -12,12 +12,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
-export function createInstallAndLaunchBuildFunction(): BuildFunction {
+export function createInstallBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
-    id: 'install_and_launch_build',
-    name: 'Install and launch build',
-    __metricsId: 'eas/install_and_launch_build',
+    id: 'install_build',
+    name: 'Install build',
+    __metricsId: 'eas/install_build',
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'artifact_path',
@@ -27,7 +27,7 @@ export function createInstallAndLaunchBuildFunction(): BuildFunction {
     ],
     fn: async ({ global, logger }, { inputs, env }) => {
       const artifactPath = z.string().min(1).parse(inputs.artifact_path.value);
-      await installAndLaunchBuildAsync({
+      await installBuildAsync({
         artifactPath,
         runtimePlatform: global.runtimePlatform,
         env,
@@ -37,7 +37,7 @@ export function createInstallAndLaunchBuildFunction(): BuildFunction {
   });
 }
 
-export async function installAndLaunchBuildAsync({
+export async function installBuildAsync({
   artifactPath,
   runtimePlatform,
   env,
@@ -64,24 +64,8 @@ export async function installAndLaunchBuildAsync({
       );
     }
 
-    const infoPlistPath = path.join(artifactPath, 'Info.plist');
-    const { stdout } = await spawn(
-      'plutil',
-      ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
-      { stdio: 'pipe', env }
-    );
-    const bundleIdentifier = stdout.trim();
-    if (!bundleIdentifier) {
-      throw new UserError(
-        'EAS_INSTALL_BUILD_MISSING_APP_IDENTIFIER',
-        `Could not read CFBundleIdentifier from ${infoPlistPath}.`
-      );
-    }
-
-    logger.info(`Installing ${bundleIdentifier} on the iOS Simulator.`);
+    logger.info(`Installing ${artifactPath} on the iOS Simulator.`);
     await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
-    logger.info(`Launching ${bundleIdentifier}.`);
-    await spawn('xcrun', ['simctl', 'launch', 'booted', bundleIdentifier], { env, logger });
     return;
   }
 
@@ -92,24 +76,6 @@ export async function installAndLaunchBuildAsync({
     );
   }
 
-  const { stdout } = await spawn('aapt', ['dump', 'badging', artifactPath], {
-    stdio: 'pipe',
-    env,
-  });
-  const packageName = stdout.match(/package: name='([^']+)'/)?.[1];
-  const activityName = stdout.match(/launchable-activity: name='([^']+)'/)?.[1];
-  if (!packageName || !activityName) {
-    throw new UserError(
-      'EAS_INSTALL_BUILD_MISSING_APP_IDENTIFIER',
-      `Could not read a launchable Android application from ${artifactPath}.`
-    );
-  }
-
-  logger.info(`Installing ${packageName} on the Android Emulator.`);
+  logger.info(`Installing ${artifactPath} on the Android Emulator.`);
   await spawn('adb', ['install', '-r', artifactPath], { env, logger });
-  logger.info(`Launching ${packageName}.`);
-  await spawn('adb', ['shell', 'am', 'start', '-n', `${packageName}/${activityName}`], {
-    env,
-    logger,
-  });
 }
