@@ -1,11 +1,9 @@
 import { BuildRuntimePlatform } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 
+import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import { launchApplicationAsync } from '../launchApplication';
+import { createLaunchApplicationFunction, launchApplicationAsync } from '../launchApplication';
 
 jest.mock('@expo/turtle-spawn', () => ({
   __esModule: true,
@@ -13,15 +11,6 @@ jest.mock('@expo/turtle-spawn', () => ({
 }));
 
 const mockedSpawn = jest.mocked(spawn);
-const temporaryDirectories: string[] = [];
-
-async function makeTemporaryDirectoryAsync(): Promise<string> {
-  const temporaryDirectory = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'launch-application-test-')
-  );
-  temporaryDirectories.push(temporaryDirectory);
-  return temporaryDirectory;
-}
 
 describe(launchApplicationAsync, () => {
   beforeEach(() => {
@@ -29,105 +18,71 @@ describe(launchApplicationAsync, () => {
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
   });
 
-  afterAll(async () => {
-    await Promise.all(
-      temporaryDirectories.map(temporaryDirectory =>
-        fs.promises.rm(temporaryDirectory, { recursive: true, force: true })
-      )
-    );
-  });
-
-  it('launches an iOS Simulator .app', async () => {
-    const temporaryDirectory = await makeTemporaryDirectoryAsync();
-    const artifactPath = path.join(temporaryDirectory, 'Example.app');
-    await fs.promises.mkdir(artifactPath);
+  it('launches an iOS Simulator application by bundle identifier', async () => {
     const logger = createMockLogger();
-    mockedSpawn.mockResolvedValueOnce({
-      stdout: 'com.example.app\n',
-      stderr: '',
-    } as any);
 
     await launchApplicationAsync({
-      artifactPath,
+      applicationIdentifier: 'com.example.app',
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: {},
       logger,
     });
 
-    expect(mockedSpawn.mock.calls).toEqual([
-      [
-        'plutil',
-        ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', path.join(artifactPath, 'Info.plist')],
-        { stdio: 'pipe', env: {} },
-      ],
-      ['xcrun', ['simctl', 'launch', 'booted', 'com.example.app'], { env: {}, logger }],
-    ]);
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'xcrun',
+      ['simctl', 'launch', 'booted', 'com.example.app'],
+      { env: {}, logger }
+    );
   });
 
-  it('launches an Android Emulator .apk', async () => {
-    const temporaryDirectory = await makeTemporaryDirectoryAsync();
-    const artifactPath = path.join(temporaryDirectory, 'example.apk');
-    await fs.promises.writeFile(artifactPath, 'apk');
+  it('launches an Android Emulator application by package and activity', async () => {
     const logger = createMockLogger();
-    mockedSpawn.mockResolvedValueOnce({
-      stdout:
-        "package: name='com.example.app'\nlaunchable-activity: name='com.example.app.MainActivity'\n",
-      stderr: '',
-    } as any);
 
     await launchApplicationAsync({
-      artifactPath,
+      applicationIdentifier: 'com.example.app',
+      activityName: 'com.example.app.MainActivity',
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: {},
       logger,
     });
 
-    expect(mockedSpawn.mock.calls).toEqual([
-      ['aapt', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
-      [
-        'adb',
-        ['shell', 'am', 'start', '-n', 'com.example.app/com.example.app.MainActivity'],
-        { env: {}, logger },
-      ],
-    ]);
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'adb',
+      ['shell', 'am', 'start', '-n', 'com.example.app/com.example.app.MainActivity'],
+      { env: {}, logger }
+    );
   });
 
-  it.each([
-    [BuildRuntimePlatform.DARWIN, 'example.ipa'],
-    [BuildRuntimePlatform.LINUX, 'example.aab'],
-  ])('rejects an incompatible %s artifact', async (runtimePlatform, filename) => {
-    const temporaryDirectory = await makeTemporaryDirectoryAsync();
-    const artifactPath = path.join(temporaryDirectory, filename);
-    await fs.promises.writeFile(artifactPath, 'artifact');
-
+  it('requires an activity when launching an Android application', async () => {
     await expect(
       launchApplicationAsync({
-        artifactPath,
-        runtimePlatform,
-        env: {},
-        logger: createMockLogger(),
-      })
-    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_ARTIFACT' });
-
-    expect(mockedSpawn).not.toHaveBeenCalled();
-  });
-
-  it('rejects an Android artifact without a launchable activity', async () => {
-    const temporaryDirectory = await makeTemporaryDirectoryAsync();
-    const artifactPath = path.join(temporaryDirectory, 'example.apk');
-    await fs.promises.writeFile(artifactPath, 'apk');
-    mockedSpawn.mockResolvedValue({
-      stdout: "package: name='com.example.app'\n",
-      stderr: '',
-    } as any);
-
-    await expect(
-      launchApplicationAsync({
-        artifactPath,
+        applicationIdentifier: 'com.example.app',
         runtimePlatform: BuildRuntimePlatform.LINUX,
         env: {},
         logger: createMockLogger(),
       })
-    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_MISSING_IDENTIFIER' });
+    ).rejects.toMatchObject({ errorCode: 'EAS_LAUNCH_APPLICATION_MISSING_ACTIVITY' });
+
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('launches using application metadata passed to the build step', async () => {
+    const launchApplication = createLaunchApplicationFunction();
+    const buildStep = launchApplication.createBuildStepFromFunctionCall(
+      createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX }),
+      {
+        callInputs: {
+          application_identifier: 'com.example.app',
+          activity_name: 'com.example.app.MainActivity',
+        },
+      }
+    );
+    await buildStep.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      'adb',
+      ['shell', 'am', 'start', '-n', 'com.example.app/com.example.app.MainActivity'],
+      expect.any(Object)
+    );
   });
 });

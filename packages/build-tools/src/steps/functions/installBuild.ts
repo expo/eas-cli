@@ -6,6 +6,7 @@ import {
   BuildStepEnv,
   BuildStepInput,
   BuildStepInputValueTypeName,
+  BuildStepOutput,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import fs from 'node:fs';
@@ -25,14 +26,28 @@ export function createInstallBuildFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
     ],
-    fn: async ({ global, logger }, { inputs, env }) => {
+    outputProviders: [
+      BuildStepOutput.createProvider({
+        id: 'application_identifier',
+        required: true,
+      }),
+      BuildStepOutput.createProvider({
+        id: 'activity_name',
+        required: false,
+      }),
+    ],
+    fn: async ({ global, logger }, { inputs, outputs, env }) => {
       const artifactPath = z.string().min(1).parse(inputs.artifact_path.value);
-      await installBuildAsync({
+      const { applicationIdentifier, activityName } = await installBuildAsync({
         artifactPath,
         runtimePlatform: global.runtimePlatform,
         env,
         logger,
       });
+      outputs.application_identifier.set(applicationIdentifier);
+      if (activityName) {
+        outputs.activity_name.set(activityName);
+      }
     },
   });
 }
@@ -47,7 +62,7 @@ export async function installBuildAsync({
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
-}): Promise<void> {
+}): Promise<{ applicationIdentifier: string; activityName?: string }> {
   const artifactStat = await fs.promises.stat(artifactPath).catch(err => {
     throw new UserError(
       'EAS_INSTALL_BUILD_INVALID_ARTIFACT',
@@ -64,9 +79,23 @@ export async function installBuildAsync({
       );
     }
 
+    const infoPlistPath = path.join(artifactPath, 'Info.plist');
+    const { stdout } = await spawn(
+      'plutil',
+      ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
+      { stdio: 'pipe', env }
+    );
+    const applicationIdentifier = stdout.trim();
+    if (!applicationIdentifier) {
+      throw new UserError(
+        'EAS_INSTALL_BUILD_MISSING_IDENTIFIER',
+        `Could not read CFBundleIdentifier from ${infoPlistPath}.`
+      );
+    }
+
     logger.info(`Installing ${artifactPath} on the iOS Simulator.`);
     await spawn('xcrun', ['simctl', 'install', 'booted', artifactPath], { env, logger });
-    return;
+    return { applicationIdentifier };
   }
 
   if (path.extname(artifactPath) !== '.apk' || !artifactStat.isFile()) {
@@ -76,6 +105,20 @@ export async function installBuildAsync({
     );
   }
 
+  const { stdout } = await spawn('aapt', ['dump', 'badging', artifactPath], {
+    stdio: 'pipe',
+    env,
+  });
+  const applicationIdentifier = stdout.match(/package: name='([^']+)'/)?.[1];
+  const activityName = stdout.match(/launchable-activity: name='([^']+)'/)?.[1];
+  if (!applicationIdentifier) {
+    throw new UserError(
+      'EAS_INSTALL_BUILD_MISSING_IDENTIFIER',
+      `Could not read an Android application identifier from ${artifactPath}.`
+    );
+  }
+
   logger.info(`Installing ${artifactPath} on the Android Emulator.`);
   await spawn('adb', ['install', '-r', artifactPath], { env, logger });
+  return { applicationIdentifier, activityName };
 }
