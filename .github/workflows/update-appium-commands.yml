@@ -1,0 +1,58 @@
+name: Update Appium command list
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Every Monday at 06:00 UTC
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/update-appium-commands.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    name: Regenerate Appium command list
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          token: ${{ secrets.EXPO_BOT_PAT }}
+      - name: Setup tools
+        uses: ./.github/actions/setup-mise
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Update @appium/base-driver to the latest supported version
+        run: yarn up '@appium/base-driver'
+      - name: Regenerate the Appium command list
+        run: yarn workspace @expo/build-tools generate-appium-commands
+      - name: Open a pull request when the command list changed
+        env:
+          GH_TOKEN: ${{ secrets.EXPO_BOT_PAT }}
+        run: |
+          if git diff --quiet; then
+            echo "The Appium command list is already up to date."
+            exit 0
+          fi
+
+          branch=bot/update-appium-commands
+          title='[build-tools] Update Appium command list'
+          body=$'Automated update of the Appium command list from `@appium/base-driver`.\n\nIf this PR adds new commands, the `APPIUM_COMMAND_SUMMARIES` coverage test will fail until a curated summary is added for each of them in `packages/build-tools/src/steps/utils/appiumCommandSummary.ts`.'
+
+          git config user.name 'Expo Bot'
+          git config user.email bot@expo.dev
+          git checkout -B "$branch"
+          git add yarn.lock packages/build-tools/package.json \
+            packages/build-tools/src/steps/utils/appiumCommands.generated.ts
+          git commit -m "$title"
+          git push --force-with-lease origin "$branch"
+
+          if gh pr view "$branch" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$branch" --title "$title" --body "$body"
+          else
+            gh pr create --base main --head "$branch" --title "$title" --body "$body" --label 'no changelog'
+          fi
