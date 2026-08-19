@@ -62,6 +62,18 @@ describe(startAppiumEventCollectionAsync, () => {
       },
     });
 
+    // Appium 3 removed GET /sessions; session discovery must use /appium/sessions.
+    expect(turtleFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:4723/appium/sessions',
+      'GET',
+      expect.anything()
+    );
+    expect(turtleFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:4723/session/appium-session-id/appium/events',
+      'POST',
+      expect.anything()
+    );
+
     await collection.stopAsync();
   });
 });

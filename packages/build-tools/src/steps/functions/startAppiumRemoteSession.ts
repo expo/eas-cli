@@ -85,6 +85,11 @@ export function createStartAppiumRemoteSessionBuildFunction(
           '/',
           '--log-level',
           'error',
+          // Appium 3 gates session listing (GET /appium/sessions) behind the
+          // session_discovery insecure feature. We rely on it to poll for
+          // Appium Event Timings, so enable it for all drivers.
+          '--allow-insecure',
+          '*:session_discovery',
         ],
         env,
       });

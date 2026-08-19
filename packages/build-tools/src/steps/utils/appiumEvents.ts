@@ -168,7 +168,7 @@ async function collectAppiumCommandsAsync({
   observedCommandKeys: Set<string>;
   logger: bunyan;
 }): Promise<void> {
-  const response = await turtleFetch(new URL('sessions', appiumUrl).toString(), 'GET', {
+  const response = await turtleFetch(new URL('appium/sessions', appiumUrl).toString(), 'GET', {
     timeout: APPIUM_REQUEST_TIMEOUT_MS,
     retries: 0,
     logger,
