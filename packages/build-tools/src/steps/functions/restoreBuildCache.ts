@@ -258,13 +258,14 @@ export async function restoreGradleCacheAsync({
     const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
 
     const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+    const journalPath = path.join(gradleCachesPath, 'journal-1');
 
     const { archivePath, matchedKey } = await downloadCacheAsync({
       logger,
       jobId,
       expoApiServerURL,
       robotAccessToken,
-      paths: [buildCachePath],
+      paths: [buildCachePath, journalPath],
       key: cacheKey,
       keyPrefixes: [GRADLE_CACHE_KEY_PREFIX],
       platform: Platform.ANDROID,
