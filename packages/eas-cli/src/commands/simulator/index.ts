@@ -406,7 +406,7 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Simulator session ended. ${link(deviceRunSessionUrl)}`);
-        await resetSimulatorEnvVerboseAsync(projectDir);
+        await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
         return;
       }
 
@@ -420,7 +420,7 @@ async function waitForSessionEndOrInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Simulator session stopped');
-      await resetSimulatorEnvVerboseAsync(projectDir);
+      await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
     } else {
       spinner.fail(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -490,7 +490,7 @@ async function stopDeviceRunSessionAfterInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Simulator session stopped');
-      await resetSimulatorEnvVerboseAsync(projectDir);
+      await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
     } else {
       spinner.fail(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
@@ -502,9 +502,12 @@ async function stopDeviceRunSessionAfterInterruptAsync({
   process.exit(130);
 }
 
-async function resetSimulatorEnvVerboseAsync(projectDir: string): Promise<void> {
+async function resetSimulatorEnvVerboseAsync(
+  projectDir: string,
+  deviceRunSessionId: string
+): Promise<void> {
   try {
-    await resetSimulatorEnvAsync(projectDir);
+    await resetSimulatorEnvAsync(projectDir, deviceRunSessionId);
   } catch (err) {
     Log.error(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}`);
     throw err;

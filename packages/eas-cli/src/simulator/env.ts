@@ -1,6 +1,9 @@
 import { loadEnvFiles, loadProjectEnv } from '@expo/env';
+import { parse as parseDotenv } from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
+
+import Log from '../log';
 
 export const SIMULATOR_DOTENV_FILE_NAME = '.env.eas-simulator';
 export const EAS_SIMULATOR_SESSION_ID = 'EAS_SIMULATOR_SESSION_ID';
@@ -33,10 +36,25 @@ export async function writeSimulatorEnvAsync(
   await fs.writeFile(simulatorDotenvFilePath, simulatorDotenvContent);
 }
 
-export async function resetSimulatorEnvAsync(projectDir: string): Promise<void> {
+export async function resetSimulatorEnvAsync(
+  projectDir: string,
+  expectedDeviceRunSessionId: string
+): Promise<void> {
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
 
   try {
+    const currentEnv = parseDotenv(await fs.readFile(simulatorDotenvFilePath, 'utf8'));
+    if (currentEnv[EAS_SIMULATOR_SESSION_ID] !== expectedDeviceRunSessionId) {
+      // The file was overwritten by a newer simulator session, so it is no longer
+      // ours to reset. This is expected when sessions overlap; log at debug level
+      // for troubleshooting without surfacing noise during normal use.
+      Log.debug(
+        `Skipping ${SIMULATOR_DOTENV_FILE_NAME} reset: it belongs to simulator session ${
+          currentEnv[EAS_SIMULATOR_SESSION_ID] ?? '(unknown)'
+        }, not ${expectedDeviceRunSessionId}.`
+      );
+      return;
+    }
     await fs.writeFile(simulatorDotenvFilePath, SIMULATOR_DOTENV_FILE_HEADER, { flag: 'r+' });
     await fs.truncate(simulatorDotenvFilePath, Buffer.byteLength(SIMULATOR_DOTENV_FILE_HEADER));
   } catch (err) {

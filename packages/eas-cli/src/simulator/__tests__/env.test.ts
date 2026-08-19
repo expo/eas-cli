@@ -16,12 +16,15 @@ describe(resetSimulatorEnvAsync, () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .mocked(fs.readFile)
+      .mockResolvedValue(`${EAS_SIMULATOR_SESSION_ID}="session-123"\n` as never);
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
     jest.mocked(fs.truncate).mockResolvedValue(undefined as never);
   });
 
   it('overwrites the simulator dotenv file with the header only', async () => {
-    await resetSimulatorEnvAsync(projectDir);
+    await resetSimulatorEnvAsync(projectDir, 'session-123');
 
     expect(fs.writeFile).toHaveBeenCalledWith(simulatorDotenvPath, SIMULATOR_DOTENV_FILE_HEADER, {
       flag: 'r+',
@@ -34,18 +37,28 @@ describe(resetSimulatorEnvAsync, () => {
 
   it('ignores a missing simulator dotenv file', async () => {
     const err = Object.assign(new Error('missing file'), { code: 'ENOENT' });
-    jest.mocked(fs.writeFile).mockRejectedValue(err as never);
+    jest.mocked(fs.readFile).mockRejectedValue(err as never);
 
-    await expect(resetSimulatorEnvAsync(projectDir)).resolves.toBeUndefined();
+    await expect(resetSimulatorEnvAsync(projectDir, 'session-123')).resolves.toBeUndefined();
 
+    expect(fs.writeFile).not.toHaveBeenCalled();
+    expect(fs.truncate).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite a simulator dotenv file for a different session', async () => {
+    await resetSimulatorEnvAsync(projectDir, 'different-session');
+
+    expect(fs.writeFile).not.toHaveBeenCalled();
     expect(fs.truncate).not.toHaveBeenCalled();
   });
 
   it('rethrows non-missing-file errors', async () => {
     const err = Object.assign(new Error('permission denied'), { code: 'EACCES' });
-    jest.mocked(fs.writeFile).mockRejectedValue(err as never);
+    jest.mocked(fs.readFile).mockRejectedValue(err as never);
 
-    await expect(resetSimulatorEnvAsync(projectDir)).rejects.toThrow('permission denied');
+    await expect(resetSimulatorEnvAsync(projectDir, 'session-123')).rejects.toThrow(
+      'permission denied'
+    );
   });
 });
 

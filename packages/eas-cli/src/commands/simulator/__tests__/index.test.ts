@@ -366,7 +366,7 @@ describe(Simulator, () => {
     const { command } = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
-    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
   });
 
   it('forwards --name to the create mutation', async () => {
@@ -484,7 +484,7 @@ describe(Simulator, () => {
       graphqlClient,
       'session-123'
     );
-    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
     expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
     processExitSpy.mockRestore();
   });
