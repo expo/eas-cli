@@ -597,7 +597,13 @@ export default class UpdatePublish extends EasCommand {
     const updateGroupsToPublish = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       graphqlClient,
       updateGroups,
-      { appId: projectId, branchName: branch.name, nonInteractive, forceEndActiveRollout }
+      {
+        appId: projectId,
+        branchName: branch.name,
+        nonInteractive,
+        forceEndActiveRollout,
+        rolloutPercentage,
+      }
     );
 
     let newUpdates: UpdatePublishMutation['updateBranch']['publishUpdateGroups'];

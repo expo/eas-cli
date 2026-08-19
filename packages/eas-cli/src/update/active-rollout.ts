@@ -82,12 +82,6 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
     return updateGroups;
   }
 
-  if (rolloutPercentage !== undefined && rolloutPercentage < 100) {
-    throw new Error(
-      `Cannot roll out a new update to ${rolloutPercentage}% while a rollout is already in progress for the same runtime version. The users outside the new rollout are served the previous latest update, which is the update currently being rolled out, so it would jump to ${100 - rolloutPercentage}% instead of ending. Finish or revert the rollout in progress with eas update:rollout, then publish this one.`
-    );
-  }
-
   for (const [index, activeRollouts] of activeRolloutsPerUpdateGroup.entries()) {
     for (const { platform, update } of activeRollouts) {
       Log.warn(
@@ -97,8 +91,11 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   }
 
   if (!forceEndActiveRollout) {
+    const isPartialRollout = rolloutPercentage !== undefined && rolloutPercentage < 100;
     Log.warn(
-      'Ending a rollout means the update being rolled out is served to every user until they receive this new one.'
+      isPartialRollout
+        ? `Ending a rollout means the update being rolled out is served to the ${100 - rolloutPercentage}% of users not in this new rollout.`
+        : 'Ending a rollout means the update being rolled out is served to every user until they receive this new one.'
     );
 
     if (nonInteractive) {
