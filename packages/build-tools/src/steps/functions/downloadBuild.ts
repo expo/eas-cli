@@ -53,7 +53,7 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'artifact_url',
+        id: 'application_archive_url',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
@@ -78,23 +78,25 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
       const buildId = inputs.build_id.value
         ? z.string().uuid().parse(inputs.build_id.value)
         : undefined;
-      const artifactUrl = inputs.artifact_url.value
-        ? parseHttpArtifactUrl(inputs.artifact_url.value)
+      const applicationArchiveUrl = inputs.application_archive_url.value
+        ? parseHttpApplicationArchiveUrl(inputs.application_archive_url.value)
         : undefined;
 
-      if (Number(Boolean(buildId)) + Number(Boolean(artifactUrl)) !== 1) {
+      if (Number(Boolean(buildId)) + Number(Boolean(applicationArchiveUrl)) !== 1) {
         throw new UserError(
           'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-          'Pass exactly one of build_id or artifact_url.'
+          'Pass exactly one of build_id or application_archive_url.'
         );
       }
 
-      logger.info(buildId ? `Downloading build ${buildId}...` : `Downloading build artifact...`);
+      logger.info(
+        buildId ? `Downloading build ${buildId}...` : `Downloading application archive...`
+      );
 
       const { artifactPath } = await downloadBuildAsync({
         logger,
         buildId,
-        artifactUrl,
+        applicationArchiveUrl,
         graphqlClient: ctx.graphqlClient,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
@@ -137,23 +139,25 @@ async function fetchApplicationArchiveUrlAsync({
 export async function downloadBuildAsync({
   logger,
   buildId,
-  artifactUrl,
+  applicationArchiveUrl,
   graphqlClient,
   robotAccessToken,
   extensions,
 }: {
   logger: bunyan;
   buildId?: string;
-  artifactUrl?: string;
+  applicationArchiveUrl?: string;
   graphqlClient: Client;
   robotAccessToken: string | null;
   extensions: string[];
 }): Promise<{ artifactPath: string }> {
-  const validatedArtifactUrl = artifactUrl ? parseHttpArtifactUrl(artifactUrl) : undefined;
-  if (Number(Boolean(buildId)) + Number(Boolean(validatedArtifactUrl)) !== 1) {
+  const validatedApplicationArchiveUrl = applicationArchiveUrl
+    ? parseHttpApplicationArchiveUrl(applicationArchiveUrl)
+    : undefined;
+  if (Number(Boolean(buildId)) + Number(Boolean(validatedApplicationArchiveUrl)) !== 1) {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-      'Pass exactly one of buildId or artifactUrl.'
+      'Pass exactly one of buildId or applicationArchiveUrl.'
     );
   }
 
@@ -161,18 +165,18 @@ export async function downloadBuildAsync({
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const isDirectArtifactUrl = validatedArtifactUrl !== undefined;
+  const isDirectApplicationArchiveUrl = validatedApplicationArchiveUrl !== undefined;
   const downloadUrl =
-    validatedArtifactUrl ??
+    validatedApplicationArchiveUrl ??
     (await fetchApplicationArchiveUrlAsync({
       buildId: z.string().uuid().parse(buildId),
       graphqlClient,
     }));
 
   const response = await retryOnDNSFailure(fetch)(downloadUrl, {
-    // A direct URL is user-controlled, so never send the scoped EAS token to it.
+    // A direct application archive URL is user-controlled, so never send the scoped EAS token to it.
     headers:
-      !isDirectArtifactUrl && robotAccessToken
+      !isDirectApplicationArchiveUrl && robotAccessToken
         ? { Authorization: `Bearer ${robotAccessToken}` }
         : undefined,
   });
@@ -234,22 +238,22 @@ export async function downloadBuildAsync({
   return { artifactPath: matchingFiles[0] };
 }
 
-function parseHttpArtifactUrl(value: unknown): string {
-  const artifactUrl = z.string().parse(value);
+function parseHttpApplicationArchiveUrl(value: unknown): string {
+  const applicationArchiveUrl = z.string().parse(value);
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(artifactUrl);
+    parsedUrl = new URL(applicationArchiveUrl);
   } catch {
     throw new UserError(
-      'EAS_DOWNLOAD_BUILD_INVALID_ARTIFACT_URL',
-      'artifact_url must be a valid HTTP or HTTPS URL.'
+      'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      'application_archive_url must be a valid HTTP or HTTPS URL.'
     );
   }
   if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
     throw new UserError(
-      'EAS_DOWNLOAD_BUILD_INVALID_ARTIFACT_URL',
-      'artifact_url must be a valid HTTP or HTTPS URL.'
+      'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      'application_archive_url must be a valid HTTP or HTTPS URL.'
     );
   }
-  return artifactUrl;
+  return applicationArchiveUrl;
 }

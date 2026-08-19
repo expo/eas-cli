@@ -106,8 +106,8 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
-  it('downloads a direct artifact URL without querying GraphQL or forwarding the EAS token', async () => {
-    const artifactUrl = `https://artifacts.example.test/${randomUUID()}.apk`;
+  it('downloads a direct application archive URL without querying GraphQL or forwarding the EAS token', async () => {
+    const applicationArchiveUrl = `https://artifacts.example.test/${randomUUID()}.apk`;
     const graphqlClient = createMockGraphqlClient({
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
@@ -115,12 +115,12 @@ describe('downloadBuild', () => {
     jest.mocked(fetch).mockResolvedValue({
       ok: true,
       body: Readable.from(Buffer.from('hello')),
-      url: artifactUrl,
+      url: applicationArchiveUrl,
     } as unknown as Response);
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
-      artifactUrl,
+      applicationArchiveUrl,
       graphqlClient,
       robotAccessToken: 'scoped-eas-token',
       extensions: ['apk'],
@@ -128,7 +128,7 @@ describe('downloadBuild', () => {
 
     expect(graphqlClient.query).not.toHaveBeenCalled();
     expect(jest.mocked(fetch)).toHaveBeenCalledWith(
-      artifactUrl,
+      applicationArchiveUrl,
       expect.objectContaining({ headers: undefined })
     );
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
@@ -152,7 +152,7 @@ describe('downloadBuild', () => {
       downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
         buildId: randomUUID(),
-        artifactUrl: APPLICATION_ARCHIVE_URL,
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
         graphqlClient,
         robotAccessToken: null,
         extensions: ['app'],
@@ -163,18 +163,18 @@ describe('downloadBuild', () => {
     expect(jest.mocked(fetch)).not.toHaveBeenCalled();
   });
 
-  it('rejects a non-HTTP artifact URL', async () => {
+  it('rejects a non-HTTP application archive URL', async () => {
     await expect(
       downloadBuildAsync({
         logger: createLogger({ name: 'test' }),
-        artifactUrl: 'file:///tmp/app.apk',
+        applicationArchiveUrl: 'file:///tmp/app.apk',
         graphqlClient: createMockGraphqlClient({}),
         robotAccessToken: null,
         extensions: ['apk'],
       })
     ).rejects.toMatchObject({
-      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_ARTIFACT_URL',
-      message: 'artifact_url must be a valid HTTP or HTTPS URL.',
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      message: 'application_archive_url must be a valid HTTP or HTTPS URL.',
     });
   });
 
