@@ -115,16 +115,27 @@ export function createUploadToAscBuildFunction(): BuildFunction {
         `Uploading Build to "${appResponse.data.attributes.name}" (${ascAppBundleIdentifier})...`
       );
 
+      // Derive the App Store Connect platform from the IPA itself so tvOS (and
+      // other) binaries are uploaded to the correct version train instead of the
+      // iOS one. Falls back to `IOS` if the platform cannot be read.
+      const ipaInfoResult = await asyncResult(readIpaInfoAsync(ipaPath));
+      const platform = ipaInfoResult.ok
+        ? AscApiUtils.ascPlatformFromDtPlatformName(ipaInfoResult.value.dtPlatformName)
+        : 'IOS';
+      stepsCtx.logger.info(`Detected App Store Connect platform: ${platform}`);
+
       stepsCtx.logger.info('Creating Build Upload...');
       const buildUploadResponse = await AscApiUtils.createBuildUploadAsync({
         client,
         appleAppIdentifier,
         bundleShortVersion,
         bundleVersion,
+        platform,
       });
 
       const buildUploadId = buildUploadResponse.data.id;
-      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/ios/${buildUploadId}`;
+      const platformPathSegment = AscApiUtils.testFlightPlatformPathSegment(platform);
+      const buildUploadUrl = `https://appstoreconnect.apple.com/apps/${appleAppIdentifier}/testflight/${platformPathSegment}/${buildUploadId}`;
       outputs.build_upload_id.set(buildUploadId);
       outputs.build_upload_url.set(buildUploadUrl);
 

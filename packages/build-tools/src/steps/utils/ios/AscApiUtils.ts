@@ -5,9 +5,44 @@ import {
   AscApiClientGetApi,
   AscApiClientPostApi,
   AscApiRequestError,
+  AscPlatform,
 } from './AscApiClient';
 
 export namespace AscApiUtils {
+  /**
+   * Maps a bundle's `DTPlatformName` (from its Info.plist) to the App Store
+   * Connect platform used for a build upload. Unknown or missing values fall
+   * back to `IOS` to preserve the previous default.
+   */
+  export function ascPlatformFromDtPlatformName(dtPlatformName: string | null): AscPlatform {
+    switch (dtPlatformName) {
+      case 'appletvos':
+        return 'TV_OS';
+      case 'macosx':
+        return 'MAC_OS';
+      case 'xros':
+        return 'VISION_OS';
+      case 'iphoneos':
+      default:
+        return 'IOS';
+    }
+  }
+
+  /** The App Store Connect TestFlight URL path segment for a platform. */
+  export function testFlightPlatformPathSegment(platform: AscPlatform): string {
+    switch (platform) {
+      case 'TV_OS':
+        return 'tvos';
+      case 'MAC_OS':
+        return 'macos';
+      case 'VISION_OS':
+        return 'visionos';
+      case 'IOS':
+      default:
+        return 'ios';
+    }
+  }
+
   export async function getAppInfoAsync({
     client,
     appleAppIdentifier,
@@ -61,18 +96,20 @@ export namespace AscApiUtils {
     appleAppIdentifier,
     bundleShortVersion,
     bundleVersion,
+    platform,
   }: {
     client: Pick<AscApiClient, 'postAsync'>;
     appleAppIdentifier: string;
     bundleShortVersion: string;
     bundleVersion: string;
+    platform: AscPlatform;
   }): Promise<AscApiClientPostApi['/v1/buildUploads']['response']> {
     try {
       return await client.postAsync('/v1/buildUploads', {
         data: {
           type: 'buildUploads',
           attributes: {
-            platform: 'IOS',
+            platform,
             cfBundleShortVersionString: bundleShortVersion,
             cfBundleVersion: bundleVersion,
           },
