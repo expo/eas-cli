@@ -54,8 +54,8 @@ describe(getSshIdleTimeoutSeconds, () => {
     expect(getSshIdleTimeoutSeconds(sshJob(3600))).toBe(3600);
   });
 
-  it('throws when job.ssh is missing', () => {
-    expect(() => getSshIdleTimeoutSeconds({})).toThrow(SystemError);
+  it('defaults to 0 when job.ssh is missing', () => {
+    expect(getSshIdleTimeoutSeconds({})).toBe(0);
   });
 
   it('throws when the value is not an integer in range', () => {

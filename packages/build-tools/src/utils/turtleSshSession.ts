@@ -1,4 +1,4 @@
-import { Generic, SshSettings, SystemError } from '@expo/eas-build-job';
+import { Job, SshSettings, SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { graphql } from 'gql.tada';
 
@@ -6,11 +6,13 @@ import { formatSecondsForLog } from './formatDuration';
 import { sleepAsync } from './retry';
 import { SshConnectionConfig, startUptermHostAsync } from './upterm';
 import { BuildContext } from '../context';
+import { Sentry } from '../sentry';
 
 const MAX_SSH_REDIALS = 10;
 const REDIAL_BACKOFF_MS = 6_000;
 const CLIENT_COUNT_POLL_INTERVAL_MS = 5_000;
 const MAX_SSH_IDLE_TIMEOUT_SECONDS = 3600;
+const DEFAULT_SSH_IDLE_TIMEOUT_SECONDS = 0;
 
 const CREATE_OR_UPDATE_TURTLE_SSH_SESSION_MUTATION = graphql(`
   mutation CreateOrUpdateTurtleSshSession(
@@ -39,32 +41,26 @@ export type TurtleSshTarget =
   | { turtleJobRunId: string; turtleBuildId?: never }
   | { turtleJobRunId?: never; turtleBuildId: string };
 
-export function isSshEnabled(job: Pick<Generic.Job, 'ssh'>): boolean {
+export function isSshEnabled(job: Pick<Job, 'ssh'>): boolean {
   return job.ssh != null;
 }
 
-export function getSshIdleTimeoutSeconds(job: Pick<Generic.Job, 'ssh'>): number {
-  const idleTimeoutSeconds = job.ssh?.idleTimeoutSeconds;
-  if (idleTimeoutSeconds == null) {
-    throw new SystemError('SSH is enabled but the job is missing an idle timeout.', {
-      trackingCode: 'SSH_IDLE_TIMEOUT_MISSING',
-    });
-  }
+export function getSshIdleTimeoutSeconds(job: Pick<Job, 'ssh'>): number {
+  const idleTimeoutSeconds = job.ssh?.idleTimeoutSeconds ?? DEFAULT_SSH_IDLE_TIMEOUT_SECONDS;
   if (
-    !Number.isFinite(idleTimeoutSeconds) ||
     !Number.isInteger(idleTimeoutSeconds) ||
     idleTimeoutSeconds < 0 ||
     idleTimeoutSeconds > MAX_SSH_IDLE_TIMEOUT_SECONDS
   ) {
     throw new SystemError(
-      `SSH idle timeout must be an integer between 0 and ${MAX_SSH_IDLE_TIMEOUT_SECONDS} seconds.`,
+      `SSH idle timeout must be an integer between 0 and ${MAX_SSH_IDLE_TIMEOUT_SECONDS} seconds, got ${idleTimeoutSeconds}.`,
       { trackingCode: 'SSH_IDLE_TIMEOUT_INVALID' }
     );
   }
   return idleTimeoutSeconds;
 }
 
-export function getSshRelayServerUrl(job: Pick<Generic.Job, 'ssh'>): string {
+export function getSshRelayServerUrl(job: Pick<Job, 'ssh'>): string {
   const relayServerUrl = job.ssh?.relayServerUrl;
   if (!relayServerUrl) {
     throw new SystemError('SSH is enabled but no relay server URL was configured on the job.', {
@@ -206,6 +202,13 @@ export async function superviseSshSessionAsync({
       await handle.ensureConnectedAsync();
     } catch (err) {
       logger.warn({ err }, 'Could not restore the SSH relay connection. Closing the session.');
+      Sentry.capture(
+        'Could not restore the SSH relay connection',
+        err instanceof Error ? err : undefined,
+        {
+          tags: { trackingCode: 'SSH_RELAY_RECONNECT_FAILED' },
+        }
+      );
       return;
     }
 
@@ -214,6 +217,13 @@ export async function superviseSshSessionAsync({
       connectedClientCount = await handle.getConnectedClientCountAsync();
     } catch (err) {
       logger.warn({ err }, 'Could not read the SSH client count. Closing the session.');
+      Sentry.capture(
+        'Could not read the SSH client count',
+        err instanceof Error ? err : undefined,
+        {
+          tags: { trackingCode: 'SSH_CLIENT_COUNT_UNREADABLE' },
+        }
+      );
       return;
     }
     if (connectedClientCount !== previousClientCount) {

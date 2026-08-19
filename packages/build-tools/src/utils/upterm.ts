@@ -77,6 +77,14 @@ export function connectionConfigFromUptermSession(
   return { type: 'upterm-v1', host, secret: parsed.sessionId };
 }
 
+/**
+ * Strip upterm session secrets out of text before it reaches a log or an error message. upterm
+ * prints the session id as the userinfo of the connect line it advertises
+ * (`upterm proxy ws(s)://<sessionId>@host`) and repeats it bare as the ssh destination on the
+ * same line. Control characters are dropped first so they cannot split a token mid-match. The
+ * loop lifts the id out of the proxy URL and removes every occurrence of it; the final replace
+ * blanks userinfo in any other URL as a catch-all.
+ */
 export function redactConnectionSecrets(text: string): string {
   let redacted = text.replace(CONTROL_CHARACTERS, '');
   for (const [, token] of redacted.matchAll(/upterm proxy wss?:\/\/([^@\s]+)@/g)) {
