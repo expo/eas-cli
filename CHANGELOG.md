@@ -6,7 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- [build-tools][eas-cli] Use production mode for app config, prebuild, Expo Doctor, and Expo Updates commands. ([#4180](https://github.com/expo/eas-cli/pull/4180) by [@ramonclaudio](https://github.com/ramonclaudio))
+- [build-tools] Use production mode for app config, prebuild, Expo Doctor, and Expo Updates commands. ([#4180](https://github.com/expo/eas-cli/pull/4180) by [@ramonclaudio](https://github.com/ramonclaudio))
 
 ### 🎉 New features
 
