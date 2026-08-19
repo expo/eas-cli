@@ -5,8 +5,9 @@
 //
 // Keys are Appium command names as they appear in event timings. Every command
 // declared by `@appium/base-driver` must have an entry here (enforced by the
-// coverage test, which reads the generated upstream list); a few extra keys are
-// driver-level commands (e.g. clipboard) that base-driver does not declare.
+// coverage test, which reads the generated `appiumCommands.generated.ts`
+// snapshot); a few extra keys are driver-level commands (e.g. clipboard) that
+// base-driver does not declare.
 export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   // Session lifecycle
   createSession: 'Started the session',
