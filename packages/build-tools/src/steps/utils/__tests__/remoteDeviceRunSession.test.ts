@@ -7,6 +7,7 @@ import {
   setTimeout as setTimeoutCallback,
 } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
+import { PassThrough } from 'node:stream';
 
 import { CustomBuildContext } from '../../../customBuildContext';
 import { Sentry } from '../../../sentry';
@@ -17,9 +18,11 @@ import {
   ensureFfmpegInstalledAsync,
   fetchServeSimTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
+  spawnDetached,
   startNgrokTunnelAsync,
   turnIceServersToServeSimArgs,
   waitForDeviceRunSessionStoppedAsync,
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync,
   waitForServeSimReadyAsync,
 } from '../remoteDeviceRunSession';
 
@@ -111,6 +114,44 @@ function createStatusCtxMock(
 
 function createEnvMock(): BuildStepEnv {
   return { DEVICE_RUN_SESSION_ID: 'drs-id' } as unknown as BuildStepEnv;
+}
+
+function mockNgrokSdk({
+  joinPromise = new Promise<void>(() => {}),
+}: { joinPromise?: Promise<void> } = {}): {
+  closeListener: jest.Mock;
+  closeSession: jest.Mock;
+  endpointBuilder: Record<string, jest.Mock>;
+  sessionBuilder: Record<string, jest.Mock>;
+} {
+  const closeListener = jest.fn().mockResolvedValue(undefined);
+  const listener = {
+    url: jest.fn().mockReturnValue('https://serve-sim.example.test'),
+    close: closeListener,
+    join: jest.fn().mockReturnValue(joinPromise),
+  };
+  const endpointBuilder = {
+    domain: jest.fn().mockReturnThis(),
+    metadata: jest.fn().mockReturnThis(),
+    requestHeader: jest.fn().mockReturnThis(),
+    listenAndForward: jest.fn().mockResolvedValue(listener),
+  };
+  const closeSession = jest.fn().mockResolvedValue(undefined);
+  const session = {
+    httpEndpoint: jest.fn().mockReturnValue(endpointBuilder),
+    close: closeSession,
+  };
+  const sessionBuilder = {
+    authtoken: jest.fn().mockReturnThis(),
+    metadata: jest.fn().mockReturnThis(),
+    handleDisconnection: jest.fn().mockReturnThis(),
+    handleHeartbeat: jest.fn().mockReturnThis(),
+    connect: jest.fn().mockResolvedValue(session),
+  };
+  jest
+    .mocked(ngrok.SessionBuilder)
+    .mockImplementation(() => sessionBuilder as unknown as ngrok.SessionBuilder);
+  return { closeListener, closeSession, endpointBuilder, sessionBuilder };
 }
 
 describe(createServeSimArgs, () => {
@@ -218,32 +259,172 @@ describe(waitForServeSimReadyAsync, () => {
 });
 
 describe(startNgrokTunnelAsync, () => {
-  it('uses a 128-bit capability hostname and exposes explicit cleanup', async () => {
-    const close = jest.fn().mockResolvedValue(undefined);
-    jest.mocked(ngrok.forward).mockResolvedValue({
-      url: () => 'https://serve-sim.example.test',
-      close,
-    } as never);
+  beforeEach(() => {
+    jest.mocked(ngrok.SessionBuilder).mockReset();
+    jest.mocked(setTimeoutCallback).mockReset();
+    jest.mocked(clearTimeoutCallback).mockReset();
+  });
+
+  it('uses a shared, observable session and a joinable listener', async () => {
+    const { closeListener, closeSession, endpointBuilder, sessionBuilder } = mockNgrokSdk();
 
     const tunnel = await startNgrokTunnelAsync({
       port: 4321,
       subdomainPrefix: 'serve-sim',
       baseDomain: 'tunnel.example.test',
       authtoken: 'token',
+      deviceRunSessionId: 'drs-id',
       logger: createLoggerMock(),
     });
 
-    expect(ngrok.forward).toHaveBeenCalledWith(
-      expect.objectContaining({
-        addr: 4321,
-        authtoken: 'token',
-        domain: expect.stringMatching(/^serve-sim-[a-f0-9]{32}\.tunnel\.example\.test$/),
-      })
+    expect(sessionBuilder.authtoken).toHaveBeenCalledWith('token');
+    expect(sessionBuilder.metadata).toHaveBeenCalledWith(
+      JSON.stringify({ deviceRunSessionId: 'drs-id', product: 'eas-simulator' })
     );
+    expect(endpointBuilder.domain).toHaveBeenCalledWith(
+      expect.stringMatching(/^serve-sim-[a-f0-9]{32}\.tunnel\.example\.test$/)
+    );
+    expect(endpointBuilder.metadata).toHaveBeenCalledWith(
+      JSON.stringify({ deviceRunSessionId: 'drs-id', tunnelType: 'serve-sim' })
+    );
+    expect(endpointBuilder.listenAndForward).toHaveBeenCalledWith('http://127.0.0.1:4321');
     expect(tunnel.url).toBe('https://serve-sim.example.test');
     await tunnel.stopAsync();
     await tunnel.stopAsync();
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(closeListener).toHaveBeenCalledTimes(1);
+    expect(closeSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces terminal forwarding failures', async () => {
+    let rejectJoin: (error: Error) => void = () => {};
+    const joinPromise = new Promise<void>((_resolve, reject) => {
+      rejectJoin = reject;
+    });
+    mockNgrokSdk({ joinPromise });
+    const tunnel = await startNgrokTunnelAsync({
+      port: 4321,
+      subdomainPrefix: 'serve-sim',
+      baseDomain: 'tunnel.example.test',
+      authtoken: 'token',
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+    });
+
+    const failurePromise = tunnel.waitForFailureAsync();
+    rejectJoin(new Error('forwarder stopped'));
+    await expect(failurePromise).rejects.toThrow('forwarder stopped');
+    await tunnel.stopAsync();
+  });
+
+  it('keeps the shared session open until its last tunnel stops', async () => {
+    const { closeSession } = mockNgrokSdk();
+    const logger = createLoggerMock();
+    const tunnelOptions = {
+      baseDomain: 'tunnel.example.test',
+      authtoken: 'token',
+      deviceRunSessionId: 'drs-id',
+      logger,
+    };
+    const firstTunnel = await startNgrokTunnelAsync({
+      ...tunnelOptions,
+      port: 4321,
+      subdomainPrefix: 'argent',
+    });
+    const secondTunnel = await startNgrokTunnelAsync({
+      ...tunnelOptions,
+      port: 4322,
+      subdomainPrefix: 'serve-sim',
+    });
+
+    expect(ngrok.SessionBuilder).toHaveBeenCalledTimes(1);
+    await firstTunnel.stopAsync();
+    expect(closeSession).not.toHaveBeenCalled();
+    await secondTunnel.stopAsync();
+    expect(closeSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets ngrok reconnect transient disconnects and fails after the grace period', async () => {
+    const disconnectTimeout = { unref: jest.fn() } as unknown as NodeJS.Timeout;
+    jest.mocked(setTimeoutCallback).mockReturnValue(disconnectTimeout);
+    const logger = createLoggerMock();
+    const { sessionBuilder } = mockNgrokSdk();
+    const tunnel = await startNgrokTunnelAsync({
+      port: 4321,
+      subdomainPrefix: 'serve-sim',
+      baseDomain: 'tunnel.example.test',
+      authtoken: 'token',
+      deviceRunSessionId: 'drs-id',
+      logger,
+    });
+
+    const onDisconnect = sessionBuilder.handleDisconnection.mock.calls[0][0] as (
+      address: string,
+      error: string
+    ) => boolean;
+    expect(onDisconnect('connect.ngrok-agent.com:443', 'network unavailable')).toBe(true);
+    expect(setTimeoutCallback).toHaveBeenCalledWith(expect.any(Function), 60_000);
+
+    const failurePromise = tunnel.waitForFailureAsync();
+    const disconnectTimeoutCallback = jest.mocked(setTimeoutCallback).mock.calls[0][0];
+    disconnectTimeoutCallback();
+    await expect(failurePromise).rejects.toThrow('did not reconnect within 60 seconds');
+    await tunnel.stopAsync();
+  });
+});
+
+describe(spawnDetached, () => {
+  it('keeps bounded diagnostic output for long-running processes', async () => {
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    const processPromise = Object.assign(new Promise<never>(() => {}), {
+      child: {
+        pid: undefined,
+        stdout,
+        stderr,
+        unref: jest.fn(),
+      },
+    });
+    jest.mocked(spawn).mockReturnValue(processPromise as never);
+
+    const process = spawnDetached({
+      command: 'long-running-command',
+      args: [],
+      env: {} as BuildStepEnv,
+    });
+    stdout.write('x'.repeat(300_000));
+
+    expect(process.getOutput().startsWith('[... earlier output truncated ...]\n')).toBe(true);
+    expect(process.getOutput().length).toBeLessThan(263_000);
+    await process.stopAsync();
+  });
+
+  it('surfaces an unexpected child-process exit', async () => {
+    let rejectProcess: (error: Error) => void = () => {};
+    const processPromise = Object.assign(
+      new Promise<never>((_resolve, reject) => {
+        rejectProcess = reject;
+      }),
+      {
+        child: {
+          pid: undefined,
+          stdout: new PassThrough(),
+          stderr: new PassThrough(),
+          unref: jest.fn(),
+        },
+      }
+    );
+    jest.mocked(spawn).mockReturnValue(processPromise as never);
+    const process = spawnDetached({
+      command: 'failing-command',
+      args: [],
+      env: {} as BuildStepEnv,
+    });
+
+    const failurePromise = process.waitForFailureAsync();
+    rejectProcess(new Error('exit code 1'));
+    await expect(failurePromise).rejects.toThrow(
+      'failing-command exited unexpectedly: exit code 1'
+    );
   });
 });
 
@@ -471,6 +652,35 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
 
     expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
     expect(clearTimeoutCallback).toHaveBeenCalledWith(durationTimeout);
+  });
+
+  it('stops polling and surfaces supervised resource failures', async () => {
+    const ctx = createStatusCtxMock([{ status: 'IN_PROGRESS' }]);
+    let pollSignal: AbortSignal | undefined;
+    jest.mocked(setTimeoutAsync).mockImplementation(
+      async (_timeoutMs, _value, options): Promise<undefined> =>
+        await new Promise<undefined>((_resolve, reject) => {
+          pollSignal = options?.signal;
+          pollSignal?.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        })
+    );
+    let rejectResource: (error: Error) => void = () => {};
+    const resourceFailure = new Promise<void>((_resolve, reject) => {
+      rejectResource = reject;
+    });
+    const waitPromise = waitForDeviceRunSessionStoppedOrResourceFailureAsync({
+      ctx,
+      deviceRunSessionId: 'drs-id',
+      logger: createLoggerMock(),
+      resources: [{ waitForFailureAsync: () => resourceFailure }],
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    rejectResource(new Error('tunnel failed'));
+    await expect(waitPromise).rejects.toThrow('tunnel failed');
+    expect(pollSignal?.aborted).toBe(true);
+    expect(ctx.graphqlClient.query).toHaveBeenCalledTimes(1);
   });
 
   it('logs and retries transient polling errors', async () => {

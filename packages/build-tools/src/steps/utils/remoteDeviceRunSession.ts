@@ -63,6 +63,9 @@ const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
 `);
 
 const DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS = 5_000;
+const NGROK_DISCONNECT_GRACE_PERIOD_MS = 60_000;
+const MAX_DETACHED_PROCESS_OUTPUT_LENGTH = 256 * 1024;
+const DETACHED_PROCESS_OUTPUT_TRUNCATED_MARKER = '[... earlier output truncated ...]\n';
 
 export function getDeviceRunSessionIdOrThrow(env: BuildStepEnv): string {
   const deviceRunSessionId = env.DEVICE_RUN_SESSION_ID;
@@ -141,6 +144,19 @@ export type DeviceRunSessionIdleTimeout = {
   getLastEventObservedAt: () => Date | undefined;
 };
 
+export type SupervisedResource = {
+  waitForFailureAsync: () => Promise<void>;
+};
+
+export type WaitForDeviceRunSessionStoppedOptions = {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+  maxDurationSeconds?: number;
+  signal?: AbortSignal;
+  idleTimeout?: DeviceRunSessionIdleTimeout;
+};
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
@@ -148,14 +164,7 @@ export async function waitForDeviceRunSessionStoppedAsync({
   maxDurationSeconds,
   signal: cancelSignal,
   idleTimeout,
-}: {
-  ctx: CustomBuildContext;
-  deviceRunSessionId: string;
-  logger: bunyan;
-  maxDurationSeconds?: number;
-  signal?: AbortSignal;
-  idleTimeout?: DeviceRunSessionIdleTimeout;
-}): Promise<void> {
+}: WaitForDeviceRunSessionStoppedOptions): Promise<void> {
   const durationAbortController = new AbortController();
   const signal = cancelSignal
     ? AbortSignal.any([cancelSignal, durationAbortController.signal])
@@ -246,6 +255,24 @@ export async function waitForDeviceRunSessionStoppedAsync({
     if (durationTimeout !== undefined) {
       clearTimeout(durationTimeout);
     }
+  }
+}
+
+export async function waitForDeviceRunSessionStoppedOrResourceFailureAsync({
+  resources,
+  ...options
+}: WaitForDeviceRunSessionStoppedOptions & { resources: SupervisedResource[] }): Promise<void> {
+  const resourceAbortController = new AbortController();
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, resourceAbortController.signal])
+    : resourceAbortController.signal;
+  try {
+    await Promise.race([
+      waitForDeviceRunSessionStoppedAsync({ ...options, signal }),
+      ...resources.map(resource => resource.waitForFailureAsync()),
+    ]);
+  } finally {
+    resourceAbortController.abort();
   }
 }
 
@@ -496,7 +523,7 @@ export async function uploadRemoteSessionConfigAsync({
   }
 }
 
-export type DetachedProcessHandle = {
+export type DetachedProcessHandle = SupervisedResource & {
   /** PID of the directly spawned process, if the OS assigned one. */
   pid: number | undefined;
   getOutput: () => string;
@@ -561,23 +588,51 @@ export function spawnDetached({
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   });
-  // We don't await the process — it should outlive this step. Failures show
-  // up in the captured output; suppress unhandled rejections here.
-  promise.catch(() => {});
+  // Capture completion as data so a child failure cannot become an unhandled
+  // rejection before the session starts waiting on this resource.
+  const completion = promise.then(
+    () => undefined,
+    error => (error instanceof Error ? error : new Error(String(error)))
+  );
   promise.child.unref();
 
   let output = '';
+  let outputWasTruncated = false;
   const appendChunk = (chunk: Buffer | string): void => {
     output += chunk.toString();
+    if (output.length > MAX_DETACHED_PROCESS_OUTPUT_LENGTH) {
+      output = output.slice(-MAX_DETACHED_PROCESS_OUTPUT_LENGTH);
+      outputWasTruncated = true;
+    }
   };
   promise.child.stdout?.on('data', appendChunk);
   promise.child.stderr?.on('data', appendChunk);
 
   const pid = promise.child.pid;
+  const getOutput = (): string =>
+    `${outputWasTruncated ? DETACHED_PROCESS_OUTPUT_TRUNCATED_MARKER : ''}${output}`;
+  let stopped = false;
   return {
     pid,
-    getOutput: () => output,
-    stopAsync: async () => await stopDetachedProcessAsync(pid),
+    getOutput,
+    waitForFailureAsync: async () => {
+      const error = await completion;
+      if (stopped) {
+        return;
+      }
+      const capturedOutput = getOutput();
+      throw new SystemError(
+        `${command} exited unexpectedly${error ? `: ${error.message}` : ''}.` +
+          (capturedOutput ? `\nLast output:\n${capturedOutput}` : '')
+      );
+    },
+    stopAsync: async () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      await stopDetachedProcessAsync(pid);
+    },
   };
 }
 
@@ -688,7 +743,7 @@ export async function waitForServeSimReadyAsync({
   );
 }
 
-export type ServeSimPreviewHandle = {
+export type ServeSimPreviewHandle = SupervisedResource & {
   previewUrl: string;
   stopAsync: () => Promise<void>;
 };
@@ -707,6 +762,7 @@ export async function startServeSimWithTunnelAsync(
     timeoutMs: number;
   }
 ): Promise<ServeSimPreviewHandle> {
+  const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
   const port = await findAvailablePortAsync();
   logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
@@ -725,10 +781,14 @@ export async function startServeSimWithTunnelAsync(
       subdomainPrefix: 'serve-sim',
       baseDomain,
       authtoken: getNgrokAuthtokenOrThrow(env),
+      deviceRunSessionId,
       logger,
     });
     return {
       previewUrl: tunnel.url,
+      waitForFailureAsync: async () => {
+        await Promise.race([tunnel.waitForFailureAsync(), serveSim.waitForFailureAsync()]);
+      },
       stopAsync: async () => {
         const results = await Promise.allSettled([tunnel.stopAsync(), serveSim.stopAsync()]);
         for (const result of results) {
@@ -744,16 +804,155 @@ export async function startServeSimWithTunnelAsync(
   }
 }
 
-export type NgrokTunnelHandle = {
+export type NgrokTunnelHandle = SupervisedResource & {
   url: string;
   stopAsync: () => Promise<void>;
 };
+
+type SharedNgrokSession = {
+  authtoken: string;
+  deviceRunSessionId: string;
+  session: ngrok.Session;
+  connectionFailure: Promise<Error>;
+  retainCount: number;
+  closeAsync: () => Promise<void>;
+};
+
+let sharedNgrokSessionPromise: Promise<SharedNgrokSession> | undefined;
+
+async function createSharedNgrokSessionAsync({
+  authtoken,
+  deviceRunSessionId,
+  logger,
+}: {
+  authtoken: string;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<SharedNgrokSession> {
+  let disconnectedAt: number | undefined;
+  let disconnectTimeout: NodeJS.Timeout | undefined;
+  let closed = false;
+  let resolveConnectionFailure: (error: Error) => void = () => {};
+  const connectionFailure = new Promise<Error>(resolve => {
+    resolveConnectionFailure = resolve;
+  });
+
+  const sessionBuilder = new ngrok.SessionBuilder()
+    .authtoken(authtoken)
+    .metadata(JSON.stringify({ deviceRunSessionId, product: 'eas-simulator' }))
+    .handleDisconnection((address, errorMessage) => {
+      if (closed) {
+        return false;
+      }
+      if (disconnectedAt === undefined) {
+        disconnectedAt = Date.now();
+        logger.warn(
+          { address, error: errorMessage },
+          'The ngrok session disconnected; ngrok will keep reconnecting.'
+        );
+        disconnectTimeout = setTimeout(() => {
+          const error = new SystemError(
+            `The ngrok session did not reconnect within ${NGROK_DISCONNECT_GRACE_PERIOD_MS / 1_000} seconds.`
+          );
+          Sentry.capture('Ngrok session did not reconnect', error, {
+            extras: { address, deviceRunSessionId, errorMessage },
+          });
+          resolveConnectionFailure(error);
+        }, NGROK_DISCONNECT_GRACE_PERIOD_MS);
+        disconnectTimeout.unref?.();
+      }
+      return true;
+    })
+    .handleHeartbeat(latency => {
+      if (disconnectedAt === undefined) {
+        return;
+      }
+      const disconnectedForMs = Date.now() - disconnectedAt;
+      disconnectedAt = undefined;
+      if (disconnectTimeout) {
+        clearTimeout(disconnectTimeout);
+        disconnectTimeout = undefined;
+      }
+      logger.info(
+        { disconnectedForMs, heartbeatLatencyMs: latency },
+        'The ngrok session reconnected.'
+      );
+    });
+
+  const session = await sessionBuilder.connect();
+  return {
+    authtoken,
+    deviceRunSessionId,
+    session,
+    connectionFailure,
+    retainCount: 0,
+    closeAsync: async () => {
+      closed = true;
+      if (disconnectTimeout) {
+        clearTimeout(disconnectTimeout);
+        disconnectTimeout = undefined;
+      }
+      await session.close();
+    },
+  };
+}
+
+async function acquireSharedNgrokSessionAsync({
+  authtoken,
+  deviceRunSessionId,
+  logger,
+}: {
+  authtoken: string;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<SharedNgrokSession> {
+  if (!sharedNgrokSessionPromise) {
+    const creationPromise = createSharedNgrokSessionAsync({
+      authtoken,
+      deviceRunSessionId,
+      logger,
+    });
+    sharedNgrokSessionPromise = creationPromise;
+    void creationPromise.catch(() => {
+      if (sharedNgrokSessionPromise === creationPromise) {
+        sharedNgrokSessionPromise = undefined;
+      }
+    });
+  }
+
+  const sharedSession = await sharedNgrokSessionPromise;
+  if (
+    sharedSession.authtoken !== authtoken ||
+    sharedSession.deviceRunSessionId !== deviceRunSessionId
+  ) {
+    throw new SystemError('Cannot share an ngrok session between different device run sessions.');
+  }
+  sharedSession.retainCount += 1;
+  return sharedSession;
+}
+
+async function releaseSharedNgrokSessionAsync(
+  sharedSession: SharedNgrokSession,
+  logger: bunyan
+): Promise<void> {
+  sharedSession.retainCount -= 1;
+  if (sharedSession.retainCount > 0) {
+    return;
+  }
+  sharedNgrokSessionPromise = undefined;
+  try {
+    await sharedSession.closeAsync();
+  } catch (error) {
+    logger.warn({ err: error }, 'Could not close the shared ngrok session.');
+  }
+}
 
 export async function startNgrokTunnelAsync({
   port,
   subdomainPrefix,
   baseDomain,
   authtoken,
+  deviceRunSessionId,
   rewriteHostHeader,
   logger,
 }: {
@@ -761,27 +960,65 @@ export async function startNgrokTunnelAsync({
   subdomainPrefix: string;
   baseDomain: string;
   authtoken: string;
+  deviceRunSessionId: string;
   rewriteHostHeader?: boolean;
   logger: bunyan;
 }): Promise<NgrokTunnelHandle> {
   const domain = `${subdomainPrefix}-${randomBytes(16).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
-  // Run the ngrok agent in-process via the SDK; it keeps the session alive until
-  // the process exits, and the step blocks forever to hold it open.
-  const listener = await ngrok.forward({
-    addr: port,
+  const sharedSession = await acquireSharedNgrokSessionAsync({
     authtoken,
-    domain,
-    ...(rewriteHostHeader ? { request_header_add: [`Host:localhost:${port}`] } : {}),
+    deviceRunSessionId,
+    logger,
   });
+  const endpointBuilder = sharedSession.session
+    .httpEndpoint()
+    .domain(domain)
+    .metadata(JSON.stringify({ deviceRunSessionId, tunnelType: subdomainPrefix }));
+  if (rewriteHostHeader) {
+    endpointBuilder.requestHeader('Host', `localhost:${port}`);
+  }
+
+  let listener: ngrok.Listener;
+  try {
+    // Unlike ngrok.forward(), listenAndForward() returns a joinable listener.
+    // The SDK keeps reconnecting transient session failures; join() settles only
+    // when forwarding exits, which lets the device session surface terminal failures.
+    listener = await endpointBuilder.listenAndForward(`http://127.0.0.1:${port}`);
+  } catch (error) {
+    await releaseSharedNgrokSessionAsync(sharedSession, logger);
+    throw error;
+  }
   const url = listener.url();
   if (!url) {
-    await listener.close();
+    try {
+      await listener.close();
+    } catch (error) {
+      logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+    } finally {
+      await releaseSharedNgrokSessionAsync(sharedSession, logger);
+    }
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
+
+  const listenerCompletion = listener.join().then(
+    () => new SystemError(`The ngrok tunnel ${domain} stopped forwarding unexpectedly.`),
+    error =>
+      new SystemError(
+        `The ngrok tunnel ${domain} stopped forwarding: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+  );
   let stopped = false;
   return {
     url,
+    waitForFailureAsync: async () => {
+      const error = await Promise.race([listenerCompletion, sharedSession.connectionFailure]);
+      if (!stopped) {
+        throw error;
+      }
+    },
     stopAsync: async () => {
       if (stopped) {
         return;
@@ -791,6 +1028,8 @@ export async function startNgrokTunnelAsync({
         await listener.close();
       } catch (error) {
         logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+      } finally {
+        await releaseSharedNgrokSessionAsync(sharedSession, logger);
       }
     },
   };
