@@ -1,25 +1,10 @@
-import { UPSTREAM_APPIUM_COMMANDS as ALL_COMMANDS } from '../appiumCommands.generated';
 import { APPIUM_COMMAND_SUMMARIES, humanizeAppiumCommand } from '../appiumCommandSummary';
 
-// Curated commands that base-driver does not declare (driver-level commands that
-// only show up through drivers such as XCUITest / UiAutomator2).
-const DRIVER_LEVEL_CURATED_COMMANDS = ['background', 'getClipboard', 'setClipboard'];
+// Coverage of the full upstream command set is enforced at compile time by the
+// type assertions in appiumCommandSummary.ts, so it is not re-checked here.
 
-describe('APPIUM_COMMAND_SUMMARIES coverage', () => {
-  it('has a curated summary for every upstream Appium command', () => {
-    const missing = ALL_COMMANDS.filter(command => !(command in APPIUM_COMMAND_SUMMARIES));
-    expect(missing).toEqual([]);
-  });
-
-  it('does not curate a command that no longer exists upstream', () => {
-    const upstream = new Set(ALL_COMMANDS);
-    const curatedNotUpstream = Object.keys(APPIUM_COMMAND_SUMMARIES)
-      .filter(command => !upstream.has(command))
-      .sort();
-    expect(curatedNotUpstream).toEqual([...DRIVER_LEVEL_CURATED_COMMANDS].sort());
-  });
-
-  it('has a non-empty summary for every entry', () => {
+describe('APPIUM_COMMAND_SUMMARIES', () => {
+  it('has a non-empty summary that differs from the command name for every entry', () => {
     for (const [command, summary] of Object.entries(APPIUM_COMMAND_SUMMARIES)) {
       expect(summary).toBeTruthy();
       expect(summary).not.toBe(command);

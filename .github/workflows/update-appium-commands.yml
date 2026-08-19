@@ -10,9 +10,8 @@ on:
       - .github/workflows/update-appium-commands.yml
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# No `permissions:` block is needed: every step authenticates with EXPO_BOT_PAT
+# (checkout, push, and gh), so the default GITHUB_TOKEN is never used.
 
 jobs:
   update:

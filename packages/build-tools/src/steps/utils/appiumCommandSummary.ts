@@ -1,14 +1,16 @@
+import { type UPSTREAM_APPIUM_COMMANDS } from './appiumCommands.generated';
+
 // Human-readable summaries for Appium command names captured via Appium Event
 // Timings. The raw command name (e.g. `getWindowRect`) is preserved in each
 // event's `data.command`; the summary is what surfaces in the session timeline,
 // so it should read like a short past-tense description of what happened.
 //
 // Keys are Appium command names as they appear in event timings. Every command
-// declared by `@appium/base-driver` must have an entry here (enforced by the
-// coverage test, which reads the generated `appiumCommands.generated.ts`
-// snapshot); a few extra keys are driver-level commands (e.g. clipboard) that
-// base-driver does not declare.
-export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
+// declared by `@appium/base-driver` must have an entry here (enforced at compile
+// time by the assertions below, which read the generated
+// `appiumCommands.generated.ts` snapshot); a few extra keys are driver-level
+// commands (e.g. clipboard) that base-driver does not declare.
+export const APPIUM_COMMAND_SUMMARIES = {
   // Session lifecycle
   createSession: 'Started the session',
   deleteSession: 'Ended the session',
@@ -187,16 +189,37 @@ export const APPIUM_COMMAND_SUMMARIES: Record<string, string> = {
   setStorageAccess: 'Set storage access',
   setRPHRegistrationMode: 'Set the protocol handler registration mode',
   setSPCTransactionMode: 'Set the payment transaction mode',
-};
+} satisfies Record<string, string>;
+
+// Compile-time coverage checks (in place of a runtime test): if either of these
+// errors, `tsc` names the offending command(s).
+//
+// AssertNever<T> only accepts `never`, so a non-empty union of command names
+// fails the constraint and surfaces the exact commands in the error.
+type AssertNever<T extends never> = T;
+type CuratedCommand = keyof typeof APPIUM_COMMAND_SUMMARIES;
+type UpstreamCommand = (typeof UPSTREAM_APPIUM_COMMANDS)[number];
+
+// Driver-level commands curated but not declared by base-driver.
+type DriverLevelCommand = 'background' | 'getClipboard' | 'setClipboard';
+
+// 1) Every upstream Appium command must have a curated summary.
+type _EveryUpstreamCommandIsCurated = AssertNever<Exclude<UpstreamCommand, CuratedCommand>>;
+
+// 2) Every curated command must be a real upstream command (or a known driver-level one).
+type _EveryCuratedCommandExistsUpstream = AssertNever<
+  Exclude<CuratedCommand, UpstreamCommand | DriverLevelCommand>
+>;
 
 /**
  * Translate a raw Appium command name into a short, human-readable summary.
  *
  * If a command has no curated summary, the raw command name is returned
- * unchanged — we intentionally do not guess a phrasing. A coverage test keeps
- * APPIUM_COMMAND_SUMMARIES in sync with the upstream command set so new
- * commands are given a real summary rather than relying on this passthrough.
+ * unchanged — we intentionally do not guess a phrasing. The compile-time
+ * assertions above keep APPIUM_COMMAND_SUMMARIES in sync with the upstream
+ * command set so new commands are given a real summary rather than relying on
+ * this passthrough.
  */
 export function humanizeAppiumCommand(command: string): string {
-  return APPIUM_COMMAND_SUMMARIES[command] ?? command;
+  return (APPIUM_COMMAND_SUMMARIES as Record<string, string>)[command] ?? command;
 }
