@@ -14576,6 +14576,19 @@ export type SetRolloutPercentageMutation = { __typename?: 'RootMutation', update
         | { __typename: 'User', username: string, id: string }
        | null, branch: { __typename?: 'UpdateBranch', id: string, name: string }, codeSigningInfo?: { __typename?: 'CodeSigningInfo', keyid: string, sig: string, alg: string } | null, rolloutControlUpdate?: { __typename?: 'Update', id: string, group: string } | null, fingerprint?: { __typename?: 'Fingerprint', id: string, hash: string, debugInfoUrl?: string | null, source?: { __typename?: 'FingerprintSource', type: FingerprintSourceType, bucketKey: string, isDebugFingerprint?: boolean | null } | null } | null } } };
 
+export type GenerateRealtimeLogsCentrifugoConnectionTokenMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GenerateRealtimeLogsCentrifugoConnectionTokenMutation = { __typename?: 'RootMutation', realtimeLogs: { __typename?: 'RealtimeLogsMutation', generateCentrifugoConnectionToken: { __typename?: 'RealtimeLogsCentrifugoConnectionToken', token: string } } };
+
+export type GenerateRealtimeLogsCentrifugoSubscriptionTokenMutationVariables = Exact<{
+  target: RealtimeLogsTargetInput;
+  thread?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type GenerateRealtimeLogsCentrifugoSubscriptionTokenMutation = { __typename?: 'RootMutation', realtimeLogs: { __typename?: 'RealtimeLogsMutation', generateCentrifugoSubscriptionToken: { __typename?: 'RealtimeLogsCentrifugoSubscriptionToken', channel: string, token: string } } };
+
 export type CreateAndroidSubmissionMutationVariables = Exact<{
   appId: Scalars['ID']['input'];
   config: AndroidSubmissionConfigInput;

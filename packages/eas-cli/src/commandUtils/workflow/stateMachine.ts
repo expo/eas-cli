@@ -1,11 +1,11 @@
 import { Choice } from 'prompts';
 
 import { WorkflowJobResult, WorkflowLogs } from './types';
+import { fetchAndProcessLogsFromJobAsync } from './logs/parseLogs';
 import {
   choiceFromWorkflowJob,
   choiceFromWorkflowRun,
   choicesFromWorkflowLogs,
-  fetchAndProcessLogsFromJobAsync,
   processWorkflowRuns,
 } from './utils';
 import { AppQuery } from '../../graphql/queries/AppQuery';
