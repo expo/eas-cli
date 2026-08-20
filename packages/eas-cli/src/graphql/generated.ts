@@ -15241,6 +15241,20 @@ export type GetAllSubmissionsForAppQuery = { __typename?: 'RootQuery', app: { __
             | { __typename: 'User', id: string, displayName: string }
            | null, app: { __typename: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, updateChannel?: { __typename?: 'UpdateChannel', id: string, name: string } | null, runtime?: { __typename?: 'Runtime', id: string, version: string } | null, metrics?: { __typename?: 'BuildMetrics', buildWaitTime?: number | null, buildQueueTime?: number | null, buildDuration?: number | null } | null } | null, app: { __typename?: 'App', id: string, name: string, slug: string, ownerAccount: { __typename?: 'Account', id: string, name: string } }, androidConfig?: { __typename?: 'AndroidSubmissionConfig', track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string, appleIdUsername?: string | null } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
 
+export type GetProjectStatusSubmissionsQueryVariables = Exact<{
+  appId: Scalars['String']['input'];
+  offset: Scalars['Int']['input'];
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type GetProjectStatusSubmissionsQuery = { __typename?: 'RootQuery', app: { __typename?: 'AppQuery', byId: { __typename?: 'App', id: string, submissions: Array<{ __typename?: 'Submission', id: string, status: SubmissionStatus, platform: AppPlatform, createdAt: any, completedAt?: any | null, initiatingActor?:
+          | { __typename?: 'PartnerActor', id: string, displayName: string }
+          | { __typename?: 'Robot', id: string, displayName: string }
+          | { __typename?: 'SSOUser', id: string, displayName: string }
+          | { __typename?: 'User', id: string, displayName: string }
+         | null, submittedBuild?: { __typename?: 'Build', id: string } | null, androidConfig?: { __typename?: 'AndroidSubmissionConfig', applicationIdentifier?: string | null, track: string, releaseStatus?: SubmissionAndroidReleaseStatus | null, rollout?: number | null } | null, iosConfig?: { __typename?: 'IosSubmissionConfig', ascAppIdentifier: string } | null, error?: { __typename?: 'SubmissionError', errorCode?: string | null, message?: string | null } | null }> } } };
+
 export type SupabaseConnectionByAccountIdQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
 }>;
