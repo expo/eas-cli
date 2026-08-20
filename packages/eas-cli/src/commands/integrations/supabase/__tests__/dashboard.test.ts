@@ -99,7 +99,7 @@ describe(IntegrationsSupabaseDashboard, () => {
 
   it('fails the spinner when the browser cannot be opened', async () => {
     jest.mocked(openBrowserAsync).mockResolvedValue(false as never);
-    const { ora } = jest.requireMock('../../../../ora') as { ora: jest.Mock };
+    const { ora } = jest.requireMock('../../../../ora');
     const spinner = {
       start: jest.fn().mockReturnThis(),
       succeed: jest.fn().mockReturnThis(),
@@ -116,7 +116,7 @@ describe(IntegrationsSupabaseDashboard, () => {
 
   it('fails the spinner and rethrows when opening the browser throws', async () => {
     jest.mocked(openBrowserAsync).mockRejectedValue(new Error('no browser'));
-    const { ora } = jest.requireMock('../../../../ora') as { ora: jest.Mock };
+    const { ora } = jest.requireMock('../../../../ora');
     const spinner = {
       start: jest.fn().mockReturnThis(),
       succeed: jest.fn().mockReturnThis(),

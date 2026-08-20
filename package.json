@@ -12,7 +12,7 @@
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
     "actionlint": "actionlint",
-    "lint": "oxlint --type-aware --import-plugin --tsconfig ./tsconfig.oxlint.json .",
+    "lint": "oxlint --type-aware --import-plugin --max-warnings=0 --tsconfig ./tsconfig.oxlint.json .",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint-changelog": "./scripts/bin/run lint-changelog",

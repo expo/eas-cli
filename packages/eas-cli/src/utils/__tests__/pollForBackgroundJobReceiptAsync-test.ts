@@ -163,7 +163,7 @@ describe(pollForBackgroundJobReceiptAsync, () => {
   });
 
   it('tolerates consecutive CombinedError fetches before NULL_RECEIPT', async () => {
-    const { CombinedError } = jest.requireActual('@urql/core') as typeof import('@urql/core');
+    const { CombinedError } = jest.requireActual('@urql/core');
     const graphqlClient = instance(mock<ExpoGraphqlClient>());
 
     const receiptId = '123';

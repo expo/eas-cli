@@ -74,10 +74,10 @@ export function mergeEnvContent(rawContent: string, newVars: Record<string, stri
       continue;
     }
     // match[0] runs past the value onto a following comment line, so spans come from the groups.
-    const [keyStart, keyEnd] = match.indices[1]!;
+    const [keyStart, keyEnd] = match.indices[1];
     const valueRange = match.indices[2];
     const definitionEnd = valueRange
-      ? valueRange[1] - (/\s+$/.exec(match[2]!)?.[0].length ?? 0)
+      ? valueRange[1] - (/\s+$/.exec(match[2])?.[0].length ?? 0)
       : keyEnd + (/^[ \t]*(?:=[ \t]*|:[ \t]+)/.exec(rawContent.slice(keyEnd))?.[0].length ?? 0);
 
     if (!rewritten.has(key)) {
