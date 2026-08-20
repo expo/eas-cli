@@ -7,6 +7,7 @@ import {
   Workflow,
 } from '@expo/eas-build-job';
 import { randomBytes, randomUUID } from 'crypto';
+import spawn from '@expo/turtle-spawn';
 import { vol } from 'memfs';
 import fetch, { Response } from 'node-fetch';
 import { setTimeout } from 'timers/promises';
@@ -14,7 +15,10 @@ import { setTimeout } from 'timers/promises';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { shallowCloneRepositoryAsync } from '../git';
-import { prepareProjectSourcesAsync } from '../projectSources';
+import {
+  downloadAndUnpackProjectFromTarGzAsync,
+  prepareProjectSourcesAsync,
+} from '../projectSources';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('node-fetch');
@@ -23,6 +27,32 @@ jest.mock('@expo/downloader');
 jest.mock('@urql/core');
 
 describe('projectSources', () => {
+  it('normalizes project archive permissions after extraction', async () => {
+    const logger = createMockLogger();
+    const ctx = {
+      env: { EAS_BUILD_ID: randomUUID() },
+      logger,
+      reportError: jest.fn(),
+      workingdir: '/workingdir',
+    } as unknown as BuildContext<Job>;
+
+    await downloadAndUnpackProjectFromTarGzAsync(
+      ctx,
+      'https://example.com/project.tar.gz',
+      '/workingdir/build'
+    );
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      'tar',
+      ['-C', '/workingdir/build', '--strip-components', '1', '-zxf', '/workingdir/project.tar.gz'],
+      { logger }
+    );
+    expect(spawn).toHaveBeenNthCalledWith(2, 'chmod', ['-R', 'u+rwX', '/workingdir/build'], {
+      logger,
+    });
+  });
+
   it('should use the refreshed repository URL', async () => {
     const robotAccessToken = randomUUID();
     const buildId = randomUUID();
