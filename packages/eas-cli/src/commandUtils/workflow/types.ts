@@ -48,16 +48,14 @@ export type WorkflowRawLogLine = {
   buildStepDisplayName?: string;
   phase?: string;
   time?: string;
-  msg: string;
+  msg?: string;
   result?: string;
   marker?: string;
   err?: any;
 };
 
-export type WorkflowLogLine = Pick<
-  WorkflowRawLogLine,
-  'time' | 'msg' | 'result' | 'marker' | 'err'
->;
+export type WorkflowLogLine = Pick<WorkflowRawLogLine, 'time' | 'result' | 'marker' | 'err'> &
+  Required<Pick<WorkflowRawLogLine, 'msg'>>;
 
 export type WorkflowLogs = Map<
   string,

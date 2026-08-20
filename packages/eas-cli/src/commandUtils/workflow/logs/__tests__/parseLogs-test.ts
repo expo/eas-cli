@@ -140,4 +140,23 @@ describe(groupLogLinesIntoSteps, () => {
 
     expect(logs.size).toBe(0);
   });
+
+  it('drops lines that carry no message, keeping the rest of the step', () => {
+    const logs = groupLogLinesIntoSteps([
+      logLine({ buildStepId: 'install', msg: undefined, marker: 'start-step' }),
+      logLine({ buildStepId: 'install', msg: 'npm ci' }),
+    ]);
+
+    expect(logs.get('install')?.logLines).toEqual([
+      { time: undefined, msg: 'npm ci', result: undefined, marker: undefined, err: undefined },
+    ]);
+  });
+
+  it('creates no step for a line that carries no message', () => {
+    const logs = groupLogLinesIntoSteps([
+      logLine({ buildStepId: 'install', msg: undefined, marker: 'end-step', result: 'success' }),
+    ]);
+
+    expect(logs.size).toBe(0);
+  });
 });
