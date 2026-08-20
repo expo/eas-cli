@@ -88,9 +88,7 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
       continue;
     }
 
-    Log.warn(
-      `A rollout is in progress for runtime version ${updateGroups[index].runtimeVersion}:`
-    );
+    Log.warn(`A rollout is in progress for runtime version ${updateGroups[index].runtimeVersion}:`);
 
     const rolloutsByPlatform = activeRollouts
       .map(({ platform, update }) => ({
@@ -123,7 +121,7 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   const isPartialRollout = rolloutPercentage !== undefined && rolloutPercentage < 100;
   Log.warn(
     isPartialRollout
-      ? `Ending the rollout makes your new update the latest for ${rolloutPercentage}% of users. The other ${100 - rolloutPercentage}% receive the update that was rolling out.`
+      ? `Ending the rollout makes your new update the latest for ${rolloutPercentage}% of users. The update that was rolling out becomes the control update for your rollout, so its share grows to ${100 - rolloutPercentage}%.`
       : 'Ending the rollout makes your new update the latest, so every user receives it instead. The update that was rolling out stops being served.'
   );
   Log.newLine();

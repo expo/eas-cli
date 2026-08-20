@@ -181,7 +181,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     });
 
     expect(jest.mocked(Log.warn).mock.calls.flat()).toContain(
-      'Ending the rollout makes your new update the latest for 10% of users. The other 90% receive the update that was rolling out.'
+      'Ending the rollout makes your new update the latest for 10% of users. The update that was rolling out becomes the control update for your rollout, so its share grows to 90%.'
     );
   });
 
@@ -246,9 +246,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
   it('omits the message and control columns when the rollout has neither', async () => {
     jest
       .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
-      .mockResolvedValue([
-        [{ ...rolloutUpdateStub, message: null, rolloutControlUpdate: null }],
-      ]);
+      .mockResolvedValue([[{ ...rolloutUpdateStub, message: null, rolloutControlUpdate: null }]]);
 
     await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
       ...resolveOptions,
