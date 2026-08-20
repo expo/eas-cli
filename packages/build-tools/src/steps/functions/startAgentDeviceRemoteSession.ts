@@ -26,7 +26,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
-  waitForDeviceRunSessionStoppedAsync,
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync,
   waitForFileAsync,
 } from '../utils/remoteDeviceRunSession';
 
@@ -102,6 +102,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
         subdomainPrefix: 'agent-device',
         baseDomain: ngrokTunnelDomain,
         authtoken: ngrokAuthtoken,
+        deviceRunSessionId,
         logger,
       });
       const agentDeviceRemoteSessionUrl = agentDeviceTunnel.url;
@@ -148,12 +149,13 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
           logger,
         });
 
-        await waitForDeviceRunSessionStoppedAsync({
+        await waitForDeviceRunSessionStoppedOrResourceFailureAsync({
           ctx,
           deviceRunSessionId,
           logger,
           maxDurationSeconds,
           signal,
+          resources: [daemonProcess, agentDeviceTunnel, ...(serveSim ? [serveSim] : [])],
           idleTimeout:
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
               ? {

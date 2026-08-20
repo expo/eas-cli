@@ -29,7 +29,7 @@ import {
   startNgrokTunnelAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
-  waitForDeviceRunSessionStoppedAsync,
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
@@ -193,6 +193,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
           authtoken: ngrokAuthtoken,
+          deviceRunSessionId,
           rewriteHostHeader: true,
           logger,
         });
@@ -223,12 +224,13 @@ export function createStartArgentRemoteSessionBuildFunction(
           logger,
         });
 
-        await waitForDeviceRunSessionStoppedAsync({
+        await waitForDeviceRunSessionStoppedOrResourceFailureAsync({
           ctx,
           deviceRunSessionId,
           logger,
           maxDurationSeconds,
           signal,
+          resources: [argentServer, toolsTunnel, ...(serveSim ? [serveSim] : [])],
           idleTimeout:
             maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
               ? {

@@ -16,7 +16,7 @@ import {
   spawnDetached,
   startNgrokTunnelAsync,
   uploadRemoteSessionConfigAsync,
-  waitForDeviceRunSessionStoppedAsync,
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync,
 } from '../../utils/remoteDeviceRunSession';
 import { createStartArgentRemoteSessionBuildFunction } from '../startArgentRemoteSession';
 
@@ -49,7 +49,7 @@ jest.mock('../../utils/remoteDeviceRunSession', () => ({
   startNgrokTunnelAsync: jest.fn(),
   startServeSimWithTunnelAsync: jest.fn(),
   uploadRemoteSessionConfigAsync: jest.fn(),
-  waitForDeviceRunSessionStoppedAsync: jest.fn(),
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync: jest.fn(),
 }));
 
 const TEST_HOME = path.join(os.tmpdir(), 'eas-argent-orchestration-home');
@@ -81,13 +81,15 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
       pid: 4242,
       getOutput: () => '',
       stopAsync: jest.fn(),
+      waitForFailureAsync: jest.fn(() => new Promise<void>(() => {})),
     });
     jest.mocked(startNgrokTunnelAsync).mockResolvedValue({
       url: 'https://argent-abc.tunnel.example.com',
       stopAsync: mockTunnelStopAsync,
+      waitForFailureAsync: jest.fn(() => new Promise<void>(() => {})),
     });
     jest.mocked(uploadRemoteSessionConfigAsync).mockResolvedValue(undefined);
-    jest.mocked(waitForDeviceRunSessionStoppedAsync).mockResolvedValue(undefined);
+    jest.mocked(waitForDeviceRunSessionStoppedOrResourceFailureAsync).mockResolvedValue(undefined);
 
     // The (real) tool-server state wait reads this file from the redirected ~/.argent.
     await fs.promises.mkdir(ARGENT_STATE_DIR, { recursive: true });
@@ -145,10 +147,10 @@ describe('createStartArgentRemoteSessionBuildFunction orchestration', () => {
     expect(startArgentEventCollectionAsync).toHaveBeenCalledTimes(1);
     expect(mockStopAsync).toHaveBeenCalledTimes(1);
     expect(jest.mocked(startArgentEventCollectionAsync).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
+      jest.mocked(waitForDeviceRunSessionStoppedOrResourceFailureAsync).mock.invocationCallOrder[0]
     );
     expect(mockStopAsync.mock.invocationCallOrder[0]).toBeGreaterThan(
-      jest.mocked(waitForDeviceRunSessionStoppedAsync).mock.invocationCallOrder[0]
+      jest.mocked(waitForDeviceRunSessionStoppedOrResourceFailureAsync).mock.invocationCallOrder[0]
     );
     expect(mockTunnelStopAsync).toHaveBeenCalledTimes(1);
   });

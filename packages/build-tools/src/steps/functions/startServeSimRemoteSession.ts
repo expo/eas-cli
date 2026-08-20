@@ -12,7 +12,7 @@ import {
   selectXcodeDeveloperDirectoryAsync,
   startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
-  waitForDeviceRunSessionStoppedAsync,
+  waitForDeviceRunSessionStoppedOrResourceFailureAsync,
 } from '../utils/remoteDeviceRunSession';
 
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -58,12 +58,13 @@ export function createStartServeSimRemoteSessionBuildFunction(
           logger,
         });
 
-        await waitForDeviceRunSessionStoppedAsync({
+        await waitForDeviceRunSessionStoppedOrResourceFailureAsync({
           ctx,
           deviceRunSessionId,
           logger,
           maxDurationSeconds,
           signal,
+          resources: [serveSim],
         });
       } finally {
         await serveSim.stopAsync();
