@@ -722,7 +722,7 @@ export async function startServeSimWithTunnelAsync(
     await waitForServeSimReadyAsync({ serveSim, port, timeoutMs });
     const tunnel = await startNgrokTunnelAsync({
       port,
-      subdomainPrefix: 'serve-sim',
+      subdomainPrefix: 'web-preview',
       baseDomain,
       authtoken: getNgrokAuthtokenOrThrow(env),
       logger,
