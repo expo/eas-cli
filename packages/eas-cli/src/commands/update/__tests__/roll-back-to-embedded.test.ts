@@ -19,8 +19,10 @@ import { jester } from '../../../credentials/__tests__/fixtures-constants';
 import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
+import { UpdateQuery } from '../../../graphql/queries/UpdateQuery';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { resolveVcsClient } from '../../../vcs';
+import { publishRollBackToEmbeddedUpdateAsync } from '../../../update/roll-back-to-embedded';
 import UpdateRollBackToEmbedded from '../roll-back-to-embedded';
 
 const projectRoot = '/test-project';
@@ -87,6 +89,7 @@ jest.mock('../../../project/publish', () => ({
 describe(UpdateRollBackToEmbedded.name, () => {
   afterEach(() => {
     vol.reset();
+    jest.clearAllMocks();
   });
 
   it('errors with both --channel and --branch', async () => {
@@ -126,6 +129,35 @@ describe(UpdateRollBackToEmbedded.name, () => {
     await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('publishes without checking rollouts when no caller opts in', async () => {
+    mockTestProject();
+    const runtimeVersion = 'exposdk:47.0.0';
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockResolvedValue([
+        { ...updateStub, platform: 'ios', runtime: { id: 'r1', version: runtimeVersion } },
+      ]);
+
+    await publishRollBackToEmbeddedUpdateAsync({
+      graphqlClient: instance(mock<ExpoGraphqlClient>({})),
+      projectId: '1234',
+      exp: { name: 'testing 123', slug: 'testing-123' } as ExpoConfig,
+      updateMessage: 'no rollout check',
+      branch: { id: 'branch123', name: 'main' },
+      codeSigningInfo: undefined,
+      platforms: ['ios'],
+      runtimeVersion,
+      json: false,
+    });
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalledWith(expect.any(Object), [
+      expect.not.objectContaining({
+        previousRolloutUpdateToClobberIdGroup: expect.anything(),
+      }),
+    ]);
   });
 
   it('reports a failed publish and rethrows', async () => {
