@@ -98,6 +98,8 @@ export function createStartAppiumRemoteSessionBuildFunction(
           // Appium Event Timings, so enable it for all drivers.
           '--allow-insecure',
           '*:session_discovery',
+          '--default-capabilities',
+          JSON.stringify({ 'appium:eventTimings': true }),
         ],
         env: appiumEnv,
       });
@@ -148,7 +150,6 @@ export function createStartAppiumRemoteSessionBuildFunction(
               platformName: device.platformName,
               'appium:automationName': device.automationName,
               'appium:udid': device.udid,
-              'appium:eventTimings': true,
             },
             ...(serveSim ? { webPreviewUrl: serveSim.previewUrl } : {}),
           },
