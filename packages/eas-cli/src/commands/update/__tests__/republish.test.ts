@@ -51,9 +51,16 @@ jest.mock('../../../graphql/queries/BranchQuery');
 jest.mock('../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync');
 jest.mock('../../../update/queries');
 jest.mock('../../../ora', () => ({
-  ora: () => ({
-    start: () => ({ succeed: () => {}, fail: () => {} }),
-  }),
+  ora: () => {
+    const spinner = {
+      isSpinning: false,
+      start: () => spinner,
+      succeed: () => {},
+      fail: () => {},
+      stop: () => {},
+    };
+    return spinner;
+  },
 }));
 jest.mock('../../../utils/code-signing');
 jest.mock('../../../fetch');
