@@ -1,6 +1,6 @@
 import { APPIUM_COMMAND_SUMMARIES, humanizeAppiumCommand } from '../appiumCommandSummary';
 
-// Coverage of the full upstream command set is enforced at compile time by the
+// Coverage of the generated Appium and driver command sets is enforced at compile time by the
 // `Record<AppiumCommand, string>` type in appiumCommandSummary.ts, so it is not
 // re-checked here.
 
@@ -23,6 +23,8 @@ describe(humanizeAppiumCommand, () => {
     ['createSession', 'Started the session'],
     ['deleteSession', 'Ended the session'],
     ['postAcceptAlert', 'Accepted an alert'],
+    ['mobileScroll', 'Scrolled the screen'],
+    ['openNotifications', 'Opened notifications'],
   ])('maps the known command %s to a curated summary', (command, expected) => {
     expect(humanizeAppiumCommand(command)).toBe(expected);
   });
