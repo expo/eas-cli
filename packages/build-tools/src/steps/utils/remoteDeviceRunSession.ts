@@ -51,6 +51,22 @@ const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
   }
 `);
 
+const DEVICE_RUN_SESSION_DETAILS_QUERY = graphql(`
+  query DeviceRunSessionDetails($deviceRunSessionId: ID!) {
+    deviceRunSessions {
+      byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        app {
+          slug
+          ownerAccount {
+            name
+          }
+        }
+      }
+    }
+  }
+`);
+
 const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
   mutation EnsureDeviceRunSessionStopped($deviceRunSessionId: ID!) {
     deviceRunSession {
@@ -596,14 +612,77 @@ export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
   return args;
 }
 
+export function expoWebsiteBaseUrlFromApiServerUrl(apiServerUrl: string): string {
+  const apiUrl = new URL(apiServerUrl);
+  if (apiUrl.hostname === '127.0.0.1' || apiUrl.hostname === 'localhost') {
+    return 'http://expo.test';
+  }
+
+  if (apiUrl.hostname.startsWith('staging-api.')) {
+    apiUrl.hostname = `staging.${apiUrl.hostname.slice('staging-api.'.length)}`;
+    apiUrl.port = '';
+  } else if (apiUrl.hostname.startsWith('api.')) {
+    apiUrl.hostname = apiUrl.hostname.slice('api.'.length);
+    apiUrl.port = '';
+  }
+  return apiUrl.origin;
+}
+
+export async function fetchDeviceRunSessionDetailsUrlAsync(
+  ctx: CustomBuildContext,
+  {
+    deviceRunSessionId,
+    logger,
+  }: {
+    deviceRunSessionId: string;
+    logger: bunyan;
+  }
+): Promise<string | undefined> {
+  try {
+    const result = await ctx.graphqlClient
+      .query(DEVICE_RUN_SESSION_DETAILS_QUERY, { deviceRunSessionId })
+      .toPromise();
+    if (result.error) {
+      throw result.error;
+    }
+
+    const session = result.data?.deviceRunSessions?.byId;
+    if (!session) {
+      throw new Error(`Device run session ${deviceRunSessionId} response was missing.`);
+    }
+
+    const websiteBaseUrl = expoWebsiteBaseUrlFromApiServerUrl(
+      nullthrows(ctx.env.__API_SERVER_URL, '__API_SERVER_URL is not set')
+    );
+    return new URL(
+      `/accounts/${encodeURIComponent(session.app.ownerAccount.name)}/projects/${encodeURIComponent(
+        session.app.slug
+      )}/simulator-sessions/${encodeURIComponent(session.id)}`,
+      websiteBaseUrl
+    ).toString();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not resolve device run session details URL', error, {
+      level: 'warning',
+    });
+    logger.warn(
+      { err: error },
+      'Could not resolve the simulator session details URL; serve-sim will start without a return link.'
+    );
+    return undefined;
+  }
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
   metricsCorsArgs = [],
+  sessionDetailsUrl,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
+  sessionDetailsUrl?: string;
 }): string[] {
   return [
     '--yes',
@@ -626,6 +705,7 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...metricsCorsArgs,
+    ...(sessionDetailsUrl ? ['--session-details-url', sessionDetailsUrl] : []),
   ];
 }
 
@@ -709,11 +789,15 @@ export async function startServeSimWithTunnelAsync(
 ): Promise<ServeSimPreviewHandle> {
   const port = await findAvailablePortAsync();
   logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
-  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
+  const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
+  const [turnArgs, sessionDetailsUrl] = await Promise.all([
+    fetchServeSimTurnArgsAsync(ctx, { env, logger }),
+    fetchDeviceRunSessionDetailsUrlAsync(ctx, { deviceRunSessionId, logger }),
+  ]);
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs }),
+    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs, sessionDetailsUrl }),
     env,
   });
 
