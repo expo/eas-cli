@@ -1,11 +1,9 @@
 ---
 description: Security and secrets. Injection, credential or secret leakage, unsafe shell/child-process use, missing validation at trust boundaries.
 alwaysRun: true
-# Security is the highest-stakes agent and benefits most from stronger threat-model
-# reasoning, so it runs on Opus even though the other specialists use the Sonnet
-# default. Scoped to this one agent to limit the extra latency/rate-limit cost;
-# subdivide-on-timeout + the per-fetch deadline keep a slow Opus pass from hanging.
-model: anthropic/claude-opus-4-8
+# Security is the highest-stakes agent, so it runs on the Opus tier (mirrors
+# the expo/code-review-cli repo's own roster).
+model: anthropic/claude-opus-5
 ---
 
 # Security & secrets
@@ -25,7 +23,13 @@ those areas with extra care.
 - Sensitive or secret environment-variable **values** being surfaced in output,
   logs, or error messages.
 - Unsafe shell command construction (command injection), especially anywhere near
-  `env:exec` or child-process spawning.
+  `env:exec` or child-process spawning. In shell snippets, interpolated values must
+  be POSIX-safe-quoted; unquoted interpolation of a name, URL, or user value is an
+  injection.
+- External or model-generated text written to stdout without stripping ANSI/control
+  characters first (terminal-escape injection / spoofed output).
+- A publicly-reachable tunnel URL (e.g. an ngrok/remote-device or serve-sim session
+  in `build-tools`) exposed without authentication — anyone with the URL can reach it.
 - Missing validation on untrusted input at a trust boundary.
 - Insecure file permissions, or writing secrets to world-readable paths.
 

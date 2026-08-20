@@ -11,11 +11,13 @@ import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_NAME,
   loadSimulatorEnvAsync,
+  resetSimulatorEnvAsync,
 } from '../../simulator/env';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorStop extends EasCommand {
   static override hidden = true;
+  static override aliases = ['sim:stop'];
   static override description =
     '[EXPERIMENTAL] stop a remote simulator session on EAS by its simulator session ID';
 
@@ -66,6 +68,8 @@ export default class SimulatorStop extends EasCommand {
       stopSpinner.fail(`Failed to stop simulator session ${flagId}`);
       throw err;
     }
+
+    await resetSimulatorEnvAsync(projectDir, flagId);
 
     if (jsonFlag) {
       printJsonOnlyOutput({ id: session.id, status: session.status });

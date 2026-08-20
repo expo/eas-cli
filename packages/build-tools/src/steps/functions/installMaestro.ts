@@ -1,3 +1,4 @@
+import { SystemError, UserError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { asyncResult } from '@expo/results';
 import {
@@ -14,7 +15,9 @@ import assert from 'assert';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import semver from 'semver';
 
+import { MaestroBackend, resolveMaestroBackend } from './maestroBackend';
 import { Datadog } from '../../datadog';
 
 export function createInstallMaestroBuildFunction(): BuildFunction {
@@ -29,6 +32,11 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'backend',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     outputProviders: [
       BuildStepOutput.createProvider({
@@ -37,22 +45,28 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
       }),
     ],
     fn: async ({ logger, global }, { inputs, env, outputs }) => {
-      const requestedMaestroVersion = inputs.maestro_version.value as string | undefined;
-      const { value: currentMaestroVersion } = await asyncResult(getMaestroVersion({ env }));
+      const backend = resolveMaestroBackend({
+        input: inputs.backend.value,
+        env,
+      });
+      const requestedVersion = inputs.maestro_version.value as string | undefined;
+      const { value: currentMaestroVersion } = await asyncResult(
+        getMaestroVersion({ env, backend })
+      );
 
       // When not running in EAS Build VM, do not modify local environment.
       if (env.EAS_BUILD_RUNNER !== 'eas-build') {
-        const currentIsJavaInstalled = await isJavaInstalled({ env });
-        const currentIsIdbInstalled = await isIdbInstalled({ env });
+        const needsToInstallJava = backend === 'maestro' && !(await isJavaInstalled({ env }));
+        const needsToInstallIdb = backend === 'maestro' && !(await isIdbInstalled({ env }));
 
-        if (!currentIsJavaInstalled) {
+        if (needsToInstallJava) {
           logger.warn(
             'It seems Java is not installed. It is required to run Maestro. If the job fails, this may be the reason.'
           );
           logger.info('');
         }
 
-        if (!currentIsIdbInstalled) {
+        if (needsToInstallIdb) {
           logger.warn(
             'It seems IDB is not installed. Maestro requires it to run flows on iOS Simulator. If the job fails, this may be the reason.'
           );
@@ -61,27 +75,32 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
 
         if (!currentMaestroVersion) {
           logger.warn(
-            'It seems Maestro is not installed. Please install Maestro manually and rerun the job.'
+            `It seems ${backend} is not installed. Please install it manually and rerun the job.`
           );
           logger.info('');
         }
 
         // Guide is helpful in these two cases, it doesn't mention Java.
-        if (!currentIsIdbInstalled || !currentMaestroVersion) {
+        if (backend === 'maestro' && (needsToInstallIdb || !currentMaestroVersion)) {
           logger.warn(
             'For more info, check out Maestro installation guide: https://maestro.mobile.dev/getting-started/installing-maestro'
+          );
+        } else if (backend === 'maestro-runner' && !currentMaestroVersion) {
+          logger.warn(
+            'For more info, check out maestro-runner installation guide: https://github.com/devicelab-dev/maestro-runner#install'
           );
         }
 
         if (currentMaestroVersion) {
           outputs.maestro_version.set(currentMaestroVersion);
-          logger.info(`Maestro ${currentMaestroVersion} is ready.`);
+          logger.info(`${backend} ${currentMaestroVersion} is ready.`);
         }
 
         return;
       }
 
-      if (!(await isJavaInstalled({ env }))) {
+      const needsToInstallJava = backend === 'maestro' && !(await isJavaInstalled({ env }));
+      if (needsToInstallJava) {
         if (global.runtimePlatform === BuildRuntimePlatform.DARWIN) {
           logger.info('Installing Java');
           await installJavaFromGcs({ logger, env });
@@ -94,55 +113,173 @@ export function createInstallMaestroBuildFunction(): BuildFunction {
       }
 
       // IDB is only a requirement on macOS.
-      if (
+      const needsToInstallIdb =
+        backend === 'maestro' &&
         global.runtimePlatform === BuildRuntimePlatform.DARWIN &&
-        !(await isIdbInstalled({ env }))
-      ) {
+        !(await isIdbInstalled({ env }));
+      if (needsToInstallIdb) {
         logger.info('Installing IDB');
         await installIdbFromBrew({ logger, env });
       }
 
-      // Skip installing if the input sets a specific Maestro version to install
-      // and it is already installed which happens when developing on a local computer.
-      if (
-        !currentMaestroVersion ||
-        (requestedMaestroVersion && requestedMaestroVersion !== currentMaestroVersion)
-      ) {
-        await installMaestro({
-          version: requestedMaestroVersion,
-          global,
-          logger,
-          env,
-        });
+      switch (backend) {
+        case 'maestro':
+          // Skip installing if the input sets a specific Maestro version to install
+          // and it is already installed, either on a build image or a local computer.
+          if (
+            !currentMaestroVersion ||
+            (requestedVersion && requestedVersion !== currentMaestroVersion)
+          ) {
+            await installMaestro({ version: requestedVersion, global, logger, env });
+          }
+          break;
+        case 'maestro-runner': {
+          let maestroRunnerVersionToInstall = requestedVersion;
+          const currentMaestroRunnerVersion = semver.coerce(currentMaestroVersion)?.version;
+          const requestedMaestroRunnerVersion =
+            requestedVersion && requestedVersion !== 'latest'
+              ? semver.valid(requestedVersion)
+              : null;
+          if (
+            global.runtimePlatform === BuildRuntimePlatform.DARWIN &&
+            ((requestedMaestroRunnerVersion &&
+              semver.gte(requestedMaestroRunnerVersion, '1.1.16')) ||
+              requestedVersion === 'latest' ||
+              (requestedVersion === undefined &&
+                (!currentMaestroRunnerVersion || semver.gt(currentMaestroRunnerVersion, '1.1.15'))))
+          ) {
+            const xcodeVersion = await getXcodeVersion({ env });
+
+            // maestro-runner 1.1.16 added `arch` to its xcodebuild destination. Xcode versions
+            // below 26 reject that option, so use the last compatible maestro-runner version.
+            if (semver.lt(xcodeVersion, '26.0.0')) {
+              if (requestedMaestroRunnerVersion) {
+                throw new UserError(
+                  'ERR_MAESTRO_INVALID_INPUT',
+                  `maestro-runner ${requestedVersion} is not compatible with Xcode ${xcodeVersion}. Use maestro-runner 1.1.15 or an Xcode 26+ image.`
+                );
+              }
+              maestroRunnerVersionToInstall = '1.1.15';
+              logger.info(
+                `Xcode ${xcodeVersion} requires maestro-runner ${maestroRunnerVersionToInstall}.`
+              );
+            }
+          }
+
+          if (
+            !currentMaestroVersion ||
+            (maestroRunnerVersionToInstall &&
+              maestroRunnerVersionToInstall !== currentMaestroVersion)
+          ) {
+            await installMaestroRunner({
+              version: maestroRunnerVersionToInstall,
+              global,
+              logger,
+              env,
+            });
+          }
+
+          break;
+        }
       }
 
-      const maestroVersionResult = await asyncResult(getMaestroVersion({ env }));
+      const maestroVersionResult = await asyncResult(getMaestroVersion({ env, backend }));
       if (!maestroVersionResult.ok) {
         logger.error(maestroVersionResult.reason, 'Failed to get Maestro version.');
 
-        throw new Error('Failed to ensure Maestro is installed.');
+        throw new Error(`Failed to ensure ${backend} is installed.`);
       }
 
-      logger.info(`Maestro ${maestroVersionResult.value} is ready.`);
+      logger.info(`${backend} ${maestroVersionResult.value} is ready.`);
       outputs.maestro_version.set(maestroVersionResult.value);
 
       Datadog.distribution('eas.maestro.install', 1, {
         maestro_version: maestroVersionResult.value,
+        maestro_backend: backend,
       });
     },
   });
 }
 
-async function getMaestroVersion({ env }: { env: BuildStepEnv }): Promise<string> {
-  const { stdout } = await spawn('maestro', ['--version'], { stdio: 'pipe', env });
-  // `maestro --version` can print an analytics notice to stdout before the version,
-  // e.g. "Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS...\n2.0.10".
-  // Take the last version-looking token: the real version is printed after the notice, so
-  // this stays correct even if the notice itself contains a version-like string. Keeps the
-  // step output and the eas.maestro.install metric tag clean. Best-effort only: fall back to
-  // the raw output if none is found, so we never fail the build over a version string.
-  const versions = stdout.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g);
-  return versions?.at(-1) ?? stdout.trim();
+async function getXcodeVersion({ env }: { env: BuildStepEnv }): Promise<string> {
+  let stdout: string;
+  try {
+    ({ stdout } = await spawn('xcodebuild', ['-version'], { stdio: 'pipe', env }));
+  } catch (error) {
+    throw new SystemError('Failed to get Xcode version', { cause: error });
+  }
+
+  const xcodeVersion = semver.coerce(/^Xcode\s+(\S+)/m.exec(stdout)?.[1])?.version;
+  if (!xcodeVersion) {
+    throw new SystemError(`Failed to parse Xcode version from xcodebuild output: ${stdout.trim()}`);
+  }
+  return xcodeVersion;
+}
+
+async function getMaestroVersion({
+  env,
+  backend,
+}: {
+  env: BuildStepEnv;
+  backend: MaestroBackend;
+}): Promise<string> {
+  switch (backend) {
+    case 'maestro': {
+      const { stdout } = await spawn('maestro', ['--version'], { stdio: 'pipe', env });
+      // `maestro --version` can print an analytics notice to stdout before the version,
+      // e.g. "Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS...\n2.0.10".
+      // Take the last version-looking token: the real version is printed after the notice.
+      const versions = stdout.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/g);
+      return versions?.at(-1) ?? stdout.trim();
+    }
+    case 'maestro-runner': {
+      const { stdout } = await spawn('maestro-runner', ['--version'], { stdio: 'pipe', env });
+      // maestro-runner prints build information after its version. The Go runtime version in
+      // that output is also semver-shaped, so read only the prefixed runner version.
+      return /^maestro-runner\s+(\S+)/m.exec(stdout)?.[1] ?? stdout.trim();
+    }
+  }
+}
+
+async function installMaestroRunner({
+  global,
+  version,
+  logger,
+  env,
+}: {
+  version?: string;
+  logger: bunyan;
+  global: BuildStepGlobalContext;
+  env: BuildStepEnv;
+}): Promise<void> {
+  logger.info('Fetching maestro-runner install script');
+  const tempDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'install_maestro_runner'));
+  try {
+    const installMaestroRunnerScriptResponse = await fetch(
+      'https://open.devicelab.dev/install/maestro-runner'
+    );
+    const installMaestroRunnerScript = await installMaestroRunnerScriptResponse.text();
+    const scriptPath = path.join(tempDirectory, 'install_maestro_runner.sh');
+    await fs.promises.writeFile(scriptPath, installMaestroRunnerScript, { mode: 0o777 });
+    logger.info('Installing maestro-runner');
+    assert(
+      env.HOME,
+      'Failed to infer directory to install maestro-runner in: $HOME environment variable is empty.'
+    );
+    await spawn(scriptPath, version && version !== 'latest' ? ['--version', version] : [], {
+      logger,
+      env,
+    });
+    const binDir = path.join(env.HOME, '.maestro-runner', 'bin');
+    global.updateEnv({
+      ...global.env,
+      PATH: `${binDir}:${global.env.PATH}`,
+    });
+    env.PATH = `${binDir}:${env.PATH}`;
+    process.env.PATH = `${binDir}:${process.env.PATH}`;
+  } finally {
+    await fs.promises.rm(tempDirectory, { force: true, recursive: true });
+  }
 }
 
 async function installMaestro({
@@ -186,10 +323,10 @@ async function installMaestro({
     const maestroBinDir = path.join(maestroDir, 'bin');
     global.updateEnv({
       ...global.env,
-      PATH: `${global.env.PATH}:${maestroBinDir}`,
+      PATH: `${maestroBinDir}:${global.env.PATH}`,
     });
-    env.PATH = `${env.PATH}:${maestroBinDir}`;
-    process.env.PATH = `${process.env.PATH}:${maestroBinDir}`;
+    env.PATH = `${maestroBinDir}:${env.PATH}`;
+    process.env.PATH = `${maestroBinDir}:${process.env.PATH}`;
   } finally {
     await fs.promises.rm(tempDirectory, { force: true, recursive: true });
   }
@@ -197,37 +334,64 @@ async function installMaestro({
 
 async function isIdbInstalled({ env }: { env: BuildStepEnv }): Promise<boolean> {
   try {
-    await spawn('idb', ['-h'], { ignoreStdio: true, env });
+    await spawn('idb_companion', ['--version'], { ignoreStdio: true, env });
     return true;
   } catch {
     return false;
   }
 }
 
-async function installIdbFromBrew({
+export async function installIdbFromBrew({
   logger,
   env,
 }: {
   logger: bunyan;
   env: BuildStepEnv;
 }): Promise<void> {
-  // Unfortunately our Mac images sometimes have two Homebrew
-  // installations. We should use the ARM64 one, located in /opt/homebrew.
-  const brewPath = '/opt/homebrew/bin/brew';
-  const localEnv = {
-    ...env,
-    HOMEBREW_NO_AUTO_UPDATE: '1',
-    HOMEBREW_NO_INSTALL_CLEANUP: '1',
-  };
+  try {
+    // Unfortunately our Mac images sometimes have two Homebrew
+    // installations. We should use the ARM64 one, located in /opt/homebrew.
+    const brewPath = '/opt/homebrew/bin/brew';
+    const localEnv = {
+      ...env,
+      HOMEBREW_NO_AUTO_UPDATE: '1',
+      HOMEBREW_NO_INSTALL_CLEANUP: '1',
+    };
 
-  await spawn(brewPath, ['tap', 'facebook/fb'], {
-    env: localEnv,
-    logger,
-  });
-  await spawn(brewPath, ['install', 'idb-companion'], {
-    env: localEnv,
-    logger,
-  });
+    logger.info('Tapping facebook/fb...');
+    await spawn(brewPath, ['tap', 'facebook/fb'], {
+      env: localEnv,
+      logger,
+    });
+
+    const brewRepo = await spawn(brewPath, ['--repo', 'facebook/fb'], {
+      env: localEnv,
+    });
+    const tapPath = brewRepo.stdout.trim();
+
+    // c0386793f59da10c619787f2aa18d938ef1d69c9 is hash for 1.1.8 release,
+    // last known compatible version + post_install fix.
+    const gitSha = 'c0386793f59da10c619787f2aa18d938ef1d69c9';
+    logger.info('Checking out facebook/fb at idb_companion@1.1.8...');
+    await spawn('git', ['fetch', 'origin', gitSha], {
+      cwd: tapPath,
+      logger,
+    });
+    await spawn('git', ['checkout', gitSha], {
+      cwd: tapPath,
+      logger,
+    });
+
+    logger.info('Installing idb_companion v1.1.8...');
+    await spawn(brewPath, ['install', 'facebook/fb/idb-companion'], {
+      env: localEnv,
+      logger,
+    });
+  } catch (err) {
+    throw new SystemError('Failed to install idb-companion required for Maestro to run.', {
+      cause: err,
+    });
+  }
 }
 
 async function isJavaInstalled({ env }: { env: BuildStepEnv }): Promise<boolean> {

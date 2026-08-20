@@ -6,6 +6,7 @@ import path from 'path';
 import util from 'util';
 
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
+import { BuildStepCompositeFunctionScope } from './BuildStepCompositeFunctionScope';
 import { BuildStepContext, BuildStepGlobalContext } from './BuildStepContext';
 import { BuildStepEnv } from './BuildStepEnv';
 import { BuildStepInput, BuildStepInputById, makeBuildStepInputByIdMap } from './BuildStepInput';
@@ -23,7 +24,13 @@ import {
 } from './BuildTemporaryFiles';
 import { BuildStepRuntimeError } from './errors';
 import { interpolateJobContext } from './interpolation';
-import { evaluateIfCondition } from './utils/jsepEval';
+import {
+  containsUnresolvedTemplateReference,
+  resolveInterpolatedTarget,
+  stringifyInterpolatedResult,
+  stringifyOptionalInterpolatedResult,
+} from './utils/compositeFunctionInterpolation';
+import { evaluateIfCondition as evaluateIfConditionExpression } from './utils/jsepEval';
 import { BIN_PATH } from './utils/shell/bin';
 import { getShellCommandAndArgs } from './utils/shell/command';
 import { spawnAsync } from './utils/shell/spawn';
@@ -74,6 +81,10 @@ export class BuildStepOutputAccessor {
 
   public get outputs(): BuildStepOutput[] {
     return Object.values(this.outputById);
+  }
+
+  public get wasExecuted(): boolean {
+    return this.executed;
   }
 
   public getOutputValueByName(name: string): string | undefined {
@@ -134,6 +145,7 @@ export class BuildStep extends BuildStepOutputAccessor {
   public readonly ctx: BuildStepContext;
   public readonly stepEnvOverrides: BuildStepEnv;
   public readonly ifCondition?: string;
+  public readonly compositeFunctionScope?: BuildStepCompositeFunctionScope;
   public readonly timeoutMs?: number;
   public readonly __metricsId?: string;
   public readonly __hookId?: HookAnchorId;
@@ -162,6 +174,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       supportedRuntimePlatforms: maybeSupportedRuntimePlatforms,
       env,
       ifCondition,
+      compositeFunctionScope,
       timeoutMs,
       __metricsId,
       __hookId,
@@ -177,6 +190,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       supportedRuntimePlatforms?: BuildRuntimePlatform[];
       env?: BuildStepEnv;
       ifCondition?: string;
+      compositeFunctionScope?: BuildStepCompositeFunctionScope;
       timeoutMs?: number;
       __metricsId?: string;
       __hookId?: HookAnchorId;
@@ -197,6 +211,7 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.command = command;
     this.shell = shell ?? '/bin/bash -eo pipefail';
     this.ifCondition = ifCondition;
+    this.compositeFunctionScope = compositeFunctionScope;
     this.timeoutMs = timeoutMs;
     this.__metricsId = __metricsId;
     this.__hookId = __hookId;
@@ -212,15 +227,26 @@ export class BuildStep extends BuildStepOutputAccessor {
     this.outputsDir = getTemporaryOutputsDirPath(ctx, this.id);
     this.envsDir = getTemporaryEnvsDirPath(ctx, this.id);
 
+    this.registerSelf(ctx);
+  }
+
+  /**
+   * Consulted by registerSelf() in the constructor; overrides may only read state
+   * assigned before that call (outputById, compositeFunctionScope).
+   */
+  public get isCompositeFunctionInternal(): boolean {
+    return this.compositeFunctionScope !== undefined;
+  }
+
+  protected registerSelf(ctx: BuildStepGlobalContext): void {
     ctx.registerStep(this);
   }
 
   public async executeAsync(): Promise<void> {
     try {
-      this.ctx.logger.info(
-        { marker: BuildStepLogMarker.START_STEP },
-        `Executing build step "${this.displayName}"`
-      );
+      this.resolveTemplatedWorkingDirectoryIfNeeded();
+
+      this.logStepStart();
       this.status = BuildStepStatus.IN_PROGRESS;
 
       await fs.mkdir(this.outputsDir, { recursive: true });
@@ -269,10 +295,7 @@ export class BuildStep extends BuildStepOutputAccessor {
         await executionPromise;
       }
 
-      this.ctx.logger.info(
-        { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.SUCCESS },
-        `Finished build step "${this.displayName}" successfully`
-      );
+      this.logStepSuccess();
       this.status = BuildStepStatus.SUCCESS;
     } catch (err) {
       // Downstream error handling relies on real Errors; wrap non-Error
@@ -283,11 +306,7 @@ export class BuildStep extends BuildStepOutputAccessor {
           : new BuildStepRuntimeError(
               `Build step "${this.displayName}" threw a non-Error value: ${util.inspect(err)}`
             );
-      this.ctx.logger.error({ err: error });
-      this.ctx.logger.error(
-        { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.FAIL },
-        `Build step "${this.displayName}" failed`
-      );
+      this.logStepFailed(error);
       this.status = BuildStepStatus.FAIL;
       throw error;
     } finally {
@@ -300,6 +319,7 @@ export class BuildStep extends BuildStepOutputAccessor {
       } catch (error) {
         // If the step succeeded, we expect the outputs to be collected successfully.
         if (this.status === BuildStepStatus.SUCCESS) {
+          // Rethrow so BuildWorkflow.recordFailure marks the global failure flag.
           throw error;
         }
 
@@ -317,33 +337,87 @@ export class BuildStep extends BuildStepOutputAccessor {
     );
   }
 
-  public shouldExecuteStep(): boolean {
-    const hasAnyPreviousStepFailed = this.ctx.global.hasAnyPreviousStepFailed;
-
-    if (!this.ifCondition) {
-      return !hasAnyPreviousStepFailed;
+  public shouldExecuteStep({ runByDefault }: { runByDefault: boolean }): boolean {
+    if (
+      this.compositeFunctionScope &&
+      !this.compositeFunctionScope.isActive(evaluateIfConditionExpression, runByDefault)
+    ) {
+      return false;
     }
+    if (!this.ifCondition) {
+      return runByDefault;
+    }
+    return this.evaluateIfCondition(this.ifCondition, {
+      scope: this.compositeFunctionScope,
+      env: this.getScriptEnv(),
+      inputs: this.compositeFunctionScope ? {} : this.evaluateOwnStepInputs(),
+    });
+  }
 
-    return evaluateIfCondition(
-      this.ifCondition,
-      this.ctx.global.getIfConditionContext({
-        inputs:
-          this.inputs?.reduce(
-            (acc, input) => {
-              acc[input.id] = input.getValue({
-                interpolationContext: this.getInterpolationContext(),
-              });
-              return acc;
-            },
-            {} as Record<string, unknown>
-          ) ?? {},
-        env: this.getScriptEnv(),
-      })
+  private evaluateOwnStepInputs(): Record<string, unknown> {
+    return (
+      this.inputs?.reduce(
+        (acc, input) => {
+          acc[input.id] = input.getValue({
+            interpolationContext: this.getInterpolationContext(),
+            skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+          });
+          return acc;
+        },
+        {} as Record<string, unknown>
+      ) ?? {}
     );
+  }
+
+  private evaluateIfCondition(
+    ifCondition: string,
+    {
+      scope,
+      env,
+      inputs,
+    }: {
+      scope: BuildStepCompositeFunctionScope | undefined;
+      env: BuildStepEnv;
+      inputs: Record<string, unknown>;
+    }
+  ): boolean {
+    const baseContext = this.ctx.global.getIfConditionContext({
+      inputs,
+      env,
+    }) as JobInterpolationContext;
+    // Overlay the scope last so `inputs`/`steps` come from the composite function while `eas.*` stays global.
+    const context = scope ? scope.getScopedInterpolationContext(baseContext) : baseContext;
+    return evaluateIfConditionExpression(ifCondition, context);
   }
 
   public skip(): void {
     this.status = BuildStepStatus.SKIPPED;
+    this.logStepSkipped();
+  }
+
+  protected logStepStart(): void {
+    this.ctx.logger.info(
+      { marker: BuildStepLogMarker.START_STEP },
+      `Executing build step "${this.displayName}"`
+    );
+  }
+
+  protected logStepSuccess(): void {
+    this.ctx.logger.info(
+      { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.SUCCESS },
+      `Finished build step "${this.displayName}" successfully`
+    );
+  }
+
+  protected logStepFailed(error: Error): void {
+    this.ctx.logger.error({ err: error });
+    this.ctx.logger.error(
+      { marker: BuildStepLogMarker.END_STEP, result: BuildStepStatus.FAIL },
+      `Build step "${this.displayName}" failed`
+    );
+  }
+
+  protected logStepSkipped(): void {
     this.ctx.logger.info(
       { marker: BuildStepLogMarker.START_STEP },
       'Executing build step "${this.displayName}"'
@@ -356,10 +430,11 @@ export class BuildStep extends BuildStepOutputAccessor {
   }
 
   private getInterpolationContext(): JobInterpolationContext {
-    return {
+    const base: JobInterpolationContext = {
       ...this.ctx.global.getInterpolationContext(),
       env: this.getScriptEnv(),
     };
+    return this.compositeFunctionScope?.getScopedInterpolationContext(base) ?? base;
   }
 
   private async executeCommandAsync({ signal }: { signal: AbortSignal | null }): Promise<void> {
@@ -423,7 +498,12 @@ export class BuildStep extends BuildStepOutputAccessor {
       inputs: Object.fromEntries(
         Object.entries(this.inputById).map(([key, input]) => [
           key,
-          { value: input.getValue({ interpolationContext: this.getInterpolationContext() }) },
+          {
+            value: input.getValue({
+              interpolationContext: this.getInterpolationContext(),
+              skipLegacyOutputInterpolation: this.compositeFunctionScope !== undefined,
+            }),
+          },
         ])
       ),
       outputs: this.outputById,
@@ -438,25 +518,42 @@ export class BuildStep extends BuildStepOutputAccessor {
     template: string,
     inputs?: BuildStepInput[]
   ): string {
+    // Composite functions support only `${{ }}`; a literal `${ steps.x.y }` reaching bash is the accepted
+    // behavior, so skip legacy output interpolation for composite-function-scoped steps.
+    const skipLegacyOutputInterpolation = this.compositeFunctionScope !== undefined;
     if (!inputs) {
-      return interpolateWithOutputs(
-        this.ctx.global.interpolate(template),
-        path => this.ctx.global.getStepOutputValue(path) ?? ''
-      );
+      const interpolatedWithGlobalContext = this.ctx.global.interpolate(template);
+      return skipLegacyOutputInterpolation
+        ? interpolatedWithGlobalContext
+        : interpolateWithOutputs(interpolatedWithGlobalContext, path =>
+            this.getLegacyStepOutputValue(path)
+          );
     }
     const vars = inputs.reduce(
       (acc, input) => {
-        const value = input.getValue({ interpolationContext: this.getInterpolationContext() });
+        const value = input.getValue({
+          interpolationContext: this.getInterpolationContext(),
+          skipLegacyOutputInterpolation,
+        });
         acc[input.id] =
           typeof value === 'object' ? JSON.stringify(value) : (value?.toString() ?? '');
         return acc;
       },
       {} as Record<string, string>
     );
-    return interpolateWithOutputs(
-      interpolateWithInputs(this.ctx.global.interpolate(template), vars),
-      path => this.ctx.global.getStepOutputValue(path) ?? ''
+    const interpolatedWithInputsAndGlobalContext = interpolateWithInputs(
+      this.ctx.global.interpolate(template),
+      vars
     );
+    return skipLegacyOutputInterpolation
+      ? interpolatedWithInputsAndGlobalContext
+      : interpolateWithOutputs(interpolatedWithInputsAndGlobalContext, path =>
+          this.getLegacyStepOutputValue(path)
+        );
+  }
+
+  private getLegacyStepOutputValue(path: string): string {
+    return this.ctx.global.getStepOutputValue(path) ?? '';
   }
 
   private async collectAndValidateOutputsAsync(outputsDir: string): Promise<void> {
@@ -512,8 +609,32 @@ export class BuildStep extends BuildStepOutputAccessor {
     });
   }
 
+  private getInterpolatedEnvOverrides(): BuildStepEnv {
+    const ownOverrides = this.stepEnvOverrides;
+    if (!this.compositeFunctionScope) {
+      return ownOverrides;
+    }
+    // Use global env here to avoid recursing through getScriptEnv.
+    const base: JobInterpolationContext = {
+      ...this.ctx.global.getInterpolationContext(),
+      env: this.ctx.global.env,
+    };
+    // Call-site env uses caller scope; step env uses action scope.
+    const inheritedEnv = this.compositeFunctionScope.resolveInheritedEnv(base);
+    const scoped = this.compositeFunctionScope.getScopedInterpolationContext(base);
+    const ownEnv = Object.fromEntries(
+      Object.entries(ownOverrides).map(([key, value]) => {
+        if (typeof value !== 'string' || !containsUnresolvedTemplateReference(value)) {
+          return [key, value];
+        }
+        return [key, stringifyInterpolatedResult(resolveInterpolatedTarget(value, scoped))];
+      })
+    );
+    return { ...inheritedEnv, ...ownEnv };
+  }
+
   private getScriptEnv(): Record<string, string> {
-    const effectiveEnv = { ...this.ctx.global.env, ...this.stepEnvOverrides };
+    const effectiveEnv = { ...this.ctx.global.env, ...this.getInterpolatedEnvOverrides() };
     const currentPath = effectiveEnv.PATH ?? process.env.PATH;
     const newPath = currentPath ? `${BIN_PATH}:${currentPath}` : BIN_PATH;
     return {
@@ -523,5 +644,25 @@ export class BuildStep extends BuildStepOutputAccessor {
       __EXPO_STEPS_WORKING_DIRECTORY: this.ctx.workingDirectory,
       PATH: newPath,
     };
+  }
+
+  private resolveTemplatedWorkingDirectoryIfNeeded(): void {
+    const scope = this.compositeFunctionScope;
+    if (!scope) {
+      return;
+    }
+    const relativeWorkingDirectory = this.ctx.relativeWorkingDirectory;
+    if (
+      relativeWorkingDirectory === undefined ||
+      !containsUnresolvedTemplateReference(relativeWorkingDirectory)
+    ) {
+      return;
+    }
+    const context = scope.getScopedInterpolationContext({
+      ...this.ctx.global.getInterpolationContext(),
+      env: this.getScriptEnv(),
+    });
+    const resolved = resolveInterpolatedTarget(relativeWorkingDirectory, context);
+    this.ctx.updateRelativeWorkingDirectory(stringifyOptionalInterpolatedResult(resolved));
   }
 }

@@ -45,10 +45,13 @@ import { createSendSlackMessageFunction } from './functions/sendSlackMessage';
 import { createStartAgentDeviceRemoteSessionBuildFunction } from './functions/startAgentDeviceRemoteSession';
 import { createStartAndroidEmulatorBuildFunction } from './functions/startAndroidEmulator';
 import { createStartArgentRemoteSessionBuildFunction } from './functions/startArgentRemoteSession';
+import { createStartAppiumRemoteSessionBuildFunction } from './functions/startAppiumRemoteSession';
 import { createStartCuttlefishDeviceBuildFunction } from './functions/startCuttlefishDevice';
 import { createStartIosSimulatorBuildFunction } from './functions/startIosSimulator';
 import { createStartIosSimulatorRecordingsBuildFunction } from './functions/startIosSimulatorRecordings';
 import { createStartServeSimRemoteSessionBuildFunction } from './functions/startServeSimRemoteSession';
+import { createStartServeSimMetricsBuildFunction } from './functions/startServeSimMetrics';
+import { createCollectServeSimMetricsBuildFunction } from './functions/collectServeSimMetrics';
 import { createUploadArtifactBuildFunction } from './functions/uploadArtifact';
 import { createUploadDeviceRunSessionScreenRecordingsBuildFunction } from './functions/uploadDeviceRunSessionScreenRecordings';
 import { createUploadToAscBuildFunction } from './functions/uploadToAsc';
@@ -92,6 +95,7 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     parseXcactivitylogFunction(),
     createStartAgentDeviceRemoteSessionBuildFunction(ctx),
     createStartArgentRemoteSessionBuildFunction(ctx),
+    createStartAppiumRemoteSessionBuildFunction(ctx),
     createStartAndroidEmulatorBuildFunction(),
     createStartCuttlefishDeviceBuildFunction(),
     createStartIosSimulatorBuildFunction(),
@@ -99,6 +103,8 @@ export function getEasFunctions(ctx: CustomBuildContext): BuildFunction[] {
     createFinishIosSimulatorRecordingsBuildFunction(),
     createUploadDeviceRunSessionScreenRecordingsBuildFunction(ctx),
     createStartServeSimRemoteSessionBuildFunction(ctx),
+    createStartServeSimMetricsBuildFunction(),
+    createCollectServeSimMetricsBuildFunction(ctx),
     createInstallMaestroBuildFunction(),
 
     createInstallPodsBuildFunction(),

@@ -26,6 +26,7 @@ import {
   buildObserveCustomEventsJson,
   buildObserveCustomEventsTable,
 } from '../../observe/formatCustomEvents';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { appObservePlatformFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
@@ -56,7 +57,8 @@ export default class ObserveEvents extends EasCommand {
     ...ObserveUpdateIdFlag,
     ...ObserveClientIdFlag,
     'session-id': Flags.string({
-      description: 'Filter by session ID',
+      description:
+        'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
     }),
     'all-events': Flags.boolean({
       description:
@@ -102,13 +104,18 @@ export default class ObserveEvents extends EasCommand {
 
     const platform = appObservePlatformFromFlag(flags.platform);
 
-    if (!args.eventName && !flags['all-events']) {
-      const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
-        appId: projectId,
-        startTime,
-        endTime,
-        platform,
-      });
+    // A session ID narrows to a single session, so show that session's events
+    // (like --all-events) instead of the account-wide name+count summary, which
+    // has no session filter.
+    if (!args.eventName && !flags['all-events'] && !flags['session-id']) {
+      const { names, isTruncated } = await withObservePlanGateHandlingAsync(() =>
+        ObserveQuery.customEventNamesAsync(graphqlClient, {
+          appId: projectId,
+          startTime,
+          endTime,
+          platform,
+        })
+      );
 
       if (json) {
         printJsonOnlyOutput(buildObserveCustomEventNamesJson(names, isTruncated));
@@ -126,18 +133,20 @@ export default class ObserveEvents extends EasCommand {
       return;
     }
 
-    const { events, pageInfo } = await fetchObserveCustomEventsAsync(graphqlClient, projectId, {
-      eventName: args.eventName,
-      limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-      ...(flags.after && { after: flags.after }),
-      startTime,
-      endTime,
-      platform,
-      appVersion: flags['app-version'],
-      updateId: flags['update-id'],
-      sessionId: flags['session-id'],
-      easClientId: flags['client-id'],
-    });
+    const { events, pageInfo } = await withObservePlanGateHandlingAsync(() =>
+      fetchObserveCustomEventsAsync(graphqlClient, projectId, {
+        eventName: args.eventName,
+        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+        ...(flags.after && { after: flags.after }),
+        startTime,
+        endTime,
+        platform,
+        appVersion: flags['app-version'],
+        updateId: flags['update-id'],
+        sessionId: flags['session-id'],
+        easClientId: flags['client-id'],
+      })
+    );
 
     if (args.eventName && events.length === 0) {
       const { names, isTruncated } = await ObserveQuery.customEventNamesAsync(graphqlClient, {

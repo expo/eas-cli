@@ -1,6 +1,6 @@
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
-import { createInstallMaestroBuildFunction } from '../installMaestro';
+import { createInstallMaestroBuildFunction, installIdbFromBrew } from '../installMaestro';
 
 jest.unmock('fs');
 jest.unmock('@expo/logger');
@@ -56,4 +56,15 @@ describe('createInstallMaestroBuildFunction', () => {
     await expect(latestStep.executeAsync()).resolves.not.toThrow();
     console.log(latestStep.outputs[0].value);
   }, 180_000);
+});
+
+describe('installIdbFromBrew', () => {
+  it('installs 1.1.8 version', async () => {
+    const logger = createMockLogger({ logToConsole: true });
+
+    await installIdbFromBrew({
+      logger,
+      env: process.env,
+    });
+  });
 });

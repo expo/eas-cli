@@ -1,6 +1,7 @@
 import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
-import { BuildStepEnv, spawnAsync } from '@expo/steps';
+import { asyncResult } from '@expo/results';
+import { BuildRuntimePlatform, BuildStepEnv, spawnAsync } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 import * as ngrok from '@ngrok/ngrok';
 import { graphql } from 'gql.tada';
@@ -8,6 +9,8 @@ import nullthrows from 'nullthrows';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { createServer } from 'node:net';
+import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
@@ -16,6 +19,12 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
+const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@latest';
+const SERVE_SIM_HOST = '127.0.0.1';
+const SERVE_SIM_MAX_DIMENSION = '1280';
+const SERVE_SIM_MJPEG_QUALITY = '0.55';
+const SERVE_SIM_VIDEO_BITRATE = '3000000';
+const SERVE_SIM_VIDEO_FPS = '60';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -35,6 +44,17 @@ const DEVICE_RUN_SESSION_STATUS_QUERY = graphql(`
   query DeviceRunSessionStatus($deviceRunSessionId: ID!) {
     deviceRunSessions {
       byId(deviceRunSessionId: $deviceRunSessionId) {
+        id
+        status
+      }
+    }
+  }
+`);
+
+const ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION = graphql(`
+  mutation EnsureDeviceRunSessionStopped($deviceRunSessionId: ID!) {
+    deviceRunSession {
+      ensureDeviceRunSessionStopped(deviceRunSessionId: $deviceRunSessionId) {
         id
         status
       }
@@ -110,59 +130,153 @@ export async function selectXcodeDeveloperDirectoryAsync({
   });
 }
 
+export type DeviceRunSessionIdleTimeout = {
+  /** Stop the session after this many minutes without observed activity. */
+  maxIdleTimeMinutes: number;
+  /**
+   * Local arrival time of the most recent session event, or `undefined` when
+   * no event has been observed yet. The idle clock starts when the wait
+   * begins, so a session nobody ever connects to still times out.
+   */
+  getLastEventObservedAt: () => Date | undefined;
+};
+
 export async function waitForDeviceRunSessionStoppedAsync({
   ctx,
   deviceRunSessionId,
   logger,
-  signal,
+  maxDurationSeconds,
+  signal: cancelSignal,
+  idleTimeout,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
   logger: bunyan;
+  maxDurationSeconds?: number;
   signal?: AbortSignal;
+  idleTimeout?: DeviceRunSessionIdleTimeout;
 }): Promise<void> {
-  logger.info(
-    `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
-  );
-  let pollErrorCount = 0;
+  const durationAbortController = new AbortController();
+  const signal = cancelSignal
+    ? AbortSignal.any([cancelSignal, durationAbortController.signal])
+    : durationAbortController.signal;
+  // Nothing to wait for if the step was already aborted before we started;
+  // return before logging so we don't claim to be polling a session we never poll.
+  if (signal.aborted) {
+    return;
+  }
+  const durationTimeout =
+    maxDurationSeconds === undefined
+      ? undefined
+      : setTimeout(() => {
+          logger.info(`Device run session ${deviceRunSessionId} reached its maximum duration.`);
+          durationAbortController.abort();
+        }, maxDurationSeconds * 1_000);
 
-  while (!signal?.aborted) {
-    try {
-      const result = await ctx.graphqlClient
-        .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
-        .toPromise();
-      if (result.error) {
-        throw result.error;
-      }
-
-      const status = result.data?.deviceRunSessions?.byId?.status;
-      if (!status) {
-        throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
-      }
-      pollErrorCount = 0;
-      if (status === 'STOPPED') {
-        logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
-        return;
-      }
-      if (status === 'ERRORED') {
-        throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
-      }
-    } catch (err) {
-      if (err instanceof SystemError) {
-        throw err;
-      }
-
-      const error = err instanceof Error ? err : new Error(String(err));
-      pollErrorCount += 1;
-      if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
-        Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
-        logger.warn(
-          { err: error, failedStatusPollCount: pollErrorCount },
-          'Could not poll device run session status; will retry.'
-        );
-      }
+  try {
+    logger.info(
+      `Remote session is live. Polling device run session ${deviceRunSessionId} until it is stopped.`
+    );
+    if (durationTimeout !== undefined) {
+      logger.info(
+        `The device run session will stop automatically after ${maxDurationSeconds} seconds.`
+      );
     }
-    await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    if (idleTimeout) {
+      logger.info(
+        `The session stops automatically after ${idleTimeout.maxIdleTimeMinutes} minute(s) without activity.`
+      );
+    }
+    let pollErrorCount = 0;
+    let lastActivityAt = new Date();
+
+    while (!signal.aborted) {
+      if (idleTimeout) {
+        const lastEventObservedAt = idleTimeout.getLastEventObservedAt();
+        if (lastEventObservedAt && lastEventObservedAt > lastActivityAt) {
+          lastActivityAt = lastEventObservedAt;
+        }
+        if (Date.now() - lastActivityAt.getTime() >= idleTimeout.maxIdleTimeMinutes * 60_000) {
+          logger.info(
+            `Device run session ${deviceRunSessionId} had no activity for ` +
+              `${idleTimeout.maxIdleTimeMinutes} minute(s) (max idle time). Stopping the session.`
+          );
+          await ensureDeviceRunSessionStoppedSafelyAsync({ ctx, deviceRunSessionId, logger });
+          return;
+        }
+      }
+      try {
+        const result = await ctx.graphqlClient
+          .query(DEVICE_RUN_SESSION_STATUS_QUERY, { deviceRunSessionId })
+          .toPromise();
+        if (result.error) {
+          throw result.error;
+        }
+
+        const status = result.data?.deviceRunSessions?.byId?.status;
+        if (!status) {
+          throw new Error(`Device run session ${deviceRunSessionId} status response was missing.`);
+        }
+        pollErrorCount = 0;
+        if (status === 'STOPPED') {
+          logger.info(`Device run session ${deviceRunSessionId} was stopped.`);
+          return;
+        }
+        if (status === 'ERRORED') {
+          throw new SystemError(`Device run session ${deviceRunSessionId} errored.`);
+        }
+      } catch (err) {
+        if (err instanceof SystemError) {
+          throw err;
+        }
+
+        const error = err instanceof Error ? err : new Error(String(err));
+        pollErrorCount += 1;
+        if (pollErrorCount === 1 || pollErrorCount % 5 === 0) {
+          Sentry.capture('Could not poll device run session status', error, { level: 'warning' });
+          logger.warn(
+            { err: error, failedStatusPollCount: pollErrorCount },
+            'Could not poll device run session status; will retry.'
+          );
+        }
+      }
+      await sleepUntilAbortedAsync(DEVICE_RUN_SESSION_STATUS_POLL_INTERVAL_MS, signal);
+    }
+  } finally {
+    if (durationTimeout !== undefined) {
+      clearTimeout(durationTimeout);
+    }
+  }
+}
+
+// Best effort: when this fails, the caller still tears the session down and the
+// job run finishes, which clients also treat as the session ending.
+async function ensureDeviceRunSessionStoppedSafelyAsync({
+  ctx,
+  deviceRunSessionId,
+  logger,
+}: {
+  ctx: CustomBuildContext;
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    const result = await ctx.graphqlClient
+      .mutation(ENSURE_DEVICE_RUN_SESSION_STOPPED_MUTATION, { deviceRunSessionId })
+      .toPromise();
+    if (result.error) {
+      throw result.error;
+    }
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not mark idle device run session as stopped', error, {
+      level: 'warning',
+      extras: { deviceRunSessionId },
+    });
+    logger.warn(
+      { err: error },
+      `Could not mark device run session ${deviceRunSessionId} as stopped. The session job ends anyway.`
+    );
   }
 }
 
@@ -176,6 +290,96 @@ async function sleepUntilAbortedAsync(
     if (!signal?.aborted) {
       throw err;
     }
+  }
+}
+
+// Argent encodes screen recordings by piping simulator frames into `ffmpeg`,
+// which it resolves from PATH. The tool-server inherits this step's env, so
+// spawning ffmpeg resolves against the same PATH argent will search: it rejects
+// with ENOENT when the binary is absent, and running it also proves it works.
+async function isFfmpegAvailableAsync(env: BuildStepEnv): Promise<boolean> {
+  return (await asyncResult(spawn('ffmpeg', ['-version'], { env }))).ok;
+}
+
+async function installFfmpegWithHomebrewAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  await spawn('brew', ['install', 'ffmpeg'], {
+    env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+    logger,
+  });
+}
+
+async function installFfmpegWithAptAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  const aptEnv = { ...env, DEBIAN_FRONTEND: 'noninteractive' };
+  // The worker's package index can be older than the image it booted from, which
+  // makes the install 404 on a moved package. Refreshing first avoids that; a
+  // failed refresh is not fatal because the existing index may still resolve.
+  await asyncResult(spawn('sudo', ['apt-get', 'update'], { env: aptEnv, logger }));
+  await spawn('sudo', ['apt-get', 'install', '-y', 'ffmpeg'], { env: aptEnv, logger });
+}
+
+/**
+ * Install ffmpeg when the runtime does not already provide it, so argent's
+ * `screen-recording-start` tool can encode a video. The worker images do not
+ * ship ffmpeg yet, so without this the tool fails with "`ffmpeg` was not found
+ * on PATH" — on macOS (iOS simulators) and Linux (Android emulators) alike.
+ *
+ * Best-effort by design: screen recording is one optional argent tool, so a
+ * failure here is logged and the session continues without it.
+ *
+ * The whole body is wrapped because the caller runs this in the background with
+ * `void`. There is no unhandledRejection handler in the worker, so a rejection
+ * escaping here would crash the process and take the live session with it.
+ * `spawn` is not an async function and can throw synchronously, which
+ * `asyncResult` cannot catch — it only wraps an already-created promise.
+ */
+export async function ensureFfmpegInstalledAsync({
+  runtimePlatform,
+  env,
+  logger,
+}: {
+  runtimePlatform: BuildRuntimePlatform;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    if (await isFfmpegAvailableAsync(env)) {
+      logger.info('ffmpeg is already installed.');
+      return;
+    }
+
+    const isDarwin = runtimePlatform === BuildRuntimePlatform.DARWIN;
+    logger.info(
+      `ffmpeg is not installed, installing it with ${
+        isDarwin ? 'Homebrew' : 'apt'
+      } for argent screen recording.`
+    );
+    if (isDarwin) {
+      await installFfmpegWithHomebrewAsync({ env, logger });
+    } else {
+      await installFfmpegWithAptAsync({ env, logger });
+    }
+    logger.info('Installed ffmpeg.');
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not install ffmpeg for argent screen recording', error, {
+      level: 'warning',
+    });
+    logger.warn(
+      { err: error },
+      'Could not install ffmpeg. Argent screen recording will not work in this session.'
+    );
   }
 }
 
@@ -296,7 +500,49 @@ export type DetachedProcessHandle = {
   /** PID of the directly spawned process, if the OS assigned one. */
   pid: number | undefined;
   getOutput: () => string;
+  stopAsync: () => Promise<void>;
 };
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function stopDetachedProcessAsync(pid: number | undefined): Promise<void> {
+  if (pid === undefined || !isProcessRunning(pid)) {
+    return;
+  }
+  try {
+    // spawnDetached creates a dedicated process group. Signaling the group also
+    // terminates npx/bunx descendants instead of leaving the actual daemon alive.
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      return;
+    }
+  }
+
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline && isProcessRunning(pid)) {
+    await sleepAsync(100);
+  }
+  if (!isProcessRunning(pid)) {
+    return;
+  }
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    try {
+      process.kill(pid, 'SIGKILL');
+    } catch {}
+  }
+}
 
 export function spawnDetached({
   command,
@@ -327,8 +573,125 @@ export function spawnDetached({
   promise.child.stdout?.on('data', appendChunk);
   promise.child.stderr?.on('data', appendChunk);
 
-  return { pid: promise.child.pid, getOutput: () => output };
+  const pid = promise.child.pid;
+  return {
+    pid,
+    getOutput: () => output,
+    stopAsync: async () => await stopDetachedProcessAsync(pid),
+  };
 }
+
+export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
+  const origin = env.EAS_SIMULATOR_METRICS_CORS_ORIGIN;
+  if (!origin) {
+    return [];
+  }
+  const args: string[] = [];
+  for (const value of origin.split(',')) {
+    const trimmed = value.trim();
+    if (trimmed) {
+      args.push('--metrics-cors-origin', trimmed);
+    }
+  }
+  return args;
+}
+
+export function createServeSimArgs({
+  port,
+  turnArgs = [],
+  metricsCorsArgs = [],
+}: {
+  port: number;
+  turnArgs?: string[];
+  metricsCorsArgs?: string[];
+}): string[] {
+  return [
+    '--yes',
+    SERVE_SIM_PACKAGE_SPEC,
+    '--port',
+    String(port),
+    '--host',
+    SERVE_SIM_HOST,
+    '--transport',
+    'webrtc',
+    '--webrtc-codec',
+    'vp8',
+    '--max-dimension',
+    SERVE_SIM_MAX_DIMENSION,
+    '--mjpeg-quality',
+    SERVE_SIM_MJPEG_QUALITY,
+    '--video-bitrate',
+    SERVE_SIM_VIDEO_BITRATE,
+    '--video-fps',
+    SERVE_SIM_VIDEO_FPS,
+    ...turnArgs,
+    ...metricsCorsArgs,
+  ];
+}
+
+async function findAvailablePortAsync(): Promise<number> {
+  const server = createServer();
+  server.unref();
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, SERVE_SIM_HOST, () => resolve());
+  });
+  const address = server.address();
+  await new Promise<void>((resolve, reject) => {
+    server.close(err => (err ? reject(err) : resolve()));
+  });
+  if (!address || typeof address === 'string') {
+    throw new SystemError('Could not allocate a local port for serve-sim.');
+  }
+  return address.port;
+}
+
+const ServeSimReadyResponseSchema = z.object({
+  status: z.literal('ready'),
+  device: z.string(),
+});
+
+export async function waitForServeSimReadyAsync({
+  serveSim,
+  port,
+  timeoutMs,
+}: {
+  serveSim: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
+  port: number;
+  timeoutMs: number;
+}): Promise<void> {
+  const readyUrl = `http://${SERVE_SIM_HOST}:${port}/readyz`;
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    if (serveSim.pid !== undefined && !isProcessRunning(serveSim.pid)) {
+      throw new SystemError(
+        `serve-sim exited before becoming ready. Last output:\n${serveSim.getOutput() || '<empty>'}`
+      );
+    }
+    try {
+      const response = await turtleFetch(readyUrl, 'GET', {
+        retries: 0,
+        timeout: 2_000,
+      });
+      ServeSimReadyResponseSchema.parse(await response.json());
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+    await sleepAsync(1_000);
+  }
+  throw new SystemError(
+    `Timed out waiting for serve-sim readiness at ${readyUrl}${
+      lastError instanceof Error ? `: ${lastError.message}` : ''
+    }. Last output:\n${serveSim.getOutput() || '<empty>'}`
+  );
+}
+
+export type ServeSimPreviewHandle = {
+  previewUrl: string;
+  stopAsync: () => Promise<void>;
+};
 
 export async function startServeSimWithTunnelAsync(
   ctx: CustomBuildContext,
@@ -343,57 +706,48 @@ export async function startServeSimWithTunnelAsync(
     logger: bunyan;
     timeoutMs: number;
   }
-): Promise<{ previewUrl: string }> {
-  logger.info('Launching serve-sim with tunnel.');
+): Promise<ServeSimPreviewHandle> {
+  const port = await findAvailablePortAsync();
+  logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
+  const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
-    args: [
-      'serve-sim-szdziedzic@latest',
-      '--tunnel',
-      '--tunnel-provider',
-      'ngrok',
-      '--tunnel-domain',
-      baseDomain,
-      '--stream-max-dimension',
-      '1280',
-      '--stream-quality',
-      '0.55',
-      '--codec',
-      'webrtc',
-      ...turnArgs,
-    ],
+    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs }),
     env,
   });
 
-  logger.info('Waiting for serve-sim to report tunnel URL.');
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const output = serveSim.getOutput();
-    const previewUrl = matchTunnelUrl({ output, baseDomain });
-    if (previewUrl) {
-      return { previewUrl };
-    }
-    await sleepAsync(1_000);
+  try {
+    logger.info('Waiting for serve-sim to become ready.');
+    await waitForServeSimReadyAsync({ serveSim, port, timeoutMs });
+    const tunnel = await startNgrokTunnelAsync({
+      port,
+      subdomainPrefix: 'serve-sim',
+      baseDomain,
+      authtoken: getNgrokAuthtokenOrThrow(env),
+      logger,
+    });
+    return {
+      previewUrl: tunnel.url,
+      stopAsync: async () => {
+        const results = await Promise.allSettled([tunnel.stopAsync(), serveSim.stopAsync()]);
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            logger.warn({ err: result.reason }, 'Could not stop a serve-sim preview resource.');
+          }
+        }
+      },
+    };
+  } catch (error) {
+    await serveSim.stopAsync();
+    throw error;
   }
-  throw new SystemError(
-    `Timed out waiting for serve-sim to report Tunnel URL. Last output:\n${serveSim.getOutput() || '<empty>'}`
-  );
 }
 
-function matchTunnelUrl({
-  output,
-  baseDomain,
-}: {
-  output: string;
-  baseDomain: string;
-}): string | null {
-  const labelPattern = new RegExp(
-    `Tunnel:\\s*(https:\\/\\/[a-z0-9-]+\\.${escapeRegExp(baseDomain)})`
-  );
-  const match = labelPattern.exec(output);
-  return match ? match[1] : null;
-}
+export type NgrokTunnelHandle = {
+  url: string;
+  stopAsync: () => Promise<void>;
+};
 
 export async function startNgrokTunnelAsync({
   port,
@@ -409,8 +763,8 @@ export async function startNgrokTunnelAsync({
   authtoken: string;
   rewriteHostHeader?: boolean;
   logger: bunyan;
-}): Promise<string> {
-  const domain = `${subdomainPrefix}-${randomBytes(8).toString('hex')}.${baseDomain}`;
+}): Promise<NgrokTunnelHandle> {
+  const domain = `${subdomainPrefix}-${randomBytes(16).toString('hex')}.${baseDomain}`;
   logger.info(`Starting ngrok tunnel ${domain} -> http://localhost:${port}.`);
   // Run the ngrok agent in-process via the SDK; it keeps the session alive until
   // the process exits, and the step blocks forever to hold it open.
@@ -422,13 +776,24 @@ export async function startNgrokTunnelAsync({
   });
   const url = listener.url();
   if (!url) {
+    await listener.close();
     throw new SystemError(`ngrok tunnel for ${domain} did not return a public URL.`);
   }
-  return url;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let stopped = false;
+  return {
+    url,
+    stopAsync: async () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      try {
+        await listener.close();
+      } catch (error) {
+        logger.warn({ err: error }, `Could not stop ngrok tunnel ${domain}.`);
+      }
+    },
+  };
 }
 
 export async function waitForFileAsync<T>({

@@ -54,6 +54,18 @@ type FingerprintOrigin = {
   update?: UpdateFragment;
 };
 
+type FingerprintInfo = {
+  fingerprint: Fingerprint;
+  platforms?: AppPlatform[];
+  origin: FingerprintOrigin;
+  /**
+   * Whether the uploaded fingerprint source file could not be downloaded or parsed
+   * (e.g. it expired in GCS or is zero-length). The hash is still valid in that case,
+   * but `fingerprint.sources` is empty and a detailed diff cannot be computed.
+   */
+  isFingerprintSourceUnavailable: boolean;
+};
+
 export default class FingerprintCompare extends EasCommand {
   static override description = 'compare fingerprints of the current project, builds, and updates';
   static override strict = false;
@@ -170,7 +182,15 @@ export default class FingerprintCompare extends EasCommand {
     const { fingerprint: secondFingerprint, origin: secondFingerprintOrigin } =
       secondFingerprintInfo;
 
+    const unavailableSourceHashes = [
+      firstFingerprintInfo.isFingerprintSourceUnavailable ? firstFingerprint.hash : null,
+      secondFingerprintInfo.isFingerprintSourceUnavailable ? secondFingerprint.hash : null,
+    ].filter((hash): hash is string => hash !== null);
+
     if (json) {
+      if (unavailableSourceHashes.length > 0) {
+        throw new Error(getUnavailableSourceMessage(unavailableSourceHashes));
+      }
       printJsonOnlyOutput({ fingerprint1: firstFingerprint, fingerprint2: secondFingerprint });
       return;
     }
@@ -190,55 +210,62 @@ export default class FingerprintCompare extends EasCommand {
       );
     }
 
-    const fingerprintDiffs = diffFingerprint(projectDir, firstFingerprint, secondFingerprint);
-    if (!fingerprintDiffs) {
-      Log.error('Fingerprint diffs can only be computed for projects with SDK 52 or higher');
-      return;
-    }
-
-    const filePathDiffs = fingerprintDiffs.filter(diff => {
-      let sourceType;
-      if (diff.op === 'added') {
-        sourceType = diff.addedSource.type;
-      } else if (diff.op === 'removed') {
-        sourceType = diff.removedSource.type;
-      } else if (diff.op === 'changed') {
-        sourceType = diff.beforeSource.type;
-      }
-      return sourceType === 'dir' || sourceType === 'file';
-    });
-    if (filePathDiffs.length > 0) {
+    if (unavailableSourceHashes.length > 0) {
       Log.newLine();
-      Log.log('📁 Paths with native dependencies:');
-    }
-    const fields = [];
-    for (const diff of filePathDiffs) {
-      const field = getDiffFilePathFields(diff);
-      if (!field) {
-        throw new Error(`Unsupported diff: ${JSON.stringify(diff)}`);
+      Log.warn(
+        `A detailed diff cannot be shown. ${getUnavailableSourceMessage(unavailableSourceHashes)}`
+      );
+    } else {
+      const fingerprintDiffs = diffFingerprint(projectDir, firstFingerprint, secondFingerprint);
+      if (!fingerprintDiffs) {
+        Log.error('Fingerprint diffs can only be computed for projects with SDK 52 or higher');
+        return;
       }
-      fields.push(field);
-    }
-    Log.log(
-      formatFields(fields, {
-        labelFormat: label => `    ${chalk.dim(label)}:`,
-      })
-    );
 
-    const contentDiffs = fingerprintDiffs.filter(diff => {
-      let sourceType;
-      if (diff.op === 'added') {
-        sourceType = diff.addedSource.type;
-      } else if (diff.op === 'removed') {
-        sourceType = diff.removedSource.type;
-      } else if (diff.op === 'changed') {
-        sourceType = diff.beforeSource.type;
+      const filePathDiffs = fingerprintDiffs.filter(diff => {
+        let sourceType;
+        if (diff.op === 'added') {
+          sourceType = diff.addedSource.type;
+        } else if (diff.op === 'removed') {
+          sourceType = diff.removedSource.type;
+        } else if (diff.op === 'changed') {
+          sourceType = diff.beforeSource.type;
+        }
+        return sourceType === 'dir' || sourceType === 'file';
+      });
+      if (filePathDiffs.length > 0) {
+        Log.newLine();
+        Log.log('📁 Paths with native dependencies:');
       }
-      return sourceType === 'contents';
-    });
+      const fields = [];
+      for (const diff of filePathDiffs) {
+        const field = getDiffFilePathFields(diff);
+        if (!field) {
+          throw new Error(`Unsupported diff: ${JSON.stringify(diff)}`);
+        }
+        fields.push(field);
+      }
+      Log.log(
+        formatFields(fields, {
+          labelFormat: label => `    ${chalk.dim(label)}:`,
+        })
+      );
 
-    for (const diff of contentDiffs) {
-      printContentDiff(diff);
+      const contentDiffs = fingerprintDiffs.filter(diff => {
+        let sourceType;
+        if (diff.op === 'added') {
+          sourceType = diff.addedSource.type;
+        } else if (diff.op === 'removed') {
+          sourceType = diff.removedSource.type;
+        } else if (diff.op === 'changed') {
+          sourceType = diff.beforeSource.type;
+        }
+        return sourceType === 'contents';
+      });
+
+      for (const diff of contentDiffs) {
+        printContentDiff(diff);
+      }
     }
 
     if (nonInteractive) {
@@ -285,12 +312,8 @@ async function getFingerprintInfoAsync(
     environmentForProjectFingerprint?: string;
     nonInteractive: boolean;
   },
-  firstFingerprintInfo?: {
-    fingerprint: Fingerprint;
-    platforms?: AppPlatform[];
-    origin: FingerprintOrigin;
-  }
-): Promise<{ fingerprint: Fingerprint; origin: FingerprintOrigin }> {
+  firstFingerprintInfo?: FingerprintInfo
+): Promise<FingerprintInfo> {
   if (hash) {
     return await getFingerprintInfoFromHashAsync(graphqlClient, projectId, hash);
   } else if (updateId) {
@@ -349,13 +372,9 @@ async function getFingerprintInfoInteractiveAsync({
   projectId: string;
   vcsClient: Client;
   getServerSideEnvironmentVariablesAsync: GetServerSideEnvironmentVariablesFn;
-  firstFingerprintInfo?: {
-    fingerprint: Fingerprint;
-    platforms?: AppPlatform[];
-    origin: FingerprintOrigin;
-  };
+  firstFingerprintInfo?: FingerprintInfo;
   environmentForProjectFingerprint?: string;
-}): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+}): Promise<FingerprintInfo> {
   const prompt = firstFingerprintInfo
     ? 'Select the second fingerprint to compare against'
     : 'Select a reference fingerprint for comparison';
@@ -449,13 +468,9 @@ async function getFingerprintInfoFromLocalProjectAsync({
   projectId: string;
   vcsClient: Client;
   getServerSideEnvironmentVariablesAsync: GetServerSideEnvironmentVariablesFn;
-  firstFingerprintInfo: {
-    fingerprint: Fingerprint;
-    platforms?: AppPlatform[];
-    origin: FingerprintOrigin;
-  };
+  firstFingerprintInfo: FingerprintInfo;
   environment?: string;
-}): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+}): Promise<FingerprintInfo> {
   const firstFingerprintPlatforms = firstFingerprintInfo.platforms;
   if (!firstFingerprintPlatforms || firstFingerprintPlatforms.length === 0) {
     throw new Error(
@@ -477,22 +492,27 @@ async function getFingerprintInfoFromLocalProjectAsync({
     firstFingerprintPlatforms,
     { env }
   );
-  return { fingerprint, origin: { type: FingerprintOriginType.Project } };
+  return {
+    fingerprint,
+    origin: { type: FingerprintOriginType.Project },
+    isFingerprintSourceUnavailable: false,
+  };
 }
 
 async function getFingerprintFromUpdateFragmentAsync(
   updateWithFingerprint: UpdateFragment
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+): Promise<FingerprintInfo> {
   if (!updateWithFingerprint.fingerprint) {
     throw new Error(`Fingerprint for update ${updateWithFingerprint.id} was not computed.`);
   } else if (!updateWithFingerprint.fingerprint.debugInfoUrl) {
     throw new Error(`Fingerprint source for update ${updateWithFingerprint.id} was not computed.`);
   }
 
+  const { fingerprint, isFingerprintSourceUnavailable } =
+    await getFingerprintFromFingerprintFragmentAsync(updateWithFingerprint.fingerprint);
   return {
-    fingerprint: await getFingerprintFromFingerprintFragmentAsync(
-      updateWithFingerprint.fingerprint
-    ),
+    fingerprint,
+    isFingerprintSourceUnavailable,
     platforms: [stringToAppPlatform(updateWithFingerprint.platform)],
     origin: {
       type: FingerprintOriginType.Update,
@@ -505,13 +525,14 @@ async function getFingerprintInfoFromHashAsync(
   graphqlClient: ExpoGraphqlClient,
   projectId: string,
   hash: string
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+): Promise<FingerprintInfo> {
   const fingerprintFragment = await getFingerprintFragmentFromHashAsync(
     graphqlClient,
     projectId,
     hash
   );
-  const fingerprint = await getFingerprintFromFingerprintFragmentAsync(fingerprintFragment);
+  const { fingerprint, isFingerprintSourceUnavailable } =
+    await getFingerprintFromFingerprintFragmentAsync(fingerprintFragment);
   let platforms;
   const fingerprintBuilds = fingerprintFragment.builds?.edges.map(edge => edge.node) ?? [];
   const fingerprintUpdates = fingerprintFragment.updates?.edges.map(edge => edge.node) ?? [];
@@ -522,6 +543,7 @@ async function getFingerprintInfoFromHashAsync(
   }
   return {
     fingerprint,
+    isFingerprintSourceUnavailable,
     platforms,
     origin: {
       type: FingerprintOriginType.Hash,
@@ -534,7 +556,7 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
   projectId: string,
   nonInteractive: boolean,
   updateGroupIdOrUpdateId: string
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+): Promise<FingerprintInfo> {
   // Some people may pass in update group id instead of update id, so add interactive support for that
   try {
     const maybeUpdateGroupId = updateGroupIdOrUpdateId;
@@ -578,15 +600,18 @@ async function getFingerprintInfoFromUpdateGroupIdOrUpdateIdAsync(
 async function getFingerprintInfoFromBuildIdAsync(
   graphqlClient: ExpoGraphqlClient,
   buildId: string
-): Promise<{ fingerprint: Fingerprint; platforms?: AppPlatform[]; origin: FingerprintOrigin }> {
+): Promise<FingerprintInfo> {
   const buildWithFingerprint = await BuildQuery.withFingerprintByIdAsync(graphqlClient, buildId);
   if (!buildWithFingerprint.fingerprint) {
     throw new Error(`Fingerprint for build ${buildId} was not computed.`);
   } else if (!buildWithFingerprint.fingerprint.debugInfoUrl) {
     throw new Error(`Fingerprint source for build ${buildId} was not computed.`);
   }
+  const { fingerprint, isFingerprintSourceUnavailable } =
+    await getFingerprintFromFingerprintFragmentAsync(buildWithFingerprint.fingerprint);
   return {
-    fingerprint: await getFingerprintFromFingerprintFragmentAsync(buildWithFingerprint.fingerprint),
+    fingerprint,
+    isFingerprintSourceUnavailable,
     platforms: [buildWithFingerprint.platform],
     origin: {
       type: FingerprintOriginType.Build,
@@ -611,17 +636,48 @@ async function getFingerprintFragmentFromHashAsync(
   return fingerprint;
 }
 
+async function fetchFingerprintSourceAsync(fingerprintDebugUrl: string): Promise<Fingerprint> {
+  const fingerprintResponse = await fetch(fingerprintDebugUrl);
+  if (!fingerprintResponse.ok) {
+    throw new Error(`Fingerprint source request failed: ${fingerprintResponse.status}`);
+  }
+  const fingerprintSource = (await fingerprintResponse.json()) as Partial<Fingerprint> | null;
+  if (!Array.isArray(fingerprintSource?.sources)) {
+    throw new Error('Fingerprint source file does not contain a list of sources');
+  }
+  return fingerprintSource as Fingerprint;
+}
+
 async function getFingerprintFromFingerprintFragmentAsync(
   fingerprintFragment: Pick<FingerprintFragment, 'debugInfoUrl' | 'hash'>
-): Promise<Fingerprint> {
+): Promise<{ fingerprint: Fingerprint; isFingerprintSourceUnavailable: boolean }> {
   const fingerprintDebugUrl = fingerprintFragment.debugInfoUrl;
   if (!fingerprintDebugUrl) {
     throw new Error(
       `The source for fingerprint hash ${fingerprintFragment.hash} was not computed.`
     );
   }
-  const fingerprintResponse = await fetch(fingerprintDebugUrl);
-  return (await fingerprintResponse.json()) as Fingerprint;
+  try {
+    return {
+      fingerprint: await fetchFingerprintSourceAsync(fingerprintDebugUrl),
+      isFingerprintSourceUnavailable: false,
+    };
+  } catch (error) {
+    // Uploaded source files expire after a period of time or may be malformed
+    // (e.g. zero-length). The hash from the API is still valid, so fall back to a
+    // sourceless fingerprint instead of failing the whole comparison.
+    Log.debug(`Failed to fetch source for fingerprint hash ${fingerprintFragment.hash}`, error);
+    return {
+      fingerprint: { hash: fingerprintFragment.hash, sources: [] },
+      isFingerprintSourceUnavailable: true,
+    };
+  }
+}
+
+function getUnavailableSourceMessage(hashes: string[]): string {
+  return hashes.length === 1
+    ? `The uploaded source file for fingerprint ${hashes[0]} has expired or is invalid.`
+    : `The uploaded source files for fingerprints ${hashes.join(' and ')} have expired or are invalid.`;
 }
 
 function printContentDiff(diff: FingerprintDiffItem): void {

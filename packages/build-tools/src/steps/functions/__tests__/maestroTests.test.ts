@@ -27,10 +27,14 @@ jest.mock('../../../utils/retry', () => ({
 jest.mock('../maestroScreenshots', () => ({
   ...jest.requireActual('../maestroScreenshots'),
   harvestFailureScreenshotsAsync: jest.fn(),
+  harvestMaestroRunnerFailureScreenshotsAsync: jest.fn(),
 }));
 
 const mockedSpawn = jest.mocked(spawn);
 const mockedHarvest = jest.mocked(maestroScreenshots.harvestFailureScreenshotsAsync);
+const mockedRunnerHarvest = jest.mocked(
+  maestroScreenshots.harvestMaestroRunnerFailureScreenshotsAsync
+);
 const mockUploadArtifact = jest.fn();
 
 function makeShot(index: number): maestroScreenshots.HarvestedScreenshot {
@@ -63,11 +67,14 @@ const rejectExit1 = (): Error => {
 
 function createStep(
   callInputs?: Record<string, unknown>,
-  options: { env?: Record<string, string | undefined> } = {}
+  options: {
+    env?: Record<string, string | undefined>;
+    logger?: ReturnType<typeof createMockLogger>;
+  } = {}
 ): ReturnType<
   ReturnType<typeof createMaestroTestsBuildFunction>['createBuildStepFromFunctionCall']
 > {
-  const logger = createMockLogger();
+  const logger = options.logger ?? createMockLogger();
   const ctx = {
     runtimeApi: { uploadArtifact: mockUploadArtifact },
   } as unknown as CustomBuildContext;
@@ -86,6 +93,8 @@ describe('createMaestroTestsBuildFunction', () => {
     jest.spyOn(parser, 'mergeJUnitReports').mockResolvedValue();
     mockedHarvest.mockReset();
     mockedHarvest.mockResolvedValue([]);
+    mockedRunnerHarvest.mockReset();
+    mockedRunnerHarvest.mockResolvedValue([]);
     mockUploadArtifact.mockReset();
     mockUploadArtifact.mockResolvedValue({ artifactId: 'artifact-1' });
   });
@@ -132,6 +141,418 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(args).toEqual(expect.arrayContaining(['test', 'flows/a.yaml', 'flows/b.yaml']));
     expect(args).toEqual(expect.arrayContaining(['--format=JUNIT']));
     expect(args!.join(' ')).toMatch(/--output=.*android-maestro-junit-attempt-0\.xml/);
+  });
+
+  it('runs maestro-runner and collects its JUnit report when selected by input', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const copyFileSpy = jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const junitFailureNamesSpy = jest.spyOn(parser, 'parseFailedFlowNamesFromJUnitFile');
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      output_format: 'junit',
+      platform: 'ios',
+      backend: 'maestro-runner',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    const [command, args] = mockedSpawn.mock.calls[0];
+    expect(command).toBe('maestro-runner');
+    expect(args).toEqual([
+      '--platform=ios',
+      'test',
+      '--output=/home/expo/.maestro/tests/ios-maestro-runner-attempt-0',
+      '--flatten',
+      'flows/a.yaml',
+      'flows/b.yaml',
+    ]);
+    expect(copyFileSpy).toHaveBeenCalledWith(
+      '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0/junit-report.xml',
+      '/home/expo/.maestro/tests/junit-reports/ios-maestro-junit-attempt-0.xml'
+    );
+    expect(mockedHarvest).not.toHaveBeenCalled();
+    expect(junitFailureNamesSpy).not.toHaveBeenCalled();
+    expect(mockedRunnerHarvest).toHaveBeenCalledWith({
+      reportDirectory: '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0',
+      capturedSinceMs: expect.any(Number),
+      attemptIndex: 0,
+      logger: expect.anything(),
+    });
+  });
+
+  it('clears the deterministic maestro-runner output directory before each attempt', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      output_format: 'junit',
+      platform: 'ios',
+      backend: 'maestro-runner',
+    });
+
+    await step.executeAsync();
+
+    expect(rmSpy).toHaveBeenCalledWith('/home/expo/.maestro/tests/ios-maestro-runner-attempt-0', {
+      recursive: true,
+      force: true,
+    });
+    // Cleared before the run, so a crash before fresh output can't resurrect stale results.
+    expect(rmSpy.mock.invocationCallOrder[0]).toBeLessThan(mockedSpawn.mock.invocationCallOrder[0]);
+  });
+
+  it('selects maestro-runner from EAS_MAESTRO_BACKEND', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const step = createStep(
+      { flow_path: ['flows/a.yaml'], platform: 'android' },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_BACKEND: 'maestro-runner' } }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro-runner');
+  });
+
+  it('prefers the backend input over EAS_MAESTRO_BACKEND', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      { flow_path: ['flows/a.yaml'], platform: 'android', backend: 'maestro' },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_BACKEND: 'maestro-runner' } }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('passes tags to maestro-runner', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      include_tags: 'smoke',
+      exclude_tags: 'slow',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0][1]).toEqual(
+      expect.arrayContaining(['--include-tags=smoke', '--exclude-tags=slow'])
+    );
+  });
+
+  it('rejects invalid backend values', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'other',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects sharding with maestro-runner', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      shards: 2,
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(
+      'maestro-runner does not support EAS Maestro test sharding'
+    );
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-junit output_format with maestro-runner', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      backend: 'maestro-runner',
+      output_format: 'html',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(
+      'maestro-runner only supports the "junit" output_format'
+    );
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('logs that maestro-runner does not support direct DADB', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        backend: 'maestro-runner',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' }, logger }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro-runner');
+    expect(logger.info).toHaveBeenCalledWith(
+      'maestro-runner does not support DADB. Using the default ADB connection.'
+    );
+  });
+
+  it('uses direct DADB when android_connection_mode is dadb without cleanup', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const writeFileSpy = jest.spyOn(fs, 'writeFile');
+    const rmSpy = jest.spyOn(fs, 'rm');
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' }, logger }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(2);
+    expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
+    expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
+    expect(mockedSpawn.mock.calls[0][2]?.signal).toBe(mockedSpawn.mock.calls[1][2]?.signal);
+
+    const maestroEnv = mockedSpawn.mock.calls[1][2]?.env;
+    expect(maestroEnv?.PATH).toMatch(
+      new RegExp(`^${os.tmpdir()}/maestro-tests-adb-override-.+${path.delimiter}/usr/bin$`)
+    );
+    expect(mockedSpawn.mock.calls[0][2]?.env?.PATH).not.toContain('maestro-tests-adb-override-');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Using a direct DADB connection for Android Maestro tests after stopping the ADB server.'
+    );
+
+    expect(writeFileSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-.+\/adb$/),
+      '#!/bin/sh\nexit 1\n',
+      { mode: 0o755 }
+    );
+    expect(rmSpy).not.toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-/),
+      expect.anything()
+    );
+  });
+
+  it('continues with direct DADB and warns when adb kill-server fails', async () => {
+    const killServerError = new Error('ADB server is unavailable');
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'adb') {
+        throw killServerError;
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    const logger = createMockLogger();
+    jest.mocked(logger.child).mockReturnValue(logger);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' }, logger }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls.map(([command]) => command)).toEqual(['adb', 'maestro']);
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: killServerError },
+      'Using a direct DADB connection for Android Maestro tests, but failed to stop the ADB server.'
+    );
+  });
+
+  it.each([
+    {
+      source: 'omitted',
+      callInputs: { flow_path: ['flows/a.yaml'], platform: 'android' },
+      env: { HOME: '/home/expo' },
+    },
+    {
+      source: 'empty input',
+      callInputs: { flow_path: ['flows/a.yaml'], platform: 'android', android_connection_mode: '' },
+      env: { HOME: '/home/expo' },
+    },
+    {
+      source: 'empty environment variable',
+      callInputs: { flow_path: ['flows/a.yaml'], platform: 'android' },
+      env: { HOME: '/home/expo', EAS_MAESTRO_ANDROID_CONNECTION_MODE: '' },
+    },
+  ])('treats an $source connection mode value as adb', async ({ callInputs, env }) => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(callInputs, { env });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('uses direct DADB when EAS_MAESTRO_ANDROID_CONNECTION_MODE is dadb', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+      },
+      {
+        env: {
+          HOME: '/home/expo',
+          PATH: '/usr/bin',
+          EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb',
+        },
+      }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn.mock.calls[0].slice(0, 2)).toEqual(['adb', ['kill-server']]);
+    expect(mockedSpawn.mock.calls[1][0]).toBe('maestro');
+  });
+
+  it('prefers android_connection_mode over EAS_MAESTRO_ANDROID_CONNECTION_MODE', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'adb',
+      },
+      {
+        env: {
+          HOME: '/home/expo',
+          PATH: '/usr/bin',
+          EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb',
+        },
+      }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('uses the same direct DADB environment for all retries', async () => {
+    let maestroAttempt = 0;
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'maestro' && maestroAttempt++ === 0) {
+        throw rejectExit1();
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    jest.spyOn(parser, 'parseFailedFlowsFromJUnit').mockResolvedValue(null);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        retries: 1,
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' } }
+    );
+
+    await step.executeAsync();
+
+    const maestroCalls = mockedSpawn.mock.calls.filter(([command]) => command === 'maestro');
+    expect(maestroCalls).toHaveLength(2);
+    expect(maestroCalls[0][2]?.env?.PATH).toBe(maestroCalls[1][2]?.env?.PATH);
+    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(1);
+  });
+
+  it('rejects invalid android_connection_mode values', async () => {
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'android',
+      android_connection_mode: 'automatic',
+    });
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid EAS_MAESTRO_ANDROID_CONNECTION_MODE values', async () => {
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+      },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'automatic' } }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow(UserError);
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('ignores direct DADB input mode on iOS', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep({
+      flow_path: ['flows/a.yaml'],
+      platform: 'ios',
+      android_connection_mode: 'dadb',
+    });
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('ignores direct DADB environment mode on iOS', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'ios',
+      },
+      { env: { HOME: '/home/expo', EAS_MAESTRO_ANDROID_CONNECTION_MODE: 'dadb' } }
+    );
+
+    await step.executeAsync();
+
+    expect(mockedSpawn).toHaveBeenCalledTimes(1);
+    expect(mockedSpawn.mock.calls[0][0]).toBe('maestro');
+  });
+
+  it('does not clean up direct DADB mode when Maestro fails', async () => {
+    mockedSpawn.mockImplementation((async (command: string) => {
+      if (command === 'maestro') {
+        throw new Error('maestro crashed');
+      }
+      return SPAWN_SUCCESS;
+    }) as any);
+    const rmSpy = jest.spyOn(fs, 'rm');
+    const step = createStep(
+      {
+        flow_path: ['flows/a.yaml'],
+        platform: 'android',
+        android_connection_mode: 'dadb',
+      },
+      { env: { HOME: '/home/expo', PATH: '/usr/bin' } }
+    );
+
+    await expect(step.executeAsync()).rejects.toThrow('Unexpected spawn failure invoking maestro');
+    expect(mockedSpawn.mock.calls.filter(([command]) => command === 'adb')).toHaveLength(1);
+    expect(rmSpy).not.toHaveBeenCalledWith(
+      expect.stringMatching(/maestro-tests-adb-override-/),
+      expect.anything()
+    );
   });
 
   it('throws SystemError when spawn fails with ENOENT (binary missing)', async () => {
@@ -201,6 +622,36 @@ describe('createMaestroTestsBuildFunction', () => {
     expect(a1Args).toContain('flows/b.yaml');
     expect(a1Args).not.toContain('flows/a.yaml');
     expect(a1Args).not.toContain('flows/c.yaml');
+  });
+
+  it('uses maestro-runner report.json for junit retries', async () => {
+    mockedSpawn.mockRejectedValueOnce(rejectExit1()).mockResolvedValueOnce(SPAWN_SUCCESS);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    const runnerReportSpy = jest
+      .spyOn(parser, 'parseFailedFlowsFromMaestroRunnerReport')
+      .mockResolvedValue(['flows/b.yaml']);
+    const junitParseSpy = jest.spyOn(parser, 'parseFailedFlowsFromJUnit');
+
+    const step = createStep({
+      flow_path: ['flows/a.yaml', 'flows/b.yaml'],
+      retries: 1,
+      output_format: 'junit',
+      platform: 'ios',
+      backend: 'maestro-runner',
+    });
+    await step.executeAsync();
+
+    expect(runnerReportSpy).toHaveBeenCalledWith({
+      reportDirectory: '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0',
+      workingDirectory: expect.any(String),
+    });
+    expect(junitParseSpy).not.toHaveBeenCalled();
+    expect(mockedSpawn.mock.calls[0][1]).toEqual(
+      expect.arrayContaining(['flows/a.yaml', 'flows/b.yaml'])
+    );
+    const retryArgs = mockedSpawn.mock.calls[1][1]!;
+    expect(retryArgs).toContain('flows/b.yaml');
+    expect(retryArgs).not.toContain('flows/a.yaml');
   });
 
   it('retries all flows when parseFailedFlowsFromJUnit returns null', async () => {
@@ -762,6 +1213,29 @@ describe('createMaestroTestsBuildFunction', () => {
         }),
       })
     );
+  });
+
+  it('discovers maestro-runner flow results from the attempt report directory', async () => {
+    mockedSpawn.mockResolvedValue(SPAWN_SUCCESS);
+    const shot = makeShot(0);
+    jest.spyOn(fs, 'copyFile').mockResolvedValue();
+    mockedRunnerHarvest.mockResolvedValue([shot]);
+    const parseFlowResultsSpy = jest.spyOn(parser, 'parseMaestroRunnerReport').mockResolvedValue({
+      flows: [{ name: 'Login', sourceFile: 'a.yaml', status: 'failed' }],
+    });
+
+    const step = createStep({
+      flow_path: ['a.yaml'],
+      platform: 'ios',
+      output_format: 'junit',
+      backend: 'maestro-runner',
+    });
+    await step.executeAsync();
+
+    expect(parseFlowResultsSpy).toHaveBeenCalledWith(
+      '/home/expo/.maestro/tests/ios-maestro-runner-attempt-0'
+    );
+    expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
   });
 
   it('uploads screenshots even when all attempts fail, before throwing ERR_MAESTRO_TESTS_FAILED', async () => {

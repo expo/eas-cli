@@ -1,8 +1,12 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
 import { AppObservePlatform } from '../../../graphql/generated';
 import { ObserveQuery } from '../../../graphql/queries/ObserveQuery';
 import { fetchObserveCustomEventsAsync } from '../../../observe/fetchCustomEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import {
   buildObserveCustomEventNamesJson,
   buildObserveCustomEventsEmptyWithSuggestionsJson,
@@ -73,6 +77,31 @@ describe(ObserveEvents, () => {
     return command;
   }
 
+  function planGateError(): CombinedError {
+    const serverMessage =
+      'Subscription to EAS is required for this feature. ' +
+      'Subscribe: https://expo.dev/accounts/acme/settings/billing';
+    return new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(serverMessage, null, null, null, null, null, {
+          errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+        }),
+      ],
+    });
+  }
+
+  it('surfaces the plan-gate message when listing event names is not available on the plan', async () => {
+    mockCustomEventNamesAsync.mockRejectedValueOnce(planGateError());
+    const command = createCommand([]);
+    await expect(command.runAsync()).rejects.toThrow(/Subscription to EAS is required/);
+  });
+
+  it('surfaces the plan-gate message when querying events is not available on the plan', async () => {
+    mockFetchObserveCustomEventsAsync.mockRejectedValueOnce(planGateError());
+    const command = createCommand(['my_event']);
+    await expect(command.runAsync()).rejects.toThrow(/Subscription to EAS is required/);
+  });
+
   it('passes eventName arg to fetchObserveCustomEventsAsync', async () => {
     mockFetchObserveCustomEventsAsync.mockResolvedValue({
       events: [{ id: 'evt-1' } as any],
@@ -102,6 +131,17 @@ describe(ObserveEvents, () => {
     expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
     const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
     expect(options.eventName).toBeUndefined();
+  });
+
+  it('routes to fetchObserveCustomEventsAsync with the session filter when --session-id is set with no positional arg', async () => {
+    const command = createCommand(['--session-id', 'session-xyz']);
+    await command.runAsync();
+
+    expect(mockFetchObserveCustomEventsAsync).toHaveBeenCalledTimes(1);
+    expect(mockCustomEventNamesAsync).not.toHaveBeenCalled();
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.eventName).toBeUndefined();
+    expect(options.sessionId).toBe('session-xyz');
   });
 
   it('throws when both an event name argument and --all-events are provided', async () => {

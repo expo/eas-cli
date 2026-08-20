@@ -2,38 +2,19 @@ import { SystemError } from '@expo/eas-build-job';
 import { type bunyan } from '@expo/logger';
 import { graphql } from 'gql.tada';
 import fs from 'node:fs';
-import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
-import { z } from 'zod';
 
 import { type CustomBuildContext } from '../../customBuildContext';
+import HttpLogStream from '../../logging/HttpLogStream';
 import RemoteLoggerStream from '../../logging/RemoteLoggerStream';
 import { Sentry } from '../../sentry';
 import { type SignedUrl } from '../../storage/uploadWithSignedUrl';
 
 const POLL_INTERVAL_MS = 1_000;
 const UPLOAD_INTERVAL_MS = 5_000;
-
-const AGENT_DEVICE_EVENT_KIND_TO_TYPE: Record<string, string> = {
-  'request.started': 'operation.started',
-  'request.finished': 'operation.completed',
-  'action.recorded': 'interaction.recorded',
-};
-
-const AgentDeviceEventSchema = z
-  .object({
-    version: z.number(),
-    ts: z.string(),
-    session: z.string(),
-    kind: z.string(),
-    requestId: z.string().optional().catch(undefined),
-    command: z.string().optional().catch(undefined),
-    status: z.string().optional().catch(undefined),
-    summary: z.string().optional().catch(undefined),
-    details: z.record(z.string(), z.unknown()).optional().catch(undefined),
-  })
-  .passthrough();
+const EAS_LOGS_THREAD = 'session-events';
+const EAS_LOGS_BUFFER_RETENTION_MS = 30_000;
 
 const CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION = graphql(`
   mutation CreateDeviceRunSessionEventLogUploadSession($deviceRunSessionId: ID!) {
@@ -48,8 +29,12 @@ const CREATE_DEVICE_RUN_SESSION_EVENT_LOG_UPLOAD_SESSION_MUTATION = graphql(`
   }
 `);
 
-type AgentDeviceEvent = z.infer<typeof AgentDeviceEventSchema>;
-
+/**
+ * The normalized, producer-agnostic event shape uploaded to the API server.
+ * Every remote-session producer (agent-device, argent, ...) tails its own
+ * event log and maps its records onto this common contract so consumers render
+ * a single unified session timeline.
+ */
 export type DeviceRunSessionEvent = {
   v: 1;
   eventId: string;
@@ -63,6 +48,44 @@ export type DeviceRunSessionEvent = {
   data?: Record<string, unknown>;
 };
 
+export type DeviceRunSessionEventParseFailure = 'invalid-json' | 'invalid-event';
+
+export type DeviceRunSessionEventParseResult = {
+  event?: DeviceRunSessionEvent;
+  failure?: DeviceRunSessionEventParseFailure;
+};
+
+/**
+ * Producer-specific adapter plugged into the generic collection engine. It only
+ * has to say where its event files live and how to turn one raw NDJSON line
+ * into a {@link DeviceRunSessionEvent}; the engine owns tailing, upload, polling
+ * and failure reporting.
+ */
+export type DeviceRunSessionEventSource = {
+  /**
+   * Stable producer identifier, e.g. `agent-device` or `argent`. Also used
+   * verbatim in diagnostic messages, which are phrased so it never needs
+   * recasing.
+   */
+  producer: string;
+  /** Discover the NDJSON event files to tail (absolute paths). */
+  findEventFilesAsync: () => Promise<string[]>;
+  /** Namespace component of the event ID derived from a tailed file path. */
+  sourceKeyForFile: (eventFile: string) => string;
+  /**
+   * Parse one raw NDJSON line. `sequenceNumber` is monotonic per file (kept
+   * stable across truncations) and `sourceKey` namespaces the event ID so an ID
+   * is never reused during collection. Blank lines should return an empty
+   * result so they neither emit an event nor count as a parse failure.
+   */
+  parseLine: (args: {
+    line: string;
+    sourceKey: string;
+    sequenceNumber: number;
+    deviceRunSessionId: string;
+  }) => DeviceRunSessionEventParseResult;
+};
+
 type EventFileState = {
   offset: number;
   nextSequenceNumber: number;
@@ -71,25 +94,31 @@ type EventFileState = {
   decoder: StringDecoder;
 };
 
-type AgentDeviceEventParseFailure = 'invalid-json' | 'invalid-event';
-type AgentDeviceEventParseResult = {
-  event?: AgentDeviceEvent;
-  failure?: AgentDeviceEventParseFailure;
+export type DeviceRunSessionEventCollection = {
+  stopAsync: () => Promise<void>;
+  /**
+   * Local arrival time of the most recently collected event, or `undefined`
+   * when no event has been observed yet. Uses the collector's clock rather
+   * than the event's embedded timestamp so producer clock skew cannot affect
+   * idle detection.
+   */
+  getLastEventObservedAt: () => Date | undefined;
 };
 
-export async function startAgentDeviceEventCollectionAsync({
+export async function startDeviceRunSessionEventCollectionAsync({
   ctx,
   deviceRunSessionId,
-  stateDir,
+  source,
   logger,
   pollIntervalMs = POLL_INTERVAL_MS,
 }: {
   ctx: CustomBuildContext;
   deviceRunSessionId: string;
-  stateDir: string;
+  source: DeviceRunSessionEventSource;
   logger: bunyan;
   pollIntervalMs?: number;
-}): Promise<{ stopAsync: () => Promise<void> }> {
+}): Promise<DeviceRunSessionEventCollection> {
+  const { producer } = source;
   let didReportEventLogFailure = false;
   const reportEventLogFailure = (error: Error, operation: 'setup' | 'cleanup'): void => {
     if (didReportEventLogFailure) {
@@ -98,7 +127,7 @@ export async function startAgentDeviceEventCollectionAsync({
     didReportEventLogFailure = true;
     Sentry.capture('Could not persist device run session events', error, {
       level: 'warning',
-      tags: { phase: 'device-run-session-event-collection', operation },
+      tags: { phase: 'device-run-session-event-collection', operation, producer },
       extras: { deviceRunSessionId },
     });
   };
@@ -116,21 +145,53 @@ export async function startAgentDeviceEventCollectionAsync({
     await eventLogStream.init();
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    logger.warn({ err: error }, 'Could not start device run session event collection.');
+    logger.warn({ err: error }, 'Could not persist device run session events to the artifact.');
     reportEventLogFailure(error, 'setup');
-    return { stopAsync: async () => {} };
+    return {
+      stopAsync: async () => {},
+      // Collection is disabled, so session activity is invisible here. Report
+      // fresh activity so an enabled idle timeout never stops a session it
+      // cannot observe.
+      getLastEventObservedAt: () => new Date(),
+    };
+  }
+
+  let didReportRealtimeLogFailure = false;
+  const reportRealtimeLogFailure = (error: Error, operation: 'setup' | 'cleanup'): void => {
+    if (didReportRealtimeLogFailure) {
+      return;
+    }
+    didReportRealtimeLogFailure = true;
+    Sentry.capture('Could not publish device run session events in real time', error, {
+      level: 'warning',
+      tags: { phase: 'device-run-session-event-collection', operation, producer },
+      extras: { deviceRunSessionId },
+    });
+  };
+
+  let realtimeLogStream: HttpLogStream | undefined;
+  try {
+    realtimeLogStream = createRealtimeLogStream(ctx, logger);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    logger.warn(
+      { err: error },
+      'Could not start publishing device run session events in real time.'
+    );
+    reportRealtimeLogFailure(error, 'setup');
   }
 
   const states = new Map<string, EventFileState>();
   const controller = new AbortController();
+  let lastEventObservedAt: Date | undefined;
   let parseFailureCount = 0;
-  const parseFailureCounts: Record<AgentDeviceEventParseFailure, number> = {
+  const parseFailureCounts: Record<DeviceRunSessionEventParseFailure, number> = {
     'invalid-json': 0,
     'invalid-event': 0,
   };
   let didReportCollectionFailure = false;
   const collectAsync = async (): Promise<void> => {
-    const eventFiles = await findAgentDeviceEventFilesAsync(stateDir);
+    const eventFiles = await source.findEventFilesAsync();
     await Promise.all(
       eventFiles.map(async eventFile => {
         const state = states.get(eventFile) ?? {
@@ -144,8 +205,13 @@ export async function startAgentDeviceEventCollectionAsync({
         await collectEventFileAsync({
           eventFile,
           state,
+          source,
           deviceRunSessionId,
-          writeEvent: event => eventLogStream.write(event),
+          writeEvent: event => {
+            lastEventObservedAt = new Date();
+            eventLogStream.write(event);
+            realtimeLogStream?.write({ ...event, logId: event.eventId });
+          },
           onParseFailure: ({ failure, lineNumber }) => {
             parseFailureCount += 1;
             parseFailureCounts[failure] += 1;
@@ -153,12 +219,12 @@ export async function startAgentDeviceEventCollectionAsync({
               return;
             }
             logger.warn(
-              { agentDeviceEventParseFailure: failure, lineNumber },
-              'Could not parse an agent-device event log record.'
+              { producer, eventParseFailure: failure, lineNumber },
+              `Could not parse an ${producer} event log record.`
             );
-            Sentry.capture('Could not parse an agent-device event log record', {
+            Sentry.capture(`Could not parse an ${producer} event log record`, {
               level: 'warning',
-              tags: { phase: 'agent-device-event-collection', reason: failure },
+              tags: { phase: `${producer}-event-collection`, reason: failure },
               extras: { deviceRunSessionId, lineNumber },
             });
           },
@@ -176,10 +242,10 @@ export async function startAgentDeviceEventCollectionAsync({
       }
       didReportCollectionFailure = true;
       const error = err instanceof Error ? err : new Error(String(err));
-      logger.warn({ err: error }, 'Could not collect agent-device events.');
-      Sentry.capture('Could not collect agent-device events', error, {
+      logger.warn({ err: error }, `Could not collect ${producer} events.`);
+      Sentry.capture(`Could not collect ${producer} events`, error, {
         level: 'warning',
-        tags: { phase: 'agent-device-event-collection' },
+        tags: { phase: `${producer}-event-collection` },
         extras: { deviceRunSessionId },
       });
     }
@@ -200,10 +266,10 @@ export async function startAgentDeviceEventCollectionAsync({
   })()
     .catch(err => {
       const error = err instanceof Error ? err : new Error(String(err));
-      logger.warn({ err: error }, 'Agent-device event collection poller failed.');
-      Sentry.capture('Agent-device event collection poller failed', error, {
+      logger.warn({ err: error }, `Event collection poller for ${producer} failed.`);
+      Sentry.capture(`Event collection poller for ${producer} failed`, error, {
         level: 'warning',
-        tags: { phase: 'agent-device-event-collection', operation: 'poll' },
+        tags: { phase: `${producer}-event-collection`, operation: 'poll' },
         extras: { deviceRunSessionId },
       });
     })
@@ -212,30 +278,71 @@ export async function startAgentDeviceEventCollectionAsync({
     });
 
   return {
+    getLastEventObservedAt: () => lastEventObservedAt,
     stopAsync: async () => {
       controller.abort();
       await pollingPromise;
       await collectSafelyAsync();
       if (parseFailureCount > 1) {
         logger.warn(
-          { agentDeviceEventParseFailures: parseFailureCounts, parseFailureCount },
-          `Could not parse ${parseFailureCount} agent-device event log records.`
+          { producer, eventParseFailures: parseFailureCounts, parseFailureCount },
+          `Could not parse ${parseFailureCount} ${producer} event log records.`
         );
-        Sentry.capture('Could not parse multiple agent-device event log records', {
+        Sentry.capture(`Could not parse multiple ${producer} event log records`, {
           level: 'warning',
-          tags: { phase: 'agent-device-event-collection' },
+          tags: { phase: `${producer}-event-collection` },
           extras: { deviceRunSessionId, parseFailureCount, parseFailureCounts },
         });
       }
-      try {
-        await eventLogStream.cleanUp();
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        logger.warn({ err: error }, 'Could not finish device run session event collection.');
-        reportEventLogFailure(error, 'cleanup');
-      }
+      await Promise.all([cleanUpEventLogStreamAsync(), cleanUpRealtimeLogStreamAsync()]);
     },
   };
+
+  async function cleanUpEventLogStreamAsync(): Promise<void> {
+    try {
+      await eventLogStream.cleanUp();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.warn({ err: error }, 'Could not finish persisting device run session events.');
+      reportEventLogFailure(error, 'cleanup');
+    }
+  }
+
+  async function cleanUpRealtimeLogStreamAsync(): Promise<void> {
+    try {
+      await realtimeLogStream?.cleanUp();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.warn(
+        { err: error },
+        'Could not finish publishing device run session events in real time.'
+      );
+      reportRealtimeLogFailure(error, 'cleanup');
+    }
+  }
+}
+
+function createRealtimeLogStream(
+  ctx: CustomBuildContext,
+  logger: bunyan
+): HttpLogStream | undefined {
+  const baseUrl = ctx.env.EXPO_LOCAL
+    ? 'http://localhost:4999/logs/'
+    : ctx.env.EXPO_STAGING
+      ? 'https://staging-logs.expo.dev/logs/'
+      : 'https://logs.expo.dev/logs/';
+  const jobRunId = ctx.env.EAS_BUILD_ID;
+  const robotAccessToken = ctx.job.secrets?.robotAccessToken;
+  if (!baseUrl || !jobRunId || !robotAccessToken) {
+    return undefined;
+  }
+
+  return new HttpLogStream({
+    url: new URL(`${jobRunId}/${EAS_LOGS_THREAD}`, baseUrl).toString(),
+    headers: { Authorization: `Bearer ${robotAccessToken}` },
+    logger,
+    bufferRetentionMs: EAS_LOGS_BUFFER_RETENTION_MS,
+  });
 }
 
 async function createEventLogUploadSessionAsync(
@@ -260,35 +367,23 @@ async function createEventLogUploadSessionAsync(
   };
 }
 
-async function findAgentDeviceEventFilesAsync(stateDir: string): Promise<string[]> {
-  const sessionsDir = path.join(stateDir, 'sessions');
-  let entries: fs.Dirent[];
-  try {
-    entries = await fs.promises.readdir(sessionsDir, { withFileTypes: true });
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    throw err;
-  }
-
-  return entries
-    .filter(entry => entry.isDirectory())
-    .map(entry => path.join(sessionsDir, entry.name, 'events.ndjson'));
-}
-
 async function collectEventFileAsync({
   eventFile,
   state,
+  source,
   deviceRunSessionId,
   writeEvent,
   onParseFailure,
 }: {
   eventFile: string;
   state: EventFileState;
+  source: DeviceRunSessionEventSource;
   deviceRunSessionId: string;
   writeEvent: (event: DeviceRunSessionEvent) => void;
-  onParseFailure: (failure: { failure: AgentDeviceEventParseFailure; lineNumber: number }) => void;
+  onParseFailure: (failure: {
+    failure: DeviceRunSessionEventParseFailure;
+    lineNumber: number;
+  }) => void;
 }): Promise<void> {
   let fileSize: number;
   try {
@@ -309,6 +404,7 @@ async function collectEventFileAsync({
     return;
   }
 
+  const sourceKey = source.sourceKeyForFile(eventFile);
   const handle = await fs.promises.open(eventFile, 'r');
   try {
     const buffer = new Uint8Array(new ArrayBuffer(fileSize - state.offset));
@@ -321,80 +417,21 @@ async function collectEventFileAsync({
     for (const line of lines) {
       const lineNumber = state.nextLineNumber++;
       const sequenceNumber = state.nextSequenceNumber++;
-      const { event, failure } = parseAgentDeviceEvent(line);
+      const { event, failure } = source.parseLine({
+        line,
+        sourceKey,
+        sequenceNumber,
+        deviceRunSessionId,
+      });
       if (failure) {
         onParseFailure({ failure, lineNumber });
       }
       if (!event) {
         continue;
       }
-      const deviceRunSessionEvent = normalizeAgentDeviceEvent({
-        event,
-        sequenceNumber,
-        sourceSessionDirectory: path.basename(path.dirname(eventFile)),
-        deviceRunSessionId,
-      });
-      writeEvent(deviceRunSessionEvent);
+      writeEvent(event);
     }
   } finally {
     await handle.close();
   }
-}
-
-function parseAgentDeviceEvent(line: string): AgentDeviceEventParseResult {
-  if (!line.trim()) {
-    return {};
-  }
-  try {
-    const result = AgentDeviceEventSchema.safeParse(JSON.parse(line));
-    return result.success ? { event: result.data } : { failure: 'invalid-event' };
-  } catch {
-    return { failure: 'invalid-json' };
-  }
-}
-
-function normalizeAgentDeviceEvent({
-  event,
-  sequenceNumber,
-  sourceSessionDirectory,
-  deviceRunSessionId,
-}: {
-  event: AgentDeviceEvent;
-  sequenceNumber: number;
-  sourceSessionDirectory: string;
-  deviceRunSessionId: string;
-}): DeviceRunSessionEvent {
-  const type = AGENT_DEVICE_EVENT_KIND_TO_TYPE[event.kind] ?? event.kind;
-  const durationMs = event.details?.durationMs;
-  const outcome =
-    event.status === 'ok' ? 'success' : event.status === 'error' ? 'failure' : undefined;
-  const summary =
-    event.summary ??
-    (event.kind === 'request.started'
-      ? `Started ${event.command ?? 'activity'}`
-      : event.kind === 'request.finished'
-        ? `Finished ${event.command ?? 'activity'}`
-        : event.kind === 'action.recorded'
-          ? `Recorded ${event.command ?? 'activity'}`
-          : `${event.kind}${event.command ? `: ${event.command}` : ''}`);
-
-  return {
-    v: 1,
-    // Consumers use eventId to deduplicate events across polls. Keep the per-file sequence
-    // monotonic across source-file truncations so an ID is never reused during collection.
-    eventId: `agent-device:${deviceRunSessionId}:${sourceSessionDirectory}:${sequenceNumber}`,
-    ts: event.ts,
-    producer: 'agent-device',
-    type,
-    ...(event.requestId ? { operationId: event.requestId } : {}),
-    ...(outcome ? { outcome } : {}),
-    ...(typeof durationMs === 'number' ? { durationMs } : {}),
-    summary,
-    data: {
-      ...event.details,
-      session: event.session,
-      sourceVersion: event.version,
-      ...(event.status ? { sourceStatus: event.status } : {}),
-    },
-  };
 }

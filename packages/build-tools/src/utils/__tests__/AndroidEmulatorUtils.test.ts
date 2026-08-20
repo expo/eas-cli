@@ -1,7 +1,14 @@
+import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
+import { EventEmitter, once } from 'node:events';
+import fs from 'node:fs';
+import { Socket } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 
 import { createMockLogger } from '../../__tests__/utils/logger';
-import { AndroidEmulatorUtils } from '../AndroidEmulatorUtils';
+import { Sentry } from '../../sentry';
+import { AndroidEmulatorUtils, AndroidVirtualDeviceName } from '../AndroidEmulatorUtils';
 import { retryAsync } from '../retry';
 
 jest.mock('@expo/turtle-spawn', () => ({
@@ -13,13 +20,152 @@ jest.mock('../retry', () => ({
   retryAsync: jest.fn(async fn => await fn(0)),
 }));
 
+jest.mock('../../sentry', () => ({
+  Sentry: {
+    capture: jest.fn(),
+  },
+}));
+
 const mockedSpawn = jest.mocked(spawn);
 const mockedRetryAsync = jest.mocked(retryAsync);
 
 describe('AndroidEmulatorUtils', () => {
+  let temporaryDirectories: string[] = [];
+
   beforeEach(() => {
+    temporaryDirectories = [];
+    jest.mocked(Sentry.capture).mockReset();
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
     mockedRetryAsync.mockImplementation(async fn => await fn(0));
+  });
+
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await Promise.all(
+      temporaryDirectories.map(async temporaryDirectory => {
+        await fs.promises.rm(temporaryDirectory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  describe(AndroidEmulatorUtils.startAsync, () => {
+    function mockSuccessfulStart(deviceName: AndroidVirtualDeviceName) {
+      // Under `stdio: 'pipe'` these are net.Sockets, which is what startAsync
+      // narrows on before unref-ing them.
+      const stdout = new Socket();
+      const stderr = new Socket();
+      jest.spyOn(stdout, 'unref').mockReturnValue(stdout);
+      jest.spyOn(stderr, 'unref').mockReturnValue(stderr);
+      const child = Object.assign(new EventEmitter(), {
+        pid: 1234,
+        unref: jest.fn(),
+        stdout,
+        stderr,
+      });
+      const spawnPromise = Promise.resolve({ stdout: '', stderr: '' }) as any;
+      spawnPromise.child = child;
+      mockedSpawn.mockImplementation(((command: string, args: string[]) => {
+        if (command.endsWith('/emulator/emulator')) {
+          return spawnPromise;
+        }
+        if (command === 'adb' && args[0] === 'devices') {
+          return Promise.resolve({ stdout: 'emulator-5554\tdevice\n', stderr: '' });
+        }
+        if (command === 'adb' && args[0] === '-s' && args[2] === 'emu') {
+          return Promise.resolve({ stdout: `${deviceName}\nOK\n`, stderr: '' });
+        }
+        throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+      }) as any);
+      return { child };
+    }
+
+    it('captures logcat and emulator process output', async () => {
+      const outputDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'logcat-staging-'));
+      temporaryDirectories.push(outputDir);
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const { child } = mockSuccessfulStart(deviceName);
+      const createWriteStreamSpy = jest.spyOn(fs, 'createWriteStream');
+
+      const result = await AndroidEmulatorUtils.startAsync({
+        deviceName,
+        env: process.env,
+        logcatDirectory: outputDir,
+      });
+
+      expect(result.logcatOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-logcat\\.log$`)
+      );
+      expect(result.emulatorOutputPath).toMatch(
+        new RegExp(`^${outputDir}/eas-simulator-[a-f0-9]{8}-[a-f0-9]{4}-emulator\\.log$`)
+      );
+      await expect(fs.promises.access(result.logcatOutputPath)).resolves.toBeUndefined();
+      await expect(fs.promises.access(result.emulatorOutputPath)).resolves.toBeUndefined();
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        expect.stringMatching(/\/emulator\/emulator$/),
+        expect.arrayContaining(['-logcat', '*:v', '-logcat-output', result.logcatOutputPath]),
+        expect.objectContaining({
+          detached: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          ignoreStdio: true,
+        })
+      );
+      expect(mockedSpawn).not.toHaveBeenCalledWith(
+        'adb',
+        expect.arrayContaining(['logcat']),
+        expect.anything()
+      );
+      expect(child.unref).toHaveBeenCalled();
+      // Piped stdio would otherwise keep this process' event loop alive
+      // for as long as the emulator runs.
+      expect(child.stdout.unref).toHaveBeenCalled();
+      expect(child.stderr.unref).toHaveBeenCalled();
+      const emulatorOutputStream = createWriteStreamSpy.mock.results[0].value;
+      const stderrWriteSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const writeError = Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+      emulatorOutputStream.emit('error', writeError);
+      emulatorOutputStream.emit('error', writeError);
+      expect(stderrWriteSpy).toHaveBeenCalledTimes(2);
+      expect(Sentry.capture).toHaveBeenCalledTimes(1);
+      expect(Sentry.capture).toHaveBeenCalledWith(
+        'Failed to write Android emulator process output',
+        writeError,
+        {
+          level: 'warning',
+          tags: { errorCode: 'ENOSPC' },
+          extras: {
+            deviceName,
+            emulatorOutputPath: result.emulatorOutputPath,
+          },
+        }
+      );
+      const emulatorOutputStreamClosed = once(emulatorOutputStream, 'close');
+      child.emit('close');
+      await emulatorOutputStreamClosed;
+    });
+
+    it('throws a SystemError when the staging directory cannot be prepared', async () => {
+      const outputDir = '/unwritable/logcat-staging';
+      const deviceName = 'eas-simulator' as AndroidVirtualDeviceName;
+      const mkdirError = new Error('mkdir failed');
+      const mkdirSpy = jest.spyOn(fs.promises, 'mkdir').mockRejectedValueOnce(mkdirError);
+
+      try {
+        await expect(
+          AndroidEmulatorUtils.startAsync({
+            deviceName,
+            env: process.env,
+            logcatDirectory: outputDir,
+          })
+        ).rejects.toEqual(
+          new SystemError('Failed to prepare Android emulator output for eas-simulator.', {
+            cause: mkdirError,
+          })
+        );
+        expect(mockedSpawn).not.toHaveBeenCalled();
+      } finally {
+        mkdirSpy.mockRestore();
+      }
+    });
   });
 
   describe(AndroidEmulatorUtils.waitForReadyAsync, () => {

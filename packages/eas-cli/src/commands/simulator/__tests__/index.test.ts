@@ -11,6 +11,7 @@ import {
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../../graphql/mutations/DeviceRunSessionMutation';
+import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
 import Log from '../../../log';
 import { ora } from '../../../ora';
@@ -22,10 +23,11 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
-import SimulatorStart from '../start';
+import Simulator from '../index';
 
 jest.mock('fs-extra');
 jest.mock('../../../graphql/mutations/DeviceRunSessionMutation');
+jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
 jest.mock('../../../graphql/queries/DeviceRunSessionQuery');
 jest.mock('../../../log', () => ({
   __esModule: true,
@@ -69,6 +71,10 @@ const deviceRunSessionUrl =
 const mockCreateDeviceRunSessionAsync = jest.mocked(
   DeviceRunSessionMutation.createDeviceRunSessionAsync
 );
+const mockEnsureDeviceRunSessionStoppedAsync = jest.mocked(
+  DeviceRunSessionMutation.ensureDeviceRunSessionStoppedAsync
+);
+const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQuery.byAppIdAsync);
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
@@ -99,6 +105,7 @@ function makeCreatedDeviceRunSession(
 function makeDeviceRunSession(overrides: Partial<DeviceRunSessionById> = {}): DeviceRunSessionById {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -138,14 +145,19 @@ function getMockOclifConfig(): Config {
   return config;
 }
 
-describe(SimulatorStart, () => {
+describe(Simulator, () => {
   const mockConfig = getMockOclifConfig();
   const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
+    mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
+      id: 'session-123',
+      status: DeviceRunSessionStatus.Stopped,
+    });
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
@@ -160,19 +172,48 @@ describe(SimulatorStart, () => {
     }
   });
 
-  function createCommand(argv: string[]): {
-    command: SimulatorStart;
+  function createCommand(
+    argv: string[],
+    { isExpoAdmin = false }: { isExpoAdmin?: boolean } = {}
+  ): {
+    command: Simulator;
     getContextAsync: jest.SpyInstance;
   } {
-    const command = new SimulatorStart(argv, mockConfig);
+    const command = new Simulator(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     const getContextAsync = jest.spyOn(command, 'getContextAsync').mockResolvedValue({
-      loggedIn: { graphqlClient },
+      loggedIn: { actor: { isExpoAdmin }, graphqlClient },
       projectDir,
       projectId: 'project-123',
     });
     return { command, getContextAsync };
   }
+
+  it('fails with the waitlist link without creating a session when the account is gated', async () => {
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
+        'Join the waitlist to get access: https://expo.dev/services/simulators'
+    );
+    expect(mockAvailabilityByAppIdAsync).toHaveBeenCalledWith(graphqlClient, 'project-123');
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+    expect(mockPromptAsync).not.toHaveBeenCalled();
+  });
+
+  it('skips the gate check for Expo admins on a gated account', async () => {
+    mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive'], {
+      isExpoAdmin: true,
+    });
+    await command.runAsync();
+
+    expect(mockAvailabilityByAppIdAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalled();
+  });
 
   it('prints environment variables without saving when outputting env', async () => {
     const { command, getContextAsync } = createCommand([
@@ -184,11 +225,12 @@ describe(SimulatorStart, () => {
     ]);
     await command.runAsync();
 
-    expect(getContextAsync).toHaveBeenCalledWith(SimulatorStart, {
+    expect(getContextAsync).toHaveBeenCalledWith(Simulator, {
       nonInteractive: true,
     });
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -210,15 +252,15 @@ describe(SimulatorStart, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
       simulatorDotenvPath,
       SIMULATOR_DOTENV_FILE_HEADER +
-        'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
-        `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+        "AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'\n" +
+        "AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'\n" +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(jest.mocked(fs.writeFile).mock.invocationCallOrder[0]).toBeLessThan(
       mockByIdAsync.mock.invocationCallOrder[0]
@@ -231,12 +273,57 @@ describe(SimulatorStart, () => {
       [
         '🔑 Run the following to use agent-device with the simulator:',
         '',
-        'eas simulator:exec agent-device <command>',
+        'eas simulator:exec npx agent-device <command>',
         '',
         '🌐 Open the following URL in your browser to preview the simulator:',
         '',
         'https://preview.example.com',
       ].join('\n')
+    );
+  });
+
+  it('writes the Appium environment and capabilities to the simulator dotenv', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type: DeviceRunSessionType.Appium,
+        platform: AppPlatform.Ios,
+        remoteConfig: {
+          __typename: 'AppiumRunSessionRemoteConfig',
+          appiumUrl: 'https://appium.example.test',
+          capabilities: {
+            platformName: 'iOS',
+            'appium:automationName': 'XCUITest',
+            'appium:udid': 'simulator-id',
+          },
+          webPreviewUrl: 'https://preview.example.test',
+        },
+      })
+    );
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      'appium',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ type: DeviceRunSessionType.Appium })
+    );
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      simulatorDotenvPath,
+      expect.stringContaining(
+        `APPIUM_CAPS='{"platformName":"iOS","appium:automationName":"XCUITest","appium:udid":"simulator-id"}'`
+      )
+    );
+    expect(Log.log).toHaveBeenCalledWith(
+      expect.stringContaining('eas simulator:exec <appium-client> [args...]')
+    );
+    expect(Log.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('https://appium.example.test')
     );
   });
 
@@ -253,15 +340,15 @@ describe(SimulatorStart, () => {
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       1,
       simulatorDotenvPath,
-      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+      SIMULATOR_DOTENV_FILE_HEADER + `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
     expect(fs.writeFile).toHaveBeenNthCalledWith(
       2,
       simulatorDotenvPath,
       SIMULATOR_DOTENV_FILE_HEADER +
-        'AGENT_DEVICE_DAEMON_BASE_URL="https://agent.example.com"\n' +
-        'AGENT_DEVICE_DAEMON_AUTH_TOKEN="token-123"\n' +
-        `${EAS_SIMULATOR_SESSION_ID}="session-123"\n`
+        "AGENT_DEVICE_DAEMON_BASE_URL='https://agent.example.com'\n" +
+        "AGENT_DEVICE_DAEMON_AUTH_TOKEN='token-123'\n" +
+        `${EAS_SIMULATOR_SESSION_ID}='session-123'\n`
     );
   });
 
@@ -278,6 +365,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -297,6 +385,7 @@ describe(SimulatorStart, () => {
     );
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
       appId: 'project-123',
+      name: undefined,
       packageVersion: undefined,
       platform: AppPlatform.Ios,
       type: DeviceRunSessionType.AgentDevice,
@@ -322,7 +411,127 @@ describe(SimulatorStart, () => {
     const { command } = createCommand(['--platform', 'ios']);
     await command.runAsync();
 
-    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir);
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+  });
+
+  it('forwards --name to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      'Checkout regression',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('trims --name before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--name',
+      '  Checkout regression  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('omits a blank --name instead of letting the server reject it', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--name', '   ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ name: undefined })
+    );
+  });
+
+  it('forwards --device to the create mutation as deviceIdentifier', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--device',
+      'iPhone 16 Pro',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+    );
+  });
+
+  it('trims --device before sending it', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--device',
+      '  iPhone 16 Pro  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: 'iPhone 16 Pro' })
+    );
+  });
+
+  it('omits a blank --device', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive', '--device', '  ']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ deviceIdentifier: undefined })
+    );
+  });
+
+  it('stops the simulator session when interrupted before the session is ready', async () => {
+    const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`);
+    });
+    let notifyQueryStarted: () => void = () => {};
+    const queryStarted = new Promise<void>(resolve => {
+      notifyQueryStarted = resolve;
+    });
+    mockByIdAsync.mockImplementationOnce(
+      () =>
+        new Promise(() => {
+          notifyQueryStarted();
+        })
+    );
+    const existingSigintListeners = new Set(process.listeners('SIGINT'));
+
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    const commandPromise = command.runAsync();
+    await queryStarted;
+
+    const sigintHandler = process
+      .listeners('SIGINT')
+      .find(listener => !existingSigintListeners.has(listener));
+    expect(sigintHandler).toBeDefined();
+    sigintHandler?.('SIGINT');
+    await expect(commandPromise).rejects.toThrow('process.exit(130)');
+
+    expect(mockEnsureDeviceRunSessionStoppedAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      'session-123'
+    );
+    expect(mockResetSimulatorEnvAsync).toHaveBeenCalledWith(projectDir, 'session-123');
+    expect(process.listeners('SIGINT')).toEqual([...existingSigintListeners]);
+    processExitSpy.mockRestore();
   });
 
   it('prompts to select the platform when --platform is omitted', async () => {

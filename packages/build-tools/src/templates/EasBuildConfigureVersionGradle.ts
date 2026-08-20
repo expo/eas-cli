@@ -20,13 +20,30 @@ android {
       versionName = versionNameVal
     }
   }
-  applicationVariants.all { variant ->
+}
+
+// AGP 9's new DSL removes the applicationVariants API, we set the version on each output through the androidComponents API instead.
+def easAndroidExtension = project.extensions.getByName('android')
+if (easAndroidExtension.hasProperty('applicationVariants')) {
+  easAndroidExtension.applicationVariants.all { variant ->
     variant.outputs.each { output ->
       if (versionCodeVal) {
         output.versionCodeOverride = Integer.parseInt(versionCodeVal)
       }
       if (versionNameVal) {
         output.versionNameOverride = versionNameVal
+      }
+    }
+  }
+} else {
+  def easAndroidComponents = project.extensions.getByName('androidComponents')
+  easAndroidComponents.onVariants(easAndroidComponents.selector().all()) { variant ->
+    variant.outputs.each { output ->
+      if (versionCodeVal) {
+        output.versionCode.set(Integer.parseInt(versionCodeVal))
+      }
+      if (versionNameVal) {
+        output.versionName.set(versionNameVal)
       }
     }
   }

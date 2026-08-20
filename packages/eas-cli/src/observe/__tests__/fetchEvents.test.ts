@@ -1,10 +1,20 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import {
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
   AppObservePlatform,
+  AppPlatform,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
-import { EventsOrderPreset, fetchObserveEventsAsync, resolveOrderBy } from '../fetchEvents';
+import {
+  EventsOrderPreset,
+  fetchObserveEventsAsync,
+  fetchTotalEventCountAsync,
+  resolveOrderBy,
+} from '../fetchEvents';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
 
 jest.mock('../../graphql/queries/ObserveQuery');
 
@@ -301,5 +311,59 @@ describe(fetchObserveEventsAsync, () => {
 
     const calledVars = mockEventsAsync.mock.calls[0][1];
     expect(calledVars).not.toHaveProperty('after');
+  });
+});
+
+describe(fetchTotalEventCountAsync, () => {
+  const mockAppVersionsAsync = jest.mocked(ObserveQuery.appVersionsAsync);
+  const mockGraphqlClient = {} as any;
+
+  beforeEach(() => {
+    mockAppVersionsAsync.mockReset();
+  });
+
+  it('rethrows plan-gate errors instead of swallowing them as zero', async () => {
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'Subscription to EAS is required for this feature.',
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }
+        ),
+      ],
+    });
+    mockAppVersionsAsync.mockRejectedValue(gateError);
+
+    await expect(
+      fetchTotalEventCountAsync(
+        mockGraphqlClient,
+        'project-123',
+        'expo.navigation.tti',
+        [AppPlatform.Ios, AppPlatform.Android],
+        '2025-01-01T00:00:00.000Z',
+        '2025-03-01T00:00:00.000Z'
+      )
+    ).rejects.toBe(gateError);
+  });
+
+  it('swallows non-gate errors and counts them as zero', async () => {
+    mockAppVersionsAsync.mockRejectedValue(new Error('Network error'));
+
+    const total = await fetchTotalEventCountAsync(
+      mockGraphqlClient,
+      'project-123',
+      'expo.app_startup.tti',
+      [AppPlatform.Ios],
+      '2025-01-01T00:00:00.000Z',
+      '2025-03-01T00:00:00.000Z'
+    );
+
+    expect(total).toBe(0);
   });
 });

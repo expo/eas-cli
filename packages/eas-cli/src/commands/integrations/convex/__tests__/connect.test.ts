@@ -9,6 +9,7 @@ import {
   EnvironmentSecretType,
   EnvironmentVariableScope,
   EnvironmentVariableVisibility,
+  Role,
 } from '../../../../graphql/generated';
 import { ConvexMutation } from '../../../../graphql/mutations/ConvexMutation';
 import { EnvironmentVariableMutation } from '../../../../graphql/mutations/EnvironmentVariableMutation';
@@ -59,7 +60,7 @@ describe(IntegrationsConvexConnect, () => {
       id: testAccountId,
       name: testAccountName,
       ownerUserActor: null,
-      users: [],
+      viewerUserPermission: { role: Role.Owner },
     },
     accounts: [],
   };
@@ -76,7 +77,7 @@ describe(IntegrationsConvexConnect, () => {
     id: testAccountId,
     name: testAccountName,
     ownerUserActor: { id: 'test-user-id', username: testAccountName },
-    users: [{ role: 'OWNER' as any, actor: { id: 'test-user-id' } }],
+    viewerUserPermission: { role: 'OWNER' as any },
   };
 
   const mockConnection: ConvexTeamConnectionData = {

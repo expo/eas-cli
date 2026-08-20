@@ -4,6 +4,7 @@ import nullthrows from 'nullthrows';
 import { getDeviceRunSessionUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
+import { EasCommandError } from '../../commandUtils/errors';
 import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
@@ -15,6 +16,7 @@ import {
   JobRunStatus,
 } from '../../graphql/generated';
 import { DeviceRunSessionMutation } from '../../graphql/mutations/DeviceRunSessionMutation';
+import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import { DeviceRunSessionQuery } from '../../graphql/queries/DeviceRunSessionQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
@@ -31,6 +33,7 @@ import {
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
   formatRemoteSessionInstructions,
+  formatSimulatorUnavailableMessage,
   getRemoteSessionEnvironmentVariables,
 } from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
@@ -49,9 +52,9 @@ const APP_PLATFORM_BY_FLAG_VALUE: Record<PlatformFlagValue, AppPlatform> = {
   ios: AppPlatform.Ios,
 };
 
-export default class SimulatorStart extends EasCommand {
+export default class Simulator extends EasCommand {
   static override hidden = true;
-  static override aliases = ['simulator'];
+  static override aliases = ['simulator:start', 'sim', 'sim:start'];
   static override description =
     '[EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it';
 
@@ -61,6 +64,14 @@ export default class SimulatorStart extends EasCommand {
       description: 'Device platform',
       options: PLATFORM_FLAG_VALUES,
     })(),
+    name: Flags.string({
+      description:
+        'Human-readable name for the simulator session, shown in eas simulator:list and on expo.dev. Defaults to unnamed.',
+    }),
+    device: Flags.string({
+      description:
+        'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -96,7 +107,7 @@ export default class SimulatorStart extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { flags } = await this.parse(SimulatorStart);
+    const { flags } = await this.parse(Simulator);
     const { json: jsonFlag, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
 
     if (jsonFlag) {
@@ -106,10 +117,28 @@ export default class SimulatorStart extends EasCommand {
     const {
       projectId,
       projectDir,
-      loggedIn: { graphqlClient },
-    } = await this.getContextAsync(SimulatorStart, {
+      loggedIn: { actor, graphqlClient },
+    } = await this.getContextAsync(Simulator, {
       nonInteractive,
     });
+
+    // The server would reject the session anyway, but check the gate first so gated
+    // accounts get the waitlist link instead of a generic permission error. Expo admins
+    // skip the check so they can work on any account and let the server decide.
+    if (!actor.isExpoAdmin) {
+      const { accountName, available } = await DeviceRunSessionAvailabilityQuery.byAppIdAsync(
+        graphqlClient,
+        projectId
+      );
+      if (!available) {
+        throw new EasCommandError(formatSimulatorUnavailableMessage(accountName));
+      }
+    }
+
+    // The server rejects blank names, so trim here and treat a whitespace-only
+    // --name as if it had been omitted rather than surfacing a validation error.
+    const name = flags.name?.trim() || undefined;
+    const deviceIdentifier = flags.device?.trim() || undefined;
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -133,12 +162,15 @@ export default class SimulatorStart extends EasCommand {
     const createSpinner = ora('🚀 Creating simulator session').start();
     let deviceRunSessionId: string;
     let deviceRunSessionUrl: string;
+    let sessionInterrupt: SessionInterrupt | undefined;
     try {
       const session = await DeviceRunSessionMutation.createDeviceRunSessionAsync(graphqlClient, {
         appId: projectId,
+        name,
         platform,
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
+        deviceIdentifier,
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
@@ -148,6 +180,7 @@ export default class SimulatorStart extends EasCommand {
         session.app.slug,
         deviceRunSessionId
       );
+      sessionInterrupt = registerSessionInterrupt(deviceRunSessionId);
       const simulatorEnvWritten =
         !jsonFlag && flags['out-config-type'] === OUT_CONFIG_TYPE_VALUES.Dotenv
           ? await writeSimulatorEnvSafelyAsync(projectDir, {
@@ -161,6 +194,7 @@ export default class SimulatorStart extends EasCommand {
       );
     } catch (err) {
       createSpinner.fail('Failed to create simulator session');
+      sessionInterrupt?.dispose();
       throw err;
     }
 
@@ -169,8 +203,15 @@ export default class SimulatorStart extends EasCommand {
     let remoteConfig: DeviceRunSessionRemoteConfig | undefined;
 
     try {
-      while (Date.now() < deadline) {
-        const session = await DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId);
+      while (!sessionInterrupt.signal.aborted && Date.now() < deadline) {
+        const session = await Promise.race([
+          DeviceRunSessionQuery.byIdAsync(graphqlClient, deviceRunSessionId),
+          sessionInterrupt.abortPromise,
+        ]);
+
+        if (!session) {
+          break;
+        }
 
         if (
           session.status === DeviceRunSessionStatus.Errored ||
@@ -198,17 +239,30 @@ export default class SimulatorStart extends EasCommand {
           break;
         }
 
-        await sleepAsync(POLL_INTERVAL_MS);
+        await sleepAsync(POLL_INTERVAL_MS, sessionInterrupt.signal);
       }
     } catch (err) {
       pollSpinner.fail(`Failed while polling for ${flags.type} session to be ready`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      sessionInterrupt.dispose();
       throw err;
+    }
+
+    if (sessionInterrupt.signal.aborted) {
+      await stopDeviceRunSessionAfterInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        projectDir,
+        spinner: pollSpinner,
+        sessionInterrupt,
+      });
+      return;
     }
 
     if (!remoteConfig) {
       pollSpinner.fail(`Timed out waiting for ${flags.type} session to be ready`);
       await ensureDeviceRunSessionStoppedSafelyAsync(graphqlClient, deviceRunSessionId);
+      sessionInterrupt.dispose();
       throw new Error(
         `Timed out after ${Math.round(POLL_TIMEOUT_MS / 1000)}s waiting for ${flags.type} session to be ready. ${link(deviceRunSessionUrl)}`
       );
@@ -221,9 +275,22 @@ export default class SimulatorStart extends EasCommand {
       });
     }
 
+    if (sessionInterrupt.signal.aborted) {
+      await stopDeviceRunSessionAfterInterruptAsync({
+        graphqlClient,
+        deviceRunSessionId,
+        projectDir,
+        spinner: pollSpinner,
+        sessionInterrupt,
+      });
+      return;
+    }
+
     if (jsonFlag) {
+      sessionInterrupt.dispose();
       printJsonOnlyOutput({
         id: deviceRunSessionId,
+        name,
         type: flags.type,
         deviceRunSessionUrl,
         remoteConfig,
@@ -236,6 +303,7 @@ export default class SimulatorStart extends EasCommand {
     Log.newLine();
 
     if (nonInteractive) {
+      sessionInterrupt.dispose();
       Log.log(
         `When you are done, stop the session with: eas simulator:stop --id ${deviceRunSessionId}`
       );
@@ -247,6 +315,7 @@ export default class SimulatorStart extends EasCommand {
       deviceRunSessionId,
       deviceRunSessionUrl,
       projectDir,
+      sessionInterrupt,
     });
   }
 }
@@ -297,40 +366,19 @@ async function waitForSessionEndOrInterruptAsync({
   deviceRunSessionId,
   deviceRunSessionUrl,
   projectDir,
+  sessionInterrupt,
 }: {
   graphqlClient: ExpoGraphqlClient;
   deviceRunSessionId: string;
   deviceRunSessionUrl: string;
   projectDir: string;
+  sessionInterrupt: SessionInterrupt;
 }): Promise<void> {
   const spinner = ora(
     `Simulator session active — press Ctrl+C to stop, or run \`eas simulator:stop --id ${deviceRunSessionId}\` from another shell`
   ).start();
 
-  const abortController = new AbortController();
-  const { signal } = abortController;
-  const abortPromise = new Promise<void>(resolve => {
-    signal.addEventListener(
-      'abort',
-      () => {
-        resolve();
-      },
-      { once: true }
-    );
-  });
-  const sigintHandler = (): void => {
-    if (signal.aborted) {
-      // Force exit on a second Ctrl+C in case cleanup is hanging. The session may still be
-      // running on EAS, so tell the user how to make sure it gets terminated.
-      spinner.fail(
-        `Aborted before the simulator session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
-      );
-      process.exit(130);
-    }
-    abortController.abort();
-  };
-  process.on('SIGINT', sigintHandler);
-
+  const { signal } = sessionInterrupt;
   try {
     while (!signal.aborted) {
       let session;
@@ -340,7 +388,7 @@ async function waitForSessionEndOrInterruptAsync({
         Log.debug(
           `Failed to poll simulator session: ${err instanceof Error ? err.message : String(err)}`
         );
-        await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+        await sleepAsync(POLL_INTERVAL_MS, signal);
         continue;
       }
 
@@ -358,11 +406,11 @@ async function waitForSessionEndOrInterruptAsync({
         jobRunStatus === JobRunStatus.Finished
       ) {
         spinner.succeed(`Simulator session ended. ${link(deviceRunSessionUrl)}`);
-        await resetSimulatorEnvVerboseAsync(projectDir);
+        await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
         return;
       }
 
-      await Promise.race([sleepAsync(POLL_INTERVAL_MS), abortPromise]);
+      await sleepAsync(POLL_INTERVAL_MS, signal);
     }
 
     spinner.text = 'Stopping simulator session...';
@@ -372,20 +420,94 @@ async function waitForSessionEndOrInterruptAsync({
     );
     if (stopped) {
       spinner.succeed('Simulator session stopped');
-      await resetSimulatorEnvVerboseAsync(projectDir);
+      await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
     } else {
       spinner.fail(
         `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
       );
     }
   } finally {
-    process.removeListener('SIGINT', sigintHandler);
+    sessionInterrupt.dispose();
   }
 }
 
-async function resetSimulatorEnvVerboseAsync(projectDir: string): Promise<void> {
+type SessionInterrupt = {
+  signal: AbortSignal;
+  abortPromise: Promise<void>;
+  dispose: () => void;
+};
+
+function registerSessionInterrupt(deviceRunSessionId: string): SessionInterrupt {
+  const abortController = new AbortController();
+  const { signal } = abortController;
+  const abortPromise = new Promise<void>(resolve => {
+    signal.addEventListener(
+      'abort',
+      () => {
+        resolve();
+      },
+      { once: true }
+    );
+  });
+  const sigintHandler = (): void => {
+    if (signal.aborted) {
+      // Force exit on a second Ctrl+C in case cleanup is hanging. The session may still be
+      // running on EAS, so tell the user how to make sure it gets terminated.
+      Log.error(
+        `Aborted before the simulator session could be stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+      );
+      process.exit(130);
+    }
+    abortController.abort();
+  };
+  process.on('SIGINT', sigintHandler);
+
+  return {
+    signal,
+    abortPromise,
+    dispose: () => process.removeListener('SIGINT', sigintHandler),
+  };
+}
+
+async function stopDeviceRunSessionAfterInterruptAsync({
+  graphqlClient,
+  deviceRunSessionId,
+  projectDir,
+  spinner,
+  sessionInterrupt,
+}: {
+  graphqlClient: ExpoGraphqlClient;
+  deviceRunSessionId: string;
+  projectDir: string;
+  spinner: ReturnType<typeof ora>;
+  sessionInterrupt: SessionInterrupt;
+}): Promise<void> {
   try {
-    await resetSimulatorEnvAsync(projectDir);
+    spinner.text = 'Stopping simulator session...';
+    const stopped = await ensureDeviceRunSessionStoppedSafelyAsync(
+      graphqlClient,
+      deviceRunSessionId
+    );
+    if (stopped) {
+      spinner.succeed('Simulator session stopped');
+      await resetSimulatorEnvVerboseAsync(projectDir, deviceRunSessionId);
+    } else {
+      spinner.fail(
+        `Could not confirm the simulator session was stopped. Run \`eas simulator:stop --id ${deviceRunSessionId}\` to terminate it and avoid unexpected charges.`
+      );
+    }
+  } finally {
+    sessionInterrupt.dispose();
+  }
+  process.exit(130);
+}
+
+async function resetSimulatorEnvVerboseAsync(
+  projectDir: string,
+  deviceRunSessionId: string
+): Promise<void> {
+  try {
+    await resetSimulatorEnvAsync(projectDir, deviceRunSessionId);
   } catch (err) {
     Log.error(`Failed to clean up ${SIMULATOR_DOTENV_FILE_NAME}`);
     throw err;

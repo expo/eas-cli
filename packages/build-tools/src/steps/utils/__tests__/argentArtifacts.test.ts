@@ -1,8 +1,10 @@
 import { bunyan } from '@expo/logger';
 import fetch from 'node-fetch';
 import { Readable } from 'node:stream';
+import * as timersPromises from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../../customBuildContext';
+import { Sentry } from '../../../sentry';
 import { uploadDeviceRunSessionArtifactAsync } from '../deviceRunSessionArtifacts';
 import {
   listArgentArtifactsAsync,
@@ -13,8 +15,15 @@ import {
 jest.mock('../deviceRunSessionArtifacts');
 jest.mock('../../../sentry');
 jest.mock('node-fetch');
+jest.mock('node:timers/promises', () => {
+  const actual = jest.requireActual('node:timers/promises');
+  return { ...actual, setTimeout: jest.fn(actual.setTimeout) };
+});
 
 const { Response } = jest.requireActual('node-fetch') as typeof import('node-fetch');
+const { setTimeout: actualSetTimeoutAsync } = jest.requireActual(
+  'node:timers/promises'
+) as typeof import('node:timers/promises');
 
 async function readStreamAsync(stream: NodeJS.ReadableStream): Promise<void> {
   for await (const chunk of stream as Readable) {
@@ -126,16 +135,118 @@ describe(uploadArgentArtifactAsync, () => {
       artifactId: 'artifact-id',
       name: 'report.json (artifact-id)',
       filename: 'report.json',
+      kind: undefined,
       size: data.length,
       stream: expect.anything(),
     });
+  });
+
+  async function uploadAsync(artifact: {
+    id: string;
+    filename: string;
+    mimeType: string;
+    isDirectory?: boolean;
+  }): Promise<CustomBuildContext> {
+    const ctx = {} as unknown as CustomBuildContext;
+    jest
+      .mocked(fetch)
+      .mockResolvedValueOnce(new Response(Readable.from([Buffer.from('artifact-data')])));
+    jest
+      .mocked(uploadDeviceRunSessionArtifactAsync)
+      .mockImplementationOnce(async (_ctx, { stream }) => {
+        await readStreamAsync(stream);
+      });
+
+    await uploadArgentArtifactAsync(ctx, {
+      deviceRunSessionId: 'drs-id',
+      toolsUrl: 'http://127.0.0.1:1234',
+      logger: createLoggerMock(),
+      artifact,
+    });
+
+    return ctx;
+  }
+
+  it.each([
+    { mimeType: 'image/png', filename: 'screen.png', kind: 'screenshot' },
+    { mimeType: 'image/jpeg', filename: 'screen.jpg', kind: 'screenshot' },
+    // Media types are case-insensitive and may carry parameters.
+    { mimeType: 'IMAGE/PNG; charset=binary', filename: 'screen.png', kind: 'screenshot' },
+    { mimeType: 'video/mp4', filename: 'session.mp4', kind: 'screen-recording' },
+    { mimeType: 'video/quicktime', filename: 'session.mov', kind: 'screen-recording' },
+    { mimeType: 'application/json', filename: 'report.json', kind: undefined },
+    { mimeType: 'text/plain', filename: 'log.txt', kind: undefined },
+  ])('uploads $mimeType with kind $kind', async ({ mimeType, filename, kind }) => {
+    const ctx = await uploadAsync({ id: 'artifact-id', filename, mimeType });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ filename, kind })
+    );
+  });
+
+  it('leaves directory artifacts unclassified because they are uploaded as a tarball', async () => {
+    const ctx = await uploadAsync({
+      id: 'artifact-id',
+      filename: 'screenshots',
+      mimeType: 'image/png',
+      isDirectory: true,
+    });
+
+    expect(jest.mocked(uploadDeviceRunSessionArtifactAsync)).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ filename: 'screenshots.tar.gz', kind: undefined })
+    );
   });
 });
 
 describe(pollArgentArtifactsForUploadAsync, () => {
   beforeEach(() => {
     jest.mocked(fetch).mockReset();
+    jest.mocked(Sentry.capture).mockReset();
     jest.mocked(uploadDeviceRunSessionArtifactAsync).mockReset();
+  });
+
+  it('reports artifact listing errors on every fifth consecutive failure', async () => {
+    const logger = createLoggerMock();
+    const ctx = {} as unknown as CustomBuildContext;
+    const abortController = new AbortController();
+    const error = new Error('tool server is not ready');
+    let listCallCount = 0;
+    jest.mocked(timersPromises.setTimeout).mockResolvedValue(undefined);
+
+    jest.mocked(fetch).mockImplementation(async () => {
+      listCallCount += 1;
+      if (listCallCount === 11) {
+        abortController.abort();
+      }
+      throw error;
+    });
+
+    try {
+      await pollArgentArtifactsForUploadAsync(ctx, {
+        deviceRunSessionId: 'drs-id',
+        toolsUrl: 'http://127.0.0.1:1234',
+        toolsAuthToken: 'tools-token',
+        logger,
+        signal: abortController.signal,
+      });
+
+      expect(logger.warn).toHaveBeenCalledTimes(2);
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        1,
+        { err: error, failedArtifactListCount: 5 },
+        'Could not list Argent remote session artifacts.'
+      );
+      expect(logger.warn).toHaveBeenNthCalledWith(
+        2,
+        { err: error, failedArtifactListCount: 10 },
+        'Could not list Argent remote session artifacts.'
+      );
+      expect(Sentry.capture).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.mocked(timersPromises.setTimeout).mockImplementation(actualSetTimeoutAsync);
+    }
   });
 
   it('stops polling when aborted, performs a final drain, and waits for uploads', async () => {

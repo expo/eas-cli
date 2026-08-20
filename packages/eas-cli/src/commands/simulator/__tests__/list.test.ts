@@ -9,6 +9,7 @@ import {
   JobRunStatus,
 } from '../../../graphql/generated';
 import { DeviceRunSessionQuery } from '../../../graphql/queries/DeviceRunSessionQuery';
+import Log from '../../../log';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorList from '../list';
 
@@ -40,6 +41,7 @@ const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 function makeSession(overrides: Partial<DeviceRunSessionNode> = {}): DeviceRunSessionNode {
   return {
     id: 'session-123',
+    name: null,
     status: DeviceRunSessionStatus.InProgress,
     type: DeviceRunSessionType.AgentDevice,
     platform: AppPlatform.Ios,
@@ -129,6 +131,7 @@ describe(SimulatorList, () => {
       sessions: [
         {
           id: 'session-123',
+          name: undefined,
           type: 'agent-device',
           status: DeviceRunSessionStatus.InProgress,
           platform: AppPlatform.Ios,
@@ -158,9 +161,11 @@ describe(SimulatorList, () => {
       '--status',
       'new',
       '--type',
-      'argent',
+      'appium',
       '--platform',
       'ios',
+      '--name',
+      'checkout',
       '--limit',
       '25',
       '--after',
@@ -174,10 +179,31 @@ describe(SimulatorList, () => {
       after: 'page-cursor',
       filter: {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Argent],
+        types: [DeviceRunSessionType.Appium],
         platforms: [AppPlatform.Ios],
+        name: 'checkout',
       },
     });
+  });
+
+  it('prints a name row for every session, named or not', async () => {
+    mockListByAppIdAsync.mockResolvedValue(
+      makeConnection([
+        makeSession({ id: 'session-1', name: 'Checkout regression' }),
+        makeSession({ id: 'session-2' }),
+      ])
+    );
+
+    const { command } = createCommand([]);
+    await command.runAsync();
+
+    const printed = jest
+      .mocked(Log.log)
+      .mock.calls.map(([entry]) => String(entry))
+      .join('\n');
+    expect(printed).toContain('Name:     Checkout regression');
+    expect(printed).toContain('Name:     null');
+    expect(printed.match(/Name:/g)).toHaveLength(2);
   });
 
   it('runs non-interactively without --json', async () => {

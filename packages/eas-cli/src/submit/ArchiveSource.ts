@@ -348,11 +348,11 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
   const {
     id,
     updatedAt,
-    runtimeVersion,
+    runtime,
     buildProfile,
     gitCommitHash,
     gitCommitMessage,
-    channel,
+    updateChannel,
     message,
     status,
   } = build;
@@ -370,8 +370,8 @@ function formatBuildChoice(build: BuildFragment): prompts.Choice {
 
   const descriptionItems: { name: string; value: string | null }[] = [
     { name: 'Profile', value: buildProfile ? chalk.bold(buildProfile) : null },
-    { name: 'Channel', value: channel ? chalk.bold(channel) : null },
-    { name: 'Runtime version', value: runtimeVersion ? chalk.bold(runtimeVersion) : null },
+    { name: 'Channel', value: updateChannel ? chalk.bold(updateChannel.name) : null },
+    { name: 'Runtime version', value: runtime ? chalk.bold(runtime.version) : null },
     { name: 'Commit', value: formattedCommitData },
     {
       name: 'Message',

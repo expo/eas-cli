@@ -11,6 +11,7 @@
     "start-allow-unused": "lerna run watch-allow-unused --stream --parallel",
     "watch": "yarn start",
     "eas": "packages/eas-cli/bin/run",
+    "actionlint": "actionlint",
     "lint": "oxlint --type-aware --import-plugin --tsconfig ./tsconfig.oxlint.json .",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",

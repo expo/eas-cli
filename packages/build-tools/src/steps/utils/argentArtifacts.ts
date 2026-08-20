@@ -18,6 +18,18 @@ const ARGENT_ARTIFACT_UPLOAD_POLL_INTERVAL_MS = 5_000;
 const ARGENT_ARTIFACT_UPLOAD_CLEANUP_TIMEOUT_MS = 30_000;
 const ARGENT_ARTIFACT_FETCH_TIMEOUT_MS = 10_000;
 
+// Kinds the EAS dashboard groups device run session artifacts by. Only media types the dashboard
+// renders specially are mapped; anything else stays unclassified and lands in its "Other" group.
+// Note that these kinds only affect grouping and labelling. The dashboard gates its inline video
+// player on the `__eas_screen_recording` metadata flag, which Argent artifacts deliberately do not
+// set, so a `screen-recording` kind here does not add a player to the session page.
+const ARGENT_ARTIFACT_KIND_BY_MIME_TYPE = new Map<string, string>([
+  ['image/png', 'screenshot'],
+  ['image/jpeg', 'screenshot'],
+  ['video/mp4', 'screen-recording'],
+  ['video/quicktime', 'screen-recording'],
+]);
+
 const ArgentArtifactSchema = z.object({
   id: z.string(),
   filename: z.string(),
@@ -29,6 +41,17 @@ const ArgentArtifactsListResponseSchema = z.object({
 });
 
 type ArgentArtifact = z.infer<typeof ArgentArtifactSchema>;
+
+function getArgentArtifactKind(artifact: ArgentArtifact): string | undefined {
+  // Directories are repackaged as a tarball before upload, so the reported media type describes the
+  // contents rather than the file we actually store.
+  if (artifact.isDirectory) {
+    return undefined;
+  }
+  // Media types are case-insensitive and may carry parameters, e.g. `image/png; charset=binary`.
+  const mediaType = artifact.mimeType.split(';')[0].trim().toLowerCase();
+  return ARGENT_ARTIFACT_KIND_BY_MIME_TYPE.get(mediaType);
+}
 
 export async function pollArgentArtifactsForUploadAsync(
   ctx: CustomBuildContext,
@@ -89,7 +112,7 @@ export async function pollArgentArtifactsForUploadAsync(
 
       const error = err instanceof Error ? err : new Error(String(err));
       listArtifactsErrorCount += 1;
-      if (listArtifactsErrorCount === 1 || listArtifactsErrorCount % 5 === 0) {
+      if (listArtifactsErrorCount % 5 === 0) {
         Sentry.capture('Could not list Argent remote session artifacts', error);
         logger.warn(
           { err: error, failedArtifactListCount: listArtifactsErrorCount },
@@ -184,7 +207,7 @@ export async function uploadArgentArtifactAsync(
       artifactId: artifact.id,
       name: `${filename} (${artifact.id})`,
       filename,
-      kind: undefined,
+      kind: getArgentArtifactKind(artifact),
       size,
       stream: createReadStream(temporaryArtifactPath),
     });

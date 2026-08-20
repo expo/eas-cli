@@ -1,4 +1,9 @@
-import { BuildFunction, BuildRuntimePlatform } from '@expo/steps';
+import {
+  BuildFunction,
+  BuildRuntimePlatform,
+  BuildStepInput,
+  BuildStepInputValueTypeName,
+} from '@expo/steps';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import {
@@ -21,35 +26,48 @@ export function createStartServeSimRemoteSessionBuildFunction(
     name: 'Start serve-sim remote session',
     __metricsId: 'eas/start_serve_sim_remote_session',
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
-    fn: async ({ logger }, { env, signal }) => {
+    inputProviders: [
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+    ],
+    fn: async ({ logger }, { inputs, env, signal }) => {
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
+      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
 
       logger.info('Starting serve-sim remote session.');
 
       await selectXcodeDeveloperDirectoryAsync({ env, logger });
 
-      const { previewUrl } = await startServeSimWithTunnelAsync(ctx, {
+      const serveSim = await startServeSimWithTunnelAsync(ctx, {
         baseDomain: ngrokTunnelDomain,
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
       });
-      logger.info(`Preview URL: ${previewUrl}`);
+      logger.info(`Preview URL: ${serveSim.previewUrl}`);
 
-      await uploadRemoteSessionConfigAsync({
-        ctx,
-        deviceRunSessionId,
-        remoteConfig: { previewUrl },
-        logger,
-      });
+      try {
+        await uploadRemoteSessionConfigAsync({
+          ctx,
+          deviceRunSessionId,
+          remoteConfig: { previewUrl: serveSim.previewUrl },
+          logger,
+        });
 
-      await waitForDeviceRunSessionStoppedAsync({
-        ctx,
-        deviceRunSessionId,
-        logger,
-        signal,
-      });
+        await waitForDeviceRunSessionStoppedAsync({
+          ctx,
+          deviceRunSessionId,
+          logger,
+          maxDurationSeconds,
+          signal,
+        });
+      } finally {
+        await serveSim.stopAsync();
+      }
     },
   });
 }

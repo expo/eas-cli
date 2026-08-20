@@ -15,12 +15,15 @@ jobs:
 
       - uses: ./.github/actions/setup-mise
 
+      - name: Install eas-cli
+        run: npm install --global eas-cli@latest
+
       - name: Create test app
         run: npx -y create-expo-app@latest ${{ runner.temp }}/test-app --template tabs
 
       - name: Link to EAS project
         working-directory: ${{ runner.temp }}/test-app
-        run: npx -y eas-cli@latest init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
+        run: eas init --id 6ae8028d-4e6d-4912-8eb2-87d4e6122880 --force --non-interactive
 
       - name: Add bundle identifiers to app.json
         working-directory: ${{ runner.temp }}/test-app
@@ -30,7 +33,7 @@ jobs:
 
       - name: Configure EAS Build
         working-directory: ${{ runner.temp }}/test-app
-        run: npx -y eas-cli@latest build:configure --platform all
+        run: eas build:configure --platform all
 
       - name: Add system-test profile to eas.json
         working-directory: ${{ runner.temp }}/test-app
@@ -49,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          BUILD_JSON=$(npx -y eas-cli@latest build --platform ios --profile system-test --non-interactive --no-wait --json)
+          BUILD_JSON=$(eas build --platform ios --profile system-test --non-interactive --no-wait --json)
           BUILD_ID=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].id // .[0].build.id // .[0].buildId else .id // .build.id // .buildId end // empty')
           if [ -z "$BUILD_ID" ]; then
             echo "Error: could not determine build ID"
@@ -59,7 +62,7 @@ jobs:
           echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
           echo "Resolved BUILD_ID=$BUILD_ID"
 
-          WORKFLOW_JSON=$(npx -y eas-cli@latest workflow:run build-android.yml --non-interactive --no-wait --json)
+          WORKFLOW_JSON=$(eas workflow:run build-android.yml --non-interactive --no-wait --json)
           WORKFLOW_RUN_ID=$(echo "$WORKFLOW_JSON" | jq -r '.id // .workflowRun.id // .workflowRunId // empty')
           if [ -z "$WORKFLOW_RUN_ID" ]; then
             echo "Error: could not determine workflow run ID"
@@ -95,8 +98,8 @@ jobs:
               exit 1
             fi
 
-            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --json | jq -r '.status // empty')
-            WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json | jq -r '.status // empty')
+            BUILD_STATUS=$(eas build:view "$BUILD_ID" --json | jq -r '.status // empty')
+            WORKFLOW_STATUS=$(eas workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json | jq -r '.status // empty')
 
             echo "iOS build status: $BUILD_STATUS"
             echo "Android workflow status: $WORKFLOW_STATUS"
@@ -130,13 +133,13 @@ jobs:
 
           if [ -n "${BUILD_ID:-}" ]; then
             echo "Canceling EAS build: $BUILD_ID"
-            BUILD_CANCEL_OUTPUT=$(npx -y eas-cli@latest build:cancel "$BUILD_ID" --non-interactive 2>&1 || true)
+            BUILD_CANCEL_OUTPUT=$(eas build:cancel "$BUILD_ID" --non-interactive 2>&1 || true)
             if [ -n "$BUILD_CANCEL_OUTPUT" ]; then
               echo "$BUILD_CANCEL_OUTPUT"
             else
               echo "build:cancel produced no output"
             fi
-            BUILD_STATUS=$(npx -y eas-cli@latest build:view "$BUILD_ID" --json 2>/dev/null | jq -r '.status // empty' || true)
+            BUILD_STATUS=$(eas build:view "$BUILD_ID" --json 2>/dev/null | jq -r '.status // empty' || true)
             if [ -n "$BUILD_STATUS" ]; then
               echo "Post-cancel build status: $BUILD_STATUS"
             else
@@ -145,13 +148,13 @@ jobs:
           fi
           if [ -n "${WORKFLOW_RUN_ID:-}" ]; then
             echo "Canceling EAS workflow run: $WORKFLOW_RUN_ID"
-            WORKFLOW_CANCEL_OUTPUT=$(npx -y eas-cli@latest workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive 2>&1 || true)
+            WORKFLOW_CANCEL_OUTPUT=$(eas workflow:cancel "$WORKFLOW_RUN_ID" --non-interactive 2>&1 || true)
             if [ -n "$WORKFLOW_CANCEL_OUTPUT" ]; then
               echo "$WORKFLOW_CANCEL_OUTPUT"
             else
               echo "workflow:cancel produced no output"
             fi
-            WORKFLOW_STATUS=$(npx -y eas-cli@latest workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json 2>/dev/null | jq -r '.status // empty' || true)
+            WORKFLOW_STATUS=$(eas workflow:view "$WORKFLOW_RUN_ID" --non-interactive --json 2>/dev/null | jq -r '.status // empty' || true)
             if [ -n "$WORKFLOW_STATUS" ]; then
               echo "Post-cancel workflow status: $WORKFLOW_STATUS"
             else

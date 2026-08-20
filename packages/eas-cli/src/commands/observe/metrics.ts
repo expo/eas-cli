@@ -24,6 +24,7 @@ import {
   ObserveUpdateIdFlag,
 } from '../../observe/flags';
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
+import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
 import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
@@ -133,30 +134,32 @@ export default class ObserveMetrics extends EasCommand {
 
     // The total-event-count query is per-metric, so it only applies when a
     // single metric is requested.
-    const [{ events, pageInfo }, totalEventCount] = await Promise.all([
-      fetchObserveEventsAsync(graphqlClient, projectId, {
-        ...(metricName && { metricName }),
-        orderBy,
-        limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
-        ...(flags.after && { after: flags.after }),
-        startTime,
-        endTime,
-        platform,
-        appVersion: flags['app-version'],
-        updateId: flags['update-id'],
-        easClientId: flags['client-id'],
-      }),
-      metricName
-        ? fetchTotalEventCountAsync(
-            graphqlClient,
-            projectId,
-            metricName,
-            platforms,
-            startTime,
-            endTime
-          )
-        : Promise.resolve(undefined),
-    ]);
+    const [{ events, pageInfo }, totalEventCount] = await withObservePlanGateHandlingAsync(() =>
+      Promise.all([
+        fetchObserveEventsAsync(graphqlClient, projectId, {
+          ...(metricName && { metricName }),
+          orderBy,
+          limit: flags.limit ?? DEFAULT_EVENTS_LIMIT,
+          ...(flags.after && { after: flags.after }),
+          startTime,
+          endTime,
+          platform,
+          appVersion: flags['app-version'],
+          updateId: flags['update-id'],
+          easClientId: flags['client-id'],
+        }),
+        metricName
+          ? fetchTotalEventCountAsync(
+              graphqlClient,
+              projectId,
+              metricName,
+              platforms,
+              startTime,
+              endTime
+            )
+          : Promise.resolve(undefined),
+      ])
+    );
 
     if (json) {
       printJsonOnlyOutput(buildObserveEventsJson(events, pageInfo));
