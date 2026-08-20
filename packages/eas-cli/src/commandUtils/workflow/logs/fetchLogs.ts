@@ -1,8 +1,6 @@
-import { WorkflowJobResult } from './types';
-import { BuildQuery } from '../../graphql/queries/BuildQuery';
-import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
-
-// This function is in a separate module for testing purposes
+import { WorkflowJobResult } from '../types';
+import { BuildQuery } from '../../../graphql/queries/BuildQuery';
+import { ExpoGraphqlClient } from '../../context/contextUtils/createGraphqlClient';
 
 export async function fetchRawLogsForCustomJobAsync(
   job: WorkflowJobResult
@@ -11,28 +9,20 @@ export async function fetchRawLogsForCustomJobAsync(
   if (!firstLogFileUrl) {
     return null;
   }
-  const response = await fetch(firstLogFileUrl, {
-    method: 'GET',
-  });
-  const rawLogs = await response.text();
-  return rawLogs;
+  const response = await fetch(firstLogFileUrl);
+  return await response.text();
 }
 
 export async function fetchRawLogsForBuildJobAsync(
   state: { graphqlClient: ExpoGraphqlClient },
   job: WorkflowJobResult
 ): Promise<string | null> {
-  // Prefer turtleJobRun logs, which contain JSONL-formatted step logs
-  // for both built-in and custom build steps
   const turtleLogFileUrl = job.turtleJobRun?.logFileUrls?.[0];
   if (turtleLogFileUrl) {
-    const response = await fetch(turtleLogFileUrl, {
-      method: 'GET',
-    });
+    const response = await fetch(turtleLogFileUrl);
     return await response.text();
   }
 
-  // Fall back to build logFiles
   const buildId = job.outputs?.build_id;
   if (!buildId) {
     return null;
@@ -44,8 +34,6 @@ export async function fetchRawLogsForBuildJobAsync(
   if (!firstLogFileUrl) {
     return null;
   }
-  const response = await fetch(firstLogFileUrl, {
-    method: 'GET',
-  });
+  const response = await fetch(firstLogFileUrl);
   return await response.text();
 }

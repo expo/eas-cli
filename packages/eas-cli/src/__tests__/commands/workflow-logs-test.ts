@@ -11,7 +11,7 @@ import {
 import {
   fetchRawLogsForBuildJobAsync,
   fetchRawLogsForCustomJobAsync,
-} from '../../commandUtils/workflow/fetchLogs';
+} from '../../commandUtils/workflow/logs/fetchLogs';
 import WorkflowLogView from '../../commands/workflow/logs';
 import { AppPlatform, BuildPriority, BuildStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -38,7 +38,7 @@ jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../prompts');
 jest.mock('../../utils/json');
-jest.mock('../../commandUtils/workflow/fetchLogs');
+jest.mock('../../commandUtils/workflow/logs/fetchLogs');
 
 describe(WorkflowLogView, () => {
   beforeEach(() => {
