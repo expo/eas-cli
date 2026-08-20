@@ -22,7 +22,10 @@ export async function startSshSessionPhaseAsync({
       const phaseStartedAt = performance.now();
       try {
         ctx.logger.info('Opening an SSH session for this job.');
-        const target = ctx.job.platform ? { turtleBuildId: buildId } : { turtleJobRunId: buildId };
+        const target = {
+          type: ctx.job.platform ? ('BUILD' as const) : ('JOB_RUN' as const),
+          id: buildId,
+        };
         const { handle, idleTimeoutSeconds } = await TurtleSshSession.startSshSessionAsync(ctx, {
           target,
           relayServerUrl: TurtleSshSession.getSshRelayServerUrl(ctx.job),

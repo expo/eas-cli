@@ -78,7 +78,7 @@ describe(startSshSessionPhaseAsync, () => {
       doNotMarkEnd: true,
     });
     expect(mocked.startSshSessionAsync).toHaveBeenCalledWith(ctx, {
-      target: { turtleJobRunId: 'jr-1' },
+      target: { type: 'JOB_RUN', id: 'jr-1' },
       relayServerUrl: 'wss://relay.expo.dev',
       idleTimeoutSeconds: 0,
     });
