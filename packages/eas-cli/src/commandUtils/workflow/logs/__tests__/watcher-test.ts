@@ -22,7 +22,11 @@ function createFakeClient(): {
   return {
     subscribeCalls,
     closeCount: () => closed,
-    publish: data => listeners.forEach(listener => listener(data)),
+    publish: data => {
+      listeners.forEach(listener => {
+        listener(data);
+      });
+    },
     client: {
       subscribeAsync: async (args, onPublication) => {
         subscribeCalls.push(args);

@@ -21,7 +21,9 @@ export type RealtimeLogsClient = {
   close: () => void;
 };
 
-function createProxiedWebSocketConstructor(agent: Agent) {
+type WebSocketConstructor = new (address: string, protocols?: string | string[]) => WebSocket;
+
+function createProxiedWebSocketConstructor(agent: Agent): WebSocketConstructor {
   return class ProxiedWebSocket extends WebSocket {
     constructor(address: string | URL, protocols?: string | string[]) {
       super(address, protocols, { agent });
@@ -29,7 +31,7 @@ function createProxiedWebSocketConstructor(agent: Agent) {
   };
 }
 
-function createWebSocketConstructor() {
+function createWebSocketConstructor(): WebSocketConstructor {
   return httpsProxyAgent ? createProxiedWebSocketConstructor(httpsProxyAgent) : WebSocket;
 }
 
