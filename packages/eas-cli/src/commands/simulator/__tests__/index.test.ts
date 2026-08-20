@@ -498,6 +498,55 @@ describe(Simulator, () => {
     );
   });
 
+  it('forwards --build-id to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '  8d8b713c-1834-4bd3-91e6-46f895422cbc  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ buildId: '8d8b713c-1834-4bd3-91e6-46f895422cbc' })
+    );
+  });
+
+  it('forwards --build-artifact-url to the create mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--build-artifact-url',
+      '  https://example.test/builds/app.apk  ',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        applicationArchiveUrl: 'https://example.test/builds/app.apk',
+      })
+    );
+  });
+
+  it('rejects passing --build-id and --build-artifact-url together', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '8d8b713c-1834-4bd3-91e6-46f895422cbc',
+      '--build-artifact-url',
+      'https://example.test/builds/app.tar.gz',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it('stops the simulator session when interrupted before the session is ready', async () => {
     const processExitSpy = jest.spyOn(process, 'exit').mockImplementation(code => {
       throw new Error(`process.exit(${code})`);
