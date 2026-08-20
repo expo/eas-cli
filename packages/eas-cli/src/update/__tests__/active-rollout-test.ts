@@ -217,6 +217,48 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     ]);
   });
 
+  it('ignores platforms that cannot carry an update', async () => {
+    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
+
+    const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
+      graphqlClient,
+      [{ ...updateGroupStub, rollBackToEmbeddedInfoGroup: { ios: true, web: true } }],
+      { ...resolveOptions, nonInteractive: false, forceEndActiveRollout: true }
+    );
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).toHaveBeenCalledTimes(1);
+    expect(result[0].previousRolloutUpdateToClobberIdGroup).toEqual({ ios: 'update-rollout' });
+  });
+
+  it('leaves an update group with no platforms untouched', async () => {
+    const emptyGroup = { branchId: 'branch-1234', runtimeVersion: '1.0.0' };
+
+    const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
+      graphqlClient,
+      [emptyGroup],
+      { ...resolveOptions, nonInteractive: false, forceEndActiveRollout: true }
+    );
+
+    expect(UpdateQuery.viewUpdateGroupsOnBranchAsync).not.toHaveBeenCalled();
+    expect(result).toEqual([emptyGroup]);
+  });
+
+  it('omits the message and control columns when the rollout has neither', async () => {
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mockResolvedValue([
+        [{ ...rolloutUpdateStub, message: null, rolloutControlUpdate: null }],
+      ]);
+
+    await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
+      ...resolveOptions,
+      nonInteractive: false,
+      forceEndActiveRollout: true,
+    });
+
+    expect(jest.mocked(Log.warn).mock.calls.flat()[1]).toBe('  • iOS  25%  group group-ro');
+  });
+
   it('requires the flag in non-interactive mode', async () => {
     jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
 

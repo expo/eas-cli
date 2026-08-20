@@ -54,10 +54,19 @@ jest.mock('../../../ora', () => ({
   ora: () => {
     const spinner = {
       isSpinning: false,
-      start: () => spinner,
-      succeed: () => {},
-      fail: () => {},
-      stop: () => {},
+      start: () => {
+        spinner.isSpinning = true;
+        return spinner;
+      },
+      succeed: () => {
+        spinner.isSpinning = false;
+      },
+      fail: () => {
+        spinner.isSpinning = false;
+      },
+      stop: () => {
+        spinner.isSpinning = false;
+      },
     };
     return spinner;
   },
@@ -135,6 +144,20 @@ describe(UpdateRepublish.name, () => {
 
     await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
       'There are no updates on branch "main" published for the platform(s) "android" with group ID "1234". Did you mean to publish a new update instead?'
+    );
+  });
+
+  it('reports a failed republish and rethrows', async () => {
+    const flags = ['--group=1234', '--message=test-republish'];
+
+    mockTestProject();
+    jest.mocked(UpdateQuery.viewUpdateGroupAsync).mockResolvedValue([updateStub]);
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockRejectedValue(new Error('republish exploded'));
+
+    await expect(new UpdateRepublish(flags, commandOptions).run()).rejects.toThrow(
+      'republish exploded'
     );
   });
 

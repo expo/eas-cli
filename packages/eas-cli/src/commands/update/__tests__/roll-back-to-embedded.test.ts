@@ -59,10 +59,19 @@ jest.mock('../../../ora', () => ({
   ora: () => {
     const spinner = {
       isSpinning: false,
-      start: () => spinner,
-      succeed: () => {},
-      fail: () => {},
-      stop: () => {},
+      start: () => {
+        spinner.isSpinning = true;
+        return spinner;
+      },
+      succeed: () => {
+        spinner.isSpinning = false;
+      },
+      fail: () => {
+        spinner.isSpinning = false;
+      },
+      stop: () => {
+        spinner.isSpinning = false;
+      },
     };
     return spinner;
   },
@@ -117,6 +126,29 @@ describe(UpdateRollBackToEmbedded.name, () => {
     await new UpdateRollBackToEmbedded(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+  });
+
+  it('reports a failed publish and rethrows', async () => {
+    const flags = [
+      '--non-interactive',
+      '--branch=branch123',
+      '--message=abc',
+      '--runtime-version=exposdk:47.0.0',
+    ];
+
+    mockTestProject();
+
+    jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
+      branch: { id: 'branch123', name: 'wat' },
+      createdBranch: false,
+    });
+    jest
+      .mocked(PublishMutation.publishUpdateGroupAsync)
+      .mockRejectedValue(new Error('publish exploded'));
+
+    await expect(new UpdateRollBackToEmbedded(flags, commandOptions).run()).rejects.toThrow(
+      'publish exploded'
+    );
   });
 
   it('creates a roll back to embedded with --non-interactive, --channel, --message, and --runtime-version', async () => {
