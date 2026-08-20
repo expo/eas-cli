@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          token: ${{ secrets.EXPO_BOT_PAT }}
+          persist-credentials: false
       - name: Setup tools
         uses: ./.github/actions/setup-mise
       - name: Install dependencies
@@ -38,6 +38,11 @@ jobs:
           branch=bot/update-appium-commands
           title='[build-tools] Update Appium command list'
           body=$'Automated update of the Appium, XCUITest, and UiAutomator2 command list.\n\nIf this PR adds new commands, typechecking will fail until a curated summary is added for each of them in `packages/build-tools/src/steps/utils/appiumCommandSummary.ts`.'
+
+          gh auth setup-git
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git fetch origin "refs/heads/$branch:refs/remotes/origin/$branch"
+          fi
 
           git config user.name 'Expo Bot'
           git config user.email bot@expo.dev
