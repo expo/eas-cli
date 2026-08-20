@@ -20,7 +20,7 @@ import {
 import { WorkflowRunLogsWatcher } from './logs/watcher';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
-import { ora } from '../../ora';
+import { ora, updateSpinnerText } from '../../ora';
 import { Choice } from '../../prompts';
 import formatFields from '../../utils/formatFields';
 import { createRealtimeLogsClient } from '../../utils/centrifuge';
@@ -276,7 +276,9 @@ export async function showWorkflowStatusAsync(
     stream: spinnerUsesStdErr ? process.stderr : process.stdout,
     text: '',
   }).start();
-  spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
+  updateSpinnerText(spinner, {
+    prefixText: chalk`{bold.yellow Workflow run is waiting to start:}`,
+  });
 
   const watcher = new WorkflowRunLogsWatcher(
     graphqlClient,
@@ -301,10 +303,12 @@ export async function showWorkflowStatusAsync(
           case WorkflowRunStatus.New:
             break;
           case WorkflowRunStatus.InProgress: {
-            spinner.prefixText = chalk`{bold.green Workflow run is in progress:}`;
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.green Workflow run is in progress:}`,
+            });
             const logsStates = await watcher.syncJobsAsync(workflowRun.jobs);
             renderActiveWorkflowRun = () => {
-              spinner.text = formatActiveWorkflowRun(
+              const text = formatActiveWorkflowRun(
                 workflowRun.jobs.map(job => ({
                   job,
                   logs: nullthrows(
@@ -316,28 +320,36 @@ export async function showWorkflowStatusAsync(
                 })),
                 5
               );
+              updateSpinnerText(spinner, { text });
             };
             renderActiveWorkflowRun();
             break;
           }
           case WorkflowRunStatus.ActionRequired:
-            spinner.prefixText = chalk`{bold.yellow Workflow run is waiting for action:}`;
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.yellow Workflow run is waiting for action:}`,
+            });
             break;
 
           case WorkflowRunStatus.Canceled:
-            spinner.prefixText = chalk`{bold.yellow Workflow has been canceled.}`;
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.yellow Workflow has been canceled.}`,
+            });
             spinner.stopAndPersist();
             return workflowRun;
 
           case WorkflowRunStatus.Failure: {
-            spinner.prefixText = chalk`{bold.red Workflow has failed.}`;
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.red Workflow has failed.}`,
+            });
             const jobLogs = await logsForFailedWorkflowRunAsync(graphqlClient, workflowRun);
             spinner.fail(formatFailedWorkflowRun(jobLogs, 30));
             return workflowRun;
           }
           case WorkflowRunStatus.Success:
-            spinner.prefixText = chalk`{bold.green Workflow has completed successfully.}`;
-            spinner.text = '';
+            updateSpinnerText(spinner, {
+              prefixText: chalk`{bold.green Workflow has completed successfully.}`,
+            });
             spinner.succeed('');
             return workflowRun;
         }
@@ -348,7 +360,9 @@ export async function showWorkflowStatusAsync(
           return workflowRun;
         }
       } catch {
-        spinner.text = '⚠ Failed to fetch the workflow run status. Check your network connection.';
+        updateSpinnerText(spinner, {
+          text: '⚠ Failed to fetch the workflow run status. Check your network connection.',
+        });
 
         failedFetchesCount += 1;
 

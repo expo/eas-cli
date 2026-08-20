@@ -110,3 +110,18 @@ export function ora(options?: Options | string): Ora {
 
   return spinner;
 }
+
+/**
+ * Updates the text of a spinner. Does nothing if new text is the same as old text to prevent flickering.
+ */
+export function updateSpinnerText(
+  spinner: Ora,
+  { prefixText, text }: { prefixText?: string; text?: string }
+): void {
+  if (prefixText !== undefined && spinner.prefixText !== prefixText) {
+    spinner.prefixText = prefixText;
+  }
+  if (text !== undefined && spinner.text !== text) {
+    spinner.text = text;
+  }
+}

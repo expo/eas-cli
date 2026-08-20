@@ -37,7 +37,7 @@ export function groupLogLinesIntoSteps(logLines: WorkflowRawLogLine[]): Workflow
     const { buildStepDisplayName, buildStepId, phase, time, msg, result, marker, err } = logLine;
     const stepKey = buildStepId ?? buildStepDisplayName ?? phase;
     const stepLabel = buildStepDisplayName ?? buildStepId ?? phase;
-    if (!stepKey || !stepLabel) {
+    if (!stepKey || !stepLabel || !msg) {
       continue;
     }
 
