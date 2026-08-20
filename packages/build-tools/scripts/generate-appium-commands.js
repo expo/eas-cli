@@ -45,9 +45,8 @@ function main() {
     const contents = `// AUTO-GENERATED. Do not edit by hand.
 // Run \`yarn workspace @expo/build-tools generate-appium-commands\` to refresh this
 // list from @appium/base-driver (installed on demand by the generator script).
-export const UPSTREAM_APPIUM_COMMANDS = [
-${commands.map(command => `  '${command}',`).join('\n')}
-] as const;
+export type UpstreamAppiumCommand =
+${commands.map(command => `  | '${command}'`).join('\n')};
 `;
     fs.writeFileSync(outputPath, contents);
     // eslint-disable-next-line no-console

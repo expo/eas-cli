@@ -1,139 +1,138 @@
 // AUTO-GENERATED. Do not edit by hand.
 // Run `yarn workspace @expo/build-tools generate-appium-commands` to refresh this
 // list from @appium/base-driver (installed on demand by the generator script).
-export const UPSTREAM_APPIUM_COMMANDS = [
-  'activateApp',
-  'activateIMEEngine',
-  'active',
-  'addAuthCredential',
-  'addVirtualAuthenticator',
-  'availableIMEEngines',
-  'back',
-  'clear',
-  'clearDevicePosture',
-  'click',
-  'closeWindow',
-  'createNewWindow',
-  'createSession',
-  'createVirtualPressureSource',
-  'createVirtualSensor',
-  'deactivateIMEEngine',
-  'deleteCookie',
-  'deleteCookies',
-  'deleteSession',
-  'deleteVirtualPressureSource',
-  'deleteVirtualSensor',
-  'elementDisplayed',
-  'elementEnabled',
-  'elementSelected',
-  'elementShadowRoot',
-  'execute',
-  'executeAsync',
-  'executeCdp',
-  'fedCMCancelDialog',
-  'fedCMClickDialogButton',
-  'fedCMGetAccounts',
-  'fedCMGetDialogType',
-  'fedCMGetTitle',
-  'fedCMResetCooldown',
-  'fedCMSelectAccount',
-  'fedCMSetDelayEnabled',
-  'findElement',
-  'findElementFromElement',
-  'findElementFromShadowRoot',
-  'findElements',
-  'findElementsFromElement',
-  'findElementsFromShadowRoot',
-  'forward',
-  'fullScreenWindow',
-  'generateTestReport',
-  'getActiveIMEEngine',
-  'getAlertText',
-  'getAppiumSessionCapabilities',
-  'getAppiumSessions',
-  'getAttribute',
-  'getAuthCredential',
-  'getComputedLabel',
-  'getComputedRole',
-  'getContexts',
-  'getCookie',
-  'getCookies',
-  'getCssProperty',
-  'getCurrentContext',
-  'getDeviceTime',
-  'getElementRect',
-  'getElementScreenshot',
-  'getGeoLocation',
-  'getGlobalPrivacyControl',
-  'getLog',
-  'getLogEvents',
-  'getLogTypes',
-  'getName',
-  'getNetworkConnection',
-  'getOrientation',
-  'getPageSource',
-  'getProperty',
-  'getRotation',
-  'getScreenshot',
-  'getSession',
-  'getSettings',
-  'getStatus',
-  'getText',
-  'getTimeouts',
-  'getUrl',
-  'getVirtualSensorInfo',
-  'getWindowHandle',
-  'getWindowHandles',
-  'getWindowRect',
-  'hideKeyboard',
-  'installApp',
-  'isAppInstalled',
-  'isIMEActivated',
-  'isKeyboardShown',
-  'listCommands',
-  'listExtensions',
-  'logCustomEvent',
-  'maximizeWindow',
-  'minimizeWindow',
-  'performActions',
-  'postAcceptAlert',
-  'postDismissAlert',
-  'printPage',
-  'pullFile',
-  'pullFolder',
-  'pushFile',
-  'queryAppState',
-  'receiveAsyncResponse',
-  'refresh',
-  'releaseActions',
-  'removeAllAuthCredentials',
-  'removeApp',
-  'removeAuthCredential',
-  'removeVirtualAuthenticator',
-  'setAlertText',
-  'setContext',
-  'setCookie',
-  'setDevicePosture',
-  'setFrame',
-  'setGeoLocation',
-  'setGlobalPrivacyControl',
-  'setNetworkConnection',
-  'setOrientation',
-  'setPermissions',
-  'setRPHRegistrationMode',
-  'setRotation',
-  'setSPCTransactionMode',
-  'setStorageAccess',
-  'setUrl',
-  'setUserAuthVerified',
-  'setValue',
-  'setWindow',
-  'setWindowRect',
-  'switchToParentFrame',
-  'terminateApp',
-  'timeouts',
-  'title',
-  'updateSettings',
-  'updateVirtualPressureSource',
-  'updateVirtualSensorReading',
-] as const;
+export type UpstreamAppiumCommand =
+  | 'activateApp'
+  | 'activateIMEEngine'
+  | 'active'
+  | 'addAuthCredential'
+  | 'addVirtualAuthenticator'
+  | 'availableIMEEngines'
+  | 'back'
+  | 'clear'
+  | 'clearDevicePosture'
+  | 'click'
+  | 'closeWindow'
+  | 'createNewWindow'
+  | 'createSession'
+  | 'createVirtualPressureSource'
+  | 'createVirtualSensor'
+  | 'deactivateIMEEngine'
+  | 'deleteCookie'
+  | 'deleteCookies'
+  | 'deleteSession'
+  | 'deleteVirtualPressureSource'
+  | 'deleteVirtualSensor'
+  | 'elementDisplayed'
+  | 'elementEnabled'
+  | 'elementSelected'
+  | 'elementShadowRoot'
+  | 'execute'
+  | 'executeAsync'
+  | 'executeCdp'
+  | 'fedCMCancelDialog'
+  | 'fedCMClickDialogButton'
+  | 'fedCMGetAccounts'
+  | 'fedCMGetDialogType'
+  | 'fedCMGetTitle'
+  | 'fedCMResetCooldown'
+  | 'fedCMSelectAccount'
+  | 'fedCMSetDelayEnabled'
+  | 'findElement'
+  | 'findElementFromElement'
+  | 'findElementFromShadowRoot'
+  | 'findElements'
+  | 'findElementsFromElement'
+  | 'findElementsFromShadowRoot'
+  | 'forward'
+  | 'fullScreenWindow'
+  | 'generateTestReport'
+  | 'getActiveIMEEngine'
+  | 'getAlertText'
+  | 'getAppiumSessionCapabilities'
+  | 'getAppiumSessions'
+  | 'getAttribute'
+  | 'getAuthCredential'
+  | 'getComputedLabel'
+  | 'getComputedRole'
+  | 'getContexts'
+  | 'getCookie'
+  | 'getCookies'
+  | 'getCssProperty'
+  | 'getCurrentContext'
+  | 'getDeviceTime'
+  | 'getElementRect'
+  | 'getElementScreenshot'
+  | 'getGeoLocation'
+  | 'getGlobalPrivacyControl'
+  | 'getLog'
+  | 'getLogEvents'
+  | 'getLogTypes'
+  | 'getName'
+  | 'getNetworkConnection'
+  | 'getOrientation'
+  | 'getPageSource'
+  | 'getProperty'
+  | 'getRotation'
+  | 'getScreenshot'
+  | 'getSession'
+  | 'getSettings'
+  | 'getStatus'
+  | 'getText'
+  | 'getTimeouts'
+  | 'getUrl'
+  | 'getVirtualSensorInfo'
+  | 'getWindowHandle'
+  | 'getWindowHandles'
+  | 'getWindowRect'
+  | 'hideKeyboard'
+  | 'installApp'
+  | 'isAppInstalled'
+  | 'isIMEActivated'
+  | 'isKeyboardShown'
+  | 'listCommands'
+  | 'listExtensions'
+  | 'logCustomEvent'
+  | 'maximizeWindow'
+  | 'minimizeWindow'
+  | 'performActions'
+  | 'postAcceptAlert'
+  | 'postDismissAlert'
+  | 'printPage'
+  | 'pullFile'
+  | 'pullFolder'
+  | 'pushFile'
+  | 'queryAppState'
+  | 'receiveAsyncResponse'
+  | 'refresh'
+  | 'releaseActions'
+  | 'removeAllAuthCredentials'
+  | 'removeApp'
+  | 'removeAuthCredential'
+  | 'removeVirtualAuthenticator'
+  | 'setAlertText'
+  | 'setContext'
+  | 'setCookie'
+  | 'setDevicePosture'
+  | 'setFrame'
+  | 'setGeoLocation'
+  | 'setGlobalPrivacyControl'
+  | 'setNetworkConnection'
+  | 'setOrientation'
+  | 'setPermissions'
+  | 'setRPHRegistrationMode'
+  | 'setRotation'
+  | 'setSPCTransactionMode'
+  | 'setStorageAccess'
+  | 'setUrl'
+  | 'setUserAuthVerified'
+  | 'setValue'
+  | 'setWindow'
+  | 'setWindowRect'
+  | 'switchToParentFrame'
+  | 'terminateApp'
+  | 'timeouts'
+  | 'title'
+  | 'updateSettings'
+  | 'updateVirtualPressureSource'
+  | 'updateVirtualSensorReading';

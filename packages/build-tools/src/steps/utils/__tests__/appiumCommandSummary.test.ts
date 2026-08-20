@@ -1,7 +1,8 @@
 import { APPIUM_COMMAND_SUMMARIES, humanizeAppiumCommand } from '../appiumCommandSummary';
 
 // Coverage of the full upstream command set is enforced at compile time by the
-// type assertions in appiumCommandSummary.ts, so it is not re-checked here.
+// `Record<AppiumCommand, string>` type in appiumCommandSummary.ts, so it is not
+// re-checked here.
 
 describe('APPIUM_COMMAND_SUMMARIES', () => {
   it('has a non-empty summary that differs from the command name for every entry', () => {
