@@ -16,6 +16,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Send the expected `Content-MD5` checksum with GCS signed URL uploads so GCS rejects corrupted uploads. ([#4208](https://github.com/expo/eas-cli/pull/4208) by [@wschurman](https://github.com/wschurman))
 - [eas-cli] Resolve the `eas go` SDK version to its repack target, so `--sdk-version 57` no longer fails with "No Expo Go repack target is published for SDK 57". ([#4215](https://github.com/expo/eas-cli/pull/4215) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Handle missing fingerprint source in fingerprint:compare command. ([#4210](https://github.com/expo/eas-cli/pull/4210) by [@wschurman](https://github.com/wschurman))
+- [eas-cli] Accept template expressions such as `${{ env.SLACK_WEBHOOK_URL }}` in `eas workflow:validate` for fields the workflow schema declares with a string format, like a `slack` job's `webhook_url`. Values without a template expression are still checked against the format. ([#4184](https://github.com/expo/eas-cli/pull/4184) by [@giaBaoJS](https://github.com/giaBaoJS))
 
 ### 🧹 Chores
 

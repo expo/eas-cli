@@ -13,11 +13,15 @@ import { createValidator, getReadableErrors } from '../../metadata/utils/ajv';
 import { WorkflowFile } from '../../utils/workflowFile';
 import { ExpoGraphqlClient } from '../context/contextUtils/createGraphqlClient';
 import { parsedYamlFromWorkflowContents } from './parse';
+import {
+  allowTemplateExpressionsInStringFormats,
+  containsTemplateExpression,
+} from './templateExpressions';
 
 const jobTypesWithBuildProfile = new Set(['build', 'repack']);
 
 const buildProfileIsInterpolated = (profileName: string): boolean => {
-  return profileName.includes('${{') && profileName.includes('}}');
+  return containsTemplateExpression(profileName);
 };
 
 export async function validateWorkflowFileAsync(
@@ -143,6 +147,10 @@ function validateWorkflowStructure(parsedYaml: any, workflowJsonSchema: any): vo
   delete workflowJsonSchema['$schema'];
 
   const ajv = createValidator();
+  // Template expressions are only resolved when the workflow runs, so a value such as
+  // `webhook_url: ${{ env.SLACK_WEBHOOK_URL }}` cannot be checked against a string format
+  // like `uri` here.
+  allowTemplateExpressionsInStringFormats(ajv);
   const validate = ajv.compile(workflowJsonSchema);
   const result = validate(parsedYaml);
 
