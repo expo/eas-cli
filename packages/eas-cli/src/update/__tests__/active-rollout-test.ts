@@ -26,6 +26,7 @@ const rolloutUpdateStub: UpdateFragment = {
   codeSigningInfo: null,
   createdAt: '2022-01-01T12:00:00Z',
   rolloutPercentage: 25,
+  rolloutControlUpdate: { id: 'update-control', group: 'group-control-1234' },
 };
 
 const manifestStub = {
@@ -180,8 +181,40 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     });
 
     expect(jest.mocked(Log.warn).mock.calls.flat()).toContain(
-      'Ending a rollout means the update being rolled out is served to the 90% of users not in this new rollout.'
+      'Ending the rollout makes your new update the latest for 10% of users. The other 90% receive the update that was rolling out.'
     );
+  });
+
+  it('lists each platform on its own line, ordered and aligned', async () => {
+    jest
+      .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
+      .mockImplementation(async (_client, { filter }) =>
+        filter?.platform === AppPlatform.Ios
+          ? [[rolloutUpdateStub]]
+          : [
+              [
+                {
+                  ...rolloutUpdateStub,
+                  id: 'update-android',
+                  platform: 'android',
+                  rolloutPercentage: 5,
+                },
+              ],
+            ]
+      );
+
+    await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
+      graphqlClient,
+      [{ ...updateGroupStub, rollBackToEmbeddedInfoGroup: { ios: true, android: true } }],
+      { ...resolveOptions, nonInteractive: false, forceEndActiveRollout: true }
+    );
+
+    const warnings = jest.mocked(Log.warn).mock.calls.flat();
+    expect(warnings[0]).toBe('A rollout is in progress for runtime version 1.0.0:');
+    expect(warnings.slice(1, 3)).toEqual([
+      '  • Android  5%   "rollout message"  group group-ro  control group-co',
+      '  • iOS      25%  "rollout message"  group group-ro  control group-co',
+    ]);
   });
 
   it('requires the flag in non-interactive mode', async () => {

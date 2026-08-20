@@ -5,6 +5,7 @@ import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGr
 import { PublishUpdateGroupInput, UpdateFragment } from '../graphql/generated';
 import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
+import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync } from '../prompts';
 
 type ActiveRollout = { platform: UpdatePublishPlatform; update: UpdateFragment };
@@ -83,21 +84,51 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   }
 
   for (const [index, activeRollouts] of activeRolloutsPerUpdateGroup.entries()) {
-    for (const { platform, update } of activeRollouts) {
-      Log.warn(
-        `A rollout is in progress on ${platform} for runtime version ${updateGroups[index].runtimeVersion}, currently at ${update.rolloutPercentage}%. Publishing over it ends that rollout.`
-      );
+    if (activeRollouts.length === 0) {
+      continue;
+    }
+
+    Log.warn(
+      `A rollout is in progress for runtime version ${updateGroups[index].runtimeVersion}:`
+    );
+
+    const rolloutsByPlatform = activeRollouts
+      .map(({ platform, update }) => ({
+        platformName: appPlatformDisplayNames[updatePublishPlatformToAppPlatform[platform]],
+        percentage: `${update.rolloutPercentage}%`,
+        message: update.message,
+        group: update.group,
+        controlGroup: update.rolloutControlUpdate?.group,
+      }))
+      .sort((a, b) => a.platformName.localeCompare(b.platformName));
+    const platformNameWidth = Math.max(
+      ...rolloutsByPlatform.map(({ platformName }) => platformName.length)
+    );
+    const percentageWidth = Math.max(
+      ...rolloutsByPlatform.map(({ percentage }) => percentage.length)
+    );
+
+    for (const { platformName, percentage, message, group, controlGroup } of rolloutsByPlatform) {
+      const columns = [
+        platformName.padEnd(platformNameWidth),
+        percentage.padEnd(percentageWidth),
+        message ? `"${message}"` : null,
+        `group ${group.slice(0, 8)}`,
+        controlGroup ? `control ${controlGroup.slice(0, 8)}` : null,
+      ].filter(column => column !== null);
+      Log.warn(`  • ${columns.join('  ')}`);
     }
   }
 
-  if (!forceEndActiveRollout) {
-    const isPartialRollout = rolloutPercentage !== undefined && rolloutPercentage < 100;
-    Log.warn(
-      isPartialRollout
-        ? `Ending a rollout means the update being rolled out is served to the ${100 - rolloutPercentage}% of users not in this new rollout.`
-        : 'Ending a rollout means the update being rolled out is served to every user until they receive this new one.'
-    );
+  const isPartialRollout = rolloutPercentage !== undefined && rolloutPercentage < 100;
+  Log.warn(
+    isPartialRollout
+      ? `Ending the rollout makes your new update the latest for ${rolloutPercentage}% of users. The other ${100 - rolloutPercentage}% receive the update that was rolling out.`
+      : 'Ending the rollout makes your new update the latest, so every user receives it instead. The update that was rolling out stops being served.'
+  );
+  Log.newLine();
 
+  if (!forceEndActiveRollout) {
     if (nonInteractive) {
       throw new Error(
         'Cannot publish over an in-progress rollout in non-interactive mode. Re-run with --force-end-active-rollout to end the rollout and publish anyway.'
