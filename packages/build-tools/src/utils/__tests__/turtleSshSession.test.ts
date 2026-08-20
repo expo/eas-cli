@@ -4,10 +4,10 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { sleepAsync } from '../retry';
 import {
+  SshSessionHandle,
   getSshIdleTimeoutSeconds,
   getSshRelayServerUrl,
   isSshEnabled,
-  SshSessionHandle,
   startSshSessionAsync,
   superviseSshSessionAsync,
 } from '../turtleSshSession';
