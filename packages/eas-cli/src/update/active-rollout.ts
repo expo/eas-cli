@@ -118,11 +118,14 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
     }
   }
 
-  const isPartialRollout = rolloutPercentage !== undefined && rolloutPercentage < 100;
+  if (rolloutPercentage !== undefined) {
+    throw new Error(
+      'Cannot roll out a new update while a rollout is already in progress for the same runtime version. The update being rolled out would become the control update for your rollout and be served to more users rather than fewer. Finish or revert the rollout in progress with eas update:rollout, then publish this one.'
+    );
+  }
+
   Log.warn(
-    isPartialRollout
-      ? `Ending the rollout makes your new update the latest for ${rolloutPercentage}% of users. The update that was rolling out becomes the control update for your rollout, so its share grows to ${100 - rolloutPercentage}%.`
-      : 'Ending the rollout makes your new update the latest, so every user receives it instead. The update that was rolling out stops being served.'
+    'Ending the rollout makes your new update the latest, so every user receives it instead. The update that was rolling out stops being served.'
   );
   Log.newLine();
 

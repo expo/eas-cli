@@ -151,38 +151,18 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     expect(result[1].previousRolloutUpdateToClobberIdGroup).toEqual({ ios: 'update-rollout' });
   });
 
-  it('supersedes an in-progress rollout when the new update is itself a rollout', async () => {
+  it('rejects rolling out a new update over a rollout in progress', async () => {
     jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
 
-    const result = await resolveUpdateGroupsSupersedingActiveRolloutsAsync(
-      graphqlClient,
-      [updateGroupStub],
-      {
+    await expect(
+      resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
         ...resolveOptions,
         nonInteractive: false,
         forceEndActiveRollout: true,
         rolloutPercentage: 10,
-      }
-    );
-
-    expect(result[0].previousRolloutUpdateToClobberIdGroup).toEqual({ ios: 'update-rollout' });
+      })
+    ).rejects.toThrow('Cannot roll out a new update while a rollout is already in progress');
     expect(confirmAsync).not.toHaveBeenCalled();
-  });
-
-  it('states the resulting split when the new update is itself a rollout', async () => {
-    jest.mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync).mockResolvedValue([[rolloutUpdateStub]]);
-    jest.mocked(confirmAsync).mockResolvedValue(true);
-
-    await resolveUpdateGroupsSupersedingActiveRolloutsAsync(graphqlClient, [updateGroupStub], {
-      ...resolveOptions,
-      nonInteractive: false,
-      forceEndActiveRollout: false,
-      rolloutPercentage: 10,
-    });
-
-    expect(jest.mocked(Log.warn).mock.calls.flat()).toContain(
-      'Ending the rollout makes your new update the latest for 10% of users. The update that was rolling out becomes the control update for your rollout, so its share grows to 90%.'
-    );
   });
 
   it('lists each platform on its own line, ordered and aligned', async () => {
