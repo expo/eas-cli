@@ -82,7 +82,7 @@ describe(startSshSessionAsync, () => {
     secret: 'secret-1',
   };
   const config2: SshConnectionConfig = { ...config1, secret: 'secret-2' };
-  const target = { turtleJobRunId: 'jr-1' } as const;
+  const target = { type: 'JOB_RUN', id: 'jr-1' } as const;
 
   let createOrUpdateResult: { data?: unknown; error?: { message: string } };
   let mutation: jest.Mock;
@@ -132,8 +132,7 @@ describe(startSshSessionAsync, () => {
     });
 
     expect(mutation).toHaveBeenCalledWith(expect.anything(), {
-      turtleJobRunId: 'jr-1',
-      turtleBuildId: null,
+      target: { type: 'JOB_RUN', id: 'jr-1' },
       connectionConfig: { ...config1, reconnecting: false, type: 'UPTERM_V1' },
       sessionSettings: { idleTimeoutSeconds: 900 },
     });
@@ -144,19 +143,18 @@ describe(startSshSessionAsync, () => {
     expect(host.stopAsync).toHaveBeenCalled();
   });
 
-  it('reports turtleBuildId when the target is a build', async () => {
+  it('reports a build target', async () => {
     const host = makeHost();
     mockedStartUptermHost.mockResolvedValue(host);
 
     await startSshSessionAsync(ctx, {
-      target: { turtleBuildId: 'b-1' },
+      target: { type: 'BUILD', id: 'b-1' },
       relayServerUrl: 'wss://relay.expo.dev',
       idleTimeoutSeconds: 900,
     });
 
     expect(mutation).toHaveBeenCalledWith(expect.anything(), {
-      turtleJobRunId: null,
-      turtleBuildId: 'b-1',
+      target: { type: 'BUILD', id: 'b-1' },
       connectionConfig: { ...config1, reconnecting: false, type: 'UPTERM_V1' },
       sessionSettings: { idleTimeoutSeconds: 900 },
     });
@@ -243,8 +241,7 @@ describe(startSshSessionAsync, () => {
       })
     );
     expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
-      turtleJobRunId: 'jr-1',
-      turtleBuildId: null,
+      target: { type: 'JOB_RUN', id: 'jr-1' },
       connectionConfig: { ...config2, reconnecting: false, type: 'UPTERM_V1' },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });
@@ -300,8 +297,7 @@ describe(startSshSessionAsync, () => {
 
     expect(host.redialAsync).toHaveBeenCalledTimes(1);
     expect(mutation).toHaveBeenLastCalledWith(expect.anything(), {
-      turtleJobRunId: 'jr-1',
-      turtleBuildId: null,
+      target: { type: 'JOB_RUN', id: 'jr-1' },
       connectionConfig: { ...config2, reconnecting: false, type: 'UPTERM_V1' },
       sessionSettings: { idleTimeoutSeconds: 300 },
     });

@@ -16,15 +16,13 @@ const DEFAULT_SSH_IDLE_TIMEOUT_SECONDS = 0;
 
 const CREATE_OR_UPDATE_TURTLE_SSH_SESSION_MUTATION = graphql(`
   mutation CreateOrUpdateTurtleSshSession(
-    $turtleJobRunId: ID
-    $turtleBuildId: ID
+    $target: TurtleSshTargetInput!
     $connectionConfig: TurtleSshConnectionConfigInput!
     $sessionSettings: TurtleSshSessionSettingsInput!
   ) {
     turtleSshSession {
       createOrUpdateTurtleSshSession(
-        turtleJobRunId: $turtleJobRunId
-        turtleBuildId: $turtleBuildId
+        target: $target
         connectionConfig: $connectionConfig
         sessionSettings: $sessionSettings
       ) {
@@ -37,9 +35,7 @@ const CREATE_OR_UPDATE_TURTLE_SSH_SESSION_MUTATION = graphql(`
   }
 `);
 
-export type TurtleSshTarget =
-  | { turtleJobRunId: string; turtleBuildId?: never }
-  | { turtleJobRunId?: never; turtleBuildId: string };
+export type TurtleSshTarget = { type: 'BUILD' | 'JOB_RUN'; id: string };
 
 export function isSshEnabled(job: Pick<Job, 'ssh'>): boolean {
   return job.ssh != null;
@@ -95,8 +91,7 @@ async function createOrUpdateSessionAsync(
 ): Promise<{ idleTimeoutSeconds: number }> {
   const result = await ctx.graphqlClient
     .mutation(CREATE_OR_UPDATE_TURTLE_SSH_SESSION_MUTATION, {
-      turtleJobRunId: target.turtleJobRunId ?? null,
-      turtleBuildId: target.turtleBuildId ?? null,
+      target,
       connectionConfig: {
         ...connectionConfig,
         type: 'UPTERM_V1',
