@@ -106,6 +106,86 @@ describe('downloadBuild', () => {
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
+  it('downloads a direct application archive URL without querying GraphQL or forwarding the EAS token', async () => {
+    const applicationArchiveUrl = `https://artifacts.example.test/${randomUUID()}.apk`;
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+
+    jest.mocked(fetch).mockResolvedValue({
+      ok: true,
+      body: Readable.from(Buffer.from('hello')),
+      url: applicationArchiveUrl,
+    } as unknown as Response);
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient,
+      robotAccessToken: 'scoped-eas-token',
+      extensions: ['apk'],
+    });
+
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).toHaveBeenCalledWith(
+      applicationArchiveUrl,
+      expect.objectContaining({ headers: undefined })
+    );
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('rejects missing or ambiguous build sources', async () => {
+    const graphqlClient = createMockGraphqlClient({
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+    });
+
+    await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass buildId or applicationArchiveUrl.',
+    });
+
+    await expect(
+      // @ts-expect-error Verify the runtime guard for callers without TypeScript.
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        buildId: randomUUID(),
+        applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+        graphqlClient,
+        robotAccessToken: null,
+        extensions: ['app'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      message: 'Pass only one of buildId or applicationArchiveUrl.',
+    });
+
+    expect(graphqlClient.query).not.toHaveBeenCalled();
+    expect(jest.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-HTTP application archive URL', async () => {
+    await expect(
+      downloadBuildAsync({
+        logger: createLogger({ name: 'test' }),
+        applicationArchiveUrl: 'file:///tmp/app.apk',
+        graphqlClient: createMockGraphqlClient({}),
+        robotAccessToken: null,
+        extensions: ['apk'],
+      })
+    ).rejects.toMatchObject({
+      errorCode: 'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      message: 'application_archive_url must be a valid HTTP or HTTPS URL.',
+    });
+  });
+
   it('throws UserError when the build has no application archive url', async () => {
     const graphqlClient = createMockGraphqlClient({ applicationArchiveUrl: null });
 

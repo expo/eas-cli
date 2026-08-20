@@ -26,6 +26,17 @@ import { pluralize } from '../../utils/strings';
 
 const streamPipeline = promisify(stream.pipeline);
 
+type DownloadBuildSource =
+  | { buildId: string; applicationArchiveUrl?: never }
+  | { buildId?: never; applicationArchiveUrl: string };
+
+type DownloadBuildParams = DownloadBuildSource & {
+  logger: bunyan;
+  graphqlClient: Client;
+  robotAccessToken: string | null;
+  extensions: string[];
+};
+
 const BUILD_BY_ID_QUERY = graphql(`
   query DownloadBuildByIdQuery($buildId: ID!) {
     builds {
@@ -49,7 +60,12 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
     inputProviders: [
       BuildStepInput.createProvider({
         id: 'build_id',
-        required: true,
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
+        id: 'application_archive_url',
+        required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
@@ -70,12 +86,39 @@ export function createDownloadBuildFunction(ctx: CustomBuildContext): BuildFunct
 
       const extensions = z.array(z.string()).parse(inputs.extensions.value);
       logger.info(`Expected extensions: [${extensions.join(', ')}]`);
-      const buildId = z.string().uuid().parse(inputs.build_id.value);
-      logger.info(`Downloading build ${buildId}...`);
+      const buildId = inputs.build_id.value
+        ? z.string().uuid().parse(inputs.build_id.value)
+        : undefined;
+      const applicationArchiveUrl = inputs.application_archive_url.value
+        ? parseHttpApplicationArchiveUrl(inputs.application_archive_url.value)
+        : undefined;
+
+      let source: DownloadBuildSource;
+      if (buildId) {
+        if (applicationArchiveUrl) {
+          throw new UserError(
+            'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+            'Pass only one of build_id or application_archive_url.'
+          );
+        }
+        source = { buildId };
+      } else {
+        if (!applicationArchiveUrl) {
+          throw new UserError(
+            'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+            'Pass build_id or application_archive_url.'
+          );
+        }
+        source = { applicationArchiveUrl };
+      }
+
+      logger.info(
+        buildId ? `Downloading build ${buildId}...` : `Downloading application archive...`
+      );
 
       const { artifactPath } = await downloadBuildAsync({
         logger,
-        buildId,
+        ...source,
         graphqlClient: ctx.graphqlClient,
         robotAccessToken: stepsCtx.global.staticContext.job.secrets?.robotAccessToken ?? null,
         extensions,
@@ -118,24 +161,45 @@ async function fetchApplicationArchiveUrlAsync({
 export async function downloadBuildAsync({
   logger,
   buildId,
+  applicationArchiveUrl,
   graphqlClient,
   robotAccessToken,
   extensions,
-}: {
-  logger: bunyan;
-  buildId: string;
-  graphqlClient: Client;
-  robotAccessToken: string | null;
-  extensions: string[];
-}): Promise<{ artifactPath: string }> {
+}: DownloadBuildParams): Promise<{ artifactPath: string }> {
+  const validatedApplicationArchiveUrl = applicationArchiveUrl
+    ? parseHttpApplicationArchiveUrl(applicationArchiveUrl)
+    : undefined;
+  if (!buildId && !validatedApplicationArchiveUrl) {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      'Pass buildId or applicationArchiveUrl.'
+    );
+  }
+  if (buildId && validatedApplicationArchiveUrl) {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+      'Pass only one of buildId or applicationArchiveUrl.'
+    );
+  }
+
   const downloadDestinationDirectory = await fs.promises.mkdtemp(
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient });
+  const isDirectApplicationArchiveUrl = validatedApplicationArchiveUrl !== undefined;
+  const downloadUrl =
+    validatedApplicationArchiveUrl ??
+    (await fetchApplicationArchiveUrlAsync({
+      buildId: z.string().uuid().parse(buildId),
+      graphqlClient,
+    }));
 
   const response = await retryOnDNSFailure(fetch)(downloadUrl, {
-    headers: robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined,
+    // A direct application archive URL is user-controlled, so never send the scoped EAS token to it.
+    headers:
+      !isDirectApplicationArchiveUrl && robotAccessToken
+        ? { Authorization: `Bearer ${robotAccessToken}` }
+        : undefined,
   });
 
   if (!response.ok) {
@@ -193,4 +257,24 @@ export async function downloadBuildAsync({
   );
 
   return { artifactPath: matchingFiles[0] };
+}
+
+function parseHttpApplicationArchiveUrl(value: unknown): string {
+  const applicationArchiveUrl = z.string().parse(value);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(applicationArchiveUrl);
+  } catch {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      'application_archive_url must be a valid HTTP or HTTPS URL.'
+    );
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new UserError(
+      'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
+      'application_archive_url must be a valid HTTP or HTTPS URL.'
+    );
+  }
+  return applicationArchiveUrl;
 }
