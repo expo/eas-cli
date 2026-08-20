@@ -71,7 +71,11 @@ function transformCredentialsSource(
 }
 
 function transformDistribution(distribution: Metadata['distribution']): DistributionType {
-  if (distribution === 'internal') {
+  //TODO: remove when change is added upstream to eas-build-job
+  //@ts-ignore
+  if (distribution === 'development') {
+    return DistributionType.Development;
+  } else if (distribution === 'internal') {
     return DistributionType.Internal;
   } else if (distribution === 'simulator') {
     return DistributionType.Simulator;
