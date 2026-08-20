@@ -6,14 +6,6 @@ type DriverLevelAppiumCommand = 'background' | 'getClipboard' | 'setClipboard';
 
 type AppiumCommand = UpstreamAppiumCommand | DriverLevelAppiumCommand;
 
-// Human-readable summaries for Appium command names captured via Appium Event
-// Timings. The raw command name (e.g. `getWindowRect`) is preserved in each
-// event's `data.command`; the summary is what surfaces in the session timeline,
-// so it should read like a short past-tense description of what happened.
-//
-// Typing this as `Record<AppiumCommand, string>` makes `tsc` fail if any command
-// is missing a summary or any unknown command is added, keeping it in sync with
-// the generated upstream command list.
 export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
   // Session lifecycle
   createSession: 'Started the session',
