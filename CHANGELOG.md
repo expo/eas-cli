@@ -8,6 +8,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Add `--client-id` flag to `eas observe:events` and `eas observe:metrics` to filter by EAS client ID. ([#4060](https://github.com/expo/eas-cli/pull/4060) by [@keith-kurak](https://github.com/keith-kurak))
 - [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
