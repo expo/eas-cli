@@ -23,8 +23,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
       - name: Regenerate the Appium command list
-        # The generator installs @appium/base-driver on demand into a temp
-        # directory, so it always picks up the latest supported command set.
+        # The generator installs Appium, XCUITest, and UiAutomator2 on demand,
+        # so it always picks up the latest supported command sets.
         run: yarn workspace @expo/build-tools generate-appium-commands
       - name: Open a pull request when the command list changed
         env:
@@ -37,7 +37,7 @@ jobs:
 
           branch=bot/update-appium-commands
           title='[build-tools] Update Appium command list'
-          body=$'Automated update of the Appium command list from `@appium/base-driver`.\n\nIf this PR adds new commands, the `APPIUM_COMMAND_SUMMARIES` coverage test will fail until a curated summary is added for each of them in `packages/build-tools/src/steps/utils/appiumCommandSummary.ts`.'
+          body=$'Automated update of the Appium, XCUITest, and UiAutomator2 command list.\n\nIf this PR adds new commands, typechecking will fail until a curated summary is added for each of them in `packages/build-tools/src/steps/utils/appiumCommandSummary.ts`.'
 
           git config user.name 'Expo Bot'
           git config user.email bot@expo.dev
