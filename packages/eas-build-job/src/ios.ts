@@ -110,10 +110,6 @@ export interface Job {
      * support for this field is implemented, but specifying it is disabled on schema level
      */
     appVersion?: string;
-    /**
-     * support for this field is implemented, but specifying it is disabled on schema level
-     */
-    runtimeVersion?: string;
   };
   buildArtifactPaths?: string[];
 
