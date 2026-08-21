@@ -7,6 +7,7 @@ import { UpdateQuery } from '../graphql/queries/UpdateQuery';
 import Log from '../log';
 import { appPlatformDisplayNames } from '../platform';
 import { confirmAsync } from '../prompts';
+import renderTextTable from '../utils/renderTextTable';
 
 type ActiveRollout = { platform: UpdatePublishPlatform; update: UpdateFragment };
 
@@ -90,32 +91,22 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
 
     Log.warn(`A rollout is in progress for runtime version ${updateGroups[index].runtimeVersion}:`);
 
-    const rolloutsByPlatform = activeRollouts
+    const rows = activeRollouts
       .map(({ platform, update }) => ({
         platformName: appPlatformDisplayNames[updatePublishPlatformToAppPlatform[platform]],
-        percentage: `${update.rolloutPercentage}%`,
-        message: update.message,
-        group: update.group,
-        controlGroup: update.rolloutControlUpdate?.group,
+        update,
       }))
-      .sort((a, b) => a.platformName.localeCompare(b.platformName));
-    const platformNameWidth = Math.max(
-      ...rolloutsByPlatform.map(({ platformName }) => platformName.length)
+      .sort((a, b) => a.platformName.localeCompare(b.platformName))
+      .map(({ platformName, update }) => [
+        platformName,
+        `${update.rolloutPercentage}%`,
+        update.message ?? '',
+        update.group.slice(0, 8),
+        update.rolloutControlUpdate?.group.slice(0, 8) ?? '',
+      ]);
+    Log.warn(
+      renderTextTable(['Platform', 'Rollout', 'Message', 'Update group', 'Control update'], rows)
     );
-    const percentageWidth = Math.max(
-      ...rolloutsByPlatform.map(({ percentage }) => percentage.length)
-    );
-
-    for (const { platformName, percentage, message, group, controlGroup } of rolloutsByPlatform) {
-      const columns = [
-        platformName.padEnd(platformNameWidth),
-        percentage.padEnd(percentageWidth),
-        message ? `"${message}"` : null,
-        `group ${group.slice(0, 8)}`,
-        controlGroup ? `control ${controlGroup.slice(0, 8)}` : null,
-      ].filter(column => column !== null);
-      Log.warn(`  • ${columns.join('  ')}`);
-    }
   }
 
   if (rolloutPercentage !== undefined) {

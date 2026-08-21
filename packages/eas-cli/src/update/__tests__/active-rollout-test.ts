@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 import { resolveUpdateGroupsSupersedingActiveRolloutsAsync } from '../active-rollout';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { AppPlatform, PublishUpdateGroupInput, UpdateFragment } from '../../graphql/generated';
@@ -191,9 +193,11 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
 
     const warnings = jest.mocked(Log.warn).mock.calls.flat();
     expect(warnings[0]).toBe('A rollout is in progress for runtime version 1.0.0:');
-    expect(warnings.slice(1, 3)).toEqual([
-      '  • Android  5%   "rollout message"  group group-ro  control group-co',
-      '  • iOS      25%  "rollout message"  group group-ro  control group-co',
+    expect(String(warnings[1]).split('\n')).toEqual([
+      chalk.bold('Platform  Rollout  Message          Update group  Control update'),
+      '--------  -------  ---------------  ------------  --------------',
+      'Android   5%       rollout message  group-ro      group-co      ',
+      'iOS       25%      rollout message  group-ro      group-co      ',
     ]);
   });
 
@@ -223,7 +227,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
     expect(result).toEqual([emptyGroup]);
   });
 
-  it('omits the message and control columns when the rollout has neither', async () => {
+  it('leaves the message and control cells empty when the rollout has neither', async () => {
     jest
       .mocked(UpdateQuery.viewUpdateGroupsOnBranchAsync)
       .mockResolvedValue([[{ ...rolloutUpdateStub, message: null, rolloutControlUpdate: null }]]);
@@ -234,7 +238,11 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
       forceEndActiveRollout: true,
     });
 
-    expect(jest.mocked(Log.warn).mock.calls.flat()[1]).toBe('  • iOS  25%  group group-ro');
+    expect(String(jest.mocked(Log.warn).mock.calls.flat()[1]).split('\n')).toEqual([
+      chalk.bold('Platform  Rollout  Message  Update group  Control update'),
+      '--------  -------  -------  ------------  --------------',
+      'iOS       25%               group-ro                    ',
+    ]);
   });
 
   it('requires the flag in non-interactive mode', async () => {
