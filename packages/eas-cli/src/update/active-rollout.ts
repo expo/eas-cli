@@ -120,7 +120,7 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
 
   if (rolloutPercentage !== undefined) {
     throw new Error(
-      'Cannot roll out a new update while a rollout is already in progress for the same runtime version. The update being rolled out would become the control update for your rollout and be served to more users rather than fewer. Finish or revert the rollout in progress with eas update:rollout, then publish this one.'
+      'Cannot start a rollout while another rollout is in progress. Only one rollout can be in progress for a given branch, platform, and runtime version. Set the rollout in progress to 100% with eas update:edit, or revert it with eas update:revert-update-rollout, then publish again.'
     );
   }
 
@@ -132,7 +132,7 @@ export async function resolveUpdateGroupsSupersedingActiveRolloutsAsync(
   if (!forceEndActiveRollout) {
     if (nonInteractive) {
       throw new Error(
-        'Cannot publish over an in-progress rollout in non-interactive mode. Re-run with --force-end-active-rollout to end the rollout and publish anyway.'
+        'Cannot supersede the rollout in progress. Ending a rollout requires confirmation, which is unavailable in non-interactive mode. Re-run with --force-end-active-rollout to end the rollout and publish.'
       );
     }
 

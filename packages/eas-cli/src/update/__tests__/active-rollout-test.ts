@@ -161,7 +161,7 @@ describe(resolveUpdateGroupsSupersedingActiveRolloutsAsync, () => {
         forceEndActiveRollout: true,
         rolloutPercentage: 10,
       })
-    ).rejects.toThrow('Cannot roll out a new update while a rollout is already in progress');
+    ).rejects.toThrow('Cannot start a rollout while another rollout is in progress');
     expect(confirmAsync).not.toHaveBeenCalled();
   });
 
