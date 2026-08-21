@@ -34,8 +34,26 @@ export enum AppStoreApiKeyPurpose {
   ASC_APP_CONNECTION = 'EAS Connect',
 }
 
-export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Promise<AscApiKeyPath> {
+export async function promptForAscApiKeyPathAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<AscApiKeyPath> {
+  // Individual keys are valid only as submission keys. Every other purpose
+  // requires a team key, so the key type question is not asked there.
+  const isIndividualKey =
+    purpose === AppStoreApiKeyPurpose.SUBMISSION_SERVICE &&
+    !ctx.nonInteractive &&
+    (await promptForAscApiKeyTypeIsIndividualAsync());
+
   const { keyId, keyP8Path } = await promptForKeyP8AndIdAsync();
+
+  if (isIndividualKey) {
+    Log.log(
+      'Individual API keys can be used for submissions, TestFlight setup, and metadata only. ' +
+        'They cannot manage certificates or provisioning profiles.'
+    );
+    return { keyId, keyP8Path };
+  }
 
   const bestEffortIssuerId = await getBestEffortIssuerIdAsync(ctx, keyId);
   if (bestEffortIssuerId) {
@@ -44,6 +62,13 @@ export async function promptForAscApiKeyPathAsync(ctx: CredentialsContext): Prom
   }
   const issuerId = await promptForIssuerIdAsync();
   return { keyId, issuerId, keyP8Path };
+}
+
+async function promptForAscApiKeyTypeIsIndividualAsync(): Promise<boolean> {
+  return await selectAsync<boolean>('Which type of App Store Connect API key do you want to use?', [
+    { title: 'Team key (recommended)', value: false },
+    { title: 'Individual key (submissions only)', value: true },
+  ]);
 }
 
 export async function promptForIssuerIdAsync(): Promise<string> {
@@ -79,7 +104,7 @@ export async function provideOrGenerateAscApiKeyAsync(
     return await generateAscApiKeyAsync(ctx, purpose);
   }
 
-  const userProvided = await promptForAscApiKeyAsync(ctx);
+  const userProvided = await promptForAscApiKeyAsync(ctx, purpose);
   if (!userProvided) {
     return await generateAscApiKeyAsync(ctx, purpose);
   }
@@ -133,12 +158,15 @@ export function getAscApiKeyName(purpose: AppStoreApiKeyPurpose): string {
   return nameParts.join(' ');
 }
 
-async function promptForAscApiKeyAsync(ctx: CredentialsContext): Promise<MinimalAscApiKey | null> {
+async function promptForAscApiKeyAsync(
+  ctx: CredentialsContext,
+  purpose: AppStoreApiKeyPurpose
+): Promise<MinimalAscApiKey | null> {
   const shouldAutoGenerateCredentials = await shouldAutoGenerateCredentialsAsync(ascApiKeyIdSchema);
   if (shouldAutoGenerateCredentials) {
     return null;
   }
-  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx, purpose);
   const { keyP8Path, keyId, issuerId } = ascApiKeyPath;
   return { keyP8: await fs.readFile(keyP8Path, 'utf-8'), keyId, issuerId };
 }
