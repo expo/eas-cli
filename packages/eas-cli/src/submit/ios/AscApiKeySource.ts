@@ -189,7 +189,10 @@ async function handlePromptSourceAsync(
   ctx: SubmissionContext<Platform.IOS>,
   _source: AscApiKeyPromptSource
 ): Promise<AscApiKeyPath> {
-  const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx.credentialsCtx);
+  const ascApiKeyPath = await promptForAscApiKeyPathAsync(
+    ctx.credentialsCtx,
+    AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+  );
   return await getAscApiKeyPathAsync(ctx, {
     sourceType: AscApiKeySourceType.path,
     path: ascApiKeyPath,

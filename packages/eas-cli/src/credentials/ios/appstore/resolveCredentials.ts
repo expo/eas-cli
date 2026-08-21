@@ -48,6 +48,12 @@ export async function resolveAscApiKeyAsync(
     (!!ascApiKey?.keyId || !!process.env.EXPO_ASC_KEY_ID) &&
     !ascApiKey?.issuerId &&
     !process.env.EXPO_ASC_ISSUER_ID;
+  if (keyProvidedWithoutIssuer) {
+    Log.log(
+      'No Issuer ID provided; treating the App Store Connect API key as an individual key. ' +
+        'Individual keys can be used for submissions, TestFlight setup, and metadata only.'
+    );
+  }
   const passedIssuerId = keyProvidedWithoutIssuer
     ? undefined
     : await getAscIssuerIdFromEnvironmentOrOptionsAsync(ascApiKey);
