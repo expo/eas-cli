@@ -32,6 +32,7 @@ export namespace SubmissionConfig {
              *  issuer_id: "6053b7fe-68a8-4acb-89be-165aa6465141",
              *  key: "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM\n-----END PRIVATE KEY--"
              * }
+             * `issuer_id` is omitted for individual API keys (never written as null).
              */
             ascApiJsonKey: z.string(),
             appleIdUsername: z.never().optional(),

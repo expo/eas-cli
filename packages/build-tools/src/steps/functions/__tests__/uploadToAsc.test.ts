@@ -1,10 +1,69 @@
+import * as jose from 'jose';
+
 import {
+  createAscApiTokenAsync,
   isClosedVersionTrainError,
   isInvalidBundleIdentifierError,
   isMissingPurposeStringError,
   isSdkVersionIssueError,
   parseMissingUsageDescriptionKeys,
 } from '../uploadToAsc';
+
+describe(createAscApiTokenAsync, () => {
+  let keyPem: string;
+
+  beforeAll(async () => {
+    const { privateKey } = await jose.generateKeyPair('ES256', { extractable: true });
+    keyPem = await jose.exportPKCS8(privateKey);
+  });
+
+  it('signs a team key JWT with iss and without sub', async () => {
+    const token = await createAscApiTokenAsync({
+      issuer_id: '6053b7fe-68a8-4acb-89be-165aa6465141',
+      key_id: 'D383SF739',
+      key: keyPem,
+    });
+
+    const header = jose.decodeProtectedHeader(token);
+    expect(header).toMatchObject({ alg: 'ES256', kid: 'D383SF739' });
+
+    const payload = jose.decodeJwt(token);
+    expect(payload.iss).toBe('6053b7fe-68a8-4acb-89be-165aa6465141');
+    expect(payload.sub).toBeUndefined();
+    expect(payload.aud).toBe('appstoreconnect-v1');
+  });
+
+  it('signs an individual key JWT with sub "user" and without iss', async () => {
+    const token = await createAscApiTokenAsync({
+      key_id: 'D383SF739',
+      key: keyPem,
+    });
+
+    const header = jose.decodeProtectedHeader(token);
+    expect(header).toMatchObject({ alg: 'ES256', kid: 'D383SF739' });
+
+    const payload = jose.decodeJwt(token);
+    expect(payload.iss).toBeUndefined();
+    expect(payload.sub).toBe('user');
+    expect(payload.aud).toBe('appstoreconnect-v1');
+  });
+
+  it('treats a null issuer_id as an individual key', async () => {
+    const token = await createAscApiTokenAsync({
+      issuer_id: null,
+      key_id: 'D383SF739',
+      key: keyPem,
+    });
+
+    const payload = jose.decodeJwt(token);
+    expect(payload.iss).toBeUndefined();
+    expect(payload.sub).toBe('user');
+  });
+
+  it('rejects a key without key_id', async () => {
+    await expect(createAscApiTokenAsync({ key: keyPem })).rejects.toThrow();
+  });
+});
 
 describe(isClosedVersionTrainError, () => {
   it('returns true when all errors are closed-version-train codes', () => {
