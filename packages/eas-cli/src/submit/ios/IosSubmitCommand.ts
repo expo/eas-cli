@@ -132,7 +132,8 @@ export default class IosSubmitCommand {
   private resolveAscApiKeySource(): Result<AscApiKeySource> {
     const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = this.ctx.profile;
 
-    if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
+    // ascApiKeyIssuerId is optional: individual API keys have no issuer.
+    if (ascApiKeyPath && ascApiKeyId) {
       return result({
         sourceType: AscApiKeySourceType.path,
         path: {
@@ -145,7 +146,7 @@ export default class IosSubmitCommand {
 
     // interpret this to mean the user had some intention of passing in ASC Api key
     if (ascApiKeyPath || ascApiKeyIssuerId || ascApiKeyId) {
-      const message = `ascApiKeyPath, ascApiKeyIssuerId and ascApiKeyId must all be defined in eas.json`;
+      const message = `ascApiKeyPath and ascApiKeyId must both be defined in eas.json (ascApiKeyIssuerId is also required unless the key is an individual API key)`;
 
       // in non-interactive mode, we should fail
       if (this.ctx.nonInteractive) {

@@ -11,6 +11,7 @@ import {
 } from '../../../utils/promptForCredentials';
 import {
   AppStoreApiKeyPurpose,
+  filterOutIndividualAscApiKeys,
   getAscApiKeyName,
   promptForAscApiKeyPathAsync,
   provideOrGenerateAscApiKeyAsync,
@@ -30,6 +31,24 @@ afterEach(() => {
   jest.mocked(getCredentialsFromUserAsync).mockClear();
   jest.mocked(shouldAutoGenerateCredentialsAsync).mockClear();
   jest.mocked(fs.readFile).mockClear();
+});
+
+describe(filterOutIndividualAscApiKeys, () => {
+  it('removes keys without an issuer identifier and keeps the rest', () => {
+    const teamKey = { id: 'team', issuerIdentifier: 'issuer-id' } as any;
+    const individualKey = { id: 'individual', issuerIdentifier: null } as any;
+
+    expect(filterOutIndividualAscApiKeys([teamKey, individualKey])).toEqual([teamKey]);
+  });
+
+  it('returns all keys when none is individual', () => {
+    const keys = [
+      { id: 'a', issuerIdentifier: 'issuer-a' },
+      { id: 'b', issuerIdentifier: 'issuer-b' },
+    ] as any[];
+
+    expect(filterOutIndividualAscApiKeys(keys)).toEqual(keys);
+  });
 });
 
 describe(getAscApiKeyName, () => {
