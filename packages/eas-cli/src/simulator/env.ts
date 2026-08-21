@@ -4,6 +4,7 @@ import * as fs from 'fs-extra';
 import path from 'path';
 
 import Log from '../log';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
 
 export const SIMULATOR_DOTENV_FILE_NAME = '.env.eas-simulator';
 export const EAS_SIMULATOR_SESSION_ID = 'EAS_SIMULATOR_SESSION_ID';
@@ -16,9 +17,14 @@ export function getSimulatorEnvFilePath(projectDir: string): string {
 
 export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
   const simulatorDotenvFilePath = getSimulatorEnvFilePath(projectDir);
+  const mode = 'development';
 
-  loadProjectEnv(projectDir, { silent: true });
+  process.env = getEnvWithoutInheritedDotenvValues(process.env);
+  process.env.NODE_ENV = mode;
+  delete process.env.__EXPO_CONFIG_MODE;
+  loadProjectEnv(projectDir, { mode, silent: true });
   loadEnvFiles([simulatorDotenvFilePath], { force: true });
+  delete process.env.__EXPO_CONFIG_MODE;
 }
 
 export async function writeSimulatorEnvAsync(
