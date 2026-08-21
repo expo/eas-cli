@@ -8,7 +8,7 @@ import { AuthCtx, UserAuthCtx } from './authenticateTypes';
 import { syncCapabilitiesForEntitlementsAsync } from './bundleIdCapabilities';
 import { syncCapabilityIdentifiersForEntitlementsAsync } from './capabilityIdentifiers';
 import { assertContractMessagesAsync } from './contractMessages';
-import Log from '../../../log';
+import Log, { learnMore } from '../../../log';
 import { ora } from '../../../ora';
 
 /**
@@ -273,9 +273,7 @@ export async function ensureAppExistsAsync(
       }
 
       spinner.fail(`Failed to create App Store app ${chalk.dim(name)}`);
-      error.message +=
-        '\nVisit https://appstoreconnect.apple.com and resolve any warnings, then try again.';
-      throw error;
+      throw explainCreateAppError(error);
     }
   } else {
     // TODO: Update app name when API gives us that possibility
@@ -284,6 +282,24 @@ export async function ensureAppExistsAsync(
     `Prepared App Store Connect for ${chalk.bold(name)} ${chalk.dim(bundleIdentifier)}`
   );
   return app;
+}
+
+/**
+ * App Store Connect reports a missing company name by attribute name alone, which does not
+ * hint at all that the value comes from the submit profile in eas.json.
+ */
+export function explainCreateAppError(error: Error): Error {
+  if (error.message.match(/value for the attribute 'companyName'/)) {
+    return new Error(
+      `\nApp Store Connect needs a company name to display on the App Store for the first app created on this Apple account. Set ${chalk.bold(
+        'submit.<profile>.ios.companyName'
+      )} in eas.json and try again.\n${learnMore('https://docs.expo.dev/eas/json/#companyname')}\n`
+    );
+  }
+
+  error.message +=
+    '\nVisit https://appstoreconnect.apple.com and resolve any warnings, then try again.';
+  return error;
 }
 
 function sanitizeName(name: string): string {
