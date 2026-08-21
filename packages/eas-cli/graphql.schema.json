@@ -14159,6 +14159,35 @@
             "deprecationReason": null
           },
           {
+            "name": "customEvent",
+            "description": "A single custom event by the `id` of an `AppObserveCustomEvent`. Null when the app has no\nsuch event, including when it has aged out of retention.",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppObserveCustomEvent",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "customEventCounts",
             "description": null,
             "args": [
@@ -14397,6 +14426,26 @@
                 "deprecationReason": null
               },
               {
+                "name": "platforms",
+                "description": "Filter to these platforms. Cannot be set together with platform.",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "AppObservePlatform",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "startTime",
                 "description": null,
                 "type": {
@@ -14448,6 +14497,26 @@
                   "kind": "ENUM",
                   "name": "AppObservePlatform",
                   "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "platforms",
+                "description": "Filter to these platforms. Cannot be set together with platform.",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "AppObservePlatform",
+                      "ofType": null
+                    }
+                  }
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -14614,6 +14683,35 @@
                 "name": "AppObserveErrorTimeSeries",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "event",
+            "description": "A single metric event by the `id` of an `AppObserveEvent`. Null when the app has no such\nevent, including when it has aged out of retention or the id is not one this API issued.\n\n`sessionEventCount` and `userEventCount` are always null here: they are aggregates over a\ntime range, and a single event does not supply one.",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "ID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AppObserveEvent",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -15028,7 +15126,7 @@
           },
           {
             "name": "updates",
-            "description": null,
+            "description": "Update download activity (the Recent updates list). Not available on the free tier or legacy plans.",
             "args": [
               {
                 "name": "input",
@@ -16394,12 +16492,28 @@
             "name": "platform",
             "description": null,
             "type": {
-              "kind": "NON_NULL",
+              "kind": "ENUM",
+              "name": "AppObservePlatform",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform. One of platform or platforms is required.",
+            "type": {
+              "kind": "LIST",
               "name": null,
               "ofType": {
-                "kind": "ENUM",
-                "name": "AppObservePlatform",
-                "ofType": null
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
               }
             },
             "defaultValue": null,
@@ -16654,6 +16768,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -17525,6 +17659,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "startTime",
             "description": null,
             "type": {
@@ -17792,6 +17946,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -18269,6 +18443,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "startTime",
             "description": null,
             "type": {
@@ -18556,6 +18750,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -19313,6 +19527,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "routeName",
             "description": null,
             "type": {
@@ -19700,6 +19934,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -20095,6 +20349,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "startTime",
             "description": null,
             "type": {
@@ -20471,6 +20745,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "startTime",
             "description": null,
             "type": {
@@ -20510,7 +20804,7 @@
           },
           {
             "name": "downloadCount",
-            "description": "Downloads recorded in range across platforms; null when none were recorded (and always for the embedded bundle).",
+            "description": "Downloads recorded in range across platforms; null when none were recorded\n(and always for the embedded bundle). Download data is paid-only: on the\nfree tier and legacy plans this is always null.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -20522,7 +20816,7 @@
           },
           {
             "name": "downloads",
-            "description": "One entry per platform with downloads in range; empty for the embedded bundle.",
+            "description": "One entry per platform with downloads in range; empty for the embedded bundle and on the free tier and legacy plans.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -21500,6 +21794,26 @@
             "deprecationReason": null
           },
           {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "startTime",
             "description": null,
             "type": {
@@ -21891,6 +22205,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -22398,6 +22732,26 @@
               "kind": "ENUM",
               "name": "AppObservePlatform",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "platforms",
+            "description": "Filter to these platforms. Cannot be set together with platform.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "AppObservePlatform",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -37212,6 +37566,30 @@
             "deprecationReason": null
           },
           {
+            "name": "applicationArchiveUrl",
+            "description": "Application archive URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildId",
+            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with applicationArchiveUrl.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deviceIdentifier",
             "description": "Identifier of the virtual device to start for the session. On iOS this is a\nSimulator device name or UDID (e.g. \"iPhone 16 Pro\"). On Android this is an\nAVD hardware profile id (e.g. \"pixel_7\"). If omitted, the runner picks a\ndefault device.",
             "type": {
@@ -42768,6 +43146,18 @@
             "deprecationReason": null
           },
           {
+            "name": "applicationArchiveUrl",
+            "description": "Direct application archive URL installed and launched for this session. Null when\nthe session uses an EAS Build or starts without an app.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "artifacts",
             "description": null,
             "args": [],
@@ -42787,6 +43177,18 @@
                   }
                 }
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "build",
+            "description": "EAS Build installed and launched for this session. Null when the session uses\na direct application archive URL or starts without an app.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "Build",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -74943,24 +75345,16 @@
                 "deprecationReason": null
               },
               {
-                "name": "turtleBuildId",
+                "name": "target",
                 "description": null,
                 "type": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "turtleJobRunId",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "TurtleSshTargetInput",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -75037,6 +75431,72 @@
         ],
         "interfaces": null,
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "TurtleSshTargetInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "type",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "TurtleSshTargetType",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "TurtleSshTargetType",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "BUILD",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "JOB_RUN",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {
@@ -94597,6 +95057,18 @@
             "deprecationReason": null
           },
           {
+            "name": "cancelReason",
+            "description": "Why the server canceled this run. Null for manually canceled runs and for\nruns canceled before the reason was recorded.",
+            "args": [],
+            "type": {
+              "kind": "UNION",
+              "name": "WorkflowRunCancelReason",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -94957,6 +95429,45 @@
             "ofType": null
           }
         ],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "UNION",
+        "name": "WorkflowRunCancelReason",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "WorkflowRunCancelReasonConcurrencyGroup",
+            "ofType": null
+          }
+        ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "WorkflowRunCancelReasonConcurrencyGroup",
+        "description": null,
+        "fields": [
+          {
+            "name": "cancelingWorkflowRun",
+            "description": "The newer run in the same concurrency group whose creation canceled this run.\nNull if that run no longer exists.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "WorkflowRun",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -95538,6 +96049,12 @@
           },
           {
             "name": "SUCCESS",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "WAITING",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

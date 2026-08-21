@@ -9,6 +9,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Add `ios_signing_backend` option to the repack step. ([#4239](https://github.com/expo/eas-cli/pull/4239) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- [eas-cli] Add `eas observe:event` to display a single Observe event (metric or log) by its ID. ([#4252](https://github.com/expo/eas-cli/pull/4252) by [@douglowder](https://github.com/douglowder))
 
 ### 🐛 Bug fixes
 
