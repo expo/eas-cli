@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Point at `submit.<profile>.ios.companyName` in eas.json when App Store Connect rejects app creation with "You must provide a value for the attribute 'companyName'". ([#4243](https://github.com/expo/eas-cli/pull/4243) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
