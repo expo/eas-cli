@@ -7,6 +7,7 @@ import semver from 'semver';
 import { getExpoApiBaseUrl } from '../api';
 import Log from '../log';
 import { ora } from '../ora';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = version; // should match version of @expo/eas-build-job
@@ -63,11 +64,12 @@ export async function runLocalBuildAsync(
   };
   process.on('SIGINT', interruptHandler);
   try {
+    const processEnv = getEnvWithoutInheritedDotenvValues(process.env);
     const mergedEnv = {
       ...env,
-      ...process.env,
+      ...processEnv,
       EAS_LOCAL_BUILD_PLUGIN_INPUT: pluginInput,
-      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? processEnv.EAS_LOCAL_BUILD_WORKINGDIR,
       __API_SERVER_URL: getExpoApiBaseUrl(),
       ...(options.skipCleanup || options.skipNativeBuild
         ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
