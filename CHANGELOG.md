@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Use development mode and remove inherited dotenv values when creating project fingerprints. ([#4246](https://github.com/expo/eas-cli/pull/4246) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
