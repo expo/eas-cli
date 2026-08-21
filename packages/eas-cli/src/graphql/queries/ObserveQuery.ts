@@ -116,6 +116,23 @@ type AppObserveCustomEventListQueryVariables = {
   orderBy?: AppObserveCustomEventListOrderBy;
 };
 
+type AppObserveEventByIdQuery = {
+  app: {
+    byId: {
+      id: string;
+      observe: {
+        event: AppObserveEvent | null;
+        customEvent: AppObserveCustomEvent | null;
+      };
+    };
+  };
+};
+
+type AppObserveEventByIdQueryVariables = {
+  appId: string;
+  id: string;
+};
+
 type AppObserveCustomEventNamesQuery = {
   app: {
     byId: {
@@ -371,6 +388,43 @@ export const ObserveQuery = {
       events: edges.map(edge => edge.node),
       pageInfo,
     };
+  },
+
+  async eventByIdAsync(
+    graphqlClient: ExpoGraphqlClient,
+    { appId, id }: AppObserveEventByIdQueryVariables
+  ): Promise<{ event: AppObserveEvent | null; customEvent: AppObserveCustomEvent | null }> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AppObserveEventByIdQuery, AppObserveEventByIdQueryVariables>(
+          gql`
+            query AppObserveEventById($appId: String!, $id: ID!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  observe {
+                    event(id: $id) {
+                      id
+                      ...AppObserveEventFragment
+                    }
+                    customEvent(id: $id) {
+                      id
+                      ...AppObserveCustomEventFragment
+                    }
+                  }
+                }
+              }
+            }
+            ${print(AppObserveEventFragmentNode)}
+            ${print(AppObserveCustomEventFragmentNode)}
+          `,
+          { appId, id }
+        )
+        .toPromise()
+    );
+
+    const { event, customEvent } = data.app.byId.observe;
+    return { event: event ?? null, customEvent: customEvent ?? null };
   },
 
   async customEventNamesAsync(
