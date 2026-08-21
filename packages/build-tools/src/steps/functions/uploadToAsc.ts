@@ -88,21 +88,7 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       }
 
       const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
-      const ascApiKey = z
-        .object({
-          issuer_id: z.string(),
-          key_id: z.string(),
-          key: z.string(),
-        })
-        .parse(ascApiKeyJson);
-
-      const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
-      const token = await new jose.SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
-        .setIssuer(ascApiKey.issuer_id)
-        .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m')
-        .sign(privateKey);
+      const token = await createAscApiTokenAsync(ascApiKeyJson);
 
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
@@ -354,6 +340,28 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       }
     },
   });
+}
+
+export async function createAscApiTokenAsync(ascApiKeyJson: unknown): Promise<string> {
+  const ascApiKey = z
+    .object({
+      // Absent (or null) issuer_id means an individual API key. Such keys
+      // authenticate with `sub: "user"` instead of `iss`.
+      issuer_id: z.string().nullish(),
+      key_id: z.string(),
+      key: z.string(),
+    })
+    .parse(ascApiKeyJson);
+
+  const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
+  const jwt = new jose.SignJWT(ascApiKey.issuer_id ? {} : { sub: 'user' })
+    .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
+    .setAudience('appstoreconnect-v1')
+    .setExpirationTime('20m');
+  if (ascApiKey.issuer_id) {
+    jwt.setIssuer(ascApiKey.issuer_id);
+  }
+  return await jwt.sign(privateKey);
 }
 
 function itemizeMessages(messages: { description: string; code: string }[]): string {

@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Support individual (issuer-less) App Store Connect API keys in the `eas/upload_to_asc` step. ([#4247](https://github.com/expo/eas-cli/pull/4247) by [@szymonswierk](https://github.com/szymonswierk))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
