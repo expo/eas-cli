@@ -11,6 +11,7 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Reduce `expo-device-hub` preview resolution from 1280 px to 960 px to match `serve-sim` and lower streaming bandwidth. ([#4326](https://github.com/expo/eas-cli/pull/4326) by [@krystofwoldrich-agent](https://github.com/krystofwoldrich-agent))
+- [eas-cli] Quote `eas env:pull` values that `dotenv` would not read back verbatim, so values containing `#`, quotes, newlines or surrounding whitespace are no longer truncated or dropped. ([#4240](https://github.com/expo/eas-cli/pull/4240) by [@dennytosp](https://github.com/dennytosp))
 
 ### 🧹 Chores
 
