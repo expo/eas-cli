@@ -15,10 +15,19 @@ const PLATFORM_TO_ANALYTICS_PLATFORM: Partial<Record<NodeJS.Platform, string>> =
   linux: 'Linux',
 };
 
-export type AnalyticsEvent = CommandEvent | BuildEvent | SubmissionEvent | MetadataEvent;
+export type AnalyticsEvent =
+  | CommandEvent
+  | BuildEvent
+  | SubmissionEvent
+  | MetadataEvent
+  | BillingEvent;
 
 export enum CommandEvent {
   ACTION = 'action', // generic event type which is used to determine the 'daily active user' stat, include an `action: eas ${subcommand}` property inside of the event properties object
+}
+
+export enum BillingEvent {
+  SUBSCRIBE_COMMAND = 'billing cli subscribe command',
 }
 
 export enum SubmissionEvent {
