@@ -23,6 +23,40 @@ describe('IosSimulatorUtils', () => {
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
   });
 
+  describe(IosSimulatorUtils.getAvailableRuntimeVersionsAsync, () => {
+    it('returns unique available iOS runtime versions', async () => {
+      mockedSpawn.mockResolvedValue({
+        stdout: JSON.stringify({
+          runtimes: [
+            {
+              identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
+              isAvailable: true,
+              version: '18.3',
+            },
+            {
+              identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
+              isAvailable: true,
+              version: '18.3',
+            },
+            {
+              identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-17-5',
+              isAvailable: false,
+              version: '17.5',
+            },
+          ],
+        }),
+        stderr: '',
+      } as any);
+
+      await expect(
+        IosSimulatorUtils.getAvailableRuntimeVersionsAsync({ env: process.env })
+      ).resolves.toEqual(['18.3']);
+      expect(mockedSpawn).toHaveBeenCalledWith('xcrun', ['simctl', 'list', 'runtimes', '--json'], {
+        env: process.env,
+      });
+    });
+  });
+
   describe(IosSimulatorUtils.getAvailableDevicesAsync, () => {
     it('adds a human-readable runtime display name', async () => {
       mockedSpawn.mockResolvedValue({
