@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-update] Add `--force-end-active-rollout` to `eas update`, `eas update:republish`, `eas update:roll-back-to-embedded` and `eas update:rollback`, so these commands can publish over a rollout that is in progress instead of being rejected. Without the flag, the commands warn and ask for confirmation first. ([#4233](https://github.com/expo/eas-cli/pull/4233) by [@gwdp](https://github.com/gwdp))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
