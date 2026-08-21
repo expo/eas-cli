@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop passing inherited dotenv values to local builds. ([#4244](https://github.com/expo/eas-cli/pull/4244) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
