@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Make `eas metadata:lint` report an `apple.review.demoPassword` longer than 100 characters, instead of letting `eas metadata:push` fail at upload time with "Password cannot be longer than 100 characters". ([#4242](https://github.com/expo/eas-cli/pull/4242) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
