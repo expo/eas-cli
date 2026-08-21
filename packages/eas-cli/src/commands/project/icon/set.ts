@@ -7,11 +7,11 @@ import { EASNonInteractiveFlag } from '../../../commandUtils/flags';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
+import { uploadProjectIconAsync } from '../../../project/projectIcon';
 import {
   pollForProfileImageChangeAsync,
-  uploadProjectIconAsync,
-  validateIconAsync,
-} from '../../../project/projectIcon';
+  validateProfileImageAsync,
+} from '../../../utils/profileImages';
 
 export default class ProjectIconSet extends EasCommand {
   static override description = 'set the project icon displayed on the EAS dashboard';
@@ -45,7 +45,7 @@ export default class ProjectIconSet extends EasCommand {
       nonInteractive: flags['non-interactive'],
     });
 
-    await validateIconAsync(imagePath);
+    await validateProfileImageAsync(imagePath);
 
     const app = await AppQuery.byIdAsync(graphqlClient, projectId);
     const projectDashboardUrl = getProjectDashboardUrl(app.ownerAccount.name, app.slug);
@@ -58,13 +58,12 @@ export default class ProjectIconSet extends EasCommand {
     try {
       await uploadProjectIconAsync(graphqlClient, { projectId, imagePath });
 
-      // The icon is processed asynchronously (resized and assigned to the
-      // project by the server), so poll until the icon URL changes.
       spinner.text = 'Processing project icon';
-      await pollForProfileImageChangeAsync(graphqlClient, {
-        projectId,
+      await pollForProfileImageChangeAsync({
+        fetchProfileImageUrlAsync: async () =>
+          await AppQuery.byIdProfileImageUrlAsync(graphqlClient, projectId),
         previousProfileImageUrl,
-        projectDashboardUrl,
+        fallbackUrl: projectDashboardUrl,
       });
       spinner.succeed(`Set icon for ${chalk.bold(app.fullName)}`);
       Log.withTick(`View it on the project page: ${link(projectDashboardUrl)}`);

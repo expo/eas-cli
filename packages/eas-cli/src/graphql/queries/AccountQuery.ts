@@ -4,6 +4,7 @@ import gql from 'graphql-tag';
 import { ExpoGraphqlClient } from '../../commandUtils/context/contextUtils/createGraphqlClient';
 import { withErrorHandlingAsync } from '../client';
 import {
+  AccountByIdProfileImageUrlQuery,
   AccountFullUsageQuery as AccountFullUsageQueryType,
   AccountFullUsageQueryVariables,
   AccountUsageForOverageWarningQuery,
@@ -43,6 +44,35 @@ export const AccountQuery = {
     );
 
     return data.account.byName;
+  },
+
+  async byIdProfileImageUrlAsync(
+    graphqlClient: ExpoGraphqlClient,
+    accountId: string
+  ): Promise<string | null> {
+    const data = await withErrorHandlingAsync(
+      graphqlClient
+        .query<AccountByIdProfileImageUrlQuery>(
+          gql`
+            query AccountByIdProfileImageUrlQuery($accountId: String!) {
+              account {
+                byId(accountId: $accountId) {
+                  id
+                  profileImageUrl
+                }
+              }
+            }
+          `,
+          { accountId },
+          {
+            requestPolicy: 'network-only',
+            additionalTypenames: ['Account'],
+          }
+        )
+        .toPromise()
+    );
+
+    return data.account.byId.profileImageUrl ?? null;
   },
 
   async getFullUsageAsync(

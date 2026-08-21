@@ -42,12 +42,12 @@ export async function uploadAccountScopedFileAtPathToGCSAsync(
     type,
     accountId,
     path,
-    handleProgressEvent,
+    handleProgressEvent = () => {},
   }: {
     type: AccountUploadSessionType;
     accountId: string;
     path: string;
-    handleProgressEvent: ProgressHandler;
+    handleProgressEvent?: ProgressHandler;
   }
 ): Promise<string> {
   const signedUrl = await UploadSessionMutation.createAccountScopedUploadSessionAsync(

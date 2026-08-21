@@ -137,7 +137,7 @@ describe(ProjectIconSet, () => {
 
     const command = createCommand(['/app/icon.png']);
     await expect(command.runAsync()).rejects.toThrow(
-      'Timed out waiting for the icon to be processed'
+      'Timed out waiting for the image to be processed'
     );
     expect(mockUploadAsync).toHaveBeenCalledTimes(1);
   });
