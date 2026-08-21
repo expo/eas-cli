@@ -1,3 +1,4 @@
+import { loadEnvFiles, loadProjectEnv } from '@expo/env';
 import * as fs from 'fs-extra';
 import { parse as parseDotenv } from 'dotenv';
 
@@ -5,11 +6,64 @@ import {
   EAS_SIMULATOR_SESSION_ID,
   SIMULATOR_DOTENV_FILE_HEADER,
   getSimulatorEnvFilePath,
+  loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../env';
 
+jest.mock('@expo/env', () => ({
+  LOADED_ENV_NAME: '__EXPO_ENV_LOADED',
+  loadEnvFiles: jest.fn(),
+  loadProjectEnv: jest.fn(),
+}));
 jest.mock('fs-extra');
+
+describe(loadSimulatorEnvAsync, () => {
+  const projectDir = '/test/project';
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = {
+      ...originalEnv,
+      DOTENV_VALUE: 'from-parent',
+      KEEP_VALUE: 'from-shell',
+      NODE_ENV: 'staging',
+      __EXPO_ENV_LOADED: '["DOTENV_VALUE"]',
+      __EXPO_CONFIG_MODE: 'production',
+    };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('loads simulator env in development mode without inherited dotenv values', async () => {
+    jest.mocked(loadProjectEnv).mockImplementation(() => {
+      expect(process.env.DOTENV_VALUE).toBeUndefined();
+      expect(process.env.KEEP_VALUE).toBe('from-shell');
+      expect(process.env.NODE_ENV).toBe('development');
+      expect(process.env.__EXPO_ENV_LOADED).toBeUndefined();
+      expect(process.env.__EXPO_CONFIG_MODE).toBeUndefined();
+      return {} as never;
+    });
+    jest.mocked(loadEnvFiles).mockImplementation(() => {
+      process.env.__EXPO_CONFIG_MODE = 'from-simulator-env';
+      return {} as never;
+    });
+
+    await loadSimulatorEnvAsync(projectDir);
+
+    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
+      mode: 'development',
+      silent: true,
+    });
+    expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
+      force: true,
+    });
+    expect(process.env.__EXPO_CONFIG_MODE).toBeUndefined();
+  });
+});
 
 describe(resetSimulatorEnvAsync, () => {
   const projectDir = '/test/project';
