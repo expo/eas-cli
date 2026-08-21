@@ -26,6 +26,7 @@ describe(readIpaInfoAsync, () => {
       bundleIdentifier: 'dev.expo.SmallestAppExample',
       bundleShortVersion: '1.0',
       bundleVersion: '1',
+      dtPlatformName: 'iphoneos',
     });
   });
 

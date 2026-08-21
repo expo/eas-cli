@@ -167,6 +167,7 @@ export async function saveGradleCacheAsync({
 
   const gradleCachesPath = path.join(os.homedir(), '.gradle', 'caches');
   const buildCachePath = path.join(gradleCachesPath, 'build-cache-1');
+  const journalPath = path.join(gradleCachesPath, 'journal-1');
 
   try {
     await fs.promises.access(buildCachePath);
@@ -186,9 +187,11 @@ export async function saveGradleCacheAsync({
     );
     const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
 
+    await fs.promises.mkdir(journalPath, { recursive: true });
+
     logger.info('Compressing Gradle build cache...');
     const { archivePath } = await compressCacheAsync({
-      paths: [buildCachePath],
+      paths: [buildCachePath, journalPath],
       workingDirectory: gradleCachesPath,
       verbose: env.EXPO_DEBUG === '1',
       logger,
@@ -204,7 +207,7 @@ export async function saveGradleCacheAsync({
       robotAccessToken,
       archivePath,
       key: cacheKey,
-      paths: [buildCachePath],
+      paths: [buildCachePath, journalPath],
       size,
       platform: Platform.ANDROID,
     });

@@ -50,7 +50,9 @@ export default {
           ? 'http://localhost:4999/logs/'
           : process.env.ENVIRONMENT === 'staging'
             ? 'https://staging-logs.expo.dev/logs/'
-            : null,
+            : process.env.ENVIRONMENT === 'production'
+              ? 'https://logs.expo.dev/logs/'
+              : null,
     },
   },
   buildCache: {

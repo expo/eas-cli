@@ -1,7 +1,5 @@
 import { TransformCallback, Writable } from 'node:stream';
 import { EnvironmentSecretType } from '@expo/eas-build-job';
-import { Response } from 'node-fetch';
-import fetch from 'node-fetch';
 import z from 'zod';
 
 jest.mock('@expo/build-tools', () => {
@@ -36,9 +34,32 @@ jest.mock('@expo/build-tools', () => {
     }
   }
 
+  class MockHttpLogStream extends Writable {
+    public static readonly instances: MockHttpLogStream[] = [];
+
+    public readonly writes: any[] = [];
+
+    constructor(public readonly config: Record<string, unknown>) {
+      super({ objectMode: true });
+      MockHttpLogStream.instances.push(this);
+    }
+
+    public async cleanUp(): Promise<void> {}
+
+    public _write(
+      chunk: unknown,
+      _encoding: BufferEncoding,
+      callback: (error?: Error | null) => void
+    ): void {
+      this.writes.push(chunk);
+      callback(null);
+    }
+  }
+
   return {
     ...actual,
     uploadWithSignedUrl: jest.fn(),
+    HttpLogStream: MockHttpLogStream,
     RemoteLoggerStream: MockRemoteLoggerStream,
   };
 });
@@ -46,24 +67,17 @@ jest.mock('@expo/build-tools', () => {
 import config from '../config';
 import { createBuildLoggerWithSecretsFilter } from '../logger';
 
-jest.mock('node-fetch', () => {
-  const actual = jest.requireActual('node-fetch');
-  return {
-    __esModule: true,
-    ...actual,
-    default: jest.fn(),
-  };
-});
-jest.mock('../utils/retry', () => ({
-  retry: jest.fn(async (fn: (attemptCount: number) => Promise<unknown>) => await fn(0)),
-}));
-
 async function waitForStreamFlush(): Promise<void> {
   await new Promise(resolve => setImmediate(resolve));
 }
 
-const fetchMock = jest.mocked(fetch);
-const { RemoteLoggerStream } = jest.requireMock('@expo/build-tools') as {
+const { HttpLogStream, RemoteLoggerStream } = jest.requireMock('@expo/build-tools') as {
+  HttpLogStream: {
+    instances: Array<{
+      config: Record<string, unknown>;
+      writes: any[];
+    }>;
+  };
   RemoteLoggerStream: {
     instances: Array<{
       writes: any[];
@@ -77,8 +91,7 @@ describe('logger', () => {
   const originalGcsSignedUploadUrlForLogs = config.loggers.gcs.signedUploadUrlForLogs;
 
   beforeEach(() => {
-    fetchMock.mockReset();
-    fetchMock.mockResolvedValue(new Response('', { status: 200, statusText: 'OK' }));
+    HttpLogStream.instances.length = 0;
     RemoteLoggerStream.instances.length = 0;
   });
 
@@ -176,136 +189,15 @@ describe('logger', () => {
     await cleanUp();
 
     expect(logs).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://logs.expo.test/logs/build-id',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer robot-token',
-          'Content-Type': 'application/x-ndjson',
-        }),
-      })
-    );
-
-    const [, requestInit] = fetchMock.mock.calls[0];
-    const [serializedLog] = String(requestInit?.body).split('\n');
-    const uploadedLog = JSON.parse(serializedLog);
-
-    expect(uploadedLog.logId).toBe(logs[0].logId);
-  });
-
-  it('keeps failed HTTP logs buffered and resends them with the same logId', async () => {
-    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
-    config.buildId = 'build-id';
-    fetchMock
-      .mockResolvedValueOnce(
-        new Response('upload failed', { status: 500, statusText: 'Internal Server Error' })
-      )
-      .mockResolvedValueOnce(new Response('', { status: 200, statusText: 'OK' }));
-
-    const { logger, outputStream, cleanUp } = await createBuildLoggerWithSecretsFilter({
-      robotAccessToken: 'robot-token',
+    expect(HttpLogStream.instances).toHaveLength(1);
+    expect(HttpLogStream.instances[0].config).toEqual({
+      url: 'https://logs.expo.test/logs/build-id',
+      headers: { Authorization: 'Bearer robot-token' },
+      bufferRetentionMs: null,
+      logger: expect.anything(),
     });
-
-    const logs: any[] = [];
-    const writable = new Writable({
-      objectMode: true,
-      write(chunk: any, _encoding: BufferEncoding, callback: TransformCallback) {
-        logs.push(chunk);
-        callback(null, chunk);
-      },
-    });
-
-    outputStream.pipe(writable);
-    logger.info('Retry me');
-
-    await waitForStreamFlush();
-    await cleanUp();
-
-    const originalLog = logs.find(log => log.msg === 'Retry me');
-
-    expect(originalLog).toBeDefined();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    const [firstAttemptLogs, secondAttemptLogs] = fetchMock.mock.calls.map(([, requestInit]) =>
-      String(requestInit?.body)
-        .split('\n')
-        .filter(Boolean)
-        .map(serializedLog => JSON.parse(serializedLog))
-    );
-    const firstAttemptOriginalLog = firstAttemptLogs.find(log => log.msg === 'Retry me');
-    const secondAttemptOriginalLog = secondAttemptLogs.find(log => log.msg === 'Retry me');
-
-    expect(firstAttemptOriginalLog.logId).toBe(originalLog.logId);
-    expect(secondAttemptOriginalLog.logId).toBe(originalLog.logId);
-    expect(secondAttemptOriginalLog).toEqual(firstAttemptOriginalLog);
-  });
-
-  it('does one final best-effort HTTP flush during cleanup without looping indefinitely', async () => {
-    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
-    config.buildId = 'build-id';
-    fetchMock.mockResolvedValue(
-      new Response('upload failed', { status: 500, statusText: 'Internal Server Error' })
-    );
-
-    const { logger, cleanUp } = await createBuildLoggerWithSecretsFilter({
-      robotAccessToken: 'robot-token',
-    });
-
-    logger.info('Do not hang on cleanup');
-    await cleanUp();
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    const [firstAttemptLogs, secondAttemptLogs] = fetchMock.mock.calls.map(([, requestInit]) =>
-      String(requestInit?.body)
-        .split('\n')
-        .filter(Boolean)
-        .map(serializedLog => JSON.parse(serializedLog))
-    );
-    const firstAttemptOriginalLog = firstAttemptLogs.find(
-      log => log.msg === 'Do not hang on cleanup'
-    );
-    const secondAttemptOriginalLog = secondAttemptLogs.find(
-      log => log.msg === 'Do not hang on cleanup'
-    );
-
-    expect(firstAttemptOriginalLog).toBeDefined();
-    expect(secondAttemptOriginalLog).toBeDefined();
-    expect(secondAttemptOriginalLog).toEqual(firstAttemptOriginalLog);
-  });
-
-  it('does not forward HTTP upload failures to the GCS build log stream', async () => {
-    config.loggers.http.baseUrl = 'https://logs.expo.test/logs/';
-    config.loggers.gcs.signedUploadUrlForLogs = {
-      url: 'https://gcs.expo.test/logs',
-      headers: {},
-    };
-    config.buildId = 'build-id';
-    fetchMock.mockResolvedValue(
-      new Response('upload failed', { status: 500, statusText: 'Internal Server Error' })
-    );
-
-    const { logger, cleanUp } = await createBuildLoggerWithSecretsFilter({
-      robotAccessToken: 'robot-token',
-    });
-
-    logger.info('Actual build log');
-    await cleanUp();
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(RemoteLoggerStream.instances).toHaveLength(1);
-
-    const remoteLogs = RemoteLoggerStream.instances[0].writes;
-    expect(remoteLogs).toEqual(
-      expect.arrayContaining([expect.objectContaining({ msg: 'Actual build log' })])
-    );
-    expect(remoteLogs).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ msg: 'Failed to send logs batch over HTTP' }),
-      ])
-    );
+    expect(HttpLogStream.instances[0].writes).toHaveLength(1);
+    expect(HttpLogStream.instances[0].writes[0].logId).toBe(logs[0].logId);
   });
 
   it('drains transformed logs even without explicit output consumer', async () => {

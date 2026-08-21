@@ -4,11 +4,10 @@ import chalk from 'chalk';
 import { getProjectDashboardUrl } from '../../../build/utils/url';
 import EasCommand from '../../../commandUtils/EasCommand';
 import { EASNonInteractiveFlag } from '../../../commandUtils/flags';
-import { AppUploadSessionType } from '../../../graphql/generated';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import Log, { link } from '../../../log';
 import { ora } from '../../../ora';
-import { uploadAppScopedFileAtPathToGCSAsync } from '../../../uploads';
+import { uploadProjectIconAsync } from '../../../project/projectIcon';
 import {
   pollForProfileImageChangeAsync,
   validateProfileImageAsync,
@@ -57,11 +56,7 @@ export default class ProjectIconSet extends EasCommand {
 
     const spinner = ora('Uploading project icon').start();
     try {
-      await uploadAppScopedFileAtPathToGCSAsync(graphqlClient, {
-        type: AppUploadSessionType.ProfileImageUpload,
-        appId: projectId,
-        path: imagePath,
-      });
+      await uploadProjectIconAsync(graphqlClient, { projectId, imagePath });
 
       spinner.text = 'Processing project icon';
       await pollForProfileImageChangeAsync({

@@ -4,6 +4,8 @@ import {
   BuildStepGlobalContext,
   BuildWorkflow,
   StepsConfigParser,
+  buildLocalCompositeFunctionCatalogAsync,
+  createLocalCompositeFunctionLoader,
   errors,
 } from '@expo/steps';
 import assert from 'assert';
@@ -58,26 +60,35 @@ export async function runCustomBuildAsync(ctx: BuildContext<BuildJob>): Promise<
   const globalContext = new BuildStepGlobalContext(customBuildCtx, false);
   const easFunctions = getEasFunctions(customBuildCtx);
   const easFunctionGroups = getEasFunctionGroups(customBuildCtx);
-  const parser = ctx.job.steps
-    ? new StepsConfigParser(globalContext, {
-        externalFunctions: easFunctions,
-        externalFunctionGroups: easFunctionGroups,
-        steps: ctx.job.steps,
-        hooks: ctx.job.hooks,
-      })
-    : new BuildConfigParser(globalContext, {
-        externalFunctions: easFunctions,
-        externalFunctionGroups: easFunctionGroups,
-        configPath: path.join(
-          ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory),
-          nullthrows(
-            ctx.job.customBuildConfig?.path,
-            'Steps or custom build config path are required in custom jobs'
-          )
-        ),
-      });
   const workflow = await ctx.runBuildPhase(BuildPhase.PARSE_CUSTOM_WORKFLOW_CONFIG, async () => {
     try {
+      const projectRoot = ctx.getReactNativeProjectDirectory(customBuildCtx.projectSourceDirectory);
+      const parser = ctx.job.steps
+        ? new StepsConfigParser(globalContext, {
+            externalFunctions: easFunctions,
+            externalFunctionGroups: easFunctionGroups,
+            steps: ctx.job.steps,
+            hooks: ctx.job.hooks,
+            // Eager for job steps (always run), lazy loader for hooks (running anchors only).
+            compositeFunctionCatalog: await buildLocalCompositeFunctionCatalogAsync(projectRoot, {
+              rootSteps: ctx.job.steps,
+              logger: ctx.logger,
+            }),
+            loadCompositeFunction: createLocalCompositeFunctionLoader(projectRoot, {
+              logger: ctx.logger,
+            }),
+          })
+        : new BuildConfigParser(globalContext, {
+            externalFunctions: easFunctions,
+            externalFunctionGroups: easFunctionGroups,
+            configPath: path.join(
+              projectRoot,
+              nullthrows(
+                ctx.job.customBuildConfig?.path,
+                'Steps or custom build config path are required in custom jobs'
+              )
+            ),
+          });
       return await parser.parseAsync();
     } catch (parseError: any) {
       ctx.logger.error('Failed to parse the custom build config file.');

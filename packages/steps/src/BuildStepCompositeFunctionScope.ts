@@ -73,18 +73,18 @@ export class BuildStepCompositeFunctionScope {
    * Memoized: global status can change mid-expansion, and re-evaluating would flip a passed
    * success() gate and skip remaining always()/failure() inner steps.
    */
-  public isActive(evaluate: EvaluateIfExpression): boolean {
-    if (this.parent && !this.parent.isActive(evaluate)) {
+  public isActive(evaluate: EvaluateIfExpression, runByDefault: boolean): boolean {
+    if (this.parent && !this.parent.isActive(evaluate, runByDefault)) {
       return false;
     }
-    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate);
+    this.cachedIsActive ??= this.evaluateCallIfCondition(evaluate, runByDefault);
     return this.cachedIsActive;
   }
 
   // Call-site if uses caller env/inputs/steps, not expanded inner steps.
-  private evaluateCallIfCondition(evaluate: EvaluateIfExpression): boolean {
+  private evaluateCallIfCondition(evaluate: EvaluateIfExpression, runByDefault: boolean): boolean {
     if (!this.ifCondition) {
-      return !this.ctx.hasAnyPreviousStepFailed;
+      return runByDefault;
     }
     const callerBase: JobInterpolationContext = {
       ...this.ctx.getInterpolationContext(),

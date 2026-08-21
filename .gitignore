@@ -29,3 +29,6 @@ coverage
 
 # AI reviewer run logs / per-run patch workspaces
 .expo-code-review/.runs
+
+# Running the CLI from the repo root writes a stub app.json; never track it
+/app.json

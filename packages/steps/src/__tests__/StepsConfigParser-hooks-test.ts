@@ -1,4 +1,10 @@
-import { CompositeFunctionCatalog, Hooks, Step } from '@expo/eas-build-job';
+import {
+  CompositeFunctionCatalog,
+  CompositeFunctionConfig,
+  CompositeFunctionConfigZ,
+  Hooks,
+  Step,
+} from '@expo/eas-build-job';
 
 import { makeCatalog } from './StepsConfigParser-composite-functions-test-utils';
 import { createGlobalContextMock } from './utils/context';
@@ -40,6 +46,7 @@ async function parseWorkflowAsync({
   externalFunctions,
   externalFunctionGroups,
   compositeFunctionCatalog,
+  loadCompositeFunction,
 }: {
   ctx: BuildStepGlobalContext;
   steps: Step[];
@@ -47,6 +54,7 @@ async function parseWorkflowAsync({
   externalFunctions?: BuildFunction[];
   externalFunctionGroups?: BuildFunctionGroup[];
   compositeFunctionCatalog?: CompositeFunctionCatalog;
+  loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
 }): Promise<BuildWorkflow> {
   const parser = new StepsConfigParser(ctx, {
     steps,
@@ -57,6 +65,7 @@ async function parseWorkflowAsync({
     ],
     externalFunctionGroups,
     compositeFunctionCatalog,
+    loadCompositeFunction,
   });
   return await parser.parseAsync();
 }
@@ -263,9 +272,23 @@ describe('StepsConfigParser hook construction', () => {
     });
     expect(error).toBeInstanceOf(BuildConfigError);
     expect(error.message).toMatch(/nonexistent_function/);
+    expect(error.message).toMatch(/hooks\.before_install_node_modules/);
   });
 
-  it('rejects a hook step using a local composite function with BuildConfigError, not an assertion crash', async () => {
+  it('ignores a registered hook key whose anchor is absent even when its steps use unknown functions', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: { before_install_node_modules: [{ uses: 'eas/some_newer_function' }] },
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
+    expect(workflow.hooksByAnchorStep.size).toBe(0);
+    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
+      'Ignoring "hooks.before_install_node_modules": this build does not run the "install_node_modules" step.'
+    );
+  });
+
+  it('rejects a hook step using a composite function missing from the catalog with BuildConfigError', async () => {
     const error = await getErrorAsync<BuildConfigError>(async () => {
       await parseWorkflowAsync({
         ctx,
@@ -274,7 +297,7 @@ describe('StepsConfigParser hook construction', () => {
       });
     });
     expect(error).toBeInstanceOf(BuildConfigError);
-    expect(error.message).toMatch(/not supported in hooks/);
+    expect(error.message).toMatch(/"\.\/\.eas\/functions\/setup" does not exist/);
   });
 });
 
@@ -605,6 +628,390 @@ describe('StepsConfigParser hooks with composite functions', () => {
     });
     expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
     expect(workflow.hooksByAnchorStep.size).toBe(0);
+  });
+
+  it('parses a composite hook step into a single entry with namespaced children and the outputs step last', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+          runs: {
+            steps: [{ id: 'read', run: 'set-output version "1.0.0"' }, { run: 'echo hi' }],
+          },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'setup__read',
+      'setup__composite_function_step_1',
+      'setup',
+    ]);
+    expect(workflow.buildSteps.map(step => step.displayName)).toEqual(['Install node modules']);
+  });
+
+  it('does not copy the if condition of a composite hook step onto the entry', async () => {
+    // The authored if: is applied inside the expansion scope, not on the entry.
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [
+          { uses: './.eas/functions/setup', id: 'setup', if: '${{ failure() }}' },
+        ],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          runs: { steps: [{ run: 'echo hi' }] },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before[0].ifCondition).toBeUndefined();
+  });
+
+  it('rejects working_directory on a composite hook step', async () => {
+    // The call expands away during parsing, so there is no single step to apply it to.
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [
+            { uses: './.eas/functions/setup', id: 'setup', working_directory: 'app' },
+          ],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            runs: { steps: [{ run: 'echo hi' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/"working_directory" is not supported/);
+  });
+
+  it('reports the hook key on composite expansion errors', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [{ uses: './.eas/functions/notify', id: 'notify' }],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/notify': {
+            inputs: [{ name: 'message', type: 'string', required: true }],
+            runs: { steps: [{ run: 'echo hi' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(
+      /^Invalid steps in "hooks\.before_install_node_modules": Input parameter "message"/
+    );
+  });
+
+  it('flattens nested composite calls into a single hook entry', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/outer', id: 'top' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/outer': {
+          runs: {
+            steps: [{ uses: './.eas/functions/inner', id: 'mid' }, { run: 'echo done' }],
+          },
+        },
+        './.eas/functions/inner': {
+          runs: { steps: [{ run: 'echo inner' }] },
+        },
+      }),
+    });
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    // No declared outputs, so no outputs nodes appear in the expansion.
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'top__mid__composite_function_step_1',
+      'top__composite_function_step_1',
+    ]);
+  });
+
+  it('orders composite hook expansions as before hook, anchor, then after hook', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+        after_install_node_modules: [{ uses: './.eas/functions/teardown', id: 'teardown' }],
+      },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': {
+          runs: { steps: [{ id: 'prepare', run: 'echo prepare' }] },
+        },
+        './.eas/functions/teardown': {
+          runs: { steps: [{ id: 'clean', run: 'echo clean' }] },
+        },
+      }),
+    });
+    expect(workflow.getExecutionOrderedSteps().map(step => step.id)).toEqual([
+      'setup__prepare',
+      expect.stringMatching(/^step-\d{3,}$/),
+      'teardown__clean',
+    ]);
+  });
+
+  it('fails parseAsync when a composite hook call id collides with a job step id', async () => {
+    const error = await getErrorAsync<BuildWorkflowError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }, { run: 'echo job', id: 'setup' }],
+        hooks: {
+          before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }],
+        },
+        compositeFunctionCatalog: makeCatalog({
+          './.eas/functions/setup': {
+            // Outputs node reuses the call id, forcing the collision with the job step.
+            outputs: { version: { value: '${{ steps.read.outputs.version }}' } },
+            runs: { steps: [{ id: 'read', run: 'set-output version "1.0.0"' }] },
+          },
+        }),
+      });
+    });
+    expect(error).toBeInstanceOf(BuildWorkflowError);
+  });
+});
+
+describe('StepsConfigParser lazy hook composite loading', () => {
+  let ctx: BuildStepGlobalContext;
+
+  beforeEach(() => {
+    ctx = createGlobalContextMock();
+  });
+
+  function createLoader(entries: Record<string, unknown>): {
+    loadCompositeFunction: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
+    loadedPaths: string[];
+  } {
+    const loadedPaths: string[] = [];
+    return {
+      loadedPaths,
+      loadCompositeFunction: async compositeFunctionPath => {
+        loadedPaths.push(compositeFunctionPath);
+        const raw = entries[compositeFunctionPath];
+        if (raw === undefined) {
+          throw new Error(`no such composite function: ${compositeFunctionPath}`);
+        }
+        return CompositeFunctionConfigZ.parse(raw);
+      },
+    };
+  }
+
+  function rejectingLoader(): (compositeFunctionPath: string) => Promise<CompositeFunctionConfig> {
+    return async compositeFunctionPath => {
+      throw new Error(`must not be called, got: ${compositeFunctionPath}`);
+    };
+  }
+
+  it('loads a hook composite through the loader (normalized path) when the anchor is present', async () => {
+    const { loadCompositeFunction, loadedPaths } = createLoader({
+      './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+    });
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: {
+        // Trailing slash must normalize before the loader is called.
+        before_install_node_modules: [{ uses: './.eas/functions/setup/', id: 'setup' }],
+      },
+      loadCompositeFunction,
+    });
+    expect(loadedPaths).toEqual(['./.eas/functions/setup']);
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before).toHaveLength(1);
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'setup__composite_function_step_1',
+    ]);
+  });
+
+  it('never calls the loader and parses successfully when the hook anchor is absent', async () => {
+    // www merges defaults.hooks into every job; absent anchors must not fail on
+    // composites that only resolve under another job's project root.
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: {
+        before_install_node_modules: [{ uses: './.eas/functions/only-elsewhere' }],
+      },
+      loadCompositeFunction: rejectingLoader(),
+    });
+    expect(orderedDisplayNames(workflow)).toEqual(['Checkout']);
+  });
+
+  it('warns for a registered hook key whose anchor never appeared', async () => {
+    await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: { before_install_node_modules: [{ run: 'echo never' }] },
+    });
+    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
+      'Ignoring "hooks.before_install_node_modules": this build does not run the "install_node_modules" step.'
+    );
+  });
+
+  it('warns for an unknown hook key', async () => {
+    await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/checkout' }],
+      hooks: { before_install_node_module: [{ run: 'echo typo' }] },
+    });
+    expect(ctx.baseLogger.warn).toHaveBeenCalledWith(
+      'Ignoring unknown hook key "before_install_node_module".'
+    );
+  });
+
+  it('wraps a loader failure in a BuildConfigError naming the before-side hook key', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { before_install_node_modules: [{ uses: './.eas/functions/missing' }] },
+        loadCompositeFunction: createLoader({}).loadCompositeFunction,
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/hooks\.before_install_node_modules/);
+    expect(error.message).toMatch(/no such composite function: \.\/\.eas\/functions\/missing/);
+  });
+
+  it('names the after-side hook key in the wrapped loader failure', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: { after_install_node_modules: [{ uses: './.eas/functions/missing' }] },
+        loadCompositeFunction: createLoader({}).loadCompositeFunction,
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/hooks\.after_install_node_modules/);
+  });
+
+  it('names the hook key when a composite hook call sets working_directory', async () => {
+    const error = await getErrorAsync<BuildConfigError>(async () => {
+      await parseWorkflowAsync({
+        ctx,
+        steps: [{ uses: 'eas/install_node_modules' }],
+        hooks: {
+          before_install_node_modules: [
+            { uses: './.eas/functions/setup', id: 'setup', working_directory: 'app' },
+          ],
+        },
+        loadCompositeFunction: createLoader({
+          './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+        }).loadCompositeFunction,
+      });
+    });
+    expect(error).toBeInstanceOf(BuildConfigError);
+    expect(error.message).toMatch(/hooks\.before_install_node_modules/);
+    expect(error.message).toMatch(/"working_directory" is not supported/);
+    expect(error.message).not.toMatch(/Failed to load/);
+  });
+
+  it('calls the loader once per composite across repeated occurrences of the same anchor', async () => {
+    const { loadCompositeFunction, loadedPaths } = createLoader({
+      './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+    });
+    await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }, { uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
+      loadCompositeFunction,
+    });
+    expect(loadedPaths).toEqual(['./.eas/functions/setup']);
+  });
+
+  it('never calls the loader for a composite already present in the prebuilt catalog', async () => {
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
+      compositeFunctionCatalog: makeCatalog({
+        './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+      }),
+      loadCompositeFunction: rejectingLoader(),
+    });
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+  });
+
+  it('loads composites transitively referenced by a hook composite', async () => {
+    const { loadCompositeFunction, loadedPaths } = createLoader({
+      './.eas/functions/outer': {
+        runs: { steps: [{ uses: './.eas/functions/inner', id: 'mid' }] },
+      },
+      './.eas/functions/inner': { runs: { steps: [{ run: 'echo inner' }] } },
+    });
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/outer', id: 'top' }] },
+      loadCompositeFunction,
+    });
+    expect(loadedPaths.sort()).toEqual(['./.eas/functions/inner', './.eas/functions/outer']);
+    const anchorHooks = [...workflow.hooksByAnchorStep.values()][0];
+    expect(anchorHooks.before[0].steps.map(step => step.id)).toEqual([
+      'top__mid__composite_function_step_1',
+    ]);
+  });
+
+  it('loads hook composites for an anchor discovered inside a function-group expansion', async () => {
+    const checkoutFunction = createCheckoutFunction();
+    const installFunction = createInstallNodeModulesFunction();
+    const group = new BuildFunctionGroup({
+      namespace: 'test',
+      id: 'group',
+      createBuildStepsFromFunctionGroupCall: globalCtx => [
+        checkoutFunction.createBuildStepFromFunctionCall(globalCtx),
+        installFunction.createBuildStepFromFunctionCall(globalCtx),
+      ],
+    });
+    const { loadCompositeFunction, loadedPaths } = createLoader({
+      './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+    });
+    const workflow = await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'test/group' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup', id: 'setup' }] },
+      externalFunctions: [checkoutFunction, installFunction],
+      externalFunctionGroups: [group],
+      loadCompositeFunction,
+    });
+    expect(loadedPaths).toEqual(['./.eas/functions/setup']);
+    expect(workflow.hooksByAnchorStep.size).toBe(1);
+  });
+
+  it('does not mutate the caller-owned catalog when loading lazily', async () => {
+    const callerCatalog = makeCatalog({});
+    await parseWorkflowAsync({
+      ctx,
+      steps: [{ uses: 'eas/install_node_modules' }],
+      hooks: { before_install_node_modules: [{ uses: './.eas/functions/setup' }] },
+      compositeFunctionCatalog: callerCatalog,
+      loadCompositeFunction: createLoader({
+        './.eas/functions/setup': { runs: { steps: [{ run: 'echo setup' }] } },
+      }).loadCompositeFunction,
+    });
+    expect(Object.keys(callerCatalog)).toEqual([]);
   });
 });
 

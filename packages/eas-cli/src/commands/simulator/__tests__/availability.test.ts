@@ -3,11 +3,18 @@ import { Config } from '@oclif/core';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { DeviceRunSessionAvailabilityQuery } from '../../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import Log from '../../../log';
+import { EAS_SIMULATOR_WAITLIST_URL } from '../../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
 import SimulatorAvailability from '../availability';
 
 jest.mock('../../../graphql/queries/DeviceRunSessionAvailabilityQuery');
-jest.mock('../../../log');
+jest.mock('../../../log', () => ({
+  __esModule: true,
+  default: {
+    log: jest.fn(),
+  },
+  link: jest.fn((url: string) => url),
+}));
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
     const spinner = {
@@ -45,12 +52,15 @@ describe(SimulatorAvailability, () => {
     jest.clearAllMocks();
   });
 
-  function createCommand(argv: string[]): SimulatorAvailability {
+  function createCommand(
+    argv: string[],
+    { isExpoAdmin = false }: { isExpoAdmin?: boolean } = {}
+  ): SimulatorAvailability {
     const command = new SimulatorAvailability(argv, mockConfig);
     // @ts-expect-error getContextAsync is protected
     jest.spyOn(command, 'getContextAsync').mockResolvedValue({
       projectId,
-      loggedIn: { graphqlClient },
+      loggedIn: { actor: { isExpoAdmin }, graphqlClient },
     });
     return command;
   }
@@ -69,7 +79,7 @@ describe(SimulatorAvailability, () => {
     });
   });
 
-  it('emits JSON with available false when not enabled', async () => {
+  it('emits JSON with available false and the waitlist URL when not enabled', async () => {
     mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand(['--json']);
@@ -78,10 +88,36 @@ describe(SimulatorAvailability, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       available: false,
       accountName: 'testuser',
+      waitlistUrl: EAS_SIMULATOR_WAITLIST_URL,
     });
   });
 
-  it('logs a graceful message when not enabled', async () => {
+  it('omits the waitlist URL from JSON when enabled', async () => {
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
+
+    const command = createCommand(['--json']);
+    await command.runAsync();
+
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      available: true,
+      accountName: 'testuser',
+    });
+  });
+
+  it('emits JSON with available true for Expo admins when the account is gated', async () => {
+    mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
+
+    const command = createCommand(['--json'], { isExpoAdmin: true });
+    await command.runAsync();
+
+    expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
+    expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
+      available: true,
+      accountName: 'testuser',
+    });
+  });
+
+  it('logs a graceful message pointing at the waitlist when not enabled', async () => {
     mockByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: false });
 
     const command = createCommand([]);
@@ -89,7 +125,8 @@ describe(SimulatorAvailability, () => {
 
     expect(mockByAppIdAsync).toHaveBeenCalledWith(graphqlClient, projectId);
     expect(mockLog).toHaveBeenCalledWith(
-      "EAS Simulator isn't available on testuser yet — it's coming soon."
+      "EAS Simulator isn't available on testuser yet — it's coming soon.\n" +
+        `Join the waitlist to get access: ${EAS_SIMULATOR_WAITLIST_URL}`
     );
     expect(mockPrintJsonOnlyOutput).not.toHaveBeenCalled();
   });

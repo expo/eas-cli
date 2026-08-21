@@ -6,10 +6,15 @@ import {
 import { DeviceRunSessionAvailabilityQuery } from '../../graphql/queries/DeviceRunSessionAvailabilityQuery';
 import Log from '../../log';
 import { ora } from '../../ora';
+import {
+  EAS_SIMULATOR_WAITLIST_URL,
+  formatSimulatorUnavailableMessage,
+} from '../../simulator/utils';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 
 export default class SimulatorAvailability extends EasCommand {
   static override hidden = true;
+  static override aliases = ['sim:availability'];
   static override description =
     '[EXPERIMENTAL] check whether EAS Simulator is enabled for the current project account';
 
@@ -32,7 +37,7 @@ export default class SimulatorAvailability extends EasCommand {
 
     const {
       projectId,
-      loggedIn: { graphqlClient },
+      loggedIn: { actor, graphqlClient },
     } = await this.getContextAsync(SimulatorAvailability, {
       nonInteractive,
     });
@@ -45,6 +50,7 @@ export default class SimulatorAvailability extends EasCommand {
         graphqlClient,
         projectId
       ));
+      available ||= actor.isExpoAdmin;
       fetchSpinner?.stop();
     } catch (err) {
       fetchSpinner?.fail('Failed to check EAS Simulator availability');
@@ -52,7 +58,12 @@ export default class SimulatorAvailability extends EasCommand {
     }
 
     if (jsonFlag) {
-      printJsonOnlyOutput({ available, accountName });
+      printJsonOnlyOutput({
+        available,
+        accountName,
+        // Only present when gated, so scripts and agents can pass the waitlist link on.
+        ...(available ? {} : { waitlistUrl: EAS_SIMULATOR_WAITLIST_URL }),
+      });
       return;
     }
 
@@ -61,6 +72,6 @@ export default class SimulatorAvailability extends EasCommand {
       return;
     }
 
-    Log.log(`EAS Simulator isn't available on ${accountName} yet — it's coming soon.`);
+    Log.log(formatSimulatorUnavailableMessage(accountName));
   }
 }

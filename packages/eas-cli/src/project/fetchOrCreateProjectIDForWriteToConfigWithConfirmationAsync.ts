@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 
+import { getUnconfiguredProjectError } from './projectNotConfiguredError';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { Role } from '../graphql/generated';
@@ -30,18 +31,14 @@ export async function fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsyn
   const { accountName, projectName } = projectInfo;
   const projectFullName = `@${accountName}/${projectName}`;
 
-  if (options.nonInteractive) {
-    throw new Error(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
-    );
-  }
-
   const allAccounts = actor.accounts;
   const accountNamesWhereUserHasSufficientPublishPermissions = new Set(
-    allAccounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
+    allAccounts.filter(a => a.viewerUserPermission.role !== Role.ViewOnly).map(it => it.name)
   );
+
+  if (options.nonInteractive) {
+    throw getUnconfiguredProjectError({ actor, accountName });
+  }
   const account = allAccounts.find(a => a.name === accountName);
   if (!account) {
     throw new Error(

@@ -1,12 +1,28 @@
 import { DeviceRunSessionByIdQuery, DeviceRunSessionType } from '../graphql/generated';
+import { link } from '../log';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
 export type DeviceRunSessionRemoteConfig = NonNullable<DeviceRunSessionByIdResult['remoteConfig']>;
+
+/** Landing page where accounts without access can request it. */
+export const EAS_SIMULATOR_WAITLIST_URL = 'https://expo.dev/services/simulators';
+
+/**
+ * Message shown when EAS Simulator is not enabled for the account. Shared by every
+ * command that can hit the gate so users always get the same waitlist pointer.
+ */
+export function formatSimulatorUnavailableMessage(accountName: string): string {
+  return [
+    `EAS Simulator isn't available on ${accountName} yet — it's coming soon.`,
+    `Join the waitlist to get access: ${link(EAS_SIMULATOR_WAITLIST_URL)}`,
+  ].join('\n');
+}
 
 // Mapping enum -> CLI flag value. Declared as Record<DeviceRunSessionType, string>
 // so adding a new enum value in codegen fails the build until it is wired up here.
 export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, string> = {
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
+  [DeviceRunSessionType.Appium]: 'appium',
   [DeviceRunSessionType.Argent]: 'argent',
   [DeviceRunSessionType.ServeSim]: 'serve-sim',
 };
@@ -35,6 +51,11 @@ export function getRemoteSessionEnvironmentVariables(
         ARGENT_TOOLS_URL: remoteConfig.toolsUrl,
         ...(remoteConfig.toolsAuthToken ? { ARGENT_AUTH_TOKEN: remoteConfig.toolsAuthToken } : {}),
       };
+    case 'AppiumRunSessionRemoteConfig':
+      return {
+        APPIUM_URL: remoteConfig.appiumUrl,
+        APPIUM_CAPS: JSON.stringify(remoteConfig.capabilities),
+      };
     case 'ServeSimRunSessionRemoteConfig':
       return {};
   }
@@ -54,7 +75,7 @@ export function formatRemoteSessionInstructions(
           ? [
               '🔑 Run the following to use agent-device with the simulator:',
               '',
-              'eas simulator:exec agent-device <command>',
+              'eas simulator:exec npx agent-device <command>',
             ]
           : [
               '🔑 Run the following in your shell to attach to the agent-device daemon:',
@@ -108,6 +129,29 @@ export function formatRemoteSessionInstructions(
           '',
           remoteConfig.webPreviewUrl
         );
+      }
+      return lines.join('\n');
+    }
+    case 'AppiumRunSessionRemoteConfig': {
+      const environmentVariables = getRemoteSessionEnvironmentVariables(remoteConfig);
+      const lines =
+        configType === 'dotenv'
+          ? [
+              'Run an Appium client with the simulator session environment:',
+              '',
+              'eas simulator:exec <appium-client> [args...]',
+            ]
+          : [
+              'Run the following in your shell to attach an Appium client to this session:',
+              '',
+              ...Object.entries(environmentVariables).map(
+                ([key, value]) => `export ${key}='${value}'`
+              ),
+              '',
+              '<appium-client> [args...]',
+            ];
+      if (remoteConfig.webPreviewUrl) {
+        lines.push('', 'Open the iOS simulator preview:', '', remoteConfig.webPreviewUrl);
       }
       return lines.join('\n');
     }

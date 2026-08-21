@@ -231,12 +231,17 @@ const SERVER_SIDE_DEFINED_ERRORS: Record<string, typeof EasCommandError> = {
 };
 
 export function handleBuildRequestError(error: any, platform: Platform): never {
-  Log.debug(JSON.stringify(error.graphQLErrors, null, 2));
+  logBuildRequestErrorDebugInfo(error);
 
-  const graphQLErrorCode: string = error?.graphQLErrors?.[0]?.extensions?.errorCode;
-  if (graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
+  const graphQLErrors: GraphQLError[] = Array.isArray(error?.graphQLErrors)
+    ? error.graphQLErrors
+    : [];
+  const graphQLErrorCode: string | undefined = graphQLErrors[0]?.extensions?.errorCode as
+    | string
+    | undefined;
+  if (graphQLErrorCode && graphQLErrorCode in SERVER_SIDE_DEFINED_ERRORS) {
     const ErrorClass: typeof EasCommandError = SERVER_SIDE_DEFINED_ERRORS[graphQLErrorCode];
-    throw new ErrorClass(error?.graphQLErrors?.[0]?.message);
+    throw new ErrorClass(graphQLErrors[0]?.message);
   } else if (graphQLErrorCode === 'EAS_BUILD_DOWN_FOR_MAINTENANCE') {
     throw new EasBuildDownForMaintenanceError(
       `EAS Build is down for maintenance. Try again later. Check ${link(
@@ -247,23 +252,126 @@ export function handleBuildRequestError(error: any, platform: Platform): never {
     throw new EasBuildTooManyPendingBuildsError(
       `You have already reached the maximum number of pending ${requestedPlatformDisplayNames[platform]} builds for your account. Try again later.`
     );
-  } else if (error?.graphQLErrors) {
-    const errorMessage = error.graphQLErrors
-      .map((graphQLError: GraphQLError) => {
-        const requestIdLine = graphQLError?.extensions?.requestId
-          ? `\nRequest ID: ${graphQLError.extensions.requestId}`
-          : '';
-        const errorMessageLine = graphQLError?.message
-          ? `\nError message: ${graphQLError.message}`
-          : '';
-        return `${requestIdLine}${errorMessageLine}`;
-      })
-      .join('');
+  } else if (Array.isArray(error?.graphQLErrors)) {
+    const errorDetails = formatBuildRequestErrorDetails(error, graphQLErrors);
     throw new Error(
-      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorMessage}`
+      `Build request failed. Make sure you are using the latest eas-cli version. If the problem persists, report the issue.${errorDetails}`
     );
   }
   throw error;
+}
+
+function formatBuildRequestErrorDetails(error: any, graphQLErrors: GraphQLError[]): string {
+  const details: string[] = graphQLErrors
+    .map((graphQLError: GraphQLError) => {
+      const requestIdLine = graphQLError?.extensions?.requestId
+        ? `\nRequest ID: ${graphQLError.extensions.requestId}`
+        : '';
+      const errorMessageLine = graphQLError?.message
+        ? `\nError message: ${graphQLError.message}`
+        : '';
+      return `${requestIdLine}${errorMessageLine}`;
+    })
+    .filter(Boolean);
+
+  if (error?.networkError?.message) {
+    details.push(`\nNetwork error: ${error.networkError.message}`);
+  }
+
+  const response = error?.response;
+  if (response?.status !== undefined || response?.statusText) {
+    const status = [response.status, response.statusText]
+      .filter(value => value !== undefined && value !== '')
+      .join(' ');
+    details.push(`\nResponse status: ${status}`);
+  }
+
+  const responseRequestId = getResponseRequestId(response);
+  const graphQLRequestIds = new Set(
+    graphQLErrors.map(graphQLError => graphQLError?.extensions?.requestId)
+  );
+  if (responseRequestId && !graphQLRequestIds.has(responseRequestId)) {
+    details.push(`\nRequest ID: ${responseRequestId}`);
+  }
+
+  if (details.length === 0 && error?.message) {
+    details.push(`\nError message: ${error.message}`);
+  }
+
+  return details.join('');
+}
+
+function getResponseRequestId(response: any): string | null {
+  return (
+    response?.headers?.get?.('expo-request-id') ?? response?.headers?.get?.('x-request-id') ?? null
+  );
+}
+
+function logBuildRequestErrorDebugInfo(error: any): void {
+  const debugInfo = collectBuildRequestErrorDebugInfo(error);
+  if (debugInfo) {
+    Log.debug(`Build request error details:\n${JSON.stringify(debugInfo, null, 2)}`);
+  }
+}
+
+function collectBuildRequestErrorDebugInfo(error: any): Record<string, unknown> | null {
+  if (!Array.isArray(error?.graphQLErrors) && !error?.response && !error?.networkError) {
+    return null;
+  }
+
+  const debugInfo: Record<string, unknown> = {};
+  if (error?.message) {
+    debugInfo.message = error.message;
+  }
+  if (Array.isArray(error?.graphQLErrors)) {
+    debugInfo.graphQLErrors = error.graphQLErrors;
+  }
+  if (error?.networkError) {
+    debugInfo.networkError = collectErrorDebugInfo(error.networkError);
+  }
+
+  const response = collectResponseDebugInfo(error?.response);
+  if (response) {
+    debugInfo.response = response;
+  }
+
+  return debugInfo;
+}
+
+function collectErrorDebugInfo(error: any): Record<string, unknown> {
+  const debugInfo: Record<string, unknown> = {};
+  for (const property of ['name', 'message', 'code', 'type', 'errno', 'syscall', 'stack']) {
+    if (error?.[property]) {
+      debugInfo[property] = error[property];
+    }
+  }
+  return debugInfo;
+}
+
+function collectResponseDebugInfo(response: any): Record<string, unknown> | null {
+  if (!response) {
+    return null;
+  }
+
+  const debugInfo: Record<string, unknown> = {};
+  for (const property of ['status', 'statusText', 'url']) {
+    if (response[property] !== undefined && response[property] !== '') {
+      debugInfo[property] = response[property];
+    }
+  }
+
+  const headers: Record<string, string> = {};
+  for (const headerName of ['expo-request-id', 'x-request-id', 'content-type']) {
+    const headerValue = response?.headers?.get?.(headerName);
+    if (headerValue) {
+      headers[headerName] = headerValue;
+    }
+  }
+  if (Object.keys(headers).length > 0) {
+    debugInfo.headers = headers;
+  }
+
+  return Object.keys(debugInfo).length > 0 ? debugInfo : null;
 }
 
 async function uploadProjectAsync<TPlatform extends Platform>(

@@ -50,6 +50,7 @@ const PLATFORM_BY_FLAG_VALUE = Object.fromEntries(
 
 export default class SimulatorList extends EasCommand {
   static override hidden = true;
+  static override aliases = ['sim:list'];
   static override description =
     '[EXPERIMENTAL] list remote simulator sessions for the current project';
 
@@ -69,6 +70,9 @@ export default class SimulatorList extends EasCommand {
       options: Object.values(PLATFORM_FLAG_VALUES),
       multiple: true,
     })(),
+    name: Flags.string({
+      description: 'Filter by session name (case-insensitive prefix match)',
+    }),
     limit: getLimitFlagWithCustomValues({ defaultTo: DEFAULT_LIMIT, limit: MAX_LIMIT }),
     after: Flags.string({
       description:
@@ -107,6 +111,9 @@ export default class SimulatorList extends EasCommand {
     if (flags.platform && flags.platform.length > 0) {
       filter.platforms = flags.platform.map(value => PLATFORM_BY_FLAG_VALUE[value]);
     }
+    if (flags.name) {
+      filter.name = flags.name;
+    }
 
     const limit = flags.limit ?? DEFAULT_LIMIT;
 
@@ -131,6 +138,7 @@ export default class SimulatorList extends EasCommand {
       printJsonOnlyOutput({
         sessions: sessions.map(session => ({
           id: session.id,
+          name: session.name ?? undefined,
           type: deviceRunSessionTypeToFlagValue(session.type),
           status: session.status,
           platform: session.platform,
@@ -163,6 +171,7 @@ export default class SimulatorList extends EasCommand {
       );
       const lines = [
         `ID:       ${session.id}`,
+        `Name:     ${session.name ?? 'null'}`,
         `Type:     ${session.type}`,
         `Status:   ${session.status}`,
         `Platform: ${session.platform}`,

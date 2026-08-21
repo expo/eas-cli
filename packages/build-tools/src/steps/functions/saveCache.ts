@@ -348,7 +348,10 @@ export async function compressCacheAsync({
     for (const { absolutePath, archivePath: targetRelativePath } of allFiles) {
       const targetPath = path.join(tempDir, targetRelativePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+      // We want to keep source timestamps since Gradle may check them when pruning cache.
+      const { atime, mtime } = await fs.promises.stat(absolutePath);
       await fs.promises.copyFile(absolutePath, targetPath);
+      await fs.promises.utimes(targetPath, atime, mtime);
 
       if (verbose) {
         logger.info(`- ${targetRelativePath}`);

@@ -41,7 +41,7 @@ jest.mock('../../prompts', () => ({
 
 const { confirmAsync } = require('../../prompts') as jest.Mocked<typeof import('../../prompts')>;
 
-function createArgs(overrides: Record<string, any> = {}) {
+function createArgs(overrides: Record<string, any> = {}): any {
   return {
     projectDir: '/app',
     profile: { bundleIdentifier: 'com.example.app' } as any,

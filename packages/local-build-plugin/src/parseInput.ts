@@ -28,7 +28,10 @@ export async function parseInputAsync(): Promise<Params> {
     console.log(packageJson.version);
     process.exit(0);
   }
-  const rawInput = process.argv[2];
+  const rawInput = process.env.EAS_LOCAL_BUILD_PLUGIN_INPUT;
+  // The input carries build credentials. Remove it from the environment right
+  // away so it is not inherited by the build subprocesses spawned below.
+  delete process.env.EAS_LOCAL_BUILD_PLUGIN_INPUT;
 
   if (!rawInput) {
     displayHelp();
@@ -38,7 +41,9 @@ export async function parseInputAsync(): Promise<Params> {
   try {
     parsedParams = JSON.parse(Buffer.from(rawInput, 'base64').toString('utf8'));
   } catch (err) {
-    console.error(`${chalk.red('The input passed as a argument is not base64 encoded json.')}`);
+    console.error(
+      `${chalk.red('The EAS_LOCAL_BUILD_PLUGIN_INPUT environment variable is not base64 encoded json.')}`
+    );
     throw err;
   }
   const params = validateParams(parsedParams);

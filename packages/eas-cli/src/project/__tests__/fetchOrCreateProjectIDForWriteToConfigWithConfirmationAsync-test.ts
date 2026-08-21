@@ -15,7 +15,13 @@ describe(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync, () => {
         jester
       )
     ).rejects.toThrow(
-      `Must configure EAS project by running 'eas init' before this command can be run in non-interactive mode.`
+      `EAS project not configured. This command cannot configure it in non-interactive mode. ` +
+        `Run one of the following, then re-run this command:\n\n` +
+        `To link an existing project:\n\n` +
+        `  eas init --id <project-id> --non-interactive\n\n` +
+        `To create a new project:\n\n` +
+        `  eas init --account fake --non-interactive\n\n` +
+        `Accounts you can create projects in: jester`
     );
   });
 });

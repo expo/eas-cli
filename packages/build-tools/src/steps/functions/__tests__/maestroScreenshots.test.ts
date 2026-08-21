@@ -3,13 +3,159 @@ import os from 'os';
 import path from 'path';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
 import {
   type HarvestedScreenshot,
   computePureFailureFlowNames,
   harvestFailureScreenshotsAsync,
+  harvestMaestroRunnerFailureScreenshotsAsync,
   parseFailureScreenshotFilename,
   selectFailureScreenshots,
 } from '../maestroScreenshots';
+
+describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
+  const logger = createMockLogger();
+  let reportDirectory: string;
+  let captureSpy: jest.SpiedFunction<typeof Sentry.capture>;
+
+  beforeEach(async () => {
+    reportDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'maestro-runner-harvest-test-'));
+    await fs.mkdir(path.join(reportDirectory, 'flows'));
+    await fs.mkdir(path.join(reportDirectory, 'assets', 'flow-000'), { recursive: true });
+    captureSpy = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    await fs.rm(reportDirectory, { recursive: true, force: true });
+    captureSpy.mockRestore();
+  });
+
+  it('reads the failed command screenshot from a maestro-runner report bundle', async () => {
+    const capturedSinceMs = Date.now() - 1_000;
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          {
+            name: 'authentication/Login',
+            status: 'failed',
+            dataFile: 'flows/flow-000.json',
+          },
+        ],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [
+          {
+            status: 'failed',
+            artifacts: { screenshotAfter: 'assets/flow-000/cmd-001-after.png' },
+          },
+        ],
+      })
+    );
+    const screenshotPath = path.join(reportDirectory, 'assets', 'flow-000', 'cmd-001-after.png');
+    await fs.writeFile(screenshotPath, 'png');
+
+    const shots = await harvestMaestroRunnerFailureScreenshotsAsync({
+      reportDirectory,
+      capturedSinceMs,
+      attemptIndex: 1,
+      logger,
+    });
+
+    expect(shots).toEqual([
+      {
+        fileAbsPath: screenshotPath,
+        displayName: 'Failure Screenshot: authentication_Login (attempt 2)',
+        metadata: {
+          kind: 'maestro-test-screenshot',
+          flowName: 'authentication_Login',
+          attemptIndex: 1,
+          capturedAtMs: expect.any(Number),
+        },
+      },
+    ]);
+  });
+
+  it('rejects a screenshot path that resolves to the parent directory (exact "..")', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [{ name: 'Login', status: 'failed', dataFile: 'flows/flow-000.json' }],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [{ status: 'failed', artifacts: { screenshotAfter: '..' } }],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it('ignores passing flows and paths outside the report directory', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          { name: 'Passing', status: 'passed', dataFile: 'flows/flow-000.json' },
+          { name: 'Unsafe', status: 'failed', dataFile: '../outside.json' },
+        ],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it.each([
+    ['null', 'null'],
+    ['a non-object flows value', JSON.stringify({ flows: 5 })],
+    ['a null flow entry', JSON.stringify({ flows: [null] })],
+  ])('reports to Sentry and returns [] when report.json is %s', async (_label, contents) => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), contents);
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns [] without reporting to Sentry when report.json is not valid JSON', async () => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), 'not-json');
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+    expect(captureSpy).not.toHaveBeenCalled();
+  });
+});
 
 describe(parseFailureScreenshotFilename, () => {
   it('parses a plain failure screenshot', () => {

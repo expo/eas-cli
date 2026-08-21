@@ -23,6 +23,7 @@ import {
 import { refreshContextSubmitProfileAsync } from '../../commons';
 import { SubmissionContext, createSubmissionContextAsync } from '../../context';
 import IosSubmitCommand from '../IosSubmitCommand';
+import { ensureTestFlightSetupForExistingAppAsync } from '../ensureTestFlightSetup';
 
 jest.mock('fs');
 jest.mock('../../../ora');
@@ -52,6 +53,9 @@ jest.mock('../../commons', () => {
     refreshContextSubmitProfileAsync: jest.fn(),
   };
 });
+jest.mock('../ensureTestFlightSetup', () => ({
+  ensureTestFlightSetupForExistingAppAsync: jest.fn(),
+}));
 
 const vcsClient = resolveVcsClient();
 
@@ -202,6 +206,11 @@ describe(IosSubmitCommand, () => {
         },
         submittedBuildId: undefined,
       });
+
+      expect(ensureTestFlightSetupForExistingAppAsync).toHaveBeenCalledWith(
+        expect.anything(),
+        '12345678'
+      );
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
     });

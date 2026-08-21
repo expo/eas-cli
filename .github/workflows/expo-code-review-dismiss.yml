@@ -18,7 +18,7 @@ permissions:
 
 env:
   # Published reviewer run via npx (override with repo variable ECR_VERSION).
-  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.2.3' }}
+  ECR_VERSION: ${{ vars.ECR_VERSION || '^0.10.0' }}
 
 concurrency:
   group: ai-code-review-dismiss-${{ github.event.issue.number }}
@@ -61,10 +61,12 @@ jobs:
           if [ -z "$(printf '%s' "$ids" | tr -d ' ')" ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
-          echo "sub=$sub" >> "$GITHUB_OUTPUT"
-          echo "ids=$ids" >> "$GITHUB_OUTPUT"
-          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          {
+            echo "run=true"
+            echo "sub=$sub"
+            echo "ids=$ids"
+            echo "reason=$reason"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Acknowledge
         if: steps.cmd.outputs.run == 'true'
@@ -80,6 +82,9 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 1
+          # The CLI's git fetches authenticate through `gh` from GH_TOKEN; keep the
+          # token out of .git/config.
+          persist-credentials: false
 
       # Corepack so setup-node's yarn probe doesn't fail on the repo's yarn@4 pin
       # (dismiss runs the CLI via npx, not yarn).

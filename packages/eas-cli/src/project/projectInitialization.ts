@@ -2,23 +2,33 @@ import { ConfigError, ExpoConfig, getProjectConfigDescription } from '@expo/conf
 import chalk from 'chalk';
 import nullthrows from 'nullthrows';
 
+import {
+  getAccountChoices,
+  getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
+} from './accountSelection';
 import { createOrModifyExpoConfigAsync, getPrivateExpoConfigAsync } from './expoConfig';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from './fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { getProjectDashboardUrl } from '../build/utils/url';
 import { ExpoGraphqlClient } from '../commandUtils/context/contextUtils/createGraphqlClient';
 import { saveProjectIdToAppConfigAsync } from '../commandUtils/context/contextUtils/getProjectIdAsync';
 import { validSlugName, validateFullNameAndSlug } from '../commandUtils/projectNameValidation';
-import { Role } from '../graphql/generated';
 import { AppMutation } from '../graphql/mutations/AppMutation';
 import { AppQuery } from '../graphql/queries/AppQuery';
 import Log, { link } from '../log';
 import { ora } from '../ora';
-import { Choice, confirmAsync, promptAsync } from '../prompts';
-import { Actor } from '../user/User';
+import { confirmAsync, promptAsync } from '../prompts';
+import { Actor, getCreatableAccountNames } from '../user/User';
 
 export type InitializeMethodOptions = {
   force: boolean;
   nonInteractive: boolean;
+};
+
+export type ProjectInitStatus = 'created' | 'linked' | 'already-linked';
+
+export type ProjectInitResult = {
+  projectId: string;
+  status: ProjectInitStatus;
 };
 
 async function saveProjectIdAndLogSuccessAsync(
@@ -82,7 +92,7 @@ export async function ensureOwnerSlugConsistencyAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
+): Promise<{ owner: string; slug: string }> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const appForProjectId = await AppQuery.byIdAsync(graphqlClient, projectId);
   const correctOwner = appForProjectId.ownerAccount.name;
@@ -131,59 +141,60 @@ export async function ensureOwnerSlugConsistencyAsync(
   } else if (!exp.slug) {
     await modifyExpoConfigAsync(projectDir, { slug: correctSlug });
   }
+
+  return { owner: correctOwner, slug: correctSlug };
 }
 
 async function setExplicitIDAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
+): Promise<ProjectInitStatus> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
 
   if (projectId === existingProjectId) {
     Log.succeed(`Project already linked (ID: ${chalk.bold(existingProjectId)})`);
-    return;
+    return 'already-linked';
   }
 
   if (!existingProjectId) {
     await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
-    return;
+    return 'linked';
   }
 
-  if (projectId !== existingProjectId) {
-    if (force) {
-      await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
-      return;
-    }
-
-    if (nonInteractive) {
-      throw new Error(
-        `Project is already linked to a different ID: ${chalk.bold(
-          existingProjectId
-        )}. Use --force flag to overwrite.`
-      );
-    }
-
-    const confirm = await confirmAsync({
-      message: `Project is already linked to a different ID: ${chalk.bold(
-        existingProjectId
-      )}. Do you wish to overwrite it?`,
-    });
-    if (!confirm) {
-      throw new Error('Aborting');
-    }
-
+  if (force) {
     await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
+    return 'linked';
   }
+
+  if (nonInteractive) {
+    throw new Error(
+      `Project is already linked to a different ID: ${chalk.bold(
+        existingProjectId
+      )}. Use --force flag to overwrite.`
+    );
+  }
+
+  const confirm = await confirmAsync({
+    message: `Project is already linked to a different ID: ${chalk.bold(
+      existingProjectId
+    )}. Do you wish to overwrite it?`,
+  });
+  if (!confirm) {
+    throw new Error('Aborting');
+  }
+
+  await saveProjectIdAndLogSuccessAsync(projectDir, projectId);
+  return 'linked';
 }
 
 export async function initializeWithExplicitIDAsync(
   projectId: string,
   projectDir: string,
   { force, nonInteractive }: InitializeMethodOptions
-): Promise<void> {
-  await setExplicitIDAsync(projectId, projectDir, {
+): Promise<ProjectInitStatus> {
+  return await setExplicitIDAsync(projectId, projectDir, {
     force,
     nonInteractive,
   });
@@ -193,42 +204,70 @@ export async function initializeWithoutExplicitIDAsync(
   graphqlClient: ExpoGraphqlClient,
   actor: Actor,
   projectDir: string,
-  { force, nonInteractive }: InitializeMethodOptions
-): Promise<string> {
+  {
+    force,
+    nonInteractive,
+    accountName: accountNameArgument,
+  }: InitializeMethodOptions & { accountName?: string }
+): Promise<ProjectInitResult> {
   const exp = await getPrivateExpoConfigAsync(projectDir);
   const existingProjectId = exp.extra?.eas?.projectId;
 
   if (existingProjectId) {
-    Log.succeed(
-      `Project already linked (ID: ${chalk.bold(
-        existingProjectId
-      )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
-    );
-    return existingProjectId;
+    const ownerAccountName = accountNameArgument
+      ? (await AppQuery.byIdAsync(graphqlClient, existingProjectId)).ownerAccount.name
+      : undefined;
+    if (!accountNameArgument || ownerAccountName === accountNameArgument) {
+      Log.succeed(
+        `Project already linked (ID: ${chalk.bold(
+          existingProjectId
+        )}). To re-configure, remove the "extra.eas.projectId" field from your app config.`
+      );
+      return { projectId: existingProjectId, status: 'already-linked' };
+    }
+    if (!force) {
+      throw new Error(
+        `This project is already linked to @${ownerAccountName} (ID: ${existingProjectId}). Pass --force to re-link it to a project owned by ${accountNameArgument}, or remove the "extra.eas.projectId" field from your app config.`
+      );
+    }
+    // --force with a different --account: fall through to re-link under the new account
   }
 
   const allAccounts = actor.accounts;
-  const accountNamesWhereUserHasSufficientPermissionsToCreateApp = new Set(
-    allAccounts
-      .filter(a => a.users.find(it => it.actor.id === actor.id)?.role !== Role.ViewOnly)
-      .map(it => it.name)
-  );
+  const accountNamesWhereUserHasSufficientPermissionsToCreateApp =
+    getAccountNamesWhereUserHasSufficientPermissionsToCreateApp(actor);
 
-  // if no owner field, ask the user which account they want to use to create/link the project
-  let accountName = exp.owner;
+  if (accountNameArgument) {
+    // with --force, a conflicting "owner" field is rewritten after linking
+    if (exp.owner && exp.owner !== accountNameArgument && !force) {
+      throw new Error(
+        `The account specified with --account (${accountNameArgument}) does not match the "owner" field in your app config (${exp.owner}). Provide a matching --account or update the "owner" field.`
+      );
+    }
+    if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountNameArgument)) {
+      throw new Error(
+        `You are not able to create projects in the "${accountNameArgument}" account. Accounts you have permissions to create projects in: ${getCreatableAccountNames(
+          actor
+        ).join(', ')}`
+      );
+    }
+  }
+
+  // if no --account flag or owner field, ask the user which account they want to use to create/link the project
+  let accountName = accountNameArgument ?? exp.owner;
   if (!accountName) {
     if (allAccounts.length === 1) {
       accountName = allAccounts[0].name;
     } else if (nonInteractive) {
       if (!force) {
         throw new Error(
-          `There are multiple accounts that you have access to: ${allAccounts
-            .map(a => a.name)
-            .join(
-              ', '
-            )}. Explicitly set the owner property in your app config or run this command with the --force flag to proceed with a default account: ${
+          `You have access to multiple accounts. Choose the account that should own this project with the --account flag:\n\n  eas init --account <name> --non-interactive\n\nAccounts you have permissions to create projects in: ${getCreatableAccountNames(
+            actor
+          ).join(
+            ', '
+          )}\n\nAlternatively, set the "owner" field in your app config. (Deprecated: --force without --account will proceed with the default account ${
             allAccounts[0].name
-          }.`
+          }.)`
         );
       }
       accountName = allAccounts[0].name;
@@ -257,13 +296,18 @@ export async function initializeWithoutExplicitIDAsync(
   const projectName = validSlugName(exp.slug); // This filters out invalid characters
   const projectFullName = `@${accountName}/${projectName}`;
   validateFullNameAndSlug(projectFullName, projectName);
+
+  // An explicit --account fully specifies the intended project (@account/slug), so linking or
+  // creating it requires no confirmation in non-interactive mode.
+  const skipConfirmation = force || (nonInteractive && accountNameArgument !== undefined);
+
   const existingProjectIdOnServer = await findProjectIdByAccountNameAndSlugNullableAsync(
     graphqlClient,
     accountName,
     projectName
   );
   if (existingProjectIdOnServer) {
-    if (!force) {
+    if (!skipConfirmation) {
       if (nonInteractive) {
         throw new Error(
           `Existing project found: ${projectFullName} (ID: ${existingProjectIdOnServer}). Use --force flag to continue with this project.`
@@ -281,7 +325,7 @@ export async function initializeWithoutExplicitIDAsync(
     }
 
     await saveProjectIdAndLogSuccessAsync(projectDir, existingProjectIdOnServer);
-    return existingProjectIdOnServer;
+    return { projectId: existingProjectIdOnServer, status: 'linked' };
   }
 
   if (!accountNamesWhereUserHasSufficientPermissionsToCreateApp.has(accountName)) {
@@ -290,7 +334,7 @@ export async function initializeWithoutExplicitIDAsync(
     );
   }
 
-  if (!force) {
+  if (!skipConfirmation) {
     if (nonInteractive) {
       throw new Error(
         `Project does not exist: ${projectFullName}. Use --force flag to create this project.`
@@ -323,65 +367,5 @@ export async function initializeWithoutExplicitIDAsync(
   }
 
   await saveProjectIdAndLogSuccessAsync(projectDir, createdProjectId);
-  return createdProjectId;
-}
-
-function getAccountChoices(actor: Actor, namesWithSufficientPermissions: Set<string>): Choice[] {
-  const allAccounts = actor.accounts;
-
-  const sortedAccounts =
-    actor.__typename === 'Robot'
-      ? allAccounts
-      : [...allAccounts].sort((a, _b) =>
-          actor.__typename === 'User' ? (a.name === actor.username ? -1 : 1) : 0
-        );
-
-  if (actor.__typename !== 'Robot') {
-    const personalAccount = allAccounts?.find(account => account?.ownerUserActor?.id === actor.id);
-
-    const personalAccountChoice = personalAccount
-      ? {
-          title: personalAccount.name,
-          value: personalAccount,
-          description: !namesWithSufficientPermissions.has(personalAccount.name)
-            ? '(Personal) (Viewer Role)'
-            : '(Personal)',
-        }
-      : undefined;
-
-    const userAccounts = allAccounts
-      ?.filter(account => account.ownerUserActor && account.name !== actor.username)
-      .map(account => ({
-        title: account.name,
-        value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Team) (Viewer Role)'
-          : '(Team)',
-      }));
-
-    const organizationAccounts = allAccounts
-      ?.filter(account => account.name !== actor.username && !account.ownerUserActor)
-      .map(account => ({
-        title: account.name,
-        value: account,
-        description: !namesWithSufficientPermissions.has(account.name)
-          ? '(Organization) (Viewer Role)'
-          : '(Organization)',
-      }));
-
-    let choices: Choice[] = [];
-    if (personalAccountChoice) {
-      choices = [personalAccountChoice];
-    }
-
-    return [...choices, ...userAccounts, ...organizationAccounts].sort((a, _b) =>
-      actor.__typename === 'User' ? (a.value.name === actor.username ? -1 : 1) : 0
-    );
-  }
-
-  return sortedAccounts.map(account => ({
-    title: account.name,
-    value: account,
-    description: !namesWithSufficientPermissions.has(account.name) ? '(Viewer Role)' : undefined,
-  }));
+  return { projectId: createdProjectId, status: 'created' };
 }
