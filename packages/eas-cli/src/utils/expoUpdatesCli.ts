@@ -3,6 +3,7 @@ import spawnAsync from '@expo/spawn-async';
 import resolveFrom, { silent as silentResolveFrom } from 'resolve-from';
 
 import { link } from '../log';
+import { getEnvWithoutInheritedDotenvValues } from './originalEnv';
 
 export class ExpoUpdatesCLIModuleNotFoundError extends Error {}
 export class ExpoUpdatesCLIInvalidCommandError extends Error {}
@@ -32,12 +33,17 @@ export async function expoUpdatesCommandAsync(
   }
 
   try {
+    const commandEnv = {
+      ...getEnvWithoutInheritedDotenvValues(process.env),
+      ...options.env,
+    };
+    delete commandEnv.__EXPO_ENV_LOADED;
+
     return (
       await spawnAsync(expoUpdatesCli, args, {
         stdio: 'pipe',
         env: {
-          ...process.env,
-          ...options.env,
+          ...commandEnv,
           NODE_ENV: options.mode,
           __EXPO_CONFIG_MODE: options.mode,
         },
