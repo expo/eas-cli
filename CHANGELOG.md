@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Strip control characters from the `eas new` project name prompt, so clearing the prefilled name with Ctrl-U no longer creates a directory with an invisible `U+0015` prefix and fails with "Invalid slug". ([#4241](https://github.com/expo/eas-cli/pull/4241) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
