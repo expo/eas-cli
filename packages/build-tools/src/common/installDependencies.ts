@@ -60,10 +60,14 @@ export async function installDependenciesAsync({
     case PackageManager.BUN:
       args = ['install', ...(useFrozenLockfile ? ['--frozen-lockfile'] : [])];
       break;
+    case PackageManager.DENO:
+      args = ['install', ...(useFrozenLockfile ? ['--frozen'] : [])];
+      break;
     default:
       throw new Error(`Unsupported package manager: ${packageManager}`);
   }
-  if (env['EAS_VERBOSE'] === '1') {
+  // `deno install` does not support a --verbose flag.
+  if (env['EAS_VERBOSE'] === '1' && packageManager !== PackageManager.DENO) {
     args = [...args, '--verbose'];
   }
   logger.info(`Running "${packageManager} ${args.join(' ')}" in ${cwd} directory`);

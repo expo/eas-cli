@@ -72,6 +72,34 @@ describe(resolvePackageManager, () => {
     expect(resolvePackageManager(nestedDir, { env: {} })).toBe('yarn');
   });
 
+  it('returns deno when only deno.lock exists', async () => {
+    await fs.writeFile(path.join(rootDir, 'deno.lock'), 'content');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe(PackageManager.DENO);
+  });
+
+  it('returns yarn when both yarn.lock and deno.lock exist', async () => {
+    // Node package manager lockfiles take precedence over deno.lock.
+    await fs.writeFile(path.join(rootDir, 'yarn.lock'), 'content');
+    await fs.writeFile(path.join(rootDir, 'deno.lock'), 'content');
+    expect(resolvePackageManager(rootDir, { env: {} })).toBe(PackageManager.YARN);
+  });
+
+  it('returns deno within a monorepo with deno.lock at the workspace root', async () => {
+    await fs.writeFile(path.join(rootDir, 'deno.lock'), 'content');
+    await fs.writeJson(path.join(rootDir, 'package.json'), {
+      name: 'monorepo',
+      workspaces: ['packages/*'],
+    });
+
+    const nestedDir = path.join(rootDir, 'packages', 'expo-app');
+    await fs.mkdirp(nestedDir);
+    await fs.writeJson(path.join(nestedDir, 'package.json'), {
+      name: '@monorepo/expo-app',
+    });
+
+    expect(resolvePackageManager(nestedDir, { env: {} })).toBe(PackageManager.DENO);
+  });
+
   it('returns yarn when no lockfile and env var is an empty string', () => {
     expect(
       resolvePackageManager(rootDir, {
@@ -89,6 +117,12 @@ describe(resolvePackageManager, () => {
   it('returns pnpm from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
     expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'pnpm' } })).toBe(
       PackageManager.PNPM
+    );
+  });
+
+  it('returns deno from EAS_FALLBACK_PACKAGE_MANAGER when no lockfile', () => {
+    expect(resolvePackageManager(rootDir, { env: { EAS_FALLBACK_PACKAGE_MANAGER: 'deno' } })).toBe(
+      PackageManager.DENO
     );
   });
 
@@ -112,7 +146,7 @@ describe(resolvePackageManager, () => {
       const error = e as errors.UserError;
       expect(error.errorCode).toBe('EAS_INVALID_FALLBACK_PACKAGE_MANAGER');
       expect(error.message).toContain('bunn');
-      expect(error.message).toContain('yarn, npm, pnpm, bun');
+      expect(error.message).toContain('yarn, npm, pnpm, bun, deno');
     }
   });
 });

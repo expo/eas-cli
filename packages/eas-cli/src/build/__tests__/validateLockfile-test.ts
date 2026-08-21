@@ -44,6 +44,11 @@ describe(ensureLockfileExistsAsync, () => {
     await expect(ensureLockfileExistsAsync('/app')).resolves.not.toThrow();
   });
 
+  it('passes when deno.lock exists', async () => {
+    vol.fromJSON({ './deno.lock': '' }, '/app');
+    await expect(ensureLockfileExistsAsync('/app')).resolves.not.toThrow();
+  });
+
   it('throws when no lockfile exists', async () => {
     vol.fromJSON({ './package.json': '{}' }, '/app');
     await expect(ensureLockfileExistsAsync('/app')).rejects.toThrow(
