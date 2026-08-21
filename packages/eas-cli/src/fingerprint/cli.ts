@@ -4,7 +4,7 @@ import { silent as silentResolveFrom } from 'resolve-from';
 import { Fingerprint, FingerprintDiffItem } from './types';
 import Log from '../log';
 import { ora } from '../ora';
-import mapMapAsync from '../utils/expodash/mapMapAsync';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
 
 export type FingerprintOptions = {
   workflow?: Workflow;
@@ -111,8 +111,14 @@ async function createFingerprintWithoutLoggingAsync(
 }
 
 async function withTemporaryEnvAsync(envVars: Env, fn: () => Promise<any>): Promise<any> {
-  const originalEnv = { ...process.env };
-  Object.assign(process.env, envVars);
+  const originalEnv = process.env;
+  process.env = {
+    ...getEnvWithoutInheritedDotenvValues(process.env),
+    ...envVars,
+    NODE_ENV: 'development',
+  };
+  delete process.env.__EXPO_ENV_LOADED;
+  delete process.env.__EXPO_CONFIG_MODE;
 
   try {
     return await fn();
@@ -155,6 +161,7 @@ export async function createFingerprintsByKeyAsync(
     return new Map();
   }
 
+  const originalEnv = process.env;
   const timeoutId = setTimeout(() => {
     Log.log('⌛️ Computing the project fingerprints is taking longer than expected...');
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
@@ -162,18 +169,28 @@ export async function createFingerprintsByKeyAsync(
 
   const spinner = ora(`Computing project fingerprints`).start();
   try {
-    const fingerprintsByKey = await mapMapAsync(
-      fingerprintOptionsByKey,
-      async options =>
-        await createFingerprintWithoutLoggingAsync(projectDir, fingerprintPath, options)
+    const fingerprintPromises = Array.from(fingerprintOptionsByKey.entries()).map(
+      async ([key, options]) =>
+        [
+          key,
+          await createFingerprintWithoutLoggingAsync(projectDir, fingerprintPath, options),
+        ] as const
     );
-    spinner.succeed(`Computed project fingerprints`);
-    return fingerprintsByKey;
+    try {
+      const fingerprintsByKey = new Map(await Promise.all(fingerprintPromises));
+      spinner.succeed(`Computed project fingerprints`);
+      return fingerprintsByKey;
+    } catch (error) {
+      // Wait for every Fingerprint call before restoring process.env.
+      await Promise.allSettled(fingerprintPromises);
+      throw error;
+    }
   } catch (e) {
     spinner.fail(`Failed to compute project fingerprints`);
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
     throw e;
   } finally {
+    process.env = originalEnv;
     // Clear the timeout if the operation finishes before the time limit
     clearTimeout(timeoutId);
     spinner.stop();
