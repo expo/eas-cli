@@ -15,6 +15,8 @@ import { sleepAsync } from '../../../utils/retry';
 import {
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
+  expoWebsiteBaseUrlFromApiServerUrl,
+  fetchDeviceRunSessionDetailsUrlAsync,
   fetchServeSimTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startNgrokTunnelAsync,
@@ -156,6 +158,86 @@ describe(createServeSimArgs, () => {
       '--metrics-cors-origin',
       'https://expo.dev',
     ]);
+  });
+
+  it('passes the simulator session details URL to serve-sim when provided', () => {
+    const args = createServeSimArgs({
+      port: 4321,
+      sessionDetailsUrl:
+        'https://expo.dev/accounts/acme/projects/app/simulator-sessions/session-123',
+    });
+    expect(args.slice(-2)).toEqual([
+      '--session-details-url',
+      'https://expo.dev/accounts/acme/projects/app/simulator-sessions/session-123',
+    ]);
+  });
+});
+
+describe(expoWebsiteBaseUrlFromApiServerUrl, () => {
+  it.each([
+    ['https://api.expo.dev', 'https://expo.dev'],
+    ['https://staging-api.expo.dev', 'https://staging.expo.dev'],
+    ['http://127.0.0.1:3000', 'http://expo.test'],
+  ])('maps %s to %s', (apiServerUrl, websiteBaseUrl) => {
+    expect(expoWebsiteBaseUrlFromApiServerUrl(apiServerUrl)).toBe(websiteBaseUrl);
+  });
+});
+
+describe(fetchDeviceRunSessionDetailsUrlAsync, () => {
+  it('builds the Expo session URL from the authenticated session lookup', async () => {
+    const query = jest.fn(() => ({
+      toPromise: async () => ({
+        data: {
+          deviceRunSessions: {
+            byId: {
+              id: 'session-123',
+              app: {
+                slug: 'my app',
+                ownerAccount: { name: 'acme team' },
+              },
+            },
+          },
+        },
+      }),
+    }));
+    const ctx = {
+      env: { __API_SERVER_URL: 'https://staging-api.expo.dev' },
+      graphqlClient: { query },
+    } as unknown as CustomBuildContext;
+
+    await expect(
+      fetchDeviceRunSessionDetailsUrlAsync(ctx, {
+        deviceRunSessionId: 'session-123',
+        logger: createLoggerMock(),
+      })
+    ).resolves.toBe(
+      'https://staging.expo.dev/accounts/acme%20team/projects/my%20app/simulator-sessions/session-123'
+    );
+    expect(query).toHaveBeenCalledWith(expect.anything(), {
+      deviceRunSessionId: 'session-123',
+    });
+  });
+
+  it('keeps the preview available when the session URL cannot be resolved', async () => {
+    const logger = createLoggerMock();
+    const ctx = {
+      graphqlClient: {
+        query: jest.fn(() => ({
+          toPromise: async () => ({ error: new Error('lookup failed') }),
+        })),
+      },
+    } as unknown as CustomBuildContext;
+
+    await expect(
+      fetchDeviceRunSessionDetailsUrlAsync(ctx, {
+        deviceRunSessionId: 'session-123',
+        logger,
+      })
+    ).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      expect.stringContaining('serve-sim will start without a return link')
+    );
   });
 });
 
