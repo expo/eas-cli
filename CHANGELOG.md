@@ -14,6 +14,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [eas-cli] Make ASC API key issuer identifier optional in GraphQL and credentials types. ([#4248](https://github.com/expo/eas-cli/pull/4248) by [@szymonswierk](https://github.com/szymonswierk))
+
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
 
 ### 🎉 New features
