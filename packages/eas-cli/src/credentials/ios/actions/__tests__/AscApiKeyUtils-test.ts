@@ -64,6 +64,7 @@ describe(getAscApiKeyName, () => {
 
 describe(promptForAscApiKeyPathAsync, () => {
   it('prompts for keyId, keyP8Path and issuerId when user is not authenticated to Apple', async () => {
+    jest.mocked(selectAsync).mockResolvedValueOnce(false); // team key
     jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       keyP8Path: '/asc-api-key.p8',
     }));
@@ -81,16 +82,21 @@ describe(promptForAscApiKeyPathAsync, () => {
         authCtx: null,
       },
     });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
+      ctx,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
     expect(ascApiKeyPath).toEqual({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id',
       keyP8Path: '/asc-api-key.p8',
     });
+    expect(selectAsync).toHaveBeenCalledTimes(1); // key type
     expect(promptAsync).toHaveBeenCalledTimes(1); // keyP8Path
     expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(2); // keyId, issuerId
   });
   it('prompts for keyId, keyP8Path and detects issuerId when user is authenticated to Apple', async () => {
+    jest.mocked(selectAsync).mockResolvedValueOnce(false); // team key
     jest.mocked(promptAsync).mockImplementationOnce(async () => ({
       keyP8Path: '/asc-api-key.p8',
     }));
@@ -106,7 +112,10 @@ describe(promptForAscApiKeyPathAsync, () => {
         getAscApiKeyAsync: jest.fn(() => testAscApiKey),
       },
     });
-    const ascApiKeyPath = await promptForAscApiKeyPathAsync(ctx);
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
+      ctx,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
     expect(ascApiKeyPath).toEqual({
       keyId: 'test-key-id',
       issuerId: 'test-issuer-id-from-apple',
@@ -115,6 +124,60 @@ describe(promptForAscApiKeyPathAsync, () => {
     expect(promptAsync).toHaveBeenCalledTimes(1); // keyP8Path
     expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(1); // keyId
     expect(jest.mocked(ctx.appStore.getAscApiKeyAsync).mock.calls.length).toBe(1); // issuerId
+  });
+  it('skips the issuer prompt for an individual key in the submission flow', async () => {
+    jest.mocked(selectAsync).mockResolvedValueOnce(true); // individual key
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
+      keyP8Path: '/asc-api-key.p8',
+    }));
+    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
+      keyId: 'test-key-id',
+    }));
+    const getAscApiKeyAsync = jest.fn(() => testAscApiKey);
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: testAuthCtx,
+        getAscApiKeyAsync,
+      },
+    });
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
+      ctx,
+      AppStoreApiKeyPurpose.SUBMISSION_SERVICE
+    );
+    expect(ascApiKeyPath).toEqual({
+      keyId: 'test-key-id',
+      keyP8Path: '/asc-api-key.p8',
+    });
+    expect(getCredentialsFromUserAsync).toHaveBeenCalledTimes(1); // keyId only
+    expect(getAscApiKeyAsync).not.toHaveBeenCalled(); // no issuer detection
+  });
+  it('does not ask the key type outside the submission flow', async () => {
+    jest.mocked(promptAsync).mockImplementationOnce(async () => ({
+      keyP8Path: '/asc-api-key.p8',
+    }));
+    jest.mocked(getCredentialsFromUserAsync).mockImplementation(async () => ({
+      keyId: 'test-key-id',
+      issuerId: 'test-issuer-id',
+    }));
+    const ctx = createCtxMock({
+      nonInteractive: false,
+      appStore: {
+        ...getAppstoreMock(),
+        authCtx: null,
+      },
+    });
+    const ascApiKeyPath = await promptForAscApiKeyPathAsync(
+      ctx,
+      AppStoreApiKeyPurpose.ASC_APP_CONNECTION
+    );
+    expect(ascApiKeyPath).toEqual({
+      keyId: 'test-key-id',
+      issuerId: 'test-issuer-id',
+      keyP8Path: '/asc-api-key.p8',
+    });
+    expect(selectAsync).not.toHaveBeenCalled();
   });
 });
 

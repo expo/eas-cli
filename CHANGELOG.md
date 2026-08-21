@@ -10,6 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Support individual (issuer-less) App Store Connect API keys in the `eas/upload_to_asc` step. ([#4247](https://github.com/expo/eas-cli/pull/4247) by [@szymonswierk](https://github.com/szymonswierk))
 - [eas-cli] Accept individual (issuer-less) App Store Connect API keys for submissions, TestFlight setup, and metadata; block them for provisioning operations with an actionable error. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@szymonswierk](https://github.com/szymonswierk))
+- [eas-cli] Ask for the App Store Connect API key type (team or individual) in the submission key prompt and skip the Issuer ID prompt for individual keys. ([#4250](https://github.com/expo/eas-cli/pull/4250) by [@szymonswierk](https://github.com/szymonswierk))
 
 ### 🐛 Bug fixes
 
