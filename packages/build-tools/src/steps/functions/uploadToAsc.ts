@@ -90,19 +90,22 @@ export function createUploadToAscBuildFunction(): BuildFunction {
       const ascApiKeyJson = await fs.readJson(ascApiKeyPath);
       const ascApiKey = z
         .object({
-          issuer_id: z.string(),
+          // Nullish issuer_id means an individual API key
+          issuer_id: z.string().nullish(),
           key_id: z.string(),
           key: z.string(),
         })
         .parse(ascApiKeyJson);
 
       const privateKey = await jose.importPKCS8(ascApiKey.key, 'ES256');
-      const token = await new jose.SignJWT({})
+      const jwt = new jose.SignJWT(ascApiKey.issuer_id ? {} : { sub: 'user' })
         .setProtectedHeader({ alg: 'ES256', kid: ascApiKey.key_id })
-        .setIssuer(ascApiKey.issuer_id)
         .setAudience('appstoreconnect-v1')
-        .setExpirationTime('20m')
-        .sign(privateKey);
+        .setExpirationTime('20m');
+      if (ascApiKey.issuer_id) {
+        jwt.setIssuer(ascApiKey.issuer_id);
+      }
+      const token = await jwt.sign(privateKey);
 
       const client = new AscApiClient({ token, logger: stepsCtx.logger });
 
