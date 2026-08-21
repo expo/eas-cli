@@ -305,7 +305,8 @@ export async function resolveAndroidSigningOptionsAsync({
 }
 
 /**
- * Resolves iOS signing options from the job secrets.
+ * Resolves iOS signing options from the job secrets, dispatching on the
+ * requested signing backend.
  */
 export async function resolveIosSigningOptionsAsync({
   job,
@@ -327,17 +328,28 @@ export async function resolveIosSigningOptionsAsync({
   if (iosJob.simulator || buildCredentials == null) {
     return undefined;
   }
+  const commonOptions = { buildCredentials, logger, useAppEntitlements, entitlementsPath };
+  return backend === 'zsign'
+    ? await createIosZsignOptionsAsync({ ...commonOptions, tmpDir })
+    : await createIosFastlaneOptionsAsync(commonOptions);
+}
 
-  if (backend === 'zsign') {
-    return await resolveZsignSigningOptionsAsync({
-      buildCredentials,
-      logger,
-      useAppEntitlements,
-      entitlementsPath,
-      tmpDir,
-    });
-  }
-
+/**
+ * Creates signing options for the fastlane backend: certificates are imported
+ * into a temporary keychain and provisioning profiles are parsed with the
+ * macOS `security` tool.
+ */
+async function createIosFastlaneOptionsAsync({
+  buildCredentials,
+  logger,
+  useAppEntitlements,
+  entitlementsPath,
+}: {
+  buildCredentials: Ios.BuildCredentials;
+  logger: bunyan;
+  useAppEntitlements?: boolean;
+  entitlementsPath?: string;
+}): Promise<IosSigningOptions> {
   const credentialsManager = new IosCredentialsManager(buildCredentials);
   const credentials = await credentialsManager.prepare(logger);
 
@@ -355,9 +367,11 @@ export async function resolveIosSigningOptionsAsync({
 }
 
 /**
- * Resolves iOS signing options for the zsign backend without using keychain, so this also runs on Linux workers.
+ * Creates signing options for the zsign backend. The distribution certificate
+ * secret is already a PKCS#12 file, so it goes to disk as-is together with the
+ * provisioning profiles.
  */
-async function resolveZsignSigningOptionsAsync({
+async function createIosZsignOptionsAsync({
   buildCredentials,
   logger,
   useAppEntitlements,
