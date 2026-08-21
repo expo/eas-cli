@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Quote `eas env:pull` values that `dotenv` would not read back verbatim, so values containing `#`, quotes, newlines or surrounding whitespace are no longer truncated or dropped. ([#4240](https://github.com/expo/eas-cli/pull/4240) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
