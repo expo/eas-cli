@@ -130,6 +130,30 @@ describe(getAppStoreAuthAsync, () => {
     expect(result.app).toBe(mockApp);
   });
 
+  it('uses individual API key from submit profile when ascApiKeyIssuerId is absent', async () => {
+    const profile = {
+      bundleIdentifier: 'com.example.app',
+      ascApiKeyPath: '/path/to/key.p8',
+      ascApiKeyId: 'KEY123',
+    } as any;
+    const args = createBaseArgs({ profile });
+
+    const result = await getAppStoreAuthAsync(args);
+
+    expect(args.credentialsCtx.appStore.ensureAuthenticatedAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: AuthenticationMode.API_KEY,
+        allowIndividualAscApiKey: true,
+        ascApiKey: {
+          keyP8: 'mock-key-p8-content',
+          keyId: 'KEY123',
+          issuerId: undefined,
+        },
+      })
+    );
+    expect(result.app).toBe(mockApp);
+  });
+
   it('uses API key from EAS credentials service when available', async () => {
     (getAscApiKeyForAppSubmissionsAsync as jest.Mock).mockResolvedValue({
       id: 'asc-key-id',

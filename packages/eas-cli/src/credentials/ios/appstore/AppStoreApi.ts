@@ -22,6 +22,7 @@ import {
   assertUserAuthCtx,
   authenticateAsync,
   isUserAuthCtx,
+  withIndividualAscApiKeyProvisioningHint,
 } from './authenticate';
 import { AuthCtx, AuthenticationMode, UserAuthCtx } from './authenticateTypes';
 import { ApplePlatform } from './constants';
@@ -80,27 +81,40 @@ export default class AppStoreApi {
     return this.authCtx;
   }
 
+  private async runProvisioningOperationAsync<T>(fn: (ctx: AuthCtx) => Promise<T>): Promise<T> {
+    const ctx = await this.ensureAuthenticatedAsync();
+    try {
+      return await fn(ctx);
+    } catch (error) {
+      throw withIndividualAscApiKeyProvisioningHint(error, ctx);
+    }
+  }
+
   public async ensureBundleIdExistsAsync(
     app: AppLookupParams,
     options?: IosCapabilitiesOptions
   ): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    await ensureBundleIdExistsAsync(ctx, app, options);
+    await this.runProvisioningOperationAsync(async ctx => {
+      await ensureBundleIdExistsAsync(ctx, app, options);
+    });
   }
 
   public async listDistributionCertificatesAsync(): Promise<DistributionCertificateStoreInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await listDistributionCertificatesAsync(ctx);
+    return await this.runProvisioningOperationAsync(
+      async ctx => await listDistributionCertificatesAsync(ctx)
+    );
   }
 
   public async createDistributionCertificateAsync(): Promise<DistributionCertificate> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await createDistributionCertificateAsync(ctx);
+    return await this.runProvisioningOperationAsync(
+      async ctx => await createDistributionCertificateAsync(ctx)
+    );
   }
 
   public async revokeDistributionCertificateAsync(ids: string[]): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    await revokeDistributionCertificateAsync(ctx, ids);
+    await this.runProvisioningOperationAsync(async ctx => {
+      await revokeDistributionCertificateAsync(ctx, ids);
+    });
   }
 
   public async listPushKeysAsync(): Promise<PushKeyStoreInfo[]> {
@@ -123,12 +137,14 @@ export default class AppStoreApi {
     provisioningProfile: ProvisioningProfile,
     distCert: DistributionCertificate
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await useExistingProvisioningProfileAsync(
-      ctx,
-      bundleIdentifier,
-      provisioningProfile,
-      distCert
+    return await this.runProvisioningOperationAsync(
+      async ctx =>
+        await useExistingProvisioningProfileAsync(
+          ctx,
+          bundleIdentifier,
+          provisioningProfile,
+          distCert
+        )
     );
   }
 
@@ -137,8 +153,10 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfileStoreInfo[]> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await listProvisioningProfilesAsync(ctx, bundleIdentifier, applePlatform, profileClass);
+    return await this.runProvisioningOperationAsync(
+      async ctx =>
+        await listProvisioningProfilesAsync(ctx, bundleIdentifier, applePlatform, profileClass)
+    );
   }
 
   public async createProvisioningProfileAsync(
@@ -148,14 +166,16 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await createProvisioningProfileAsync(
-      ctx,
-      bundleIdentifier,
-      distCert,
-      profileName,
-      applePlatform,
-      profileClass
+    return await this.runProvisioningOperationAsync(
+      async ctx =>
+        await createProvisioningProfileAsync(
+          ctx,
+          bundleIdentifier,
+          distCert,
+          profileName,
+          applePlatform,
+          profileClass
+        )
     );
   }
 
@@ -164,8 +184,9 @@ export default class AppStoreApi {
     applePlatform: ApplePlatform,
     profileClass?: ProfileClass
   ): Promise<void> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
+    await this.runProvisioningOperationAsync(async ctx => {
+      await revokeProvisioningProfileAsync(ctx, bundleIdentifier, applePlatform, profileClass);
+    });
   }
 
   public async createOrReuseAdhocProvisioningProfileAsync(
@@ -174,13 +195,15 @@ export default class AppStoreApi {
     distCertSerialNumber: string,
     profileType: ProfileType
   ): Promise<ProvisioningProfile> {
-    const ctx = await this.ensureAuthenticatedAsync();
-    return await createOrReuseAdhocProvisioningProfileAsync(
-      ctx,
-      udids,
-      bundleIdentifier,
-      distCertSerialNumber,
-      profileType
+    return await this.runProvisioningOperationAsync(
+      async ctx =>
+        await createOrReuseAdhocProvisioningProfileAsync(
+          ctx,
+          udids,
+          bundleIdentifier,
+          distCertSerialNumber,
+          profileType
+        )
     );
   }
 

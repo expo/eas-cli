@@ -76,7 +76,9 @@ async function findAppWithAccountAscApiKeysAsync({
         token: new Token({
           key: keyP8,
           keyId: keyIdentifier,
-          issuerId: issuerIdentifier,
+          // TODO(ENG-21475): drop the cast once @expo/apple-utils accepts an
+          // optional issuerId and signs issuer-less tokens with sub: "user".
+          issuerId: issuerIdentifier as string,
           duration: ASC_TOKEN_DURATION_SECONDS,
         }),
       };

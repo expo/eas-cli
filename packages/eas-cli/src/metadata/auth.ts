@@ -68,9 +68,12 @@ async function tryResolveAscApiKeyAsync({
   bundleId: string;
 }): Promise<ResolvedAscApiKey | null> {
   // 1. Check submit profile for ASC API key fields
-  if ('ascApiKeyPath' in profile && 'ascApiKeyIssuerId' in profile && 'ascApiKeyId' in profile) {
-    const { ascApiKeyPath, ascApiKeyIssuerId, ascApiKeyId } = profile;
-    if (ascApiKeyPath && ascApiKeyIssuerId && ascApiKeyId) {
+  // ascApiKeyIssuerId is optional: individual API keys have no issuer.
+  if ('ascApiKeyPath' in profile && 'ascApiKeyId' in profile) {
+    const { ascApiKeyPath, ascApiKeyId } = profile;
+    const ascApiKeyIssuerId =
+      'ascApiKeyIssuerId' in profile ? profile.ascApiKeyIssuerId : undefined;
+    if (ascApiKeyPath && ascApiKeyId) {
       const keyP8 = await fs.promises.readFile(ascApiKeyPath, 'utf-8');
       // Also try to get teamId from the profile if available
       const teamId = 'appleTeamId' in profile ? (profile as any).appleTeamId : undefined;
@@ -165,6 +168,9 @@ export async function getAppStoreAuthAsync({
   if (resolvedKey || hasAscEnvVars()) {
     const authOptions: AuthOptions = {
       mode: AuthenticationMode.API_KEY,
+      // Metadata sync does not touch Provisioning endpoints, so individual
+      // (issuer-less) API keys are allowed here.
+      allowIndividualAscApiKey: true,
       ...(resolvedKey
         ? {
             ascApiKey: resolvedKey.ascApiKey,
@@ -186,8 +192,8 @@ export async function getAppStoreAuthAsync({
   if (nonInteractive) {
     throw new Error(
       'No App Store Connect API Key found. In non-interactive mode, provide one via:\n' +
-        '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID\n' +
-        '  - eas.json submit profile: ascApiKeyPath, ascApiKeyId, ascApiKeyIssuerId\n' +
+        '  - Environment variables: EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID (omit the issuer ID for individual API keys)\n' +
+        '  - eas.json submit profile: ascApiKeyPath, ascApiKeyId, ascApiKeyIssuerId (omit the issuer ID for individual API keys)\n' +
         '  - EAS credentials service: run `eas credentials` to set up an API key'
     );
   }

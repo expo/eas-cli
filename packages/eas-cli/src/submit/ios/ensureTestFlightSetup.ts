@@ -49,17 +49,16 @@ export async function ensureTestFlightSetupForExistingAppAsync(
         resolveAppleTeamTypeFromEnvironment() ?? AppleTeamType.COMPANY_OR_ORGANIZATION;
       if (hasAscEnvVars()) {
         const teamId = process.env.EXPO_APPLE_TEAM_ID;
-        if (
-          !process.env.EXPO_ASC_API_KEY_PATH ||
-          !process.env.EXPO_ASC_KEY_ID ||
-          !process.env.EXPO_ASC_ISSUER_ID ||
-          !teamId
-        ) {
+        // EXPO_ASC_ISSUER_ID is optional: individual API keys have no issuer.
+        if (!process.env.EXPO_ASC_API_KEY_PATH || !process.env.EXPO_ASC_KEY_ID || !teamId) {
           Log.log('App Store Connect credentials are incomplete, skipping TestFlight setup');
           return;
         }
         await ctx.credentialsCtx.appStore.ensureAuthenticatedAsync({
           mode: AuthenticationMode.API_KEY,
+          // TestFlight setup does not touch Provisioning endpoints, so
+          // individual (issuer-less) API keys are allowed here.
+          allowIndividualAscApiKey: true,
           teamId,
           teamType,
         });
@@ -76,6 +75,7 @@ export async function ensureTestFlightSetupForExistingAppAsync(
         Log.log('Using App Store Connect API Key from EAS credentials service.');
         await ctx.credentialsCtx.appStore.ensureAuthenticatedAsync({
           mode: AuthenticationMode.API_KEY,
+          allowIndividualAscApiKey: true,
           ascApiKey: resolvedKey.ascApiKey,
           teamId,
           teamName: resolvedKey.teamName,
