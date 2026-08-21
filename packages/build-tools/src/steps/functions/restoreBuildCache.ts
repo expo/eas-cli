@@ -20,6 +20,12 @@ import {
   getCcachePath,
 } from '../../utils/cacheKey';
 import { Datadog } from '../../datadog';
+import {
+  XCODE_COMPILATION_CACHE_ENV,
+  XCODE_COMPILATION_CACHE_RELATIVE_PATH,
+  decompressXcodeCompilationCacheAsync,
+  generateXcodeCompilationCacheKeyAsync,
+} from '../../ios/compilationCache';
 import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';
 
@@ -48,24 +54,89 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
         );
       }
 
-      await restoreCcacheAsync({
-        logger,
-        workingDirectory,
-        platform,
-        env,
-        secrets: stepCtx.global.staticContext.job.secrets,
-      });
-
-      if (platform === Platform.ANDROID) {
-        await restoreGradleCacheAsync({
+      await Promise.all([
+        restoreCcacheAsync({
           logger,
           workingDirectory,
+          platform,
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
-        });
-      }
+        }),
+        platform === Platform.IOS
+          ? restoreXcodeCompilationCacheAsync({
+              logger,
+              workingDirectory,
+              env,
+              secrets: stepCtx.global.staticContext.job.secrets,
+            })
+          : restoreGradleCacheAsync({
+              logger,
+              workingDirectory,
+              env,
+              secrets: stepCtx.global.staticContext.job.secrets,
+            }),
+      ]);
     },
   });
+}
+
+export async function restoreXcodeCompilationCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  const buildCacheEnabled =
+    env.EAS_RESTORE_CACHE === '1' || (env.EAS_USE_CACHE === '1' && env.EAS_RESTORE_CACHE !== '0');
+  if (!buildCacheEnabled || env[XCODE_COMPILATION_CACHE_ENV] !== '1') {
+    return;
+  }
+
+  try {
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const { key, keyPrefix, xcodeVersion } = await generateXcodeCompilationCacheKeyAsync({
+      workingDirectory,
+      env,
+      logger,
+    });
+    logger.info(`Restoring Xcode compilation cache for ${xcodeVersion} with key: ${key}`);
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [XCODE_COMPILATION_CACHE_RELATIVE_PATH],
+      key,
+      keyPrefixes: [keyPrefix],
+      platform: Platform.IOS,
+    });
+    await decompressXcodeCompilationCacheAsync({
+      archivePath,
+      workingDirectory,
+      env,
+      logger,
+    });
+    logger.info(
+      `Xcode compilation cache restored ${matchedKey === key ? '(direct hit)' : '(prefix match)'}`
+    );
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No Xcode compilation cache found for this key');
+    } else {
+      logger.warn({ err }, 'Failed to restore Xcode compilation cache');
+    }
+  }
 }
 
 export function createCacheStatsBuildFunction(): BuildFunction {

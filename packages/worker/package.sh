@@ -103,8 +103,8 @@ fi
 
 if [[ "$PLATFORM" == "ios" ]]; then
   record_sim_package_dir="$ROOT_DIR/packages/build-tools/resources/record-sim"
-  record_sim_bin_dir="$target_root_dir/packages/build-tools/bin"
-  mkdir -p "$record_sim_bin_dir"
+  build_tools_bin_dir="$target_root_dir/packages/build-tools/bin"
+  mkdir -p "$build_tools_bin_dir"
   record_sim_bin_path=$(swift build \
     -c release \
     --package-path "$record_sim_package_dir" \
@@ -114,8 +114,18 @@ if [[ "$PLATFORM" == "ios" ]]; then
     -c release \
     --package-path "$record_sim_package_dir" \
     --build-path "$record_sim_build_dir"
-  cp "$record_sim_bin_path/record-sim" "$record_sim_bin_dir/record-sim"
-  chmod +x "$record_sim_bin_dir/record-sim"
+  cp "$record_sim_bin_path/record-sim" "$build_tools_bin_dir/record-sim"
+  chmod +x "$build_tools_bin_dir/record-sim"
+
+  xcrun clang \
+    -arch arm64 \
+    -dynamiclib \
+    -O2 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -o "$build_tools_bin_dir/libeas_xcode_local_cas_plugin.dylib" \
+    "$ROOT_DIR/packages/build-tools/resources/xcode-local-cache-plugin/eas_local_cas_plugin.c"
 
   # build plugin
   pushd "$ROOT_DIR/packages/expo-cocoapods-proxy" >/dev/null 2>&1

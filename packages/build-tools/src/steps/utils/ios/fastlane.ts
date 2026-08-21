@@ -5,6 +5,7 @@ import path from 'path';
 
 import { COMMON_FASTLANE_ENV } from '../../../common/fastlane';
 import { XcodeBuildLogger } from '../../../common/xcpretty';
+import * as CompilationCache from '../../../ios/compilationCache';
 
 export async function runFastlaneGym({
   workingDir,
@@ -19,14 +20,23 @@ export async function runFastlaneGym({
   env: BuildStepEnv;
   extraEnv?: BuildStepEnv;
 }): Promise<void> {
+  const workspacePath = path.join(workingDir, 'ios');
+  const derivedDataPath = path.join(workspacePath, 'build');
+  // When caching is enabled, this also sets GYM_DERIVED_DATA_PATH so Fastlane
+  // and the cache restore/save operations use this exact directory.
+  const compilationCacheEnv = await CompilationCache.prepareXcodeCompilationCacheEnvAsync({
+    derivedDataPath,
+    env,
+    logger,
+  });
   const buildLogger = new XcodeBuildLogger(logger, workingDir);
   void buildLogger.watchLogFiles(buildLogsDirectory);
   try {
     await runFastlane(['gym'], {
-      cwd: path.join(workingDir, 'ios'),
+      cwd: workspacePath,
       logger,
       env,
-      extraEnv,
+      extraEnv: { ...extraEnv, ...compilationCacheEnv },
     });
   } finally {
     await buildLogger.flush();
