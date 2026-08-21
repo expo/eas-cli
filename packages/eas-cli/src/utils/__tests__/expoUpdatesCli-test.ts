@@ -21,13 +21,18 @@ describe(expoUpdatesCommandAsync, () => {
     const env = {
       NODE_ENV: 'staging',
       __EXPO_CONFIG_MODE: 'staging',
+      DOTENV_VALUE: 'from-command',
       FROM_COMMAND: 'true',
+      __EXPO_ENV_LOADED: '["DOTENV_VALUE"]',
     };
-    process.env = {
+    const processEnv = {
       NODE_ENV: 'development',
       __EXPO_CONFIG_MODE: 'development',
       FROM_PROCESS: 'true',
+      PARENT_DOTENV_VALUE: 'from-parent',
+      __EXPO_ENV_LOADED: '["PARENT_DOTENV_VALUE"]',
     };
+    process.env = processEnv;
 
     try {
       await expoUpdatesCommandAsync('/project', ['runtimeversion:resolve'], {
@@ -35,6 +40,9 @@ describe(expoUpdatesCommandAsync, () => {
         cwd: '/working-directory',
         mode: 'production',
       });
+      expect(process.env).toBe(processEnv);
+      expect(process.env.PARENT_DOTENV_VALUE).toBe('from-parent');
+      expect(process.env.__EXPO_ENV_LOADED).toBe('["PARENT_DOTENV_VALUE"]');
     } finally {
       process.env = originalProcessEnv;
     }
@@ -48,6 +56,7 @@ describe(expoUpdatesCommandAsync, () => {
           NODE_ENV: 'production',
           __EXPO_CONFIG_MODE: 'production',
           FROM_PROCESS: 'true',
+          DOTENV_VALUE: 'from-command',
           FROM_COMMAND: 'true',
         },
         cwd: '/working-directory',
@@ -56,7 +65,9 @@ describe(expoUpdatesCommandAsync, () => {
     expect(env).toEqual({
       NODE_ENV: 'staging',
       __EXPO_CONFIG_MODE: 'staging',
+      DOTENV_VALUE: 'from-command',
       FROM_COMMAND: 'true',
+      __EXPO_ENV_LOADED: '["DOTENV_VALUE"]',
     });
   });
 });
