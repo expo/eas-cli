@@ -88,6 +88,7 @@ describe(ensureTestFlightSetupForExistingAppAsync, () => {
 
     expect(ensureAuthenticatedAsync).toHaveBeenCalledWith({
       mode: AuthenticationMode.API_KEY,
+      allowIndividualAscApiKey: true,
       ascApiKey: { keyP8: 'key', keyId: 'key-id', issuerId: 'issuer-id' },
       teamId: 'team-id',
       teamName: 'Team',
@@ -110,6 +111,27 @@ describe(ensureTestFlightSetupForExistingAppAsync, () => {
 
     expect(ensureAuthenticatedAsync).toHaveBeenCalledWith({
       mode: AuthenticationMode.API_KEY,
+      allowIndividualAscApiKey: true,
+      teamId: 'team-id',
+      teamType: expect.any(String),
+    });
+    expect(ensureTestFlightGroupExistsAsync).toHaveBeenCalledWith(expect.anything(), {
+      nonInteractive: true,
+    });
+  });
+
+  it('sets up TestFlight when environment credentials have no issuer ID (individual key)', async () => {
+    jest.mocked(hasAscEnvVars).mockReturnValue(true);
+    process.env.EXPO_ASC_API_KEY_PATH = '/path/to/key.p8';
+    process.env.EXPO_ASC_KEY_ID = 'key-id';
+    process.env.EXPO_APPLE_TEAM_ID = 'team-id';
+    const { ctx, ensureAuthenticatedAsync } = createContext({ nonInteractive: true });
+
+    await ensureTestFlightSetupForExistingAppAsync(ctx, '12345678');
+
+    expect(ensureAuthenticatedAsync).toHaveBeenCalledWith({
+      mode: AuthenticationMode.API_KEY,
+      allowIndividualAscApiKey: true,
       teamId: 'team-id',
       teamType: expect.any(String),
     });

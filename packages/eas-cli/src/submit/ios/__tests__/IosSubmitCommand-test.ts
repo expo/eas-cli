@@ -64,6 +64,7 @@ describe(IosSubmitCommand, () => {
 
   const fakeFiles: Record<string, string> = {
     '/artifacts/fake.ipa': 'fake ipa',
+    '/artifacts/asc-key.p8': 'fake asc key p8',
   };
 
   beforeAll(() => {
@@ -214,6 +215,60 @@ describe(IosSubmitCommand, () => {
 
       delete process.env.EXPO_APPLE_APP_SPECIFIC_PASSWORD;
     });
+
+    it('sends a request to EAS Submit with an individual (issuer-less) ASC API key', async () => {
+      const projectId = uuidv4();
+      const graphqlClient = {} as any as ExpoGraphqlClient;
+      const analytics = instance(mock<Analytics>());
+      jest
+        .mocked(getArchiveAsync)
+        .mockImplementation(jest.requireActual('../../ArchiveSource').getArchiveAsync);
+
+      const ctx = await createSubmissionContextAsync({
+        platform: Platform.IOS,
+        projectDir: testProject.projectRoot,
+        archiveFlags: {
+          url: 'http://expo.dev/fake.ipa',
+        },
+        profile: {
+          language: 'en-US',
+          ascAppId: '12345678',
+          ascApiKeyPath: '/artifacts/asc-key.p8',
+          ascApiKeyId: 'KEY123',
+        },
+        nonInteractive: true,
+        isVerboseFastlaneEnabled: false,
+        groups: [],
+        actor: mockJester,
+        graphqlClient,
+        analytics,
+        exp: testProject.appJSON.expo,
+        projectId,
+        vcsClient,
+      });
+      const command = new IosSubmitCommand(ctx);
+      const submitter = await command.runAsync();
+      await submitter.submitAsync();
+
+      expect(SubmissionMutation.createIosSubmissionAsync).toHaveBeenCalledWith(graphqlClient, {
+        appId: projectId,
+        archiveSource: { type: SubmissionArchiveSourceType.Url, url: 'http://expo.dev/fake.ipa' },
+        config: {
+          ascAppIdentifier: '12345678',
+          isVerboseFastlaneEnabled: false,
+          groups: [],
+          changelog: undefined,
+          appleIdUsername: undefined,
+          ascApiKey: {
+            keyP8: 'fake asc key p8',
+            keyIdentifier: 'KEY123',
+            issuerIdentifier: undefined,
+          },
+        },
+        submittedBuildId: undefined,
+      });
+    });
+
     describe('build selected from EAS', () => {
       it('sends a request to EAS Submit with profile data matching selected build profile', async () => {
         const projectId = uuidv4();

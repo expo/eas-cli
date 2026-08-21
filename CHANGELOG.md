@@ -58,6 +58,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Support individual (issuer-less) App Store Connect API keys in the `eas/upload_to_asc` step. ([#4247](https://github.com/expo/eas-cli/pull/4247) by [@szymonswierk](https://github.com/szymonswierk))
+- [eas-cli] Accept individual (issuer-less) App Store Connect API keys for submissions, TestFlight setup, and metadata; block them for provisioning operations with an actionable error. ([#4249](https://github.com/expo/eas-cli/pull/4249) by [@szymonswierk](https://github.com/szymonswierk))
 - [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
 - [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
 - [eas-cli] Add `eas project:status` (alias `eas status`) command that prints a snapshot of the project's recent builds, development builds, workflow runs, submissions, and updates, with agent-friendly JSON metadata, activity links, structured errors, submission-to-build correlation, and `--non-interactive` support. ([#4006](https://github.com/expo/eas-cli/pull/4006) by [@jonsamp](https://github.com/jonsamp))
