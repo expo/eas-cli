@@ -99,6 +99,7 @@ export async function prepareRuntimeEnvironment(
       ctx,
       userSpecifiedVersion: builderConfig.pnpm,
       currentVersion: currentPnpmVersion,
+      useCorepack: Boolean(builderConfig.corepack),
     });
   }
   if (
@@ -109,6 +110,7 @@ export async function prepareRuntimeEnvironment(
       ctx,
       userSpecifiedVersion: builderConfig.yarn,
       currentVersion: currentYarnVersion,
+      useCorepack: Boolean(builderConfig.corepack),
     });
   }
   if (builderConfig.bun && currentBunVersion !== builderConfig.bun) {
@@ -235,19 +237,18 @@ async function installPnpm({
   ctx,
   userSpecifiedVersion,
   currentVersion,
+  useCorepack,
 }: {
   ctx: PreDownloadBuildContext;
   userSpecifiedVersion: string | undefined;
   currentVersion: string;
+  useCorepack: boolean;
 }): Promise<void> {
   const versionToInstall = userSpecifiedVersion ?? currentVersion;
   try {
     ctx.logger.info(`Installing pnpm@${versionToInstall}`);
 
-    await spawn('npm', ['-g', 'install', `pnpm@${versionToInstall}`], {
-      logger: ctx.logger,
-      env: ctx.env,
-    });
+    await installPackageManager(ctx, 'pnpm', versionToInstall, useCorepack);
     const currentPnpmVersion = (
       await spawn('pnpm', ['--version'], { stdio: 'pipe', env: ctx.env, cwd: os.tmpdir() })
     ).stdout.trim();
@@ -273,18 +274,17 @@ async function installYarn({
   ctx,
   userSpecifiedVersion,
   currentVersion,
+  useCorepack,
 }: {
   ctx: PreDownloadBuildContext;
   userSpecifiedVersion: string | undefined;
   currentVersion: string;
+  useCorepack: boolean;
 }): Promise<void> {
   const versionToInstall = userSpecifiedVersion ?? currentVersion;
   try {
     ctx.logger.info(`Installing yarn@${versionToInstall}`);
-    await spawn('npm', ['-g', 'install', `yarn@${versionToInstall}`], {
-      logger: ctx.logger,
-      env: ctx.env,
-    });
+    await installPackageManager(ctx, 'yarn', versionToInstall, useCorepack);
     const currentYarnVersion = (
       await spawn('yarn', ['--version'], { stdio: 'pipe', env: ctx.env, cwd: os.tmpdir() })
     ).stdout.trim();
@@ -303,6 +303,25 @@ async function installYarn({
         `Failed to install yarn@${versionToInstall}. Continuing because yarn is not the primary package manager for this project.`
       );
     }
+  }
+}
+
+async function installPackageManager(
+  ctx: PreDownloadBuildContext,
+  packageManager: 'pnpm' | 'yarn',
+  version: string,
+  useCorepack: boolean
+): Promise<void> {
+  if (useCorepack) {
+    await spawn('corepack', ['prepare', `${packageManager}@${version}`, '--activate'], {
+      logger: ctx.logger,
+      env: ctx.env,
+    });
+  } else {
+    await spawn('npm', ['-g', 'install', `${packageManager}@${version}`], {
+      logger: ctx.logger,
+      env: ctx.env,
+    });
   }
 }
 
