@@ -173,7 +173,7 @@ export function displayOverageWarning({
   // tier === 'over' && paid plan
   Log.warn(
     chalk.bold(
-      `You've used ${overageCount} build${overageCount === 1 ? '' : 's'} beyond your included credits this billing period (${formatCents(overageCostCents)} in overages so far).`
+      `You've used ${overageCount} build${overageCount === 1 ? '' : 's'} beyond your included credits this billing period (${formatCents(overageCostCents)} in additional usage so far).`
     )
   );
   Log.warn(

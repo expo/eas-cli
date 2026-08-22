@@ -18,7 +18,9 @@ import { Sentry } from '../../sentry';
 import { isProcessDescendantOfAsync } from '../../utils/processes';
 import { sleepAsync } from '../../utils/retry';
 import { pollArgentArtifactsForUploadAsync } from '../utils/argentArtifacts';
+import { ARGENT_EVENT_LOG_FILENAME, startArgentEventCollectionAsync } from '../utils/argentEvents';
 import {
+  ensureFfmpegInstalledAsync,
   getDeviceRunSessionIdOrThrow,
   getNgrokAuthtokenOrThrow,
   getNgrokTunnelDomainOrThrow,
@@ -31,9 +33,17 @@ import {
 } from '../utils/remoteDeviceRunSession';
 
 const ARGENT_PACKAGE_NAME = '@swmansion/argent';
-export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.12.0';
+// 0.16.0 is the first version that exposes the tool-server event log flag; keeping the floor
+// here lets us enable it (and the artifacts list endpoint) unconditionally below.
+export const MIN_ARGENT_REMOTE_SESSION_VERSION = '0.16.0';
 const ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG = 'artifacts-list-endpoint';
+// Tells the tool-server to write its structured event log so we can collect session events.
+const ARGENT_EVENT_LOG_FLAG = 'tool-server-event-log';
 const ARGENT_STATE_DIR = path.join(os.homedir(), '.argent');
+// Pin the event log path explicitly and hand the same value to the tool-server (via
+// ARGENT_EVENT_LOG) and the collector, so an ambient ARGENT_EVENT_LOG or a future change to
+// Argent's default can never make the two disagree.
+const ARGENT_EVENT_LOG_PATH = path.join(ARGENT_STATE_DIR, ARGENT_EVENT_LOG_FILENAME);
 const STARTUP_TIMEOUT_MS = 60_000;
 
 const ArgentToolServerStateSchema = z.object({
@@ -58,6 +68,16 @@ export function createStartArgentRemoteSessionBuildFunction(
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'max_idle_time_minutes',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
+      }),
     ],
     fn: async ({ logger, global }, { inputs, env, signal }) => {
       // Fail fast before any expensive setup if the injected env
@@ -69,6 +89,9 @@ export function createStartArgentRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
+      // A missing or non-positive value disables the idle timeout (opt-in feature).
+      const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
+      const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       warnIfArgentPackageVersionCannotBeVerified({ packageVersion, logger });
       const versionSpec = packageVersion ?? 'latest';
       const { runtimePlatform } = global;
@@ -80,10 +103,23 @@ export function createStartArgentRemoteSessionBuildFunction(
         await selectXcodeDeveloperDirectoryAsync({ env, logger });
       }
 
+      // Argent shells out to ffmpeg to record the screen. Installing it pulls a
+      // large Homebrew dependency tree, so do not block session readiness on it:
+      // the session comes up at its usual speed and only a recording started in
+      // the first moments misses ffmpeg. Never rejects, so `void` is safe.
+      void ensureFfmpegInstalledAsync({ runtimePlatform, env, logger });
+
       logger.info('Enabling the Argent artifacts list endpoint flag.');
       await spawn(
         'bunx',
         [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_ARTIFACTS_LIST_ENDPOINT_FLAG],
+        { env, logger }
+      );
+
+      logger.info('Enabling the Argent tool-server event log flag.');
+      await spawn(
+        'bunx',
+        [`${ARGENT_PACKAGE_NAME}@${versionSpec}`, 'enable', ARGENT_EVENT_LOG_FLAG],
         { env, logger }
       );
 
@@ -102,7 +138,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           '0',
           '--force',
         ],
-        env,
+        env: { ...env, ARGENT_EVENT_LOG: ARGENT_EVENT_LOG_PATH },
       });
       if (argentServer.pid === undefined) {
         throw new SystemError(
@@ -142,8 +178,17 @@ export function createStartArgentRemoteSessionBuildFunction(
         signal: artifactPollSignal,
       });
 
+      const eventCollection = await startArgentEventCollectionAsync({
+        ctx,
+        deviceRunSessionId,
+        eventLogPath: ARGENT_EVENT_LOG_PATH,
+        logger,
+      });
+
+      let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
+      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
       try {
-        const publicToolsUrl = await startNgrokTunnelAsync({
+        toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
           subdomainPrefix: 'argent',
           baseDomain: ngrokTunnelDomain,
@@ -151,12 +196,13 @@ export function createStartArgentRemoteSessionBuildFunction(
           rewriteHostHeader: true,
           logger,
         });
+        const publicToolsUrl = toolsTunnel.url;
         logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
         // serve-sim is iOS-only — Android sessions go without a preview URL.
         let webPreviewUrl: string | undefined;
         if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          const serveSim = await startServeSimWithTunnelAsync(ctx, {
+          serveSim = await startServeSimWithTunnelAsync(ctx, {
             baseDomain: ngrokTunnelDomain,
             env,
             logger,
@@ -181,9 +227,24 @@ export function createStartArgentRemoteSessionBuildFunction(
           ctx,
           deviceRunSessionId,
           logger,
+          maxDurationSeconds,
           signal,
+          idleTimeout:
+            maxIdleTimeMinutes !== undefined && maxIdleTimeMinutes > 0
+              ? {
+                  maxIdleTimeMinutes,
+                  getLastEventObservedAt: eventCollection.getLastEventObservedAt,
+                }
+              : undefined,
         });
       } finally {
+        if (serveSim) {
+          await serveSim.stopAsync();
+        }
+        if (toolsTunnel) {
+          await toolsTunnel.stopAsync();
+        }
+        await stopArgentEventCollectionSafelyAsync({ eventCollection, deviceRunSessionId, logger });
         artifactPollAbortController.abort();
         try {
           await artifactPollingPromise;
@@ -192,9 +253,32 @@ export function createStartArgentRemoteSessionBuildFunction(
           Sentry.capture('Could not finish Argent remote session artifact polling', error);
           logger.warn({ err: error }, 'Could not finish Argent remote session artifact polling.');
         }
+        await argentServer.stopAsync();
       }
     },
   });
+}
+
+export async function stopArgentEventCollectionSafelyAsync({
+  eventCollection,
+  deviceRunSessionId,
+  logger,
+}: {
+  eventCollection: { stopAsync: () => Promise<void> };
+  deviceRunSessionId: string;
+  logger: bunyan;
+}): Promise<void> {
+  try {
+    await eventCollection.stopAsync();
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    Sentry.capture('Could not finish argent session event collection', error, {
+      level: 'warning',
+      tags: { phase: 'argent-event-collection', operation: 'stop' },
+      extras: { deviceRunSessionId },
+    });
+    logger.warn({ err: error }, 'Could not finish argent session event collection.');
+  }
 }
 
 export function warnIfArgentPackageVersionCannotBeVerified({

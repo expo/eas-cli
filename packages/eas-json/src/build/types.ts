@@ -61,6 +61,7 @@ export interface CommonBuildProfile {
 
   // artifacts
   buildArtifactPaths?: string[];
+  uploadSourceMaps?: boolean;
 
   // cache
   cache?: Omit<Cache, 'clear'>;

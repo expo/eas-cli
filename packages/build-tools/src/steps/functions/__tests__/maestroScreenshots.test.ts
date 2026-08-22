@@ -3,13 +3,159 @@ import os from 'os';
 import path from 'path';
 
 import { createMockLogger } from '../../../__tests__/utils/logger';
+import { Sentry } from '../../../sentry';
 import {
   type HarvestedScreenshot,
   computePureFailureFlowNames,
   harvestFailureScreenshotsAsync,
+  harvestMaestroRunnerFailureScreenshotsAsync,
   parseFailureScreenshotFilename,
   selectFailureScreenshots,
 } from '../maestroScreenshots';
+
+describe(harvestMaestroRunnerFailureScreenshotsAsync, () => {
+  const logger = createMockLogger();
+  let reportDirectory: string;
+  let captureSpy: jest.SpiedFunction<typeof Sentry.capture>;
+
+  beforeEach(async () => {
+    reportDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'maestro-runner-harvest-test-'));
+    await fs.mkdir(path.join(reportDirectory, 'flows'));
+    await fs.mkdir(path.join(reportDirectory, 'assets', 'flow-000'), { recursive: true });
+    captureSpy = jest.spyOn(Sentry, 'capture').mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    await fs.rm(reportDirectory, { recursive: true, force: true });
+    captureSpy.mockRestore();
+  });
+
+  it('reads the failed command screenshot from a maestro-runner report bundle', async () => {
+    const capturedSinceMs = Date.now() - 1_000;
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          {
+            name: 'authentication/Login',
+            status: 'failed',
+            dataFile: 'flows/flow-000.json',
+          },
+        ],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [
+          {
+            status: 'failed',
+            artifacts: { screenshotAfter: 'assets/flow-000/cmd-001-after.png' },
+          },
+        ],
+      })
+    );
+    const screenshotPath = path.join(reportDirectory, 'assets', 'flow-000', 'cmd-001-after.png');
+    await fs.writeFile(screenshotPath, 'png');
+
+    const shots = await harvestMaestroRunnerFailureScreenshotsAsync({
+      reportDirectory,
+      capturedSinceMs,
+      attemptIndex: 1,
+      logger,
+    });
+
+    expect(shots).toEqual([
+      {
+        fileAbsPath: screenshotPath,
+        displayName: 'Failure Screenshot: authentication_Login (attempt 2)',
+        metadata: {
+          kind: 'maestro-test-screenshot',
+          flowName: 'authentication_Login',
+          attemptIndex: 1,
+          capturedAtMs: expect.any(Number),
+        },
+      },
+    ]);
+  });
+
+  it('rejects a screenshot path that resolves to the parent directory (exact "..")', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [{ name: 'Login', status: 'failed', dataFile: 'flows/flow-000.json' }],
+      })
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, 'flows', 'flow-000.json'),
+      JSON.stringify({
+        commands: [{ status: 'failed', artifacts: { screenshotAfter: '..' } }],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it('ignores passing flows and paths outside the report directory', async () => {
+    await fs.writeFile(
+      path.join(reportDirectory, 'report.json'),
+      JSON.stringify({
+        flows: [
+          { name: 'Passing', status: 'passed', dataFile: 'flows/flow-000.json' },
+          { name: 'Unsafe', status: 'failed', dataFile: '../outside.json' },
+        ],
+      })
+    );
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it.each([
+    ['null', 'null'],
+    ['a non-object flows value', JSON.stringify({ flows: 5 })],
+    ['a null flow entry', JSON.stringify({ flows: [null] })],
+  ])('reports to Sentry and returns [] when report.json is %s', async (_label, contents) => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), contents);
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+    expect(captureSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns [] without reporting to Sentry when report.json is not valid JSON', async () => {
+    await fs.writeFile(path.join(reportDirectory, 'report.json'), 'not-json');
+
+    await expect(
+      harvestMaestroRunnerFailureScreenshotsAsync({
+        reportDirectory,
+        capturedSinceMs: 0,
+        attemptIndex: 0,
+        logger,
+      })
+    ).resolves.toEqual([]);
+    expect(captureSpy).not.toHaveBeenCalled();
+  });
+});
 
 describe(parseFailureScreenshotFilename, () => {
   it('parses a plain failure screenshot', () => {
@@ -80,6 +226,7 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory,
       capturedSinceMs: sinceMtimeMs,
       attemptIndex: 1,
+      failedFlowNames: new Set(),
       logger,
     });
 
@@ -113,6 +260,7 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory,
       capturedSinceMs: sinceMtimeMs,
       attemptIndex: 0,
+      failedFlowNames: new Set(),
       logger,
     });
 
@@ -136,6 +284,7 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory,
       capturedSinceMs: sinceMtimeMs,
       attemptIndex: 0,
+      failedFlowNames: new Set(),
       logger,
     });
 
@@ -154,6 +303,7 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory,
       capturedSinceMs: sinceMtimeMs,
       attemptIndex: 0,
+      failedFlowNames: new Set(),
       logger,
     });
 
@@ -175,6 +325,7 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory,
       capturedSinceMs: sinceMtimeMs,
       attemptIndex: 1,
+      failedFlowNames: new Set(),
       logger,
     });
 
@@ -186,10 +337,303 @@ describe(harvestFailureScreenshotsAsync, () => {
       testsDirectory: path.join(testsDirectory, 'does-not-exist'),
       capturedSinceMs: 0,
       attemptIndex: 0,
+      failedFlowNames: new Set(),
       logger,
     });
 
     expect(shots).toEqual([]);
+  });
+
+  // --- Maestro >= 2.7.0 bundle layout: <session>/<flow>[-shard-N]/screenshots/step-<NNN>-<slug>.png ---
+
+  async function makeBundle(args: {
+    sessionDir: string;
+    flowDir: string;
+    stepFiles: { name: string; mtimeMs: number }[];
+    sessionDirMtimeMs: number;
+  }): Promise<void> {
+    const sessionDir = path.join(testsDirectory, args.sessionDir);
+    const screenshotsDir = path.join(sessionDir, args.flowDir, 'screenshots');
+    await fs.mkdir(screenshotsDir, { recursive: true });
+    for (const { name, mtimeMs } of args.stepFiles) {
+      const filePath = path.join(screenshotsDir, name);
+      await fs.writeFile(filePath, '');
+      const when = new Date(mtimeMs);
+      await fs.utimes(filePath, when, when);
+    }
+    const dirWhen = new Date(args.sessionDirMtimeMs);
+    await fs.utimes(sessionDir, dirWhen, dirWhen);
+  }
+
+  it('picks the highest step-NNN screenshot in a failed flow bundle (mtime as capturedAtMs)', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: '2026-01-01_100000',
+      flowDir: 'Login Flow',
+      stepFiles: [
+        { name: 'step-001-launchApp.png', mtimeMs: since + 1_000 },
+        { name: 'step-003-assertVisible-Welcome.png', mtimeMs: since + 3_000 },
+      ],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Login Flow']),
+      logger,
+    });
+
+    expect(shots).toEqual([
+      {
+        fileAbsPath: path.join(
+          testsDirectory,
+          '2026-01-01_100000',
+          'Login Flow',
+          'screenshots',
+          'step-003-assertVisible-Welcome.png'
+        ),
+        displayName: 'Failure Screenshot: Login Flow (attempt 1)',
+        metadata: {
+          kind: 'maestro-test-screenshot',
+          flowName: 'Login Flow',
+          attemptIndex: 0,
+          capturedAtMs: since + 3_000,
+        },
+      },
+    ]);
+  });
+
+  it('ignores final.png and non-step pngs in the bundle', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Flow',
+      stepFiles: [
+        { name: 'step-002-tapOn.png', mtimeMs: since + 2_000 },
+        { name: 'final.png', mtimeMs: since + 9_000 },
+      ],
+      sessionDirMtimeMs: since + 9_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Flow']),
+      logger,
+    });
+
+    expect(shots).toHaveLength(1);
+    expect(shots[0].fileAbsPath.endsWith('step-002-tapOn.png')).toBe(true);
+  });
+
+  it('harvests only flows that JUnit reports as failed', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Failed Flow',
+      stepFiles: [{ name: 'step-001-tapOn.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+    // A passing flow can still leave a warned-step screenshot; it must not be harvested.
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Passed Flow',
+      stepFiles: [{ name: 'step-001-assertVisible.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Failed Flow']),
+      logger,
+    });
+
+    expect(shots.map(shot => shot.metadata.flowName)).toEqual(['Failed Flow']);
+  });
+
+  it('strips the -shard-N suffix to match the JUnit flow name', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Checkout-shard-2',
+      stepFiles: [{ name: 'step-004-tapOn-Pay.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Checkout']),
+      logger,
+    });
+
+    expect(shots).toHaveLength(1);
+    expect(shots[0].metadata.flowName).toBe('Checkout');
+  });
+
+  it('resolves a combined shard + collision dir name to the flow', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Checkout-shard-2-3',
+      stepFiles: [{ name: 'step-004-tapOn-Pay.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Checkout']),
+      logger,
+    });
+
+    expect(shots).toHaveLength(1);
+    expect(shots[0].metadata.flowName).toBe('Checkout');
+  });
+
+  it('normalizes / to _ when matching the bundle dir to the JUnit flow name', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'sub_Login',
+      stepFiles: [{ name: 'step-002-tapOn.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['sub/Login']),
+      logger,
+    });
+
+    expect(shots).toHaveLength(1);
+    expect(shots[0].metadata.flowName).toBe('sub_Login');
+  });
+
+  it('skips a bundle whose dir name is ambiguous against the failed set', async () => {
+    const since = 1_000_000;
+    // 'foo-2' could be the literal flow 'foo-2' or a collision-suffixed 'foo' — unresolvable.
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'foo-2',
+      stepFiles: [{ name: 'step-001-tapOn.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['foo', 'foo-2']),
+      logger,
+    });
+
+    expect(shots).toEqual([]);
+  });
+
+  it('skips a step screenshot captured before capturedSinceMs (dir touched later)', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Flow',
+      stepFiles: [{ name: 'step-001-tapOn.png', mtimeMs: since - 5_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Flow']),
+      logger,
+    });
+
+    expect(shots).toEqual([]);
+  });
+
+  it('yields nothing for a failed flow whose screenshots dir is empty', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Flow',
+      stepFiles: [],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Flow']),
+      logger,
+    });
+
+    expect(shots).toEqual([]);
+  });
+
+  it('reduces two bundle dirs that resolve to the same flow to a single shot', async () => {
+    const since = 1_000_000;
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Dup',
+      stepFiles: [{ name: 'step-001-tapOn.png', mtimeMs: since + 1_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Dup-2',
+      stepFiles: [{ name: 'step-001-tapOn.png', mtimeMs: since + 2_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Dup']),
+      logger,
+    });
+
+    expect(shots).toHaveLength(1);
+    expect(shots[0].metadata.flowName).toBe('Dup');
+  });
+
+  it('collects both a legacy flat screenshot and a new-layout bundle in the same session dir', async () => {
+    const since = 1_000_000;
+    const sessionDir = path.join(testsDirectory, 'session');
+    await fs.mkdir(sessionDir, { recursive: true });
+    await fs.writeFile(
+      path.join(sessionDir, `screenshot-❌-${since + 1_000}-(Legacy Flow).png`),
+      ''
+    );
+    await makeBundle({
+      sessionDir: 'session',
+      flowDir: 'Bundle Flow',
+      stepFiles: [{ name: 'step-002-tapOn.png', mtimeMs: since + 2_000 }],
+      sessionDirMtimeMs: since + 5_000,
+    });
+
+    const shots = await harvestFailureScreenshotsAsync({
+      testsDirectory,
+      capturedSinceMs: since,
+      attemptIndex: 0,
+      failedFlowNames: new Set(['Bundle Flow']),
+      logger,
+    });
+
+    expect(shots.map(shot => shot.metadata.flowName).sort()).toEqual([
+      'Bundle Flow',
+      'Legacy Flow',
+    ]);
   });
 });
 

@@ -148,6 +148,7 @@ describe('AscApiUtils', () => {
           appleAppIdentifier: '1491144534',
           bundleShortVersion: '1.2.3',
           bundleVersion: '42',
+          platform: 'IOS',
         })
       ).rejects.toEqual(
         expect.objectContaining({
@@ -176,8 +177,38 @@ describe('AscApiUtils', () => {
           appleAppIdentifier: '1491144534',
           bundleShortVersion: '1.2.3',
           bundleVersion: '42',
+          platform: 'IOS',
         })
       ).resolves.toEqual(response);
+    });
+
+    it('sends the requested platform in the build upload attributes', async () => {
+      const response = {
+        data: {
+          type: 'buildUploads',
+          id: 'fdf9c476-aaa4-4ead-b91c-6e3cc3a47805',
+        },
+      } as const;
+      const client = {
+        postAsync: jest.fn().mockResolvedValue(response),
+      };
+
+      await AscApiUtils.createBuildUploadAsync({
+        client,
+        appleAppIdentifier: '1491144534',
+        bundleShortVersion: '1.2.3',
+        bundleVersion: '42',
+        platform: 'TV_OS',
+      });
+
+      expect(client.postAsync).toHaveBeenCalledWith(
+        '/v1/buildUploads',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            attributes: expect.objectContaining({ platform: 'TV_OS' }),
+          }),
+        })
+      );
     });
 
     it('rethrows when error payload includes mixed error codes', async () => {
@@ -208,8 +239,32 @@ describe('AscApiUtils', () => {
           appleAppIdentifier: '1491144534',
           bundleShortVersion: '1.2.3',
           bundleVersion: '42',
+          platform: 'IOS',
         })
       ).rejects.toBe(mixedError);
+    });
+  });
+
+  describe('ascPlatformFromDtPlatformName', () => {
+    it('maps known DTPlatformName values to App Store Connect platforms', () => {
+      expect(AscApiUtils.ascPlatformFromDtPlatformName('iphoneos')).toBe('IOS');
+      expect(AscApiUtils.ascPlatformFromDtPlatformName('appletvos')).toBe('TV_OS');
+      expect(AscApiUtils.ascPlatformFromDtPlatformName('macosx')).toBe('MAC_OS');
+      expect(AscApiUtils.ascPlatformFromDtPlatformName('xros')).toBe('VISION_OS');
+    });
+
+    it('falls back to IOS for unknown or missing values', () => {
+      expect(AscApiUtils.ascPlatformFromDtPlatformName(null)).toBe('IOS');
+      expect(AscApiUtils.ascPlatformFromDtPlatformName('watchos')).toBe('IOS');
+    });
+  });
+
+  describe('testFlightPlatformPathSegment', () => {
+    it('returns the TestFlight URL segment for each platform', () => {
+      expect(AscApiUtils.testFlightPlatformPathSegment('IOS')).toBe('ios');
+      expect(AscApiUtils.testFlightPlatformPathSegment('TV_OS')).toBe('tvos');
+      expect(AscApiUtils.testFlightPlatformPathSegment('MAC_OS')).toBe('macos');
+      expect(AscApiUtils.testFlightPlatformPathSegment('VISION_OS')).toBe('visionos');
     });
   });
 });

@@ -1,5 +1,6 @@
 import { Env, Job, Metadata, version } from '@expo/eas-build-job';
 import spawnAsync from '@expo/spawn-async';
+import chalk from 'chalk';
 import { ChildProcess } from 'child_process';
 import semver from 'semver';
 
@@ -44,7 +45,12 @@ export async function runLocalBuildAsync(
   options: LocalBuildOptions,
   env: Env
 ): Promise<void> {
-  const { command, args } = await getCommandAndArgsAsync(job, metadata);
+  const { command, args } = await getCommandAndArgsAsync();
+  // The job carries build credentials, so it is passed to the plugin via an
+  // environment variable rather than a command-line argument. Otherwise it
+  // would be exposed in the process list and, on failure, in the spawn error
+  // message (which includes the command line) printed to stderr.
+  const pluginInput = Buffer.from(JSON.stringify({ job, metadata })).toString('base64');
   let spinner;
   if (!options.verbose) {
     spinner = ora().start(options.skipNativeBuild ? 'Preparing project' : 'Building project');
@@ -60,6 +66,7 @@ export async function runLocalBuildAsync(
     const mergedEnv = {
       ...env,
       ...process.env,
+      EAS_LOCAL_BUILD_PLUGIN_INPUT: pluginInput,
       EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
       __API_SERVER_URL: getExpoApiBaseUrl(),
       ...(options.skipCleanup || options.skipNativeBuild
@@ -69,11 +76,12 @@ export async function runLocalBuildAsync(
       ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
       ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
     };
-    // log command execution to assist in debugging local builds
+    // log command execution to assist in debugging local builds; redact the job
+    // input since it contains build credentials.
     Log.debug('Running local build, using local-build-plugin', {
       command,
       args,
-      env: mergedEnv,
+      env: { ...mergedEnv, EAS_LOCAL_BUILD_PLUGIN_INPUT: '[redacted]' },
     });
     const spawnPromise = spawnAsync(command, args, {
       stdio: options.verbose ? 'inherit' : 'pipe',
@@ -81,24 +89,73 @@ export async function runLocalBuildAsync(
     });
     childProcess = spawnPromise.child;
     await spawnPromise;
+  } catch (error) {
+    // The plugin's build output is already streamed to the terminal; add a
+    // concise context summary to help debug the failure. Never dump the raw
+    // job/metadata, which contains build credentials.
+    spinner?.stop();
+    logLocalBuildDebugInfo(job, metadata);
+    throw error;
   } finally {
     process.removeListener('SIGINT', interruptHandler);
     spinner?.stop();
   }
 }
 
-async function getCommandAndArgsAsync(
-  job: Job,
-  metadata: Metadata
-): Promise<{ command: string; args: string[] }> {
-  const jobAndMetadataBase64 = Buffer.from(JSON.stringify({ job, metadata })).toString('base64');
+/**
+ * Logs an allowlisted, non-secret summary of the build's job/metadata to help
+ * a user debug a failed local build. Only known-safe fields are included —
+ * never the raw job/metadata (which carries credentials and other secrets).
+ */
+function logLocalBuildDebugInfo(job: Job, metadata: Metadata): void {
+  // `platform` and `projectRootDirectory` live on the platform-specific job
+  // variants; read them defensively since this is best-effort logging.
+  const jobFields = job as { platform?: string; projectRootDirectory?: string };
+  const trackingContext = metadata.trackingContext ?? {};
+
+  const fields: [string, string | number | boolean | undefined][] = [
+    ['Platform', jobFields.platform],
+    ['Build profile', metadata.buildProfile],
+    ['Workflow', metadata.workflow],
+    ['Distribution', metadata.distribution],
+    ['Credentials source', metadata.credentialsSource],
+    ['Project root directory', jobFields.projectRootDirectory],
+    ['Required package manager', metadata.requiredPackageManager],
+    ['eas-cli version', metadata.cliVersion],
+    ['SDK version', metadata.sdkVersion],
+    ['Runtime version', metadata.runtimeVersion],
+    ['React Native version', metadata.reactNativeVersion],
+    ['Expo package version', metadata.expoPackageVersion],
+    ['App version', metadata.appVersion],
+    ['Fingerprint hash', metadata.fingerprintHash],
+    ['Git commit', metadata.gitCommitHash],
+    ['Git working tree dirty', metadata.isGitWorkingTreeDirty],
+    ['Build tracking ID', trackingContext.tracking_id],
+    ['Project ID', trackingContext.project_id],
+  ];
+
+  const lines = fields
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([label, value]) => `  ${label}: ${String(value)}`);
+  if (lines.length === 0) {
+    return;
+  }
+
+  Log.newLine();
+  Log.log(chalk.bold('Build context (for debugging this failed local build):'));
+  Log.log(chalk.dim(lines.join('\n')));
+}
+
+async function getCommandAndArgsAsync(): Promise<{ command: string; args: string[] }> {
+  // The job/metadata payload is passed to the plugin via the
+  // EAS_LOCAL_BUILD_PLUGIN_INPUT environment variable, not as an argument.
   if (process.env.EAS_LOCAL_BUILD_PLUGIN_PATH) {
     return {
       command: process.env.EAS_LOCAL_BUILD_PLUGIN_PATH,
-      args: [jobAndMetadataBase64],
+      args: [],
     };
   } else {
-    const args = [`${PLUGIN_PACKAGE_NAME}@${PLUGIN_PACKAGE_VERSION}`, jobAndMetadataBase64];
+    const args = [`${PLUGIN_PACKAGE_NAME}@${PLUGIN_PACKAGE_VERSION}`];
     if (await isAtLeastNpm7Async()) {
       // npx shipped with npm >= 7.0.0 requires the "-y" flag to run commands without
       // prompting the user to install a package that is used for the first time

@@ -8,7 +8,7 @@ import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
 import { eagerBundleAsync, shouldUseEagerBundle } from '../common/eagerBundle';
 import { prebuildAsync } from '../common/prebuild';
-import { setupAsync } from '../common/setup';
+import { JobHooksRef, setupAsync } from '../common/setup';
 import { Artifacts, BuildContext } from '../context';
 import { configureXcodeProject } from '../ios/configure';
 import CredentialsManager from '../ios/credentials/manager';
@@ -29,6 +29,7 @@ import { uploadEmbeddedBundleAsync } from '../utils/expoUpdatesEmbedded';
 import { Hook, runHookIfPresent } from '../utils/hooks';
 import { prepareExecutableAsync } from '../utils/prepareBuildExecutable';
 import { getParentAndDescendantProcessPidsAsync } from '../utils/processes';
+import { isSourceMapUploadEnabled, resolveIosSourceMapPathAsync } from '../utils/sourceMaps';
 
 const INSTALL_PODS_WARN_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const INSTALL_PODS_KILL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -49,7 +50,22 @@ export default async function iosBuilder(ctx: BuildContext<Ios.Job>): Promise<Ar
 }
 
 async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
-  await setupAsync(ctx);
+  const jobHooksRef: JobHooksRef = { current: null };
+  try {
+    await buildInnerAsync(ctx, jobHooksRef);
+  } finally {
+    // Native builds have no other drain path for the hook context's queued
+    // step-metric uploads. Must wrap the WHOLE body — iOS's existing inner
+    // try/finally only starts after setupAsync returns.
+    await jobHooksRef.current?.customBuildContext.drainPendingMetricUploads();
+  }
+}
+
+async function buildInnerAsync(
+  ctx: BuildContext<Ios.Job>,
+  jobHooksRef: JobHooksRef
+): Promise<void> {
+  await setupAsync(ctx, { wrappedAnchors: ['install_node_modules'], jobHooksRef });
   const hasNativeCode = ctx.job.type === Workflow.GENERIC;
   const evictUsedBefore = new Date();
   const credentialsManager = new CredentialsManager(ctx);
@@ -153,20 +169,24 @@ async function buildAsync(ctx: BuildContext<Ios.Job>): Promise<void> {
     fastlaneResult = await ctx.runBuildPhase(BuildPhase.RUN_FASTLANE, async () => {
       const scheme = resolveScheme(ctx);
       const entitlements = await readEntitlementsAsync(ctx, { scheme, buildConfiguration });
+      const sourceMapPath = isSourceMapUploadEnabled(ctx)
+        ? await resolveIosSourceMapPathAsync(ctx)
+        : null;
       return await runFastlaneGym(ctx, {
         credentials,
         scheme,
         buildConfiguration,
         entitlements,
-        ...(resolvedExpoUpdatesRuntimeVersion?.runtimeVersion
-          ? {
-              extraEnv: {
+        extraEnv: {
+          ...(resolvedExpoUpdatesRuntimeVersion?.runtimeVersion
+            ? {
                 EXPO_UPDATES_FINGERPRINT_OVERRIDE:
                   resolvedExpoUpdatesRuntimeVersion?.runtimeVersion,
                 EXPO_UPDATES_WORKFLOW_OVERRIDE: ctx.job.type,
-              },
-            }
-          : null),
+              }
+            : null),
+          ...(sourceMapPath ? { SOURCEMAP_FILE: sourceMapPath } : null),
+        },
       });
     });
   } finally {

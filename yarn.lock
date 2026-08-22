@@ -2291,24 +2291,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/build-tools@npm:21.0.2, @expo/build-tools@workspace:packages/build-tools":
+"@expo/build-tools@npm:22.2.0, @expo/build-tools@workspace:packages/build-tools":
   version: 0.0.0-use.local
   resolution: "@expo/build-tools@workspace:packages/build-tools"
   dependencies:
     "@expo/config": "npm:55.0.10"
     "@expo/config-plugins": "npm:55.0.7"
-    "@expo/downloader": "npm:21.0.0"
-    "@expo/eas-build-job": "npm:21.0.2"
+    "@expo/downloader": "npm:22.0.0"
+    "@expo/eas-build-job": "npm:22.0.0"
     "@expo/env": "npm:^0.4.0"
-    "@expo/logger": "npm:21.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/package-manager": "npm:1.9.10"
     "@expo/plist": "npm:^0.3.5"
-    "@expo/repack-app": "npm:~0.6.1"
+    "@expo/repack-app": "npm:~0.9.0"
     "@expo/results": "npm:^1.0.0"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:21.0.2"
-    "@expo/template-file": "npm:21.0.2"
-    "@expo/turtle-spawn": "npm:21.0.0"
+    "@expo/steps": "npm:22.1.0"
+    "@expo/template-file": "npm:22.0.0"
+    "@expo/turtle-spawn": "npm:22.0.0"
     "@expo/xcpretty": "npm:^4.3.1"
     "@ngrok/ngrok": "npm:1.7.0"
     "@sentry/node": "npm:7.77.0"
@@ -2531,7 +2531,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/downloader@npm:21.0.0, @expo/downloader@workspace:packages/downloader":
+"@expo/downloader@npm:22.0.0, @expo/downloader@workspace:packages/downloader":
   version: 0.0.0-use.local
   resolution: "@expo/downloader@workspace:packages/downloader"
   dependencies:
@@ -2547,13 +2547,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-build-job@npm:21.0.2, @expo/eas-build-job@workspace:packages/eas-build-job":
+"@expo/eas-build-job@npm:22.0.0, @expo/eas-build-job@workspace:packages/eas-build-job":
   version: 0.0.0-use.local
   resolution: "@expo/eas-build-job@workspace:packages/eas-build-job"
   dependencies:
-    "@expo/logger": "npm:21.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/results": "npm:1.0.0"
-    "@expo/turtle-spawn": "npm:21.0.0"
+    "@expo/turtle-spawn": "npm:22.0.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:20.14.2"
     jest: "npm:^29.7.0"
@@ -2566,12 +2566,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@expo/eas-json@npm:21.0.2, @expo/eas-json@workspace:packages/eas-json":
+"@expo/eas-json@npm:22.0.0, @expo/eas-json@workspace:packages/eas-json":
   version: 0.0.0-use.local
   resolution: "@expo/eas-json@workspace:packages/eas-json"
   dependencies:
     "@babel/code-frame": "npm:7.23.5"
-    "@expo/eas-build-job": "npm:21.0.2"
+    "@expo/eas-build-job": "npm:22.0.0"
     "@tsconfig/node20": "npm:20.1.8"
     "@types/babel__code-frame": "npm:7.0.3"
     "@types/fs-extra": "npm:11.0.4"
@@ -2685,7 +2685,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/logger@npm:21.0.0, @expo/logger@workspace:packages/logger":
+"@expo/logger@npm:22.0.0, @expo/logger@workspace:packages/logger":
   version: 0.0.0-use.local
   resolution: "@expo/logger@workspace:packages/logger"
   dependencies:
@@ -2818,15 +2818,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/repack-app@npm:~0.6.1":
-  version: 0.6.1
-  resolution: "@expo/repack-app@npm:0.6.1"
+"@expo/repack-app@npm:~0.9.0":
+  version: 0.9.0
+  resolution: "@expo/repack-app@npm:0.9.0"
   dependencies:
     commander: "npm:^14.0.2"
     picocolors: "npm:^1.1.1"
+    zsign-wasm: "npm:^0.0.2"
   bin:
     repack-app: bin/cli.js
-  checksum: 10c0/fdf3088b4f327393056631270bf90a67ba949e7994892a62abc985bd9478119ab2f1d5be35fa1efb6bd1d2780c49a3dbb87cb669d9c65b44e3d9a0b41fbf091f
+  checksum: 10c0/0a493d97b80b98a1a90172baf81d7efee6b65399bf15171aae9c6505be3eedd4e59d05a8a33b3a6b6b720a2a96b7c2c5043c8ec92e390a5f917e2dd139d88aab
   languageName: node
   linkType: hard
 
@@ -2884,12 +2885,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/steps@npm:21.0.2, @expo/steps@workspace:packages/steps":
+"@expo/steps@npm:22.1.0, @expo/steps@workspace:packages/steps":
   version: 0.0.0-use.local
   resolution: "@expo/steps@workspace:packages/steps"
   dependencies:
-    "@expo/eas-build-job": "npm:21.0.2"
-    "@expo/logger": "npm:21.0.0"
+    "@expo/eas-build-job": "npm:22.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
@@ -2912,10 +2913,11 @@ __metadata:
     typescript: "npm:^5.5.4"
     uuid: "npm:^9.0.1"
     yaml: "npm:^2.4.3"
+    zod: "npm:^4.3.5"
   languageName: unknown
   linkType: soft
 
-"@expo/template-file@npm:21.0.2, @expo/template-file@workspace:packages/template-file":
+"@expo/template-file@npm:22.0.0, @expo/template-file@workspace:packages/template-file":
   version: 0.0.0-use.local
   resolution: "@expo/template-file@workspace:packages/template-file"
   dependencies:
@@ -2938,11 +2940,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/turtle-spawn@npm:21.0.0, @expo/turtle-spawn@workspace:packages/turtle-spawn":
+"@expo/turtle-spawn@npm:22.0.0, @expo/turtle-spawn@workspace:packages/turtle-spawn":
   version: 0.0.0-use.local
   resolution: "@expo/turtle-spawn@workspace:packages/turtle-spawn"
   dependencies:
-    "@expo/logger": "npm:21.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:20.14.2"
@@ -2958,18 +2960,18 @@ __metadata:
   resolution: "@expo/worker@workspace:packages/worker"
   dependencies:
     "@babel/core": "npm:7.24.7"
-    "@expo/build-tools": "npm:21.0.2"
+    "@expo/build-tools": "npm:22.2.0"
     "@expo/config-plugins": "npm:55.0.7"
     "@expo/config-types": "npm:55.0.5"
-    "@expo/downloader": "npm:21.0.0"
-    "@expo/eas-build-job": "npm:21.0.2"
-    "@expo/logger": "npm:21.0.0"
+    "@expo/downloader": "npm:22.0.0"
+    "@expo/eas-build-job": "npm:22.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:21.0.2"
-    "@expo/template-file": "npm:21.0.2"
-    "@expo/turtle-spawn": "npm:21.0.0"
+    "@expo/steps": "npm:22.1.0"
+    "@expo/template-file": "npm:22.0.0"
+    "@expo/turtle-spawn": "npm:22.0.0"
     "@hapi/boom": "npm:10.0.1"
     "@types/babel__core": "npm:7.20.5"
     "@types/fs-extra": "npm:11.0.4"
@@ -8023,12 +8025,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"agent-cli-detector@npm:0.1.2":
-  version: 0.1.2
-  resolution: "agent-cli-detector@npm:0.1.2"
+"agent-cli-detector@npm:0.1.6":
+  version: 0.1.6
+  resolution: "agent-cli-detector@npm:0.1.6"
   bin:
     agent-cli-detector: dist/cli.js
-  checksum: 10c0/d7751eab293c4543f079988ffe519951859c254edb204fd3105ff49c114ac466d8ef05ba00b3b574fdd5038f9c4e24414d977918f5bccfe9a147628f83d013c3
+  checksum: 10c0/0653c78987a7382ebd6e19334a2c9362eae700486614354fcf4d10b173202997b7b330545391deab343fe830930ea1b1db90c0d2a5106e6e9a3254abeef6ed6d
   languageName: node
   linkType: hard
 
@@ -9723,12 +9725,13 @@ __metadata:
   resolution: "create-eas-build-function@workspace:packages/create-eas-build-function"
   dependencies:
     "@expo/package-manager": "npm:1.9.10"
-    "@expo/steps": "npm:21.0.2"
+    "@expo/steps": "npm:22.1.0"
     "@jest/globals": "npm:^29.7.0"
     "@types/jest": "npm:^29.5.12"
     "@types/node": "npm:20.14.2"
     "@types/prompts": "npm:^2.4.9"
     "@vercel/ncc": "npm:^0.38.1"
+    arg: "npm:^5.0.2"
     chalk: "npm:4.1.2"
     fs-extra: "npm:^11.2.0"
     ora: "npm:^6.3.1"
@@ -10295,11 +10298,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "eas-cli-local-build-plugin@workspace:packages/local-build-plugin"
   dependencies:
-    "@expo/build-tools": "npm:21.0.2"
-    "@expo/eas-build-job": "npm:21.0.2"
-    "@expo/logger": "npm:21.0.0"
+    "@expo/build-tools": "npm:22.2.0"
+    "@expo/eas-build-job": "npm:22.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/spawn-async": "npm:^1.7.2"
-    "@expo/turtle-spawn": "npm:21.0.0"
+    "@expo/turtle-spawn": "npm:22.0.0"
     "@types/bunyan": "npm:^1.8.11"
     "@types/fs-extra": "npm:^11.0.4"
     "@types/hapi__joi": "npm:^17.1.14"
@@ -10353,11 +10356,11 @@ __metadata:
     "@expo/code-signing-certificates": "npm:0.0.5"
     "@expo/config": "npm:55.0.10"
     "@expo/config-plugins": "npm:55.0.7"
-    "@expo/eas-build-job": "npm:21.0.2"
-    "@expo/eas-json": "npm:21.0.2"
+    "@expo/eas-build-job": "npm:22.0.0"
+    "@expo/eas-json": "npm:22.0.0"
     "@expo/env": "npm:^1.0.0"
     "@expo/json-file": "npm:8.3.3"
-    "@expo/logger": "npm:21.0.0"
+    "@expo/logger": "npm:22.0.0"
     "@expo/multipart-body-parser": "npm:2.0.0"
     "@expo/osascript": "npm:2.1.4"
     "@expo/package-manager": "npm:1.9.10"
@@ -10369,7 +10372,7 @@ __metadata:
     "@expo/results": "npm:1.0.0"
     "@expo/rudder-sdk-node": "npm:1.1.1"
     "@expo/spawn-async": "npm:1.7.2"
-    "@expo/steps": "npm:21.0.2"
+    "@expo/steps": "npm:22.1.0"
     "@expo/timeago.js": "npm:1.0.0"
     "@graphql-codegen/cli": "npm:6.3.1"
     "@graphql-codegen/introspection": "npm:5.0.2"
@@ -10402,7 +10405,7 @@ __metadata:
     "@types/wrap-ansi": "npm:3.0.0"
     "@urql/core": "npm:4.0.11"
     "@urql/exchange-retry": "npm:1.2.0"
-    agent-cli-detector: "npm:0.1.2"
+    agent-cli-detector: "npm:0.1.6"
     ajv: "npm:8.11.0"
     ajv-formats: "npm:2.1.1"
     axios: "npm:1.18.1"
@@ -10455,6 +10458,7 @@ __metadata:
     qrcode-terminal: "npm:0.12.0"
     resolve-from: "npm:5.0.0"
     rimraf: "npm:3.0.2"
+    sandbox-cli-detector: "npm:0.2.0"
     semver: "npm:7.5.4"
     set-interval-async: "npm:3.0.3"
     slash: "npm:3.0.0"
@@ -12324,6 +12328,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"immediate@npm:~3.0.5":
+  version: 3.0.6
+  resolution: "immediate@npm:3.0.6"
+  checksum: 10c0/f8ba7ede69bee9260241ad078d2d535848745ff5f6995c7c7cb41cfdc9ccc213f66e10fa5afb881f90298b24a3f7344b637b592beb4f54e582770cdce3f1f039
+  languageName: node
+  linkType: hard
+
 "immutable@npm:^5.1.5":
   version: 5.1.9
   resolution: "immutable@npm:5.1.9"
@@ -13766,6 +13777,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jszip@npm:^3.10.1":
+  version: 3.10.1
+  resolution: "jszip@npm:3.10.1"
+  dependencies:
+    lie: "npm:~3.3.0"
+    pako: "npm:~1.0.2"
+    readable-stream: "npm:~2.3.6"
+    setimmediate: "npm:^1.0.5"
+  checksum: 10c0/58e01ec9c4960383fb8b38dd5f67b83ccc1ec215bf74c8a5b32f42b6e5fb79fada5176842a11409c4051b5b94275044851814a31076bf49e1be218d3ef57c863
+  languageName: node
+  linkType: hard
+
 "just-diff-apply@npm:^5.2.0":
   version: 5.5.0
   resolution: "just-diff-apply@npm:5.5.0"
@@ -14005,6 +14028,15 @@ __metadata:
     sigstore: "npm:^4.0.0"
     ssri: "npm:^12.0.0"
   checksum: 10c0/213cd2aeb65822892c3723a81d191a385e97f126ec63800f7051609e24c38c3fa36ea529b26739dc56dfba21f7f456347889f3aa1e6024c8c6a40bfa4cd9d184
+  languageName: node
+  linkType: hard
+
+"lie@npm:~3.3.0":
+  version: 3.3.0
+  resolution: "lie@npm:3.3.0"
+  dependencies:
+    immediate: "npm:~3.0.5"
+  checksum: 10c0/56dd113091978f82f9dc5081769c6f3b947852ecf9feccaf83e14a123bc630c2301439ce6182521e5fbafbde88e88ac38314327a4e0493a1bea7e0699a7af808
   languageName: node
   linkType: hard
 
@@ -16193,6 +16225,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pako@npm:~1.0.2":
+  version: 1.0.11
+  resolution: "pako@npm:1.0.11"
+  checksum: 10c0/86dd99d8b34c3930345b8bbeb5e1cd8a05f608eeb40967b293f72fe469d0e9c88b783a8777e4cc7dc7c91ce54c5e93d88ff4b4f060e6ff18408fd21030d9ffbe
+  languageName: node
+  linkType: hard
+
 "param-case@npm:^3.0.4":
   version: 3.0.4
   resolution: "param-case@npm:3.0.4"
@@ -17327,6 +17366,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sandbox-cli-detector@npm:0.2.0":
+  version: 0.2.0
+  resolution: "sandbox-cli-detector@npm:0.2.0"
+  bin:
+    sandbox-cli-detector: dist/cli.js
+  checksum: 10c0/e70964918150079a3183948a8adadcde736823da2ad1135b4ccead2baa8d24d6487ddd222c030f94c9ef54e84bc41aa525a5452ef4cb9239f6f64b2ac03337bc
+  languageName: node
+  linkType: hard
+
 "sax@npm:>=0.6.0":
   version: 1.2.4
   resolution: "sax@npm:1.2.4"
@@ -17441,6 +17489,13 @@ __metadata:
   version: 3.0.3
   resolution: "set-interval-async@npm:3.0.3"
   checksum: 10c0/7547bb5265648951f3f799391d970f39be16bae2b462ad54b58e96a6a3eb9dda1f183a3b9a4bfdc0a62637b026b494fae74cda075db1c5762b58d0c9172e6d4c
+  languageName: node
+  linkType: hard
+
+"setimmediate@npm:^1.0.5":
+  version: 1.0.5
+  resolution: "setimmediate@npm:1.0.5"
+  checksum: 10c0/5bae81bfdbfbd0ce992893286d49c9693c82b1bcc00dcaaf3a09c8f428fdeacf4190c013598b81875dfac2b08a572422db7df779a99332d0fce186d15a3e4d49
   languageName: node
   linkType: hard
 
@@ -19978,5 +20033,14 @@ __metadata:
   version: 4.3.5
   resolution: "zod@npm:4.3.5"
   checksum: 10c0/5a2db7e59177a3d7e202543f5136cb87b97b047b77c8a3d824098d3fa8b80d3aa40a0a5f296965c3b82dfdccdd05dbbfacce91347f16a39c675680fd7b1ab109
+  languageName: node
+  linkType: hard
+
+"zsign-wasm@npm:^0.0.2":
+  version: 0.0.2
+  resolution: "zsign-wasm@npm:0.0.2"
+  dependencies:
+    jszip: "npm:^3.10.1"
+  checksum: 10c0/f8919b66031c93970987fa9ac0e742cc7975e4c4c6fbf60fa477e1154109a50a4bf907b75dff8afe72b457df49ce5d060e3a3b93ba3c92b8c453d85206058f22
   languageName: node
   linkType: hard

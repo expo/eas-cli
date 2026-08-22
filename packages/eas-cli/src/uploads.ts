@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import FormData from 'form-data';
 import fs from 'fs-extra';
 import { Response } from 'node-fetch';
@@ -5,7 +7,11 @@ import promiseRetry from 'promise-retry';
 
 import { ExpoGraphqlClient } from './commandUtils/context/contextUtils/createGraphqlClient';
 import fetch from './fetch';
-import { AccountUploadSessionType, UploadSessionType } from './graphql/generated';
+import {
+  AccountUploadSessionType,
+  AppUploadSessionType,
+  UploadSessionType,
+} from './graphql/generated';
 import { SignedUrl, UploadSessionMutation } from './graphql/mutations/UploadSessionMutation';
 import { ProgressHandler } from './utils/progress';
 
@@ -48,6 +54,29 @@ export async function uploadAccountScopedFileAtPathToGCSAsync(
     graphqlClient,
     { type, accountID: accountId }
   );
+
+  await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
+  return signedUrl.bucketKey;
+}
+
+export async function uploadAppScopedFileAtPathToGCSAsync(
+  graphqlClient: ExpoGraphqlClient,
+  {
+    type,
+    appId,
+    path,
+    handleProgressEvent = () => {},
+  }: {
+    type: AppUploadSessionType;
+    appId: string;
+    path: string;
+    handleProgressEvent?: ProgressHandler;
+  }
+): Promise<string> {
+  const signedUrl = await UploadSessionMutation.createAppScopedUploadSessionAsync(graphqlClient, {
+    type,
+    appID: appId,
+  });
 
   await uploadWithSignedUrlWithProgressAsync(path, signedUrl, handleProgressEvent);
   return signedUrl.bucketKey;
@@ -121,6 +150,13 @@ async function uploadWithSignedUrlWithProgressAsync(
 ): Promise<Response> {
   const fileStat = await fs.stat(file);
   const fileSize = fileStat.size;
+  if (fileSize === 0) {
+    throw new Error(
+      `Failed to upload ${file}: the file is empty. It may not have been written correctly. Retry the command, and report this issue if it persists.`
+    );
+  }
+
+  const contentMd5 = await computeFileMd5Base64Async(file);
 
   const readStream = fs.createReadStream(file);
   const uploadPromise = fetch(signedUrl.url, {
@@ -128,6 +164,8 @@ async function uploadWithSignedUrlWithProgressAsync(
     body: readStream,
     headers: {
       ...signedUrl.headers,
+      'Content-Length': String(fileSize), // make GCS reject the request if the file size changes during the upload
+      'Content-MD5': contentMd5, // make GCS reject the request if the uploaded bytes do not match this checksum
     },
   });
 
@@ -144,10 +182,27 @@ async function uploadWithSignedUrlWithProgressAsync(
   });
   try {
     const response = await uploadPromise;
+    if (currentSize !== fileSize) {
+      throw new Error(
+        `Failed to upload ${file}: sent ${currentSize} of ${fileSize} bytes. The file may have changed during the upload. Retry the command, and report this issue if it persists.`
+      );
+    }
     handleProgressEvent({ isComplete: true });
     return response;
   } catch (error: any) {
     handleProgressEvent({ isComplete: true, error });
     throw error;
   }
+}
+
+/**
+ * Computes the base64-encoded MD5 checksum of a file, the format GCS expects
+ * in the `Content-MD5` request header.
+ */
+export async function computeFileMd5Base64Async(file: string): Promise<string> {
+  const hash = crypto.createHash('md5');
+  for await (const chunk of fs.createReadStream(file)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest('base64');
 }

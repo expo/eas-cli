@@ -38,14 +38,9 @@ export function getMockAppFragment(): AppFragment {
     ownerAccount: {
       id: 'test-account-id',
       name: 'testuser',
-      users: [
-        {
-          role: Role.Owner,
-          actor: {
-            id: 'test-user-id',
-          },
-        },
-      ],
+      viewerUserPermission: {
+        role: Role.Owner,
+      },
     },
   };
 }

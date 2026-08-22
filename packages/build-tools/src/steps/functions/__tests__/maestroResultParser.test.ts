@@ -7,12 +7,121 @@ import {
   isFileAttrRun,
   junitFileHasFileAttrs,
   mergeJUnitReports,
+  parseFailedFlowNamesFromJUnitFile,
   parseFailedFlowsFromFileAttrs,
   parseFailedFlowsFromJUnit,
+  parseFailedFlowsFromMaestroRunnerReport,
   parseJUnitTestCases,
   parseMaestroResults,
   parseMaestroResultsFromFileAttrs,
+  parseMaestroRunnerReport,
 } from '../maestroResultParser';
+
+describe(parseFailedFlowsFromMaestroRunnerReport, () => {
+  it('returns exact sourceFile paths for failed flows', async () => {
+    vol.fromJSON({
+      '/project/flows/pass.yml': '',
+      '/project/flows/nested/fail.yml': '',
+      '/reports/attempt-0/report.json': JSON.stringify({
+        flows: [
+          { name: 'Passing flow', sourceFile: 'flows/pass.yml', status: 'passed' },
+          {
+            name: 'Failing flow',
+            sourceFile: 'flows/nested/fail.yml',
+            status: 'failed',
+          },
+          { status: 'skipped' },
+        ],
+      }),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toEqual(['flows/nested/fail.yml']);
+    await expect(parseMaestroRunnerReport('/reports/attempt-0')).resolves.toEqual({
+      flows: [
+        { name: 'Passing flow', sourceFile: 'flows/pass.yml', status: 'passed' },
+        {
+          name: 'Failing flow',
+          sourceFile: 'flows/nested/fail.yml',
+          status: 'failed',
+        },
+      ],
+    });
+  });
+
+  it.each([
+    {
+      name: 'incomplete flow',
+      report: {
+        version: '1.0.0',
+        status: 'failed',
+        summary: { total: 1 },
+        flows: [{ name: 'Failing flow', sourceFile: 'flows/fail.yml', status: 'running' }],
+      },
+    },
+  ])('returns null for an $name', async ({ report }) => {
+    vol.fromJSON({
+      '/project/flows/fail.yml': '',
+      '/reports/attempt-0/report.json': JSON.stringify(report),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toBeNull();
+  });
+
+  it('returns null when a failed sourceFile does not exist', async () => {
+    vol.fromJSON({
+      '/reports/attempt-0/report.json': JSON.stringify({
+        version: '1.0.0',
+        status: 'failed',
+        summary: { total: 1 },
+        flows: [{ name: 'Failing flow', sourceFile: 'flows/missing.yml', status: 'failed' }],
+      }),
+    });
+
+    await expect(
+      parseFailedFlowsFromMaestroRunnerReport({
+        reportDirectory: '/reports/attempt-0',
+        workingDirectory: '/project',
+      })
+    ).resolves.toBeNull();
+  });
+});
+
+describe(parseFailedFlowNamesFromJUnitFile, () => {
+  it('returns the names of failed testcases, keeping slashes', async () => {
+    vol.fromJSON({
+      '/attempt/android-maestro-junit-attempt-0.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites>',
+        '  <testsuite name="Test Suite" tests="3" failures="2">',
+        '    <testcase name="home" status="SUCCESS"/>',
+        '    <testcase name="sub/login" status="ERROR"><failure>boom</failure></testcase>',
+        '    <testcase name="checkout" status="ERROR"><failure>boom</failure></testcase>',
+        '  </testsuite>',
+        '</testsuites>',
+      ].join('\n'),
+    });
+
+    const failed = await parseFailedFlowNamesFromJUnitFile(
+      '/attempt/android-maestro-junit-attempt-0.xml'
+    );
+
+    expect([...failed].sort()).toEqual(['checkout', 'sub/login']);
+  });
+
+  it('returns an empty set when the file cannot be read', async () => {
+    expect((await parseFailedFlowNamesFromJUnitFile('/missing.xml')).size).toBe(0);
+  });
+});
 
 describe(parseMaestroResults, () => {
   it('parses JUnit results and enriches with name→path map', async () => {
@@ -425,6 +534,20 @@ describe('junitFileHasFileAttrs', () => {
     expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(false);
   });
 
+  it('returns true for a maestro-runner report with a file property', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="a" time="1.0">',
+        '    <properties><property name="file" value="flows/a.yaml"/></properties>',
+        '  </testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+    expect(await junitFileHasFileAttrs('/junit/report.xml')).toBe(true);
+  });
+
   it('returns false when the file cannot be read', async () => {
     expect(await junitFileHasFileAttrs('/missing.xml')).toBe(false);
   });
@@ -448,6 +571,41 @@ describe(parseJUnitTestCases, () => {
     });
     const results = await parseJUnitTestCases('/junit');
     expect(results[0].file).toBe('.maestro/login.yaml');
+  });
+
+  it('parses maestro-runner file properties and standard JUnit pass status', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="login" time="1.0">',
+        '    <properties><property name="file" value="flows/login.yaml"/></properties>',
+        '  </testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+
+    const results = await parseJUnitTestCases('/junit');
+
+    expect(results[0]).toEqual(
+      expect.objectContaining({ file: 'flows/login.yaml', status: 'passed' })
+    );
+  });
+
+  it('excludes skipped testcases instead of counting them as passed', async () => {
+    vol.fromJSON({
+      '/junit/report.xml': [
+        '<?xml version="1.0"?>',
+        '<testsuites><testsuite>',
+        '  <testcase name="passing" time="1.0"/>',
+        '  <testcase name="skipped-flow" time="0"><skipped/></testcase>',
+        '</testsuite></testsuites>',
+      ].join('\n'),
+    });
+
+    const results = await parseJUnitTestCases('/junit');
+
+    expect(results.map(r => r.name)).toEqual(['passing']);
   });
 
   it('treats a missing or empty file= attribute as undefined', async () => {

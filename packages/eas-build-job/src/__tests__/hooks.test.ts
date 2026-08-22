@@ -1,13 +1,14 @@
 import { HOOK_ANCHORS, parseHookKey } from '../hooks';
 
 describe('HOOK_ANCHORS', () => {
-  it('contains the v1 anchors', () => {
+  it('contains the registered anchors', () => {
     expect([...HOOK_ANCHORS].sort()).toEqual([
       'checkout',
       'install_node_modules',
       'maestro_cloud',
       'maestro_tests',
       'submit',
+      'update',
     ]);
   });
 });

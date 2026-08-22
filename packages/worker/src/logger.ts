@@ -1,4 +1,4 @@
-import { LogBuffer, RemoteLoggerStream } from '@expo/build-tools';
+import { HttpLogStream, LogBuffer, RemoteLoggerStream } from '@expo/build-tools';
 import { BuildPhase, EnvironmentSecret, Job } from '@expo/eas-build-job';
 import { LoggerLevel, bunyan, createLogger } from '@expo/logger';
 import { Readable, Transform, TransformCallback, Writable } from 'stream';
@@ -6,7 +6,6 @@ import { Readable, Transform, TransformCallback, Writable } from 'stream';
 import config from './config';
 import { maybeStringBase64Decode, simpleSecretsWhitelist } from './secrets';
 import { uuidv7 } from 'uuidv7';
-import HttpLogStream from './utils/HttpLogStream';
 
 const defaultLogger = createLogger({
   name: config.loggers.base.name,

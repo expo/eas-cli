@@ -1,4 +1,5 @@
 import { type bunyan } from '@expo/logger';
+import assert from 'node:assert';
 import fg from 'fast-glob';
 import { vol } from 'memfs';
 import path from 'node:path';
@@ -193,14 +194,44 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
 
     expect(signingOptions).not.toBeNull();
-    expect(signingOptions?.keychainPath).toEqual('/tmp/ios_keychain');
-    expect(signingOptions?.signingIdentity).toEqual('Test App Certificate');
-    expect(signingOptions?.provisioningProfile).toEqual({
-      'com.example.testapp': '/tmp/ios_provisioning_profile',
+    expect(signingOptions).toMatchObject({
+      keychainPath: '/tmp/ios_keychain',
+      signingIdentity: 'Test App Certificate',
+      provisioningProfile: {
+        'com.example.testapp': '/tmp/ios_provisioning_profile',
+      },
     });
+  });
+
+  it('should resolve zsign signing options without touching the keychain', async () => {
+    const job = createTestIosJob();
+    const tmpDir = '/tmp';
+    vol.mkdirSync(tmpDir, { recursive: true });
+    const credentialsManagerSpy = jest.spyOn(IosCredentialsManager.prototype, 'prepare');
+
+    const signingOptions = await resolveIosSigningOptionsAsync({
+      job,
+      logger: mockLogger,
+      backend: 'zsign',
+      tmpDir,
+    });
+
+    expect(credentialsManagerSpy).not.toHaveBeenCalled();
+    expect(signingOptions).toMatchObject({
+      backend: 'zsign',
+      keyPassword: job.secrets?.buildCredentials?.['testapp'].distributionCertificate.password,
+    });
+    assert(signingOptions?.backend === 'zsign');
+    expect(signingOptions.certificatePath).toMatch(/\/tmp\/dist-cert-.*\.p12/);
+    expect(vol.existsSync(signingOptions.certificatePath)).toBe(true);
+    assert(typeof signingOptions.provisioningProfile === 'object');
+    const profilePath = signingOptions.provisioningProfile['testapp'];
+    expect(profilePath).toMatch(/\/tmp\/profile-testapp-.*\.mobileprovision/);
+    expect(vol.existsSync(profilePath)).toBe(true);
   });
 
   it('should return undefined if no build credentials are provided', async () => {
@@ -209,6 +240,7 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
     expect(signingOptions).toBeUndefined();
   });
@@ -219,6 +251,7 @@ describe(resolveIosSigningOptionsAsync, () => {
     const signingOptions = await resolveIosSigningOptionsAsync({
       job,
       logger: mockLogger,
+      tmpDir: '/tmp',
     });
     expect(signingOptions).toBeUndefined();
   });

@@ -18,6 +18,7 @@ export const HOOK_ANCHORS = [
   'maestro_tests',
   'maestro_cloud',
   'checkout',
+  'update',
 ] as const;
 
 export type HookAnchorId = (typeof HOOK_ANCHORS)[number];

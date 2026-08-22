@@ -5,6 +5,7 @@ import { BuildFunctionById } from './BuildFunction';
 import { BuildRuntimePlatform } from './BuildRuntimePlatform';
 import { BuildStep } from './BuildStep';
 import { BuildStepGlobalContext } from './BuildStepContext';
+import { CompositeBuildStep } from './CompositeBuildStep';
 import { StepMetricResult } from './StepMetrics';
 import { AnchorHooks, HookEntry } from './hooks';
 import { evaluateIfCondition } from './utils/jsepEval';
@@ -76,7 +77,9 @@ export class BuildWorkflow {
       // occurrence; an anchor's `if:` cannot see its before-hooks' outputs.
       let shouldExecuteStep = false;
       try {
-        shouldExecuteStep = step.shouldExecuteStep();
+        shouldExecuteStep = step.shouldExecuteStep({
+          runByDefault: !this.ctx.hasAnyPreviousStepFailed,
+        });
       } catch (err: any) {
         logConditionEvaluationError(
           step.ctx.logger,
@@ -163,8 +166,10 @@ export class BuildWorkflow {
  * Default-run rules (a step or entry with no `if:`):
  * - `before`: runs unless a failure occurred within THIS hook sequence;
  *   failures predating the call are ignored — "runs iff the anchor runs".
- * - `after`: runs unconditionally — past the anchor's own failure AND past an
- *   earlier after-entry's failure.
+ * - `after`: each entry starts fresh, past the anchor's own failure AND past
+ *   an earlier after-entry's failure, but a failure within the entry skips
+ *   its later no-`if:` steps.
+ * Passed as `runByDefault` so composite scopes share the same missing-`if:` rule.
  * A user `if:` is always evaluated against the real global context, so
  * `failure()` / `success()` keep their global meaning on both sides.
  */
@@ -188,7 +193,7 @@ export async function executeHookStepsAsync(
     ctx.markAsFailed();
   };
 
-  let anyStepExecuted = false;
+  let anyAuthoredStepExecuted = false;
   for (const entry of entries) {
     // Truthiness, not presence: an empty `if:` means "no condition", the same
     // as BuildStep.shouldExecuteStep treats it.
@@ -221,34 +226,33 @@ export async function executeHookStepsAsync(
 
     let entryFailed = false;
     for (const step of entry.steps) {
+      // after and an entry with a passed if: skip on within-entry failure;
+      // before without an entry if: skips on any in-sequence failure.
+      const scopedFailure =
+        options.timing === 'after' || entryHasExplicitCondition ? entryFailed : failedLocally;
+      const runByDefault = !scopedFailure;
       let shouldExecuteStep = false;
-      if (step.ifCondition) {
-        try {
-          shouldExecuteStep = step.shouldExecuteStep();
-        } catch (err) {
-          logConditionEvaluationError(
-            step.ctx.logger,
-            err,
-            `step "${step.displayName}"`,
-            step.ifCondition
-          );
-          recordFailure(err);
-          entryFailed = true;
-        }
-      } else {
-        // Before-side: a no-`if:` step runs unless this hook sequence has
-        // already failed. An entry whose explicit condition evaluated true
-        // behaves like a single step whose if: passed — the entry's no-`if:`
-        // steps ignore failures from EARLIER entries (only within-entry
-        // failures skip them).
-        shouldExecuteStep =
-          options.timing === 'after' || (entryHasExplicitCondition ? !entryFailed : !failedLocally);
+      try {
+        shouldExecuteStep = step.shouldExecuteStep({ runByDefault });
+      } catch (err) {
+        logConditionEvaluationError(
+          step.ctx.logger,
+          err,
+          `step "${step.displayName}"`,
+          step.ifCondition
+        );
+        recordFailure(err);
+        entryFailed = true;
       }
       if (!shouldExecuteStep) {
         step.skip();
         continue;
       }
-      anyStepExecuted = true;
+      // The synthetic composite outputs node runs under always(), so it alone
+      // must not make a fully-skipped hook side report a metric.
+      if (!(step instanceof CompositeBuildStep)) {
+        anyAuthoredStepExecuted = true;
+      }
       const startTime = performance.now();
       let stepResult: StepMetricResult = 'success';
       try {
@@ -263,7 +267,7 @@ export async function executeHookStepsAsync(
     }
   }
 
-  if (anyStepExecuted) {
+  if (anyAuthoredStepExecuted) {
     ctx.reportWorkflowHookMetric({
       anchor: options.anchor,
       timing: options.timing,
@@ -275,8 +279,9 @@ export async function executeHookStepsAsync(
   return { failedLocally, firstError };
 }
 
-// The one wording for an `if:` that could not be evaluated — anchor steps,
-// hook steps, and hook group entries all log through here.
+// Shared wording for unevaluable `if:` gates. Callers pass the step's own
+// `if:`, but the throw may come from a composite call-site `if:` evaluated via
+// the step's scope. In that case the quoted condition is not the one that failed.
 function logConditionEvaluationError(
   logger: bunyan,
   err: unknown,
@@ -285,6 +290,8 @@ function logConditionEvaluationError(
 ): void {
   logger.error({ err });
   logger.error(
-    `Runner failed to evaluate if it should execute ${subject}, using its if condition "${ifCondition}". This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
+    `Runner failed to evaluate if it should execute ${subject}${
+      ifCondition ? `, using its if condition "${ifCondition}"` : ''
+    }. This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
   );
 }

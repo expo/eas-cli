@@ -10,7 +10,7 @@ export function startAndEndTime({
   daysBack?: number;
   start?: string;
   end?: string;
-}) {
+}): { startTime: string; endTime: string } {
   let startTime: string;
   let endTime: string;
 

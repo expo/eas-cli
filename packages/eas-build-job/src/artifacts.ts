@@ -1,6 +1,7 @@
 export enum ManagedArtifactType {
   APPLICATION_ARCHIVE = 'APPLICATION_ARCHIVE',
   BUILD_ARTIFACTS = 'BUILD_ARTIFACTS',
+  SOURCE_MAP = 'SOURCE_MAP',
   /**
    * @deprecated
    */

@@ -28,6 +28,32 @@ function generateMultipartBody(stringifiedManifest: string): FormData {
 }
 
 describe(getCodeSigningInfoAsync, () => {
+  it('returns undefined when codeSigningCertificate and private key path are not specified', async () => {
+    await expect(
+      getCodeSigningInfoAsync(
+        {
+          name: 'wat',
+          slug: 'test',
+        },
+        undefined
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it('throws when private key path is specified without codeSigningCertificate', async () => {
+    await expect(
+      getCodeSigningInfoAsync(
+        {
+          name: 'wat',
+          slug: 'test',
+        },
+        'test'
+      )
+    ).rejects.toThrow(
+      '--private-key-path was specified, but updates.codeSigningCertificate is not set in the resolved app config'
+    );
+  });
+
   it('throws when codeSigningMetadata is not specified for EAS', async () => {
     await expect(
       getCodeSigningInfoAsync(

@@ -21,6 +21,7 @@ export interface SubmissionContext<T extends Platform> {
   analyticsEventProperties: AnalyticsEventProperties;
   exp: ExpoConfig;
   nonInteractive: boolean;
+  autoTestFlightSetup: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups: T extends Platform.IOS ? string[] : undefined;
   platform: T;
@@ -49,6 +50,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
   credentialsCtx?: CredentialsContext;
   env?: Env;
   nonInteractive: boolean;
+  autoTestFlightSetup?: boolean;
   isVerboseFastlaneEnabled: boolean;
   groups: string[] | undefined;
   platform: T;
@@ -116,6 +118,7 @@ export async function createSubmissionContextAsync<T extends Platform>(params: {
 
   return {
     ...rest,
+    autoTestFlightSetup: params.autoTestFlightSetup ?? true,
     accountName: account.name,
     credentialsCtx,
     groups,

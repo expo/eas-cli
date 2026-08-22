@@ -1,6 +1,9 @@
 import {
+  CompositeFunctionCatalog,
+  CompositeFunctionConfig,
   FunctionStep,
   HookAnchorId,
+  HookKey,
   Hooks,
   Step,
   isHookAnchorId,
@@ -12,6 +15,7 @@ import {
 import assert from 'node:assert';
 
 import { AbstractConfigParser } from './AbstractConfigParser';
+import { CompositeFunctionExpander } from './CompositeFunctionExpander';
 import { BuildFunction, BuildFunctionById, createBuildFunctionByIdMapping } from './BuildFunction';
 import {
   BuildFunctionGroup,
@@ -28,10 +32,22 @@ import {
   createBuildStepFromShellStep,
   validateAllStepFunctionsExist,
 } from './hooks';
+import {
+  extendCompositeFunctionCatalogFromStepsAsync,
+  isLocalCompositeFunctionPath,
+  parseLocalCompositeFunctionPath,
+} from './utils/localCompositeFunctions';
+
+type ValidatedHooks = ReadonlyMap<HookKey, { anchorId: HookAnchorId; steps: Step[] }>;
 
 export class StepsConfigParser extends AbstractConfigParser {
   private readonly steps: Step[];
   private readonly hooks: Hooks;
+  /** Pre-loaded composite function configs keyed by normalized path (e.g. `./.eas/functions/setup`). */
+  private readonly compositeFunctionCatalog: CompositeFunctionCatalog;
+  private readonly loadCompositeFunction?: (
+    compositeFunctionPath: string
+  ) => Promise<CompositeFunctionConfig>;
 
   constructor(
     ctx: BuildStepGlobalContext,
@@ -40,6 +56,8 @@ export class StepsConfigParser extends AbstractConfigParser {
       hooks,
       externalFunctions,
       externalFunctionGroups,
+      compositeFunctionCatalog,
+      loadCompositeFunction,
     }: {
       steps: Step[];
       // Required (not `hooks?:`) so a call site cannot silently forget to pass
@@ -47,6 +65,9 @@ export class StepsConfigParser extends AbstractConfigParser {
       hooks: Hooks | undefined;
       externalFunctions?: BuildFunction[];
       externalFunctionGroups?: BuildFunctionGroup[];
+      compositeFunctionCatalog?: CompositeFunctionCatalog;
+      /** Loads a hook composite missing from the catalog. When omitted, missing entries fail as unknown. */
+      loadCompositeFunction?: (compositeFunctionPath: string) => Promise<CompositeFunctionConfig>;
     }
   ) {
     super(ctx, {
@@ -56,6 +77,9 @@ export class StepsConfigParser extends AbstractConfigParser {
 
     this.steps = steps;
     this.hooks = hooks ?? {};
+    // Shallow copy so lazy loading never mutates a caller-owned catalog.
+    this.compositeFunctionCatalog = { ...(compositeFunctionCatalog ?? {}) };
+    this.loadCompositeFunction = loadCompositeFunction;
   }
 
   protected async parseConfigToBuildStepsAndBuildFunctionByIdMappingAsync(): Promise<{
@@ -65,9 +89,7 @@ export class StepsConfigParser extends AbstractConfigParser {
   }> {
     const validatedSteps = validateSteps(this.steps);
     const validatedHooks = this.validateHooks();
-    // Hook steps are validated like job steps: a hook `uses:` naming an
-    // unknown function must be a BuildConfigError, not an assertion crash.
-    validateAllStepFunctionsExist([...validatedSteps, ...Object.values(validatedHooks).flat()], {
+    validateAllStepFunctionsExist(validatedSteps, {
       externalFunctionIds: this.getExternalFunctionFullIds(),
       externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
     });
@@ -76,6 +98,15 @@ export class StepsConfigParser extends AbstractConfigParser {
     const buildFunctionGroupById = createBuildFunctionGroupByIdMapping(
       this.externalFunctionGroups ?? []
     );
+    // Expander shares this catalog by reference; it grows as hook composites load.
+    const compositeFunctionExpander = new CompositeFunctionExpander(
+      this.ctx,
+      this.compositeFunctionCatalog,
+      {
+        buildFunctionById,
+        buildFunctionGroupById,
+      }
+    );
 
     // Only the job's own steps are scanned — steps constructed from hooks are
     // never treated as anchors (no nesting). Construction order (before →
@@ -83,11 +114,13 @@ export class StepsConfigParser extends AbstractConfigParser {
     // step ids identical across the splicing→engine rollout.
     const buildSteps: BuildStep[] = [];
     const hooksByAnchorStep = new Map<BuildStep, AnchorHooks>();
+    const seenAnchorIds = new Set<HookAnchorId>();
 
     for (const stepConfig of validatedSteps) {
-      const maybeFunctionGroup = isStepFunctionStep(stepConfig)
-        ? buildFunctionGroupById[stepConfig.uses]
-        : undefined;
+      const maybeFunctionGroup =
+        isStepFunctionStep(stepConfig) && !isLocalCompositeFunctionPath(stepConfig.uses)
+          ? buildFunctionGroupById[stepConfig.uses]
+          : undefined;
       if (maybeFunctionGroup !== undefined) {
         // The group expands FIRST (its internal steps get their ids), then the
         // anchors found among expanded steps get their hook steps constructed.
@@ -102,10 +135,12 @@ export class StepsConfigParser extends AbstractConfigParser {
           if (anchorId === undefined) {
             continue;
           }
-          const anchorHooks = this.constructAnchorHooks(anchorId, validatedHooks, {
-            buildFunctionById,
-            buildFunctionGroupById,
-          });
+          seenAnchorIds.add(anchorId);
+          const anchorHooks = await this.constructAnchorHooksAsync(
+            anchorId,
+            validatedHooks,
+            compositeFunctionExpander
+          );
           if (anchorHooks !== undefined) {
             hooksByAnchorStep.set(expandedStep, anchorHooks);
           }
@@ -115,16 +150,51 @@ export class StepsConfigParser extends AbstractConfigParser {
 
       const anchorId = StepsConfigParser.resolveStepAnchor(stepConfig, buildFunctionById);
       if (anchorId === undefined) {
-        buildSteps.push(this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById));
+        buildSteps.push(
+          ...this.createBuildStepsFromNonGroupStepConfig(stepConfig, compositeFunctionExpander)
+        );
         continue;
       }
-      const maps = { buildFunctionById, buildFunctionGroupById };
-      const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
-      const anchorStep = this.createBuildStepFromNonGroupStepConfig(stepConfig, buildFunctionById);
+      // Rejected regardless of expansion size: the anchor would land on an
+      // expanded inner step, and hooks never fire inside a composite function.
+      if (isStepFunctionStep(stepConfig) && isLocalCompositeFunctionPath(stepConfig.uses)) {
+        throw new BuildConfigError(
+          'Hook anchors are not supported on local composite function steps.'
+        );
+      }
+      seenAnchorIds.add(anchorId);
+      const before = await this.constructHookSideEntriesAsync(
+        anchorId,
+        'before',
+        validatedHooks,
+        compositeFunctionExpander
+      );
+      const createdSteps = this.createBuildStepsFromNonGroupStepConfig(
+        stepConfig,
+        compositeFunctionExpander
+      );
+      assert(
+        createdSteps.length === 1,
+        'a non-composite step config must create exactly one build step'
+      );
+      const anchorStep = createdSteps[0];
       buildSteps.push(anchorStep);
-      const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+      const after = await this.constructHookSideEntriesAsync(
+        anchorId,
+        'after',
+        validatedHooks,
+        compositeFunctionExpander
+      );
       if (before.length > 0 || after.length > 0) {
         hooksByAnchorStep.set(anchorStep, { anchor: anchorId, before, after });
+      }
+    }
+
+    for (const [hookKey, { anchorId }] of validatedHooks) {
+      if (!seenAnchorIds.has(anchorId)) {
+        this.ctx.baseLogger.warn(
+          `Ignoring "hooks.${hookKey}": this build does not run the "${anchorId}" step.`
+        );
       }
     }
 
@@ -135,13 +205,15 @@ export class StepsConfigParser extends AbstractConfigParser {
     };
   }
 
-  private validateHooks(): Record<string, Step[]> {
-    const validatedHooks: Record<string, Step[]> = {};
+  private validateHooks(): ValidatedHooks {
+    const validatedHooks = new Map<HookKey, { anchorId: HookAnchorId; steps: Step[] }>();
     for (const [hookKey, hookSteps] of Object.entries(this.hooks)) {
       // A worker must not fail on a hook key newer than itself, so unregistered
       // keys skip validation entirely (their steps may reference functions this
       // worker lacks).
-      if (parseHookKey(hookKey) === null) {
+      const parsed = parseHookKey(hookKey);
+      if (parsed === null) {
+        this.ctx.baseLogger.warn(`Ignoring unknown hook key "${hookKey}".`);
         continue;
       }
       // An empty array is a deliberate no-op (e.g. opting out of a default);
@@ -151,7 +223,10 @@ export class StepsConfigParser extends AbstractConfigParser {
         continue;
       }
       try {
-        validatedHooks[hookKey] = validateSteps(hookSteps);
+        validatedHooks.set(`${parsed.side}_${parsed.anchorId}`, {
+          anchorId: parsed.anchorId,
+          steps: validateSteps(hookSteps),
+        });
       } catch (err) {
         throw new BuildConfigError(
           `Invalid steps in "hooks.${hookKey}": ${err instanceof Error ? err.message : String(err)}`
@@ -182,68 +257,124 @@ export class StepsConfigParser extends AbstractConfigParser {
     return undefined;
   }
 
-  private constructAnchorHooks(
+  private async constructAnchorHooksAsync(
     anchorId: HookAnchorId,
-    validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
-  ): AnchorHooks | undefined {
-    const before = this.constructHookSideEntries(anchorId, 'before', validatedHooks, maps);
-    const after = this.constructHookSideEntries(anchorId, 'after', validatedHooks, maps);
+    validatedHooks: ValidatedHooks,
+    compositeFunctionExpander: CompositeFunctionExpander
+  ): Promise<AnchorHooks | undefined> {
+    const before = await this.constructHookSideEntriesAsync(
+      anchorId,
+      'before',
+      validatedHooks,
+      compositeFunctionExpander
+    );
+    const after = await this.constructHookSideEntriesAsync(
+      anchorId,
+      'after',
+      validatedHooks,
+      compositeFunctionExpander
+    );
     if (before.length === 0 && after.length === 0) {
       return undefined;
     }
     return { anchor: anchorId, before, after };
   }
 
-  private constructHookSideEntries(
+  private async constructHookSideEntriesAsync(
     anchorId: HookAnchorId,
     side: 'before' | 'after',
-    validatedHooks: Record<string, Step[]>,
-    maps: {
-      buildFunctionById: BuildFunctionById;
-      buildFunctionGroupById: BuildFunctionGroupById;
-    }
-  ): HookEntry[] {
-    const hookSteps = validatedHooks[`${side}_${anchorId}`];
+    validatedHooks: ValidatedHooks,
+    compositeFunctionExpander: CompositeFunctionExpander
+  ): Promise<HookEntry[]> {
+    const hookSteps = validatedHooks.get(`${side}_${anchorId}`)?.steps;
     if (hookSteps === undefined) {
       return [];
     }
-    return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, maps);
-  }
-
-  private createBuildStepFromNonGroupStepConfig(
-    stepConfig: Step,
-    buildFunctionById: BuildFunctionById
-  ): BuildStep {
-    if (isStepShellStep(stepConfig)) {
-      return createBuildStepFromShellStep(this.ctx, stepConfig);
-    } else if (isStepFunctionStep(stepConfig)) {
-      return this.createBuildStepFromFunctionStepConfig(stepConfig, buildFunctionById);
-    } else {
+    try {
+      validateAllStepFunctionsExist(hookSteps, {
+        externalFunctionIds: this.getExternalFunctionFullIds(),
+        externalFunctionGroupIds: this.getExternalFunctionGroupFullIds(),
+      });
+    } catch (err) {
       throw new BuildConfigError(
-        'Invalid job step configuration detected. Step must be shell or function step'
+        `Invalid steps in "hooks.${side}_${anchorId}": ${
+          err instanceof Error ? err.message : String(err)
+        }`
       );
+    }
+    if (this.loadCompositeFunction !== undefined) {
+      // Load only once the anchor runs, so unused anchors do not fail on missing composites.
+      try {
+        await extendCompositeFunctionCatalogFromStepsAsync({
+          catalog: this.compositeFunctionCatalog,
+          rootSteps: hookSteps,
+          loadCompositeFunction: this.loadCompositeFunction,
+        });
+      } catch (err) {
+        if (err instanceof BuildConfigError) {
+          throw new BuildConfigError(
+            `Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`
+          );
+        }
+        throw new BuildConfigError(
+          `Failed to load a local composite function referenced from "hooks.${side}_${anchorId}": ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    }
+    try {
+      return constructHookEntriesFromValidatedSteps(this.ctx, hookSteps, compositeFunctionExpander);
+    } catch (err) {
+      if (err instanceof BuildConfigError) {
+        throw new BuildConfigError(`Invalid steps in "hooks.${side}_${anchorId}": ${err.message}`);
+      }
+      throw err;
     }
   }
 
-  private createBuildStepFromFunctionStepConfig(
+  private createBuildStepsFromNonGroupStepConfig(
+    stepConfig: Step,
+    compositeFunctionExpander: CompositeFunctionExpander
+  ): BuildStep[] {
+    if (isStepShellStep(stepConfig)) {
+      return [createBuildStepFromShellStep(this.ctx, stepConfig)];
+    }
+    if (isStepFunctionStep(stepConfig)) {
+      return this.createBuildStepsFromFunctionStepConfig(stepConfig, compositeFunctionExpander);
+    }
+    throw new BuildConfigError(
+      'Invalid job step configuration detected. Step must be shell or function step'
+    );
+  }
+
+  private createBuildStepsFromFunctionStepConfig(
     step: FunctionStep,
-    buildFunctionById: BuildFunctionById
-  ): BuildStep {
-    const buildFunction = buildFunctionById[step.uses];
+    compositeFunctionExpander: CompositeFunctionExpander
+  ): BuildStep[] {
+    if (isLocalCompositeFunctionPath(step.uses)) {
+      return compositeFunctionExpander
+        .expandCompositeFunctionStep(
+          step,
+          parseLocalCompositeFunctionPath(step.uses),
+          BuildStep.getNewId(step.id)
+        )
+        .getFlattenedSteps();
+    }
+
+    const buildFunction = compositeFunctionExpander.buildFunctionById[step.uses];
     assert(buildFunction, 'function ID must be ID of function or function group');
 
-    return buildFunction.createBuildStepFromFunctionCall(this.ctx, {
-      id: step.id,
-      name: step.name,
-      callInputs: step.with,
-      workingDirectory: step.working_directory,
-      shell: step.shell,
-      env: step.env,
-      ifCondition: step.if,
-    });
+    return [
+      buildFunction.createBuildStepFromFunctionCall(this.ctx, {
+        id: step.id,
+        name: step.name,
+        callInputs: step.with,
+        workingDirectory: step.working_directory,
+        shell: step.shell,
+        env: step.env,
+        ifCondition: step.if,
+      }),
+    ];
   }
 }

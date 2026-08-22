@@ -1,7 +1,11 @@
+import { CombinedError } from '@urql/core';
+import { GraphQLError } from 'graphql';
+
 import { AppObserveAppVersion, AppObservePlatform, AppPlatform } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import { makeMetricsKey } from '../formatMetrics';
 import { fetchObserveMetricsAsync } from '../fetchMetrics';
+import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
 
 jest.mock('../../graphql/queries/ObserveQuery');
 jest.mock('../../log');
@@ -205,6 +209,36 @@ describe('fetchObserveMetricsAsync', () => {
     );
 
     expect(metricsMap.size).toBe(0);
+  });
+
+  it('rethrows plan-gate errors instead of swallowing them as a partial failure', async () => {
+    const gateError = new CombinedError({
+      graphQLErrors: [
+        new GraphQLError(
+          'Subscription to EAS is required for this feature.',
+          null,
+          null,
+          null,
+          null,
+          null,
+          {
+            errorCode: EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE,
+          }
+        ),
+      ],
+    });
+    mockAppVersionsAsync.mockRejectedValue(gateError);
+
+    await expect(
+      fetchObserveMetricsAsync(
+        mockGraphqlClient,
+        'project-123',
+        ['expo.navigation.tti'],
+        [AppPlatform.Ios, AppPlatform.Android],
+        '2025-01-01T00:00:00.000Z',
+        '2025-03-01T00:00:00.000Z'
+      )
+    ).rejects.toBe(gateError);
   });
 
   it('maps AppObservePlatform back to AppPlatform correctly in metricsMap keys', async () => {

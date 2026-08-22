@@ -670,7 +670,7 @@ export default class UpdatePublish extends EasCommand {
       version => version.runtimeVersion
     )) {
       const newUpdatesForRuntimeVersion = newUpdates.filter(
-        update => update.runtimeVersion === runtime.runtimeVersion
+        update => update.runtime.version === runtime.runtimeVersion
       );
       if (newUpdatesForRuntimeVersion.length === 0) {
         throw new Error(

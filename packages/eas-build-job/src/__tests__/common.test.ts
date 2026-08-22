@@ -1,4 +1,10 @@
-import { EnvSchema, StaticWorkflowInterpolationContextZ } from '../common';
+import {
+  EasCliVersionsFetchTimeoutError,
+  EnvSchema,
+  SshSettingsZ,
+  StaticWorkflowInterpolationContextZ,
+  fetchEasCliVersionsAsync,
+} from '../common';
 
 describe('EnvSchema', () => {
   it('accepts explicit undefined values', () => {
@@ -11,6 +17,23 @@ describe('EnvSchema', () => {
 
     expect(error).toBeUndefined();
     expect(value).toEqual(env);
+  });
+});
+
+describe('SshSettingsZ', () => {
+  it('accepts ws and wss relay URLs', () => {
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' })
+    ).toEqual({ idleTimeoutSeconds: 0, relayServerUrl: 'wss://ssh.expo.dev' });
+    expect(
+      SshSettingsZ.parse({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' })
+    ).toEqual({ idleTimeoutSeconds: 60, relayServerUrl: 'ws://localhost:8080' });
+  });
+
+  it('rejects non-websocket relay URL schemes', () => {
+    expect(() =>
+      SshSettingsZ.parse({ idleTimeoutSeconds: 0, relayServerUrl: 'https://ssh.expo.dev' })
+    ).toThrow(/Invalid URL|Invalid protocol/);
   });
 });
 
@@ -164,6 +187,46 @@ describe('StaticWorkflowInterpolationContextZ', () => {
           id: '123e4567-e89b-42d3-a456-426614174000',
           state: 'complete',
           cf_bundle_version: '42',
+          build: {
+            id: 'build-abc123',
+          },
+        },
+      },
+    };
+
+    expect(StaticWorkflowInterpolationContextZ.parse(context)).toEqual(context);
+  });
+
+  it('accepts app_store_connect build_upload with version, platform, and date fields', () => {
+    const context = {
+      after: {},
+      needs: {},
+      workflow: {
+        id: 'workflow-id',
+        name: 'workflow-name',
+        filename: 'workflow.yml',
+        url: 'https://expo.dev/accounts/example/workflows/workflow-id',
+      },
+      app: {
+        id: 'app-id',
+        slug: 'app-slug',
+      },
+      account: {
+        id: 'account-id',
+        name: 'account-name',
+      },
+      app_store_connect: {
+        app: {
+          id: '1234567890',
+        },
+        build_upload: {
+          id: '123e4567-e89b-42d3-a456-426614174000',
+          state: 'complete',
+          cf_bundle_version: '42',
+          cf_bundle_short_version_string: '1.2.3',
+          platform: 'ios',
+          uploaded_date: '2026-01-01T00:00:00.000Z',
+          created_date: '2026-01-01T00:00:00.000Z',
           build: {
             id: 'build-abc123',
           },
@@ -535,5 +598,80 @@ describe('GitHub context event payload passthrough', () => {
     const parsed = StaticWorkflowInterpolationContextZ.parse(context);
 
     expect(parsed.github?.event).toMatchObject(context.github.event);
+  });
+});
+
+describe('fetchEasCliVersionsAsync', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('fetches and parses cli-versions.json', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).resolves.toEqual({
+      STAGING: '21.5.1',
+      PRODUCTION: '21.5.0',
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://raw.githubusercontent.com/expo/eas-cli/main/cli-versions.json',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('throws on a non-OK response', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow(/HTTP 404/);
+  });
+
+  it('throws when the payload is missing a required property', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: '21.5.1' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws when a version is not valid semver', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ STAGING: 'latest-eas-build-staging', PRODUCTION: '21.5.0' }),
+    } as Response);
+
+    await expect(fetchEasCliVersionsAsync()).rejects.toThrow();
+  });
+
+  it('throws a timeout error when the request exceeds the timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.spyOn(global, 'fetch').mockImplementation(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            (init?.signal as AbortSignal | undefined)?.addEventListener('abort', () => {
+              reject(new Error('The operation was aborted.'));
+            });
+          })
+      );
+
+      const assertion = expect(fetchEasCliVersionsAsync()).rejects.toBeInstanceOf(
+        EasCliVersionsFetchTimeoutError
+      );
+      await jest.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
