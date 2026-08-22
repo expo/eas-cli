@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas workflow:validate` and `eas workflow:create` from rejecting a `${{ ... }}` expression where the schema asks for a URI, such as the Slack job's `webhook_url`. ([#4255](https://github.com/expo/eas-cli/pull/4255) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
