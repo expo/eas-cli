@@ -12,6 +12,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas build` from looping forever printing "There are still no registered devices." when a device registration method other than Website registers no devices. ([#4254](https://github.com/expo/eas-cli/pull/4254) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 - Upgrade `typescript` to 6.0.3, `ts-jest` to 29.4.12, `@types/node` to 20.19.43, `gql.tada` to 1.11.3, and `https-proxy-agent` to 7.0.6. ([#XXXX](https://github.com/expo/eas-cli/pull/XXXX) by [@wschurman](https://github.com/wschurman))
