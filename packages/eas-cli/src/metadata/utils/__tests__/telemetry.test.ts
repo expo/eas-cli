@@ -79,6 +79,30 @@ describe(makeDataScrubberAsync, () => {
     ).toBe('{APPLE_TOKEN} {APPLE_USERNAME} {APPLE_PASSWORD}');
   });
 
+  it('scrubs credentials that contain characters with a meaning in a pattern', async () => {
+    const scrubber = await makeDataScrubberAsync({
+      ...stub,
+      auth: {
+        ...stub.auth,
+        username: 'user+eas@icloud.com',
+        password: 'S3cret(1)',
+      },
+    });
+
+    expect(scrubber('login user+eas@icloud.com with S3cret(1)')).toBe(
+      'login {APPLE_USERNAME} with {APPLE_PASSWORD}'
+    );
+  });
+
+  it('leaves text that only looks like a credential alone', async () => {
+    const scrubber = await makeDataScrubberAsync({
+      ...stub,
+      auth: { ...stub.auth, password: 'a.c' },
+    });
+
+    expect(scrubber('abc')).toBe('abc');
+  });
+
   it('scrubs json and transforms it to string', async () => {
     const scrubber = await makeDataScrubberAsync(stub);
     expect(scrubber({ foo: 'bar' })).toBe('{"foo":"bar"}');
