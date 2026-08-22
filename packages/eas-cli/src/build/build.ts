@@ -178,8 +178,13 @@ export async function prepareBuildRequestForPlatformAsync<
   }
   assert(projectArchive);
 
+  // In INTERNAL mode the fingerprint is computed before prebuild runs, so native directories
+  // don't exist yet. The post-prebuild fingerprint is written to the DB by the
+  // CALCULATE_EXPO_UPDATES_RUNTIME_VERSION build phase instead.
   const runtimeAndFingerprintMetadata =
-    await computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync(ctx);
+    ctx.localBuildOptions.localBuildMode === LocalBuildMode.INTERNAL
+      ? {}
+      : await computeAndMaybeUploadRuntimeAndFingerprintMetadataAsync(ctx);
   const metadata = await collectMetadataAsync(ctx, runtimeAndFingerprintMetadata);
   const buildParams = resolveBuildParamsInput(ctx, metadata);
   const job = await builder.prepareJobAsync(ctx, {
