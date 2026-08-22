@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Make `eas metadata:lint` report an `apple.review.demoPassword` longer than 100 characters, instead of letting `eas metadata:push` fail at upload time with "Password cannot be longer than 100 characters". ([#4242](https://github.com/expo/eas-cli/pull/4242) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
