@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas build` from looping forever printing "There are still no registered devices." when a device registration method other than Website registers no devices. ([#4254](https://github.com/expo/eas-cli/pull/4254) by [@dennytosp](https://github.com/dennytosp))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
