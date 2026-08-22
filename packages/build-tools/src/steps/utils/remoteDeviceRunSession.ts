@@ -19,7 +19,7 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
-const SERVE_SIM_PACKAGE_SPEC = '@expo/serve-sim@latest';
+const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
 const SERVE_SIM_HOST = '127.0.0.1';
 const SERVE_SIM_MAX_DIMENSION = '1280';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
@@ -596,18 +596,24 @@ export function metricsCorsOriginToServeSimArgs(env: BuildStepEnv): string[] {
   return args;
 }
 
+function createServeSimPackageSpec(packageVersion: string | undefined): string {
+  return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
   metricsCorsArgs = [],
+  packageVersion,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
+  packageVersion?: string;
 }): string[] {
   return [
     '--yes',
-    SERVE_SIM_PACKAGE_SPEC,
+    createServeSimPackageSpec(packageVersion),
     '--port',
     String(port),
     '--host',
@@ -700,20 +706,24 @@ export async function startServeSimWithTunnelAsync(
     env,
     logger,
     timeoutMs,
+    packageVersion,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
+    packageVersion?: string;
   }
 ): Promise<ServeSimPreviewHandle> {
   const port = await findAvailablePortAsync();
-  logger.info(`Launching ${SERVE_SIM_PACKAGE_SPEC} on ${SERVE_SIM_HOST}:${port}.`);
+  logger.info(
+    `Launching ${createServeSimPackageSpec(packageVersion)} on ${SERVE_SIM_HOST}:${port}.`
+  );
   const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs }),
+    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
     env,
   });
 

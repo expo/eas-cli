@@ -157,6 +157,20 @@ describe(createServeSimArgs, () => {
       'https://expo.dev',
     ]);
   });
+
+  it('pins the requested package version', () => {
+    expect(createServeSimArgs({ port: 4321, packageVersion: '0.1.38' }).slice(0, 2)).toEqual([
+      '--yes',
+      '@expo/serve-sim@0.1.38',
+    ]);
+  });
+
+  it('pins a dist-tag', () => {
+    expect(createServeSimArgs({ port: 4321, packageVersion: 'next' }).slice(0, 2)).toEqual([
+      '--yes',
+      '@expo/serve-sim@next',
+    ]);
+  });
 });
 
 describe(metricsCorsOriginToServeSimArgs, () => {
