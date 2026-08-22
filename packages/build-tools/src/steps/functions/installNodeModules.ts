@@ -1,7 +1,7 @@
 import { BuildFunction, BuildStepContext, BuildStepEnv } from '@expo/steps';
 import path from 'path';
 
-import { installDependenciesAsync } from '../../common/installDependencies';
+import { installDependenciesWithNpmCacheFallbackAsync } from '../../common/installDependencies';
 import {
   findPackagerRootDir,
   getPackageVersionFromPackageJson,
@@ -64,7 +64,7 @@ export async function installNodeModules(
       packageName: 'react-native',
     });
 
-  const { spawnPromise } = await installDependenciesAsync({
+  await installDependenciesWithNpmCacheFallbackAsync({
     packageManager,
     env,
     logger: stepCtx.logger,
@@ -75,5 +75,4 @@ export async function installNodeModules(
       reactNativeVersion,
     }),
   });
-  await spawnPromise;
 }
