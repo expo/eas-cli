@@ -149,6 +149,7 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const workflowJobId = process.env.__WORKFLOW_JOB_ID;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -172,6 +173,7 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         maxRunTimeMinutes: flags['max-duration-minutes'],
+        ...(workflowJobId ? { workflowJobId } : {}),
       });
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');

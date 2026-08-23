@@ -148,10 +148,12 @@ function getMockOclifConfig(): Config {
 describe(Simulator, () => {
   const mockConfig = getMockOclifConfig();
   const previousDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
+  const previousWorkflowJobId = process.env.__WORKFLOW_JOB_ID;
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env[EAS_SIMULATOR_SESSION_ID];
+    delete process.env.__WORKFLOW_JOB_ID;
     mockAvailabilityByAppIdAsync.mockResolvedValue({ accountName: 'testuser', available: true });
     mockCreateDeviceRunSessionAsync.mockResolvedValue(makeCreatedDeviceRunSession());
     mockEnsureDeviceRunSessionStoppedAsync.mockResolvedValue({
@@ -169,6 +171,11 @@ describe(Simulator, () => {
       delete process.env[EAS_SIMULATOR_SESSION_ID];
     } else {
       process.env[EAS_SIMULATOR_SESSION_ID] = previousDeviceRunSessionId;
+    }
+    if (previousWorkflowJobId === undefined) {
+      delete process.env.__WORKFLOW_JOB_ID;
+    } else {
+      process.env.__WORKFLOW_JOB_ID = previousWorkflowJobId;
     }
   });
 
@@ -427,6 +434,18 @@ describe(Simulator, () => {
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
       expect.objectContaining({ name: 'Checkout regression' })
+    );
+  });
+
+  it('associates the session with the current workflow job', async () => {
+    process.env.__WORKFLOW_JOB_ID = 'workflow-job-123';
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ workflowJobId: 'workflow-job-123' })
     );
   });
 
