@@ -118,11 +118,17 @@ export const WorkflowRunQuery = {
               workflowRuns {
                 byId(workflowRunId: $workflowRunId) {
                   id
+                  blockingWorkflowRun {
+                    id
+                    name
+                    status
+                  }
                   workflow {
                     id
                     app {
                       id
                       name
+                      slug
                       ownerAccount {
                         id
                         name

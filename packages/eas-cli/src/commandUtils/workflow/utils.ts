@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'node:fs';
 
 import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
+import { getWorkflowRunUrl } from '../../build/utils/url';
 import {
   WorkflowJobResult,
   WorkflowLogLine,
@@ -102,8 +103,15 @@ export function choicesFromWorkflowLogs(
 }
 
 export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
+  const finalWorkflowRunStatuses = new Set([
+    WorkflowRunStatus.Success,
+    WorkflowRunStatus.Failure,
+    WorkflowRunStatus.Canceled,
+  ]);
   return runs.map(run => {
-    const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
+    // finalizedAt can linger on a run an admin forced back out of a final status,
+    // so gate on the status rather than trusting the field alone.
+    const finishedAt = finalWorkflowRunStatuses.has(run.status) ? (run.finalizedAt ?? null) : null;
     const { triggerType, trigger } = computeTriggerInfoForWorkflowRun(run);
     return {
       id: run.id,
@@ -326,7 +334,29 @@ export async function showWorkflowStatusAsync(
 
       switch (workflowRun.status) {
         case WorkflowRunStatus.New:
+          // A run can reach NEW from WAITING (promoted out of its concurrency
+          // group), so reset the waiting-state text.
+          spinner.prefixText = chalk`{bold.yellow Workflow run is waiting to start:}`;
+          spinner.text = '';
           break;
+        case WorkflowRunStatus.Waiting: {
+          spinner.prefixText = chalk`{bold.yellow Workflow run is queued:}`;
+          const blockingWorkflowRun = workflowRun.blockingWorkflowRun;
+          // The blocking run is in the same app: concurrency groups are app-scoped.
+          const app = workflowRun.workflow.app;
+          const actionRequiredSuffix =
+            blockingWorkflowRun?.status === WorkflowRunStatus.ActionRequired
+              ? ` — it needs your action first: ${getWorkflowRunUrl(
+                  app.ownerAccount.name,
+                  app.slug,
+                  blockingWorkflowRun.id
+                )}`
+              : '';
+          spinner.text = blockingWorkflowRun
+            ? `Waiting for ${blockingWorkflowRun.name}${actionRequiredSuffix}`
+            : 'Waiting for its concurrency group';
+          break;
+        }
         case WorkflowRunStatus.InProgress: {
           spinner.prefixText = chalk`{bold.green Workflow run is in progress:}`;
           spinner.text = await infoForActiveWorkflowRunAsync(graphqlClient, workflowRun, 5);
@@ -334,10 +364,12 @@ export async function showWorkflowStatusAsync(
         }
         case WorkflowRunStatus.ActionRequired:
           spinner.prefixText = chalk`{bold.yellow Workflow run is waiting for action:}`;
+          spinner.text = '';
           break;
 
         case WorkflowRunStatus.Canceled:
           spinner.prefixText = chalk`{bold.yellow Workflow has been canceled.}`;
+          spinner.text = '';
           spinner.stopAndPersist();
           return workflowRun;
 
