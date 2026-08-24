@@ -19,6 +19,8 @@ import path from 'node:path';
 import stream from 'stream';
 import { promisify } from 'util';
 import { z } from 'zod';
+import bplistParser from 'bplist-parser';
+import plist from 'plist';
 
 import { CustomBuildContext } from '../../customBuildContext';
 import { formatBytes } from '../../utils/artifacts';
@@ -226,6 +228,18 @@ export async function downloadBuildAsync(
     onlyFiles: false,
     onlyDirectories: false,
   });
+  let matchingFilesRoot = extractionDirectory;
+
+  if (
+    matchingFiles.length === 0 &&
+    extensions.includes('app') &&
+    (await isIosAppBundleAsync(extractionDirectory))
+  ) {
+    const appBundlePath = `${extractionDirectory}.app`;
+    await fs.promises.rename(extractionDirectory, appBundlePath);
+    matchingFiles.push(appBundlePath);
+    matchingFilesRoot = path.dirname(appBundlePath);
+  }
 
   if (matchingFiles.length === 0) {
     throw new UserError(
@@ -238,10 +252,26 @@ export async function downloadBuildAsync(
     `Found ${matchingFiles.length} matching ${pluralize(
       matchingFiles.length,
       'entry'
-    )}:\n${matchingFiles.map(f => `- ${path.relative(extractionDirectory, f)}`).join('\n')}`
+    )}:\n${matchingFiles.map(f => `- ${path.relative(matchingFilesRoot, f)}`).join('\n')}`
   );
 
   return { artifactPath: matchingFiles[0] };
+}
+
+async function isIosAppBundleAsync(directory: string): Promise<boolean> {
+  try {
+    const infoPlist = await fs.promises.readFile(path.join(directory, 'Info.plist'));
+    const isBinaryPlist = infoPlist.subarray(0, 8).toString('ascii') === 'bplist00';
+    const parsedInfoPlist = (
+      isBinaryPlist
+        ? bplistParser.parseBuffer(infoPlist)[0]
+        : plist.parse(infoPlist.toString('utf8'))
+    ) as Record<string, unknown> | undefined;
+
+    return parsedInfoPlist?.CFBundlePackageType === 'APPL';
+  } catch {
+    return false;
+  }
 }
 
 function parseHttpApplicationArchiveUrl(value: unknown): string {

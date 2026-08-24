@@ -15,6 +15,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Support downloading iOS simulator archives whose app bundle contents are stored at the archive root. ([#4262](https://github.com/expo/eas-cli/pull/4262) by [@szdziedzic](https://github.com/szdziedzic))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
