@@ -103,6 +103,33 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).toHaveBeenCalledTimes(2);
   });
 
+  it('opens a custom URL on iOS when scheme preapproval fails', async () => {
+    const logger = createMockLogger();
+    const approvalError = new Error('Scheme approval is unavailable.');
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockRejectedValueOnce(approvalError);
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'host.exp.Exponent',
+      openUrl: 'exp://example.test',
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      3,
+      'xcrun',
+      ['simctl', 'openurl', 'booted', 'exp://example.test'],
+      { env: {}, logger }
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: approvalError },
+      'Could not preapprove the exp URL scheme for host.exp.Exponent. Opening the URL anyway; the Simulator might require manual confirmation.'
+    );
+  });
+
   it('launches an Android Emulator application by package and activity', async () => {
     const logger = createMockLogger();
 

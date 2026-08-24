@@ -145,26 +145,33 @@ async function preapproveIosUrlSchemeAsync({
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
-  const urlScheme = new URL(openUrl).protocol;
-  if (urlScheme === 'http:' || urlScheme === 'https:') {
+  const urlScheme = new URL(openUrl).protocol.slice(0, -1);
+  if (urlScheme === 'http' || urlScheme === 'https') {
     return;
   }
 
-  await spawn(
-    'xcrun',
-    [
-      'simctl',
-      'spawn',
-      'booted',
-      'defaults',
-      'write',
-      IOS_URL_SCHEME_APPROVAL_DOMAIN,
-      `${IOS_URL_SCHEME_APPROVAL_KEY_PREFIX}${urlScheme.slice(0, -1)}`,
-      '-string',
-      applicationIdentifier,
-    ],
-    { env, logger }
-  );
+  try {
+    await spawn(
+      'xcrun',
+      [
+        'simctl',
+        'spawn',
+        'booted',
+        'defaults',
+        'write',
+        IOS_URL_SCHEME_APPROVAL_DOMAIN,
+        `${IOS_URL_SCHEME_APPROVAL_KEY_PREFIX}${urlScheme}`,
+        '-string',
+        applicationIdentifier,
+      ],
+      { env, logger }
+    );
+  } catch (error) {
+    logger.warn(
+      { err: error },
+      `Could not preapprove the ${urlScheme} URL scheme for ${applicationIdentifier}. Opening the URL anyway; the Simulator might require manual confirmation.`
+    );
+  }
 }
 
 function logApplicationLaunch(
