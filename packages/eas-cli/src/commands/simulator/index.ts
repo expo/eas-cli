@@ -75,14 +75,14 @@ export default class Simulator extends EasCommand {
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
-      exclusive: ['build-artifact-url', 'go'],
+      exclusive: ['build-artifact-url', 'expo-go'],
     }),
     'build-artifact-url': Flags.string({
       description:
         'Build artifact URL to download, install, and launch before the simulator session is ready.',
-      exclusive: ['build-id', 'go'],
+      exclusive: ['build-id', 'expo-go'],
     }),
-    go: Flags.boolean({
+    'expo-go': Flags.boolean({
       description:
         "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
       exclusive: ['build-id', 'build-artifact-url'],
@@ -166,7 +166,7 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
-    const applicationArchiveUrl = flags.go
+    const applicationArchiveUrl = flags['expo-go']
       ? await resolveExpoGoApplicationArchiveUrlAsync({
           platform: platform === AppPlatform.Ios ? 'ios' : 'android',
           projectDir,

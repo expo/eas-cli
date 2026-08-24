@@ -544,10 +544,15 @@ describe(Simulator, () => {
     ['ios', AppPlatform.Ios, 'https://example.test/expo-go.tar.gz'],
     ['android', AppPlatform.Android, 'https://example.test/expo-go.apk'],
   ] as const)(
-    'resolves and forwards the %s Expo Go archive when --go is passed',
+    'resolves and forwards the %s Expo Go archive when --expo-go is passed',
     async (platformFlag, appPlatform, applicationArchiveUrl) => {
       mockResolveExpoGoApplicationArchiveUrlAsync.mockResolvedValue(applicationArchiveUrl);
-      const { command } = createCommand(['--platform', platformFlag, '--non-interactive', '--go']);
+      const { command } = createCommand([
+        '--platform',
+        platformFlag,
+        '--non-interactive',
+        '--expo-go',
+      ]);
 
       await command.runAsync();
 
@@ -583,12 +588,12 @@ describe(Simulator, () => {
   it.each([
     ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
     ['--build-artifact-url', 'https://example.test/builds/app.tar.gz'],
-  ])('rejects passing --go with %s', async (sourceFlag, sourceValue) => {
+  ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
     const { command } = createCommand([
       '--platform',
       'ios',
       '--non-interactive',
-      '--go',
+      '--expo-go',
       sourceFlag,
       sourceValue,
     ]);
