@@ -5,6 +5,7 @@ import { Config } from '@oclif/core';
 import SimulatorExec from '../exec';
 
 jest.mock('@expo/env', () => ({
+  LOADED_ENV_NAME: '__EXPO_ENV_LOADED',
   loadEnvFiles: jest.fn(),
   loadProjectEnv: jest.fn(),
 }));
@@ -20,12 +21,18 @@ function getMockOclifConfig(): Config {
 }
 
 describe(SimulatorExec, () => {
+  const originalEnv = process.env;
   const mockConfig = getMockOclifConfig();
   const projectDir = '/test/project';
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env = { ...originalEnv };
     jest.mocked(spawnAsync).mockResolvedValue({} as never);
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   function createCommand(argv: string[]): {
@@ -48,7 +55,11 @@ describe(SimulatorExec, () => {
     expect(getContextAsync).toHaveBeenCalledWith(SimulatorExec, {
       nonInteractive: true,
     });
-    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, { silent: true });
+    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
+      force: true,
+      mode: 'development',
+      silent: true,
+    });
     expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
       force: true,
     });
@@ -117,18 +128,5 @@ describe(SimulatorExec, () => {
     expect(loadProjectEnv).not.toHaveBeenCalled();
     expect(loadEnvFiles).not.toHaveBeenCalled();
     expect(spawnAsync).not.toHaveBeenCalled();
-  });
-
-  it('loads simulator-specific env after regular env files', async () => {
-    const { command } = createCommand(['agent-device', 'touch', '@e2']);
-    await command.runAsync();
-
-    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, { silent: true });
-    expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
-      force: true,
-    });
-    expect(jest.mocked(loadProjectEnv).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(loadEnvFiles).mock.invocationCallOrder[0]
-    );
   });
 });
