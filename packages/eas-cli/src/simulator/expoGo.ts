@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from 'util';
+
 import spawnAsync from '@expo/spawn-async';
 import semver from 'semver';
 
@@ -5,6 +7,18 @@ import { EasCommandError } from '../commandUtils/errors';
 import { detectProjectSdkVersionAsync } from '../project/detectProjectSdkVersionAsync';
 
 export type ExpoGoPlatform = 'android' | 'ios';
+
+const EXPO_GO_DOWNLOAD_MESSAGE = 'Download Expo Go from';
+
+function extractApplicationArchiveUrl(stdout: string): string | undefined {
+  const output = stripVTControlCharacters(stdout);
+  const outputLines = output.trim().split(/\r?\n/);
+  const downloadMessageLine = outputLines.find(line => line.includes(EXPO_GO_DOWNLOAD_MESSAGE));
+  const bareUrlOutput = outputLines.length === 1 ? outputLines[0] : undefined;
+  const lineWithUrl = downloadMessageLine ?? bareUrlOutput;
+
+  return lineWithUrl?.match(/https?:\/\/[^\s\])]+/)?.[0];
+}
 
 export async function resolveExpoGoApplicationArchiveUrlAsync({
   platform,
@@ -37,8 +51,11 @@ export async function resolveExpoGoApplicationArchiveUrlAsync({
     );
   }
 
-  const applicationArchiveUrl = stdout.trim();
+  const applicationArchiveUrl = extractApplicationArchiveUrl(stdout);
   try {
+    if (!applicationArchiveUrl) {
+      throw new Error('Missing URL');
+    }
     const parsedUrl = new URL(applicationArchiveUrl);
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       throw new Error('Unsupported protocol');

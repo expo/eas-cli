@@ -37,6 +37,31 @@ describe(resolveExpoGoApplicationArchiveUrlAsync, () => {
     }
   );
 
+  it.each([
+    [
+      'plain output',
+      'Resolving the correct Expo Go version...\n' +
+        'Download Expo Go from https://example.test/Expo-Go-57.0.9.tar.gz\n',
+    ],
+    [
+      'Markdown hyperlink output',
+      'Resolving the correct Expo Go version...\n' +
+        'Download Expo Go from [https://example.test/Expo-Go-57.0.9.tar.gz](https://example.test/Expo-Go-57.0.9.tar.gz)\n',
+    ],
+    [
+      'terminal hyperlink output',
+      'Resolving the correct Expo Go version...\n' +
+        'Download Expo Go from \u001B]8;;https://example.test/Expo-Go-57.0.9.tar.gz\u0007' +
+        'https://example.test/Expo-Go-57.0.9.tar.gz\u001B]8;;\u0007\n',
+    ],
+  ])('extracts the URL from %s', async (_description, stdout) => {
+    mockSpawnAsync.mockResolvedValue({ stdout } as never);
+
+    await expect(
+      resolveExpoGoApplicationArchiveUrlAsync({ platform: 'ios', projectDir })
+    ).resolves.toBe('https://example.test/Expo-Go-57.0.9.tar.gz');
+  });
+
   it.each([undefined, 'UNVERSIONED'])(
     'rejects an undetectable SDK version (%s)',
     async sdkVersion => {
@@ -62,14 +87,16 @@ describe(resolveExpoGoApplicationArchiveUrlAsync, () => {
     );
   });
 
-  it.each(['', 'not a URL', 'file:///tmp/expo-go.app'])(
-    'rejects an invalid expo-go URL (%s)',
-    async stdout => {
-      mockSpawnAsync.mockResolvedValue({ stdout } as never);
+  it.each([
+    '',
+    'not a URL',
+    'file:///tmp/expo-go.app',
+    'Resolving the correct Expo Go version...\nDownload Expo Go from nowhere\n',
+  ])('rejects an invalid expo-go URL (%s)', async stdout => {
+    mockSpawnAsync.mockResolvedValue({ stdout } as never);
 
-      await expect(
-        resolveExpoGoApplicationArchiveUrlAsync({ platform: 'ios', projectDir })
-      ).rejects.toThrow('expo-go returned an invalid download URL for SDK 55 on ios.');
-    }
-  );
+    await expect(
+      resolveExpoGoApplicationArchiveUrlAsync({ platform: 'ios', projectDir })
+    ).rejects.toThrow('expo-go returned an invalid download URL for SDK 55 on ios.');
+  });
 });
