@@ -24,6 +24,8 @@ import { getXcodeVersionAsync } from '../../ios/xcode';
 import { IosSimulatorUtils } from '../../utils/IosSimulatorUtils';
 import { getProxiedDownloadUrl } from '../../utils/download';
 
+const MAESTRO_RUNNER_WDA_CACHE_DOWNLOAD_TIMEOUT_MS = 20_000;
+
 export function createInstallMaestroBuildFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -262,16 +264,25 @@ async function installMaestroRunnerWdaCache({
       logger.info(`Downloading the prebuilt WebDriverAgent cache for Xcode ${xcodeVersion}`);
       if (proxiedArchiveUrl) {
         try {
-          await downloadFile(proxiedArchiveUrl, archivePath, { retry: 3 });
+          await downloadFile(proxiedArchiveUrl, archivePath, {
+            retry: 3,
+            timeout: MAESTRO_RUNNER_WDA_CACHE_DOWNLOAD_TIMEOUT_MS,
+          });
         } catch (err) {
           logger.debug(
             { err },
             'Failed to download the prebuilt WebDriverAgent cache via the proxy; falling back to the direct URL.'
           );
-          await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+          await downloadFile(directArchiveUrl, archivePath, {
+            retry: 3,
+            timeout: MAESTRO_RUNNER_WDA_CACHE_DOWNLOAD_TIMEOUT_MS,
+          });
         }
       } else {
-        await downloadFile(directArchiveUrl, archivePath, { retry: 3 });
+        await downloadFile(directArchiveUrl, archivePath, {
+          retry: 3,
+          timeout: MAESTRO_RUNNER_WDA_CACHE_DOWNLOAD_TIMEOUT_MS,
+        });
       }
       await fs.promises.mkdir(maestroRunnerHome, { recursive: true });
       await spawn('tar', ['-xzf', archivePath, '-C', maestroRunnerHome], { logger, env });

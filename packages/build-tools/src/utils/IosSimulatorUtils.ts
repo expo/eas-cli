@@ -48,7 +48,6 @@ export namespace IosSimulatorUtils {
     runtimes: {
       identifier?: string;
       isAvailable?: boolean;
-      version?: string;
     }[];
   };
 
@@ -62,13 +61,17 @@ export namespace IosSimulatorUtils {
 
     return [
       ...new Set(
-        runtimes.flatMap(runtime =>
-          runtime.isAvailable !== false &&
-          runtime.identifier?.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-') &&
-          typeof runtime.version === 'string'
-            ? [runtime.version]
-            : []
-        )
+        runtimes.flatMap(runtime => {
+          const identifierPrefix = 'com.apple.CoreSimulator.SimRuntime.iOS-';
+          if (runtime.isAvailable === false || !runtime.identifier?.startsWith(identifierPrefix)) {
+            return [];
+          }
+
+          // maestro-runner derives its WDA cache key from the runtime identifier, not from the
+          // runtime version. These values can differ for patched runtimes, for example the
+          // iOS-26-3 identifier can report version 26.3.1.
+          return [runtime.identifier.slice(identifierPrefix.length).replaceAll('-', '.')];
+        })
       ),
     ];
   }

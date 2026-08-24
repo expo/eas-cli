@@ -31,7 +31,7 @@ describe('IosSimulatorUtils', () => {
             {
               identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
               isAvailable: true,
-              version: '18.3',
+              version: '18.3.1',
             },
             {
               identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',

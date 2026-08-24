@@ -478,7 +478,7 @@ describe('createInstallMaestroBuildFunction', () => {
               {
                 identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
                 isAvailable: true,
-                version: '18.3',
+                version: '18.3.1',
               },
               {
                 identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-0',
@@ -537,7 +537,7 @@ describe('createInstallMaestroBuildFunction', () => {
       expect(mockedDownloadFile).toHaveBeenCalledWith(
         'https://cache.example.com/storage.googleapis.com/turtle-v2/maestro-runner-wda-cache/xcode-26.0-wda-11.1.3.tar.gz',
         expect.stringMatching(/install_maestro_runner_wda_cache.*\/wda-cache\.tar\.gz$/),
-        { retry: 3 }
+        { retry: 3, timeout: 20_000 }
       );
       for (const runtimeVersion of ['18.3', '26.0']) {
         await expect(

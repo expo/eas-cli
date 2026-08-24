@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import spawn from '@expo/turtle-spawn';
 
 import { getXcodeVersionAsync } from '../xcode';
@@ -28,5 +29,18 @@ describe(getXcodeVersionAsync, () => {
     await expect(getXcodeVersionAsync({ env: process.env })).rejects.toThrow(
       'Failed to determine Xcode version'
     );
+  });
+
+  it('wraps errors from xcodebuild in a SystemError', async () => {
+    const cause = new Error('xcode-select: error: invalid developer directory');
+    mockedSpawn.mockRejectedValue(cause);
+
+    const promise = getXcodeVersionAsync({ env: process.env });
+
+    await expect(promise).rejects.toBeInstanceOf(SystemError);
+    await expect(promise).rejects.toMatchObject({
+      message: 'Failed to get Xcode version',
+      cause,
+    });
   });
 });
