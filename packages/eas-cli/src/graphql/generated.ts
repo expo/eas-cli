@@ -5236,12 +5236,12 @@ export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
    * Application archive URL to download, install, and launch before the simulator session
-   * becomes available. Mutually exclusive with buildId.
+   * becomes available. Mutually exclusive with buildId and expoGo.
    */
   applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
   /**
    * EAS Build to install and launch before the simulator session becomes available.
-   * Mutually exclusive with applicationArchiveUrl.
+   * Mutually exclusive with applicationArchiveUrl and expoGo.
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
@@ -5251,6 +5251,17 @@ export type CreateDeviceRunSessionInput = {
    * default device.
    */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Install and launch Expo Go before the simulator session becomes available. The server resolves
+   * the platform-specific application archive. Mutually exclusive with buildId and
+   * applicationArchiveUrl.
+   */
+  expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Arguments passed to the installed application when it is launched. Requires buildId,
+   * applicationArchiveUrl, or expoGo.
+   */
+  launchArgs?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
@@ -5272,11 +5283,21 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Expo or development-client URL to open after launching the installed application. Requires
+   * buildId, applicationArchiveUrl, or expoGo.
+   */
+  openUrl?: InputMaybe<Scalars['String']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
+  /**
+   * Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is
+   * true. If omitted, the current Expo Go archive for the platform is used.
+   */
+  sdkVersion?: InputMaybe<Scalars['String']['input']>;
   type: DeviceRunSessionType;
 };
 
