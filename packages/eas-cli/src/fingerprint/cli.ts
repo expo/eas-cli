@@ -4,7 +4,7 @@ import { silent as silentResolveFrom } from 'resolve-from';
 import { Fingerprint, FingerprintDiffItem } from './types';
 import Log from '../log';
 import { ora } from '../ora';
-import mapMapAsync from '../utils/expodash/mapMapAsync';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
 
 export type FingerprintOptions = {
   workflow?: Workflow;
@@ -84,6 +84,20 @@ async function createFingerprintWithoutLoggingAsync(
     isDebugSource: boolean;
   }
 > {
+  return await withTemporaryEnvAsync(options.env ?? {}, () =>
+    createFingerprintWithCurrentEnvAsync(projectDir, fingerprintPath, options)
+  );
+}
+
+async function createFingerprintWithCurrentEnvAsync(
+  projectDir: string,
+  fingerprintPath: string,
+  options: FingerprintOptions
+): Promise<
+  Fingerprint & {
+    isDebugSource: boolean;
+  }
+> {
   const Fingerprint = require(fingerprintPath);
   const fingerprintOptions: Record<string, any> = {};
   const ignorePaths = [];
@@ -105,14 +119,18 @@ async function createFingerprintWithoutLoggingAsync(
   }
   fingerprintOptions.silent = true;
 
-  return await withTemporaryEnvAsync(options.env ?? {}, () =>
-    Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions)
-  );
+  return await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
 }
 
-async function withTemporaryEnvAsync(envVars: Env, fn: () => Promise<any>): Promise<any> {
-  const originalEnv = { ...process.env };
-  Object.assign(process.env, envVars);
+async function withTemporaryEnvAsync<T>(envVars: Env, fn: () => Promise<T>): Promise<T> {
+  const originalEnv = process.env;
+  process.env = {
+    ...getEnvWithoutInheritedDotenvValues(process.env),
+    ...envVars,
+    NODE_ENV: 'development',
+  };
+  delete process.env.__EXPO_ENV_LOADED;
+  delete process.env.__EXPO_CONFIG_MODE;
 
   try {
     return await fn();
@@ -162,11 +180,41 @@ export async function createFingerprintsByKeyAsync(
 
   const spinner = ora(`Computing project fingerprints`).start();
   try {
-    const fingerprintsByKey = await mapMapAsync(
-      fingerprintOptionsByKey,
-      async options =>
-        await createFingerprintWithoutLoggingAsync(projectDir, fingerprintPath, options)
-    );
+    // Fingerprint reads process.env, so only calls that use the same env can run together.
+    const fingerprintOptionsByEnv = new Map<Env | undefined, [string, FingerprintOptions][]>();
+    for (const entry of fingerprintOptionsByKey.entries()) {
+      const env = entry[1].env;
+      const entries = fingerprintOptionsByEnv.get(env) ?? [];
+      entries.push(entry);
+      fingerprintOptionsByEnv.set(env, entries);
+    }
+
+    const fingerprintsByKey = new Map<
+      string,
+      Fingerprint & {
+        isDebugSource: boolean;
+      }
+    >();
+    for (const [env, entries] of fingerprintOptionsByEnv) {
+      const fingerprints = await withTemporaryEnvAsync(env ?? {}, async () => {
+        const fingerprintPromises = entries.map(
+          async ([key, options]) =>
+            [
+              key,
+              await createFingerprintWithCurrentEnvAsync(projectDir, fingerprintPath, options),
+            ] as const
+        );
+        try {
+          return await Promise.all(fingerprintPromises);
+        } catch (error) {
+          await Promise.allSettled(fingerprintPromises);
+          throw error;
+        }
+      });
+      for (const [key, fingerprint] of fingerprints) {
+        fingerprintsByKey.set(key, fingerprint);
+      }
+    }
     spinner.succeed(`Computed project fingerprints`);
     return fingerprintsByKey;
   } catch (e) {
