@@ -5236,12 +5236,12 @@ export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
    * Application archive URL to download, install, and launch before the simulator session
-   * becomes available. Mutually exclusive with buildId and expoGo.
+   * becomes available. Mutually exclusive with buildId.
    */
   applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
   /**
    * EAS Build to install and launch before the simulator session becomes available.
-   * Mutually exclusive with applicationArchiveUrl and expoGo.
+   * Mutually exclusive with applicationArchiveUrl.
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
@@ -5251,17 +5251,6 @@ export type CreateDeviceRunSessionInput = {
    * default device.
    */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
-  /**
-   * Install and launch Expo Go before the simulator session becomes available. The server resolves
-   * the platform-specific application archive. Mutually exclusive with buildId and
-   * applicationArchiveUrl.
-   */
-  expoGo?: InputMaybe<Scalars['Boolean']['input']>;
-  /**
-   * Arguments passed to the installed application when it is launched. Requires buildId,
-   * applicationArchiveUrl, or expoGo.
-   */
-  launchArgs?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
@@ -5283,21 +5272,12 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
-   * Expo or development-client URL to open after launching the installed application. Requires
-   * buildId, applicationArchiveUrl, or expoGo.
-   */
-  openUrl?: InputMaybe<Scalars['String']['input']>;
-  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
-  /**
-   * Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is
-   * true. If omitted, the current Expo Go archive for the platform is used.
-   */
-  sdkVersion?: InputMaybe<Scalars['String']['input']>;
+  resourceClass?: InputMaybe<DeviceRunSessionResourceClass>;
   type: DeviceRunSessionType;
 };
 
@@ -6175,6 +6155,11 @@ export type DeviceRunSessionQueryByIdArgs = {
 };
 
 export type DeviceRunSessionRemoteConfig = AgentDeviceRunSessionRemoteConfig | AppiumRunSessionRemoteConfig | ArgentRunSessionRemoteConfig | ServeSimRunSessionRemoteConfig;
+
+export enum DeviceRunSessionResourceClass {
+  Large = 'LARGE',
+  Medium = 'MEDIUM'
+}
 
 export enum DeviceRunSessionStatus {
   Errored = 'ERRORED',
@@ -14678,7 +14663,7 @@ export type AccountByNameQueryVariables = Exact<{
 }>;
 
 
-export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string, viewerUserPermission: { __typename?: 'UserPermission', id: string, permissions: Array<Permission> } } } };
+export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string } } };
 
 export type AccountFullUsageQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -14705,13 +14690,6 @@ export type AccountBillingPeriodQueryVariables = Exact<{
 
 
 export type AccountBillingPeriodQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any } } } };
-
-export type AccountSubscriptionQueryVariables = Exact<{
-  accountId: Scalars['String']['input'];
-}>;
-
-
-export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null } | null } } };
 
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];

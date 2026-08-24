@@ -1,5 +1,6 @@
-import { DeviceRunSessionType } from '../../graphql/generated';
+import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graphql/generated';
 import {
+  DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   formatRemoteSessionInstructions,
   getRemoteSessionEnvironmentVariables,
@@ -35,5 +36,16 @@ describe('Appium simulator configuration', () => {
     expect(instructions).toContain('eas simulator:exec <appium-client> [args...]');
     expect(instructions).toContain('https://preview.example.test');
     expect(instructions).not.toContain('https://appium.example.test');
+  });
+});
+
+describe('simulator resource class flags', () => {
+  it('maps CLI values to the GraphQL enum', () => {
+    expect(DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE.large).toBe(
+      DeviceRunSessionResourceClass.Large
+    );
+    expect(DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE.medium).toBe(
+      DeviceRunSessionResourceClass.Medium
+    );
   });
 });

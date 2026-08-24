@@ -30,6 +30,8 @@ import {
 } from '../../simulator/env';
 import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
+  DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
   DeviceRunSessionRemoteConfig,
@@ -119,6 +121,11 @@ export default class Simulator extends EasCommand {
         'Stop the simulator session automatically after this many minutes without session activity. When omitted, the session has no idle timeout and runs until its maximum duration.',
       min: 0,
     }),
+    'resource-class': Flags.option({
+      description: 'The instance type that will be used to run this simulator session',
+      hidden: true,
+      options: Object.values(DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES),
+    })(),
     force: Flags.boolean({
       description:
         '[default: true] Create a new simulator session even when an existing simulator session is present in the environment.',
@@ -177,6 +184,9 @@ export default class Simulator extends EasCommand {
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
     const openUrl = flags['open-url']?.trim() || undefined;
+    const resourceClass = flags['resource-class']
+      ? DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE[flags['resource-class']]
+      : undefined;
 
     if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
@@ -233,6 +243,7 @@ export default class Simulator extends EasCommand {
         ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
         ...(launchArgs?.length ? { launchArgs } : {}),
         ...(openUrl ? { openUrl } : {}),
+        ...(resourceClass ? { resourceClass } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
         maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
