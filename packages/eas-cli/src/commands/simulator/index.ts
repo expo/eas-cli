@@ -28,7 +28,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
-import { resolveExpoGoApplicationArchiveUrlAsync } from '../../simulator/expoGo';
+import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -169,11 +169,11 @@ export default class Simulator extends EasCommand {
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
-    const sdkVersion = flags['sdk-version']?.trim() || undefined;
+    const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
     const tunnelUrl = flags['tunnel-url']?.trim() || undefined;
 
-    if (sdkVersion && !flags['expo-go']) {
+    if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
     }
     if (
@@ -196,13 +196,9 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
-    const applicationArchiveUrl = flags['expo-go']
-      ? await resolveExpoGoApplicationArchiveUrlAsync({
-          platform: platform === AppPlatform.Ios ? 'ios' : 'android',
-          projectDir,
-          sdkVersion,
-        })
-      : applicationArchiveUrlFromFlag;
+    const expoGoSdkVersion = flags['expo-go']
+      ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
+      : undefined;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -226,7 +222,10 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         ...(buildId ? { buildId } : {}),
-        ...(applicationArchiveUrl ? { applicationArchiveUrl } : {}),
+        ...(applicationArchiveUrlFromFlag
+          ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+          : {}),
+        ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
         ...(launchArgs?.length ? { launchArgs } : {}),
         ...(tunnelUrl ? { tunnelUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
