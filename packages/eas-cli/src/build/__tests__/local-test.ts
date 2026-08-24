@@ -51,29 +51,35 @@ describe(runLocalBuildAsync, () => {
     expect(decodeInput(input)).toEqual({ job, metadata });
   });
 
-  it('keeps EAS values and removes dotenv values inherited from the parent process', async () => {
+  it('starts the local-build plugin with an isolated env', async () => {
     const originalEnv = process.env;
-    const loadedEnvMarker =
-      '["BUILD_ENV_VALUE","EAS_LOCAL_BUILD_WORKINGDIR","PARENT_DOTENV_VALUE"]';
+    const loadedEnvMarker = '["ANDROID_HOME","EAS_LOCAL_BUILD_WORKINGDIR"]';
     process.env = {
-      ...originalEnv,
-      BUILD_ENV_VALUE: 'from-dotenv',
+      EAS_LOCAL_BUILD_PLUGIN_PATH: '/path/to/plugin',
+      PATH: '/local/bin',
+      ANDROID_HOME: '/dotenv/android',
+      ANDROID_SDK_ROOT: '/local/android-sdk',
+      SHELL_ONLY_VALUE: 'from-shell',
       EAS_LOCAL_BUILD_WORKINGDIR: '/dotenv/workingdir',
-      PARENT_DOTENV_VALUE: 'from-dotenv',
+      EAS_LOCAL_BUILD_LOGGER_LEVEL: 'debug',
       __EXPO_ENV_LOADED: loadedEnvMarker,
     };
-    const env = { BUILD_ENV_VALUE: 'from-eas' };
+    const env = { BUILD_ENV_VALUE: 'from-eas', PATH: '/eas/bin' };
 
     try {
       await runLocalBuildAsync(job, metadata, { verbose: true }, env);
 
       const spawnEnv = mockSpawnAsync.mock.calls[0][2]?.env;
       expect(spawnEnv?.BUILD_ENV_VALUE).toBe('from-eas');
+      expect(spawnEnv?.PATH).toBe('/eas/bin');
+      expect(spawnEnv?.ANDROID_HOME).toBeUndefined();
+      expect(spawnEnv?.ANDROID_SDK_ROOT).toBe('/local/android-sdk');
       expect(spawnEnv?.EAS_LOCAL_BUILD_WORKINGDIR).toBeUndefined();
-      expect(spawnEnv?.PARENT_DOTENV_VALUE).toBeUndefined();
+      expect(spawnEnv?.EAS_LOCAL_BUILD_LOGGER_LEVEL).toBe('debug');
+      expect(spawnEnv?.SHELL_ONLY_VALUE).toBeUndefined();
       expect(spawnEnv?.__EXPO_ENV_LOADED).toBeUndefined();
-      expect(env).toEqual({ BUILD_ENV_VALUE: 'from-eas' });
-      expect(process.env.PARENT_DOTENV_VALUE).toBe('from-dotenv');
+      expect(env).toEqual({ BUILD_ENV_VALUE: 'from-eas', PATH: '/eas/bin' });
+      expect(process.env.SHELL_ONLY_VALUE).toBe('from-shell');
       expect(process.env.__EXPO_ENV_LOADED).toBe(loadedEnvMarker);
     } finally {
       process.env = originalEnv;
