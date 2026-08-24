@@ -19,6 +19,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Support downloading iOS simulator archives whose app bundle contents are stored at the archive root. ([#4262](https://github.com/expo/eas-cli/pull/4262) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Fail fast in `eas deploy` when a Free-plan deployment exceeds the 1 GB EAS Hosting limit, instead of failing only after a full upload. ([#4271](https://github.com/expo/eas-cli/pull/4271) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 

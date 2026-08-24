@@ -5,6 +5,10 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import * as path from 'node:path';
 
+import {
+  FREE_PLAN_HOSTING_DEPLOYMENT_SIZE_LIMIT_BYTES,
+  hasPaidSubscription,
+} from '../../billing/plans';
 import { getHostingDeploymentsUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
 import {
@@ -12,9 +16,12 @@ import {
   EasNonInteractiveAndJsonFlags,
   resolveNonInteractiveAndJsonFlags,
 } from '../../commandUtils/flags';
+import { AccountQuery } from '../../graphql/queries/AccountQuery';
 import Log, { link } from '../../log';
 import { ora } from '../../ora';
 import { getOwnerAccountForProjectIdAsync } from '../../project/projectUtils';
+import { confirmAsync } from '../../prompts';
+import { formatBytes } from '../../utils/files';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
 import * as WorkerAssets from '../../worker/assets';
 import {
@@ -153,7 +160,8 @@ export default class WorkerDeploy extends EasCommand {
     const { projectId, exp } = await getDynamicPrivateProjectConfigAsync();
 
     const projectName = exp.slug;
-    const accountName = (await getOwnerAccountForProjectIdAsync(graphqlClient, projectId)).name;
+    const ownerAccount = await getOwnerAccountForProjectIdAsync(graphqlClient, projectId);
+    const accountName = ownerAccount.name;
 
     logExportedProjectInfo(projectDist);
 
@@ -313,6 +321,49 @@ export default class WorkerDeploy extends EasCommand {
       assetFiles = await WorkerAssets.collectAssetsAsync(assetPath, {
         maxFileSize: MAX_UPLOAD_SIZE,
       });
+
+      // Check the deployment size against the Free-plan Hosting limit before
+      // packing/uploading, since the server would otherwise reject an oversized
+      // deployment only after a long upload. A real deploy fails fast (or prompts
+      // interactively); a dry run only warns, since it never uploads. The estimate
+      // is the client asset payload (the bulk of a static export); the plan is
+      // only queried when actually over the limit.
+      const estimatedBytes = assetFiles.reduce((total, asset) => total + asset.size, 0);
+      if (estimatedBytes > FREE_PLAN_HOSTING_DEPLOYMENT_SIZE_LIMIT_BYTES) {
+        const subscription = await AccountQuery.getSubscriptionAsync(
+          graphqlClient,
+          ownerAccount.id
+        );
+        if (!hasPaidSubscription(subscription)) {
+          progress.stop();
+          const billingUrl = `https://expo.dev/accounts/${accountName}/settings/billing`;
+          const sizeSummary =
+            `The estimated deployment size (${formatBytes(estimatedBytes)}) exceeds the ` +
+            `${formatBytes(
+              FREE_PLAN_HOSTING_DEPLOYMENT_SIZE_LIMIT_BYTES
+            )} EAS Hosting limit on the Free plan.`;
+          const remediation = `Upgrade your plan (${billingUrl}) or reduce the deployment size.`;
+          if (flags.dryRun) {
+            // Dry run never uploads, so don't block it; just warn that deploying
+            // this build would be rejected.
+            Log.warn(`${sizeSummary} Deploying it would fail. ${remediation}`);
+          } else if (flags.nonInteractive) {
+            throw new Error(`${sizeSummary} ${remediation} Aborting before upload.`);
+          } else {
+            Log.warn(`${sizeSummary} ${remediation}`);
+            const shouldContinue = await confirmAsync({
+              message: 'Continue the deployment anyway?',
+              initial: false,
+            });
+            if (!shouldContinue) {
+              Log.log('Deployment cancelled.');
+              return;
+            }
+          }
+          progress.start('Preparing project');
+        }
+      }
+
       tarPath = await WorkerAssets.packFilesIterableAsync(
         emitWorkerTarballAsync({
           routesConfig: await WorkerAssets.getRoutesConfigAsync(assetPath),
