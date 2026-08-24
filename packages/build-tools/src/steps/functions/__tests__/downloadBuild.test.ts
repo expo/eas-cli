@@ -4,8 +4,10 @@ import { Client, CombinedError } from '@urql/core';
 import fetch, { Response } from 'node-fetch';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import * as tar from 'tar';
 
 import { createGlobalContextMock } from '../../../__tests__/utils/context';
 import { createMockLogger } from '../../../__tests__/utils/logger';
@@ -18,6 +20,9 @@ const APP_TAR_GZ_BUFFER = Buffer.from(
     '=',
   'base64'
 );
+
+const FLAT_APP_INFO_PLIST_BASE64 =
+  'YnBsaXN0MDDSAQIDBF8QEkNGQnVuZGxlRXhlY3V0YWJsZV8QE0NGQnVuZGxlUGFja2FnZVR5cGVXVGVzdEFwcFRBUFBMCA0iOEAAAAAAAAABAQAAAAAAAAAFAAAAAAAAAAAAAAAAAAAARQ==';
 
 const APPLICATION_ARCHIVE_URL = `https://expo.dev/artifacts/eas/${randomUUID()}.tar.gz`;
 
@@ -74,6 +79,34 @@ function createSuccessfulResponse({
   } as unknown as Response;
 }
 
+async function createFlatAppTarGzBufferAsync(): Promise<Buffer> {
+  const sourceDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'flat-app-source-'));
+  const archivePath = path.join(os.tmpdir(), `${randomUUID()}.tar.gz`);
+
+  try {
+    await Promise.all([
+      fs.promises.writeFile(path.join(sourceDirectory, 'Info.plist'), FLAT_APP_INFO_PLIST_BASE64, {
+        encoding: 'base64',
+      }),
+      fs.promises.writeFile(path.join(sourceDirectory, 'TestApp'), 'i am executable\n'),
+    ]);
+    await tar.create(
+      {
+        cwd: sourceDirectory,
+        file: archivePath,
+        gzip: true,
+      },
+      ['Info.plist', 'TestApp']
+    );
+    return await fs.promises.readFile(archivePath);
+  } finally {
+    await Promise.all([
+      fs.promises.rm(sourceDirectory, { recursive: true, force: true }),
+      fs.promises.rm(archivePath, { force: true }),
+    ]);
+  }
+}
+
 describe('downloadBuild', () => {
   it('downloads from applicationArchiveUrl returned by GraphQL', async () => {
     const buildId = randomUUID();
@@ -101,6 +134,28 @@ describe('downloadBuild', () => {
       expect.objectContaining({ headers: undefined })
     );
     expect(artifactPath).toBeDefined();
+    expect(await fs.promises.readFile(path.join(artifactPath, 'TestApp'), 'utf8')).toBe(
+      'i am executable\n'
+    );
+  });
+
+  it('downloads an archive containing app bundle contents at its root', async () => {
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: await createFlatAppTarGzBufferAsync(),
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['app'],
+    });
+
+    expect(path.extname(artifactPath)).toBe('.app');
     expect(await fs.promises.readFile(path.join(artifactPath, 'TestApp'), 'utf8')).toBe(
       'i am executable\n'
     );
