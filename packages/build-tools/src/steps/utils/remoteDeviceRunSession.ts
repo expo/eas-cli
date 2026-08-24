@@ -19,12 +19,17 @@ import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
 
 const XCODE_DEVELOPER_DIR = '/Applications/Xcode.app/Contents/Developer';
+const WEB_PREVIEW_HOST = '127.0.0.1';
 const SERVE_SIM_PACKAGE_NAME = '@expo/serve-sim';
-const SERVE_SIM_HOST = '127.0.0.1';
 const SERVE_SIM_MAX_DIMENSION = '960';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
 const SERVE_SIM_VIDEO_BITRATE = '6000000';
 const SERVE_SIM_VIDEO_FPS = '60';
+const SERVE_EMU_PACKAGE_NAME = '@expo/serve-emu';
+const SERVE_EMU_MAX_SIZE = '1280';
+const SERVE_EMU_BIT_RATE = '3000000';
+const SERVE_EMU_MAX_FPS = '30';
+const SERVE_EMU_KEY_FRAME_INTERVAL = '1';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -390,11 +395,12 @@ const TurnIceServersResponseSchema = z.object({
 });
 
 /**
- * Translate Cloudflare ICE servers into serve-sim CLI flags: `--stun-url` (the
+ * Translate Cloudflare ICE servers into web preview CLI flags: `--stun-url` (the
  * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
- * (the entry carrying the short-lived credentials).
+ * (the entry carrying the short-lived credentials). serve-sim and serve-emu
+ * intentionally expose the same ICE flag contract.
  */
-export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string[] {
+export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): string[] {
   const stunUrls = iceServers
     .filter(server => !server.username && !server.credential)
     .flatMap(server => server.urls);
@@ -420,14 +426,14 @@ export function turnIceServersToServeSimArgs(iceServers: TurnIceServers): string
 /**
  * Fetch short-lived Cloudflare TURN ICE servers for this job run from www
  * (minted on demand, mirroring how the worker fetches project clone URLs) and
- * translate them into serve-sim CLI flags.
+ * translate them into web preview CLI flags.
  *
- * Best-effort: on any failure we log and return [] so serve-sim falls back to
- * its built-in P2P/STUN behavior. The credential is passed to serve-sim as a
- * process arg and deliberately not logged (turtle-spawn never logs argv and the
- * worker is single-tenant).
+ * Best-effort: on any failure we log and return [] so the preview server falls
+ * back to its built-in P2P/STUN behavior. The credential is passed as a process
+ * arg and deliberately not logged (turtle-spawn never logs argv and the worker
+ * is single-tenant).
  */
-export async function fetchServeSimTurnArgsAsync(
+export async function fetchWebPreviewTurnArgsAsync(
   ctx: CustomBuildContext,
   { env, logger }: { env: BuildStepEnv; logger: bunyan }
 ): Promise<string[]> {
@@ -456,9 +462,9 @@ export async function fetchServeSimTurnArgsAsync(
     );
 
     const { data } = TurnIceServersResponseSchema.parse(await response.json());
-    const args = turnIceServersToServeSimArgs(data.iceServers);
+    const args = turnIceServersToWebPreviewArgs(data.iceServers);
     if (args.length > 0) {
-      logger.info('Configured serve-sim with Cloudflare TURN ICE servers.');
+      logger.info('Configured the web preview with Cloudflare TURN ICE servers.');
     }
     return args;
   } catch (err) {
@@ -466,7 +472,7 @@ export async function fetchServeSimTurnArgsAsync(
     Sentry.capture('Could not fetch Cloudflare TURN ICE servers', error, { level: 'warning' });
     logger.warn(
       { err: error },
-      'Could not fetch Cloudflare TURN ICE servers; serve-sim will fall back to P2P/STUN.'
+      'Could not fetch Cloudflare TURN ICE servers; the web preview will fall back to P2P/STUN.'
     );
     return [];
   }
@@ -600,6 +606,10 @@ function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
+function createServeEmuPackageSpec(packageVersion: string | undefined): string {
+  return `${SERVE_EMU_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
+}
+
 export function createServeSimArgs({
   port,
   turnArgs = [],
@@ -617,7 +627,7 @@ export function createServeSimArgs({
     '--port',
     String(port),
     '--host',
-    SERVE_SIM_HOST,
+    WEB_PREVIEW_HOST,
     '--transport',
     'webrtc',
     '--webrtc-codec',
@@ -635,44 +645,82 @@ export function createServeSimArgs({
   ];
 }
 
+export function createServeEmuArgs({
+  port,
+  turnArgs = [],
+  packageVersion,
+  serial,
+}: {
+  port: number;
+  turnArgs?: string[];
+  packageVersion?: string;
+  serial?: string;
+}): string[] {
+  return [
+    createServeEmuPackageSpec(packageVersion),
+    '--port',
+    String(port),
+    '--host',
+    WEB_PREVIEW_HOST,
+    '--transport',
+    'webrtc',
+    '--webrtc-ice-policy',
+    'all',
+    '--max-size',
+    SERVE_EMU_MAX_SIZE,
+    '--bit-rate',
+    SERVE_EMU_BIT_RATE,
+    '--max-fps',
+    SERVE_EMU_MAX_FPS,
+    '--key-frame-interval',
+    SERVE_EMU_KEY_FRAME_INTERVAL,
+    ...(serial ? ['--serial', serial] : []),
+    ...turnArgs,
+  ];
+}
+
 async function findAvailablePortAsync(): Promise<number> {
   const server = createServer();
   server.unref();
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, SERVE_SIM_HOST, () => resolve());
+    server.listen(0, WEB_PREVIEW_HOST, () => resolve());
   });
   const address = server.address();
   await new Promise<void>((resolve, reject) => {
     server.close(err => (err ? reject(err) : resolve()));
   });
   if (!address || typeof address === 'string') {
-    throw new SystemError('Could not allocate a local port for serve-sim.');
+    throw new SystemError('Could not allocate a local port for the web preview.');
   }
   return address.port;
 }
 
-const ServeSimReadyResponseSchema = z.object({
+const WebPreviewReadyResponseSchema = z.object({
   status: z.literal('ready'),
   device: z.string(),
 });
 
-export async function waitForServeSimReadyAsync({
-  serveSim,
+export async function waitForWebPreviewReadyAsync({
+  previewServer,
+  serverName,
   port,
   timeoutMs,
 }: {
-  serveSim: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
+  previewServer: Pick<DetachedProcessHandle, 'pid' | 'getOutput'>;
+  serverName: string;
   port: number;
   timeoutMs: number;
 }): Promise<void> {
-  const readyUrl = `http://${SERVE_SIM_HOST}:${port}/readyz`;
+  const readyUrl = `http://${WEB_PREVIEW_HOST}:${port}/readyz`;
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   while (Date.now() < deadline) {
-    if (serveSim.pid !== undefined && !isProcessRunning(serveSim.pid)) {
+    if (previewServer.pid !== undefined && !isProcessRunning(previewServer.pid)) {
       throw new SystemError(
-        `serve-sim exited before becoming ready. Last output:\n${serveSim.getOutput() || '<empty>'}`
+        `${serverName} exited before becoming ready. Last output:\n${
+          previewServer.getOutput() || '<empty>'
+        }`
       );
     }
     try {
@@ -680,7 +728,7 @@ export async function waitForServeSimReadyAsync({
         retries: 0,
         timeout: 2_000,
       });
-      ServeSimReadyResponseSchema.parse(await response.json());
+      WebPreviewReadyResponseSchema.parse(await response.json());
       return;
     } catch (error) {
       lastError = error;
@@ -688,16 +736,76 @@ export async function waitForServeSimReadyAsync({
     await sleepAsync(1_000);
   }
   throw new SystemError(
-    `Timed out waiting for serve-sim readiness at ${readyUrl}${
+    `Timed out waiting for ${serverName} readiness at ${readyUrl}${
       lastError instanceof Error ? `: ${lastError.message}` : ''
-    }. Last output:\n${serveSim.getOutput() || '<empty>'}`
+    }. Last output:\n${previewServer.getOutput() || '<empty>'}`
   );
 }
 
-export type ServeSimPreviewHandle = {
+export type DeviceWebPreviewHandle = {
   previewUrl: string;
   stopAsync: () => Promise<void>;
 };
+
+export type ServeSimPreviewHandle = DeviceWebPreviewHandle;
+
+async function startWebPreviewWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    serverName,
+    packageSpec,
+    command,
+    createArgs,
+  }: {
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    serverName: string;
+    packageSpec: string;
+    command: 'npx' | 'bunx';
+    createArgs: (port: number, turnArgs: string[]) => string[];
+  }
+): Promise<DeviceWebPreviewHandle> {
+  const port = await findAvailablePortAsync();
+  logger.info(`Launching ${packageSpec} on ${WEB_PREVIEW_HOST}:${port}.`);
+  const turnArgs = await fetchWebPreviewTurnArgsAsync(ctx, { env, logger });
+  const previewServer = spawnDetached({
+    command,
+    args: createArgs(port, turnArgs),
+    env,
+  });
+
+  try {
+    logger.info(`Waiting for ${serverName} to become ready.`);
+    await waitForWebPreviewReadyAsync({ previewServer, serverName, port, timeoutMs });
+    const tunnel = await startNgrokTunnelAsync({
+      port,
+      subdomainPrefix: 'web-preview',
+      baseDomain,
+      authtoken: getNgrokAuthtokenOrThrow(env),
+      logger,
+    });
+    return {
+      previewUrl: tunnel.url,
+      stopAsync: async () => {
+        const results = await Promise.allSettled([tunnel.stopAsync(), previewServer.stopAsync()]);
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            logger.warn({ err: result.reason }, `Could not stop a ${serverName} preview resource.`);
+          }
+        }
+      },
+    };
+  } catch (error) {
+    await previewServer.stopAsync();
+    throw error;
+  }
+}
 
 export async function startServeSimWithTunnelAsync(
   ctx: CustomBuildContext,
@@ -715,42 +823,70 @@ export async function startServeSimWithTunnelAsync(
     packageVersion?: string;
   }
 ): Promise<ServeSimPreviewHandle> {
-  const port = await findAvailablePortAsync();
-  logger.info(
-    `Launching ${createServeSimPackageSpec(packageVersion)} on ${SERVE_SIM_HOST}:${port}.`
-  );
-  const turnArgs = await fetchServeSimTurnArgsAsync(ctx, { env, logger });
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
-  const serveSim = spawnDetached({
-    command: 'npx',
-    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+  return await startWebPreviewWithTunnelAsync(ctx, {
+    baseDomain,
     env,
+    logger,
+    timeoutMs,
+    serverName: 'serve-sim',
+    packageSpec: createServeSimPackageSpec(packageVersion),
+    command: 'npx',
+    createArgs: (port, turnArgs) =>
+      createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
   });
+}
 
-  try {
-    logger.info('Waiting for serve-sim to become ready.');
-    await waitForServeSimReadyAsync({ serveSim, port, timeoutMs });
-    const tunnel = await startNgrokTunnelAsync({
-      port,
-      subdomainPrefix: 'web-preview',
-      baseDomain,
-      authtoken: getNgrokAuthtokenOrThrow(env),
-      logger,
-    });
-    return {
-      previewUrl: tunnel.url,
-      stopAsync: async () => {
-        const results = await Promise.allSettled([tunnel.stopAsync(), serveSim.stopAsync()]);
-        for (const result of results) {
-          if (result.status === 'rejected') {
-            logger.warn({ err: result.reason }, 'Could not stop a serve-sim preview resource.');
-          }
-        }
-      },
-    };
-  } catch (error) {
-    await serveSim.stopAsync();
-    throw error;
+export async function startServeEmuWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    packageVersion,
+    serial,
+  }: {
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    packageVersion?: string;
+    serial?: string;
+  }
+): Promise<DeviceWebPreviewHandle> {
+  return await startWebPreviewWithTunnelAsync(ctx, {
+    baseDomain,
+    env,
+    logger,
+    timeoutMs,
+    serverName: 'serve-emu',
+    packageSpec: createServeEmuPackageSpec(packageVersion),
+    command: 'bunx',
+    createArgs: (port, turnArgs) => createServeEmuArgs({ port, turnArgs, packageVersion, serial }),
+  });
+}
+
+export async function startDeviceWebPreviewWithTunnelAsync(
+  ctx: CustomBuildContext,
+  {
+    runtimePlatform,
+    serial,
+    ...options
+  }: {
+    runtimePlatform: BuildRuntimePlatform;
+    baseDomain: string;
+    env: BuildStepEnv;
+    logger: bunyan;
+    timeoutMs: number;
+    serial?: string;
+  }
+): Promise<DeviceWebPreviewHandle> {
+  switch (runtimePlatform) {
+    case BuildRuntimePlatform.DARWIN:
+      return await startServeSimWithTunnelAsync(ctx, options);
+    case BuildRuntimePlatform.LINUX:
+      return await startServeEmuWithTunnelAsync(ctx, { ...options, serial });
   }
 }
 

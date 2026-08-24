@@ -13,14 +13,15 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { sleepAsync } from '../../../utils/retry';
 import {
+  createServeEmuArgs,
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
-  fetchServeSimTurnArgsAsync,
+  fetchWebPreviewTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startNgrokTunnelAsync,
-  turnIceServersToServeSimArgs,
+  turnIceServersToWebPreviewArgs,
   waitForDeviceRunSessionStoppedAsync,
-  waitForServeSimReadyAsync,
+  waitForWebPreviewReadyAsync,
 } from '../remoteDeviceRunSession';
 
 jest.mock('@ngrok/ngrok');
@@ -173,6 +174,43 @@ describe(createServeSimArgs, () => {
   });
 });
 
+describe(createServeEmuArgs, () => {
+  it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
+    expect(
+      createServeEmuArgs({
+        port: 4321,
+        turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
+      })
+    ).toEqual([
+      '@expo/serve-emu@latest',
+      '--port',
+      '4321',
+      '--host',
+      '127.0.0.1',
+      '--transport',
+      'webrtc',
+      '--webrtc-ice-policy',
+      'all',
+      '--max-size',
+      '1280',
+      '--bit-rate',
+      '3000000',
+      '--max-fps',
+      '30',
+      '--key-frame-interval',
+      '1',
+      '--turn-url',
+      'turns:turn.example.test:443',
+    ]);
+  });
+
+  it('pins the requested package version and Android serial', () => {
+    expect(
+      createServeEmuArgs({ port: 4321, packageVersion: '0.1.0', serial: 'emulator-5554' })
+    ).toEqual(expect.arrayContaining(['@expo/serve-emu@0.1.0', '--serial', 'emulator-5554']));
+  });
+});
+
 describe(metricsCorsOriginToServeSimArgs, () => {
   it('returns no args when the origin is unset or empty', () => {
     expect(metricsCorsOriginToServeSimArgs({} as BuildStepEnv)).toEqual([]);
@@ -200,7 +238,7 @@ describe(metricsCorsOriginToServeSimArgs, () => {
   });
 });
 
-describe(waitForServeSimReadyAsync, () => {
+describe(waitForWebPreviewReadyAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
     jest.mocked(sleepAsync).mockReset();
@@ -215,8 +253,9 @@ describe(waitForServeSimReadyAsync, () => {
         json: async () => ({ status: 'ready', device: 'DEVICE-A' }),
       } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    await waitForServeSimReadyAsync({
-      serveSim: { pid: undefined, getOutput: () => '' },
+    await waitForWebPreviewReadyAsync({
+      previewServer: { pid: undefined, getOutput: () => '' },
+      serverName: 'serve-emu',
       port: 4321,
       timeoutMs: 10_000,
     });
@@ -261,14 +300,14 @@ describe(startNgrokTunnelAsync, () => {
   });
 });
 
-describe(turnIceServersToServeSimArgs, () => {
+describe(turnIceServersToWebPreviewArgs, () => {
   it('returns no args for an empty ICE server list', () => {
-    expect(turnIceServersToServeSimArgs([])).toEqual([]);
+    expect(turnIceServersToWebPreviewArgs([])).toEqual([]);
   });
 
   it('builds --stun-url and --turn-url flags from Cloudflare ICE servers', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.cloudflare.com:53'] },
         {
           urls: [
@@ -293,7 +332,7 @@ describe(turnIceServersToServeSimArgs, () => {
 
   it('emits only --turn-url flags when no credential-less (STUN) entry is present', () => {
     expect(
-      turnIceServersToServeSimArgs([
+      turnIceServersToWebPreviewArgs([
         {
           urls: ['turns:turn.cloudflare.com:443?transport=tcp'],
           username: 'u',
@@ -311,14 +350,14 @@ describe(turnIceServersToServeSimArgs, () => {
   });
 
   it('emits only --stun-url when there is no credentialed TURN entry', () => {
-    expect(turnIceServersToServeSimArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
+    expect(turnIceServersToWebPreviewArgs([{ urls: ['stun:stun.cloudflare.com:3478'] }])).toEqual([
       '--stun-url',
       'stun:stun.cloudflare.com:3478',
     ]);
   });
 });
 
-describe(fetchServeSimTurnArgsAsync, () => {
+describe(fetchWebPreviewTurnArgsAsync, () => {
   beforeEach(() => {
     jest.mocked(turtleFetch).mockReset();
   });
@@ -339,7 +378,7 @@ describe(fetchServeSimTurnArgsAsync, () => {
       }),
     } as unknown as Awaited<ReturnType<typeof turtleFetch>>);
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger: createLoggerMock(),
     });
@@ -367,7 +406,7 @@ describe(fetchServeSimTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
-    const args = await fetchServeSimTurnArgsAsync(createCtxMock(), {
+    const args = await fetchWebPreviewTurnArgsAsync(createCtxMock(), {
       env: createEnvMock(),
       logger,
     });

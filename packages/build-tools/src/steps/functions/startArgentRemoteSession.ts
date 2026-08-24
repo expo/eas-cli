@@ -26,8 +26,8 @@ import {
   getNgrokTunnelDomainOrThrow,
   selectXcodeDeveloperDirectoryAsync,
   spawnDetached,
+  startDeviceWebPreviewWithTunnelAsync,
   startNgrokTunnelAsync,
-  startServeSimWithTunnelAsync,
   uploadRemoteSessionConfigAsync,
   waitForDeviceRunSessionStoppedAsync,
 } from '../utils/remoteDeviceRunSession';
@@ -186,7 +186,7 @@ export function createStartArgentRemoteSessionBuildFunction(
       });
 
       let toolsTunnel: Awaited<ReturnType<typeof startNgrokTunnelAsync>> | undefined;
-      let serveSim: Awaited<ReturnType<typeof startServeSimWithTunnelAsync>> | undefined;
+      let webPreview: Awaited<ReturnType<typeof startDeviceWebPreviewWithTunnelAsync>> | undefined;
       try {
         toolsTunnel = await startNgrokTunnelAsync({
           port: toolServerPort,
@@ -199,18 +199,14 @@ export function createStartArgentRemoteSessionBuildFunction(
         const publicToolsUrl = toolsTunnel.url;
         logger.info(`Tunnel is ready at ${publicToolsUrl}.`);
 
-        // serve-sim is iOS-only — Android sessions go without a preview URL.
-        let webPreviewUrl: string | undefined;
-        if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-          serveSim = await startServeSimWithTunnelAsync(ctx, {
-            baseDomain: ngrokTunnelDomain,
-            env,
-            logger,
-            timeoutMs: STARTUP_TIMEOUT_MS,
-          });
-          webPreviewUrl = serveSim.previewUrl;
-          logger.info(`Web preview URL: ${webPreviewUrl}`);
-        }
+        webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
+          runtimePlatform,
+          baseDomain: ngrokTunnelDomain,
+          env,
+          logger,
+          timeoutMs: STARTUP_TIMEOUT_MS,
+        });
+        logger.info(`Web preview URL: ${webPreview.previewUrl}`);
 
         await uploadRemoteSessionConfigAsync({
           ctx,
@@ -218,7 +214,7 @@ export function createStartArgentRemoteSessionBuildFunction(
           remoteConfig: {
             toolsUrl: publicToolsUrl,
             ...(toolServerToken ? { toolsAuthToken: toolServerToken } : {}),
-            ...(webPreviewUrl ? { webPreviewUrl } : {}),
+            webPreviewUrl: webPreview.previewUrl,
           },
           logger,
         });
@@ -238,8 +234,8 @@ export function createStartArgentRemoteSessionBuildFunction(
               : undefined,
         });
       } finally {
-        if (serveSim) {
-          await serveSim.stopAsync();
+        if (webPreview) {
+          await webPreview.stopAsync();
         }
         if (toolsTunnel) {
           await toolsTunnel.stopAsync();
