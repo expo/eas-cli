@@ -75,7 +75,54 @@ describe('Fingerprint env', () => {
     expect(fingerprintEnv).toEqual(fingerprintEnvBefore);
   });
 
-  it('restores process.env when one of multiple fingerprints fails', async () => {
+  it('runs fingerprints with different envs one at a time', async () => {
+    const envBeforeFingerprints = process.env;
+    let resolveIosFingerprint!: (value: { hash: string; sources: never[] }) => void;
+    let resolveAndroidFingerprint!: (value: { hash: string; sources: never[] }) => void;
+    mockCreateFingerprintAsync
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            expect(process.env.FINGERPRINT_TARGET).toBe('ios');
+            resolveIosFingerprint = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            expect(process.env.FINGERPRINT_TARGET).toBe('android');
+            resolveAndroidFingerprint = resolve;
+          })
+      );
+
+    const fingerprintsPromise = createFingerprintsByKeyAsync(
+      '/app',
+      new Map([
+        ['ios', { platforms: ['ios'], env: { FINGERPRINT_TARGET: 'ios' } }],
+        ['android', { platforms: ['android'], env: { FINGERPRINT_TARGET: 'android' } }],
+      ])
+    );
+
+    expect(mockCreateFingerprintAsync).toHaveBeenCalledTimes(1);
+    expect(process.env.FINGERPRINT_TARGET).toBe('ios');
+
+    resolveIosFingerprint({ hash: 'ios', sources: [] });
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(mockCreateFingerprintAsync).toHaveBeenCalledTimes(2);
+    expect(process.env.FINGERPRINT_TARGET).toBe('android');
+
+    resolveAndroidFingerprint({ hash: 'android', sources: [] });
+    await expect(fingerprintsPromise).resolves.toEqual(
+      new Map([
+        ['ios', { hash: 'ios', sources: [] }],
+        ['android', { hash: 'android', sources: [] }],
+      ])
+    );
+    expect(process.env).toBe(envBeforeFingerprints);
+  });
+
+  it('keeps the env until parallel Fingerprint calls finish after a failure', async () => {
     const envBeforeFingerprints = process.env;
     let rejectFirstFingerprint!: (error: Error) => void;
     let resolveSecondFingerprint!: (value: { hash: string; sources: never[] }) => void;
@@ -106,9 +153,13 @@ describe('Fingerprint env', () => {
       throw error;
     });
 
+    expect(mockCreateFingerprintAsync).toHaveBeenCalledTimes(2);
+    expect(process.env.NODE_ENV).toBe('development');
+
     rejectFirstFingerprint(new Error('fingerprint failed'));
     await new Promise(resolve => setImmediate(resolve));
     expect(didReject).toBe(false);
+    expect(process.env.NODE_ENV).toBe('development');
 
     resolveSecondFingerprint({ hash: 'android', sources: [] });
     await expect(rejectionPromise).rejects.toThrow('fingerprint failed');
