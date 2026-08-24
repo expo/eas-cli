@@ -9,7 +9,7 @@ import { promptAsync } from '../../prompts';
 
 export default class WorkflowRunCancel extends EasCommand {
   static override description =
-    'Cancel one or more workflow runs. If no workflow run IDs are provided, you will be prompted to select IN_PROGRESS runs to cancel.';
+    'Cancel one or more workflow runs. If no workflow run IDs are provided, you will be prompted to select in-progress or queued runs to cancel.';
 
   static override strict = false;
 
@@ -22,21 +22,11 @@ export default class WorkflowRunCancel extends EasCommand {
   };
 
   async runAsync(): Promise<void> {
-    const { argv } = await this.parse(WorkflowRunCancel);
-    let nonInteractive = false;
-    const workflowRunIds: Set<string> = new Set();
-
-    // Custom parsing of argv
-    const tokens = [...argv] as string[];
-    while (tokens.length > 0) {
-      const token = tokens.shift();
-      if (token === '--non-interactive') {
-        nonInteractive = true;
-        continue;
-      } else if (token) {
-        workflowRunIds.add(token);
-      }
-    }
+    const { argv, flags } = await this.parse(WorkflowRunCancel);
+    // strict = false, so argv holds the variadic run IDs; oclif parses known
+    // flags like --non-interactive out of argv.
+    const nonInteractive = flags['non-interactive'];
+    const workflowRunIds = new Set(argv as string[]);
 
     const {
       projectId,
@@ -49,14 +39,14 @@ export default class WorkflowRunCancel extends EasCommand {
       if (nonInteractive) {
         throw new Error('Must supply workflow run IDs as arguments when in non-interactive mode');
       }
-      // Run the workflow run list query and select runs to cancel
-      const queryResult = await AppQuery.byIdWorkflowRunsFilteredByStatusAsync(
-        graphqlClient,
-        projectId,
-        WorkflowRunStatus.InProgress,
-        50
+      // The runs filter takes a single status, so query each picker status separately.
+      const pickerStatuses = [WorkflowRunStatus.InProgress, WorkflowRunStatus.Waiting];
+      const runsByStatus = await Promise.all(
+        pickerStatuses.map(status =>
+          AppQuery.byIdWorkflowRunsFilteredByStatusAsync(graphqlClient, projectId, status, 50)
+        )
       );
-      const runs = processWorkflowRuns(queryResult);
+      const runs = processWorkflowRuns(runsByStatus.flat());
       if (runs.length === 0) {
         Log.warn('No workflow runs to cancel');
         return;
@@ -64,7 +54,7 @@ export default class WorkflowRunCancel extends EasCommand {
       const answers = await promptAsync({
         type: 'multiselect',
         name: 'selectedRuns',
-        message: 'Select IN_PROGRESS workflow runs to cancel',
+        message: 'Select workflow runs to cancel',
         choices: runs.map(run => choiceFromWorkflowRun(run)),
       });
       answers.selectedRuns.forEach((id: string) => {

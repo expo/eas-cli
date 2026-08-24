@@ -191,6 +191,28 @@ export function getMockEmptyWorkflowRunsFragment(): WorkflowRunFragment[] {
   return getMockWorkflowRunsFragment();
 }
 
+export function getMockWorkflowRunFragment(
+  status: WorkflowRunStatus,
+  overrides?: Partial<WorkflowRunFragment>
+): WorkflowRunFragment {
+  return {
+    id: `run-${status}`,
+    status,
+    triggerEventType: WorkflowRunTriggerEventType.Manual,
+    errors: [],
+    createdAt: '2022-01-01T00:00:00.000Z',
+    updatedAt: '2022-01-01T00:00:00.000Z',
+    gitCommitHash: '1234567890',
+    gitCommitMessage: 'commit message',
+    workflow: {
+      name: 'build',
+      id: 'build',
+      fileName: 'build.yml',
+    },
+    ...overrides,
+  };
+}
+
 export function getMockWorkflowRunsFragment(
   params?:
     | undefined
@@ -233,6 +255,7 @@ export function getMockWorkflowRunsFragment(
       status: WorkflowRunStatus.Failure,
       createdAt: '2022-01-01T00:00:00.000Z',
       updatedAt: '2022-01-01T00:00:00.000Z',
+      finalizedAt: '2022-01-01T00:00:00.000Z',
       gitCommitHash: '1234567890',
       gitCommitMessage: 'commit message',
       workflow: {
@@ -325,6 +348,7 @@ export function getMockWorkflowRunWithJobsFragment(
         id: mockProjectId,
         __typename: 'App',
         name: 'App',
+        slug: 'app',
         ownerAccount: {
           id: 'account-id',
           name: 'account-name',
@@ -357,6 +381,7 @@ export function getMockWorkflowRunWithBuildJobsFragment(
         id: mockProjectId,
         __typename: 'App',
         name: 'App',
+        slug: 'app',
         ownerAccount: {
           id: 'account-id',
           name: 'account-name',

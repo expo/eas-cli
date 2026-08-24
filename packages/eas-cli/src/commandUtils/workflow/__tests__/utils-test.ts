@@ -1,7 +1,10 @@
-import { getMockWorkflowRunWithJobsFragment } from '../../../__tests__/commands/utils';
+import {
+  getMockWorkflowRunFragment,
+  getMockWorkflowRunWithJobsFragment,
+} from '../../../__tests__/commands/utils';
 import { fetchRawLogsForCustomJobAsync } from '../fetchLogs';
-import { infoForActiveWorkflowRunAsync } from '../utils';
-import { WorkflowJobStatus } from '../../../graphql/generated';
+import { infoForActiveWorkflowRunAsync, processWorkflowRuns } from '../utils';
+import { WorkflowJobStatus, WorkflowRunStatus } from '../../../graphql/generated';
 
 jest.mock('../fetchLogs');
 
@@ -31,5 +34,34 @@ describe('workflow utils', () => {
     expect(output).toContain('Current step');
     expect(output).toContain('Install dependencies');
     expect(output).not.toContain('step-id-1');
+  });
+});
+
+describe(processWorkflowRuns, () => {
+  test.each([WorkflowRunStatus.Success, WorkflowRunStatus.Failure, WorkflowRunStatus.Canceled])(
+    'reports finalizedAt as finishedAt for final status %s',
+    status => {
+      const [run] = processWorkflowRuns([
+        getMockWorkflowRunFragment(status, { finalizedAt: '2022-01-01T12:00:00.000Z' }),
+      ]);
+      expect(run.finishedAt).toBe('2022-01-01T12:00:00.000Z');
+    }
+  );
+
+  test('reports no finishedAt for a final run predating finalizedAt', () => {
+    const [run] = processWorkflowRuns([getMockWorkflowRunFragment(WorkflowRunStatus.Success)]);
+    expect(run.finishedAt).toBeNull();
+  });
+
+  test.each([
+    WorkflowRunStatus.New,
+    WorkflowRunStatus.Waiting,
+    WorkflowRunStatus.InProgress,
+    WorkflowRunStatus.ActionRequired,
+  ])('reports no finishedAt for non-final status %s even with a lingering finalizedAt', status => {
+    const [run] = processWorkflowRuns([
+      getMockWorkflowRunFragment(status, { finalizedAt: '2022-01-01T12:00:00.000Z' }),
+    ]);
+    expect(run.finishedAt).toBeNull();
   });
 });

@@ -10,8 +10,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Add `ios_signing_backend` option to the repack step. ([#4239](https://github.com/expo/eas-cli/pull/4239) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 - [build-tools] Support an optional `package_version` input on `eas/start_serve_sim_remote_session`, so a simulator session can pin the `@expo/serve-sim` version instead of always running `latest`. ([#4253](https://github.com/expo/eas-cli/pull/4253) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Display queued workflow runs: `workflow:run --wait` and `workflow:status` show a run waiting for its concurrency group and the run blocking it, and `workflow:cancel` includes queued runs in its selection list. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🐛 Bug fixes
+
+- [eas-cli] Stop reporting a finish time for workflow runs that have not finished: `workflow:runs` reports `finishedAt` only for runs in a final status. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
+- [eas-cli] Honor the `--non-interactive` flag in `workflow:cancel`; it was parsed but never applied, so automation could hang on the interactive picker. ([#4258](https://github.com/expo/eas-cli/pull/4258) by [@hSATAC](https://github.com/hSATAC))
 
 ### 🧹 Chores
 
