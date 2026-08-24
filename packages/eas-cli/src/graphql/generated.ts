@@ -2173,6 +2173,11 @@ export type AppNotificationPreferenceInput = {
 export type AppObserve = {
   __typename?: 'AppObserve';
   appVersions: Array<AppObserveAppVersion>;
+  /**
+   * A single custom event by the `id` of an `AppObserveCustomEvent`. Null when the app has no
+   * such event, including when it has aged out of retention.
+   */
+  customEvent?: Maybe<AppObserveCustomEvent>;
   customEventCounts: AppObserveCustomEventCounts;
   customEventList: AppObserveCustomEventListConnection;
   customEventNames: AppObserveCustomEventNames;
@@ -2185,6 +2190,14 @@ export type AppObserve = {
   errorStats: AppObserveErrorStats;
   /** Time-bucketed exception counts split into fatal vs non-fatal, for the stacked-bar chart. */
   errorTimeSeries: AppObserveErrorTimeSeries;
+  /**
+   * A single metric event by the `id` of an `AppObserveEvent`. Null when the app has no such
+   * event, including when it has aged out of retention or the id is not one this API issued.
+   *
+   * `sessionEventCount` and `userEventCount` are always null here: they are aggregates over a
+   * time range, and a single event does not supply one.
+   */
+  event?: Maybe<AppObserveEvent>;
   events: AppObserveEventsConnection;
   /** Highest Expo SDK version seen in telemetry over the trailing 30 days; null when none was reported. */
   latestExpoSdkVersion?: Maybe<Scalars['String']['output']>;
@@ -2208,12 +2221,18 @@ export type AppObserve = {
    * universe used by `appVersions` headline counts.
    */
   uniqueActiveUserCount: Scalars['Int']['output'];
+  /** Update download activity (the Recent updates list). Not available on the free tier or legacy plans. */
   updates: AppObserveUpdatesConnection;
 };
 
 
 export type AppObserveAppVersionsArgs = {
   input: AppObserveReleasesInput;
+};
+
+
+export type AppObserveCustomEventArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2242,6 +2261,7 @@ export type AppObserveCustomEventNamesArgs = {
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   orderBy?: InputMaybe<AppObserveCustomEventNamesOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2249,6 +2269,7 @@ export type AppObserveCustomEventNamesArgs = {
 export type AppObserveEnvironmentsArgs = {
   endTime?: InputMaybe<Scalars['DateTime']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
@@ -2270,6 +2291,11 @@ export type AppObserveErrorStatsArgs = {
 
 export type AppObserveErrorTimeSeriesArgs = {
   input: AppObserveErrorTimeSeriesInput;
+};
+
+
+export type AppObserveEventArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2479,7 +2505,9 @@ export type AppObserveCustomEventCountsInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   eventName: Scalars['String']['input'];
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
-  platform: AppObservePlatform;
+  platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. One of platform or platforms is required. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2508,6 +2536,8 @@ export type AppObserveCustomEventListFilter = {
   eventName?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   propertyFilters?: InputMaybe<Array<AppObserveCustomEventPropertyFilter>>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
   startTime?: InputMaybe<Scalars['DateTime']['input']>;
@@ -2615,6 +2645,8 @@ export type AppObserveErrorGroupBreakdownInput = {
   fingerprint: Scalars['String']['input'];
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2647,6 +2679,8 @@ export type AppObserveErrorGroupsInput = {
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   orderBy?: InputMaybe<AppObserveErrorGroupsOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   /** Restrict to fatal-only or non-fatal-only errors. */
   severity?: InputMaybe<AppObserveErrorSeverity>;
   /** Restrict to a capture source (e.g. global). */
@@ -2710,6 +2744,8 @@ export type AppObserveErrorStatsInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2746,6 +2782,8 @@ export type AppObserveErrorTimeSeriesInput = {
   fingerprint?: InputMaybe<Scalars['String']['input']>;
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2817,6 +2855,8 @@ export type AppObserveEventsFilter = {
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   metricName?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   routeName?: InputMaybe<Scalars['String']['input']>;
   sessionId?: InputMaybe<Scalars['String']['input']>;
   startTime?: InputMaybe<Scalars['DateTime']['input']>;
@@ -2871,6 +2911,8 @@ export type AppObserveNavigationRoutesFilter = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   routeNames?: InputMaybe<Array<Scalars['String']['input']>>;
   startTime: Scalars['DateTime']['input'];
 };
@@ -2924,6 +2966,8 @@ export type AppObserveOverviewEngagementInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2971,6 +3015,8 @@ export type AppObserveOverviewStabilityInput = {
   endTime: Scalars['DateTime']['input'];
   environment?: InputMaybe<Scalars['String']['input']>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -2978,9 +3024,13 @@ export type AppObserveOverviewUpdate = {
   __typename?: 'AppObserveOverviewUpdate';
   /** Null for the embedded bundle. */
   appUpdateId?: Maybe<Scalars['ID']['output']>;
-  /** Downloads recorded in range across platforms; null when none were recorded (and always for the embedded bundle). */
+  /**
+   * Downloads recorded in range across platforms; null when none were recorded
+   * (and always for the embedded bundle). Download data is paid-only: on the
+   * free tier and legacy plans this is always null.
+   */
   downloadCount?: Maybe<Scalars['Int']['output']>;
-  /** One entry per platform with downloads in range; empty for the embedded bundle. */
+  /** One entry per platform with downloads in range; empty for the embedded bundle and on the free tier and legacy plans. */
   downloads: Array<AppObserveOverviewUpdateDownload>;
   eventCount: Scalars['Int']['output'];
   firstSeenAt: Scalars['DateTime']['output'];
@@ -3092,6 +3142,8 @@ export type AppObserveReleasesInput = {
   environment?: InputMaybe<Scalars['String']['input']>;
   metricNames?: InputMaybe<Array<Scalars['String']['input']>>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -3129,6 +3181,8 @@ export type AppObserveTimeSeriesInput = {
   isEmbeddedUpdate?: InputMaybe<Scalars['Boolean']['input']>;
   metricName: Scalars['String']['input'];
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   routeName?: InputMaybe<Scalars['String']['input']>;
   startTime: Scalars['DateTime']['input'];
 };
@@ -3180,6 +3234,8 @@ export type AppObserveUpdatesInput = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<AppObserveUpdatesOrderBy>;
   platform?: InputMaybe<AppObservePlatform>;
+  /** Filter to these platforms. Cannot be set together with platform. */
+  platforms?: InputMaybe<Array<AppObservePlatform>>;
   startTime: Scalars['DateTime']['input'];
 };
 
@@ -5236,12 +5292,12 @@ export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
    * Application archive URL to download, install, and launch before the simulator session
-   * becomes available. Mutually exclusive with buildId.
+   * becomes available. Mutually exclusive with buildId and expoGo.
    */
   applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
   /**
    * EAS Build to install and launch before the simulator session becomes available.
-   * Mutually exclusive with applicationArchiveUrl.
+   * Mutually exclusive with applicationArchiveUrl and expoGo.
    */
   buildId?: InputMaybe<Scalars['ID']['input']>;
   /**
@@ -5251,6 +5307,17 @@ export type CreateDeviceRunSessionInput = {
    * default device.
    */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * Install and launch Expo Go before the simulator session becomes available. The server resolves
+   * the platform-specific application archive. Mutually exclusive with buildId and
+   * applicationArchiveUrl.
+   */
+  expoGo?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Arguments passed to the installed application when it is launched. Requires buildId,
+   * applicationArchiveUrl, or expoGo.
+   */
+  launchArgs?: InputMaybe<Array<Scalars['String']['input']>>;
   /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
@@ -5272,12 +5339,22 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Expo or development-client URL to open after launching the installed application. Requires
+   * buildId, applicationArchiveUrl, or expoGo.
+   */
+  openUrl?: InputMaybe<Scalars['String']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
   resourceClass?: InputMaybe<DeviceRunSessionResourceClass>;
+  /**
+   * Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is
+   * true. If omitted, the current Expo Go archive for the platform is used.
+   */
+  sdkVersion?: InputMaybe<Scalars['String']['input']>;
   type: DeviceRunSessionType;
 };
 
@@ -6023,7 +6100,17 @@ export type DeploymentsMutationDeleteWorkerDeploymentByIdentifierArgs = {
 export type DeviceRunSession = {
   __typename?: 'DeviceRunSession';
   app: App;
+  /**
+   * Direct application archive URL installed and launched for this session. Null when
+   * the session uses an EAS Build or starts without an app.
+   */
+  applicationArchiveUrl?: Maybe<Scalars['String']['output']>;
   artifacts: Array<DeviceRunSessionArtifact>;
+  /**
+   * EAS Build installed and launched for this session. Null when the session uses
+   * a direct application archive URL or starts without an app.
+   */
+  build?: Maybe<Build>;
   createdAt: Scalars['DateTime']['output'];
   finishedAt?: Maybe<Scalars['DateTime']['output']>;
   id: Scalars['ID']['output'];
@@ -10629,8 +10716,7 @@ export type TurtleSshSessionMutation = {
 export type TurtleSshSessionMutationCreateOrUpdateTurtleSshSessionArgs = {
   connectionConfig: TurtleSshConnectionConfigInput;
   sessionSettings: TurtleSshSessionSettingsInput;
-  turtleBuildId?: InputMaybe<Scalars['ID']['input']>;
-  turtleJobRunId?: InputMaybe<Scalars['ID']['input']>;
+  target: TurtleSshTargetInput;
 };
 
 export type TurtleSshSessionSettings = {
@@ -10641,6 +10727,16 @@ export type TurtleSshSessionSettings = {
 export type TurtleSshSessionSettingsInput = {
   idleTimeoutSeconds: Scalars['Int']['input'];
 };
+
+export type TurtleSshTargetInput = {
+  id: Scalars['ID']['input'];
+  type: TurtleSshTargetType;
+};
+
+export enum TurtleSshTargetType {
+  Build = 'BUILD',
+  JobRun = 'JOB_RUN'
+}
 
 export enum TurtleSshTransportType {
   UptermV1 = 'UPTERM_V1'
@@ -13262,6 +13358,11 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   __typename?: 'WorkflowRun';
   activityTimestamp: Scalars['DateTime']['output'];
   actor?: Maybe<Actor>;
+  /**
+   * Why the server canceled this run. Null for manually canceled runs and for
+   * runs canceled before the reason was recorded.
+   */
+  cancelReason?: Maybe<WorkflowRunCancelReason>;
   createdAt: Scalars['DateTime']['output'];
   durationSeconds?: Maybe<Scalars['Int']['output']>;
   errors: Array<WorkflowRunError>;
@@ -13286,6 +13387,17 @@ export type WorkflowRun = ActivityTimelineProjectActivity & {
   updatedAt: Scalars['DateTime']['output'];
   workflow: Workflow;
   workflowRevision?: Maybe<WorkflowRevision>;
+};
+
+export type WorkflowRunCancelReason = WorkflowRunCancelReasonConcurrencyGroup;
+
+export type WorkflowRunCancelReasonConcurrencyGroup = {
+  __typename?: 'WorkflowRunCancelReasonConcurrencyGroup';
+  /**
+   * The newer run in the same concurrency group whose creation canceled this run.
+   * Null if that run no longer exists.
+   */
+  cancelingWorkflowRun?: Maybe<WorkflowRun>;
 };
 
 export type WorkflowRunEdge = {
@@ -13377,7 +13489,8 @@ export enum WorkflowRunStatus {
   Failure = 'FAILURE',
   InProgress = 'IN_PROGRESS',
   New = 'NEW',
-  Success = 'SUCCESS'
+  Success = 'SUCCESS',
+  Waiting = 'WAITING'
 }
 
 export type WorkflowRunTimeRangeInput = {
@@ -14663,7 +14776,7 @@ export type AccountByNameQueryVariables = Exact<{
 }>;
 
 
-export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string } } };
+export type AccountByNameQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byName: { __typename?: 'Account', id: string, name: string, viewerUserPermission: { __typename?: 'UserPermission', id: string, permissions: Array<Permission> } } } };
 
 export type AccountFullUsageQueryVariables = Exact<{
   accountId: Scalars['String']['input'];
@@ -14690,6 +14803,13 @@ export type AccountBillingPeriodQueryVariables = Exact<{
 
 
 export type AccountBillingPeriodQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, name: string, billingPeriod: { __typename?: 'BillingPeriod', id: string, start: any, end: any, anchor: any } } } };
+
+export type AccountSubscriptionQueryVariables = Exact<{
+  accountId: Scalars['String']['input'];
+}>;
+
+
+export type AccountSubscriptionQuery = { __typename?: 'RootQuery', account: { __typename?: 'AccountQuery', byId: { __typename?: 'Account', id: string, subscription?: { __typename?: 'SubscriptionDetails', id: string, name?: string | null, planId?: string | null } | null } } };
 
 export type AppByIdQueryVariables = Exact<{
   appId: Scalars['String']['input'];
