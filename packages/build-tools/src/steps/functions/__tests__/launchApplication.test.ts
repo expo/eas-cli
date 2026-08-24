@@ -56,8 +56,77 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).toHaveBeenNthCalledWith(
       2,
       'xcrun',
+      [
+        'simctl',
+        'spawn',
+        'booted',
+        'defaults',
+        'write',
+        'com.apple.launchservices.schemeapproval',
+        'com.apple.CoreSimulator.CoreSimulatorBridge-->exp',
+        '-string',
+        'host.exp.Exponent',
+      ],
+      { env: {}, logger }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      3,
+      'xcrun',
       ['simctl', 'openurl', 'booted', 'exp://example.test'],
       { env: {}, logger }
+    );
+  });
+
+  it('opens a web URL on iOS without preapproving its scheme', async () => {
+    const logger = createMockLogger();
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'com.example.app',
+      openUrl: 'https://example.test',
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      1,
+      'xcrun',
+      ['simctl', 'launch', 'booted', 'com.example.app'],
+      { env: {}, logger }
+    );
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      2,
+      'xcrun',
+      ['simctl', 'openurl', 'booted', 'https://example.test'],
+      { env: {}, logger }
+    );
+    expect(mockedSpawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens a custom URL on iOS when scheme preapproval fails', async () => {
+    const logger = createMockLogger();
+    const approvalError = new Error('Scheme approval is unavailable.');
+    mockedSpawn
+      .mockResolvedValueOnce({ stdout: '', stderr: '' } as any)
+      .mockRejectedValueOnce(approvalError);
+
+    await launchApplicationAsync({
+      applicationIdentifier: 'host.exp.Exponent',
+      openUrl: 'exp://example.test',
+      runtimePlatform: BuildRuntimePlatform.DARWIN,
+      env: {},
+      logger,
+    });
+
+    expect(mockedSpawn).toHaveBeenNthCalledWith(
+      3,
+      'xcrun',
+      ['simctl', 'openurl', 'booted', 'exp://example.test'],
+      { env: {}, logger }
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: approvalError },
+      'Could not preapprove the exp URL scheme for host.exp.Exponent. Opening the URL anyway; the Simulator might require manual confirmation.'
     );
   });
 

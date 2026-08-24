@@ -9,6 +9,9 @@ import {
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
 
+const IOS_URL_SCHEME_APPROVAL_DOMAIN = 'com.apple.launchservices.schemeapproval';
+const IOS_URL_SCHEME_APPROVAL_KEY_PREFIX = 'com.apple.CoreSimulator.CoreSimulatorBridge-->';
+
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
     namespace: 'eas',
@@ -86,6 +89,7 @@ export async function launchApplicationAsync({
       logger,
     });
     if (openUrl) {
+      await preapproveIosUrlSchemeAsync({ applicationIdentifier, openUrl, env, logger });
       logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
       await spawn('xcrun', ['simctl', 'openurl', 'booted', openUrl], { env, logger });
     }
@@ -126,6 +130,46 @@ export async function launchApplicationAsync({
         `${applicationIdentifier}/${activityName}`,
       ],
       { env, logger }
+    );
+  }
+}
+
+async function preapproveIosUrlSchemeAsync({
+  applicationIdentifier,
+  openUrl,
+  env,
+  logger,
+}: {
+  applicationIdentifier: string;
+  openUrl: string;
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  const urlScheme = new URL(openUrl).protocol.slice(0, -1);
+  if (urlScheme === 'http' || urlScheme === 'https') {
+    return;
+  }
+
+  try {
+    await spawn(
+      'xcrun',
+      [
+        'simctl',
+        'spawn',
+        'booted',
+        'defaults',
+        'write',
+        IOS_URL_SCHEME_APPROVAL_DOMAIN,
+        `${IOS_URL_SCHEME_APPROVAL_KEY_PREFIX}${urlScheme}`,
+        '-string',
+        applicationIdentifier,
+      ],
+      { env, logger }
+    );
+  } catch (error) {
+    logger.warn(
+      { err: error },
+      `Could not preapprove the ${urlScheme} URL scheme for ${applicationIdentifier}. Opening the URL anyway; the Simulator might require manual confirmation.`
     );
   }
 }
