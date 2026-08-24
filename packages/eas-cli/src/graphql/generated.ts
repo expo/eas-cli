@@ -5252,6 +5252,11 @@ export type CreateDeviceRunSessionInput = {
    */
   deviceIdentifier?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Arguments passed to the installed application when it is launched. Requires buildId or
+   * applicationArchiveUrl.
+   */
+  launchArgs?: InputMaybe<Array<Scalars['String']['input']>>;
+  /**
    * Stop the session automatically after this many minutes without observed
    * session activity. Must be positive and smaller than the session's maximum
    * duration (2 hours, or maxRunTimeMinutes when set). Only supported for
@@ -5277,6 +5282,11 @@ export type CreateDeviceRunSessionInput = {
    */
   packageVersion?: InputMaybe<Scalars['String']['input']>;
   platform: AppPlatform;
+  /**
+   * Expo or development-client URL to open after launching the installed application. Requires
+   * buildId or applicationArchiveUrl.
+   */
+  tunnelUrl?: InputMaybe<Scalars['String']['input']>;
   type: DeviceRunSessionType;
 };
 

@@ -37,6 +37,37 @@ describe(resolveExpoGoApplicationArchiveUrlAsync, () => {
     }
   );
 
+  it('uses an explicit SDK version without reading the project SDK', async () => {
+    await expect(
+      resolveExpoGoApplicationArchiveUrlAsync({
+        platform: 'ios',
+        projectDir,
+        sdkVersion: '57.0.0',
+      })
+    ).resolves.toBe('https://example.test/expo-go.tar.gz');
+
+    expect(mockDetectProjectSdkVersionAsync).not.toHaveBeenCalled();
+    expect(mockSpawnAsync).toHaveBeenCalledWith('npx', ['--yes', 'expo-go', 'url', 'ios', '57'], {
+      cwd: projectDir,
+      stdio: 'pipe',
+    });
+  });
+
+  it('rejects an invalid explicit SDK version', async () => {
+    await expect(
+      resolveExpoGoApplicationArchiveUrlAsync({
+        platform: 'ios',
+        projectDir,
+        sdkVersion: 'not-a-version',
+      })
+    ).rejects.toThrow(
+      'Unable to parse Expo SDK version "not-a-version". Pass a major or semantic version, such as --sdk-version 57.'
+    );
+
+    expect(mockDetectProjectSdkVersionAsync).not.toHaveBeenCalled();
+    expect(mockSpawnAsync).not.toHaveBeenCalled();
+  });
+
   it.each([
     [
       'plain output',

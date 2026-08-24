@@ -37248,6 +37248,26 @@
             "deprecationReason": null
           },
           {
+            "name": "launchArgs",
+            "description": "Arguments passed to the installed application when it is launched. Requires buildId or\napplicationArchiveUrl.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "maxIdleTimeMinutes",
             "description": "Stop the session automatically after this many minutes without observed\nsession activity. Must be positive and smaller than the session's maximum\nduration (2 hours, or maxRunTimeMinutes when set). Only supported for\nagent-device, argent, and Appium sessions. If omitted, the session has no idle\ntimeout.",
             "type": {
@@ -37306,6 +37326,18 @@
                 "name": "AppPlatform",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tunnelUrl",
+            "description": "Expo or development-client URL to open after launching the installed application. Requires\nbuildId or applicationArchiveUrl.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,

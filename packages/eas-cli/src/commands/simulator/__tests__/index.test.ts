@@ -559,6 +559,7 @@ describe(Simulator, () => {
       expect(mockResolveExpoGoApplicationArchiveUrlAsync).toHaveBeenCalledWith({
         platform: platformFlag,
         projectDir,
+        sdkVersion: undefined,
       });
       expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
         graphqlClient,
@@ -569,6 +570,85 @@ describe(Simulator, () => {
       );
     }
   );
+
+  it('uses --sdk-version to select Expo Go', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--expo-go',
+      '--sdk-version',
+      '57.0.0',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockResolveExpoGoApplicationArchiveUrlAsync).toHaveBeenCalledWith({
+      platform: 'ios',
+      projectDir,
+      sdkVersion: '57.0.0',
+    });
+  });
+
+  it('forwards repeated launch arguments and a tunnel URL', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '8d8b713c-1834-4bd3-91e6-46f895422cbc',
+      '--launch-arg',
+      '--uitesting',
+      '--launch-arg',
+      'true',
+      '--tunnel-url',
+      '  exp://example.test  ',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        launchArgs: ['--uitesting', 'true'],
+        tunnelUrl: 'exp://example.test',
+      })
+    );
+  });
+
+  it.each([
+    ['--launch-arg', '--uitesting'],
+    ['--tunnel-url', 'exp://example.test'],
+  ])('rejects %s without an application source', async (launchFlag, launchValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      launchFlag,
+      launchValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'Launch options require an application source.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --sdk-version without --expo-go', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--sdk-version',
+      '57',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --sdk-version flag can only be used with --expo-go.'
+    );
+    expect(mockResolveExpoGoApplicationArchiveUrlAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
 
   it('rejects passing --build-id and --application-archive-url together', async () => {
     const { command } = createCommand([
