@@ -171,13 +171,13 @@ export default class Simulator extends EasCommand {
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
-    const tunnelUrl = flags['open-url']?.trim() || undefined;
+    const openUrl = flags['open-url']?.trim() || undefined;
 
     if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
     }
     if (
-      (launchArgs?.length || tunnelUrl) &&
+      (launchArgs?.length || openUrl) &&
       !buildId &&
       !applicationArchiveUrlFromFlag &&
       !flags['expo-go']
@@ -227,7 +227,7 @@ export default class Simulator extends EasCommand {
           : {}),
         ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
         ...(launchArgs?.length ? { launchArgs } : {}),
-        ...(tunnelUrl ? { tunnelUrl } : {}),
+        ...(openUrl ? { openUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;

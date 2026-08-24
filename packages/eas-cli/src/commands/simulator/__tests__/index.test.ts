@@ -614,7 +614,7 @@ describe(Simulator, () => {
       graphqlClient,
       expect.objectContaining({
         launchArgs: ['--uitesting', 'true'],
-        tunnelUrl: 'exp://example.test',
+        openUrl: 'exp://example.test',
       })
     );
   });

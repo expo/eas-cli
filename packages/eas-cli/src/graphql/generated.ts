@@ -5283,6 +5283,11 @@ export type CreateDeviceRunSessionInput = {
    */
   name?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Expo or development-client URL to open after launching the installed application. Requires
+   * buildId, applicationArchiveUrl, or expoGo.
+   */
+  openUrl?: InputMaybe<Scalars['String']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
@@ -5293,11 +5298,6 @@ export type CreateDeviceRunSessionInput = {
    * true. If omitted, the current Expo Go archive for the platform is used.
    */
   sdkVersion?: InputMaybe<Scalars['String']['input']>;
-  /**
-   * Expo or development-client URL to open after launching the installed application. Requires
-   * buildId, applicationArchiveUrl, or expoGo.
-   */
-  tunnelUrl?: InputMaybe<Scalars['String']['input']>;
   type: DeviceRunSessionType;
 };
 

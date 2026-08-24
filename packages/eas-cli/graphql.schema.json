@@ -37316,6 +37316,18 @@
             "deprecationReason": null
           },
           {
+            "name": "openUrl",
+            "description": "Expo or development-client URL to open after launching the installed application. Requires\nbuildId, applicationArchiveUrl, or expoGo.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "packageVersion",
             "description": "The version of the package backing the device run session (e.g. \"0.1.3-alpha.3\").\nIf omitted, consumers treat the session as pinned to \"latest\".",
             "type": {
@@ -37346,18 +37358,6 @@
           {
             "name": "sdkVersion",
             "description": "Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is\ntrue. If omitted, the current Expo Go archive for the platform is used.",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tunnelUrl",
-            "description": "Expo or development-client URL to open after launching the installed application. Requires\nbuildId, applicationArchiveUrl, or expoGo.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
