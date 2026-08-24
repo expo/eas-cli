@@ -54,11 +54,27 @@ describe(runLocalBuildAsync, () => {
   it('starts the local-build plugin with an isolated env', async () => {
     const originalEnv = process.env;
     const loadedEnvMarker = '["ANDROID_HOME","EAS_LOCAL_BUILD_WORKINGDIR"]';
+    const runtimeEnv = {
+      ANDROID_NDK_HOME: '/local/android-ndk',
+      ANDROID_SDK_ROOT: '/local/android-sdk',
+      DEVELOPER_DIR: '/Applications/Xcode.app/Contents/Developer',
+      GEM_HOME: '/local/gems',
+      GEM_PATH: '/local/gems:/system/gems',
+      HOME: '/local/home',
+      JAVA_HOME: '/local/jdk',
+      LANG: 'en_US.UTF-8',
+      LC_ALL: 'en_US.UTF-8',
+      LC_CTYPE: 'UTF-8',
+      NVM_NODEJS_ORG_MIRROR: 'https://node.example.test',
+      TEMP: '/local/temp',
+      TMP: '/local/tmp',
+      TMPDIR: '/local/tmpdir',
+    };
     process.env = {
+      ...runtimeEnv,
       EAS_LOCAL_BUILD_PLUGIN_PATH: '/path/to/plugin',
       PATH: '/local/bin',
       ANDROID_HOME: '/dotenv/android',
-      ANDROID_SDK_ROOT: '/local/android-sdk',
       SHELL_ONLY_VALUE: 'from-shell',
       EAS_LOCAL_BUILD_WORKINGDIR: '/dotenv/workingdir',
       EAS_LOCAL_BUILD_LOGGER_LEVEL: 'debug',
@@ -73,7 +89,7 @@ describe(runLocalBuildAsync, () => {
       expect(spawnEnv?.BUILD_ENV_VALUE).toBe('from-eas');
       expect(spawnEnv?.PATH).toBe('/eas/bin');
       expect(spawnEnv?.ANDROID_HOME).toBeUndefined();
-      expect(spawnEnv?.ANDROID_SDK_ROOT).toBe('/local/android-sdk');
+      expect(spawnEnv).toEqual(expect.objectContaining(runtimeEnv));
       expect(spawnEnv?.EAS_LOCAL_BUILD_WORKINGDIR).toBeUndefined();
       expect(spawnEnv?.EAS_LOCAL_BUILD_LOGGER_LEVEL).toBe('debug');
       expect(spawnEnv?.SHELL_ONLY_VALUE).toBeUndefined();
