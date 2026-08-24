@@ -593,7 +593,7 @@ describe(Simulator, () => {
     );
   });
 
-  it('forwards repeated launch arguments and a tunnel URL', async () => {
+  it('forwards repeated launch arguments and a URL to open', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
@@ -604,7 +604,7 @@ describe(Simulator, () => {
       '--uitesting',
       '--launch-arg',
       'true',
-      '--tunnel-url',
+      '--open-url',
       '  exp://example.test  ',
     ]);
 
@@ -621,7 +621,7 @@ describe(Simulator, () => {
 
   it.each([
     ['--launch-arg', '--uitesting'],
-    ['--tunnel-url', 'exp://example.test'],
+    ['--open-url', 'exp://example.test'],
   ])('rejects %s without an application source', async (launchFlag, launchValue) => {
     const { command } = createCommand([
       '--platform',

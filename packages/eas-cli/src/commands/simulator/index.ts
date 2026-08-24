@@ -96,7 +96,7 @@ export default class Simulator extends EasCommand {
         'Argument passed to the installed application when it launches. Repeat for multiple arguments.',
       multiple: true,
     }),
-    'tunnel-url': Flags.string({
+    'open-url': Flags.string({
       description:
         'Expo or development-client URL to open in the installed application after it launches.',
     }),
@@ -171,7 +171,7 @@ export default class Simulator extends EasCommand {
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
     const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
     const launchArgs = flags['launch-arg'];
-    const tunnelUrl = flags['tunnel-url']?.trim() || undefined;
+    const tunnelUrl = flags['open-url']?.trim() || undefined;
 
     if (sdkVersionFromFlag && !flags['expo-go']) {
       throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
