@@ -151,7 +151,7 @@ export function formatRemoteSessionInstructions(
               '<appium-client> [args...]',
             ];
       if (remoteConfig.webPreviewUrl) {
-        lines.push('', 'Open the iOS simulator preview:', '', remoteConfig.webPreviewUrl);
+        lines.push('', 'Open the simulator preview:', '', remoteConfig.webPreviewUrl);
       }
       return lines.join('\n');
     }

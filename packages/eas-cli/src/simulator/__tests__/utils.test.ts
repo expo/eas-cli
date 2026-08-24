@@ -34,6 +34,8 @@ describe('Appium simulator configuration', () => {
 
     expect(instructions).toContain('eas simulator:exec <appium-client> [args...]');
     expect(instructions).toContain('https://preview.example.test');
+    expect(instructions).toContain('Open the simulator preview:');
+    expect(instructions).not.toContain('iOS simulator preview');
     expect(instructions).not.toContain('https://appium.example.test');
   });
 });
