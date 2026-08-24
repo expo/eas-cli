@@ -8,15 +8,12 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Use production mode for app config, prebuild, Expo Doctor, and Expo Updates commands. ([#4180](https://github.com/expo/eas-cli/pull/4180) by [@ramonclaudio](https://github.com/ramonclaudio))
 - [eas-cli] Use production mode for runtime version resolution and Expo Updates config sync. ([#4229](https://github.com/expo/eas-cli/pull/4229) by [@ramonclaudio](https://github.com/ramonclaudio))
+- [eas-cli] Use an isolated env for local builds. ([#4244](https://github.com/expo/eas-cli/pull/4244) by [@ramonclaudio](https://github.com/ramonclaudio))
 
 ### 🎉 New features
 
 - [build-tools] Add `ios_signing_backend` option to the repack step. ([#4239](https://github.com/expo/eas-cli/pull/4239) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 - [build-tools] Support an optional `package_version` input on `eas/start_serve_sim_remote_session`, so a simulator session can pin the `@expo/serve-sim` version instead of always running `latest`. ([#4253](https://github.com/expo/eas-cli/pull/4253) by [@gwdp](https://github.com/gwdp))
-
-### 🐛 Bug fixes
-
-- [eas-cli] Stop passing inherited dotenv values to local builds. ([#4244](https://github.com/expo/eas-cli/pull/4244) by [@ramonclaudio](https://github.com/ramonclaudio))
 
 ### 🧹 Chores
 
