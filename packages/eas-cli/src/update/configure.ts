@@ -98,6 +98,7 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   projectDir,
   platform,
   workflows,
+  env,
   manifestHostOverride,
 }: {
   exp: ExpoConfig;
@@ -105,6 +106,7 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   projectDir: string;
   platform: RequestedPlatform;
   workflows: Record<Platform, Workflow>;
+  env: Env | undefined;
   manifestHostOverride: string | null;
 }): Promise<{ projectChanged: boolean; exp: ExpoConfig }> {
   const modifyConfig: Partial<ExpoConfig> = {};
@@ -144,7 +146,10 @@ async function ensureEASUpdatesIsConfiguredInExpoConfigAsync({
   }
 
   const mergedExp = mergeExpoConfig(exp, modifyConfig);
-  const result = await createOrModifyExpoConfigAsync(projectDir, mergedExp);
+  const result = await createOrModifyExpoConfigAsync(projectDir, mergedExp, {
+    env,
+    mode: 'production',
+  });
 
   switch (result.type) {
     case 'success':
@@ -415,6 +420,7 @@ export async function ensureEASUpdateIsConfiguredAsync({
       projectId,
       platform,
       workflows,
+      env,
       manifestHostOverride,
     });
 

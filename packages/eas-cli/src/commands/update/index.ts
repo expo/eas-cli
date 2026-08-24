@@ -8,6 +8,7 @@ import { ensureBranchExistsAsync } from '../../branch/queries';
 import { ensureRepoIsCleanAsync } from '../../build/utils/repository';
 import { getUpdateGroupUrl } from '../../build/utils/url';
 import EasCommand from '../../commandUtils/EasCommand';
+import { loadServerSideEnvironmentVariablesAsync } from '../../commandUtils/context/contextUtils/loadServerSideEnvironmentVariablesAsync';
 import {
   EasNonInteractiveAndJsonFlags,
   EasUpdateEnvironmentRequiredFlag,
@@ -204,7 +205,6 @@ export default class UpdatePublish extends EasCommand {
     ...this.ContextOptions.DynamicProjectConfig,
     ...this.ContextOptions.LoggedIn,
     ...this.ContextOptions.Vcs,
-    ...this.ContextOptions.ServerSideEnvironmentVariables,
   };
 
   async runAsync(): Promise<void> {
@@ -236,10 +236,9 @@ export default class UpdatePublish extends EasCommand {
       getDynamicPrivateProjectConfigAsync,
       loggedIn: { graphqlClient },
       vcsClient,
-      getServerSideEnvironmentVariablesAsync,
     } = await this.getContextAsync(UpdatePublish, {
       nonInteractive,
-      withServerSideEnvironment: environmentFromFlags ?? null,
+      withServerSideEnvironment: null,
     });
 
     if (jsonFlag) {
@@ -250,10 +249,10 @@ export default class UpdatePublish extends EasCommand {
     await ensureRepoIsCleanAsync(vcsClient, nonInteractive);
 
     const {
-      exp: expPossiblyWithoutEasUpdateConfigured,
+      exp: expBeforeLoadingEnvironment,
       projectId,
       projectDir,
-    } = await getDynamicPublicProjectConfigAsync();
+    } = await getDynamicPublicProjectConfigAsync({ mode: 'production' });
 
     let environment: string | undefined = environmentFromFlags;
 
@@ -261,7 +260,7 @@ export default class UpdatePublish extends EasCommand {
     if (
       !autoFlag &&
       environmentFlagNeededForSdk550OrGreater({
-        sdkVersion: expPossiblyWithoutEasUpdateConfigured.sdkVersion,
+        sdkVersion: expBeforeLoadingEnvironment.sdkVersion,
         environment: environmentFromFlags,
       })
     ) {
@@ -272,6 +271,26 @@ export default class UpdatePublish extends EasCommand {
         projectId,
       });
     }
+
+    const updateEnv = environment
+      ? {
+          ...(await loadServerSideEnvironmentVariablesAsync({
+            environment,
+            projectId,
+            graphqlClient,
+          })),
+          EXPO_NO_DOTENV: '1',
+        }
+      : undefined;
+
+    const exportEnv = {
+      ...updateEnv,
+      NODE_ENV: 'production',
+    };
+
+    const expPossiblyWithoutEasUpdateConfigured = updateEnv
+      ? (await getDynamicPublicProjectConfigAsync({ env: updateEnv, mode: 'production' })).exp
+      : expBeforeLoadingEnvironment;
 
     await maybeWarnAboutEasOutagesAsync(graphqlClient, [StatuspageServiceName.EasUpdate]);
 
@@ -285,12 +304,18 @@ export default class UpdatePublish extends EasCommand {
       projectDir,
       projectId,
       vcsClient,
-      env: undefined,
+      env: updateEnv,
       manifestHostOverride: easJsonCliConfig.updateManifestHostOverride ?? null,
     });
 
-    const { exp } = await getDynamicPublicProjectConfigAsync();
-    const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync();
+    const { exp } = await getDynamicPublicProjectConfigAsync({
+      env: updateEnv,
+      mode: 'production',
+    });
+    const { exp: expPrivate } = await getDynamicPrivateProjectConfigAsync({
+      env: updateEnv,
+      mode: 'production',
+    });
     const codeSigningInfo = await getCodeSigningInfoAsync(expPrivate, privateKeyPath);
 
     const branchName = await getBranchNameForCommandAsync({
@@ -311,13 +336,6 @@ export default class UpdatePublish extends EasCommand {
       jsonFlag,
     });
 
-    const maybeServerEnv = environmentFromFlags
-      ? {
-          ...(await getServerSideEnvironmentVariablesAsync()),
-          EXPO_NO_DOTENV: '1',
-        }
-      : {};
-
     // build bundle and upload assets for a new publish
     if (!skipBundler) {
       const bundleSpinner = ora().start('Exporting...');
@@ -330,7 +348,7 @@ export default class UpdatePublish extends EasCommand {
           clearCache,
           noBytecode,
           sourceMaps,
-          extraEnv: maybeServerEnv,
+          extraEnv: exportEnv,
         });
         bundleSpinner.succeed('Exported bundle(s)');
       } catch (e) {
@@ -479,7 +497,7 @@ export default class UpdatePublish extends EasCommand {
         ...workflows,
         web: Workflow.UNKNOWN,
       },
-      env: maybeServerEnv,
+      env: updateEnv,
     });
     const runtimeToPlatformsAndFingerprintInfoMapping =
       getRuntimeToPlatformsAndFingerprintInfoMappingFromRuntimeVersionInfoObjects(
@@ -516,7 +534,7 @@ export default class UpdatePublish extends EasCommand {
         runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping:
           runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMappingFromExpoUpdates,
         workflowsByPlatform: workflows,
-        env: undefined,
+        env: updateEnv,
       });
 
     const runtimeVersionToRolloutInfoGroup =
