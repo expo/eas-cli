@@ -4,8 +4,20 @@ import {
   DEFAULT_BARE_RUNTIME_VERSION,
   DEFAULT_MANAGED_RUNTIME_VERSION_GTE_SDK_49,
   DEFAULT_MANAGED_RUNTIME_VERSION_LTE_SDK_48,
+  ensureEASUpdateIsConfiguredAsync,
   getDefaultRuntimeVersion,
 } from '../configure';
+import { createOrModifyExpoConfigAsync } from '../../project/expoConfig';
+import { RequestedPlatform } from '../../platform';
+import {
+  isExpoUpdatesInstalledAsDevDependency,
+  isExpoUpdatesInstalledOrAvailable,
+} from '../../project/projectUtils';
+import { resolveWorkflowPerPlatformAsync } from '../../project/workflow';
+
+jest.mock('../../project/expoConfig');
+jest.mock('../../project/projectUtils');
+jest.mock('../../project/workflow');
 
 describe(getDefaultRuntimeVersion, () => {
   it('gets the right rtv version/policy', () => {
@@ -48,5 +60,37 @@ describe(getDefaultRuntimeVersion, () => {
     expect(getDefaultRuntimeVersion(Workflow.GENERIC, undefined)).toBe(
       DEFAULT_BARE_RUNTIME_VERSION
     );
+  });
+});
+
+describe(ensureEASUpdateIsConfiguredAsync, () => {
+  it('uses the selected env when it updates app config', async () => {
+    const env = { APP_VARIANT: 'from-eas', EXPO_NO_DOTENV: '1' };
+    const exp = { name: 'app', slug: 'app', sdkVersion: '55.0.0' };
+    jest.mocked(isExpoUpdatesInstalledOrAvailable).mockReturnValue(true);
+    jest.mocked(isExpoUpdatesInstalledAsDevDependency).mockReturnValue(false);
+    jest.mocked(resolveWorkflowPerPlatformAsync).mockResolvedValue({
+      android: Workflow.MANAGED,
+      ios: Workflow.MANAGED,
+    });
+    jest.mocked(createOrModifyExpoConfigAsync).mockResolvedValue({
+      type: 'success',
+      config: exp,
+    } as any);
+
+    await ensureEASUpdateIsConfiguredAsync({
+      env,
+      exp,
+      manifestHostOverride: null,
+      platform: RequestedPlatform.All,
+      projectDir: '/app',
+      projectId: 'project-id',
+      vcsClient: {} as any,
+    });
+
+    expect(createOrModifyExpoConfigAsync).toHaveBeenCalledWith('/app', expect.any(Object), {
+      env,
+      mode: 'production',
+    });
   });
 });

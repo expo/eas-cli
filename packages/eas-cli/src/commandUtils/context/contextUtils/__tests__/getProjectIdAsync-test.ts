@@ -312,17 +312,24 @@ describe(getProjectIdAsync, () => {
   });
 
   it('fetches the project ID when not in app config, and sets it in the config', async () => {
-    jest
-      .mocked(getConfig)
-      .mockReturnValue({ exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test' } } as any);
-    jest.mocked(modifyConfigAsync).mockResolvedValue({
-      type: 'success',
-      config: {
-        sdkVersion: '52.0.0',
-        name: 'test',
-        slug: 'test',
-        extra: { eas: { projectId: '2345' } },
-      },
+    const originalProcessEnv = process.env;
+    jest.mocked(getConfig).mockImplementation(() => {
+      expect(process.env.APP_VARIANT).toBe('preview');
+      expect(process.env.NODE_ENV).toBe('production');
+      return { exp: { sdkVersion: '52.0.0', name: 'test', slug: 'test' } } as any;
+    });
+    jest.mocked(modifyConfigAsync).mockImplementation(async () => {
+      expect(process.env.APP_VARIANT).toBe('preview');
+      expect(process.env.NODE_ENV).toBe('production');
+      return {
+        type: 'success',
+        config: {
+          sdkVersion: '52.0.0',
+          name: 'test',
+          slug: 'test',
+          extra: { eas: { projectId: '2345' } },
+        },
+      };
     });
     jest
       .mocked(fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync)
@@ -332,11 +339,14 @@ describe(getProjectIdAsync, () => {
       sessionManager,
       { sdkVersion: '52.0.0', name: 'test', slug: 'test' },
       {
+        env: { APP_VARIANT: 'preview' },
+        mode: 'production',
         nonInteractive: false,
       }
     );
 
     expect(projectId).toEqual('2345');
+    expect(process.env).toBe(originalProcessEnv);
 
     expect(modifyConfigAsync).toHaveBeenCalledTimes(1);
     expect(modifyConfigAsync).toHaveBeenCalledWith(
