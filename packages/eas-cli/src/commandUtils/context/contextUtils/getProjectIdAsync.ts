@@ -1,5 +1,4 @@
 import { ExpoConfig, getProjectConfigDescription } from '@expo/config';
-import { Env } from '@expo/eas-build-job';
 import chalk from 'chalk';
 import semver from 'semver';
 
@@ -13,6 +12,7 @@ import {
   getAccountNamesWhereUserHasSufficientPermissionsToCreateApp,
 } from '../../../project/accountSelection';
 import {
+  type ExpoConfigOptions,
   createOrModifyExpoConfigAsync,
   getPrivateExpoConfigAsync,
 } from '../../../project/expoConfig';
@@ -31,7 +31,7 @@ import { Actor, getActorUsername } from '../../../user/User';
 export async function saveProjectIdToAppConfigAsync(
   projectDir: string,
   projectId: string,
-  options: { env?: Env } = {}
+  options: Pick<ExpoConfigOptions, 'env' | 'mode'> = {}
 ): Promise<void> {
   // NOTE(cedric): we disable plugins to avoid writing plugin-generated content to `expo.extra`
   const exp = await getPrivateExpoConfigAsync(projectDir, { skipPlugins: true, ...options });
@@ -40,7 +40,7 @@ export async function saveProjectIdToAppConfigAsync(
     {
       extra: { ...exp.extra, eas: { ...exp.extra?.eas, projectId } },
     },
-    { skipSDKVersionRequirement: true }
+    { skipSDKVersionRequirement: true, ...options }
   );
 
   switch (result.type) {
@@ -87,7 +87,7 @@ export async function saveProjectIdToAppConfigAsync(
 export async function getProjectIdAsync(
   sessionManager: SessionManager,
   exp: ExpoConfig,
-  options: { env?: Env; nonInteractive: boolean }
+  options: Pick<ExpoConfigOptions, 'env' | 'mode'> & { nonInteractive: boolean }
 ): Promise<string> {
   // all codepaths in this function require a logged-in user with access to the owning account
   // since they either query the app via graphql or create it, which includes getting info about
@@ -111,7 +111,7 @@ export async function validateOrSetProjectIdAsync({
   exp: ExpoConfig;
   graphqlClient: ExpoGraphqlClient;
   actor: Actor;
-  options: { env?: Env; nonInteractive: boolean };
+  options: Pick<ExpoConfigOptions, 'env' | 'mode'> & { nonInteractive: boolean };
   cwd?: string;
 }): Promise<string> {
   const localProjectId = exp.extra?.eas?.projectId;
@@ -204,7 +204,10 @@ export async function validateOrSetProjectIdAsync({
 
   const spinner = ora(`Linking local project to EAS project ${projectId}`).start();
   try {
-    await saveProjectIdToAppConfigAsync(projectDir, projectId, options);
+    await saveProjectIdToAppConfigAsync(projectDir, projectId, {
+      env: options.env,
+      mode: options.mode,
+    });
     spinner.succeed(`Linked local project to EAS project ${projectId}`);
   } catch (e: any) {
     spinner.fail();

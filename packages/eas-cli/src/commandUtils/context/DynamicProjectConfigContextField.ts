@@ -29,6 +29,7 @@ export class DynamicPublicProjectConfigContextField extends ContextField<Dynamic
       const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,
         env: options?.env,
+        mode: options?.mode,
       });
       if (withServerSideEnvironment) {
         const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({
@@ -70,6 +71,7 @@ export class DynamicPrivateProjectConfigContextField extends ContextField<Dynami
       const projectId = await getProjectIdAsync(sessionManager, expBefore, {
         nonInteractive,
         env: options?.env,
+        mode: options?.mode,
       });
       if (withServerSideEnvironment) {
         const { authenticationInfo } = await sessionManager.ensureLoggedInAsync({

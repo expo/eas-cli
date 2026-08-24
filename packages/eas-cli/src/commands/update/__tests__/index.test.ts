@@ -13,7 +13,6 @@ import {
   DynamicPublicProjectConfigContextField,
 } from '../../../commandUtils/context/DynamicProjectConfigContextField';
 import LoggedInContextField from '../../../commandUtils/context/LoggedInContextField';
-import { ServerSideEnvironmentVariablesContextField } from '../../../commandUtils/context/ServerSideEnvironmentVariablesContextField';
 import VcsClientContextField from '../../../commandUtils/context/VcsClientContextField';
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import FeatureGateEnvOverrides from '../../../commandUtils/gating/FeatureGateEnvOverrides';
@@ -23,7 +22,13 @@ import { UpdateFragment } from '../../../graphql/generated';
 import { PublishMutation } from '../../../graphql/mutations/PublishMutation';
 import { AppQuery } from '../../../graphql/queries/AppQuery';
 import { EnvironmentVariablesQuery } from '../../../graphql/queries/EnvironmentVariablesQuery';
-import { collectAssetsAsync, uploadAssetsAsync } from '../../../project/publish';
+import {
+  buildBundlesAsync,
+  collectAssetsAsync,
+  maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync,
+  uploadAssetsAsync,
+} from '../../../project/publish';
+import { ensureEASUpdateIsConfiguredAsync } from '../../../update/configure';
 import { getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync } from '../../../update/getBranchFromChannelNameAndCreateAndLinkIfNotExistsAsync';
 import { selectAsync } from '../../../prompts';
 import { resolveVcsClient } from '../../../vcs';
@@ -67,6 +72,13 @@ jest.mock('../../../project/publish', () => ({
   ...jest.requireActual('../../../project/publish'),
   buildBundlesAsync: jest.fn(),
   collectAssetsAsync: jest.fn(),
+  maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync: jest.fn(
+    async (args: any) =>
+      args.runtimeToPlatformsAndFingerprintInfoAndFingerprintSourceMapping.map((info: any) => ({
+        ...info,
+        fingerprintInfoGroup: {},
+      }))
+  ),
   resolveInputDirectoryAsync: jest.fn((inputDir = 'dist') => path.join(projectRoot, inputDir)),
   uploadAssetsAsync: jest.fn(),
 }));
@@ -113,6 +125,9 @@ describe(UpdatePublish.name, () => {
     await new UpdatePublish(flags, commandOptions).run();
 
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
+    expect(buildBundlesAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ extraEnv: { NODE_ENV: 'production' } })
+    );
   });
 
   it('creates a new update with --non-interactive, --channel, and --message', async () => {
@@ -154,10 +169,11 @@ describe(UpdatePublish.name, () => {
     expect(PublishMutation.publishUpdateGroupAsync).toHaveBeenCalled();
   });
 
-  it('prompts for environment when SDK >= 55 and --environment is not provided', async () => {
+  it('uses the prompted environment for app config, export, and Fingerprint', async () => {
     const flags = ['--branch=branch123', '--message=abc'];
 
-    mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
+    const { getDynamicPrivateProjectConfigAsync, getDynamicPublicProjectConfigAsync, projectId } =
+      mockTestProject({ expoConfig: { sdkVersion: '55.0.0' } });
     const { platforms, runtimeVersion } = mockTestExport();
 
     jest.mocked(ensureBranchExistsAsync).mockResolvedValue({
@@ -176,10 +192,13 @@ describe(UpdatePublish.name, () => {
       }))
     );
 
-    jest.mocked(selectAsync).mockResolvedValue('production');
+    jest.mocked(selectAsync).mockResolvedValue('preview');
     jest
       .mocked(EnvironmentVariablesQuery.environmentVariableEnvironmentsAsync)
       .mockResolvedValue([]);
+    jest
+      .mocked(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync)
+      .mockResolvedValue([{ name: 'APP_VARIANT', value: 'from-eas' }] as any);
 
     const ciValue = process.env.CI;
     try {
@@ -194,6 +213,40 @@ describe(UpdatePublish.name, () => {
     }
 
     expect(selectAsync).toHaveBeenCalled();
+    expect(EnvironmentVariablesQuery.byAppIdWithSensitiveAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        appId: projectId,
+        environment: 'preview',
+      }
+    );
+    const updateEnv = {
+      APP_VARIANT: 'from-eas',
+      EXPO_NO_DOTENV: '1',
+    };
+    expect(getDynamicPublicProjectConfigAsync).toHaveBeenCalledWith({ mode: 'production' });
+    expect(getDynamicPublicProjectConfigAsync).toHaveBeenCalledWith({
+      env: updateEnv,
+      mode: 'production',
+    });
+    expect(getDynamicPrivateProjectConfigAsync).toHaveBeenCalledWith({
+      env: updateEnv,
+      mode: 'production',
+    });
+    expect(ensureEASUpdateIsConfiguredAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ env: updateEnv })
+    );
+    expect(buildBundlesAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraEnv: {
+          ...updateEnv,
+          NODE_ENV: 'production',
+        },
+      })
+    );
+    expect(
+      maybeCalculateFingerprintForRuntimeVersionInfoObjectsWithoutExpoUpdatesAsync
+    ).toHaveBeenCalledWith(expect.objectContaining({ env: updateEnv }));
   });
 
   it('errors when SDK >= 55, --environment is not provided, and --non-interactive is set', async () => {
@@ -402,7 +455,12 @@ function mockTestProject({
 }: {
   configuredProjectId?: string;
   expoConfig?: Partial<ExpoConfig>;
-} = {}): { projectId: string; appJson: AppJSONConfig } {
+} = {}): {
+  projectId: string;
+  appJson: AppJSONConfig;
+  getDynamicPrivateProjectConfigAsync: jest.Mock;
+  getDynamicPublicProjectConfigAsync: jest.Mock;
+} {
   const packageJSON: PackageJSONConfig = {
     name: 'testing123',
     version: '0.1.0',
@@ -438,38 +496,35 @@ function mockTestProject({
   const graphqlClient = instance(mock<ExpoGraphqlClient>({}));
 
   jest.mocked(getConfig).mockReturnValue(mockManifest as any);
+  const getDynamicPrivateProjectConfigAsync = jest.fn(async () => {
+    const exp = { ...mockManifest.exp };
+    return {
+      exp,
+      projectDir: projectRoot,
+      projectId: configuredProjectId,
+    };
+  });
   jest
     .spyOn(DynamicPrivateProjectConfigContextField.prototype, 'getValueAsync')
-    .mockResolvedValue(async () => {
-      const exp = { ...mockManifest.exp };
-      return {
-        exp,
-        projectDir: projectRoot,
-        projectId: configuredProjectId,
-      };
-    });
-  jest
-    .spyOn(ServerSideEnvironmentVariablesContextField.prototype, 'getValueAsync')
-    .mockResolvedValue(async () => {
-      return {};
-    });
+    .mockResolvedValue(getDynamicPrivateProjectConfigAsync);
+  const getDynamicPublicProjectConfigAsync = jest.fn(async () => {
+    const exp = {
+      name: mockManifest.exp.name,
+      version: mockManifest.exp.version,
+      slug: mockManifest.exp.slug,
+      sdkVersion: mockManifest.exp.sdkVersion,
+      owner: mockManifest.exp.owner,
+      extra: mockManifest.exp.extra,
+    };
+    return {
+      exp,
+      projectDir: projectRoot,
+      projectId: configuredProjectId,
+    };
+  });
   jest
     .spyOn(DynamicPublicProjectConfigContextField.prototype, 'getValueAsync')
-    .mockResolvedValue(async () => {
-      const exp = {
-        name: mockManifest.exp.name,
-        version: mockManifest.exp.version,
-        slug: mockManifest.exp.slug,
-        sdkVersion: mockManifest.exp.sdkVersion,
-        owner: mockManifest.exp.owner,
-        extra: mockManifest.exp.extra,
-      };
-      return {
-        exp,
-        projectDir: projectRoot,
-        projectId: configuredProjectId,
-      };
-    });
+    .mockResolvedValue(getDynamicPublicProjectConfigAsync);
 
   jest.spyOn(LoggedInContextField.prototype, 'getValueAsync').mockResolvedValue({
     actor: jester,
@@ -489,7 +544,12 @@ function mockTestProject({
     ownerAccount: jester.accounts[0],
   });
 
-  return { projectId: configuredProjectId, appJson: appJSON };
+  return {
+    projectId: configuredProjectId,
+    appJson: appJSON,
+    getDynamicPrivateProjectConfigAsync,
+    getDynamicPublicProjectConfigAsync,
+  };
 }
 
 /** Create a new in-memory export of the project */
