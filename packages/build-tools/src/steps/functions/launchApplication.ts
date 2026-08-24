@@ -26,6 +26,16 @@ export function createLaunchApplicationFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'launch_args',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+      BuildStepInput.createProvider({
+        id: 'open_url',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     fn: async ({ global, logger }, { inputs, env }) => {
       const applicationIdentifier = parseNonEmptyStringInput(
@@ -36,9 +46,14 @@ export function createLaunchApplicationFunction(): BuildFunction {
         inputs.activity_name.value === undefined
           ? undefined
           : parseNonEmptyStringInput(inputs.activity_name.value, 'activity_name');
+      const launchArgs = parseLaunchArgsInput(inputs.launch_args.value);
+      const openUrl =
+        inputs.open_url.value === undefined ? undefined : parseOpenUrlInput(inputs.open_url.value);
       await launchApplicationAsync({
         applicationIdentifier,
         activityName,
+        launchArgs,
+        openUrl,
         runtimePlatform: global.runtimePlatform,
         env,
         logger,
@@ -50,22 +65,30 @@ export function createLaunchApplicationFunction(): BuildFunction {
 export async function launchApplicationAsync({
   applicationIdentifier,
   activityName,
+  launchArgs = [],
+  openUrl,
   runtimePlatform,
   env,
   logger,
 }: {
   applicationIdentifier: string;
   activityName?: string;
+  launchArgs?: string[];
+  openUrl?: string;
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    logger.info(`Launching ${applicationIdentifier}.`);
-    await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier], {
+    logApplicationLaunch(logger, applicationIdentifier, launchArgs);
+    await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier, ...launchArgs], {
       env,
       logger,
     });
+    if (openUrl) {
+      logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
+      await spawn('xcrun', ['simctl', 'openurl', 'booted', openUrl], { env, logger });
+    }
     return;
   }
 
@@ -76,11 +99,45 @@ export async function launchApplicationAsync({
     );
   }
 
-  logger.info(`Launching ${applicationIdentifier}.`);
-  await spawn('adb', ['shell', 'am', 'start', '-n', `${applicationIdentifier}/${activityName}`], {
-    env,
-    logger,
-  });
+  logApplicationLaunch(logger, applicationIdentifier, launchArgs);
+  // Android does not support process arguments like iOS. Pass raw `am start` Intent
+  // arguments instead, such as `--es key value` or `--ez key true`.
+  await spawn(
+    'adb',
+    ['shell', 'am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+    {
+      env,
+      logger,
+    }
+  );
+  if (openUrl) {
+    logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
+    await spawn(
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        openUrl,
+        '-n',
+        `${applicationIdentifier}/${activityName}`,
+      ],
+      { env, logger }
+    );
+  }
+}
+
+function logApplicationLaunch(
+  logger: bunyan,
+  applicationIdentifier: string,
+  launchArgs: string[]
+): void {
+  const argumentsDescription =
+    launchArgs.length > 0 ? ` with arguments ${JSON.stringify(launchArgs)}` : '';
+  logger.info(`Launching ${applicationIdentifier}${argumentsDescription}.`);
 }
 
 function parseNonEmptyStringInput(value: unknown, inputName: string): string {
@@ -91,4 +148,28 @@ function parseNonEmptyStringInput(value: unknown, inputName: string): string {
     );
   }
   return value;
+}
+
+function parseLaunchArgsInput(value: unknown): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || !value.every(argument => typeof argument === 'string')) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Input "launch_args" must be an array of strings.'
+    );
+  }
+  return value;
+}
+
+function parseOpenUrlInput(value: unknown): string {
+  const openUrl = parseNonEmptyStringInput(value, 'open_url');
+  if (!URL.canParse(openUrl)) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Input "open_url" must be a valid URL.'
+    );
+  }
+  return openUrl;
 }
