@@ -23,6 +23,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
+import { resolveExpoGoApplicationArchiveUrlAsync } from '../../../simulator/expoGo';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -45,6 +46,7 @@ jest.mock('../../../simulator/env', () => ({
   loadSimulatorEnvAsync: jest.fn(),
   resetSimulatorEnvAsync: jest.fn(),
 }));
+jest.mock('../../../simulator/expoGo');
 jest.mock('../../../prompts');
 jest.mock('../../../ora', () => ({
   ora: jest.fn(() => {
@@ -78,6 +80,9 @@ const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQue
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
+const mockResolveExpoGoApplicationArchiveUrlAsync = jest.mocked(
+  resolveExpoGoApplicationArchiveUrlAsync
+);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
 
@@ -161,6 +166,9 @@ describe(Simulator, () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
+    mockResolveExpoGoApplicationArchiveUrlAsync.mockResolvedValue(
+      'https://example.test/expo-go.tar.gz'
+    );
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
   });
 
@@ -532,6 +540,31 @@ describe(Simulator, () => {
     );
   });
 
+  it.each([
+    ['ios', AppPlatform.Ios, 'https://example.test/expo-go.tar.gz'],
+    ['android', AppPlatform.Android, 'https://example.test/expo-go.apk'],
+  ] as const)(
+    'resolves and forwards the %s Expo Go archive when --go is passed',
+    async (platformFlag, appPlatform, applicationArchiveUrl) => {
+      mockResolveExpoGoApplicationArchiveUrlAsync.mockResolvedValue(applicationArchiveUrl);
+      const { command } = createCommand(['--platform', platformFlag, '--non-interactive', '--go']);
+
+      await command.runAsync();
+
+      expect(mockResolveExpoGoApplicationArchiveUrlAsync).toHaveBeenCalledWith({
+        platform: platformFlag,
+        projectDir,
+      });
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({
+          applicationArchiveUrl,
+          platform: appPlatform,
+        })
+      );
+    }
+  );
+
   it('rejects passing --build-id and --build-artifact-url together', async () => {
     const { command } = createCommand([
       '--platform',
@@ -544,6 +577,24 @@ describe(Simulator, () => {
     ]);
 
     await expect(command.runAsync()).rejects.toThrow();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
+    ['--build-artifact-url', 'https://example.test/builds/app.tar.gz'],
+  ])('rejects passing --go with %s', async (sourceFlag, sourceValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--go',
+      sourceFlag,
+      sourceValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow();
+    expect(mockResolveExpoGoApplicationArchiveUrlAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 

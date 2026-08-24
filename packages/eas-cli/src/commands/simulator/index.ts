@@ -28,6 +28,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
+import { resolveExpoGoApplicationArchiveUrlAsync } from '../../simulator/expoGo';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -74,12 +75,17 @@ export default class Simulator extends EasCommand {
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
-      exclusive: ['build-artifact-url'],
+      exclusive: ['build-artifact-url', 'go'],
     }),
     'build-artifact-url': Flags.string({
       description:
         'Build artifact URL to download, install, and launch before the simulator session is ready.',
-      exclusive: ['build-id'],
+      exclusive: ['build-id', 'go'],
+    }),
+    go: Flags.boolean({
+      description:
+        "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
+      exclusive: ['build-id', 'build-artifact-url'],
     }),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -160,6 +166,12 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const applicationArchiveUrl = flags.go
+      ? await resolveExpoGoApplicationArchiveUrlAsync({
+          platform: platform === AppPlatform.Ios ? 'ios' : 'android',
+          projectDir,
+        })
+      : buildArtifactUrl;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -183,7 +195,7 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         ...(buildId ? { buildId } : {}),
-        ...(buildArtifactUrl ? { applicationArchiveUrl: buildArtifactUrl } : {}),
+        ...(applicationArchiveUrl ? { applicationArchiveUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
