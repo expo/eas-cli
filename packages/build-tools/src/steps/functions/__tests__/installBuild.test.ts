@@ -86,7 +86,7 @@ describe(installBuildAsync, () => {
       activityName: 'com.example.app.MainActivity',
     });
     expect(mockedSpawn.mock.calls).toEqual([
-      ['aapt', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
+      ['aapt2', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
       ['adb', ['install', '-r', artifactPath], { env: {}, logger }],
     ]);
   });
@@ -130,7 +130,7 @@ describe(installBuildAsync, () => {
 
     expect(result).toEqual({ applicationIdentifier: 'com.example.app' });
     expect(mockedSpawn.mock.calls).toEqual([
-      ['aapt', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
+      ['aapt2', ['dump', 'badging', artifactPath], { stdio: 'pipe', env: {} }],
       ['adb', ['install', '-r', artifactPath], { env: {}, logger }],
     ]);
   });

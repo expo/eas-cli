@@ -8,9 +8,11 @@ import {
   BuildStepOutput,
 } from '@expo/steps';
 import { Client } from '@urql/core';
+import contentDisposition from 'content-disposition';
 import { glob } from 'fast-glob';
 import { graphql } from 'gql.tada';
 import fetch from 'node-fetch';
+import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -29,13 +31,6 @@ const streamPipeline = promisify(stream.pipeline);
 type DownloadBuildSource =
   | { buildId: string; applicationArchiveUrl?: never }
   | { buildId?: never; applicationArchiveUrl: string };
-
-type DownloadBuildParams = DownloadBuildSource & {
-  logger: bunyan;
-  graphqlClient: Client;
-  robotAccessToken: string | null;
-  extensions: string[];
-};
 
 const BUILD_BY_ID_QUERY = graphql(`
   query DownloadBuildByIdQuery($buildId: ID!) {
@@ -158,27 +153,35 @@ async function fetchApplicationArchiveUrlAsync({
   return applicationArchiveUrl;
 }
 
-export async function downloadBuildAsync({
-  logger,
-  buildId,
-  applicationArchiveUrl,
-  graphqlClient,
-  robotAccessToken,
-  extensions,
-}: DownloadBuildParams): Promise<{ artifactPath: string }> {
-  const validatedApplicationArchiveUrl = applicationArchiveUrl
-    ? parseHttpApplicationArchiveUrl(applicationArchiveUrl)
-    : undefined;
-  if (!buildId && !validatedApplicationArchiveUrl) {
+export async function downloadBuildAsync(
+  params: DownloadBuildSource & {
+    logger: bunyan;
+    graphqlClient: Client;
+    robotAccessToken: string | null;
+    extensions: string[];
+  }
+): Promise<{ artifactPath: string }> {
+  const { logger, graphqlClient, robotAccessToken, extensions } = params;
+
+  let downloadUrl: string;
+  let headers: { Authorization: string } | undefined;
+  if (params.applicationArchiveUrl) {
+    if (params.buildId) {
+      throw new UserError(
+        'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
+        'Pass only one of buildId or applicationArchiveUrl.'
+      );
+    }
+    downloadUrl = parseHttpApplicationArchiveUrl(params.applicationArchiveUrl);
+    headers = undefined;
+  } else if (params.buildId) {
+    const buildId = z.string().uuid().parse(params.buildId);
+    downloadUrl = await fetchApplicationArchiveUrlAsync({ buildId, graphqlClient });
+    headers = robotAccessToken ? { Authorization: `Bearer ${robotAccessToken}` } : undefined;
+  } else {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
       'Pass buildId or applicationArchiveUrl.'
-    );
-  }
-  if (buildId && validatedApplicationArchiveUrl) {
-    throw new UserError(
-      'EAS_DOWNLOAD_BUILD_INVALID_SOURCE',
-      'Pass only one of buildId or applicationArchiveUrl.'
     );
   }
 
@@ -186,32 +189,14 @@ export async function downloadBuildAsync({
     path.join(os.tmpdir(), 'download_build-downloaded-')
   );
 
-  const isDirectApplicationArchiveUrl = validatedApplicationArchiveUrl !== undefined;
-  const downloadUrl =
-    validatedApplicationArchiveUrl ??
-    (await fetchApplicationArchiveUrlAsync({
-      buildId: z.string().uuid().parse(buildId),
-      graphqlClient,
-    }));
-
-  const response = await retryOnDNSFailure(fetch)(downloadUrl, {
-    // A direct application archive URL is user-controlled, so never send the scoped EAS token to it.
-    headers:
-      !isDirectApplicationArchiveUrl && robotAccessToken
-        ? { Authorization: `Bearer ${robotAccessToken}` }
-        : undefined,
-  });
+  const response = await retryOnDNSFailure(fetch)(downloadUrl, { headers });
 
   if (!response.ok) {
     const textResult = await asyncResult(response.text());
     throw new Error(`Unexpected response from server (${response.status}): ${textResult.value}`);
   }
 
-  // URL may contain percent-encoded characters, e.g. my%20file.apk
-  // this replaces all non-alphanumeric characters (excluding dot) with underscore
-  const archiveFilename = path
-    .basename(new URL(response.url).pathname)
-    .replace(/([^a-z0-9.-]+)/gi, '_');
+  const archiveFilename = resolveArchiveFilename({ response, extensions });
   const archivePath = path.join(downloadDestinationDirectory, archiveFilename);
 
   await streamPipeline(response.body, fs.createWriteStream(archivePath));
@@ -260,21 +245,45 @@ export async function downloadBuildAsync({
 }
 
 function parseHttpApplicationArchiveUrl(value: unknown): string {
-  const applicationArchiveUrl = z.string().parse(value);
-  let parsedUrl: URL;
   try {
-    parsedUrl = new URL(applicationArchiveUrl);
+    const applicationArchiveUrl = z.string().parse(value);
+    const parsedUrl = new URL(applicationArchiveUrl);
+    assert(parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:');
+    return applicationArchiveUrl;
   } catch {
     throw new UserError(
       'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
       'application_archive_url must be a valid HTTP or HTTPS URL.'
     );
   }
-  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-    throw new UserError(
-      'EAS_DOWNLOAD_BUILD_INVALID_APPLICATION_ARCHIVE_URL',
-      'application_archive_url must be a valid HTTP or HTTPS URL.'
-    );
+}
+
+function resolveArchiveFilename({
+  response,
+  extensions,
+}: {
+  response: Awaited<ReturnType<typeof fetch>>;
+  extensions: string[];
+}): string {
+  const contentDispositionHeader = response.headers.get('content-disposition');
+  let headerFilename: string | undefined;
+  if (contentDispositionHeader) {
+    try {
+      headerFilename = contentDisposition.parse(contentDispositionHeader).parameters.filename;
+    } catch {
+      // Ignore malformed Content-Disposition headers and fall back to the response URL.
+    }
   }
-  return applicationArchiveUrl;
+
+  const urlFilename = path.basename(new URL(response.url).pathname);
+  let archiveFilename = path.basename(headerFilename ?? urlFilename ?? '');
+  if (!archiveFilename || archiveFilename === '.' || archiveFilename === '..') {
+    archiveFilename = 'application';
+  }
+  if (!path.extname(archiveFilename) && extensions.length === 1) {
+    archiveFilename = `${archiveFilename}.${extensions[0]}`;
+  }
+
+  // URL and header filenames may contain percent-encoded or unsafe filesystem characters.
+  return archiveFilename.replace(/([^a-z0-9.-]+)/gi, '_');
 }

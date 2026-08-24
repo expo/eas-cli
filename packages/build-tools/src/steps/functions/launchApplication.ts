@@ -8,7 +8,6 @@ import {
   BuildStepInputValueTypeName,
 } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
-import { z } from 'zod';
 
 export function createLaunchApplicationFunction(): BuildFunction {
   return new BuildFunction({
@@ -29,10 +28,14 @@ export function createLaunchApplicationFunction(): BuildFunction {
       }),
     ],
     fn: async ({ global, logger }, { inputs, env }) => {
-      const applicationIdentifier = z.string().min(1).parse(inputs.application_identifier.value);
-      const activityName = inputs.activity_name.value
-        ? z.string().min(1).parse(inputs.activity_name.value)
-        : undefined;
+      const applicationIdentifier = parseNonEmptyStringInput(
+        inputs.application_identifier.value,
+        'application_identifier'
+      );
+      const activityName =
+        inputs.activity_name.value === undefined
+          ? undefined
+          : parseNonEmptyStringInput(inputs.activity_name.value, 'activity_name');
       await launchApplicationAsync({
         applicationIdentifier,
         activityName,
@@ -78,4 +81,14 @@ export async function launchApplicationAsync({
     env,
     logger,
   });
+}
+
+function parseNonEmptyStringInput(value: unknown, inputName: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      `Input "${inputName}" must be a non-empty string. Pass the "${inputName}" output from eas/install_build.`
+    );
+  }
+  return value;
 }

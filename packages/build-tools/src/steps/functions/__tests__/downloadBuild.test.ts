@@ -51,6 +51,29 @@ function createMockGraphqlClient({
   } as unknown as Client;
 }
 
+function createSuccessfulResponse({
+  body,
+  url,
+  headers,
+}: {
+  body: Buffer;
+  url: string;
+  headers?: Record<string, string>;
+}): Response {
+  const normalizedHeaders = Object.fromEntries(
+    Object.entries(headers ?? {}).map(([name, value]) => [name.toLowerCase(), value])
+  );
+
+  return {
+    ok: true,
+    body: Readable.from(body),
+    url,
+    headers: {
+      get: (name: string): string | null => normalizedHeaders[name.toLowerCase()] ?? null,
+    },
+  } as unknown as Response;
+}
+
 describe('downloadBuild', () => {
   it('downloads from applicationArchiveUrl returned by GraphQL', async () => {
     const buildId = randomUUID();
@@ -58,11 +81,12 @@ describe('downloadBuild', () => {
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(APP_TAR_GZ_BUFFER),
-      url: APPLICATION_ARCHIVE_URL,
-    } as unknown as Response);
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: APP_TAR_GZ_BUFFER,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
@@ -88,11 +112,11 @@ describe('downloadBuild', () => {
       applicationArchiveUrl,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(Buffer.from('hello')),
-      url: applicationArchiveUrl,
-    } as unknown as Response);
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
@@ -112,11 +136,11 @@ describe('downloadBuild', () => {
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(Buffer.from('hello')),
-      url: applicationArchiveUrl,
-    } as unknown as Response);
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
 
     const { artifactPath } = await downloadBuildAsync({
       logger: createLogger({ name: 'test' }),
@@ -131,6 +155,48 @@ describe('downloadBuild', () => {
       applicationArchiveUrl,
       expect.objectContaining({ headers: undefined })
     );
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('uses the Content-Disposition filename for an extensionless URL', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/download';
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: Buffer.from('hello'),
+        url: applicationArchiveUrl,
+        headers: { 'content-disposition': 'attachment; filename="app.apk"' },
+      })
+    );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('app.apk');
+    expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
+  });
+
+  it('uses the expected extension when the URL has no filename', async () => {
+    const applicationArchiveUrl = 'https://artifacts.example.test/';
+    jest
+      .mocked(fetch)
+      .mockResolvedValue(
+        createSuccessfulResponse({ body: Buffer.from('hello'), url: applicationArchiveUrl })
+      );
+
+    const { artifactPath } = await downloadBuildAsync({
+      logger: createLogger({ name: 'test' }),
+      applicationArchiveUrl,
+      graphqlClient: createMockGraphqlClient({}),
+      robotAccessToken: null,
+      extensions: ['apk'],
+    });
+
+    expect(path.basename(artifactPath)).toBe('application.apk');
     expect(await fs.promises.readFile(artifactPath, 'utf-8')).toBe('hello');
   });
 
@@ -283,11 +349,12 @@ describe('downloadBuild', () => {
       applicationArchiveUrl: APPLICATION_ARCHIVE_URL,
     });
 
-    jest.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: Readable.from(APP_TAR_GZ_BUFFER),
-      url: APPLICATION_ARCHIVE_URL,
-    } as unknown as Response);
+    jest.mocked(fetch).mockResolvedValue(
+      createSuccessfulResponse({
+        body: APP_TAR_GZ_BUFFER,
+        url: APPLICATION_ARCHIVE_URL,
+      })
+    );
 
     await expect(
       downloadBuildAsync({

@@ -105,7 +105,7 @@ export async function installBuildAsync({
     );
   }
 
-  const { stdout } = await spawn('aapt', ['dump', 'badging', artifactPath], {
+  const { stdout } = await spawn('aapt2', ['dump', 'badging', artifactPath], {
     stdio: 'pipe',
     env,
   });

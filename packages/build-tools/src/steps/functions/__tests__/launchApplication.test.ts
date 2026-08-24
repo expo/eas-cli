@@ -85,4 +85,27 @@ describe(launchApplicationAsync, () => {
       expect.any(Object)
     );
   });
+
+  it.each(['application_identifier', 'activity_name'])(
+    'reports an empty %s input as a user error',
+    async inputName => {
+      const launchApplication = createLaunchApplicationFunction();
+      const buildStep = launchApplication.createBuildStepFromFunctionCall(
+        createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.LINUX }),
+        {
+          callInputs: {
+            application_identifier: 'com.example.app',
+            activity_name: 'com.example.app.MainActivity',
+            [inputName]: '',
+          },
+        }
+      );
+
+      await expect(buildStep.executeAsync()).rejects.toMatchObject({
+        errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+        message: `Input "${inputName}" must be a non-empty string. Pass the "${inputName}" output from eas/install_build.`,
+      });
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    }
+  );
 });
