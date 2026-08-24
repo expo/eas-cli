@@ -16,6 +16,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Use the selected EAS environment throughout `eas update`. ([#4269](https://github.com/expo/eas-cli/pull/4269) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ### 🧹 Chores
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
