@@ -10,10 +10,15 @@ on:
       - .github/workflows/update-appium-commands.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  update:
+  generate:
     runs-on: ubuntu-latest
     name: Regenerate Appium command list
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -26,15 +31,41 @@ jobs:
         # The generator installs Appium, XCUITest, and UiAutomator2 on demand,
         # so it always picks up the latest supported command sets.
         run: yarn workspace @expo/build-tools generate-appium-commands
-      - name: Open a pull request when the command list changed
+      - name: Check whether the command list changed
+        id: diff
+        run: |
+          if git diff --quiet -- packages/build-tools/src/steps/utils/appiumCommands.generated.ts; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload the generated command list
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: appium-command-list
+          path: packages/build-tools/src/steps/utils/appiumCommands.generated.ts
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: generate
+    if: needs.generate.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    name: Publish Appium command list update
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Download the generated command list
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: appium-command-list
+          path: packages/build-tools/src/steps/utils
+      - name: Open a pull request
         env:
           GH_TOKEN: ${{ secrets.EXPO_BOT_PAT }}
         run: |
-          if git diff --quiet; then
-            echo "The Appium command list is already up to date."
-            exit 0
-          fi
-
           branch=bot/update-appium-commands
           title='[build-tools] Update Appium command list'
           body=$'Automated update of the Appium, XCUITest, and UiAutomator2 command list.\n\nIf this PR adds new commands, typechecking will fail until a curated summary is added for each of them in `packages/build-tools/src/steps/utils/appiumCommandSummary.ts`.'

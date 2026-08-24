@@ -277,6 +277,7 @@ export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
   mobileGetContexts: 'Listed available contexts',
   mobileGetDeviceInfo: 'Read device information',
   mobileGetDeviceTime: 'Read the device time',
+  mobileGetDeclaredOrientation: 'Read the declared device orientation',
   mobileGetGeolocation: 'Read the device location',
   mobileGetIncreaseContrast: 'Read the Increase Contrast setting',
   mobileGetNotifications: 'Read notifications',
@@ -316,6 +317,7 @@ export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
   mobileNfc: 'Changed NFC state',
   mobilePerformAccessibilityAudit: 'Ran an accessibility audit',
   mobilePerformEditorAction: 'Performed a keyboard editor action',
+  mobilePerformHandGesture: 'Performed a hand gesture',
   mobilePerformIndigoHidEvent: 'Performed an Indigo HID event',
   mobilePerformIoHidEvent: 'Performed an IOHID event',
   mobilePerformStatusBarCommand: 'Performed a status bar command',
@@ -340,6 +342,7 @@ export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
   mobileResetLocationService: 'Reset location services',
   mobileResetPermission: 'Reset an app permission',
   mobileResetSimulatedLocation: 'Reset the simulated location',
+  mobileRotateDigitalCrown: 'Rotated the Digital Crown',
   mobileRotateElement: 'Rotated an element',
   mobileRunXCTest: 'Ran an XCTest bundle',
   mobileScheduleAction: 'Scheduled a device action',
@@ -409,5 +412,7 @@ export const APPIUM_COMMAND_SUMMARIES: Record<AppiumCommand, string> = {
  * unchanged — we intentionally do not guess a phrasing.
  */
 export function humanizeAppiumCommand(command: string): string {
-  return (APPIUM_COMMAND_SUMMARIES as Record<string, string>)[command] ?? command;
+  return Object.hasOwn(APPIUM_COMMAND_SUMMARIES, command)
+    ? (APPIUM_COMMAND_SUMMARIES as Record<string, string>)[command]
+    : command;
 }

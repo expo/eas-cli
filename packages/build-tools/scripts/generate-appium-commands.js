@@ -30,7 +30,12 @@ const DRIVERS = [
 ];
 
 function renderCommandType(typeName, commands) {
-  return `export type ${typeName} =\n${commands.map(command => `  | '${command}'`).join('\n')};`;
+  return `export type ${typeName} =\n${commands.map(command => `  | ${serializeStringLiteral(command)}`).join('\n')};`;
+}
+
+function serializeStringLiteral(value) {
+  const jsonContents = JSON.stringify(value).slice(1, -1).replaceAll('\\"', '"');
+  return `'${jsonContents.replaceAll("'", "\\'")}'`;
 }
 
 function readRouteCommands(methodMap) {

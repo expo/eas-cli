@@ -29,7 +29,7 @@ describe(humanizeAppiumCommand, () => {
     expect(humanizeAppiumCommand(command)).toBe(expected);
   });
 
-  it.each(['proxyReqRes', 'mobile: scroll', 'getDeviceInfo', ''])(
+  it.each(['proxyReqRes', 'mobile: scroll', 'getDeviceInfo', 'toString', 'constructor', ''])(
     'returns the raw command %p when it has no curated summary',
     command => {
       expect(humanizeAppiumCommand(command)).toBe(command);
