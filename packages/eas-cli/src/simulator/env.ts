@@ -1,4 +1,4 @@
-import { loadEnvFiles, loadProjectEnv } from '@expo/env';
+import { LOADED_ENV_NAME, loadEnvFiles, loadProjectEnv } from '@expo/env';
 import { parse as parseDotenv } from 'dotenv';
 import * as fs from 'fs-extra';
 import path from 'path';
@@ -22,8 +22,11 @@ export async function loadSimulatorEnvAsync(projectDir: string): Promise<void> {
   process.env = getEnvWithoutInheritedDotenvValues(process.env);
   process.env.NODE_ENV = mode;
   delete process.env.__EXPO_CONFIG_MODE;
-  loadProjectEnv(projectDir, { mode, silent: true });
   loadEnvFiles([simulatorDotenvFilePath], { force: true });
+  delete process.env[LOADED_ENV_NAME];
+  delete process.env.__EXPO_CONFIG_MODE;
+  loadProjectEnv(projectDir, { force: true, mode, silent: true });
+  delete process.env[LOADED_ENV_NAME];
   delete process.env.__EXPO_CONFIG_MODE;
 }
 
