@@ -240,7 +240,18 @@ async function installMaestroRunnerWdaCache({
       return;
     }
     const xcodeVersion = await getXcodeVersionAsync({ env });
-    const iosRuntimeVersions = await IosSimulatorUtils.getAvailableRuntimeVersionsAsync({ env });
+    const iosRuntimes = await IosSimulatorUtils.getAvailableRuntimesAsync({ env });
+    const iosRuntimeIdentifierPrefix = 'com.apple.CoreSimulator.SimRuntime.iOS-';
+    // maestro-runner derives its WDA cache key from the runtime identifier, not from the runtime
+    // version. These values can differ for patched runtimes, for example the iOS-26-3 identifier
+    // can report version 26.3.1.
+    const iosRuntimeVersions = [
+      ...new Set(
+        iosRuntimes.map(runtime =>
+          runtime.identifier.slice(iosRuntimeIdentifierPrefix.length).replaceAll('-', '.')
+        )
+      ),
+    ];
     if (iosRuntimeVersions.length === 0) {
       logger.info(
         'Skipping the prebuilt WebDriverAgent cache because no iOS runtime is available.'

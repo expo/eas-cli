@@ -23,8 +23,8 @@ describe('IosSimulatorUtils', () => {
     mockedSpawn.mockResolvedValue({ stdout: '', stderr: '' } as any);
   });
 
-  describe(IosSimulatorUtils.getAvailableRuntimeVersionsAsync, () => {
-    it('returns unique available iOS runtime versions', async () => {
+  describe(IosSimulatorUtils.getAvailableRuntimesAsync, () => {
+    it('returns available iOS runtimes', async () => {
       mockedSpawn.mockResolvedValue({
         stdout: JSON.stringify({
           runtimes: [
@@ -32,11 +32,6 @@ describe('IosSimulatorUtils', () => {
               identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
               isAvailable: true,
               version: '18.3.1',
-            },
-            {
-              identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
-              isAvailable: true,
-              version: '18.3',
             },
             {
               identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-17-5',
@@ -49,8 +44,14 @@ describe('IosSimulatorUtils', () => {
       } as any);
 
       await expect(
-        IosSimulatorUtils.getAvailableRuntimeVersionsAsync({ env: process.env })
-      ).resolves.toEqual(['18.3']);
+        IosSimulatorUtils.getAvailableRuntimesAsync({ env: process.env })
+      ).resolves.toEqual([
+        {
+          identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-18-3',
+          isAvailable: true,
+          version: '18.3.1',
+        },
+      ]);
       expect(mockedSpawn).toHaveBeenCalledWith('xcrun', ['simctl', 'list', 'runtimes', '--json'], {
         env: process.env,
       });
