@@ -123,6 +123,10 @@ describe(launchApplicationAsync, () => {
       ],
       { env: {}, logger }
     );
+    expect(logger.info).toHaveBeenNthCalledWith(
+      1,
+      'Launching host.exp.exponent with arguments ["--ez","isTest","true"].'
+    );
   });
 
   it('requires an activity when launching an Android application', async () => {

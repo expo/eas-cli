@@ -80,7 +80,7 @@ export async function launchApplicationAsync({
   logger: bunyan;
 }): Promise<void> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
-    logger.info(`Launching ${applicationIdentifier}.`);
+    logApplicationLaunch(logger, applicationIdentifier, launchArgs);
     await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier, ...launchArgs], {
       env,
       logger,
@@ -99,7 +99,9 @@ export async function launchApplicationAsync({
     );
   }
 
-  logger.info(`Launching ${applicationIdentifier}.`);
+  logApplicationLaunch(logger, applicationIdentifier, launchArgs);
+  // Android does not support process arguments like iOS. Pass raw `am start` Intent
+  // arguments instead, such as `--es key value` or `--ez key true`.
   await spawn(
     'adb',
     ['shell', 'am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
@@ -126,6 +128,16 @@ export async function launchApplicationAsync({
       { env, logger }
     );
   }
+}
+
+function logApplicationLaunch(
+  logger: bunyan,
+  applicationIdentifier: string,
+  launchArgs: string[]
+): void {
+  const argumentsDescription =
+    launchArgs.length > 0 ? ` with arguments ${JSON.stringify(launchArgs)}` : '';
+  logger.info(`Launching ${applicationIdentifier}${argumentsDescription}.`);
 }
 
 function parseNonEmptyStringInput(value: unknown, inputName: string): string {
