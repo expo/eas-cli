@@ -5235,6 +5235,16 @@ export type CreateDeviceRunSessionEventLogUploadSessionResult = {
 export type CreateDeviceRunSessionInput = {
   appId: Scalars['ID']['input'];
   /**
+   * Application archive URL to download, install, and launch before the simulator session
+   * becomes available. Mutually exclusive with buildId.
+   */
+  applicationArchiveUrl?: InputMaybe<Scalars['String']['input']>;
+  /**
+   * EAS Build to install and launch before the simulator session becomes available.
+   * Mutually exclusive with applicationArchiveUrl.
+   */
+  buildId?: InputMaybe<Scalars['ID']['input']>;
+  /**
    * Identifier of the virtual device to start for the session. On iOS this is a
    * Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android this is an
    * AVD hardware profile id (e.g. "pixel_7"). If omitted, the runner picks a

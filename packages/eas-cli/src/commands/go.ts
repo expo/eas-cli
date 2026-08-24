@@ -1,4 +1,4 @@
-import { ExpoConfig, getConfigFilePaths } from '@expo/config';
+import { ExpoConfig } from '@expo/config';
 import { App } from '@expo/apple-utils';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
@@ -30,7 +30,7 @@ import { WorkflowRunQuery } from '../graphql/queries/WorkflowRunQuery';
 import Log, { learnMore } from '../log';
 import { confirmAsync, selectAsync } from '../prompts';
 import { ora } from '../ora';
-import { getPrivateExpoConfigAsync } from '../project/expoConfig';
+import { detectProjectSdkVersionAsync } from '../project/detectProjectSdkVersionAsync';
 import { findProjectIdByAccountNameAndSlugNullableAsync } from '../project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync';
 import { uploadAccountScopedFileAsync } from '../project/uploadAccountScopedFileAsync';
 import { uploadAccountScopedProjectSourceAsync } from '../project/uploadAccountScopedProjectSourceAsync';
@@ -46,20 +46,6 @@ import {
 
 function deriveBundleIdSlug(bundleId: string): string {
   return bundleId.split('.').filter(Boolean).pop()!;
-}
-
-export async function detectProjectSdkVersionAsync(
-  projectDir: string
-): Promise<string | undefined> {
-  const paths = getConfigFilePaths(projectDir);
-  if (!paths.staticConfigPath && !paths.dynamicConfigPath) {
-    return;
-  }
-  try {
-    return (await getPrivateExpoConfigAsync(projectDir)).sdkVersion;
-  } catch {
-    return;
-  }
 }
 
 export function toRepackTargetSdkVersion(sdkVersion: string | undefined): string | undefined {

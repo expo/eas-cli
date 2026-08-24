@@ -28,6 +28,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
+import { resolveExpoGoApplicationArchiveUrlAsync } from '../../simulator/expoGo';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -71,6 +72,20 @@ export default class Simulator extends EasCommand {
     device: Flags.string({
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
+    }),
+    'build-id': Flags.string({
+      description: 'EAS Build to install and launch before the simulator session is ready.',
+      exclusive: ['application-archive-url', 'expo-go'],
+    }),
+    'application-archive-url': Flags.string({
+      description:
+        'Application archive URL to download, install, and launch before the simulator session is ready.',
+      exclusive: ['build-id', 'expo-go'],
+    }),
+    'expo-go': Flags.boolean({
+      description:
+        "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
+      exclusive: ['build-id', 'application-archive-url'],
     }),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -139,6 +154,8 @@ export default class Simulator extends EasCommand {
     // --name as if it had been omitted rather than surfacing a validation error.
     const name = flags.name?.trim() || undefined;
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const buildId = flags['build-id']?.trim() || undefined;
+    const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -149,6 +166,12 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const applicationArchiveUrl = flags['expo-go']
+      ? await resolveExpoGoApplicationArchiveUrlAsync({
+          platform: platform === AppPlatform.Ios ? 'ios' : 'android',
+          projectDir,
+        })
+      : applicationArchiveUrlFromFlag;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -171,6 +194,8 @@ export default class Simulator extends EasCommand {
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
         deviceIdentifier,
+        ...(buildId ? { buildId } : {}),
+        ...(applicationArchiveUrl ? { applicationArchiveUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
