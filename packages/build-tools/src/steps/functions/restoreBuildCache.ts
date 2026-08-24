@@ -22,8 +22,11 @@ import {
 } from '../../utils/cacheKey';
 import {
   getCocoapodsCachePaths,
+  getCocoapodsDownloadCachePath,
   resolveCocoapodsCacheKeyAsync,
+  resolveCocoapodsDownloadCacheKeyAsync,
   restoreCocoapodsCacheArchiveAsync,
+  restoreCocoapodsDownloadCacheArchiveAsync,
 } from '../../utils/cocoapodsCache';
 import { Datadog } from '../../datadog';
 import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
@@ -85,6 +88,12 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
           secrets: stepCtx.global.staticContext.job.secrets,
         });
       } else {
+        await restoreCocoapodsDownloadCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
         await restoreCocoapodsCacheAsync({
           logger,
           workingDirectory,
@@ -214,6 +223,67 @@ export async function restoreCcacheAsync({
       } catch (err: unknown) {
         logger.warn({ err }, 'Failed to download public cache');
       }
+    }
+  }
+}
+
+export async function restoreCocoapodsDownloadCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_PODS_CACHE !== '1') {
+    return;
+  }
+
+  try {
+    const { stdout } = await spawnAsync('pod', ['--version'], {
+      env,
+      stdio: 'pipe',
+    });
+    const { key, keyPrefix } = await resolveCocoapodsDownloadCacheKeyAsync(
+      workingDirectory,
+      stdout
+    );
+    logger.info(`Restoring CocoaPods download cache key: ${key}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const cocoapodsDownloadCachePath = getCocoapodsDownloadCachePath();
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [cocoapodsDownloadCachePath],
+      key,
+      keyPrefixes: [keyPrefix],
+      platform: Platform.IOS,
+    });
+
+    await restoreCocoapodsDownloadCacheArchiveAsync({ archivePath });
+
+    logger.info(
+      `CocoaPods download cache restored to ${cocoapodsDownloadCachePath} ${
+        matchedKey === key ? '(direct hit)' : '(prefix match)'
+      }`
+    );
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No CocoaPods download cache found for this key');
+    } else {
+      logger.warn('Failed to restore CocoaPods download cache: ', err);
     }
   }
 }

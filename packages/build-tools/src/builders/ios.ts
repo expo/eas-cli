@@ -22,8 +22,13 @@ import {
   cacheStatsAsync,
   restoreCcacheAsync,
   restoreCocoapodsCacheAsync,
+  restoreCocoapodsDownloadCacheAsync,
 } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync, saveCocoapodsCacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  saveCcacheAsync,
+  saveCocoapodsCacheAsync,
+  saveCocoapodsDownloadCacheAsync,
+} from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -108,6 +113,12 @@ async function buildInnerAsync(
         logger: ctx.logger,
         workingDirectory,
         target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      });
+      await restoreCocoapodsDownloadCacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
@@ -257,6 +268,12 @@ async function buildInnerAsync(
       workingDirectory,
       target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveCocoapodsDownloadCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });

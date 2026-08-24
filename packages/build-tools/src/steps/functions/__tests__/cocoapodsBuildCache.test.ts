@@ -5,14 +5,21 @@ import { createMockLogger } from '../../../__tests__/utils/logger';
 import { Datadog } from '../../../datadog';
 import {
   compressCocoapodsCacheAsync,
+  compressCocoapodsDownloadCacheAsync,
   getCocoapodsCachePaths,
+  getCocoapodsDownloadCachePath,
   resolveCocoapodsCacheKeyAsync,
+  resolveCocoapodsDownloadCacheKeyAsync,
   restoreCocoapodsCacheArchiveAsync,
+  restoreCocoapodsDownloadCacheArchiveAsync,
 } from '../../../utils/cocoapodsCache';
 import { downloadCacheAsync } from '../restoreCache';
-import { restoreCocoapodsCacheAsync } from '../restoreBuildCache';
+import {
+  restoreCocoapodsCacheAsync,
+  restoreCocoapodsDownloadCacheAsync,
+} from '../restoreBuildCache';
 import { uploadCacheAsync } from '../saveCache';
-import { saveCocoapodsCacheAsync } from '../saveBuildCache';
+import { saveCocoapodsCacheAsync, saveCocoapodsDownloadCacheAsync } from '../saveBuildCache';
 
 jest.mock('@expo/steps', () => ({
   ...jest.requireActual('@expo/steps'),
@@ -28,10 +35,14 @@ jest.mock('../saveCache', () => ({
   uploadCacheAsync: jest.fn(),
 }));
 jest.mock('../../../utils/cocoapodsCache', () => ({
+  compressCocoapodsDownloadCacheAsync: jest.fn(),
   compressCocoapodsCacheAsync: jest.fn(),
+  getCocoapodsDownloadCachePath: jest.fn(),
   getCocoapodsCachePaths: jest.fn(),
   resolveCocoapodsCacheKeyAsync: jest.fn(),
+  resolveCocoapodsDownloadCacheKeyAsync: jest.fn(),
   restoreCocoapodsCacheArchiveAsync: jest.fn(),
+  restoreCocoapodsDownloadCacheArchiveAsync: jest.fn(),
 }));
 
 const logger = createMockLogger();
@@ -49,6 +60,7 @@ describe('CocoaPods build cache', () => {
       {
         '/workingdir/ios/Pods/Manifest.lock': 'manifest',
         '/workingdir/ios/Podfile.lock': 'lockfile',
+        '/Users/expo/Library/Caches/CocoaPods/Pods/Release/Expo/file.zip': 'download',
         '/tmp/cocoapods-cache.tar.gz': 'archive',
       },
       '/'
@@ -61,6 +73,13 @@ describe('CocoaPods build cache', () => {
     jest.mocked(resolveCocoapodsCacheKeyAsync).mockResolvedValue({
       key: 'ios-pods-1.16.2-lock-hash',
       keyPrefix: 'ios-pods-1.16.2-',
+    });
+    jest
+      .mocked(getCocoapodsDownloadCachePath)
+      .mockReturnValue('/Users/expo/Library/Caches/CocoaPods');
+    jest.mocked(resolveCocoapodsDownloadCacheKeyAsync).mockResolvedValue({
+      key: 'ios-pod-downloads-1.16.2-lock-hash',
+      keyPrefix: 'ios-pod-downloads-1.16.2-',
     });
     jest.mocked(spawnAsync).mockResolvedValue({ stdout: '1.16.2\n' } as any);
   });
@@ -78,8 +97,45 @@ describe('CocoaPods build cache', () => {
       env: {},
       secrets,
     });
+    await restoreCocoapodsDownloadCacheAsync({
+      logger,
+      workingDirectory: '/workingdir',
+      env: {},
+      secrets,
+    });
+    await saveCocoapodsDownloadCacheAsync({
+      logger,
+      workingDirectory: '/workingdir',
+      env: {},
+      secrets,
+    });
 
     expect(spawnAsync).not.toHaveBeenCalled();
+  });
+
+  it('restores the newest matching CocoaPods download cache', async () => {
+    jest.mocked(downloadCacheAsync).mockResolvedValue({
+      archivePath: '/tmp/cocoapods-cache.tar.gz',
+      matchedKey: 'ios-pod-downloads-1.16.2-older-lock-hash',
+    });
+
+    await restoreCocoapodsDownloadCacheAsync({
+      logger,
+      workingDirectory: '/workingdir',
+      env,
+      secrets,
+    });
+
+    expect(downloadCacheAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'ios-pod-downloads-1.16.2-lock-hash',
+        keyPrefixes: ['ios-pod-downloads-1.16.2-'],
+        paths: ['/Users/expo/Library/Caches/CocoaPods'],
+      })
+    );
+    expect(restoreCocoapodsDownloadCacheArchiveAsync).toHaveBeenCalledWith({
+      archivePath: '/tmp/cocoapods-cache.tar.gz',
+    });
   });
 
   it('restores the newest matching CocoaPods cache', async () => {
@@ -130,6 +186,27 @@ describe('CocoaPods build cache', () => {
         archivePath: '/tmp/cocoapods-cache.tar.gz',
         key: 'ios-pods-1.16.2-lock-hash',
         paths: ['/workingdir/ios/Pods'],
+      })
+    );
+  });
+
+  it('compresses and saves the CocoaPods download cache', async () => {
+    jest.mocked(compressCocoapodsDownloadCacheAsync).mockResolvedValue({
+      archivePath: '/tmp/cocoapods-cache.tar.gz',
+    });
+
+    await saveCocoapodsDownloadCacheAsync({
+      logger,
+      workingDirectory: '/workingdir',
+      env,
+      secrets,
+    });
+
+    expect(uploadCacheAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archivePath: '/tmp/cocoapods-cache.tar.gz',
+        key: 'ios-pod-downloads-1.16.2-lock-hash',
+        paths: ['/Users/expo/Library/Caches/CocoaPods'],
       })
     );
   });
