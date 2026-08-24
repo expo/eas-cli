@@ -244,32 +244,80 @@ export async function fileExistsAsync(filePath: string): Promise<boolean> {
     .then(() => true)
     .catch(() => false);
 }
+/**
+ * How long we wait for the first chunk of piped stdin before giving up on it.
+ *
+ * There is no way to ask a pipe whether anyone will ever write to it, so the only thing we can
+ * do is wait a little. Anything that is already piped in (`echo '{}' |`, `cat inputs.json |`,
+ * `< inputs.json`) is available immediately, so a short wait is enough for the supported usage.
+ */
+const STDIN_FIRST_CHUNK_TIMEOUT_MS = 1000;
+
 export async function maybeReadStdinAsync(): Promise<string | null> {
-  // Check if there's data on stdin
-  if (process.stdin.isTTY) {
+  const stdin = process.stdin;
+
+  // A TTY is an interactive terminal, there is nothing piped in to read.
+  if (stdin.isTTY) {
+    return null;
+  }
+
+  // A stream that already ended or was destroyed will not emit 'end' again,
+  // so the promise below would never settle.
+  if (stdin.readableEnded || stdin.destroyed) {
     return null;
   }
 
   return await new Promise((resolve, reject) => {
     let data = '';
+    let firstChunkTimeout: NodeJS.Timeout | undefined;
 
-    process.stdin.setEncoding('utf8');
+    const cleanup = (): void => {
+      clearTimeout(firstChunkTimeout);
+      stdin.off('readable', onReadable);
+      stdin.off('end', onEnd);
+      stdin.off('error', onError);
+      // An stdin pipe that is still open keeps the event loop alive even once we have stopped
+      // reading from it, which would leave the command hanging on exit.
+      if (typeof stdin.unref === 'function') {
+        stdin.unref();
+      }
+    };
 
-    process.stdin.on('readable', () => {
+    const onReadable = (): void => {
       let chunk;
-      while ((chunk = process.stdin.read()) !== null) {
+      while ((chunk = stdin.read()) !== null) {
+        // Somebody is writing to us, wait for all of it however long it takes.
+        clearTimeout(firstChunkTimeout);
         data += chunk;
       }
-    });
+    };
 
-    process.stdin.on('end', () => {
+    const onEnd = (): void => {
+      cleanup();
       const trimmedData = data.trim();
       resolve(trimmedData || null);
-    });
+    };
 
-    process.stdin.on('error', err => {
+    const onError = (err: Error): void => {
+      cleanup();
       reject(err);
-    });
+    };
+
+    stdin.setEncoding('utf8');
+    stdin.on('readable', onReadable);
+    stdin.on('end', onEnd);
+    stdin.on('error', onError);
+
+    // CI agents (Azure Pipelines, for example) hand the process an stdin pipe that nobody
+    // writes to and nobody closes. It is not a TTY and it never emits 'end', so without this
+    // the command would wait forever. See https://github.com/expo/eas-cli/issues/3164.
+    firstChunkTimeout = setTimeout(() => {
+      cleanup();
+      Log.debug(
+        `No data on stdin after ${STDIN_FIRST_CHUNK_TIMEOUT_MS}ms, continuing without stdin input.`
+      );
+      resolve(null);
+    }, STDIN_FIRST_CHUNK_TIMEOUT_MS);
   });
 }
 export async function showWorkflowStatusAsync(

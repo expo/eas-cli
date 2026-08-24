@@ -10,6 +10,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [eas-cli] Stop `eas workflow:run` from hanging forever when stdin is an open pipe that never delivers data, which is what CI agents hand the process. ([#4261](https://github.com/expo/eas-cli/pull/4261) by [@giaBaoJS](https://github.com/giaBaoJS))
+
 ### 🧹 Chores
 
 ## [24.1.2](https://github.com/expo/eas-cli/releases/tag/v24.1.2) - 2026-09-11
