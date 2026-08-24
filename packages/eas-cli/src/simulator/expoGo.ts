@@ -18,7 +18,7 @@ export async function resolveExpoGoApplicationArchiveUrlAsync({
   if (!sdkMajorVersion) {
     throw new EasCommandError(
       "Unable to determine this project's Expo SDK version, so Expo Go could not be selected. " +
-        'Make sure the project has Expo installed and a valid app config, or use --build-id or --build-artifact-url instead.'
+        'Make sure the project has Expo installed and a valid app config, or use --build-id or --application-archive-url instead.'
     );
   }
 
@@ -33,7 +33,7 @@ export async function resolveExpoGoApplicationArchiveUrlAsync({
     const reason = error instanceof Error ? ` ${error.message}` : '';
     throw new EasCommandError(
       `Failed to resolve the Expo Go download URL for SDK ${sdkMajorVersion} on ${platform}.${reason} ` +
-        `Run "npx expo-go url ${platform} ${sdkMajorVersion}" to diagnose the problem, or use --build-id or --build-artifact-url instead.`
+        `Run "npx expo-go url ${platform} ${sdkMajorVersion}" to diagnose the problem, or use --build-id or --application-archive-url instead.`
     );
   }
 
@@ -46,7 +46,7 @@ export async function resolveExpoGoApplicationArchiveUrlAsync({
   } catch {
     throw new EasCommandError(
       `expo-go returned an invalid download URL for SDK ${sdkMajorVersion} on ${platform}. ` +
-        `Run "npx expo-go url ${platform} ${sdkMajorVersion}" to diagnose the problem, or use --build-id or --build-artifact-url instead.`
+        `Run "npx expo-go url ${platform} ${sdkMajorVersion}" to diagnose the problem, or use --build-id or --application-archive-url instead.`
     );
   }
 

@@ -75,17 +75,17 @@ export default class Simulator extends EasCommand {
     }),
     'build-id': Flags.string({
       description: 'EAS Build to install and launch before the simulator session is ready.',
-      exclusive: ['build-artifact-url', 'expo-go'],
+      exclusive: ['application-archive-url', 'expo-go'],
     }),
-    'build-artifact-url': Flags.string({
+    'application-archive-url': Flags.string({
       description:
-        'Build artifact URL to download, install, and launch before the simulator session is ready.',
+        'Application archive URL to download, install, and launch before the simulator session is ready.',
       exclusive: ['build-id', 'expo-go'],
     }),
     'expo-go': Flags.boolean({
       description:
         "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
-      exclusive: ['build-id', 'build-artifact-url'],
+      exclusive: ['build-id', 'application-archive-url'],
     }),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -155,7 +155,7 @@ export default class Simulator extends EasCommand {
     const name = flags.name?.trim() || undefined;
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
-    const buildArtifactUrl = flags['build-artifact-url']?.trim() || undefined;
+    const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -171,7 +171,7 @@ export default class Simulator extends EasCommand {
           platform: platform === AppPlatform.Ios ? 'ios' : 'android',
           projectDir,
         })
-      : buildArtifactUrl;
+      : applicationArchiveUrlFromFlag;
 
     if (existingDeviceRunSessionId) {
       Log.warn(

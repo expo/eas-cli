@@ -522,12 +522,12 @@ describe(Simulator, () => {
     );
   });
 
-  it('forwards --build-artifact-url to the create mutation', async () => {
+  it('forwards --application-archive-url to the create mutation', async () => {
     const { command } = createCommand([
       '--platform',
       'android',
       '--non-interactive',
-      '--build-artifact-url',
+      '--application-archive-url',
       '  https://example.test/builds/app.apk  ',
     ]);
     await command.runAsync();
@@ -570,14 +570,14 @@ describe(Simulator, () => {
     }
   );
 
-  it('rejects passing --build-id and --build-artifact-url together', async () => {
+  it('rejects passing --build-id and --application-archive-url together', async () => {
     const { command } = createCommand([
       '--platform',
       'ios',
       '--non-interactive',
       '--build-id',
       '8d8b713c-1834-4bd3-91e6-46f895422cbc',
-      '--build-artifact-url',
+      '--application-archive-url',
       'https://example.test/builds/app.tar.gz',
     ]);
 
@@ -587,7 +587,7 @@ describe(Simulator, () => {
 
   it.each([
     ['--build-id', '8d8b713c-1834-4bd3-91e6-46f895422cbc'],
-    ['--build-artifact-url', 'https://example.test/builds/app.tar.gz'],
+    ['--application-archive-url', 'https://example.test/builds/app.tar.gz'],
   ])('rejects passing --expo-go with %s', async (sourceFlag, sourceValue) => {
     const { command } = createCommand([
       '--platform',
