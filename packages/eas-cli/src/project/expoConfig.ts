@@ -6,6 +6,9 @@ import path from 'path';
 
 import { isExpoInstalled } from './projectUtils';
 import { spawnExpoCommand } from '../utils/expoCli';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
+
+export type ExpoConfigMode = 'development' | 'production';
 
 export type PublicExpoConfig = Omit<
   ExpoConfig,
@@ -18,6 +21,7 @@ export type PublicExpoConfig = Omit<
 
 export interface ExpoConfigOptions {
   env?: Env;
+  mode?: ExpoConfigMode;
   skipSDKVersionRequirement?: boolean;
   skipPlugins?: boolean;
 }
@@ -29,14 +33,21 @@ interface ExpoConfigOptionsInternal extends ExpoConfigOptions {
 export async function createOrModifyExpoConfigAsync(
   projectDir: string,
   exp: Partial<ExpoConfig>,
-  readOptions?: { skipSDKVersionRequirement?: boolean }
+  readOptions?: Pick<ExpoConfigOptions, 'env' | 'mode' | 'skipSDKVersionRequirement'>
 ): ReturnType<typeof modifyConfigAsync> {
   ensureExpoConfigExists(projectDir);
 
-  if (readOptions) {
-    return await modifyConfigAsync(projectDir, exp, readOptions);
-  } else {
-    return await modifyConfigAsync(projectDir, exp);
+  const originalProcessEnv = process.env;
+  const { env, mode, ...configReadOptions } = readOptions ?? {};
+  try {
+    process.env = getInProcessExpoConfigEnv({ env, mode });
+    if (readOptions) {
+      return await modifyConfigAsync(projectDir, exp, configReadOptions);
+    } else {
+      return await modifyConfigAsync(projectDir, exp);
+    }
+  } finally {
+    process.env = originalProcessEnv;
   }
 }
 
@@ -46,10 +57,7 @@ async function getExpoConfigInternalAsync(
 ): Promise<ExpoConfig> {
   const originalProcessEnv: NodeJS.ProcessEnv = process.env;
   try {
-    process.env = {
-      ...process.env,
-      ...opts.env,
-    };
+    process.env = getInProcessExpoConfigEnv(opts);
 
     let exp: ExpoConfig;
     if (isExpoInstalled(projectDir)) {
@@ -59,6 +67,12 @@ async function getExpoConfigInternalAsync(
         {
           env: {
             EXPO_NO_DOTENV: '1',
+            ...(opts.mode
+              ? {
+                  NODE_ENV: opts.mode,
+                  __EXPO_CONFIG_MODE: opts.mode,
+                }
+              : {}),
           },
         }
       );
@@ -82,6 +96,21 @@ async function getExpoConfigInternalAsync(
   } finally {
     process.env = originalProcessEnv;
   }
+}
+
+function getInProcessExpoConfigEnv(
+  opts: Pick<ExpoConfigOptions, 'env' | 'mode'>
+): NodeJS.ProcessEnv {
+  const configEnv = {
+    ...getEnvWithoutInheritedDotenvValues(process.env),
+    ...opts.env,
+  };
+  if (opts.mode) {
+    configEnv.NODE_ENV = opts.mode;
+  }
+  delete configEnv.__EXPO_CONFIG_MODE;
+  delete configEnv.__EXPO_ENV_LOADED;
+  return configEnv;
 }
 
 const MinimalAppConfigSchema = Joi.object({
