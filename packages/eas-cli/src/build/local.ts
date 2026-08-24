@@ -18,9 +18,19 @@ const LOCAL_BUILD_RUNTIME_ENV_NAMES = [
   'ANDROID_HOME',
   'ANDROID_NDK_HOME',
   'ANDROID_SDK_ROOT',
+  'DEVELOPER_DIR',
+  'GEM_HOME',
+  'GEM_PATH',
   'HOME',
+  'JAVA_HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
   'NVM_NODEJS_ORG_MIRROR',
   'PATH',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
 ] as const;
 
 export enum LocalBuildMode {
