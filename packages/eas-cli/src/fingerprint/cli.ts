@@ -84,6 +84,20 @@ async function createFingerprintWithoutLoggingAsync(
     isDebugSource: boolean;
   }
 > {
+  return await withTemporaryEnvAsync(options.env ?? {}, () =>
+    createFingerprintWithCurrentEnvAsync(projectDir, fingerprintPath, options)
+  );
+}
+
+async function createFingerprintWithCurrentEnvAsync(
+  projectDir: string,
+  fingerprintPath: string,
+  options: FingerprintOptions
+): Promise<
+  Fingerprint & {
+    isDebugSource: boolean;
+  }
+> {
   const Fingerprint = require(fingerprintPath);
   const fingerprintOptions: Record<string, any> = {};
   const ignorePaths = [];
@@ -105,12 +119,10 @@ async function createFingerprintWithoutLoggingAsync(
   }
   fingerprintOptions.silent = true;
 
-  return await withTemporaryEnvAsync(options.env ?? {}, () =>
-    Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions)
-  );
+  return await Fingerprint.createFingerprintAsync(projectDir, fingerprintOptions);
 }
 
-async function withTemporaryEnvAsync(envVars: Env, fn: () => Promise<any>): Promise<any> {
+async function withTemporaryEnvAsync<T>(envVars: Env, fn: () => Promise<T>): Promise<T> {
   const originalEnv = process.env;
   process.env = {
     ...getEnvWithoutInheritedDotenvValues(process.env),
@@ -161,7 +173,6 @@ export async function createFingerprintsByKeyAsync(
     return new Map();
   }
 
-  const originalEnv = process.env;
   const timeoutId = setTimeout(() => {
     Log.log('⌛️ Computing the project fingerprints is taking longer than expected...');
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
@@ -169,28 +180,48 @@ export async function createFingerprintsByKeyAsync(
 
   const spinner = ora(`Computing project fingerprints`).start();
   try {
-    const fingerprintPromises = Array.from(fingerprintOptionsByKey.entries()).map(
-      async ([key, options]) =>
-        [
-          key,
-          await createFingerprintWithoutLoggingAsync(projectDir, fingerprintPath, options),
-        ] as const
-    );
-    try {
-      const fingerprintsByKey = new Map(await Promise.all(fingerprintPromises));
-      spinner.succeed(`Computed project fingerprints`);
-      return fingerprintsByKey;
-    } catch (error) {
-      // Wait for every Fingerprint call before restoring process.env.
-      await Promise.allSettled(fingerprintPromises);
-      throw error;
+    // Fingerprint reads process.env, so only calls that use the same env can run together.
+    const fingerprintOptionsByEnv = new Map<Env | undefined, [string, FingerprintOptions][]>();
+    for (const entry of fingerprintOptionsByKey.entries()) {
+      const env = entry[1].env;
+      const entries = fingerprintOptionsByEnv.get(env) ?? [];
+      entries.push(entry);
+      fingerprintOptionsByEnv.set(env, entries);
     }
+
+    const fingerprintsByKey = new Map<
+      string,
+      Fingerprint & {
+        isDebugSource: boolean;
+      }
+    >();
+    for (const [env, entries] of fingerprintOptionsByEnv) {
+      const fingerprints = await withTemporaryEnvAsync(env ?? {}, async () => {
+        const fingerprintPromises = entries.map(
+          async ([key, options]) =>
+            [
+              key,
+              await createFingerprintWithCurrentEnvAsync(projectDir, fingerprintPath, options),
+            ] as const
+        );
+        try {
+          return await Promise.all(fingerprintPromises);
+        } catch (error) {
+          await Promise.allSettled(fingerprintPromises);
+          throw error;
+        }
+      });
+      for (const [key, fingerprint] of fingerprints) {
+        fingerprintsByKey.set(key, fingerprint);
+      }
+    }
+    spinner.succeed(`Computed project fingerprints`);
+    return fingerprintsByKey;
   } catch (e) {
     spinner.fail(`Failed to compute project fingerprints`);
     Log.log('⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1');
     throw e;
   } finally {
-    process.env = originalEnv;
     // Clear the timeout if the operation finishes before the time limit
     clearTimeout(timeoutId);
     spinner.stop();
