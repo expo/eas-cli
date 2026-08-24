@@ -166,6 +166,35 @@ describe(getAppBuildGradleAsync, () => {
       },
     });
   });
+
+  test('parsing build.gradle with interpolated strings', async () => {
+    vol.fromJSON(
+      {
+        'android/app/build.gradle': await fsReal.promises.readFile(
+          path.join(__dirname, 'fixtures/string-interpolation-in-build.gradle'),
+          'utf-8'
+        ),
+      },
+      '/test'
+    );
+    const buildGradle = await getAppBuildGradleAsync('/test');
+    expect(pick(buildGradle?.android ?? {}, ['flavorDimensions', 'productFlavors'])).toEqual({
+      flavorDimensions: 'env',
+      productFlavors: {
+        staging: {
+          applicationId: 'com.testapp.staging',
+          versionCode: '123',
+          dimension: 'env',
+        },
+        production: {
+          applicationId: 'com.testapp',
+          versionCode: '124',
+          dimension: 'env',
+        },
+      },
+    });
+    expect(buildGradle?.android?.defaultConfig?.applicationId).toBe('com.testapp');
+  });
 });
 
 describe(parseGradleCommand, () => {
