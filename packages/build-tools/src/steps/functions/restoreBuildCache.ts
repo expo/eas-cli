@@ -20,6 +20,11 @@ import {
   getCcacheKeyPrefix,
   getCcachePath,
 } from '../../utils/cacheKey';
+import {
+  getCocoapodsCachePaths,
+  resolveCocoapodsCacheKeyAsync,
+  restoreCocoapodsCacheArchiveAsync,
+} from '../../utils/cocoapodsCache';
 import { Datadog } from '../../datadog';
 import { GRADLE_CACHE_KEY_PREFIX, generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 import { TurtleFetchError, turtleFetch } from '../../utils/turtleFetch';
@@ -74,6 +79,13 @@ export function createRestoreBuildCacheFunction(): BuildFunction {
 
       if (platform === Platform.ANDROID) {
         await restoreGradleCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
+      } else {
+        await restoreCocoapodsCacheAsync({
           logger,
           workingDirectory,
           env,
@@ -202,6 +214,67 @@ export async function restoreCcacheAsync({
       } catch (err: unknown) {
         logger.warn({ err }, 'Failed to download public cache');
       }
+    }
+  }
+}
+
+export async function restoreCocoapodsCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_PODS_CACHE !== '1') {
+    return;
+  }
+
+  try {
+    const { stdout } = await spawnAsync('pod', ['--version'], {
+      env,
+      stdio: 'pipe',
+    });
+    const { key, keyPrefix } = await resolveCocoapodsCacheKeyAsync(workingDirectory, stdout);
+    logger.info(`Restoring CocoaPods cache key: ${key}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+    const { podsDirectory } = getCocoapodsCachePaths(workingDirectory);
+
+    const { archivePath, matchedKey } = await downloadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      paths: [podsDirectory],
+      key,
+      keyPrefixes: [keyPrefix],
+      platform: Platform.IOS,
+    });
+
+    await restoreCocoapodsCacheArchiveAsync({ archivePath, workingDirectory });
+
+    const hitType = matchedKey === key ? 'direct_hit' : 'prefix_match';
+    logger.info(
+      `CocoaPods cache restored to ${podsDirectory} (${hitType === 'direct_hit' ? 'direct hit' : 'prefix match'})`
+    );
+    Datadog.log(`CocoaPods cache restored (${hitType})`, {
+      event: 'cocoapods_cache_restored',
+      cache_hit_type: hitType,
+    });
+  } catch (err: unknown) {
+    if (err instanceof TurtleFetchError && err.response?.status === 404) {
+      logger.info('No CocoaPods cache found for this key');
+    } else {
+      logger.warn('Failed to restore CocoaPods cache: ', err);
     }
   }
 }
