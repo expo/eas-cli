@@ -462,6 +462,11 @@ describe('displayOverageWarning', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('Upgrade your plan to continue service.')
     );
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+      )
+    );
     expect(mockWarn).toHaveBeenCalledWith(expect.stringMatching(/█+░+/));
   });
 
@@ -505,6 +510,11 @@ describe('displayOverageWarning', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('New builds are blocked until your billing period resets.')
     );
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+      )
+    );
   });
 
   it('at tier: displays a paid-plan limit-reached message with pay-as-you-go warning', () => {
@@ -542,6 +552,11 @@ describe('displayOverageWarning', () => {
     );
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('New builds are blocked until your billing period resets.')
+    );
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run eas billing:subscribe starter --account test-account to upgrade to the Starter plan.'
+      )
     );
   });
 
