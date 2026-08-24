@@ -38,29 +38,44 @@ describe(loadSimulatorEnvAsync, () => {
     process.env = originalEnv;
   });
 
-  it('loads simulator env in development mode without inherited dotenv values', async () => {
-    jest.mocked(loadProjectEnv).mockImplementation(() => {
+  it('loads simulator env before project env files in development mode', async () => {
+    jest.mocked(loadEnvFiles).mockImplementation(() => {
       expect(process.env.DOTENV_VALUE).toBeUndefined();
       expect(process.env.KEEP_VALUE).toBe('from-shell');
       expect(process.env.NODE_ENV).toBe('development');
       expect(process.env.__EXPO_ENV_LOADED).toBeUndefined();
       expect(process.env.__EXPO_CONFIG_MODE).toBeUndefined();
+      process.env.SIMULATOR_VALUE = 'from-simulator';
+      process.env.__EXPO_ENV_LOADED = '["SIMULATOR_VALUE"]';
+      process.env.__EXPO_CONFIG_MODE = 'from-simulator-env';
       return {} as never;
     });
-    jest.mocked(loadEnvFiles).mockImplementation(() => {
-      process.env.__EXPO_CONFIG_MODE = 'from-simulator-env';
+    jest.mocked(loadProjectEnv).mockImplementation(() => {
+      expect(process.env.SIMULATOR_VALUE).toBe('from-simulator');
+      expect(process.env.__EXPO_ENV_LOADED).toBeUndefined();
+      expect(process.env.__EXPO_CONFIG_MODE).toBeUndefined();
+      process.env.PROJECT_VALUE = 'from-project';
+      process.env.__EXPO_ENV_LOADED = '["PROJECT_VALUE"]';
+      process.env.__EXPO_CONFIG_MODE = 'from-project-env';
       return {} as never;
     });
 
     await loadSimulatorEnvAsync(projectDir);
 
-    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
-      mode: 'development',
-      silent: true,
-    });
     expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
       force: true,
     });
+    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
+      force: true,
+      mode: 'development',
+      silent: true,
+    });
+    expect(jest.mocked(loadEnvFiles).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(loadProjectEnv).mock.invocationCallOrder[0]
+    );
+    expect(process.env.SIMULATOR_VALUE).toBe('from-simulator');
+    expect(process.env.PROJECT_VALUE).toBe('from-project');
+    expect(process.env.__EXPO_ENV_LOADED).toBeUndefined();
     expect(process.env.__EXPO_CONFIG_MODE).toBeUndefined();
   });
 });

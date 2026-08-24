@@ -56,6 +56,7 @@ describe(SimulatorExec, () => {
       nonInteractive: true,
     });
     expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
+      force: true,
       mode: 'development',
       silent: true,
     });
@@ -127,21 +128,5 @@ describe(SimulatorExec, () => {
     expect(loadProjectEnv).not.toHaveBeenCalled();
     expect(loadEnvFiles).not.toHaveBeenCalled();
     expect(spawnAsync).not.toHaveBeenCalled();
-  });
-
-  it('loads simulator-specific env after regular env files', async () => {
-    const { command } = createCommand(['agent-device', 'touch', '@e2']);
-    await command.runAsync();
-
-    expect(loadProjectEnv).toHaveBeenCalledWith(projectDir, {
-      mode: 'development',
-      silent: true,
-    });
-    expect(loadEnvFiles).toHaveBeenCalledWith([`${projectDir}/.env.eas-simulator`], {
-      force: true,
-    });
-    expect(jest.mocked(loadProjectEnv).mock.invocationCallOrder[0]).toBeLessThan(
-      jest.mocked(loadEnvFiles).mock.invocationCallOrder[0]
-    );
   });
 });
