@@ -84,12 +84,9 @@ export class BuildStepCompositeFunctionScope {
         // An unevaluable gate skips the call, cache the skip before throwing.
         // Only the first child reports the error, the rest skip silently.
         this.cachedIsActive = false;
-        const ifCondition = this.ifCondition ?? '';
-        const subject = `composite function call "${this.compositeFunctionPath}"`;
         throw new BuildStepConditionEvaluationError(
-          `Failed to evaluate the if condition "${ifCondition}" of ${subject}.`,
-          subject,
-          ifCondition,
+          `composite function call "${this.compositeFunctionPath}"`,
+          this.ifCondition ?? '',
           { cause: err instanceof Error ? err : undefined }
         );
       }

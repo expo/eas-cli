@@ -288,11 +288,8 @@ function logConditionEvaluationError(
   ifCondition: string | undefined
 ): void {
   if (err instanceof BuildStepConditionEvaluationError) {
-    logger.error({ err: err.cause ?? err });
-    logger.error(
-      `Runner failed to evaluate if it should execute ${err.subject}, using its if condition "${err.ifCondition}". This can be caused by trying to access non-existing object property. If you think this is a bug report it here: https://github.com/expo/eas-cli/issues.`
-    );
-    return;
+    ({ subject, ifCondition } = err);
+    err = err.cause ?? err;
   }
   logger.error({ err });
   logger.error(

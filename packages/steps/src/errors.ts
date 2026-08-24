@@ -25,14 +25,13 @@ export class BuildStepRuntimeError extends UserError {}
 
 export class BuildStepConditionEvaluationError extends UserError {
   constructor(
-    public override readonly message: string,
     public readonly subject: string,
     public readonly ifCondition: string,
     extra?: {
       cause?: Error;
     }
   ) {
-    super(message, extra);
+    super(`Failed to evaluate the if condition "${ifCondition}" of ${subject}.`, extra);
   }
 }
 
