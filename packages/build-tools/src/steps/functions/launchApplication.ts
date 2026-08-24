@@ -26,6 +26,16 @@ export function createLaunchApplicationFunction(): BuildFunction {
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
+      BuildStepInput.createProvider({
+        id: 'launch_args',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.JSON,
+      }),
+      BuildStepInput.createProvider({
+        id: 'tunnel_url',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
     ],
     fn: async ({ global, logger }, { inputs, env }) => {
       const applicationIdentifier = parseNonEmptyStringInput(
@@ -36,9 +46,16 @@ export function createLaunchApplicationFunction(): BuildFunction {
         inputs.activity_name.value === undefined
           ? undefined
           : parseNonEmptyStringInput(inputs.activity_name.value, 'activity_name');
+      const launchArgs = parseLaunchArgsInput(inputs.launch_args.value);
+      const tunnelUrl =
+        inputs.tunnel_url.value === undefined
+          ? undefined
+          : parseTunnelUrlInput(inputs.tunnel_url.value);
       await launchApplicationAsync({
         applicationIdentifier,
         activityName,
+        launchArgs,
+        tunnelUrl,
         runtimePlatform: global.runtimePlatform,
         env,
         logger,
@@ -50,22 +67,30 @@ export function createLaunchApplicationFunction(): BuildFunction {
 export async function launchApplicationAsync({
   applicationIdentifier,
   activityName,
+  launchArgs = [],
+  tunnelUrl,
   runtimePlatform,
   env,
   logger,
 }: {
   applicationIdentifier: string;
   activityName?: string;
+  launchArgs?: string[];
+  tunnelUrl?: string;
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
 }): Promise<void> {
   if (runtimePlatform === BuildRuntimePlatform.DARWIN) {
     logger.info(`Launching ${applicationIdentifier}.`);
-    await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier], {
+    await spawn('xcrun', ['simctl', 'launch', 'booted', applicationIdentifier, ...launchArgs], {
       env,
       logger,
     });
+    if (tunnelUrl) {
+      logger.info(`Opening ${tunnelUrl} in ${applicationIdentifier}.`);
+      await spawn('xcrun', ['simctl', 'openurl', 'booted', tunnelUrl], { env, logger });
+    }
     return;
   }
 
@@ -77,10 +102,32 @@ export async function launchApplicationAsync({
   }
 
   logger.info(`Launching ${applicationIdentifier}.`);
-  await spawn('adb', ['shell', 'am', 'start', '-n', `${applicationIdentifier}/${activityName}`], {
-    env,
-    logger,
-  });
+  await spawn(
+    'adb',
+    ['shell', 'am', 'start', ...launchArgs, '-n', `${applicationIdentifier}/${activityName}`],
+    {
+      env,
+      logger,
+    }
+  );
+  if (tunnelUrl) {
+    logger.info(`Opening ${tunnelUrl} in ${applicationIdentifier}.`);
+    await spawn(
+      'adb',
+      [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        tunnelUrl,
+        '-n',
+        `${applicationIdentifier}/${activityName}`,
+      ],
+      { env, logger }
+    );
+  }
 }
 
 function parseNonEmptyStringInput(value: unknown, inputName: string): string {
@@ -91,4 +138,28 @@ function parseNonEmptyStringInput(value: unknown, inputName: string): string {
     );
   }
   return value;
+}
+
+function parseLaunchArgsInput(value: unknown): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || !value.every(argument => typeof argument === 'string')) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Input "launch_args" must be an array of strings.'
+    );
+  }
+  return value;
+}
+
+function parseTunnelUrlInput(value: unknown): string {
+  const tunnelUrl = parseNonEmptyStringInput(value, 'tunnel_url');
+  if (!URL.canParse(tunnelUrl)) {
+    throw new UserError(
+      'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
+      'Input "tunnel_url" must be a valid URL.'
+    );
+  }
+  return tunnelUrl;
 }
