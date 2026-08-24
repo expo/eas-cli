@@ -32,7 +32,7 @@ export function createLaunchApplicationFunction(): BuildFunction {
         allowedValueTypeName: BuildStepInputValueTypeName.JSON,
       }),
       BuildStepInput.createProvider({
-        id: 'tunnel_url',
+        id: 'open_url',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
@@ -47,15 +47,13 @@ export function createLaunchApplicationFunction(): BuildFunction {
           ? undefined
           : parseNonEmptyStringInput(inputs.activity_name.value, 'activity_name');
       const launchArgs = parseLaunchArgsInput(inputs.launch_args.value);
-      const tunnelUrl =
-        inputs.tunnel_url.value === undefined
-          ? undefined
-          : parseTunnelUrlInput(inputs.tunnel_url.value);
+      const openUrl =
+        inputs.open_url.value === undefined ? undefined : parseOpenUrlInput(inputs.open_url.value);
       await launchApplicationAsync({
         applicationIdentifier,
         activityName,
         launchArgs,
-        tunnelUrl,
+        openUrl,
         runtimePlatform: global.runtimePlatform,
         env,
         logger,
@@ -68,7 +66,7 @@ export async function launchApplicationAsync({
   applicationIdentifier,
   activityName,
   launchArgs = [],
-  tunnelUrl,
+  openUrl,
   runtimePlatform,
   env,
   logger,
@@ -76,7 +74,7 @@ export async function launchApplicationAsync({
   applicationIdentifier: string;
   activityName?: string;
   launchArgs?: string[];
-  tunnelUrl?: string;
+  openUrl?: string;
   runtimePlatform: BuildRuntimePlatform;
   env: BuildStepEnv;
   logger: bunyan;
@@ -87,9 +85,9 @@ export async function launchApplicationAsync({
       env,
       logger,
     });
-    if (tunnelUrl) {
-      logger.info(`Opening ${tunnelUrl} in ${applicationIdentifier}.`);
-      await spawn('xcrun', ['simctl', 'openurl', 'booted', tunnelUrl], { env, logger });
+    if (openUrl) {
+      logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
+      await spawn('xcrun', ['simctl', 'openurl', 'booted', openUrl], { env, logger });
     }
     return;
   }
@@ -110,8 +108,8 @@ export async function launchApplicationAsync({
       logger,
     }
   );
-  if (tunnelUrl) {
-    logger.info(`Opening ${tunnelUrl} in ${applicationIdentifier}.`);
+  if (openUrl) {
+    logger.info(`Opening ${openUrl} in ${applicationIdentifier}.`);
     await spawn(
       'adb',
       [
@@ -121,7 +119,7 @@ export async function launchApplicationAsync({
         '-a',
         'android.intent.action.VIEW',
         '-d',
-        tunnelUrl,
+        openUrl,
         '-n',
         `${applicationIdentifier}/${activityName}`,
       ],
@@ -153,13 +151,13 @@ function parseLaunchArgsInput(value: unknown): string[] {
   return value;
 }
 
-function parseTunnelUrlInput(value: unknown): string {
-  const tunnelUrl = parseNonEmptyStringInput(value, 'tunnel_url');
-  if (!URL.canParse(tunnelUrl)) {
+function parseOpenUrlInput(value: unknown): string {
+  const openUrl = parseNonEmptyStringInput(value, 'open_url');
+  if (!URL.canParse(openUrl)) {
     throw new UserError(
       'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-      'Input "tunnel_url" must be a valid URL.'
+      'Input "open_url" must be a valid URL.'
     );
   }
-  return tunnelUrl;
+  return openUrl;
 }

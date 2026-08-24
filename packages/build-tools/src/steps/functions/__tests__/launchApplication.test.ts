@@ -35,13 +35,13 @@ describe(launchApplicationAsync, () => {
     );
   });
 
-  it('passes launch arguments and opens a tunnel URL on iOS', async () => {
+  it('passes launch arguments and opens a URL on iOS', async () => {
     const logger = createMockLogger();
 
     await launchApplicationAsync({
       applicationIdentifier: 'host.exp.Exponent',
       launchArgs: ['--uitesting', 'true'],
-      tunnelUrl: 'exp://example.test',
+      openUrl: 'exp://example.test',
       runtimePlatform: BuildRuntimePlatform.DARWIN,
       env: {},
       logger,
@@ -79,14 +79,14 @@ describe(launchApplicationAsync, () => {
     );
   });
 
-  it('passes launch arguments and opens a tunnel URL on Android', async () => {
+  it('passes launch arguments and opens a URL on Android', async () => {
     const logger = createMockLogger();
 
     await launchApplicationAsync({
       applicationIdentifier: 'host.exp.exponent',
       activityName: 'host.exp.exponent.MainActivity',
       launchArgs: ['--ez', 'isTest', 'true'],
-      tunnelUrl: 'exp://example.test',
+      openUrl: 'exp://example.test',
       runtimePlatform: BuildRuntimePlatform.LINUX,
       env: {},
       logger,
@@ -147,7 +147,7 @@ describe(launchApplicationAsync, () => {
           application_identifier: 'com.example.app',
           activity_name: 'com.example.app.MainActivity',
           launch_args: ['--ez', 'isTest', 'true'],
-          tunnel_url: 'exp://example.test',
+          open_url: 'exp://example.test',
         },
       }
     );
@@ -203,21 +203,21 @@ describe(launchApplicationAsync, () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid tunnel URL', async () => {
+  it('rejects an invalid URL to open', async () => {
     const launchApplication = createLaunchApplicationFunction();
     const buildStep = launchApplication.createBuildStepFromFunctionCall(
       createGlobalContextMock({ runtimePlatform: BuildRuntimePlatform.DARWIN }),
       {
         callInputs: {
           application_identifier: 'com.example.app',
-          tunnel_url: 'not a URL',
+          open_url: 'not a URL',
         },
       }
     );
 
     await expect(buildStep.executeAsync()).rejects.toMatchObject({
       errorCode: 'EAS_LAUNCH_APPLICATION_INVALID_INPUT',
-      message: 'Input "tunnel_url" must be a valid URL.',
+      message: 'Input "open_url" must be a valid URL.',
     });
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
