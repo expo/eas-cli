@@ -51,6 +51,57 @@ describe(runLocalBuildAsync, () => {
     expect(decodeInput(input)).toEqual({ job, metadata });
   });
 
+  it('starts the local-build plugin with an isolated env', async () => {
+    const originalEnv = process.env;
+    const loadedEnvMarker = '["ANDROID_HOME","EAS_LOCAL_BUILD_WORKINGDIR"]';
+    const runtimeEnv = {
+      ANDROID_NDK_HOME: '/local/android-ndk',
+      ANDROID_SDK_ROOT: '/local/android-sdk',
+      DEVELOPER_DIR: '/Applications/Xcode.app/Contents/Developer',
+      GEM_HOME: '/local/gems',
+      GEM_PATH: '/local/gems:/system/gems',
+      HOME: '/local/home',
+      JAVA_HOME: '/local/jdk',
+      LANG: 'en_US.UTF-8',
+      LC_ALL: 'en_US.UTF-8',
+      LC_CTYPE: 'UTF-8',
+      NVM_NODEJS_ORG_MIRROR: 'https://node.example.test',
+      TEMP: '/local/temp',
+      TMP: '/local/tmp',
+      TMPDIR: '/local/tmpdir',
+    };
+    process.env = {
+      ...runtimeEnv,
+      EAS_LOCAL_BUILD_PLUGIN_PATH: '/path/to/plugin',
+      PATH: '/local/bin',
+      ANDROID_HOME: '/dotenv/android',
+      SHELL_ONLY_VALUE: 'from-shell',
+      EAS_LOCAL_BUILD_WORKINGDIR: '/dotenv/workingdir',
+      EAS_LOCAL_BUILD_LOGGER_LEVEL: 'debug',
+      __EXPO_ENV_LOADED: loadedEnvMarker,
+    };
+    const env = { BUILD_ENV_VALUE: 'from-eas', PATH: '/eas/bin' };
+
+    try {
+      await runLocalBuildAsync(job, metadata, { verbose: true }, env);
+
+      const spawnEnv = mockSpawnAsync.mock.calls[0][2]?.env;
+      expect(spawnEnv?.BUILD_ENV_VALUE).toBe('from-eas');
+      expect(spawnEnv?.PATH).toBe('/eas/bin');
+      expect(spawnEnv?.ANDROID_HOME).toBeUndefined();
+      expect(spawnEnv).toEqual(expect.objectContaining(runtimeEnv));
+      expect(spawnEnv?.EAS_LOCAL_BUILD_WORKINGDIR).toBeUndefined();
+      expect(spawnEnv?.EAS_LOCAL_BUILD_LOGGER_LEVEL).toBe('debug');
+      expect(spawnEnv?.SHELL_ONLY_VALUE).toBeUndefined();
+      expect(spawnEnv?.__EXPO_ENV_LOADED).toBeUndefined();
+      expect(env).toEqual({ BUILD_ENV_VALUE: 'from-eas', PATH: '/eas/bin' });
+      expect(process.env.SHELL_ONLY_VALUE).toBe('from-shell');
+      expect(process.env.__EXPO_ENV_LOADED).toBe(loadedEnvMarker);
+    } finally {
+      process.env = originalEnv;
+    }
+  });
+
   it('logs a non-secret build context summary and re-throws on failure', async () => {
     const richJob = {
       type: 'managed',

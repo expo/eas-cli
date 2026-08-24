@@ -7,9 +7,31 @@ import semver from 'semver';
 import { getExpoApiBaseUrl } from '../api';
 import Log from '../log';
 import { ora } from '../ora';
+import { getEnvWithoutInheritedDotenvValues } from '../utils/originalEnv';
 
 const PLUGIN_PACKAGE_NAME = 'eas-cli-local-build-plugin';
 const PLUGIN_PACKAGE_VERSION = version; // should match version of @expo/eas-build-job
+
+// The plugin starts with an isolated env, so keep the runtime vars it needs from the user's
+// machine.
+const LOCAL_BUILD_RUNTIME_ENV_NAMES = [
+  'ANDROID_HOME',
+  'ANDROID_NDK_HOME',
+  'ANDROID_SDK_ROOT',
+  'DEVELOPER_DIR',
+  'GEM_HOME',
+  'GEM_PATH',
+  'HOME',
+  'JAVA_HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'NVM_NODEJS_ORG_MIRROR',
+  'PATH',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+] as const;
 
 export enum LocalBuildMode {
   /**
@@ -63,18 +85,25 @@ export async function runLocalBuildAsync(
   };
   process.on('SIGINT', interruptHandler);
   try {
+    const processEnv = getEnvWithoutInheritedDotenvValues(process.env);
     const mergedEnv = {
+      ...getLocalBuildRuntimeEnv(processEnv),
       ...env,
-      ...process.env,
       EAS_LOCAL_BUILD_PLUGIN_INPUT: pluginInput,
-      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? process.env.EAS_LOCAL_BUILD_WORKINGDIR,
+      EAS_LOCAL_BUILD_WORKINGDIR: options.workingdir ?? processEnv.EAS_LOCAL_BUILD_WORKINGDIR,
+      EAS_LOCAL_BUILD_LOGGER_LEVEL: processEnv.EAS_LOCAL_BUILD_LOGGER_LEVEL,
       __API_SERVER_URL: getExpoApiBaseUrl(),
-      ...(options.skipCleanup || options.skipNativeBuild
-        ? { EAS_LOCAL_BUILD_SKIP_CLEANUP: '1' }
-        : {}),
-      ...(options.skipNativeBuild ? { EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: '1' } : {}),
-      ...(options.artifactsDir ? { EAS_LOCAL_BUILD_ARTIFACTS_DIR: options.artifactsDir } : {}),
-      ...(options.artifactPath ? { EAS_LOCAL_BUILD_ARTIFACT_PATH: options.artifactPath } : {}),
+      EAS_LOCAL_BUILD_SKIP_CLEANUP:
+        options.skipCleanup || options.skipNativeBuild
+          ? '1'
+          : processEnv.EAS_LOCAL_BUILD_SKIP_CLEANUP,
+      EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD: options.skipNativeBuild
+        ? '1'
+        : processEnv.EAS_LOCAL_BUILD_SKIP_NATIVE_BUILD,
+      EAS_LOCAL_BUILD_ARTIFACTS_DIR:
+        options.artifactsDir ?? processEnv.EAS_LOCAL_BUILD_ARTIFACTS_DIR,
+      EAS_LOCAL_BUILD_ARTIFACT_PATH:
+        options.artifactPath ?? processEnv.EAS_LOCAL_BUILD_ARTIFACT_PATH,
     };
     // log command execution to assist in debugging local builds; redact the job
     // input since it contains build credentials.
@@ -100,6 +129,17 @@ export async function runLocalBuildAsync(
     process.removeListener('SIGINT', interruptHandler);
     spinner?.stop();
   }
+}
+
+function getLocalBuildRuntimeEnv(processEnv: NodeJS.ProcessEnv): Env {
+  const env: Env = {};
+  for (const name of LOCAL_BUILD_RUNTIME_ENV_NAMES) {
+    const value = processEnv[name];
+    if (value !== undefined) {
+      env[name] = value;
+    }
+  }
+  return env;
 }
 
 /**
