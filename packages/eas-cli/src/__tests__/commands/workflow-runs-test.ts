@@ -142,6 +142,7 @@ describe(WorkflowRunList, () => {
         triggerEventType: WorkflowRunTriggerEventType.Manual,
         createdAt: '2022-01-01T00:00:00.000Z',
         updatedAt: '2022-01-01T00:00:00.000Z',
+        finalizedAt: '2022-01-01T00:00:00.000Z',
         gitCommitHash: '1234567890',
         gitCommitMessage: 'commit message',
         errors: [],
