@@ -10,7 +10,7 @@ export const ObserveProjectIdFlag = {
 
 export const ObservePlatformFlag = {
   platform: Flags.option({
-    description: 'Filter by platform',
+    description: 'Filter by platform ("apple" covers iOS, iPadOS, tvOS, and macOS)',
     options: allowedPlatformFlagValues,
   })(),
 };
