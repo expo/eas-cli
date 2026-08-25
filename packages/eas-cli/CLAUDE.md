@@ -299,4 +299,4 @@ describe('MyCommand', () => {
 - **README**: Auto-generated from oclif - update via `yarn oclif readme`
 - **Manifest**: Generated during `prepack` step
 - **Templates**: `src/commandUtils/new/templates` are copied to `build/` during build
-- **Node Version**: >= 18.0.0
+- **Node Version**: ^20.18.3 or >= 22.0.0
