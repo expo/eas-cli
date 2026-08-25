@@ -26,7 +26,10 @@ import {
 import { METRIC_ALIASES, METRIC_SHORT_NAMES, resolveMetricName } from '../../observe/metricNames';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import { buildObserveEventsJson, buildObserveEventsTable } from '../../observe/formatEvents';
-import { appObservePlatformFromFlag, appPlatformsFromFlag } from '../../observe/platforms';
+import {
+  observePlatformTargetsFromFlag,
+  observePlatformsFromFlag,
+} from '../../observe/platforms';
 import { resolveObserveCommandContextAsync } from '../../observe/resolveProjectContext';
 import { resolveTimeRange } from '../../observe/startAndEndTime';
 import { selectAsync } from '../../prompts';
@@ -110,8 +113,8 @@ export default class ObserveMetrics extends EasCommand {
 
     const { daysBack, startTime, endTime } = resolveTimeRange(flags);
 
-    const platform = appObservePlatformFromFlag(flags.platform);
-    const platforms = appPlatformsFromFlag(flags.platform);
+    const platforms = observePlatformsFromFlag(flags.platform);
+    const targets = observePlatformTargetsFromFlag(flags.platform);
 
     const [{ events, pageInfo }, totalEventCount] = await withObservePlanGateHandlingAsync(() =>
       Promise.all([
@@ -122,7 +125,7 @@ export default class ObserveMetrics extends EasCommand {
           ...(flags.after && { after: flags.after }),
           startTime,
           endTime,
-          platform,
+          platforms,
           appVersion: flags['app-version'],
           updateId: flags['update-id'],
           environment: flags.environment,
@@ -131,7 +134,7 @@ export default class ObserveMetrics extends EasCommand {
           graphqlClient,
           projectId,
           metricName,
-          platforms,
+          targets,
           startTime,
           endTime,
           flags.environment
