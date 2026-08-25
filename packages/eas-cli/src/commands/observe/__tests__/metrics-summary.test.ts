@@ -32,7 +32,6 @@ const mockBuildObserveMetricsSummaryJson = jest.mocked(buildObserveMetricsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-
 function target(platform: AppObservePlatform): ObservePlatformTarget {
   return { key: platform, platforms: [platform] };
 }

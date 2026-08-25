@@ -32,7 +32,6 @@ const mockBuildObserveNavigationRoutesJson = jest.mocked(buildObserveNavigationR
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
 
-
 function target(platform: AppObservePlatform): ObservePlatformTarget {
   return { key: platform, platforms: [platform] };
 }
@@ -84,7 +83,10 @@ describe(ObserveRoutes, () => {
 
     expect(mockFetchObserveNavigationRoutesAsync).toHaveBeenCalledTimes(1);
     const options = mockFetchObserveNavigationRoutesAsync.mock.calls[0][2];
-    expect(options.targets).toEqual([target(AppObservePlatform.Android), target(AppObservePlatform.Ios)]);
+    expect(options.targets).toEqual([
+      target(AppObservePlatform.Android),
+      target(AppObservePlatform.Ios),
+    ]);
     expect(options.limit).toBe(50);
 
     const tableCall = mockBuildObserveNavigationRoutesTable.mock.calls[0];
