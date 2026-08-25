@@ -16,7 +16,11 @@ import {
   fetchSessionMetricCandidatesAsync,
   verifyObserveSessionAccessAsync,
 } from '../../observe/fetchSessions';
-import { ObserveProjectIdFlag, ObserveTimeRangeFlags } from '../../observe/flags';
+import {
+  ObserveEnvironmentFlag,
+  ObserveProjectIdFlag,
+  ObserveTimeRangeFlags,
+} from '../../observe/flags';
 import { withObservePlanGateHandlingAsync } from '../../observe/planGating';
 import {
   buildObserveSessionEventsJson,
@@ -66,6 +70,7 @@ export default class ObserveSession extends EasCommand {
         'Metric or log event name to pick candidate sessions by (e.g. tti, cold_launch, login_pressed). If omitted in interactive mode, you will be prompted.',
     }),
     ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -102,10 +107,11 @@ export default class ObserveSession extends EasCommand {
         flags.sort !== undefined ||
         flags.days !== undefined ||
         flags.start !== undefined ||
-        flags.end !== undefined;
+        flags.end !== undefined ||
+        flags.environment !== undefined;
       if (pickerFlagsProvided) {
         throw new EasCommandError(
-          'The picker flags (--event-name, --sort, --days, --start, --end) describe how to find a session and cannot be combined with a session ID argument.'
+          'The picker flags (--event-name, --sort, --days, --start, --end, --environment) describe how to find a session and cannot be combined with a session ID argument.'
         );
       }
       sessionId = args.sessionId;
@@ -127,6 +133,7 @@ export default class ObserveSession extends EasCommand {
         eventNameFlag: flags['event-name'],
         sort: flags.sort,
         timeRangeFlags: { days: flags.days, start: flags.start, end: flags.end },
+        environment: flags.environment,
       });
     }
 
@@ -172,18 +179,20 @@ async function pickSessionIdInteractivelyAsync({
   eventNameFlag,
   sort,
   timeRangeFlags,
+  environment,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
   eventNameFlag: string | undefined;
   sort: string | undefined;
   timeRangeFlags: { days: number | undefined; start: string | undefined; end: string | undefined };
+  environment: string | undefined;
 }): Promise<string> {
   const { startTime, endTime } = resolveTimeRange(timeRangeFlags);
 
   const eventNameChoice: EventNameChoice = eventNameFlag
     ? { name: eventNameFlag, isMetric: isKnownMetricName(eventNameFlag) }
-    : await promptForEventNameAsync({ graphqlClient, projectId, startTime, endTime });
+    : await promptForEventNameAsync({ graphqlClient, projectId, startTime, endTime, environment });
 
   let sortValue: string;
   if (sort) {
@@ -208,6 +217,7 @@ async function pickSessionIdInteractivelyAsync({
           startTime,
           endTime,
           limit: PICKER_CANDIDATE_LIMIT,
+          environment,
         })
       ).map(event => ({ sessionId: event.sessionId, title: formatMetricCandidateTitle(event) }))
     : (
@@ -217,6 +227,7 @@ async function pickSessionIdInteractivelyAsync({
           startTime,
           endTime,
           limit: PICKER_CANDIDATE_LIMIT,
+          environment,
         })
       ).map(event => ({ sessionId: event.sessionId, title: formatLogCandidateTitle(event) }));
 
@@ -254,16 +265,19 @@ async function promptForEventNameAsync({
   projectId,
   startTime,
   endTime,
+  environment,
 }: {
   graphqlClient: ExpoGraphqlClient;
   projectId: string;
   startTime: string;
   endTime: string;
+  environment: string | undefined;
 }): Promise<EventNameChoice> {
   const { names: customEventNames } = await ObserveQuery.customEventNamesAsync(graphqlClient, {
     appId: projectId,
     startTime,
     endTime,
+    environment,
   });
 
   const metricChoices: ExpoChoice<EventNameChoice>[] = Object.entries(METRIC_SHORT_NAMES).map(

@@ -239,6 +239,11 @@ describe(ObserveSession, () => {
     await expect(command.runAsync()).rejects.toThrow(/picker flags/);
   });
 
+  it('rejects --environment when a session ID is also provided', async () => {
+    const command = createCommand(['session-abc', '--environment', 'production']);
+    await expect(command.runAsync()).rejects.toThrow(/picker flags/);
+  });
+
   it('picker mode with --event-name tti fetches metric events and threads selected sessionId', async () => {
     mockFetchSessionMetricCandidatesAsync.mockResolvedValue([
       makeMetricEvent({ sessionId: 'picked-session-1' }),
