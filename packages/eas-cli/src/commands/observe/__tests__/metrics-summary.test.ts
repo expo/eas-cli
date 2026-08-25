@@ -104,6 +104,13 @@ describe(ObserveMetricsSummary, () => {
     expect(platforms).toEqual([AppPlatform.Ios]);
   });
 
+  it('passes --environment through to fetchObserveMetricsAsync', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockFetchObserveMetricsSummaryAsync.mock.calls[0][6]).toBe('production');
+  });
+
   it('resolves --metric aliases before passing to fetchObserveMetricsAsync', async () => {
     const command = createCommand(['--metric', 'tti', '--metric', 'cold_launch']);
     await command.runAsync();

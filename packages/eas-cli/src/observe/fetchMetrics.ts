@@ -35,7 +35,8 @@ export async function fetchObserveMetricsAsync(
   metricNames: string[],
   platforms: AppPlatform[],
   startTime: string,
-  endTime: string
+  endTime: string,
+  environment?: string
 ): Promise<FetchObserveMetricsResult> {
   const queries = platforms.map(async appPlatform => {
     const observePlatform = appPlatformToObservePlatform[appPlatform];
@@ -46,6 +47,7 @@ export async function fetchObserveMetricsAsync(
         startTime,
         endTime,
         metricNames,
+        environment,
       });
       return { appPlatform, appVersions };
     } catch (error: any) {

@@ -8,6 +8,7 @@ import {
 import Log from '../../log';
 import { fetchObserveMetricsAsync } from '../../observe/fetchMetrics';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -62,6 +63,7 @@ export default class ObserveMetricsSummary extends EasCommand {
       options: DEFAULT_STATS_JSON,
     })(),
     ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -107,7 +109,8 @@ export default class ObserveMetricsSummary extends EasCommand {
           metricNames,
           platforms,
           startTime,
-          endTime
+          endTime,
+          flags.environment
         )
       );
 
