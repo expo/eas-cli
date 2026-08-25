@@ -15,6 +15,12 @@ export const ObservePlatformFlag = {
   })(),
 };
 
+export const ObserveEnvironmentFlag = {
+  environment: Flags.string({
+    description: 'Filter by environment (e.g. production, development)',
+  }),
+};
+
 export const ObserveTimeRangeFlags = {
   start: Flags.string({
     description: 'Start of time range (ISO date)',
