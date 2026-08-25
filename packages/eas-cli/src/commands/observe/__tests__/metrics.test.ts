@@ -193,20 +193,20 @@ describe(ObserveMetrics, () => {
     await expect(command.runAsync()).rejects.toThrow();
   });
 
-  it('passes --platform ios to fetchObserveEventsAsync as AppObservePlatform.Ios', async () => {
+  it('passes --platform ios to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--platform', 'ios']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Ios);
+    expect(options.platforms).toEqual([AppObservePlatform.Ios]);
   });
 
-  it('passes --platform android to fetchObserveEventsAsync as AppObservePlatform.Android', async () => {
+  it('passes --platform android to fetchObserveEventsAsync', async () => {
     const command = createCommand(['tti', '--platform', 'android']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBe(AppObservePlatform.Android);
+    expect(options.platforms).toEqual([AppObservePlatform.Android]);
   });
 
   it('passes --app-version to fetchObserveEventsAsync', async () => {
@@ -225,12 +225,12 @@ describe(ObserveMetrics, () => {
     expect(options.updateId).toBe('update-xyz');
   });
 
-  it('does not pass platform, appVersion, or updateId when flags are not provided', async () => {
+  it('does not pass platforms, appVersion, or updateId when flags are not provided', async () => {
     const command = createCommand(['tti']);
     await command.runAsync();
 
     const options = mockFetchObserveEventsAsync.mock.calls[0][2];
-    expect(options.platform).toBeUndefined();
+    expect(options.platforms).toBeUndefined();
     expect(options.appVersion).toBeUndefined();
     expect(options.updateId).toBeUndefined();
   });

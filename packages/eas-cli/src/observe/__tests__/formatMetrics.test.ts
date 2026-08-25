@@ -1,4 +1,4 @@
-import { AppPlatform } from '../../graphql/generated';
+import { AppObservePlatform } from '../../graphql/generated';
 import {
   type MetricValues,
   ObserveMetricsMap,
@@ -40,7 +40,7 @@ function makeMetricValueWithDefaults(overrides: Partial<MetricValues>): MetricVa
 describe(buildObserveMetricsTable, () => {
   it('formats metrics grouped by version with metric columns', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const iosKey = makeMetricsKey('1.2.0', AppPlatform.Ios);
+    const iosKey = makeMetricsKey('1.2.0', AppObservePlatform.Ios);
     metricsMap.set(
       iosKey,
       new Map([
@@ -52,7 +52,7 @@ describe(buildObserveMetricsTable, () => {
       ])
     );
 
-    const androidKey = makeMetricsKey('1.1.0', AppPlatform.Android);
+    const androidKey = makeMetricsKey('1.1.0', AppObservePlatform.Android);
     metricsMap.set(
       androidKey,
       new Map([
@@ -84,7 +84,7 @@ describe(buildObserveMetricsTable, () => {
 
   it('shows - for versions with no matching metric data', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('2.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('2.0.0', AppObservePlatform.Ios);
     metricsMap.set(key, new Map());
 
     const output = buildObserveMetricsTable(metricsMap, DEFAULT_METRICS, DEFAULT_STATS_TABLE);
@@ -108,7 +108,7 @@ describe(buildObserveMetricsTable, () => {
 describe(buildObserveMetricsJson, () => {
   it('produces JSON with all stats per metric', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     metricsMap.set(
       key,
       new Map([
@@ -125,7 +125,7 @@ describe(buildObserveMetricsJson, () => {
     expect(result.versions).toHaveLength(1);
     expect(result.versions[0]).toEqual({
       appVersion: '1.0.0',
-      platform: AppPlatform.Ios,
+      platform: AppObservePlatform.Ios,
       buildNumbers: [],
       updateIds: [],
       metrics: {
@@ -145,7 +145,7 @@ describe(buildObserveMetricsJson, () => {
 
   it('produces null values when no observe data matches for a metric', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('3.0.0', AppPlatform.Android);
+    const key = makeMetricsKey('3.0.0', AppObservePlatform.Android);
     metricsMap.set(key, new Map());
 
     const result = buildObserveMetricsJson(
@@ -171,8 +171,8 @@ describe(buildObserveMetricsJson, () => {
 
 describe(makeMetricsKey, () => {
   it('creates a key from version and platform', () => {
-    expect(makeMetricsKey('1.0.0', AppPlatform.Ios)).toBe('1.0.0:IOS');
-    expect(makeMetricsKey('2.0.0', AppPlatform.Android)).toBe('2.0.0:ANDROID');
+    expect(makeMetricsKey('1.0.0', AppObservePlatform.Ios)).toBe('1.0.0:IOS');
+    expect(makeMetricsKey('2.0.0', AppObservePlatform.Android)).toBe('2.0.0:ANDROID');
   });
 });
 
@@ -224,7 +224,7 @@ describe('DEFAULT_STATS_JSON', () => {
 describe('custom stats parameter', () => {
   it('table renders only selected stats', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     metricsMap.set(
       key,
       new Map([
@@ -259,7 +259,7 @@ describe('custom stats parameter', () => {
 
   it("table formats eventCount as integer without 's' suffix", () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     metricsMap.set(
       key,
       new Map([
@@ -288,7 +288,7 @@ describe('custom stats parameter', () => {
 
   it('JSON includes only selected stats', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     metricsMap.set(
       key,
       new Map([
@@ -322,7 +322,7 @@ describe('custom stats parameter', () => {
 
   it('JSON uses default stats when not specified', () => {
     const metricsMap: ObserveMetricsMap = new Map();
-    const key = makeMetricsKey('1.0.0', AppPlatform.Ios);
+    const key = makeMetricsKey('1.0.0', AppObservePlatform.Ios);
     metricsMap.set(
       key,
       new Map([

@@ -5,7 +5,6 @@ import {
   AppObserveEventsOrderByDirection,
   AppObserveEventsOrderByField,
   AppObservePlatform,
-  AppPlatform,
 } from '../../graphql/generated';
 import { ObserveQuery } from '../../graphql/queries/ObserveQuery';
 import {
@@ -15,8 +14,13 @@ import {
   resolveOrderBy,
 } from '../fetchEvents';
 import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../planGating';
+import { ObservePlatformTarget } from '../platforms';
 
 jest.mock('../../graphql/queries/ObserveQuery');
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(resolveOrderBy, () => {
   it('maps "slowest" to METRIC_VALUE DESC', () => {
@@ -104,14 +108,14 @@ describe(fetchObserveEventsAsync, () => {
       limit: 5,
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
-      platform: AppObservePlatform.Ios,
+      platforms: [AppObservePlatform.Ios],
     });
 
     expect(mockEventsAsync).toHaveBeenCalledWith(
       mockGraphqlClient,
       expect.objectContaining({
         filter: expect.objectContaining({
-          platform: AppObservePlatform.Ios,
+          platforms: [AppObservePlatform.Ios],
         }),
       })
     );
@@ -316,7 +320,7 @@ describe(fetchTotalEventCountAsync, () => {
         mockGraphqlClient,
         'project-123',
         'expo.navigation.tti',
-        [AppPlatform.Ios, AppPlatform.Android],
+        [target(AppObservePlatform.Ios), target(AppObservePlatform.Android)],
         '2025-01-01T00:00:00.000Z',
         '2025-03-01T00:00:00.000Z'
       )
@@ -330,7 +334,7 @@ describe(fetchTotalEventCountAsync, () => {
       mockGraphqlClient,
       'project-123',
       'expo.app_startup.tti',
-      [AppPlatform.Ios],
+      [target(AppObservePlatform.Ios)],
       '2025-01-01T00:00:00.000Z',
       '2025-03-01T00:00:00.000Z'
     );

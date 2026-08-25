@@ -3,11 +3,12 @@ import { GraphQLError } from 'graphql';
 
 import { ExpoGraphqlClient } from '../../../commandUtils/context/contextUtils/createGraphqlClient';
 import { getMockOclifConfig } from '../../../__tests__/commands/utils';
-import { AppPlatform } from '../../../graphql/generated';
+import { AppObservePlatform } from '../../../graphql/generated';
 import { fetchObserveMetricsAsync, validateDateFlag } from '../../../observe/fetchMetrics';
 import { EAS_OBSERVE_FEATURE_NOT_AVAILABLE_IN_FREE_TIER_ERROR_CODE } from '../../../observe/planGating';
 import { buildObserveMetricsJson, buildObserveMetricsTable } from '../../../observe/formatMetrics';
 import { enableJsonOutput, printJsonOnlyOutput } from '../../../utils/json';
+import { ObservePlatformTarget } from '../../../observe/platforms';
 import ObserveMetricsSummary from '../metrics-summary';
 
 jest.mock('../../../observe/fetchMetrics', () => {
@@ -30,6 +31,11 @@ const mockBuildObserveMetricsSummaryTable = jest.mocked(buildObserveMetricsTable
 const mockBuildObserveMetricsSummaryJson = jest.mocked(buildObserveMetricsJson);
 const mockEnableJsonOutput = jest.mocked(enableJsonOutput);
 const mockPrintJsonOnlyOutput = jest.mocked(printJsonOnlyOutput);
+
+
+function target(platform: AppObservePlatform): ObservePlatformTarget {
+  return { key: platform, platforms: [platform] };
+}
 
 describe(ObserveMetricsSummary, () => {
   const graphqlClient = {} as any as ExpoGraphqlClient;
@@ -83,7 +89,7 @@ describe(ObserveMetricsSummary, () => {
 
     expect(mockFetchObserveMetricsSummaryAsync).toHaveBeenCalledTimes(1);
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Android, AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android), target(AppObservePlatform.Ios)]);
 
     jest.useRealTimers();
   });
@@ -93,7 +99,7 @@ describe(ObserveMetricsSummary, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Android]);
+    expect(platforms).toEqual([target(AppObservePlatform.Android)]);
   });
 
   it('queries only iOS when --platform ios is passed', async () => {
@@ -101,7 +107,33 @@ describe(ObserveMetricsSummary, () => {
     await command.runAsync();
 
     const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
-    expect(platforms).toEqual([AppPlatform.Ios]);
+    expect(platforms).toEqual([target(AppObservePlatform.Ios)]);
+  });
+
+  it('queries one combined target covering every Apple platform when --platform apple is passed', async () => {
+    const command = createCommand(['--platform', 'apple']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([
+      {
+        key: 'APPLE',
+        platforms: [
+          AppObservePlatform.Ios,
+          AppObservePlatform.Ipados,
+          AppObservePlatform.Tvos,
+          AppObservePlatform.Macos,
+        ],
+      },
+    ]);
+  });
+
+  it('queries only macOS when --platform macos is passed', async () => {
+    const command = createCommand(['--platform', 'macos']);
+    await command.runAsync();
+
+    const platforms = mockFetchObserveMetricsSummaryAsync.mock.calls[0][3];
+    expect(platforms).toEqual([target(AppObservePlatform.Macos)]);
   });
 
   it('passes --environment through to fetchObserveMetricsAsync', async () => {
