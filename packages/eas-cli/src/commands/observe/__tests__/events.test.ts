@@ -275,6 +275,14 @@ describe(ObserveEvents, () => {
     expect(options.appVersion).toBe('2.1.0');
   });
 
+  it('passes --build-number', async () => {
+    const command = createCommand(['my_event', '--build-number', '42']);
+    await command.runAsync();
+
+    const options = mockFetchObserveCustomEventsAsync.mock.calls[0][2];
+    expect(options.buildNumber).toBe('42');
+  });
+
   it('passes --update-id', async () => {
     const command = createCommand(['my_event', '--update-id', 'update-xyz']);
     await command.runAsync();
