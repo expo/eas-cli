@@ -10445,7 +10445,7 @@ __metadata:
     minimatch: "npm:5.1.2"
     minizlib: "npm:3.0.1"
     mockdate: "npm:3.0.5"
-    nanoid: "npm:3.3.8"
+    nanoid: "npm:3.3.17"
     nock: "npm:13.4.0"
     node-fetch: "npm:2.6.7"
     node-forge: "npm:1.4.0"
@@ -15088,12 +15088,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:3.3.8":
-  version: 3.3.8
-  resolution: "nanoid@npm:3.3.8"
+"nanoid@npm:3.3.17":
+  version: 3.3.17
+  resolution: "nanoid@npm:3.3.17"
   bin:
     nanoid: bin/nanoid.cjs
-  checksum: 10c0/4b1bb29f6cfebf3be3bc4ad1f1296fb0a10a3043a79f34fbffe75d1621b4318319211cd420549459018ea3592f0d2f159247a6f874911d6d26eaaadda2478120
+  checksum: 10c0/06f7949c7cce5c92c6aea66022f29a1eae7f56e05acbfddf1e049e819b4bf234c44a765cc44da7163482b111677948514012e27acdfa56f95309295768bdae32
   languageName: node
   linkType: hard
 
