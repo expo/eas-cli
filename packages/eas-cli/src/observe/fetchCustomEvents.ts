@@ -18,6 +18,7 @@ interface FetchCustomEventsOptions {
   appVersion?: string;
   updateId?: string;
   sessionId?: string;
+  environment?: string;
   orderBy?: AppObserveCustomEventListOrderBy;
 }
 
@@ -39,6 +40,7 @@ export async function fetchObserveCustomEventsAsync(
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
+    ...(options.environment && { environment: options.environment }),
   };
 
   return await ObserveQuery.customEventListAsync(graphqlClient, {

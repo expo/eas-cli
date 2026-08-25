@@ -12,6 +12,7 @@ import { fetchObserveCustomEventsAsync } from '../../observe/fetchCustomEvents';
 import {
   ObserveAfterFlag,
   ObserveAppVersionFlag,
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -54,6 +55,7 @@ export default class ObserveEvents extends EasCommand {
     ...ObserveTimeRangeFlags,
     ...ObserveAppVersionFlag,
     ...ObserveUpdateIdFlag,
+    ...ObserveEnvironmentFlag,
     'session-id': Flags.string({
       description:
         'Filter by session ID. When no event name is given, lists the events in the session instead of the event-name summary.',
@@ -112,6 +114,7 @@ export default class ObserveEvents extends EasCommand {
           startTime,
           endTime,
           platform,
+          environment: flags.environment,
         })
       );
 
@@ -142,6 +145,7 @@ export default class ObserveEvents extends EasCommand {
         appVersion: flags['app-version'],
         updateId: flags['update-id'],
         sessionId: flags['session-id'],
+        environment: flags.environment,
       })
     );
 
@@ -151,6 +155,7 @@ export default class ObserveEvents extends EasCommand {
         startTime,
         endTime,
         platform,
+        environment: flags.environment,
       });
 
       if (json) {
