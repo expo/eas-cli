@@ -27,6 +27,7 @@ export interface FetchNavigationRoutesOptions {
   updateId?: string;
   buildNumber?: string;
   routeNames?: string[];
+  environment?: string;
   orderBy?: AppObserveNavigationRoutesOrderBy;
 }
 
@@ -58,6 +59,7 @@ export async function fetchObserveNavigationRoutesAsync(
           ...(options.updateId && { appUpdateId: options.updateId }),
           ...(options.buildNumber && { appBuildNumber: options.buildNumber }),
           ...(options.routeNames?.length && { routeNames: options.routeNames }),
+          ...(options.environment && { environment: options.environment }),
         },
         first: options.limit,
         ...(options.after && { after: options.after }),
