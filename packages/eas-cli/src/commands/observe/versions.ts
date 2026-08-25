@@ -6,6 +6,7 @@ import {
 import Log from '../../log';
 import { fetchObserveVersionsAsync } from '../../observe/fetchVersions';
 import {
+  ObserveEnvironmentFlag,
   ObservePlatformFlag,
   ObserveProjectIdFlag,
   ObserveTimeRangeFlags,
@@ -22,6 +23,7 @@ export default class ObserveVersions extends EasCommand {
   static override flags = {
     ...ObservePlatformFlag,
     ...ObserveTimeRangeFlags,
+    ...ObserveEnvironmentFlag,
     ...ObserveProjectIdFlag,
     ...EasNonInteractiveAndJsonFlags,
   };
@@ -60,7 +62,8 @@ export default class ObserveVersions extends EasCommand {
       projectId,
       platforms,
       startTime,
-      endTime
+      endTime,
+      flags.environment
     );
 
     if (json) {

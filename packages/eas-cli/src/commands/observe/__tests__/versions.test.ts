@@ -73,6 +73,13 @@ describe(ObserveVersions, () => {
     expect(platforms).toEqual([AppPlatform.Ios]);
   });
 
+  it('passes --environment through to fetchObserveVersionsAsync', async () => {
+    const command = createCommand(['--environment', 'production']);
+    await command.runAsync();
+
+    expect(mockFetchObserveVersionsAsync.mock.calls[0][5]).toBe('production');
+  });
+
   it('uses default time range (60 days back) when no --start/--end flags', async () => {
     const now = new Date('2025-06-15T12:00:00.000Z');
     jest.useFakeTimers({ now });
