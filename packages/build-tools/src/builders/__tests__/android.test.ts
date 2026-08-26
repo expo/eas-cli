@@ -6,6 +6,7 @@ import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { Datadog } from '../../datadog';
 import { restoreCredentials } from '../../android/credentials';
+import { clearReactNativeAutolinkingCacheAsync } from '../../android/autolinking';
 import { uploadEmbeddedBundleAsync } from '../../utils/expoUpdatesEmbedded';
 import androidBuilder from '../android';
 import { runBuilderWithHooksAsync } from '../common';
@@ -25,6 +26,7 @@ jest.mock('../custom', () => ({
   runCustomBuildAsync: jest.fn(),
 }));
 jest.mock('../../android/credentials');
+jest.mock('../../android/autolinking');
 jest.mock('../../android/gradle', () => ({
   ensureLFLineEndingsInGradlewScript: jest.fn(),
   resolveGradleCommand: jest.fn(() => ':app:bundleRelease'),
@@ -43,9 +45,11 @@ jest.mock('../../common/setup', () => ({
 jest.mock('../../steps/functions/restoreBuildCache', () => ({
   cacheStatsAsync: jest.fn(),
   restoreCcacheAsync: jest.fn(),
+  restoreGradleCacheAsync: jest.fn(),
 }));
 jest.mock('../../steps/functions/saveBuildCache', () => ({
   saveCcacheAsync: jest.fn(),
+  saveGradleCacheAsync: jest.fn(),
 }));
 jest.mock('../../steps/utils/android/gradleConfig', () => ({
   ...jest.requireActual('../../steps/utils/android/gradleConfig'),
@@ -87,6 +91,29 @@ describe(androidBuilder, () => {
         }),
       },
       '/'
+    );
+  });
+
+  it('clears generated autolinking state after restoring the user cache', async () => {
+    const restoreCache = jest.fn();
+    const ctx = new BuildContext(createTestAndroidJob(), {
+      workingdir: '/workingdir',
+      logBuffer: { getLogs: () => [], getPhaseLogs: () => [] },
+      logger: createMockLogger(),
+      env: {
+        __API_SERVER_URL: 'http://api.expo.test',
+        EAS_BUILD_RUNNER: 'eas-build',
+      },
+      uploadArtifact: jest.fn(),
+      cacheManager: { restoreCache, saveCache: jest.fn() },
+    });
+
+    await androidBuilder(ctx);
+
+    expect(restoreCache).toHaveBeenCalled();
+    expect(clearReactNativeAutolinkingCacheAsync).toHaveBeenCalledWith('/workingdir/build');
+    expect(restoreCache.mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(clearReactNativeAutolinkingCacheAsync).mock.invocationCallOrder[0]
     );
   });
 
