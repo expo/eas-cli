@@ -5,6 +5,7 @@ import path from 'path';
 import { runBuilderWithHooksAsync } from './common';
 import { runCustomBuildAsync } from './custom';
 import { restoreCredentials } from '../android/credentials';
+import { clearReactNativeAutolinkingCacheAsync } from '../android/autolinking';
 import {
   ensureLFLineEndingsInGradlewScript,
   resolveGradleCommand,
@@ -95,6 +96,7 @@ async function buildInnerAsync(
       return;
     }
     await ctx.cacheManager?.restoreCache(ctx);
+    await clearReactNativeAutolinkingCacheAsync(workingDirectory);
     await restoreCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
