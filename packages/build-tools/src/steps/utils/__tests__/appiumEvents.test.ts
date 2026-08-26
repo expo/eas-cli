@@ -58,7 +58,10 @@ describe(startAppiumEventCollectionAsync, () => {
         producer: 'appium',
         type: 'operation.completed',
         durationMs: 25,
-        summary: 'getOrientation',
+        summary: 'Read the screen orientation',
+        data: {
+          command: 'getOrientation',
+        },
       },
     });
 
