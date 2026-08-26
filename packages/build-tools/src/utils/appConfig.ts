@@ -1,6 +1,6 @@
 import { ProjectConfig, getConfig } from '@expo/config';
 import { Env } from '@expo/eas-build-job';
-import { load } from '@expo/env';
+import { parseProjectEnv } from '@expo/env';
 import { LoggerLevel, bunyan } from '@expo/logger';
 import semver from 'semver';
 
@@ -67,10 +67,14 @@ async function getAppConfigFromExpo({
 function loadEnvVarsFromDotenvFile(projectDir: string, env: Env): Env {
   const originalProcessEnv = process.env;
   try {
-    // @expo/env@0.4 reads the mode from NODE_ENV.
-    process.env = { ...env };
-    load(projectDir);
-    return getLegacyExpoConfigEnv(process.env as Env, 'production');
+    // @expo/env reads EXPO_NO_DOTENV from process.env.
+    const systemEnv = { ...env };
+    process.env = systemEnv;
+    const { env: dotenvEnv } = parseProjectEnv(projectDir, {
+      mode: 'production',
+      systemEnv,
+    });
+    return getLegacyExpoConfigEnv({ ...dotenvEnv, ...systemEnv }, 'production');
   } finally {
     process.env = originalProcessEnv;
   }

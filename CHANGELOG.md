@@ -25,6 +25,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
+- [build-tools] Update `@expo/env` to v1.0. ([#4232](https://github.com/expo/eas-cli/pull/4232) by [@ramonclaudio](https://github.com/ramonclaudio))
+
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
 
 ### 🎉 New features
