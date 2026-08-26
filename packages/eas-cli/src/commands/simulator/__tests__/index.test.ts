@@ -6,6 +6,7 @@ import {
   AppPlatform,
   CreateDeviceRunSessionMutation,
   DeviceRunSessionByIdQuery,
+  DeviceRunSessionResourceClass,
   DeviceRunSessionStatus,
   DeviceRunSessionType,
   JobRunStatus,
@@ -521,6 +522,35 @@ describe(Simulator, () => {
       expect.objectContaining({ deviceIdentifier: undefined })
     );
   });
+
+  it('omits resourceClass when --resource-class is not set', async () => {
+    const { command } = createCommand(['--platform', 'ios', '--non-interactive']);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync.mock.calls[0][1]).not.toHaveProperty('resourceClass');
+  });
+
+  it.each([
+    ['large', DeviceRunSessionResourceClass.Large],
+    ['medium', DeviceRunSessionResourceClass.Medium],
+  ] as const)(
+    'forwards --resource-class %s to the create mutation',
+    async (flag, resourceClass) => {
+      const { command } = createCommand([
+        '--platform',
+        'ios',
+        '--non-interactive',
+        '--resource-class',
+        flag,
+      ]);
+      await command.runAsync();
+
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.objectContaining({ resourceClass })
+      );
+    }
+  );
 
   it('forwards --build-id to the create mutation', async () => {
     const { command } = createCommand([

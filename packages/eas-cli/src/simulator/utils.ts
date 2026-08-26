@@ -1,4 +1,8 @@
-import { DeviceRunSessionByIdQuery, DeviceRunSessionType } from '../graphql/generated';
+import {
+  DeviceRunSessionByIdQuery,
+  DeviceRunSessionResourceClass,
+  DeviceRunSessionType,
+} from '../graphql/generated';
 import { link } from '../log';
 
 type DeviceRunSessionByIdResult = DeviceRunSessionByIdQuery['deviceRunSessions']['byId'];
@@ -36,6 +40,23 @@ export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
 export function deviceRunSessionTypeToFlagValue(type: DeviceRunSessionType): string {
   return DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[type];
 }
+
+export const DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES: Record<
+  DeviceRunSessionResourceClass,
+  string
+> = {
+  [DeviceRunSessionResourceClass.Large]: 'large',
+  [DeviceRunSessionResourceClass.Medium]: 'medium',
+};
+
+export const DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE = Object.fromEntries(
+  (
+    Object.entries(DEVICE_RUN_SESSION_RESOURCE_CLASS_FLAG_VALUES) as [
+      DeviceRunSessionResourceClass,
+      string,
+    ][]
+  ).map(([resourceClass, value]) => [value, resourceClass])
+) as Record<string, DeviceRunSessionResourceClass>;
 
 export function getRemoteSessionEnvironmentVariables(
   remoteConfig: DeviceRunSessionRemoteConfig
