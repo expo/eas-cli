@@ -8,6 +8,14 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+## [22.6.0](https://github.com/expo/eas-cli/releases/tag/v22.6.0) - 2026-08-26
+
+### 🎉 New features
+
 - [eas-cli] Add an opt-in `--max-idle-time-minutes` flag to `eas simulator`; the session stops automatically after that many minutes without activity. ([#4156](https://github.com/expo/eas-cli/pull/4156) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add experimental `--resource-class` flag to `eas simulator`. ([#4268](https://github.com/expo/eas-cli/pull/4268) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add worker-side SSH session helpers (upterm relay + session create/report/close). ([#4030](https://github.com/expo/eas-cli/pull/4030) by [@gwdp](https://github.com/gwdp))
@@ -17,8 +25,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Increase the serve-sim video bitrate to 6 Mbps for higher-quality simulator previews. ([#4291](https://github.com/expo/eas-cli/pull/4291) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🧹 Chores
 
 ## [22.4.0](https://github.com/expo/eas-cli/releases/tag/v22.4.0) - 2026-08-24
 
