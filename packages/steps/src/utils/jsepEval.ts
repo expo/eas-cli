@@ -6,7 +6,8 @@
 
 import assert from 'assert';
 import jsep from 'jsep';
-import get from 'lodash.get';
+
+import { get } from './get';
 
 const binaryOperatorFunctions = {
   '===': (a: any, b: any) => a === b,
