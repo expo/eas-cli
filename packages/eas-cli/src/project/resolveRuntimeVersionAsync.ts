@@ -38,7 +38,7 @@ export async function resolveRuntimeVersionUsingCLIAsync({
   const resolvedRuntimeVersionJSONResult = await expoUpdatesCommandAsync(
     projectDir,
     ['runtimeversion:resolve', '--platform', platform, '--workflow', workflow, ...extraArgs],
-    { env, cwd }
+    { env, cwd, mode: 'production' }
   );
   const runtimeVersionResult = JSON.parse(resolvedRuntimeVersionJSONResult);
 
