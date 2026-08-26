@@ -67,6 +67,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
 
+- [eas-cli] Add regression coverage for the bundled iOS entitlement introspection fallback. ([#4285](https://github.com/expo/eas-cli/pull/4285) by [@brentvatne](https://github.com/brentvatne))
 - [local-build-plugin] Replace `bunyan` with `@expo/bunyan` while preserving the Steps formatter binary. ([#4284](https://github.com/expo/eas-cli/pull/4284) by [@brentvatne](https://github.com/brentvatne))
 - [steps] Replace deprecated `lodash.get` with a local helper. ([#4283](https://github.com/expo/eas-cli/pull/4283) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli][steps] Bump `uuid` to v11 and remove the redundant `@types/uuid` dependency. ([#4282](https://github.com/expo/eas-cli/pull/4282) by [@brentvatne](https://github.com/brentvatne))
