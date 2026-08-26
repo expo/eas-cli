@@ -37,7 +37,7 @@ export async function resolveCocoapodsCacheKeyAsync(
   try {
     await fs.promises.access(podfileLockPath);
   } catch {
-    return { key: `${keyPrefix}no-lockfile`, keyPrefix };
+    return { key: keyPrefix, keyPrefix };
   }
 
   return {

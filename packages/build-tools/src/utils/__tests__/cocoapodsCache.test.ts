@@ -31,7 +31,7 @@ describe('CocoaPods cache utilities', () => {
     await expect(
       resolveCocoapodsCacheKeyAsync(workingDirectory, cocoapodsVersion)
     ).resolves.toEqual({
-      key: 'ios-pods-1.16.2-no-lockfile',
+      key: 'ios-pods-1.16.2-',
       keyPrefix: 'ios-pods-1.16.2-',
     });
   });
