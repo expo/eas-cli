@@ -13,6 +13,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
+- [build-tools] Regenerate Android autolinking metadata after cache restore so paths from another operating system cannot break Gradle project discovery. ([#4288](https://github.com/expo/eas-cli/pull/4288) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
 - [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
