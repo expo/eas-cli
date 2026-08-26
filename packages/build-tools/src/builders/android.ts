@@ -98,7 +98,7 @@ async function buildInnerAsync(
     await restoreCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform },
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
@@ -238,7 +238,7 @@ async function buildInnerAsync(
     await saveCcacheAsync({
       logger: ctx.logger,
       workingDirectory,
-      platform: ctx.job.platform,
+      target: { platform: ctx.job.platform },
       evictUsedBefore,
       env: ctx.env,
       secrets: ctx.job.secrets,

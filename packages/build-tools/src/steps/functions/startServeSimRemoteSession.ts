@@ -28,6 +28,11 @@ export function createStartServeSimRemoteSessionBuildFunction(
     supportedRuntimePlatforms: [BuildRuntimePlatform.DARWIN],
     inputProviders: [
       BuildStepInput.createProvider({
+        id: 'package_version',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.STRING,
+      }),
+      BuildStepInput.createProvider({
         id: 'max_duration_seconds',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
@@ -37,6 +42,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
       const deviceRunSessionId = getDeviceRunSessionIdOrThrow(env);
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
+      const packageVersion = inputs.package_version?.value as string | undefined;
 
       logger.info('Starting serve-sim remote session.');
 
@@ -47,6 +53,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
         env,
         logger,
         timeoutMs: STARTUP_TIMEOUT_MS,
+        packageVersion,
       });
       logger.info(`Preview URL: ${serveSim.previewUrl}`);
 

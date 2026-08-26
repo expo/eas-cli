@@ -1,6 +1,6 @@
 {
   "name": "@expo/worker",
-  "version": "22.2.0",
+  "version": "22.4.0",
   "private": true,
   "scripts": {
     "start": "yarn watch",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@babel/core": "7.24.7",
-    "@expo/build-tools": "22.2.0",
+    "@expo/build-tools": "22.4.0",
     "@expo/config-plugins": "55.0.7",
     "@expo/config-types": "55.0.5",
     "@expo/downloader": "22.0.0",
@@ -28,7 +28,7 @@
     "@expo/results": "1.0.0",
     "@expo/rudder-sdk-node": "1.1.1",
     "@expo/spawn-async": "1.7.2",
-    "@expo/steps": "22.1.0",
+    "@expo/steps": "22.4.0",
     "@expo/template-file": "22.0.0",
     "@expo/turtle-spawn": "22.0.0",
     "@hapi/boom": "10.0.1",

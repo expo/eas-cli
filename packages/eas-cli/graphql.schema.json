@@ -37212,12 +37212,68 @@
             "deprecationReason": null
           },
           {
+            "name": "applicationArchiveUrl",
+            "description": "Application archive URL to download, install, and launch before the simulator session\nbecomes available. Mutually exclusive with buildId and expoGo.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "buildId",
+            "description": "EAS Build to install and launch before the simulator session becomes available.\nMutually exclusive with applicationArchiveUrl and expoGo.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "ID",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deviceIdentifier",
             "description": "Identifier of the virtual device to start for the session. On iOS this is a\nSimulator device name or UDID (e.g. \"iPhone 16 Pro\"). On Android this is an\nAVD hardware profile id (e.g. \"pixel_7\"). If omitted, the runner picks a\ndefault device.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
               "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "expoGo",
+            "description": "Install and launch Expo Go before the simulator session becomes available. The server resolves\nthe platform-specific application archive. Mutually exclusive with buildId and\napplicationArchiveUrl.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "launchArgs",
+            "description": "Arguments passed to the installed application when it is launched. Requires buildId,\napplicationArchiveUrl, or expoGo.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -37260,6 +37316,18 @@
             "deprecationReason": null
           },
           {
+            "name": "openUrl",
+            "description": "Expo or development-client URL to open after launching the installed application. Requires\nbuildId, applicationArchiveUrl, or expoGo.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "packageVersion",
             "description": "The version of the package backing the device run session (e.g. \"0.1.3-alpha.3\").\nIf omitted, consumers treat the session as pinned to \"latest\".",
             "type": {
@@ -37282,6 +37350,18 @@
                 "name": "AppPlatform",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "sdkVersion",
+            "description": "Expo SDK version used to select an Expo Go application archive. Only supported when expoGo is\ntrue. If omitted, the current Expo Go archive for the platform is used.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,

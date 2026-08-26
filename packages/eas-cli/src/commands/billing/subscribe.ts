@@ -1,0 +1,150 @@
+import { Args, Flags } from '@oclif/core';
+
+import { BillingEvent } from '../../analytics/AnalyticsManager';
+import { BillingClient } from '../../billing/billingClient';
+import { openOrPrintUrlAsync } from '../../billing/openUrl';
+import { PLAN_SLUGS, PlanSlug, SUBSCRIBABLE_PLANS, hasPaidSubscription } from '../../billing/plans';
+import { resolveBillingAccountAsync } from '../../billing/resolveAccount';
+import EasCommand from '../../commandUtils/EasCommand';
+import {
+  EasNonInteractiveAndJsonFlags,
+  resolveNonInteractiveAndJsonFlags,
+} from '../../commandUtils/flags';
+import Log from '../../log';
+import { ora } from '../../ora';
+import { selectAsync } from '../../prompts';
+import { enableJsonOutput, printJsonOnlyOutput } from '../../utils/json';
+
+export default class BillingSubscribe extends EasCommand {
+  static override description = 'subscribe a Free account to an EAS plan';
+
+  static override args = {
+    PLAN: Args.string({
+      description: 'plan to subscribe to. Required in non-interactive mode.',
+      required: false,
+      options: [...PLAN_SLUGS],
+    }),
+  };
+
+  static override flags = {
+    account: Flags.string({
+      char: 'a',
+      description: 'Account to subscribe. Defaults to your account when you only have one.',
+    }),
+    'no-open': Flags.boolean({
+      description: 'Only print the checkout page URL instead of opening it in a browser',
+    }),
+    ...EasNonInteractiveAndJsonFlags,
+  };
+
+  static override contextDefinition = {
+    ...this.ContextOptions.LoggedIn,
+    ...this.ContextOptions.Analytics,
+  };
+
+  async runAsync(): Promise<void> {
+    const {
+      args: { PLAN },
+      flags,
+    } = await this.parse(BillingSubscribe);
+    const { json, nonInteractive } = resolveNonInteractiveAndJsonFlags(flags);
+    if (json) {
+      enableJsonOutput();
+    }
+
+    let planSlug = PLAN as PlanSlug | undefined;
+
+    const {
+      analytics,
+      loggedIn: { graphqlClient, actor, authenticationInfo },
+    } = await this.getContextAsync(BillingSubscribe, { nonInteractive });
+
+    const account = await resolveBillingAccountAsync({
+      graphqlClient,
+      actor,
+      accountName: flags.account,
+      nonInteractive,
+      subscriptionFilter: 'unsubscribed',
+    });
+
+    const analyticsProperties = {
+      account_id: account.id,
+      json,
+      non_interactive: nonInteractive,
+    };
+
+    const { subscription } = account;
+
+    if (hasPaidSubscription(subscription)) {
+      analytics.logEvent(BillingEvent.SUBSCRIBE_COMMAND, {
+        ...analyticsProperties,
+        already_subscribed: true,
+      });
+      if (json) {
+        printJsonOnlyOutput({
+          alreadySubscribed: true,
+          currentPlan: subscription?.name ?? null,
+        });
+        return;
+      }
+      Log.warn(
+        `Account ${account.name} is already subscribed${
+          subscription?.name ? ` to the ${subscription.name} plan` : ''
+        }.`
+      );
+      Log.log('To change or cancel your plan, run eas billing:manage.');
+      return;
+    }
+
+    if (!planSlug && nonInteractive) {
+      throw new Error('The plan argument is required in non-interactive mode.');
+    }
+
+    if (!planSlug) {
+      planSlug = await selectAsync(
+        'Select a plan:',
+        PLAN_SLUGS.map(slug => ({
+          title: SUBSCRIBABLE_PLANS[slug].label,
+          value: slug,
+        }))
+      );
+    }
+
+    const plan = SUBSCRIBABLE_PLANS[planSlug];
+
+    analytics.logEvent(BillingEvent.SUBSCRIBE_COMMAND, {
+      ...analyticsProperties,
+      already_subscribed: false,
+      plan: planSlug,
+    });
+
+    const billingClient = new BillingClient(authenticationInfo);
+
+    const spinner = ora(`Creating a checkout session for the ${plan.label} plan`).start();
+    let checkoutUrl: string;
+    try {
+      const session = await billingClient.createCheckoutSessionAsync(account.id, plan.planType);
+      if (!session.url) {
+        throw new Error('The checkout session did not include a URL.');
+      }
+      checkoutUrl = session.url;
+      spinner.succeed(`Created a checkout session for the ${plan.label} plan`);
+    } catch (error) {
+      spinner.fail('Failed to create a checkout session');
+      throw error;
+    }
+
+    if (json) {
+      printJsonOnlyOutput({ checkoutUrl, alreadySubscribed: false });
+      return;
+    }
+
+    Log.log(
+      `Complete your subscription to the ${plan.label} plan for ${account.name} in Stripe checkout.`
+    );
+    await openOrPrintUrlAsync(checkoutUrl, {
+      label: 'Checkout page',
+      open: !flags['no-open'] && !nonInteractive,
+    });
+  }
+}

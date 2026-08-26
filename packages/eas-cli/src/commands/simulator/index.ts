@@ -28,6 +28,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
+import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -72,6 +73,33 @@ export default class Simulator extends EasCommand {
       description:
         'Virtual device to start for the session. On iOS, a Simulator device name or UDID (e.g. "iPhone 16 Pro"). On Android, an AVD hardware profile id (e.g. "pixel_7"). Defaults to a device chosen by the runner.',
     }),
+    'build-id': Flags.string({
+      description: 'EAS Build to install and launch before the simulator session is ready.',
+      exclusive: ['application-archive-url', 'expo-go'],
+    }),
+    'application-archive-url': Flags.string({
+      description:
+        'Application archive URL to download, install, and launch before the simulator session is ready.',
+      exclusive: ['build-id', 'expo-go'],
+    }),
+    'expo-go': Flags.boolean({
+      description:
+        "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
+      exclusive: ['build-id', 'application-archive-url'],
+    }),
+    'sdk-version': Flags.string({
+      description:
+        'Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.',
+    }),
+    'launch-arg': Flags.string({
+      description:
+        'Argument passed to the installed application when it launches. Repeat for multiple arguments.',
+      multiple: true,
+    }),
+    'open-url': Flags.string({
+      description:
+        'Expo or development-client URL to open in the installed application after it launches.',
+    }),
     type: Flags.option({
       description: 'Type of simulator session to create',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
@@ -84,6 +112,11 @@ export default class Simulator extends EasCommand {
     'max-duration-minutes': Flags.integer({
       description:
         'Maximum duration of the simulator session in minutes before it is automatically stopped. Only customizable on paid plans. Defaults to a value derived from the job run priority when omitted.',
+      min: 0,
+    }),
+    'max-idle-time-minutes': Flags.integer({
+      description:
+        'Stop the simulator session automatically after this many minutes without session activity. When omitted, the session has no idle timeout and runs until its maximum duration.',
       min: 0,
     }),
     force: Flags.boolean({
@@ -139,6 +172,25 @@ export default class Simulator extends EasCommand {
     // --name as if it had been omitted rather than surfacing a validation error.
     const name = flags.name?.trim() || undefined;
     const deviceIdentifier = flags.device?.trim() || undefined;
+    const buildId = flags['build-id']?.trim() || undefined;
+    const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
+    const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
+    const launchArgs = flags['launch-arg'];
+    const openUrl = flags['open-url']?.trim() || undefined;
+
+    if (sdkVersionFromFlag && !flags['expo-go']) {
+      throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
+    }
+    if (
+      (launchArgs?.length || openUrl) &&
+      !buildId &&
+      !applicationArchiveUrlFromFlag &&
+      !flags['expo-go']
+    ) {
+      throw new EasCommandError(
+        'Launch options require an application source. Pass --build-id, --application-archive-url, or --expo-go.'
+      );
+    }
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -149,6 +201,9 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
+    const expoGoSdkVersion = flags['expo-go']
+      ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
+      : undefined;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -171,7 +226,15 @@ export default class Simulator extends EasCommand {
         type: DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE[flags.type],
         packageVersion: flags['package-version'],
         deviceIdentifier,
+        ...(buildId ? { buildId } : {}),
+        ...(applicationArchiveUrlFromFlag
+          ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+          : {}),
+        ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
+        ...(launchArgs?.length ? { launchArgs } : {}),
+        ...(openUrl ? { openUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
+        maxIdleTimeMinutes: flags['max-idle-time-minutes'],
       });
       deviceRunSessionId = session.id;
       nullthrows(session.turtleJobRun?.id, 'Expected simulator session to start');
