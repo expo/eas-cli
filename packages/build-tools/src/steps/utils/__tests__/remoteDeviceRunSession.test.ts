@@ -136,7 +136,7 @@ describe(createServeSimArgs, () => {
       '--mjpeg-quality',
       '0.55',
       '--video-bitrate',
-      '16000000',
+      '6000000',
       '--video-fps',
       '60',
       '--turn-url',

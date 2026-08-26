@@ -10,7 +10,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [build-tools] Increase the serve-sim video bitrate to 16 Mbps for higher-quality simulator previews. ([#4291](https://github.com/expo/eas-cli/pull/4291) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Increase the serve-sim video bitrate to 6 Mbps for higher-quality simulator previews. ([#4291](https://github.com/expo/eas-cli/pull/4291) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
