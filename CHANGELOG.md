@@ -67,6 +67,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
 
+- [steps] Replace deprecated `lodash.get` with a local helper. ([#4283](https://github.com/expo/eas-cli/pull/4283) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli][steps] Bump `uuid` to v11 and remove the redundant `@types/uuid` dependency. ([#4282](https://github.com/expo/eas-cli/pull/4282) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Bump `minizlib` to 3.1.0 to drop its deprecated `rimraf@5` transitive dependency. ([#4281](https://github.com/expo/eas-cli/pull/4281) by [@brentvatne](https://github.com/brentvatne))
 
