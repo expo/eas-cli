@@ -4,13 +4,9 @@ import path from 'path';
 
 import {
   compressCocoapodsCacheAsync,
-  compressCocoapodsDownloadCacheAsync,
   getCocoapodsCachePaths,
-  getCocoapodsDownloadCachePath,
   resolveCocoapodsCacheKeyAsync,
-  resolveCocoapodsDownloadCacheKeyAsync,
   restoreCocoapodsCacheArchiveAsync,
-  restoreCocoapodsDownloadCacheArchiveAsync,
 } from '../cocoapodsCache';
 
 jest.unmock('fs');
@@ -20,29 +16,15 @@ jest.unmock('node:fs/promises');
 
 describe('CocoaPods cache utilities', () => {
   let workingDirectory: string;
-  let homeDirectory: string;
   const cocoapodsVersion = '1.16.2';
 
   beforeEach(async () => {
     workingDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'cocoapods-cache-test-'));
-    homeDirectory = path.join(workingDirectory, 'home');
-    jest.spyOn(os, 'homedir').mockReturnValue(homeDirectory);
     await fs.promises.mkdir(path.join(workingDirectory, 'ios'), { recursive: true });
   });
 
   afterEach(async () => {
-    jest.restoreAllMocks();
     await fs.promises.rm(workingDirectory, { recursive: true, force: true });
-  });
-
-  it('uses a separate key namespace for the CocoaPods download cache', async () => {
-    const { podfileLockPath } = getCocoapodsCachePaths(workingDirectory);
-    await fs.promises.writeFile(podfileLockPath, 'PODS:\n  - Expo (55.0.0)\n');
-
-    const result = await resolveCocoapodsDownloadCacheKeyAsync(workingDirectory, cocoapodsVersion);
-
-    expect(result.key).toMatch(/^ios-pod-downloads-1\.16\.2-[a-f0-9]+$/);
-    expect(result.keyPrefix).toBe('ios-pod-downloads-1.16.2-');
   });
 
   it('uses a CocoaPods version prefix when no Podfile.lock exists', async () => {
@@ -90,27 +72,6 @@ describe('CocoaPods cache utilities', () => {
 
     const restoredScriptStat = await fs.promises.stat(scriptPath);
     expect(restoredScriptStat.mode & 0o111).toBe(0o111);
-
-    await fs.promises.rm(path.dirname(archivePath), { recursive: true, force: true });
-  });
-
-  it('archives and restores the CocoaPods download cache', async () => {
-    const cocoapodsDownloadCachePath = getCocoapodsDownloadCachePath();
-    const cachedPodPath = path.join(
-      cocoapodsDownloadCachePath,
-      'Pods',
-      'Release',
-      'Expo',
-      'file.zip'
-    );
-    await fs.promises.mkdir(path.dirname(cachedPodPath), { recursive: true });
-    await fs.promises.writeFile(cachedPodPath, 'download');
-
-    const { archivePath } = await compressCocoapodsDownloadCacheAsync();
-    await fs.promises.rm(cocoapodsDownloadCachePath, { recursive: true, force: true });
-    await restoreCocoapodsDownloadCacheArchiveAsync({ archivePath });
-
-    await expect(fs.promises.readFile(cachedPodPath, 'utf8')).resolves.toBe('download');
 
     await fs.promises.rm(path.dirname(archivePath), { recursive: true, force: true });
   });

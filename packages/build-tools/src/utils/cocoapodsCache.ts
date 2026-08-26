@@ -5,11 +5,9 @@ import path from 'path';
 import * as tar from 'tar';
 
 export const COCOAPODS_CACHE_KEY_PREFIX = 'ios-pods-';
-export const COCOAPODS_DOWNLOAD_CACHE_KEY_PREFIX = 'ios-pod-downloads-';
 
 const PODS_DIRECTORY_NAME = 'Pods';
 const PODFILE_LOCK_NAME = 'Podfile.lock';
-const COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME = 'CocoaPods';
 
 export function getCocoapodsCachePaths(workingDirectory: string): {
   iosDirectory: string;
@@ -22,10 +20,6 @@ export function getCocoapodsCachePaths(workingDirectory: string): {
     podsDirectory: path.join(iosDirectory, PODS_DIRECTORY_NAME),
     podfileLockPath: path.join(iosDirectory, PODFILE_LOCK_NAME),
   };
-}
-
-export function getCocoapodsDownloadCachePath(): string {
-  return path.join(os.homedir(), 'Library', 'Caches', COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME);
 }
 
 export async function resolveCocoapodsCacheKeyAsync(
@@ -52,20 +46,6 @@ export async function resolveCocoapodsCacheKeyAsync(
   };
 }
 
-export async function resolveCocoapodsDownloadCacheKeyAsync(
-  workingDirectory: string,
-  cocoapodsVersion: string
-): Promise<{ key: string; keyPrefix: string }> {
-  const { key, keyPrefix } = await resolveCocoapodsCacheKeyAsync(
-    workingDirectory,
-    cocoapodsVersion
-  );
-  return {
-    key: key.replace(COCOAPODS_CACHE_KEY_PREFIX, COCOAPODS_DOWNLOAD_CACHE_KEY_PREFIX),
-    keyPrefix: keyPrefix.replace(COCOAPODS_CACHE_KEY_PREFIX, COCOAPODS_DOWNLOAD_CACHE_KEY_PREFIX),
-  };
-}
-
 export async function compressCocoapodsCacheAsync({
   workingDirectory,
 }: {
@@ -86,27 +66,6 @@ export async function compressCocoapodsCacheAsync({
       gzip: true,
     },
     [PODS_DIRECTORY_NAME]
-  );
-
-  return { archivePath };
-}
-
-export async function compressCocoapodsDownloadCacheAsync(): Promise<{ archivePath: string }> {
-  const cocoapodsDownloadCachePath = getCocoapodsDownloadCachePath();
-  await fs.promises.access(cocoapodsDownloadCachePath);
-
-  const archiveDestinationDirectory = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'save-cocoapods-download-cache-')
-  );
-  const archivePath = path.join(archiveDestinationDirectory, 'cache.tar.gz');
-
-  await tar.create(
-    {
-      file: archivePath,
-      cwd: path.dirname(cocoapodsDownloadCachePath),
-      gzip: true,
-    },
-    [COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME]
   );
 
   return { archivePath };
@@ -141,43 +100,6 @@ export async function restoreCocoapodsCacheArchiveAsync({
 
     await fs.promises.rm(podsDirectory, { recursive: true, force: true });
     await fs.promises.rename(restoredPodsDirectory, podsDirectory);
-  } finally {
-    await fs.promises.rm(temporaryRestoreDirectory, { recursive: true, force: true });
-  }
-}
-
-export async function restoreCocoapodsDownloadCacheArchiveAsync({
-  archivePath,
-}: {
-  archivePath: string;
-}): Promise<void> {
-  const cocoapodsDownloadCachePath = getCocoapodsDownloadCachePath();
-  const cachesDirectory = path.dirname(cocoapodsDownloadCachePath);
-  await fs.promises.mkdir(cachesDirectory, { recursive: true });
-
-  const temporaryRestoreDirectory = await fs.promises.mkdtemp(
-    path.join(cachesDirectory, '.eas-cocoapods-cache-')
-  );
-  try {
-    await tar.extract({
-      file: archivePath,
-      cwd: temporaryRestoreDirectory,
-      filter: entryPath =>
-        entryPath === COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME ||
-        entryPath.startsWith(`${COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME}/`),
-    });
-
-    const restoredCacheDirectory = path.join(
-      temporaryRestoreDirectory,
-      COCOAPODS_DOWNLOAD_CACHE_DIRECTORY_NAME
-    );
-    const restoredCacheStat = await fs.promises.stat(restoredCacheDirectory);
-    if (!restoredCacheStat.isDirectory()) {
-      throw new Error('CocoaPods download cache archive does not contain a CocoaPods directory');
-    }
-
-    await fs.promises.rm(cocoapodsDownloadCachePath, { recursive: true, force: true });
-    await fs.promises.rename(restoredCacheDirectory, cocoapodsDownloadCachePath);
   } finally {
     await fs.promises.rm(temporaryRestoreDirectory, { recursive: true, force: true });
   }
