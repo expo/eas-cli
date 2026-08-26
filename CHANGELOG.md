@@ -9,12 +9,17 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- [eas-cli] Add `--launch-arg`, `--open-url`, and Expo Go `--sdk-version` options to `eas simulator`. ([#4264](https://github.com/expo/eas-cli/pull/4264) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Pass launch arguments and a URL to open when launching applications in simulator sessions. ([#4263](https://github.com/expo/eas-cli/pull/4263) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Add `ios_signing_backend` option to the repack step. ([#4239](https://github.com/expo/eas-cli/pull/4239) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 - [build-tools] Support an optional `package_version` input on `eas/start_serve_sim_remote_session`, so a simulator session can pin the `@expo/serve-sim` version instead of always running `latest`. ([#4253](https://github.com/expo/eas-cli/pull/4253) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add composable custom build functions for downloading, installing, and launching application archives in simulator sessions. ([#4222](https://github.com/expo/eas-cli/pull/4222) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add `--build-id`, `--application-archive-url`, and `--expo-go` to `eas simulator` to install and launch an application before the session is ready. ([#4223](https://github.com/expo/eas-cli/pull/4223) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🐛 Bug fixes
+
+- [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Support downloading iOS simulator archives whose app bundle contents are stored at the archive root. ([#4262](https://github.com/expo/eas-cli/pull/4262) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 
@@ -24,6 +29,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add support for Appium EAS Simulator sessions. ([#4190](https://github.com/expo/eas-cli/pull/4190) by [@sjchmiela](https://github.com/sjchmiela))
+- [eas-cli] Add `eas billing:subscribe <plan>` to start a Stripe checkout for an EAS plan, and `eas billing:manage` to open the Stripe customer portal. ([#4007](https://github.com/expo/eas-cli/pull/4007) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 

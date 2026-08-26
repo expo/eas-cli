@@ -23,7 +23,7 @@ import {
   loadSimulatorEnvAsync,
   resetSimulatorEnvAsync,
 } from '../../../simulator/env';
-import { resolveExpoGoApplicationArchiveUrlAsync } from '../../../simulator/expoGo';
+import { resolveExpoGoSdkVersionAsync } from '../../../simulator/expoGo';
 import Simulator from '../index';
 
 jest.mock('fs-extra');
@@ -80,9 +80,7 @@ const mockAvailabilityByAppIdAsync = jest.mocked(DeviceRunSessionAvailabilityQue
 const mockByIdAsync = jest.mocked(DeviceRunSessionQuery.byIdAsync);
 const mockLoadSimulatorEnvAsync = jest.mocked(loadSimulatorEnvAsync);
 const mockResetSimulatorEnvAsync = jest.mocked(resetSimulatorEnvAsync);
-const mockResolveExpoGoApplicationArchiveUrlAsync = jest.mocked(
-  resolveExpoGoApplicationArchiveUrlAsync
-);
+const mockResolveExpoGoSdkVersionAsync = jest.mocked(resolveExpoGoSdkVersionAsync);
 const mockOra = jest.mocked(ora);
 const mockPromptAsync = jest.mocked(promptAsync);
 
@@ -166,9 +164,7 @@ describe(Simulator, () => {
     mockByIdAsync.mockResolvedValue(makeDeviceRunSession());
     mockLoadSimulatorEnvAsync.mockResolvedValue();
     mockResetSimulatorEnvAsync.mockResolvedValue();
-    mockResolveExpoGoApplicationArchiveUrlAsync.mockResolvedValue(
-      'https://example.test/expo-go.tar.gz'
-    );
+    mockResolveExpoGoSdkVersionAsync.mockResolvedValue('55.0.0');
     jest.mocked(fs.writeFile).mockResolvedValue(undefined as never);
   });
 
@@ -541,12 +537,11 @@ describe(Simulator, () => {
   });
 
   it.each([
-    ['ios', AppPlatform.Ios, 'https://example.test/expo-go.tar.gz'],
-    ['android', AppPlatform.Android, 'https://example.test/expo-go.apk'],
+    ['ios', AppPlatform.Ios],
+    ['android', AppPlatform.Android],
   ] as const)(
-    'resolves and forwards the %s Expo Go archive when --expo-go is passed',
-    async (platformFlag, appPlatform, applicationArchiveUrl) => {
-      mockResolveExpoGoApplicationArchiveUrlAsync.mockResolvedValue(applicationArchiveUrl);
+    'forwards Expo Go and the project SDK for %s when --expo-go is passed',
+    async (platformFlag, appPlatform) => {
       const { command } = createCommand([
         '--platform',
         platformFlag,
@@ -556,19 +551,107 @@ describe(Simulator, () => {
 
       await command.runAsync();
 
-      expect(mockResolveExpoGoApplicationArchiveUrlAsync).toHaveBeenCalledWith({
-        platform: platformFlag,
+      expect(mockResolveExpoGoSdkVersionAsync).toHaveBeenCalledWith({
         projectDir,
+        sdkVersion: undefined,
       });
       expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
         graphqlClient,
         expect.objectContaining({
-          applicationArchiveUrl,
+          expoGo: true,
+          sdkVersion: '55.0.0',
           platform: appPlatform,
         })
       );
+      expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+        graphqlClient,
+        expect.not.objectContaining({ applicationArchiveUrl: expect.anything() })
+      );
     }
   );
+
+  it('uses --sdk-version to select Expo Go', async () => {
+    mockResolveExpoGoSdkVersionAsync.mockResolvedValueOnce('57.0.0');
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--expo-go',
+      '--sdk-version',
+      '57.0.0',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockResolveExpoGoSdkVersionAsync).toHaveBeenCalledWith({
+      projectDir,
+      sdkVersion: '57.0.0',
+    });
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ expoGo: true, sdkVersion: '57.0.0' })
+    );
+  });
+
+  it('forwards repeated launch arguments and a URL to open', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--build-id',
+      '8d8b713c-1834-4bd3-91e6-46f895422cbc',
+      '--launch-arg',
+      '--uitesting',
+      '--launch-arg',
+      'true',
+      '--open-url',
+      '  exp://example.test  ',
+    ]);
+
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({
+        launchArgs: ['--uitesting', 'true'],
+        openUrl: 'exp://example.test',
+      })
+    );
+  });
+
+  it.each([
+    ['--launch-arg', '--uitesting'],
+    ['--open-url', 'exp://example.test'],
+  ])('rejects %s without an application source', async (launchFlag, launchValue) => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      launchFlag,
+      launchValue,
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'Launch options require an application source.'
+    );
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects --sdk-version without --expo-go', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--sdk-version',
+      '57',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(
+      'The --sdk-version flag can only be used with --expo-go.'
+    );
+    expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
 
   it('rejects passing --build-id and --application-archive-url together', async () => {
     const { command } = createCommand([
@@ -599,7 +682,7 @@ describe(Simulator, () => {
     ]);
 
     await expect(command.runAsync()).rejects.toThrow();
-    expect(mockResolveExpoGoApplicationArchiveUrlAsync).not.toHaveBeenCalled();
+    expect(mockResolveExpoGoSdkVersionAsync).not.toHaveBeenCalled();
     expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
   });
 

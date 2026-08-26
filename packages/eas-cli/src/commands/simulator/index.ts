@@ -28,7 +28,7 @@ import {
   resetSimulatorEnvAsync,
   writeSimulatorEnvAsync,
 } from '../../simulator/env';
-import { resolveExpoGoApplicationArchiveUrlAsync } from '../../simulator/expoGo';
+import { resolveExpoGoSdkVersionAsync } from '../../simulator/expoGo';
 import {
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
@@ -86,6 +86,19 @@ export default class Simulator extends EasCommand {
       description:
         "Install and launch Expo Go matching the current project's Expo SDK before the simulator session is ready.",
       exclusive: ['build-id', 'application-archive-url'],
+    }),
+    'sdk-version': Flags.string({
+      description:
+        'Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to the current project SDK.',
+    }),
+    'launch-arg': Flags.string({
+      description:
+        'Argument passed to the installed application when it launches. Repeat for multiple arguments.',
+      multiple: true,
+    }),
+    'open-url': Flags.string({
+      description:
+        'Expo or development-client URL to open in the installed application after it launches.',
     }),
     type: Flags.option({
       description: 'Type of simulator session to create',
@@ -156,6 +169,23 @@ export default class Simulator extends EasCommand {
     const deviceIdentifier = flags.device?.trim() || undefined;
     const buildId = flags['build-id']?.trim() || undefined;
     const applicationArchiveUrlFromFlag = flags['application-archive-url']?.trim() || undefined;
+    const sdkVersionFromFlag = flags['sdk-version']?.trim() || undefined;
+    const launchArgs = flags['launch-arg'];
+    const openUrl = flags['open-url']?.trim() || undefined;
+
+    if (sdkVersionFromFlag && !flags['expo-go']) {
+      throw new EasCommandError('The --sdk-version flag can only be used with --expo-go.');
+    }
+    if (
+      (launchArgs?.length || openUrl) &&
+      !buildId &&
+      !applicationArchiveUrlFromFlag &&
+      !flags['expo-go']
+    ) {
+      throw new EasCommandError(
+        'Launch options require an application source. Pass --build-id, --application-archive-url, or --expo-go.'
+      );
+    }
 
     await loadSimulatorEnvAsync(projectDir);
     const existingDeviceRunSessionId = process.env[EAS_SIMULATOR_SESSION_ID];
@@ -166,12 +196,9 @@ export default class Simulator extends EasCommand {
     }
 
     const platform = await resolvePlatformAsync(flags.platform, nonInteractive);
-    const applicationArchiveUrl = flags['expo-go']
-      ? await resolveExpoGoApplicationArchiveUrlAsync({
-          platform: platform === AppPlatform.Ios ? 'ios' : 'android',
-          projectDir,
-        })
-      : applicationArchiveUrlFromFlag;
+    const expoGoSdkVersion = flags['expo-go']
+      ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
+      : undefined;
 
     if (existingDeviceRunSessionId) {
       Log.warn(
@@ -195,7 +222,12 @@ export default class Simulator extends EasCommand {
         packageVersion: flags['package-version'],
         deviceIdentifier,
         ...(buildId ? { buildId } : {}),
-        ...(applicationArchiveUrl ? { applicationArchiveUrl } : {}),
+        ...(applicationArchiveUrlFromFlag
+          ? { applicationArchiveUrl: applicationArchiveUrlFromFlag }
+          : {}),
+        ...(expoGoSdkVersion ? { expoGo: true, sdkVersion: expoGoSdkVersion } : {}),
+        ...(launchArgs?.length ? { launchArgs } : {}),
+        ...(openUrl ? { openUrl } : {}),
         maxRunTimeMinutes: flags['max-duration-minutes'],
       });
       deviceRunSessionId = session.id;
