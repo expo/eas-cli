@@ -78,7 +78,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(result).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${STAGING_VERSION}`],
-      extraEnv: {},
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
     });
   });
 
@@ -91,7 +91,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(result).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${STAGING_VERSION}`],
-      extraEnv: {},
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
     });
   });
 
@@ -101,7 +101,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(result).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${STAGING_VERSION}`],
-      extraEnv: { EXPO_STAGING: '1' },
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0', EXPO_STAGING: '1' },
     });
     expect(spawn).not.toHaveBeenCalled();
   });
@@ -112,7 +112,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(result).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${PRODUCTION_VERSION}`],
-      extraEnv: {},
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
     });
     expect(spawn).not.toHaveBeenCalled();
     expect(Sentry.capture).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(stagingResult).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${EasCliNpmTags.STAGING}`],
-      extraEnv: { EXPO_STAGING: '1' },
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0', EXPO_STAGING: '1' },
     });
 
     process.env.ENVIRONMENT = 'production';
@@ -141,7 +141,7 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(productionResult).toEqual({
       cmd: 'npx',
       args: ['-y', `eas-cli@${EasCliNpmTags.PRODUCTION}`],
-      extraEnv: {},
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
     });
 
     expect(Sentry.capture).toHaveBeenCalledWith(
@@ -173,8 +173,16 @@ describe(resolveEasCommandPrefixAndEnvAsync, () => {
     expect(result).toEqual({
       cmd: 'npx',
       args: [`eas-cli@${PRODUCTION_VERSION}`],
-      extraEnv: {},
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
     });
+  });
+
+  it('disables the minimum release age for every npx invocation', async () => {
+    process.env.ENVIRONMENT = 'production';
+
+    const result = await resolveEasCommandPrefixAndEnvAsync();
+
+    expect(result.extraEnv).toEqual({ NPM_CONFIG_MIN_RELEASE_AGE: '0' });
   });
 });
 
@@ -217,5 +225,26 @@ describe(runEasCliCommand, () => {
         }),
       })
     );
+  });
+
+  it('overrides a user-provided minimum release age', async () => {
+    process.env.ENVIRONMENT = 'production';
+
+    await runEasCliCommand({
+      args: ['deploy', '--json'],
+      options: {
+        cwd: '/tmp/project',
+        env: {
+          FOO: 'bar',
+          NPM_CONFIG_MIN_RELEASE_AGE: '365',
+        },
+      },
+    });
+
+    const spawnEnv = jest.mocked(spawn).mock.calls[0][2]?.env;
+    expect(spawnEnv).toEqual({
+      FOO: 'bar',
+      NPM_CONFIG_MIN_RELEASE_AGE: '0',
+    });
   });
 });

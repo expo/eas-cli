@@ -70,6 +70,48 @@ describe('easBuildInternal', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
+  it('overrides the minimum release age only for the internal config command', async () => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      child: jest.fn(),
+    } as any;
+    const ctx = {
+      logger,
+      env: {
+        FOO: 'bar',
+        NPM_CONFIG_MIN_RELEASE_AGE: '365',
+      },
+      job: { platform: 'ios', buildProfile: 'production' },
+    } as any;
+    jest.mocked(resolveEasCommandPrefixAndEnvAsync).mockResolvedValueOnce({
+      cmd: 'npx',
+      args: ['-y', 'eas-cli@latest'],
+      extraEnv: { NPM_CONFIG_MIN_RELEASE_AGE: '0' },
+    });
+    jest.mocked(spawn).mockResolvedValueOnce({
+      stdout: Buffer.from(JSON.stringify({ buildProfile: { env: {} } })),
+    } as any);
+
+    await resolveEnvFromBuildProfileAsync(ctx, { cwd: '/tmp/project' });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      expect.any(Array),
+      expect.objectContaining({
+        env: {
+          FOO: 'bar',
+          NPM_CONFIG_MIN_RELEASE_AGE: '0',
+        },
+      })
+    );
+    expect(ctx.env).toEqual({
+      FOO: 'bar',
+      NPM_CONFIG_MIN_RELEASE_AGE: '365',
+    });
+  });
+
   it('passes --refresh-ad-hoc-provisioning-profile to build:internal for iOS jobs with refreshAdHocProvisioningProfile', async () => {
     const logger = {
       info: jest.fn(),
