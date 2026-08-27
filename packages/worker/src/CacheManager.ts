@@ -12,6 +12,8 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import * as tar from 'tar';
 
+import Sentry from './sentry';
+
 export class GCSCacheManager implements CacheManager {
   private skipCacheUpdate = false;
 
@@ -39,14 +41,8 @@ export class GCSCacheManager implements CacheManager {
         },
         paths
       );
-    } catch (err: any) {
-      ctx.logger.error({ err }, 'Failed to create cache archive');
-      return;
-    }
+      const archiveSize = (await fs.stat(archivePath)).size;
 
-    const archiveSize = (await fs.stat(archivePath)).size;
-
-    try {
       await uploadCacheAsync({
         logger: ctx.logger,
         jobId: nullthrows(ctx.env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set'),
@@ -63,7 +59,8 @@ export class GCSCacheManager implements CacheManager {
         force: ctx.job.cache?.clear,
       });
     } catch (err: any) {
-      ctx.logger.error({ err });
+      ctx.logger.error({ err }, 'Failed to save cache');
+      Sentry.capture('Failed to save legacy build cache', err, { level: 'warning' });
     }
   }
 
@@ -99,7 +96,8 @@ export class GCSCacheManager implements CacheManager {
       if (err?.response?.status === 404) {
         ctx.logger.info('No cache found for this key');
       } else {
-        ctx.logger.error({ err });
+        ctx.logger.error({ err }, 'Failed to download cache');
+        Sentry.capture('Failed to download legacy build cache', err, { level: 'warning' });
         this.skipCacheUpdate = true; // if restore failed we don't want to update cache with new values
       }
       return;
@@ -123,6 +121,7 @@ export class GCSCacheManager implements CacheManager {
       );
     } catch (err: any) {
       ctx.logger.error({ err }, 'Failed to extract cache archive');
+      Sentry.capture('Failed to extract legacy build cache', err, { level: 'warning' });
       this.skipCacheUpdate = true;
     }
   }
