@@ -9,10 +9,12 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
 
 ### 🐛 Bug fixes
 
 - [build-tools] Prevent user npm minimum release age settings from applying to internal EAS CLI commands. ([#4296](https://github.com/expo/eas-cli/pull/4296) by [@sjchmiela](https://github.com/sjchmiela))
+- [build-tools] Reduce serve-sim preview resolution from 1280 px to 960 px to lower streaming bandwidth. ([#4297](https://github.com/expo/eas-cli/pull/4297) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🧹 Chores
 

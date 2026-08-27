@@ -3,7 +3,10 @@ import spawn, { SpawnPromise, SpawnResult } from '@expo/turtle-spawn';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { Sentry } from '../../sentry';
 import { PackageManager } from '../../utils/packageManager';
-import { installDependenciesWithNpmCacheFallbackAsync } from '../installDependencies';
+import {
+  installDependenciesAsync,
+  installDependenciesWithNpmCacheFallbackAsync,
+} from '../installDependencies';
 
 jest.mock('@expo/turtle-spawn', () => jest.fn());
 jest.mock('../../sentry', () => ({
@@ -233,6 +236,49 @@ describe(installDependenciesWithNpmCacheFallbackAsync, () => {
       },
     });
     expect(Sentry.capture).not.toHaveBeenCalled();
+  });
+});
+
+describe(installDependenciesAsync, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(spawn).mockReturnValue(createSpawnPromise(Promise.resolve(createSpawnResult())));
+  });
+
+  it('installs only the selected workspace when EAS_BUN_FILTER_WORKSPACE is set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.BUN,
+      env: { EAS_BUN_FILTER_WORKSPACE: 'my-app' },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['install', '--filter', 'my-app', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
+  it('installs all workspaces when EAS_BUN_FILTER_WORKSPACE is not set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.BUN,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'bun',
+      ['install', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
   });
 });
 
