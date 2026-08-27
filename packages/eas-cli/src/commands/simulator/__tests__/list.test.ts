@@ -132,7 +132,7 @@ describe(SimulatorList, () => {
         {
           id: 'session-123',
           name: undefined,
-          type: 'web-preview',
+          type: 'web-preview-only',
           status: DeviceRunSessionStatus.InProgress,
           platform: AppPlatform.Ios,
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -163,7 +163,7 @@ describe(SimulatorList, () => {
       '--type',
       'appium',
       '--type',
-      'web-preview',
+      'web-preview-only',
       '--platform',
       'ios',
       '--name',

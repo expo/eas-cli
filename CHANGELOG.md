@@ -6,7 +6,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- [eas-cli] Rename the EAS Simulator web preview session type from `--type serve-sim` to `--type web-preview`. ([#4298](https://github.com/expo/eas-cli/pull/4298) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Rename the EAS Simulator preview-only session type from `--type serve-sim` to `--type web-preview-only`. ([#4298](https://github.com/expo/eas-cli/pull/4298) by [@szdziedzic](https://github.com/szdziedzic))
 
 ### 🎉 New features
 

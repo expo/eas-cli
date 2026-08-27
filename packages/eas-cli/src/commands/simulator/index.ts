@@ -103,7 +103,8 @@ export default class Simulator extends EasCommand {
         'Expo or development-client URL to open in the installed application after it launches.',
     }),
     type: Flags.option({
-      description: 'Type of simulator session to create',
+      description:
+        'Type of simulator session to create. All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
       default: DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.AgentDevice],
     })(),

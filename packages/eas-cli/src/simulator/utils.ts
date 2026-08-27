@@ -28,7 +28,7 @@ export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, s
   [DeviceRunSessionType.AgentDevice]: 'agent-device',
   [DeviceRunSessionType.Appium]: 'appium',
   [DeviceRunSessionType.Argent]: 'argent',
-  [DeviceRunSessionType.ServeSim]: 'web-preview',
+  [DeviceRunSessionType.ServeSim]: 'web-preview-only',
 };
 
 export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(

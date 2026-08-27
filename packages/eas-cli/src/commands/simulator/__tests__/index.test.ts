@@ -332,7 +332,7 @@ describe(Simulator, () => {
     );
   });
 
-  it('creates a ServeSim session for --type web-preview', async () => {
+  it('creates a ServeSim session for --type web-preview-only', async () => {
     mockByIdAsync.mockResolvedValue(
       makeDeviceRunSession({
         type: DeviceRunSessionType.ServeSim,
@@ -347,7 +347,7 @@ describe(Simulator, () => {
       '--platform',
       'ios',
       '--type',
-      'web-preview',
+      'web-preview-only',
       '--non-interactive',
     ]);
     await command.runAsync();

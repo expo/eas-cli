@@ -61,7 +61,8 @@ export default class SimulatorList extends EasCommand {
       multiple: true,
     })(),
     type: Flags.option({
-      description: 'Filter by session type (repeatable)',
+      description:
+        'Filter by session type (repeatable). All session types include a web preview. agent-device, appium, and argent also include an automation interface; web-preview-only includes no automation interface.',
       options: Object.values(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES),
       multiple: true,
     })(),

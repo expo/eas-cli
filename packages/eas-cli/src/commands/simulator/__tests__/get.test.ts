@@ -143,7 +143,7 @@ describe(SimulatorGet, () => {
     expect(mockPrintJsonOnlyOutput).toHaveBeenCalledWith({
       id: 'session-123',
       name: undefined,
-      type: 'web-preview',
+      type: 'web-preview-only',
       status: DeviceRunSessionStatus.InProgress,
       platform: AppPlatform.Ios,
       createdAt: '2025-01-01T00:00:00.000Z',
