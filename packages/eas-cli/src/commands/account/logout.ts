@@ -33,6 +33,13 @@ export default class AccountLogout extends EasCommand {
     const { sessionManager } = await this.getContextAsync(AccountLogout, { nonInteractive: false });
 
     if (!isMultiAccountEnabled()) {
+      if (args.username || flags.all) {
+        Log.error(
+          'Logging out a specific account requires the experimental account switcher. Set EAS_EXPERIMENTAL_ACCOUNT_SWITCHER=1 to enable it.'
+        );
+        process.exit(1);
+      }
+
       // Legacy behavior
       await sessionManager.logoutAsync();
       Log.log('Logged out');

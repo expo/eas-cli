@@ -4,7 +4,8 @@ import chalk from 'chalk';
 import EasCommand from '../../commandUtils/EasCommand';
 import Log from '../../log';
 import { confirmAsync, selectAsync } from '../../prompts';
-import { getActorDisplayName } from '../../user/User';
+import SessionManager from '../../user/SessionManager';
+import { Actor, getActorDisplayName } from '../../user/User';
 import { isMultiAccountEnabled } from '../../utils/easCli';
 
 export default class AccountLogin extends EasCommand {
@@ -50,7 +51,7 @@ export default class AccountLogin extends EasCommand {
     if (actor) {
       if (isMultiAccountEnabled()) {
         // Multi-account mode: offer options
-        await this.handleMultiAccountLoginAsync(sessionManager, actor, sso);
+        await this.handleMultiAccountLoginAsync(sessionManager, actor, { sso, browser });
         return;
       }
 
@@ -70,9 +71,9 @@ export default class AccountLogin extends EasCommand {
   }
 
   private async handleMultiAccountLoginAsync(
-    sessionManager: any,
-    actor: any,
-    sso: boolean
+    sessionManager: SessionManager,
+    actor: Actor,
+    { sso, browser }: { sso: boolean; browser: boolean }
   ): Promise<void> {
     const accounts = sessionManager.getAllAccounts();
     const currentUsername = getActorDisplayName(actor);
@@ -87,7 +88,7 @@ export default class AccountLogin extends EasCommand {
     ];
 
     // Add switch options for other accounts
-    const otherAccounts = accounts.filter((a: any) => !a.isActive);
+    const otherAccounts = accounts.filter(a => !a.isActive);
     if (otherAccounts.length > 0) {
       for (const account of otherAccounts) {
         choices.push({
@@ -109,7 +110,7 @@ export default class AccountLogin extends EasCommand {
     }
 
     if (action === 'add') {
-      await sessionManager.showLoginPromptAsync({ sso });
+      await sessionManager.showLoginPromptAsync({ sso, browser });
       const newAccounts = sessionManager.getAllAccounts();
       Log.log('Logged in');
       Log.log(`You now have ${newAccounts.length} account${newAccounts.length > 1 ? 's' : ''}.`);

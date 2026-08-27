@@ -96,6 +96,12 @@ export type StoredAccount = {
 export default class SessionManager {
   private currentActor: Actor | undefined;
 
+  /**
+   * When set, this stored account is used for the rest of the process instead of the
+   * active account from the state file. Never persisted (used by the global --account flag).
+   */
+  private perProcessAccountOverrideUserId: string | undefined;
+
   constructor(private readonly analytics: AnalyticsWithOrchestration) {}
 
   public getAccessToken(): string | null {
@@ -143,7 +149,9 @@ export default class SessionManager {
 
     // For v1 schema with multi-account enabled, read from the active account
     if (isMultiAccountEnabled() && this.isV1Schema(state)) {
-      const activeId = state.auth.activeAccountId;
+      const overrideId = this.perProcessAccountOverrideUserId;
+      const activeId =
+        overrideId && state.auth.accounts[overrideId] ? overrideId : state.auth.activeAccountId;
       if (activeId && state.auth.accounts[activeId]) {
         const account = state.auth.accounts[activeId];
         return {
@@ -185,6 +193,21 @@ export default class SessionManager {
       // Logout: clear session data
       if (isMultiAccountEnabled()) {
         await this.clearActiveAccountAsync();
+        return;
+      }
+
+      const state = this.readStateFile();
+      if (this.isV1Schema(state)) {
+        // Preserve other stored accounts: drop only the logged-out account and legacy fields
+        const loggedOutUserId = state.auth.userId ?? state.auth.activeAccountId;
+        const { [loggedOutUserId ?? '']: _removed, ...remainingAccounts } = state.auth.accounts;
+        await this.writeStateFileAsync({
+          ...state,
+          auth: {
+            activeAccountId: null,
+            accounts: remainingAccounts,
+          },
+        });
       } else {
         await JsonFile.setAsync(statePath, 'auth', undefined, {
           default: {},
@@ -194,10 +217,10 @@ export default class SessionManager {
       return;
     }
 
-    if (!isMultiAccountEnabled()) {
-      // Feature disabled: only update legacy fields, preserve any v1 structure
-      const state = this.readStateFile() ?? {};
-      const existingAuth = state.auth ?? {};
+    const state = this.readStateFile();
+    if (!isMultiAccountEnabled() && !this.isV1Schema(state)) {
+      // Feature disabled and no v1 structure: plain legacy write
+      const existingAuth = state?.auth ?? {};
 
       const updatedAuth = {
         ...existingAuth,
@@ -211,7 +234,9 @@ export default class SessionManager {
       return;
     }
 
-    // Feature enabled: full v1 behavior
+    // Feature enabled, or a v1 state file already exists: keep the accounts
+    // object and the legacy fields in sync so that toggling the feature flag
+    // never resurrects a stale identity.
     await this.addOrUpdateAccountAsync(sessionData);
   }
 
@@ -314,6 +339,7 @@ export default class SessionManager {
       // Update existing v1 schema
       const existingAccount = state.auth.accounts[sessionData.userId];
       newState = {
+        ...state,
         version: 1,
         auth: {
           ...state.auth,
@@ -339,6 +365,7 @@ export default class SessionManager {
     } else {
       // Migrate from v0 to v1
       newState = {
+        ...state,
         version: 1,
         auth: {
           activeAccountId: sessionData.userId,
@@ -361,7 +388,11 @@ export default class SessionManager {
       };
 
       // If there was an existing session in v0, preserve it as a separate account
-      if (state?.auth?.sessionSecret && state.auth.userId !== sessionData.userId) {
+      if (
+        state?.auth?.sessionSecret &&
+        state.auth.userId &&
+        state.auth.userId !== sessionData.userId
+      ) {
         newState.auth.accounts[state.auth.userId] = {
           sessionSecret: state.auth.sessionSecret,
           userId: state.auth.userId,
@@ -423,6 +454,31 @@ export default class SessionManager {
   }
 
   /**
+   * Use a stored account for the rest of this process without persisting a switch
+   * to the state file. Used by the global --account flag for per-command account
+   * selection. Returns false if no such account is stored.
+   */
+  public useAccountForProcessByUsername(username: string): boolean {
+    if (!isMultiAccountEnabled()) {
+      return false;
+    }
+
+    const state = this.readStateFile();
+    if (!this.isV1Schema(state)) {
+      return false;
+    }
+
+    const account = Object.values(state.auth.accounts).find(a => a.username === username);
+    if (!account) {
+      return false;
+    }
+
+    this.perProcessAccountOverrideUserId = account.userId;
+    this.currentActor = undefined;
+    return true;
+  }
+
+  /**
    * Switch to a different account by username.
    * Only available when multi-account is enabled.
    */
@@ -445,12 +501,13 @@ export default class SessionManager {
   }
 
   /**
-   * Remove an account by userId.
+   * Remove an account by userId. Invalidates its session secret on the server (best-effort).
    * If removing the active account, switches to the most recently used remaining account.
    */
   public async removeAccountAsync(userId: string): Promise<void> {
     if (!isMultiAccountEnabled()) {
       // When disabled, just clear everything
+      await this.invalidateCurrentSessionOnServerAsync();
       await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, {
         default: {},
         ensureDir: true,
@@ -462,6 +519,7 @@ export default class SessionManager {
     const state = this.readStateFile();
     if (!this.isV1Schema(state)) {
       // V0 schema: just clear
+      await this.invalidateCurrentSessionOnServerAsync();
       await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, {
         default: {},
         ensureDir: true,
@@ -474,6 +532,8 @@ export default class SessionManager {
     if (!removed) {
       return; // Account not found, nothing to do
     }
+
+    await this.invalidateSessionSecretOnServerAsync(removed.sessionSecret);
 
     const wasActive = state.auth.activeAccountId === userId;
     let newActiveId: string | null = state.auth.activeAccountId;
@@ -494,6 +554,7 @@ export default class SessionManager {
     const newActiveAccount = newActiveId ? remainingAccounts[newActiveId] : null;
 
     const newState: StateDataV1 = {
+      ...state,
       version: 1,
       auth: {
         activeAccountId: newActiveId,
@@ -511,10 +572,12 @@ export default class SessionManager {
   }
 
   /**
-   * Remove all accounts (logout all).
+   * Remove all accounts (logout all). Invalidates their session secrets on the
+   * server (best-effort).
    */
   public async removeAllAccountsAsync(): Promise<void> {
     if (!isMultiAccountEnabled()) {
+      await this.invalidateCurrentSessionOnServerAsync();
       await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, {
         default: {},
         ensureDir: true,
@@ -525,6 +588,7 @@ export default class SessionManager {
 
     const state = this.readStateFile();
     if (!this.isV1Schema(state)) {
+      await this.invalidateCurrentSessionOnServerAsync();
       await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, {
         default: {},
         ensureDir: true,
@@ -533,7 +597,12 @@ export default class SessionManager {
       return;
     }
 
+    for (const account of Object.values(state.auth.accounts)) {
+      await this.invalidateSessionSecretOnServerAsync(account.sessionSecret);
+    }
+
     const newState: StateDataV1 = {
+      ...state,
       version: 1,
       auth: {
         activeAccountId: null,
@@ -558,6 +627,7 @@ export default class SessionManager {
 
     if (!this.isV1Schema(state)) {
       // V0 schema: just clear
+      await this.invalidateCurrentSessionOnServerAsync();
       await JsonFile.setAsync(getStateJsonPath(), 'auth', undefined, {
         default: {},
         ensureDir: true,
@@ -573,18 +643,34 @@ export default class SessionManager {
     await this.removeAccountAsync(activeId);
   }
 
-  public async logoutAsync(): Promise<void> {
+  /**
+   * Best-effort invalidation of a session secret on the server.
+   */
+  private async invalidateSessionSecretOnServerAsync(sessionSecret: string): Promise<void> {
+    const apiV2Client = new ApiV2Client({ accessToken: null, sessionSecret });
+    try {
+      await apiV2Client.postAsync('auth/logout', { body: {} });
+    } catch (e) {
+      // Best-effort: clear the local session even if the server request fails
+      Log.debug('Failed to invalidate session secret on server:', e);
+    }
+  }
+
+  private async invalidateCurrentSessionOnServerAsync(): Promise<void> {
     const sessionSecret = this.getSessionSecret();
     if (sessionSecret) {
-      const apiV2Client = new ApiV2Client({ accessToken: null, sessionSecret });
-      try {
-        await apiV2Client.postAsync('auth/logout', { body: {} });
-      } catch (e) {
-        // Best-effort: clear the local session even if the server request fails
-        Log.debug('Failed to invalidate session secret on server:', e);
-      }
+      await this.invalidateSessionSecretOnServerAsync(sessionSecret);
     }
+  }
+
+  public async logoutAsync(): Promise<void> {
     this.currentActor = undefined;
+    if (isMultiAccountEnabled()) {
+      // Clearing the active account invalidates its session secret on the server.
+      await this.setSessionAsync(undefined);
+      return;
+    }
+    await this.invalidateCurrentSessionOnServerAsync();
     await this.setSessionAsync(undefined);
   }
 

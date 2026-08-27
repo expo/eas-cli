@@ -68,7 +68,8 @@ export default class AccountSwitch extends EasCommand {
       targetUsername = await selectAsync('Select an account:', choices);
 
       if (targetUsername === '__add_new__') {
-        await sessionManager.showLoginPromptAsync();
+        // Match the default `eas login` behavior (browser-based login)
+        await sessionManager.showLoginPromptAsync({ browser: true });
         Log.log('Logged in');
         return;
       }
