@@ -167,6 +167,9 @@ export async function uploadAsync(
           signal: init.signal as any,
         });
       } catch (error) {
+        if (init.signal?.aborted) {
+          throw error;
+        }
         if (!networkMode) {
           state.hasSeenNetworkError = true;
           return await uploadAsync(init, payload, onProgressUpdate, retryOptions, true);
@@ -237,6 +240,9 @@ async function callUploadApiWithRetryAsync(
         agent: getAgent(),
       });
     } catch (error) {
+      if (init?.signal?.aborted) {
+        throw error;
+      }
       if (!networkMode) {
         state.hasSeenNetworkError = true;
         return await callUploadApiWithRetryAsync(url, init, true, state);
