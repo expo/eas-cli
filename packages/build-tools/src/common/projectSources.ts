@@ -122,6 +122,9 @@ async function unpackTarGzAsync({
   await spawn('tar', ['-C', destination, '--strip-components', '1', '-zxf', source], {
     logger,
   });
+  // Archives can preserve modes that make project files unreadable or directories unwritable by
+  // the build user. A build workspace must be readable and writable because later phases modify it.
+  await spawn('chmod', ['-R', 'u+rwX', destination], { logger });
 }
 
 function uploadProjectMetadataAsFireAndForget(
