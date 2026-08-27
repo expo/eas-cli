@@ -2556,8 +2556,8 @@ _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/exp
 USAGE
   $ eas sim [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2595,7 +2595,7 @@ FLAGS
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
       --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+                                         <options: agent-device|appium|argent|web-preview>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
@@ -2688,7 +2688,7 @@ ALIASES
 ```
 USAGE
   $ eas sim:list [--status new|in-progress|stopped|errored...] [--type
-    agent-device|appium|argent|serve-sim...] [--platform android|ios...] [--name <value>] [--limit <value>] [--after
+    agent-device|appium|argent|web-preview...] [--platform android|ios...] [--name <value>] [--limit <value>] [--after
     <value>] [--json] [--non-interactive]
 
 FLAGS
@@ -2702,7 +2702,7 @@ FLAGS
   --status=<option>...    Filter by session status (repeatable)
                           <options: new|in-progress|stopped|errored>
   --type=<option>...      Filter by session type (repeatable)
-                          <options: agent-device|appium|argent|serve-sim>
+                          <options: agent-device|appium|argent|web-preview>
 
 DESCRIPTION
   [EXPERIMENTAL] list remote simulator sessions for the current project
@@ -2719,8 +2719,8 @@ ALIASES
 USAGE
   $ eas sim:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2758,7 +2758,7 @@ FLAGS
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
       --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+                                         <options: agent-device|appium|argent|web-preview>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
@@ -2797,8 +2797,8 @@ ALIASES
 USAGE
   $ eas simulator:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2836,7 +2836,7 @@ FLAGS
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
       --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+                                         <options: agent-device|appium|argent|web-preview>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it

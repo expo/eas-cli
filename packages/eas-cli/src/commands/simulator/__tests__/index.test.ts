@@ -332,6 +332,33 @@ describe(Simulator, () => {
     );
   });
 
+  it('creates a ServeSim session for --type web-preview', async () => {
+    mockByIdAsync.mockResolvedValue(
+      makeDeviceRunSession({
+        type: DeviceRunSessionType.ServeSim,
+        remoteConfig: {
+          __typename: 'ServeSimRunSessionRemoteConfig',
+          previewUrl: 'https://preview.example.test',
+        },
+      })
+    );
+
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--type',
+      'web-preview',
+      '--non-interactive',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
+      graphqlClient,
+      expect.objectContaining({ type: DeviceRunSessionType.ServeSim })
+    );
+    expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://preview.example.test'));
+  });
+
   it('overwrites .env.eas-simulator when outputting dotenv and the file exists', async () => {
     const { command } = createCommand([
       '--platform',

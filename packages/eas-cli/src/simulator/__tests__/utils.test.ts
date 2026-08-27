@@ -2,6 +2,8 @@ import { DeviceRunSessionResourceClass, DeviceRunSessionType } from '../../graph
 import {
   DEVICE_RUN_SESSION_RESOURCE_CLASS_BY_FLAG_VALUE,
   DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE,
+  DEVICE_RUN_SESSION_TYPE_FLAG_VALUES,
+  deviceRunSessionTypeToFlagValue,
   formatRemoteSessionInstructions,
   getRemoteSessionEnvironmentVariables,
 } from '../utils';
@@ -36,6 +38,17 @@ describe('Appium simulator configuration', () => {
     expect(instructions).toContain('eas simulator:exec <appium-client> [args...]');
     expect(instructions).toContain('https://preview.example.test');
     expect(instructions).not.toContain('https://appium.example.test');
+  });
+});
+
+describe('simulator session type flags', () => {
+  it('maps web-preview to the ServeSim GraphQL enum', () => {
+    expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['web-preview']).toBe(
+      DeviceRunSessionType.ServeSim
+    );
+    expect(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.ServeSim]).toBe('web-preview');
+    expect(deviceRunSessionTypeToFlagValue(DeviceRunSessionType.ServeSim)).toBe('web-preview');
+    expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['serve-sim']).toBeUndefined();
   });
 });
 
