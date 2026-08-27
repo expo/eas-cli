@@ -132,7 +132,7 @@ describe(createServeSimArgs, () => {
       '--webrtc-codec',
       'vp8',
       '--max-dimension',
-      '1280',
+      '960',
       '--mjpeg-quality',
       '0.55',
       '--video-bitrate',
