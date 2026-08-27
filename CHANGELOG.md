@@ -8,11 +8,15 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
 - [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
 
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
+
+- [worker] Use turtle cache upload and download URLs for eas.json build cache restore and save. ([#3860](https://github.com/expo/eas-cli/pull/3860) by [@sjchmiela](https://github.com/sjchmiela))
+- [ci] Bump both STAGING and PRODUCTION cli-versions in release workflow. ([#4290](https://github.com/expo/eas-cli/pull/4290) by [@douglowder](https://github.com/douglowder))
 
 ## [22.6.0](https://github.com/expo/eas-cli/releases/tag/v22.6.0) - 2026-08-26
 

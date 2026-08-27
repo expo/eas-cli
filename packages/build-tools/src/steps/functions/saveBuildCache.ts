@@ -20,6 +20,11 @@ import {
   generateDefaultBuildCacheKeyAsync,
   getCcachePath,
 } from '../../utils/cacheKey';
+import {
+  compressCocoapodsCacheAsync,
+  getCocoapodsCachePaths,
+  resolveCocoapodsCacheKeyAsync,
+} from '../../utils/cocoapodsCache';
 import { generateGradleCacheKeyAsync } from '../../utils/gradleCacheKey';
 
 export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFunction {
@@ -78,9 +83,75 @@ export function createSaveBuildCacheFunction(evictUsedBefore: Date): BuildFuncti
           env,
           secrets: stepCtx.global.staticContext.job.secrets,
         });
+      } else {
+        await saveCocoapodsCacheAsync({
+          logger,
+          workingDirectory,
+          env,
+          secrets: stepCtx.global.staticContext.job.secrets,
+        });
       }
     },
   });
+}
+
+export async function saveCocoapodsCacheAsync({
+  logger,
+  workingDirectory,
+  env,
+  secrets,
+}: {
+  logger: bunyan;
+  workingDirectory: string;
+  env: Record<string, string | undefined>;
+  secrets?: { robotAccessToken?: string };
+}): Promise<void> {
+  if (env.EAS_PODS_CACHE !== '1') {
+    return;
+  }
+
+  const { podsDirectory, podfileLockPath } = getCocoapodsCachePaths(workingDirectory);
+  try {
+    await Promise.all([fs.promises.access(podsDirectory), fs.promises.access(podfileLockPath)]);
+  } catch {
+    logger.warn('No CocoaPods installation found, skipping cache save');
+    return;
+  }
+
+  try {
+    const { stdout } = await spawnAsync('pod', ['--version'], {
+      env,
+      stdio: 'pipe',
+    });
+    const { key } = await resolveCocoapodsCacheKeyAsync(workingDirectory, stdout);
+    logger.info(`Saving CocoaPods cache key: ${key}`);
+
+    const jobId = nullthrows(env.EAS_BUILD_ID, 'EAS_BUILD_ID is not set');
+    const robotAccessToken = nullthrows(
+      secrets?.robotAccessToken,
+      'Robot access token is required for cache operations'
+    );
+    const expoApiServerURL = nullthrows(env.__API_SERVER_URL, '__API_SERVER_URL is not set');
+
+    logger.info('Compressing CocoaPods cache...');
+    const { archivePath } = await compressCocoapodsCacheAsync({ workingDirectory });
+    const { size } = await fs.promises.stat(archivePath);
+    logger.info(`CocoaPods cache archive size: ${formatBytes(size)}`);
+
+    await uploadCacheAsync({
+      logger,
+      jobId,
+      expoApiServerURL,
+      robotAccessToken,
+      archivePath,
+      key,
+      paths: [podsDirectory],
+      size,
+      platform: Platform.IOS,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to save CocoaPods cache');
+  }
 }
 
 export async function saveCcacheAsync({
