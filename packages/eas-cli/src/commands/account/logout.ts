@@ -1,4 +1,4 @@
-import { Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -10,13 +10,12 @@ export default class AccountLogout extends EasCommand {
   static override description = 'log out';
   static override aliases = ['logout'];
 
-  static override args = [
-    {
-      name: 'username',
+  static override args = {
+    username: Args.string({
       description: 'Username of the account to log out (multi-account mode only)',
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override flags = {
     all: Flags.boolean({

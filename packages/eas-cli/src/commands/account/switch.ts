@@ -1,3 +1,4 @@
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
 
 import EasCommand from '../../commandUtils/EasCommand';
@@ -8,13 +9,12 @@ import { isMultiAccountEnabled } from '../../utils/easCli';
 export default class AccountSwitch extends EasCommand {
   static override description = 'switch to a different Expo account';
 
-  static override args = [
-    {
-      name: 'username',
+  static override args = {
+    username: Args.string({
       description: 'Username of the account to switch to',
       required: false,
-    },
-  ];
+    }),
+  };
 
   static override contextDefinition = {
     ...this.ContextOptions.SessionManagment,
