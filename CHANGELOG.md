@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores

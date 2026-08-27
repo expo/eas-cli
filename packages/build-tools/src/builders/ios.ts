@@ -18,8 +18,12 @@ import { downloadApplicationArchiveAsync } from '../ios/resign';
 import { resolveArtifactPath, resolveBuildConfiguration, resolveScheme } from '../ios/resolve';
 import { Sentry } from '../sentry';
 import { parseAndReportXcactivitylog } from '../steps/utils/ios/xcactivitylog';
-import { cacheStatsAsync, restoreCcacheAsync } from '../steps/functions/restoreBuildCache';
-import { saveCcacheAsync } from '../steps/functions/saveBuildCache';
+import {
+  cacheStatsAsync,
+  restoreCcacheAsync,
+  restoreCocoapodsCacheAsync,
+} from '../steps/functions/restoreBuildCache';
+import { saveCcacheAsync, saveCocoapodsCacheAsync } from '../steps/functions/saveBuildCache';
 import { uploadApplicationArchive } from '../utils/artifacts';
 import {
   configureExpoUpdatesIfInstalledAsync,
@@ -104,6 +108,12 @@ async function buildInnerAsync(
         logger: ctx.logger,
         workingDirectory,
         target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
+        env: ctx.env,
+        secrets: ctx.job.secrets,
+      });
+      await restoreCocoapodsCacheAsync({
+        logger: ctx.logger,
+        workingDirectory,
         env: ctx.env,
         secrets: ctx.job.secrets,
       });
@@ -247,6 +257,12 @@ async function buildInnerAsync(
       workingDirectory,
       target: { platform: ctx.job.platform, simulator: ctx.job.simulator === true },
       evictUsedBefore,
+      env: ctx.env,
+      secrets: ctx.job.secrets,
+    });
+    await saveCocoapodsCacheAsync({
+      logger: ctx.logger,
+      workingDirectory,
       env: ctx.env,
       secrets: ctx.job.secrets,
     });
