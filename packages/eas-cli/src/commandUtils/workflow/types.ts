@@ -57,11 +57,11 @@ export type WorkflowRawLogLine = {
 export type WorkflowLogLine = Pick<WorkflowRawLogLine, 'time' | 'result' | 'marker' | 'err'> &
   Required<Pick<WorkflowRawLogLine, 'msg'>>;
 
-export type WorkflowLogs = Map<
-  string,
-  {
-    key: string;
-    label: string;
-    logLines: WorkflowLogLine[];
-  }
->;
+export type StepLogs = {
+  key: string;
+  label: string;
+  result?: string;
+  logLines: WorkflowLogLine[];
+};
+
+export type WorkflowLogs = Map<string, StepLogs>;

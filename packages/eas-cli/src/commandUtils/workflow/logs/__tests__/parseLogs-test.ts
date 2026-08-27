@@ -159,4 +159,28 @@ describe(groupLogLinesIntoSteps, () => {
 
     expect(logs.size).toBe(0);
   });
+
+  it('records the result of the first end marker and ignores a later one', () => {
+    const logs = groupLogLinesIntoSteps([
+      logLine({ buildStepId: 'install', msg: 'skipping', marker: 'end-step', result: 'skipped' }),
+      logLine({ buildStepId: 'install', msg: 'retried', marker: 'end-step', result: 'success' }),
+    ]);
+
+    expect(logs.get('install')?.result).toBe('skipped');
+  });
+
+  it('leaves the result undefined for a step that has not ended', () => {
+    const logs = groupLogLinesIntoSteps([logLine({ buildStepId: 'install', msg: 'npm ci' })]);
+
+    expect(logs.get('install')?.result).toBeUndefined();
+  });
+
+  it('records an end marker that carries no result and does not let a later one replace it', () => {
+    const logs = groupLogLinesIntoSteps([
+      logLine({ buildStepId: 'install', msg: 'ended', marker: 'END_PHASE' }),
+      logLine({ buildStepId: 'install', msg: 'retried', marker: 'END_PHASE', result: 'success' }),
+    ]);
+
+    expect(logs.get('install')?.result).toBe('');
+  });
 });
