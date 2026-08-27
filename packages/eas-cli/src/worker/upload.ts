@@ -17,8 +17,9 @@ import {
 
 const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
 const MAX_RETRY_WARNING_DELAY_MS = 30_000;
-const UPLOAD_RETRY_LIMITS: RetryLimits = { retries: 4, maxTimeout: 5_000 };
-const API_RETRY_LIMITS: RetryLimits = { retries: 10, maxTimeout: 30_000 };
+
+const UPLOAD_RETRY_LIMITS: RetryLimits = { retries: 4, maxTimeout: 5_000, maxRetryTime: 20_000 };
+const API_RETRY_LIMITS: RetryLimits = { retries: 6, maxTimeout: 5_000, maxRetryTime: 30_000 };
 
 interface RetryState {
   firstRetryAt?: number;
@@ -29,11 +30,13 @@ interface RetryState {
 interface UploadRetryOptions {
   totalRequests?: number;
   state?: RetryState;
+  deadlineAt?: number;
 }
 
 interface RetryLimits {
   retries: number;
   maxTimeout: number;
+  maxRetryTime: number;
 }
 
 interface RetryOptions {
@@ -41,7 +44,14 @@ interface RetryOptions {
   factor: number;
   minTimeout: number;
   maxTimeout: number;
+  maxRetryTime: number;
   randomize: boolean;
+}
+
+interface RetryWarningContext {
+  state: RetryState;
+  warningDelayMs: number;
+  subject: string;
 }
 
 const getRetryScale = (totalRequests: number): number =>
@@ -60,30 +70,25 @@ const getRetryOptions = (
     retries: Math.round(limits.retries * (1 + scale)) + (networkMode ? 2 : 0),
     factor: 2,
     minTimeout: 1_000,
-    maxTimeout: Math.round(limits.maxTimeout * (networkMode ? 2 : 1) * (1 + scale)),
+    maxTimeout: Math.round(limits.maxTimeout * (1 + scale)),
+    maxRetryTime: Math.round(limits.maxRetryTime * (1 + scale)),
     randomize: true,
   };
 };
 
-const getRetryWarningDelay = (options: RetryOptions): number => {
-  let budget = 0;
-  for (let attempt = 0; attempt < options.retries; attempt++) {
-    budget += Math.min(options.minTimeout * options.factor ** attempt, options.maxTimeout);
-  }
-  return Math.min(MAX_RETRY_WARNING_DELAY_MS, Math.round(budget / 2));
-};
+const getRetryWarningDelay = (maxRetryTime: number): number =>
+  Math.min(MAX_RETRY_WARNING_DELAY_MS, Math.round(maxRetryTime / 2));
 
 const retryWithWarning = (
   retry: (error: unknown) => never,
   error: unknown,
   attempt: number,
-  state: RetryState,
-  warningDelayMs: number
+  { state, warningDelayMs, subject }: RetryWarningContext
 ): never => {
   state.firstRetryAt ??= Date.now();
   if (!state.hasWarned && attempt > 1 && Date.now() - state.firstRetryAt >= warningDelayMs) {
     state.hasWarned = true;
-    Log.warn(`The upload encountered an error but is still retrying: ${getErrorMessage(error)}`);
+    Log.warn(`${subject} encountered an error but is still retrying: ${getErrorMessage(error)}`);
   }
   return retry(error);
 };
@@ -141,7 +146,10 @@ export async function uploadAsync(
     retryOptions.totalRequests ?? 1,
     networkMode
   );
-  const warningDelayMs = getRetryWarningDelay(retryOptionsForAttempts);
+  const warningDelayMs = getRetryWarningDelay(retryOptionsForAttempts.maxRetryTime);
+  const deadlineAt = retryOptions.deadlineAt ?? Date.now() + retryOptionsForAttempts.maxRetryTime;
+  retryOptionsForAttempts.maxRetryTime = Math.max(0, deadlineAt - Date.now());
+  const warningContext: RetryWarningContext = { state, warningDelayMs, subject: 'The upload' };
   return await promiseRetry(async (retry, attempt) => {
     if (onProgressUpdate) {
       onProgressUpdate(0);
@@ -195,9 +203,15 @@ export async function uploadAsync(
       }
       if (!networkMode) {
         state.hasSeenNetworkError = true;
-        return await uploadAsync(init, payload, onProgressUpdate, { ...retryOptions, state }, true);
+        return await uploadAsync(
+          init,
+          payload,
+          onProgressUpdate,
+          { ...retryOptions, state, deadlineAt },
+          true
+        );
       }
-      return retryWithWarning(retry, error, attempt, state, warningDelayMs);
+      return retryWithWarning(retry, error, attempt, warningContext);
     }
 
     const getErrorMessageAsync = async (): Promise<string> => {
@@ -229,8 +243,7 @@ export async function uploadAsync(
         retry,
         new Error(await getErrorMessageAsync()),
         attempt,
-        state,
-        warningDelayMs
+        warningContext
       );
     } else if (response.status === 413) {
       const message = `${errorPrefix!}: File size exceeded the upload limit`;
@@ -240,6 +253,9 @@ export async function uploadAsync(
     } else if (onProgressUpdate) {
       onProgressUpdate(1);
     }
+
+    state.firstRetryAt = undefined;
+    state.hasSeenNetworkError = false;
 
     return {
       payload,
@@ -252,10 +268,18 @@ async function callUploadApiWithRetryAsync(
   url: string | URL,
   init: RequestInit | undefined,
   networkMode = false,
-  state: RetryState = { hasSeenNetworkError: false, hasWarned: false }
+  state: RetryState = { hasSeenNetworkError: false, hasWarned: false },
+  deadlineAt?: number
 ): Promise<unknown> {
   const retryOptions = getRetryOptions(API_RETRY_LIMITS, 1, networkMode);
-  const warningDelayMs = getRetryWarningDelay(retryOptions);
+  const warningDelayMs = getRetryWarningDelay(retryOptions.maxRetryTime);
+  const retryDeadlineAt = deadlineAt ?? Date.now() + retryOptions.maxRetryTime;
+  retryOptions.maxRetryTime = Math.max(0, retryDeadlineAt - Date.now());
+  const warningContext: RetryWarningContext = {
+    state,
+    warningDelayMs,
+    subject: 'The deployment',
+  };
   return await promiseRetry(async (retry, attempt) => {
     let response: Response;
     try {
@@ -269,23 +293,22 @@ async function callUploadApiWithRetryAsync(
       }
       if (!networkMode) {
         state.hasSeenNetworkError = true;
-        return await callUploadApiWithRetryAsync(url, init, true, state);
+        return await callUploadApiWithRetryAsync(url, init, true, state, retryDeadlineAt);
       }
-      return retryWithWarning(retry, error, attempt, state, warningDelayMs);
+      return retryWithWarning(retry, error, attempt, warningContext);
     }
     if (response.status >= 500 && response.status <= 599) {
       retryWithWarning(
         retry,
         new Error(`Deployment failed: ${response.statusText}`),
         attempt,
-        state,
-        warningDelayMs
+        warningContext
       );
     }
     try {
       return await response.json();
     } catch (error) {
-      retry(error);
+      return retryWithWarning(retry, error, attempt, warningContext);
     }
   }, retryOptions);
 }

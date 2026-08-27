@@ -177,7 +177,8 @@ describe(uploadAsync, () => {
     });
     await runTimersAndExpectRejection(promise, 'overloaded');
 
-    expect(mockedFetch).toHaveBeenCalledTimes(9);
+    // The scaled 40s ceiling cuts the last attempt the backoff schedule would have allowed.
+    expect(mockedFetch).toHaveBeenCalledTimes(8);
   });
 
   it('keeps the retry state when it switches to network mode', async () => {
@@ -208,6 +209,33 @@ describe(uploadAsync, () => {
     await runTimersAndExpectRejection(promise, 'overloaded');
 
     expect(Log.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops retrying at the scaled upload ceiling', async () => {
+    mockedFetch.mockImplementation(async () => response(503, { error: 'overloaded' }));
+
+    const promise = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
+      totalRequests: 1_000,
+    });
+    await runTimersAndExpectRejection(promise, 'overloaded');
+
+    // The ceiling stops the next retry from being scheduled, so the last attempt already in
+    // flight can overshoot it by up to one maxTimeout (10s at this scale).
+    expect(Date.now()).toBeLessThanOrEqual(40_000 + 10_000);
+  });
+
+  it('clears the retry clock and the network flag after a success', async () => {
+    const state = { hasSeenNetworkError: false, hasWarned: false, firstRetryAt: undefined };
+    mockedFetch.mockResolvedValueOnce(response(503)).mockResolvedValueOnce(response());
+
+    const promise = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
+      state,
+    });
+    await jest.runAllTimersAsync();
+    await promise;
+
+    expect(state.firstRetryAt).toBeUndefined();
+    expect(state.hasSeenNetworkError).toBe(false);
   });
 
   it('does not retry or enter network mode after cancellation', async () => {
@@ -252,8 +280,8 @@ describe(callUploadApiAsync, () => {
 
     const promise = callUploadApiAsync('https://eas.expo.app/finalize');
     await runTimersAndExpectRejection(promise, 'Deployment failed: Request failed');
-    // Deploy API calls get a much larger retry budget than a single asset upload.
-    expect(mockedFetch).toHaveBeenCalledTimes(11);
+    // Deploy API calls get a somewhat larger retry budget than a single asset upload.
+    expect(mockedFetch).toHaveBeenCalledTimes(7);
   });
 
   it('retries invalid JSON responses', async () => {
@@ -273,7 +301,26 @@ describe(callUploadApiAsync, () => {
 
     const promise = callUploadApiAsync('https://eas.expo.app/finalize');
     await runTimersAndExpectRejection(promise, networkError.message);
-    expect(mockedFetch).toHaveBeenCalledTimes(14);
+    // Network mode adds attempts but shares the 30s deadline, so it cannot double the wait.
+    expect(mockedFetch).toHaveBeenCalledTimes(10);
+  });
+
+  it('stops retrying at the 30s ceiling', async () => {
+    mockedFetch.mockResolvedValue(response(503));
+
+    const promise = callUploadApiAsync('https://eas.expo.app/finalize');
+    await runTimersAndExpectRejection(promise, 'Deployment failed: Request failed');
+
+    expect(Date.now()).toBeLessThanOrEqual(30_000);
+  });
+
+  it('shares the ceiling with the network-mode attempts', async () => {
+    mockedFetch.mockRejectedValue(new Error('socket disconnected'));
+
+    const promise = callUploadApiAsync('https://eas.expo.app/finalize');
+    await runTimersAndExpectRejection(promise, 'socket disconnected');
+
+    expect(Date.now()).toBeLessThanOrEqual(30_000 + 5_000);
   });
 
   it('does not retry an aborted request', async () => {
