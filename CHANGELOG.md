@@ -9,8 +9,43 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🎉 New features
 
 - [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
+### 🐛 Bug fixes
+
+### 🧹 Chores
+
+- [ci] Bump both STAGING and PRODUCTION cli-versions in release workflow. ([#4290](https://github.com/expo/eas-cli/pull/4290) by [@douglowder](https://github.com/douglowder))
+
+## [22.6.0](https://github.com/expo/eas-cli/releases/tag/v22.6.0) - 2026-08-26
+
+### 🎉 New features
+
+- [eas-cli] Add an opt-in `--max-idle-time-minutes` flag to `eas simulator`; the session stops automatically after that many minutes without activity. ([#4156](https://github.com/expo/eas-cli/pull/4156) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add experimental `--resource-class` flag to `eas simulator`. ([#4268](https://github.com/expo/eas-cli/pull/4268) by [@gwdp](https://github.com/gwdp))
+- [build-tools] Add worker-side SSH session helpers (upterm relay + session create/report/close). ([#4030](https://github.com/expo/eas-cli/pull/4030) by [@gwdp](https://github.com/gwdp))
+- [worker] Wire an SSH session into the build lifecycle behind the workflow ssh flag. ([#4031](https://github.com/expo/eas-cli/pull/4031) by [@gwdp](https://github.com/gwdp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Increase the serve-sim video bitrate to 6 Mbps for higher-quality simulator previews. ([#4291](https://github.com/expo/eas-cli/pull/4291) by [@szdziedzic](https://github.com/szdziedzic))
+- [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [22.4.0](https://github.com/expo/eas-cli/releases/tag/v22.4.0) - 2026-08-24
+
+### 🎉 New features
+
 - [eas-cli] Add `--launch-arg`, `--open-url`, and Expo Go `--sdk-version` options to `eas simulator`. ([#4264](https://github.com/expo/eas-cli/pull/4264) by [@szdziedzic](https://github.com/szdziedzic))
 - [build-tools] Pass launch arguments and a URL to open when launching applications in simulator sessions. ([#4263](https://github.com/expo/eas-cli/pull/4263) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add `eas billing:subscribe <plan>` to start a Stripe checkout for an EAS plan, and `eas billing:manage` to open the Stripe customer portal. ([#4007](https://github.com/expo/eas-cli/pull/4007) by [@jonsamp](https://github.com/jonsamp))
+
+### 🐛 Bug fixes
+
+- [build-tools] Support downloading iOS simulator archives whose app bundle contents are stored at the archive root. ([#4262](https://github.com/expo/eas-cli/pull/4262) by [@szdziedzic](https://github.com/szdziedzic))
+
+## [22.3.0](https://github.com/expo/eas-cli/releases/tag/v22.3.0) - 2026-08-24
+
+### 🎉 New features
+
 - [build-tools] Add `ios_signing_backend` option to the repack step. ([#4239](https://github.com/expo/eas-cli/pull/4239) by [@gabrieldonadel](https://github.com/gabrieldonadel))
 - [build-tools] Support an optional `package_version` input on `eas/start_serve_sim_remote_session`, so a simulator session can pin the `@expo/serve-sim` version instead of always running `latest`. ([#4253](https://github.com/expo/eas-cli/pull/4253) by [@gwdp](https://github.com/gwdp))
 - [build-tools] Add composable custom build functions for downloading, installing, and launching application archives in simulator sessions. ([#4222](https://github.com/expo/eas-cli/pull/4222) by [@szdziedzic](https://github.com/szdziedzic))
@@ -18,10 +53,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🐛 Bug fixes
 
-- [build-tools] Preapprove custom URL schemes before opening them in iOS Simulator sessions to avoid the first-use confirmation prompt. ([#4274](https://github.com/expo/eas-cli/pull/4274) by [@szdziedzic](https://github.com/szdziedzic))
-- [build-tools] Support downloading iOS simulator archives whose app bundle contents are stored at the archive root. ([#4262](https://github.com/expo/eas-cli/pull/4262) by [@szdziedzic](https://github.com/szdziedzic))
-
-### 🧹 Chores
+- [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
 
@@ -29,7 +61,6 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [eas-cli] Add `--device` flag to `eas simulator` for selecting the virtual device to start. ([#4172](https://github.com/expo/eas-cli/pull/4172) by [@szdziedzic](https://github.com/szdziedzic))
 - [eas-cli] Add support for Appium EAS Simulator sessions. ([#4190](https://github.com/expo/eas-cli/pull/4190) by [@sjchmiela](https://github.com/sjchmiela))
-- [eas-cli] Add `eas billing:subscribe <plan>` to start a Stripe checkout for an EAS plan, and `eas billing:manage` to open the Stripe customer portal. ([#4007](https://github.com/expo/eas-cli/pull/4007) by [@jonsamp](https://github.com/jonsamp))
 
 ### 🐛 Bug fixes
 
@@ -37,7 +68,6 @@ This is the log of notable changes to EAS CLI and related packages.
 - [eas-cli] Send the expected `Content-MD5` checksum with GCS signed URL uploads so GCS rejects corrupted uploads. ([#4208](https://github.com/expo/eas-cli/pull/4208) by [@wschurman](https://github.com/wschurman))
 - [eas-cli] Resolve the `eas go` SDK version to its repack target, so `--sdk-version 57` no longer fails with "No Expo Go repack target is published for SDK 57". ([#4215](https://github.com/expo/eas-cli/pull/4215) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Handle missing fingerprint source in fingerprint:compare command. ([#4210](https://github.com/expo/eas-cli/pull/4210) by [@wschurman](https://github.com/wschurman))
-- [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
 
 ### 🧹 Chores
 
