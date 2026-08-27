@@ -16,7 +16,9 @@ import {
 } from './utils/multipart';
 
 const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
-const RETRY_WARNING_DELAY_MS = 30_000;
+const MAX_RETRY_WARNING_DELAY_MS = 30_000;
+const UPLOAD_RETRY_LIMITS: RetryLimits = { retries: 4, maxTimeout: 5_000 };
+const API_RETRY_LIMITS: RetryLimits = { retries: 10, maxTimeout: 30_000 };
 
 interface RetryState {
   firstRetryAt?: number;
@@ -29,6 +31,19 @@ interface UploadRetryOptions {
   state?: RetryState;
 }
 
+interface RetryLimits {
+  retries: number;
+  maxTimeout: number;
+}
+
+interface RetryOptions {
+  retries: number;
+  factor: number;
+  minTimeout: number;
+  maxTimeout: number;
+  randomize: boolean;
+}
+
 const getRetryScale = (totalRequests: number): number =>
   Math.min(1, Math.log10(Math.max(1, totalRequests)) / 3);
 
@@ -36,37 +51,37 @@ const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const getRetryOptions = (
+  limits: RetryLimits,
   totalRequests: number,
   networkMode: boolean
-): {
-  retries: number;
-  factor: number;
-  minTimeout: number;
-  maxTimeout: number;
-  randomize: boolean;
-} => {
+): RetryOptions => {
   const scale = getRetryScale(totalRequests);
   return {
-    retries: Math.round(4 + scale * 4) + (networkMode ? 2 : 0),
+    retries: Math.round(limits.retries * (1 + scale)) + (networkMode ? 2 : 0),
     factor: 2,
     minTimeout: 1_000,
-    maxTimeout: Math.round((networkMode ? 10_000 : 5_000) * (1 + scale)),
+    maxTimeout: Math.round(limits.maxTimeout * (networkMode ? 2 : 1) * (1 + scale)),
     randomize: true,
   };
+};
+
+const getRetryWarningDelay = (options: RetryOptions): number => {
+  let budget = 0;
+  for (let attempt = 0; attempt < options.retries; attempt++) {
+    budget += Math.min(options.minTimeout * options.factor ** attempt, options.maxTimeout);
+  }
+  return Math.min(MAX_RETRY_WARNING_DELAY_MS, Math.round(budget / 2));
 };
 
 const retryWithWarning = (
   retry: (error: unknown) => never,
   error: unknown,
   attempt: number,
-  state: RetryState
+  state: RetryState,
+  warningDelayMs: number
 ): never => {
   state.firstRetryAt ??= Date.now();
-  if (
-    !state.hasWarned &&
-    attempt > 1 &&
-    Date.now() - state.firstRetryAt >= RETRY_WARNING_DELAY_MS
-  ) {
+  if (!state.hasWarned && attempt > 1 && Date.now() - state.firstRetryAt >= warningDelayMs) {
     state.hasWarned = true;
     Log.warn(`The upload encountered an error but is still retrying: ${getErrorMessage(error)}`);
   }
@@ -116,114 +131,121 @@ export async function uploadAsync(
   retryOptions: UploadRetryOptions = {},
   networkMode = retryOptions.state?.hasSeenNetworkError ?? false
 ): Promise<UploadResult> {
-  const state =
-    retryOptions.state ?? { firstRetryAt: undefined, hasSeenNetworkError: false, hasWarned: false };
-  return await promiseRetry(
-    async (retry, attempt) => {
-      if (onProgressUpdate) {
-        onProgressUpdate(0);
-      }
-
-      const headers = new Headers(init.headers);
-
-      const url = new URL(`${init.baseURL}`);
-      let errorPrefix: string;
-      let body: BodyInit | undefined;
-      let method = init.method || 'POST';
-      if ('asset' in payload) {
-        const { asset } = payload;
-        errorPrefix = `Upload of "${asset.normalizedPath}" failed`;
-        if (asset.type) {
-          headers.set('content-type', asset.type);
-        }
-        if (asset.size) {
-          headers.set('content-length', `${asset.size}`);
-        }
-        method = 'POST';
-        url.pathname = `/asset/${asset.sha512}`;
-        body = Readable.from(createReadStreamAsync(asset), { objectMode: false });
-      } else if ('filePath' in payload) {
-        const { filePath } = payload;
-        errorPrefix = 'Worker deployment failed';
-        body = fs.createReadStream(filePath);
-      } else if ('multipart' in payload) {
-        const { multipart } = payload;
-        errorPrefix = `Upload of ${multipart.length} assets failed`;
-        headers.set('content-type', multipartContentType);
-        method = 'PATCH';
-        url.pathname = '/asset/batch';
-        body = Readable.from(createMultipartBodyFromFilesAsync(multipart, onProgressUpdate), {
-          objectMode: false,
-        });
-      }
-
-      let response: Response;
-      try {
-        response = await fetch(url, {
-          method,
-          body,
-          headers,
-          agent: getAgent(),
-          signal: init.signal as any,
-        });
-      } catch (error) {
-        if (init.signal?.aborted) {
-          throw error;
-        }
-        if (!networkMode) {
-          state.hasSeenNetworkError = true;
-          return await uploadAsync(init, payload, onProgressUpdate, retryOptions, true);
-        }
-        return retryWithWarning(retry, error, attempt, state);
-      }
-
-      const getErrorMessageAsync = async (): Promise<string> => {
-        const rayId = response.headers.get('cf-ray');
-        const contentType = response.headers.get('Content-Type');
-        if (contentType?.startsWith('text/html')) {
-          // NOTE(@kitten): We've received a CDN error most likely. There's not much we can do
-          // except for quoting the Request ID, so a user can send it to us. We can check
-          // why a request was blocked by looking up a WAF event via the "Ray ID" here:
-          // https://dash.cloudflare.com/e6f39f67f543faa6038768e8f37e4234/expo.app/security/events
-          let message = `CDN firewall has aborted the upload with ${response.statusText}.`;
-          if (rayId) {
-            message += `\nReport this error quoting Request ID ${rayId}`;
-          }
-          return `${errorPrefix}: ${message}`;
-        } else {
-          const json = await response.json().catch(() => null);
-          return json?.error ?? `${errorPrefix}: ${response.statusText}`;
-        }
-      };
-
-      if (
-        response.status === 408 ||
-        response.status === 409 ||
-        response.status === 429 ||
-        (response.status >= 500 && response.status <= 599)
-      ) {
-        return retryWithWarning(
-          retry,
-          new Error(await getErrorMessageAsync()),
-          attempt,
-          state
-        );
-      } else if (response.status === 413) {
-        const message = `${errorPrefix!}: File size exceeded the upload limit`;
-        throw new Error(message);
-      } else if (!response.ok) {
-        throw new Error(await getErrorMessageAsync());
-      } else if (onProgressUpdate) {
-        onProgressUpdate(1);
-      }
-
-      return {
-        payload,
-        response,
-      };
-    },
-    getRetryOptions(retryOptions.totalRequests ?? 1, networkMode)
+  const state = retryOptions.state ?? {
+    firstRetryAt: undefined,
+    hasSeenNetworkError: false,
+    hasWarned: false,
+  };
+  const retryOptionsForAttempts = getRetryOptions(
+    UPLOAD_RETRY_LIMITS,
+    retryOptions.totalRequests ?? 1,
+    networkMode
   );
+  const warningDelayMs = getRetryWarningDelay(retryOptionsForAttempts);
+  return await promiseRetry(async (retry, attempt) => {
+    if (onProgressUpdate) {
+      onProgressUpdate(0);
+    }
+
+    const headers = new Headers(init.headers);
+
+    const url = new URL(`${init.baseURL}`);
+    let errorPrefix: string;
+    let body: BodyInit | undefined;
+    let method = init.method || 'POST';
+    if ('asset' in payload) {
+      const { asset } = payload;
+      errorPrefix = `Upload of "${asset.normalizedPath}" failed`;
+      if (asset.type) {
+        headers.set('content-type', asset.type);
+      }
+      if (asset.size) {
+        headers.set('content-length', `${asset.size}`);
+      }
+      method = 'POST';
+      url.pathname = `/asset/${asset.sha512}`;
+      body = Readable.from(createReadStreamAsync(asset), { objectMode: false });
+    } else if ('filePath' in payload) {
+      const { filePath } = payload;
+      errorPrefix = 'Worker deployment failed';
+      body = fs.createReadStream(filePath);
+    } else if ('multipart' in payload) {
+      const { multipart } = payload;
+      errorPrefix = `Upload of ${multipart.length} assets failed`;
+      headers.set('content-type', multipartContentType);
+      method = 'PATCH';
+      url.pathname = '/asset/batch';
+      body = Readable.from(createMultipartBodyFromFilesAsync(multipart, onProgressUpdate), {
+        objectMode: false,
+      });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method,
+        body,
+        headers,
+        agent: getAgent(),
+        signal: init.signal as any,
+      });
+    } catch (error) {
+      if (init.signal?.aborted) {
+        throw error;
+      }
+      if (!networkMode) {
+        state.hasSeenNetworkError = true;
+        return await uploadAsync(init, payload, onProgressUpdate, { ...retryOptions, state }, true);
+      }
+      return retryWithWarning(retry, error, attempt, state, warningDelayMs);
+    }
+
+    const getErrorMessageAsync = async (): Promise<string> => {
+      const rayId = response.headers.get('cf-ray');
+      const contentType = response.headers.get('Content-Type');
+      if (contentType?.startsWith('text/html')) {
+        // NOTE(@kitten): We've received a CDN error most likely. There's not much we can do
+        // except for quoting the Request ID, so a user can send it to us. We can check
+        // why a request was blocked by looking up a WAF event via the "Ray ID" here:
+        // https://dash.cloudflare.com/e6f39f67f543faa6038768e8f37e4234/expo.app/security/events
+        let message = `CDN firewall has aborted the upload with ${response.statusText}.`;
+        if (rayId) {
+          message += `\nReport this error quoting Request ID ${rayId}`;
+        }
+        return `${errorPrefix}: ${message}`;
+      } else {
+        const json = await response.json().catch(() => null);
+        return json?.error ?? `${errorPrefix}: ${response.statusText}`;
+      }
+    };
+
+    if (
+      response.status === 408 ||
+      response.status === 409 ||
+      response.status === 429 ||
+      (response.status >= 500 && response.status <= 599)
+    ) {
+      return retryWithWarning(
+        retry,
+        new Error(await getErrorMessageAsync()),
+        attempt,
+        state,
+        warningDelayMs
+      );
+    } else if (response.status === 413) {
+      const message = `${errorPrefix!}: File size exceeded the upload limit`;
+      throw new Error(message);
+    } else if (!response.ok) {
+      throw new Error(await getErrorMessageAsync());
+    } else if (onProgressUpdate) {
+      onProgressUpdate(1);
+    }
+
+    return {
+      payload,
+      response,
+    };
+  }, retryOptionsForAttempts);
 }
 
 async function callUploadApiWithRetryAsync(
@@ -232,6 +254,8 @@ async function callUploadApiWithRetryAsync(
   networkMode = false,
   state: RetryState = { hasSeenNetworkError: false, hasWarned: false }
 ): Promise<unknown> {
+  const retryOptions = getRetryOptions(API_RETRY_LIMITS, 1, networkMode);
+  const warningDelayMs = getRetryWarningDelay(retryOptions);
   return await promiseRetry(async (retry, attempt) => {
     let response: Response;
     try {
@@ -247,14 +271,15 @@ async function callUploadApiWithRetryAsync(
         state.hasSeenNetworkError = true;
         return await callUploadApiWithRetryAsync(url, init, true, state);
       }
-      return retryWithWarning(retry, error, attempt, state);
+      return retryWithWarning(retry, error, attempt, state, warningDelayMs);
     }
     if (response.status >= 500 && response.status <= 599) {
       retryWithWarning(
         retry,
         new Error(`Deployment failed: ${response.statusText}`),
         attempt,
-        state
+        state,
+        warningDelayMs
       );
     }
     try {
@@ -262,7 +287,7 @@ async function callUploadApiWithRetryAsync(
     } catch (error) {
       retry(error);
     }
-  }, getRetryOptions(1, networkMode));
+  }, retryOptions);
 }
 
 export async function callUploadApiAsync(url: string | URL, init?: RequestInit): Promise<unknown> {

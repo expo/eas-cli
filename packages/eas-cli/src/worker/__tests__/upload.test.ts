@@ -4,11 +4,11 @@ import fetch, { Headers, Response } from 'node-fetch';
 import Log from '../../log';
 import { AssetFileEntry } from '../assets';
 import {
+  UploadPayload,
   batchUploadAsync,
   callUploadApiAsync,
   createProgressBar,
   uploadAsync,
-  UploadPayload,
 } from '../upload';
 
 jest.mock('node-fetch', () => ({
@@ -180,6 +180,36 @@ describe(uploadAsync, () => {
     expect(mockedFetch).toHaveBeenCalledTimes(9);
   });
 
+  it('keeps the retry state when it switches to network mode', async () => {
+    let calls = 0;
+    mockedFetch.mockImplementation(async () => {
+      if (++calls <= 7) {
+        return response(503, { error: 'overloaded' });
+      }
+      throw new Error('socket disconnected');
+    });
+
+    const promise = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
+      totalRequests: 1_000,
+    });
+    await runTimersAndExpectRejection(promise, 'socket disconnected');
+
+    // The warning must not repeat once the network-mode attempts take over.
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+    expect(Log.warn).toHaveBeenCalledWith(
+      'The upload encountered an error but is still retrying: overloaded'
+    );
+  });
+
+  it('warns before a short retry budget is exhausted', async () => {
+    mockedFetch.mockImplementation(async () => response(503, { error: 'overloaded' }));
+
+    const promise = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset });
+    await runTimersAndExpectRejection(promise, 'overloaded');
+
+    expect(Log.warn).toHaveBeenCalledTimes(1);
+  });
+
   it('does not retry or enter network mode after cancellation', async () => {
     const controller = new AbortController();
     controller.abort();
@@ -222,7 +252,8 @@ describe(callUploadApiAsync, () => {
 
     const promise = callUploadApiAsync('https://eas.expo.app/finalize');
     await runTimersAndExpectRejection(promise, 'Deployment failed: Request failed');
-    expect(mockedFetch).toHaveBeenCalledTimes(5);
+    // Deploy API calls get a much larger retry budget than a single asset upload.
+    expect(mockedFetch).toHaveBeenCalledTimes(11);
   });
 
   it('retries invalid JSON responses', async () => {
@@ -242,7 +273,7 @@ describe(callUploadApiAsync, () => {
 
     const promise = callUploadApiAsync('https://eas.expo.app/finalize');
     await runTimersAndExpectRejection(promise, networkError.message);
-    expect(mockedFetch).toHaveBeenCalledTimes(8);
+    expect(mockedFetch).toHaveBeenCalledTimes(14);
   });
 
   it('does not retry an aborted request', async () => {
@@ -308,7 +339,9 @@ describe(batchUploadAsync, () => {
         return response(400, { error: 'terminal failure' });
       }
       return await new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('aborted'));
+        });
       });
     });
 
