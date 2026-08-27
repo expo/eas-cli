@@ -7,6 +7,7 @@ import os from 'node:os';
 import { Readable } from 'node:stream';
 import promiseRetry from 'promise-retry';
 
+import Log from '../log';
 import { AssetFileEntry } from './assets';
 import {
   createMultipartBodyFromFilesAsync,
@@ -15,12 +16,61 @@ import {
 } from './utils/multipart';
 
 const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
-const RETRY_OPTIONS = {
-  retries: 10,
-  factor: 2,
-  minTimeout: 1_000,
-  maxTimeout: 30_000,
-  randomize: true,
+const RETRY_WARNING_DELAY_MS = 30_000;
+
+interface RetryState {
+  firstRetryAt?: number;
+  hasSeenNetworkError: boolean;
+  hasWarned: boolean;
+}
+
+interface UploadRetryOptions {
+  totalRequests?: number;
+  state?: RetryState;
+}
+
+const getRetryScale = (totalRequests: number): number =>
+  Math.min(1, Math.log10(Math.max(1, totalRequests)) / 3);
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const getRetryOptions = (
+  totalRequests: number,
+  networkMode: boolean
+): {
+  retries: number;
+  factor: number;
+  minTimeout: number;
+  maxTimeout: number;
+  randomize: boolean;
+} => {
+  const scale = getRetryScale(totalRequests);
+  return {
+    retries: Math.round(4 + scale * 4) + (networkMode ? 2 : 0),
+    factor: 2,
+    minTimeout: 1_000,
+    maxTimeout: Math.round((networkMode ? 10_000 : 5_000) * (1 + scale)),
+    randomize: true,
+  };
+};
+
+const retryWithWarning = (
+  retry: (error: unknown) => never,
+  error: unknown,
+  attempt: number,
+  state: RetryState
+): never => {
+  state.firstRetryAt ??= Date.now();
+  if (
+    !state.hasWarned &&
+    attempt > 1 &&
+    Date.now() - state.firstRetryAt >= RETRY_WARNING_DELAY_MS
+  ) {
+    state.hasWarned = true;
+    Log.warn(`The upload encountered an error but is still retrying: ${getErrorMessage(error)}`);
+  }
+  return retry(error);
 };
 
 export type UploadPayload =
@@ -62,10 +112,14 @@ type OnProgressUpdateCallback = (progress: number) => void;
 export async function uploadAsync(
   init: UploadRequestInit,
   payload: UploadPayload,
-  onProgressUpdate?: OnProgressUpdateCallback
+  onProgressUpdate?: OnProgressUpdateCallback,
+  retryOptions: UploadRetryOptions = {},
+  networkMode = retryOptions.state?.hasSeenNetworkError ?? false
 ): Promise<UploadResult> {
+  const state =
+    retryOptions.state ?? { firstRetryAt: undefined, hasSeenNetworkError: false, hasWarned: false };
   return await promiseRetry(
-    async retry => {
+    async (retry, attempt) => {
       if (onProgressUpdate) {
         onProgressUpdate(0);
       }
@@ -113,7 +167,11 @@ export async function uploadAsync(
           signal: init.signal as any,
         });
       } catch (error) {
-        return retry(error);
+        if (!networkMode) {
+          state.hasSeenNetworkError = true;
+          return await uploadAsync(init, payload, onProgressUpdate, retryOptions, true);
+        }
+        return retryWithWarning(retry, error, attempt, state);
       }
 
       const getErrorMessageAsync = async (): Promise<string> => {
@@ -141,7 +199,12 @@ export async function uploadAsync(
         response.status === 429 ||
         (response.status >= 500 && response.status <= 599)
       ) {
-        return retry(new Error(await getErrorMessageAsync()));
+        return retryWithWarning(
+          retry,
+          new Error(await getErrorMessageAsync()),
+          attempt,
+          state
+        );
       } else if (response.status === 413) {
         const message = `${errorPrefix!}: File size exceeded the upload limit`;
         throw new Error(message);
@@ -156,12 +219,17 @@ export async function uploadAsync(
         response,
       };
     },
-    RETRY_OPTIONS
+    getRetryOptions(retryOptions.totalRequests ?? 1, networkMode)
   );
 }
 
-export async function callUploadApiAsync(url: string | URL, init?: RequestInit): Promise<unknown> {
-  return await promiseRetry(async retry => {
+async function callUploadApiWithRetryAsync(
+  url: string | URL,
+  init: RequestInit | undefined,
+  networkMode = false,
+  state: RetryState = { hasSeenNetworkError: false, hasWarned: false }
+): Promise<unknown> {
+  return await promiseRetry(async (retry, attempt) => {
     let response: Response;
     try {
       response = await fetch(url, {
@@ -169,17 +237,30 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
         agent: getAgent(),
       });
     } catch (error) {
-      return retry(error);
+      if (!networkMode) {
+        state.hasSeenNetworkError = true;
+        return await callUploadApiWithRetryAsync(url, init, true, state);
+      }
+      return retryWithWarning(retry, error, attempt, state);
     }
     if (response.status >= 500 && response.status <= 599) {
-      retry(new Error(`Deployment failed: ${response.statusText}`));
+      retryWithWarning(
+        retry,
+        new Error(`Deployment failed: ${response.statusText}`),
+        attempt,
+        state
+      );
     }
     try {
       return await response.json();
     } catch (error) {
       retry(error);
     }
-  }, RETRY_OPTIONS);
+  }, getRetryOptions(1, networkMode));
+}
+
+export async function callUploadApiAsync(url: string | URL, init?: RequestInit): Promise<unknown> {
+  return await callUploadApiWithRetryAsync(url, init);
 }
 
 export interface UploadPending {
@@ -194,6 +275,7 @@ export async function* batchUploadAsync(
 ): AsyncGenerator<UploadPending> {
   const progressTracker = new Array(payloads.length).fill(0);
   const controller = new AbortController();
+  const retryState: RetryState = { hasSeenNetworkError: false, hasWarned: false };
   const queue = new Set<Promise<UploadResult>>();
   const initWithSignal = { ...init, signal: controller.signal };
   const getProgressValue = (): number => {
@@ -218,7 +300,10 @@ export async function* batchUploadAsync(
             progressTracker[currentIndex] = progress;
             sendProgressUpdate();
           });
-        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate).then(
+        const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate, {
+          totalRequests: payloads.length,
+          state: retryState,
+        }).then(
           result => {
             queue.delete(uploadPromise);
             progressTracker[currentIndex] = 1;
