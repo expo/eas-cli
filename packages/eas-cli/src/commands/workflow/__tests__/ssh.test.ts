@@ -206,7 +206,7 @@ describe(sshHostAliasForResource, () => {
 
 describe(WorkflowSsh, () => {
   const graphqlClient = {} as never;
-  const mockConnectInfo = jest.mocked(WorkflowJobSshQuery.connectInfoForWorkflowJobAsync);
+  const mockConnectInfo = jest.mocked(WorkflowJobSshQuery.connectInfoForResourceIdAsync);
   const mockSpawn = jest.mocked(spawnAsync);
   const mockSleep = jest.mocked(sleepAsync);
   const mockMkdtemp = jest.mocked(fs.promises.mkdtemp);

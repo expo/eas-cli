@@ -133,7 +133,7 @@ export default class WorkflowSsh extends EasCommand {
       loggedIn: { graphqlClient },
     } = await this.getContextAsync(WorkflowSsh, { nonInteractive: true });
 
-    const connectInfo = await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(
+    const connectInfo = await WorkflowJobSshQuery.connectInfoForResourceIdAsync(
       graphqlClient,
       resourceId
     );
@@ -234,7 +234,7 @@ async function waitForSessionToOpenAsync(
   const deadline = Date.now() + SESSION_OPEN_TIMEOUT_MS;
   try {
     while (Date.now() < deadline) {
-      const connectInfo = await WorkflowJobSshQuery.connectInfoForWorkflowJobAsync(
+      const connectInfo = await WorkflowJobSshQuery.connectInfoForResourceIdAsync(
         graphqlClient,
         workflowJobId
       );
