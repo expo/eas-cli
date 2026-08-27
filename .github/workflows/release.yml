@@ -81,10 +81,13 @@ jobs:
           jq --arg version "$EAS_CLI_VERSION" '.STAGING = $version' \
             cli-versions.json > cli-versions.json.tmp
           mv cli-versions.json.tmp cli-versions.json
+          jq --arg version "$EAS_CLI_VERSION" '.PRODUCTION = $version' \
+            cli-versions.json > cli-versions.json.tmp
+          mv cli-versions.json.tmp cli-versions.json
           git config --global user.email "support+ci@expo.io"
           git config --global user.name "Expo CI"
           git add cli-versions.json CHANGELOG.md
-          git commit --allow-empty -m "update CHANGELOG.md and bump STAGING in cli-versions.json"
+          git commit --allow-empty -m "update CHANGELOG.md and bump STAGING and PRODUCTION in cli-versions.json"
           git push
       - name: Prepare changelog for Slack
         run: |
