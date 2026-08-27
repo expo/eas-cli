@@ -15,7 +15,13 @@ import {
 } from './utils/multipart';
 
 const MAX_CONCURRENCY = Math.min(10, Math.max(os.availableParallelism() * 2, 20));
-const MAX_RETRIES = 4;
+const RETRY_OPTIONS = {
+  retries: 10,
+  factor: 2,
+  minTimeout: 1_000,
+  maxTimeout: 30_000,
+  randomize: true,
+};
 
 export type UploadPayload =
   | { filePath: string }
@@ -150,11 +156,7 @@ export async function uploadAsync(
         response,
       };
     },
-    {
-      retries: MAX_RETRIES,
-      minTimeout: 50,
-      randomize: false,
-    }
+    RETRY_OPTIONS
   );
 }
 
@@ -177,7 +179,7 @@ export async function callUploadApiAsync(url: string | URL, init?: RequestInit):
     } catch (error) {
       retry(error);
     }
-  });
+  }, RETRY_OPTIONS);
 }
 
 export interface UploadPending {
