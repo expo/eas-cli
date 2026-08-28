@@ -2556,8 +2556,8 @@ _See code: [packages/eas-cli/src/commands/project/new.ts](https://github.com/exp
 USAGE
   $ eas sim [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2594,8 +2594,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
-      --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+      --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
+                                         include a web preview. agent-device, appium, and argent also include an
+                                         automation interface; web-preview-only includes no automation interface.
+                                         <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
@@ -2688,8 +2690,8 @@ ALIASES
 ```
 USAGE
   $ eas sim:list [--status new|in-progress|stopped|errored...] [--type
-    agent-device|appium|argent|serve-sim...] [--platform android|ios...] [--name <value>] [--limit <value>] [--after
-    <value>] [--json] [--non-interactive]
+    agent-device|appium|argent|web-preview-only...] [--platform android|ios...] [--name <value>] [--limit <value>]
+    [--after <value>] [--json] [--non-interactive]
 
 FLAGS
   --after=<value>         Cursor for pagination. Use the endCursor from a previous query to fetch the next page.
@@ -2701,8 +2703,10 @@ FLAGS
                           <options: android|ios>
   --status=<option>...    Filter by session status (repeatable)
                           <options: new|in-progress|stopped|errored>
-  --type=<option>...      Filter by session type (repeatable)
-                          <options: agent-device|appium|argent|serve-sim>
+  --type=<option>...      Filter by session type (repeatable). All session types include a web preview. agent-device,
+                          appium, and argent also include an automation interface; web-preview-only includes no
+                          automation interface.
+                          <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
   [EXPERIMENTAL] list remote simulator sessions for the current project
@@ -2719,8 +2723,8 @@ ALIASES
 USAGE
   $ eas sim:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2757,8 +2761,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
-      --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+      --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
+                                         include a web preview. agent-device, appium, and argent also include an
+                                         automation interface; web-preview-only includes no automation interface.
+                                         <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it
@@ -2797,8 +2803,8 @@ ALIASES
 USAGE
   $ eas simulator:start [-p android|ios] [--name <value>] [--device <value>] [--build-id <value> |
     --application-archive-url <value> | --expo-go] [--sdk-version <value>] [--launch-arg <value>...] [--open-url
-    <value>] [--type agent-device|appium|argent|serve-sim] [--package-version <value>] [--max-duration-minutes <value>]
-    [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
+    <value>] [--type agent-device|appium|argent|web-preview-only] [--package-version <value>] [--max-duration-minutes
+    <value>] [--max-idle-time-minutes <value>] [--force] [--out-config-type env|dotenv] [--json] [--non-interactive]
 
 FLAGS
   -p, --platform=<option>                Device platform
@@ -2835,8 +2841,10 @@ FLAGS
                                          Defaults to "latest" when omitted.
       --sdk-version=<value>              Expo SDK version used to select Expo Go when --expo-go is passed. Defaults to
                                          the current project SDK.
-      --type=<option>                    [default: agent-device] Type of simulator session to create
-                                         <options: agent-device|appium|argent|serve-sim>
+      --type=<option>                    [default: agent-device] Type of simulator session to create. All session types
+                                         include a web preview. agent-device, appium, and argent also include an
+                                         automation interface; web-preview-only includes no automation interface.
+                                         <options: agent-device|appium|argent|web-preview-only>
 
 DESCRIPTION
   [EXPERIMENTAL] start a remote simulator session on EAS and get instructions to connect to it

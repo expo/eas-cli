@@ -111,7 +111,7 @@ describe(SimulatorList, () => {
   }
 
   it('emits JSON when --json is passed', async () => {
-    const session = makeSession();
+    const session = makeSession({ type: DeviceRunSessionType.ServeSim });
     mockListByAppIdAsync.mockResolvedValue(makeConnection([session]));
 
     const { command, getContextAsync } = createCommand(['--json']);
@@ -132,7 +132,7 @@ describe(SimulatorList, () => {
         {
           id: 'session-123',
           name: undefined,
-          type: 'agent-device',
+          type: 'web-preview-only',
           status: DeviceRunSessionStatus.InProgress,
           platform: AppPlatform.Ios,
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -162,6 +162,8 @@ describe(SimulatorList, () => {
       'new',
       '--type',
       'appium',
+      '--type',
+      'web-preview-only',
       '--platform',
       'ios',
       '--name',
@@ -179,7 +181,7 @@ describe(SimulatorList, () => {
       after: 'page-cursor',
       filter: {
         statuses: [DeviceRunSessionStatus.InProgress, DeviceRunSessionStatus.New],
-        types: [DeviceRunSessionType.Appium],
+        types: [DeviceRunSessionType.Appium, DeviceRunSessionType.ServeSim],
         platforms: [AppPlatform.Ios],
         name: 'checkout',
       },
