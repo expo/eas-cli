@@ -85,6 +85,23 @@ describe(buildObserveEventsTable, () => {
     expect(output).toContain('TTI events for the last 30 days');
   });
 
+  it('adds a Metric column and "All metric events" header when options omit metricName', () => {
+    const events = [
+      createMockEvent({ metricName: 'expo.app_startup.tti', metricValue: 1.23 }),
+      createMockEvent({
+        id: 'evt-2',
+        metricName: 'expo.app_startup.cold_launch_time',
+        metricValue: 2.5,
+      }),
+    ];
+    const output = buildObserveEventsTable(events, noNextPage, { daysBack: 30 });
+
+    expect(output).toContain('All metric events for the last 30 days');
+    expect(output).toContain('Metric');
+    expect(output).toContain('Startup TTI');
+    expect(output).toContain('Cold Launch');
+  });
+
   it('shows date range in summary header when start/end provided', () => {
     const events = [createMockEvent()];
     const output = buildObserveEventsTable(events, noNextPage, {

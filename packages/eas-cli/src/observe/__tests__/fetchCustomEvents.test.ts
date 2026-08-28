@@ -60,12 +60,13 @@ describe('fetchObserveCustomEventsAsync', () => {
     expect(filter?.eventName).toBe('my_event');
   });
 
-  it('forwards platform, appVersion, and sessionId filters when provided', async () => {
+  it('forwards platform, appVersion, sessionId, and easClientId filters when provided', async () => {
     await fetchObserveCustomEventsAsync(mockGraphqlClient, 'project-123', {
       limit: 10,
       platform: AppObservePlatform.Ios,
       appVersion: '2.1.0',
       sessionId: 'session-xyz',
+      easClientId: 'client-xyz',
       startTime: '2025-01-01T00:00:00.000Z',
       endTime: '2025-03-01T00:00:00.000Z',
     });
@@ -74,6 +75,7 @@ describe('fetchObserveCustomEventsAsync', () => {
     expect(filter?.platform).toBe(AppObservePlatform.Ios);
     expect(filter?.appVersion).toBe('2.1.0');
     expect(filter?.sessionId).toBe('session-xyz');
+    expect(filter?.easClientId).toBe('client-xyz');
   });
 
   it('maps updateId to appUpdateId when provided', async () => {
@@ -112,6 +114,7 @@ describe('fetchObserveCustomEventsAsync', () => {
     expect(filter).not.toHaveProperty('appVersion');
     expect(filter).not.toHaveProperty('appUpdateId');
     expect(filter).not.toHaveProperty('sessionId');
+    expect(filter).not.toHaveProperty('easClientId');
   });
 
   it('forwards after cursor when provided', async () => {

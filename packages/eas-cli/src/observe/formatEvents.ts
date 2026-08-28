@@ -28,7 +28,8 @@ function resolveCustomParams(event: AppObserveEvent): { [key: string]: any } | n
 }
 
 export interface BuildEventsTableOptions {
-  metricName: string;
+  /** Omit to render samples across all metrics (adds a "Metric" column). */
+  metricName?: string;
   daysBack?: number;
   startTime?: string;
   endTime?: string;
@@ -45,8 +46,12 @@ export function buildObserveEventsTable(
   }
 
   const hasUpdates = events.some(e => e.appUpdateId);
+  // When no single metric is requested (--all-metrics), samples span multiple
+  // metrics, so show which metric each row belongs to.
+  const showMetricColumn = !!options && !options.metricName;
 
   const headers = [
+    ...(showMetricColumn ? ['Metric'] : []),
     'Value',
     'App Version',
     ...(hasUpdates ? ['Update'] : []),
@@ -57,6 +62,7 @@ export function buildObserveEventsTable(
   ];
 
   const rows: string[][] = events.map(event => [
+    ...(showMetricColumn ? [getMetricDisplayName(event.metricName)] : []),
     `${event.metricValue.toFixed(2)}s`,
     `${event.appVersion} (${event.appBuildNumber})`,
     ...(hasUpdates ? [event.appUpdateId ?? '-'] : []),
@@ -69,13 +75,15 @@ export function buildObserveEventsTable(
   const lines: string[] = [];
 
   if (options) {
-    const metricDisplay = getMetricDisplayName(options.metricName);
+    const heading = options.metricName
+      ? `${getMetricDisplayName(options.metricName)} events`
+      : 'All metric events';
     const timeDesc = buildTimeRangeDescription(options);
     const totalDesc =
       options.totalEventCount != null
         ? ` — ${options.totalEventCount.toLocaleString()} total events`
         : '';
-    lines.push(chalk.bold(`${metricDisplay} events ${timeDesc}${totalDesc}`.trim()), '');
+    lines.push(chalk.bold(`${heading} ${timeDesc}${totalDesc}`.trim()), '');
   }
 
   lines.push(renderTextTable(headers, rows));

@@ -56,6 +56,7 @@ interface FetchObserveEventsOptions {
   appVersion?: string;
   updateId?: string;
   sessionId?: string;
+  easClientId?: string;
 }
 
 interface FetchObserveEventsResult {
@@ -76,6 +77,7 @@ export async function fetchObserveEventsAsync(
     ...(options.appVersion && { appVersion: options.appVersion }),
     ...(options.updateId && { appUpdateId: options.updateId }),
     ...(options.sessionId && { sessionId: options.sessionId }),
+    ...(options.easClientId && { easClientId: options.easClientId }),
   };
 
   return await ObserveQuery.eventsAsync(graphqlClient, {
