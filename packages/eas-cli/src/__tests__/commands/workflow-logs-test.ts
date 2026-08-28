@@ -8,10 +8,7 @@ import {
   mockProjectId,
   mockTestCommand,
 } from './utils';
-import {
-  fetchRawLogsForBuildJobAsync,
-  fetchRawLogsForCustomJobAsync,
-} from '../../commandUtils/workflow/logs/fetchLogs';
+import { fetchRawLogsForJobAsync } from '../../commandUtils/workflow/logs/fetchLogs';
 import WorkflowLogView from '../../commands/workflow/logs';
 import { AppPlatform, BuildPriority, BuildStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -49,6 +46,7 @@ describe(WorkflowLogView, () => {
   });
   afterEach(() => {
     jest.clearAllMocks();
+    jest.mocked(fetchRawLogsForJobAsync).mockReset();
   });
   test('view logs, passing in no parameters, no runs found', async () => {
     const ctx = mockCommandContext(WorkflowLogView, {
@@ -105,7 +103,7 @@ describe(WorkflowLogView, () => {
         return { selectedStep: 'step1' };
       }
     });
-    jest.mocked(fetchRawLogsForCustomJobAsync).mockResolvedValue(null);
+    jest.mocked(fetchRawLogsForJobAsync).mockResolvedValue(null);
     await cmd.run();
     expect(AppQuery.byIdWorkflowRunsFilteredByStatusAsync).toHaveBeenCalledWith(
       ctx.loggedIn.graphqlClient,
@@ -139,7 +137,7 @@ describe(WorkflowLogView, () => {
       }
     });
     jest
-      .mocked(fetchRawLogsForCustomJobAsync)
+      .mocked(fetchRawLogsForJobAsync)
       .mockResolvedValue(
         '{"result":"success","marker":"end-step","buildStepDisplayName":"Install dependencies","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
       );
@@ -209,7 +207,7 @@ describe(WorkflowLogView, () => {
       }
     });
     jest
-      .mocked(fetchRawLogsForBuildJobAsync)
+      .mocked(fetchRawLogsForJobAsync)
       .mockResolvedValue(
         '{"result":"success","marker":"end-step","buildStepDisplayName":"step1","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"test"}'
       );
@@ -255,7 +253,7 @@ describe(WorkflowLogView, () => {
       }
     });
     jest
-      .mocked(fetchRawLogsForCustomJobAsync)
+      .mocked(fetchRawLogsForJobAsync)
       .mockResolvedValue(
         [
           '{"result":"success","marker":"end-step","buildStepDisplayName":"Install","buildStepId":"step-id-1","time":"2022-01-01T00:00:00.000Z","msg":"first"}',
