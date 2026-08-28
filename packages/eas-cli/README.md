@@ -2216,7 +2216,7 @@ Create a new project configured with Expo Application Services (EAS)
 
 ```
 USAGE
-  $ eas new [PATH] [-p bun|npm|pnpm|yarn]
+  $ eas new [PATH] [-p bun|npm|pnpm|yarn] [--sdk-version <value>]
 
 ARGUMENTS
   [PATH]  Path to create the project (defaults to current directory)
@@ -2224,6 +2224,7 @@ ARGUMENTS
 FLAGS
   -p, --package-manager=<option>  [default: npm] Package manager to use for installing dependencies
                                   <options: bun|npm|pnpm|yarn>
+      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57, or "latest")
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)
@@ -2530,7 +2531,7 @@ Create a new project configured with Expo Application Services (EAS)
 
 ```
 USAGE
-  $ eas project:new [PATH] [-p bun|npm|pnpm|yarn]
+  $ eas project:new [PATH] [-p bun|npm|pnpm|yarn] [--sdk-version <value>]
 
 ARGUMENTS
   [PATH]  Path to create the project (defaults to current directory)
@@ -2538,6 +2539,7 @@ ARGUMENTS
 FLAGS
   -p, --package-manager=<option>  [default: npm] Package manager to use for installing dependencies
                                   <options: bun|npm|pnpm|yarn>
+      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57, or "latest")
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)
