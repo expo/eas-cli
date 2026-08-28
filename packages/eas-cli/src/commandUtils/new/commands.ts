@@ -12,45 +12,65 @@ import { runCommandAsync } from '../../onboarding/runCommand';
 import { ora } from '../../ora';
 import { expoCommandAsync } from '../../utils/expoCli';
 
-const TEMPLATE_PACKAGE_NAME = 'expo-template-default';
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org';
+export const TEMPLATE_PACKAGE_NAME = 'expo-template-default';
+const NPM_REGISTRY_URL =
+  process.env.npm_config_registry?.replace(/\/$/, '') ?? 'https://registry.npmjs.org';
+
+export interface TemplateInfo {
+  npmTag: string;
+  version: string;
+  tarballUrl: string;
+}
+
+export interface TemplatePackument {
+  'dist-tags'?: Record<string, string>;
+  versions?: Record<string, { dist: { tarball: string } }>;
+}
+
+export async function fetchTemplatePackumentAsync(): Promise<TemplatePackument> {
+  const response = await fetch(`${NPM_REGISTRY_URL}/${TEMPLATE_PACKAGE_NAME}`, {
+    headers: { accept: 'application/vnd.npm.install-v1+json' },
+    signal: AbortSignal.timeout(10000),
+  });
+  return (await response.json()) as TemplatePackument;
+}
 
 export async function downloadTemplateAsync(
   targetProjectDir: string,
-  npmTag: string
+  template: TemplateInfo
 ): Promise<string> {
   const spinner = ora(
     `${chalk.bold(`Downloading the project template to ${printDirectory(targetProjectDir)}`)}`
   ).start();
 
+  const targetExisted = await fs.pathExists(targetProjectDir);
   try {
-    const packumentResponse = await fetch(`${NPM_REGISTRY_URL}/${TEMPLATE_PACKAGE_NAME}`, {
-      headers: { accept: 'application/vnd.npm.install-v1+json' },
-    });
-    const packument = (await packumentResponse.json()) as {
-      'dist-tags'?: Record<string, string>;
-      versions?: Record<string, { dist: { tarball: string } }>;
-    };
-
-    const version = packument['dist-tags']?.[npmTag];
-    const tarballUrl = version ? packument.versions?.[version]?.dist.tarball : undefined;
-    if (!version || !tarballUrl) {
-      throw new Error(`Could not find version "${npmTag}" of ${TEMPLATE_PACKAGE_NAME} on npm.`);
+    // The directory was verified to not exist earlier, but it may have been
+    // created while the user was answering prompts.
+    if (targetExisted && (await fs.readdir(targetProjectDir)).length > 0) {
+      throw new Error(
+        `Directory ${printDirectory(targetProjectDir)} already exists and is not empty.`
+      );
     }
 
     await fs.mkdirp(targetProjectDir);
-    const tarballResponse = await fetch(tarballUrl);
+    const tarballResponse = await fetch(template.tarballUrl);
     await pipeline(tarballResponse.body, extract({ cwd: targetProjectDir, strip: 1 }));
 
     await restoreTemplateDotfilesAsync(targetProjectDir);
 
     spinner.succeed(
-      `Downloaded ${chalk.bold(`${TEMPLATE_PACKAGE_NAME}@${version}`)} to ${printDirectory(
+      `Downloaded ${chalk.bold(`${TEMPLATE_PACKAGE_NAME}@${template.version}`)} to ${printDirectory(
         targetProjectDir
       )}`
     );
   } catch (error) {
     spinner.fail();
+    // Clean up a partially extracted project, but never a directory that
+    // already existed before the download started.
+    if (!targetExisted) {
+      await fs.remove(targetProjectDir);
+    }
     throw error;
   }
 
@@ -60,7 +80,9 @@ export async function downloadTemplateAsync(
 /**
  * npm strips `.gitignore` files from published packages, and the template ships
  * dot-directories with an underscore prefix (e.g. `_vscode`), so restore the
- * real names after extraction. This mirrors the renames in create-expo-app.
+ * real names after extraction. This mirrors the renames in create-expo-app;
+ * keep the directory list in sync with SUPPORTED_DIRECTORIES in
+ * https://github.com/expo/expo/blob/main/packages/create-expo-app/src/createFileTransform.ts
  */
 async function restoreTemplateDotfilesAsync(projectDir: string): Promise<void> {
   const entries = await glob('**/{gitignore,_eas,_vscode,_github,_cursor}', {

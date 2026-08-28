@@ -14,11 +14,12 @@ import {
   generateProjectConfigAsync,
   promptForProjectAccountAsync,
 } from '../../commandUtils/new/configs';
-import { resolveTemplateSdkTagAsync } from '../../commandUtils/new/sdkVersion';
+import { resolveTemplateAsync } from '../../commandUtils/new/sdkVersion';
 import {
   copyProjectTemplatesAsync,
   generateAppConfigAsync,
   generateEasConfigAsync,
+  removeTemplateFilesAsync,
   updatePackageJsonAsync,
   updateReadmeAsync,
 } from '../../commandUtils/new/projectFiles';
@@ -109,7 +110,9 @@ export async function generateProjectFilesAsync(
 
   await generateEasConfigAsync(projectDir);
 
-  await updatePackageJsonAsync(projectDir);
+  await updatePackageJsonAsync(projectDir, app.slug);
+
+  await removeTemplateFilesAsync(projectDir);
 
   await copyProjectTemplatesAsync(projectDir);
 
@@ -148,7 +151,7 @@ export default class New extends EasCommand {
       default: 'npm',
     })(),
     'sdk-version': Flags.string({
-      description: 'Expo SDK version to use for the new project (e.g. 57)',
+      description: 'Expo SDK version to use for the new project (e.g. 57, or "latest")',
     }),
   };
 
@@ -171,14 +174,20 @@ export default class New extends EasCommand {
 
     Log.log(`👋 Welcome to Expo, ${actor.username}!`);
 
+    // Resolve the template before any prompts when --sdk-version is provided,
+    // so an invalid version fails fast.
+    let template = flags['sdk-version']
+      ? await resolveTemplateAsync({ sdkVersion: flags['sdk-version'] })
+      : null;
+
     const {
       projectName,
       projectDirectory: targetProjectDirectory,
       projectAccount,
     } = await generateConfigsAsync(args, actor, graphqlClient);
 
-    const templateSdkTag = await resolveTemplateSdkTagAsync({ sdkVersion: flags['sdk-version'] });
-    const projectDirectory = await downloadTemplateAsync(targetProjectDirectory, templateSdkTag);
+    template ??= await resolveTemplateAsync({});
+    const projectDirectory = await downloadTemplateAsync(targetProjectDirectory, template);
 
     const packageManager = flags['package-manager'];
     await installProjectDependenciesAsync(projectDirectory, packageManager);

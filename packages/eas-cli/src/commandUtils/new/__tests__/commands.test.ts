@@ -9,6 +9,7 @@ import { runCommandAsync } from '../../../onboarding/runCommand';
 import { expoCommandAsync } from '../../../utils/expoCli';
 import {
   downloadTemplateAsync,
+  fetchTemplatePackumentAsync,
   initializeGitRepositoryAsync,
   installProjectDependenciesAsync,
 } from '../commands';
@@ -28,38 +29,39 @@ describe('commands', () => {
     jest.clearAllMocks();
   });
 
+  describe('fetchTemplatePackumentAsync', () => {
+    it('should fetch the packument from the npm registry', async () => {
+      const packument = { 'dist-tags': { latest: '57.0.19' } };
+      jest.mocked(fetch).mockResolvedValueOnce({ json: async () => packument } as any);
+
+      expect(await fetchTemplatePackumentAsync()).toEqual(packument);
+      expect(fetch).toHaveBeenCalledWith(
+        'https://registry.npmjs.org/expo-template-default',
+        expect.objectContaining({
+          headers: { accept: 'application/vnd.npm.install-v1+json' },
+        })
+      );
+    });
+  });
+
   describe('downloadTemplateAsync', () => {
-    const packument = {
-      'dist-tags': { latest: '57.0.19', 'sdk-56': '56.0.34' },
-      versions: {
-        '57.0.19': {
-          dist: { tarball: 'https://registry.npmjs.org/expo-template-default/-/57.0.19.tgz' },
-        },
-        '56.0.34': {
-          dist: { tarball: 'https://registry.npmjs.org/expo-template-default/-/56.0.34.tgz' },
-        },
-      },
+    const template = {
+      npmTag: 'sdk-56',
+      version: '56.0.34',
+      tarballUrl: 'https://registry.npmjs.org/expo-template-default/-/56.0.34.tgz',
     };
 
-    it('should download and extract the template for the given npm tag', async () => {
+    it('should download and extract the template', async () => {
       const targetProjectDir = '/test/target-project';
       const tarballBody = 'tarball-stream';
 
-      jest
-        .mocked(fetch)
-        .mockResolvedValueOnce({ json: async () => packument } as any)
-        .mockResolvedValueOnce({ body: tarballBody } as any);
+      jest.mocked(fs.pathExists).mockResolvedValueOnce(false as never);
+      jest.mocked(fetch).mockResolvedValueOnce({ body: tarballBody } as any);
       jest.mocked(glob).mockResolvedValueOnce(['gitignore', '_vscode'] as any);
 
-      const result = await downloadTemplateAsync(targetProjectDir, 'sdk-56');
+      const result = await downloadTemplateAsync(targetProjectDir, template);
 
-      expect(fetch).toHaveBeenNthCalledWith(
-        1,
-        'https://registry.npmjs.org/expo-template-default',
-        expect.anything()
-      );
-      expect(fetch).toHaveBeenNthCalledWith(
-        2,
+      expect(fetch).toHaveBeenCalledWith(
         'https://registry.npmjs.org/expo-template-default/-/56.0.34.tgz'
       );
       expect(extract).toHaveBeenCalledWith({ cwd: targetProjectDir, strip: 1 });
@@ -77,12 +79,25 @@ describe('commands', () => {
       expect(result).toBe(targetProjectDir);
     });
 
-    it('should throw when the npm tag does not exist', async () => {
-      jest.mocked(fetch).mockResolvedValueOnce({ json: async () => packument } as any);
+    it('should throw when the target directory exists and is not empty', async () => {
+      jest.mocked(fs.pathExists).mockResolvedValueOnce(true as never);
+      jest.mocked(fs.readdir).mockResolvedValueOnce(['existing-file'] as never);
 
-      await expect(downloadTemplateAsync('/test/target-project', 'sdk-1')).rejects.toThrow(
-        'Could not find version "sdk-1" of expo-template-default on npm.'
+      await expect(downloadTemplateAsync('/test/target-project', template)).rejects.toThrow(
+        'already exists and is not empty'
       );
+      // The pre-existing directory must not be cleaned up.
+      expect(fs.remove).not.toHaveBeenCalled();
+    });
+
+    it('should clean up a partially extracted directory on failure', async () => {
+      jest.mocked(fs.pathExists).mockResolvedValueOnce(false as never);
+      jest.mocked(fetch).mockRejectedValueOnce(new Error('network error'));
+
+      await expect(downloadTemplateAsync('/test/target-project', template)).rejects.toThrow(
+        'network error'
+      );
+      expect(fs.remove).toHaveBeenCalledWith('/test/target-project');
     });
   });
 

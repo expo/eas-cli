@@ -120,10 +120,8 @@ If you want to enforce the `eas-cli` version for your project, use the `"cli.ver
 
 <!-- commands -->
 * [`eas account:audit [ACCOUNT_NAME]`](#eas-accountaudit-account_name)
-* [`eas account:list`](#eas-accountlist)
 * [`eas account:login`](#eas-accountlogin)
 * [`eas account:logout`](#eas-accountlogout)
-* [`eas account:switch [USERNAME]`](#eas-accountswitch-username)
 * [`eas account:usage [ACCOUNT_NAME]`](#eas-accountusage-account_name)
 * [`eas account:view`](#eas-accountview)
 * [`eas analytics [STATUS]`](#eas-analytics-status)
@@ -294,20 +292,6 @@ DESCRIPTION
 
 _See code: [packages/eas-cli/src/commands/account/audit.ts](https://github.com/expo/eas-cli/blob/v22.6.0/packages/eas-cli/src/commands/account/audit.ts)_
 
-## `eas account:list`
-
-list all logged-in Expo accounts
-
-```
-USAGE
-  $ eas account:list
-
-DESCRIPTION
-  list all logged-in Expo accounts
-```
-
-_See code: [packages/eas-cli/src/commands/account/list.ts](https://github.com/expo/eas-cli/blob/v22.6.0/packages/eas-cli/src/commands/account/list.ts)_
-
 ## `eas account:login`
 
 log in with your Expo account
@@ -345,23 +329,6 @@ ALIASES
 ```
 
 _See code: [packages/eas-cli/src/commands/account/logout.ts](https://github.com/expo/eas-cli/blob/v22.6.0/packages/eas-cli/src/commands/account/logout.ts)_
-
-## `eas account:switch [USERNAME]`
-
-switch to a different Expo account
-
-```
-USAGE
-  $ eas account:switch [USERNAME]
-
-ARGUMENTS
-  [USERNAME]  Username of the account to switch to
-
-DESCRIPTION
-  switch to a different Expo account
-```
-
-_See code: [packages/eas-cli/src/commands/account/switch.ts](https://github.com/expo/eas-cli/blob/v22.6.0/packages/eas-cli/src/commands/account/switch.ts)_
 
 ## `eas account:usage [ACCOUNT_NAME]`
 
@@ -2257,7 +2224,7 @@ ARGUMENTS
 FLAGS
   -p, --package-manager=<option>  [default: npm] Package manager to use for installing dependencies
                                   <options: bun|npm|pnpm|yarn>
-      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57)
+      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57, or "latest")
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)
@@ -2572,7 +2539,7 @@ ARGUMENTS
 FLAGS
   -p, --package-manager=<option>  [default: npm] Package manager to use for installing dependencies
                                   <options: bun|npm|pnpm|yarn>
-      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57)
+      --sdk-version=<value>       Expo SDK version to use for the new project (e.g. 57, or "latest")
 
 DESCRIPTION
   Create a new project configured with Expo Application Services (EAS)
