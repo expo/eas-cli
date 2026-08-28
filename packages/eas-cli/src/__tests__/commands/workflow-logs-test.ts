@@ -8,7 +8,7 @@ import {
   mockProjectId,
   mockTestCommand,
 } from './utils';
-import { fetchRawLogsForJobAsync } from '../../commandUtils/workflow/logs/fetchLogs';
+import { fetchRawLogsForJobAsync } from '../../commandUtils/workflow/fetchLogs';
 import WorkflowLogView from '../../commands/workflow/logs';
 import { AppPlatform, BuildPriority, BuildStatus } from '../../graphql/generated';
 import { AppQuery } from '../../graphql/queries/AppQuery';
@@ -35,7 +35,7 @@ jest.mock('fs');
 jest.mock('../../log');
 jest.mock('../../prompts');
 jest.mock('../../utils/json');
-jest.mock('../../commandUtils/workflow/logs/fetchLogs');
+jest.mock('../../commandUtils/workflow/fetchLogs');
 
 describe(WorkflowLogView, () => {
   beforeEach(() => {

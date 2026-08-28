@@ -1,14 +1,8 @@
 import chalk from 'chalk';
 import * as fs from 'node:fs';
 
-import { fetchAndProcessLogsFromJobAsync } from './logs/parseLogs';
-import {
-  WorkflowJobResult,
-  WorkflowLogLine,
-  WorkflowLogs,
-  WorkflowRunResult,
-  WorkflowTriggerType,
-} from './types';
+import { fetchAndProcessLogsFromJobAsync, logSourceForWorkflowJob } from './logs';
+import { WorkflowJobResult, WorkflowRunResult, WorkflowTriggerType } from './types';
 import {
   WorkflowJobStatus,
   WorkflowRunByIdQuery,
@@ -17,7 +11,9 @@ import {
   WorkflowRunStatus,
   WorkflowRunTriggerEventType,
 } from '../../graphql/generated';
-import { WorkflowRunLogsWatcher } from './logs/watcher';
+import { choicesFromJobLogs, stepLogTail } from '../logs/format';
+import { JobLogs } from '../logs/types';
+import { LogsWatcher } from '../logs/watcher';
 import { WorkflowRunQuery } from '../../graphql/queries/WorkflowRunQuery';
 import Log from '../../log';
 import { ora, updateSpinnerText } from '../../ora';
@@ -83,20 +79,6 @@ export function choiceFromWorkflowJob(job: WorkflowJobResult, index: number): Ch
   };
 }
 
-export function choicesFromWorkflowLogs(
-  logs: WorkflowLogs
-): (Choice & { name: string; status: string; logLines: WorkflowLogLine[] | undefined })[] {
-  return Array.from(logs.values())
-    .map(({ key, label, result, logLines }) => ({
-      title: `${label} - ${result ?? ''}`,
-      name: label,
-      status: result ?? '',
-      value: key,
-      logLines,
-    }))
-    .filter(step => step.status !== 'skipped');
-}
-
 export function processWorkflowRuns(runs: WorkflowRunFragment[]): WorkflowRunResult[] {
   return runs.map(run => {
     const finishedAt = run.status === WorkflowRunStatus.InProgress ? null : run.updatedAt;
@@ -157,17 +139,8 @@ type WorkflowRunWithJobs = WorkflowRunByIdWithJobsQuery['workflowRuns']['byId'];
 
 type JobWithLogs = {
   job: WorkflowRunWithJobs['jobs'][number];
-  logs: WorkflowLogs;
+  logs: JobLogs;
 };
-
-function stepLogTail(
-  step: { logLines?: WorkflowLogLine[] },
-  maxLogLines: number // -1 means no limit
-): string[] {
-  const logLines = step.logLines ?? [];
-  const tail = maxLogLines === -1 ? logLines : logLines.slice(-maxLogLines);
-  return tail.map(line => line.msg);
-}
 
 export async function logsForFailedWorkflowRunAsync(
   graphqlClient: ExpoGraphqlClient,
@@ -195,7 +168,7 @@ export function formatActiveWorkflowRun(
     if (job.status !== WorkflowJobStatus.InProgress) {
       continue;
     }
-    const steps = choicesFromWorkflowLogs(logs);
+    const steps = choicesFromJobLogs(logs);
     if (steps.length === 0) {
       continue;
     }
@@ -222,7 +195,7 @@ export function formatFailedWorkflowRun(
   for (const { job, logs } of jobLogs) {
     statusValues.push({ label: '', value: '' });
     statusValues.push({ label: '  Failed job', value: job.name });
-    const steps = choicesFromWorkflowLogs(logs);
+    const steps = choicesFromJobLogs(logs);
     const failedStep = steps.find(step => step.status === 'fail' || step.status === 'failed');
     if (!failedStep) {
       continue;
@@ -290,8 +263,7 @@ export async function showWorkflowStatusAsync(
     prefixText: chalk`{bold.yellow Workflow run is waiting to start:}`,
   });
 
-  const watcher = new WorkflowRunLogsWatcher(
-    graphqlClient,
+  const watcher = new LogsWatcher(
     () => createRealtimeLogsClient(graphqlClient),
     () => {
       renderActiveWorkflowRun();
@@ -316,12 +288,14 @@ export async function showWorkflowStatusAsync(
             updateSpinnerText(spinner, {
               prefixText: chalk`{bold.green Workflow run is in progress:}`,
             });
-            const logsStates = await watcher.syncJobsAsync(workflowRun.jobs);
+            const logsStates = await watcher.syncAsync(
+              workflowRun.jobs.map(job => logSourceForWorkflowJob(graphqlClient, job))
+            );
             for (const job of workflowRun.jobs) {
               if (isJobCompleted(job.status)) {
                 nullthrows(
                   logsStates.get(job.id),
-                  'syncJobsAsync must have been called before markCompleted'
+                  'syncAsync must have been called before markCompleted'
                 ).markCompleted();
               }
             }
@@ -331,7 +305,7 @@ export async function showWorkflowStatusAsync(
                   job,
                   logs: nullthrows(
                     logsStates.get(job.id),
-                    'syncJobsAsync must have been called before getLogs'
+                    'syncAsync must have been called before getLogs'
                   ).getLogs(),
                 }))
               );
