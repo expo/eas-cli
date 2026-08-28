@@ -444,6 +444,37 @@ describe(Simulator, () => {
     });
   });
 
+  it('passes --network-capture to the createDeviceRunSession mutation', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'ios',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+    await command.runAsync();
+
+    expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(graphqlClient, {
+      appId: 'project-123',
+      name: undefined,
+      networkCapture: true,
+      packageVersion: undefined,
+      platform: AppPlatform.Ios,
+      type: DeviceRunSessionType.AgentDevice,
+    });
+  });
+
+  it('rejects --network-capture on android, instead of creating a session that records nothing', async () => {
+    const { command } = createCommand([
+      '--platform',
+      'android',
+      '--non-interactive',
+      '--network-capture',
+    ]);
+
+    await expect(command.runAsync()).rejects.toThrow(/only supported on iOS/);
+    expect(mockCreateDeviceRunSessionAsync).not.toHaveBeenCalled();
+  });
+
   it(`throws when ${EAS_SIMULATOR_SESSION_ID} is already present with --no-force`, async () => {
     process.env[EAS_SIMULATOR_SESSION_ID] = 'existing-session';
 

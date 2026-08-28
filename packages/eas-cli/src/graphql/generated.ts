@@ -5344,6 +5344,12 @@ export type CreateDeviceRunSessionInput = {
    */
   openUrl?: InputMaybe<Scalars['String']['input']>;
   /**
+   * Record HTTP(S) traffic from apps on the device for the whole session. HTTPS is
+   * decrypted by a proxy on the worker, so recordings contain credentials and cookies
+   * in cleartext. If omitted, no traffic is recorded.
+   */
+  networkCapture?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
    * The version of the package backing the device run session (e.g. "0.1.3-alpha.3").
    * If omitted, consumers treat the session as pinned to "latest".
    */
