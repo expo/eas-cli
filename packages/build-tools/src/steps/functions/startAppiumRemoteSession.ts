@@ -128,13 +128,14 @@ export function createStartAppiumRemoteSessionBuildFunction(
           logger,
         });
 
+        // expo-device-hub has no serial-selection flag. Device run session workflows must expose
+        // a single booted Android emulator so the Hub and Appium resolve the same device.
         webPreview = await startDeviceWebPreviewWithTunnelAsync(ctx, {
           runtimePlatform,
           baseDomain: ngrokTunnelDomain,
           env,
           logger,
           timeoutMs: APPIUM_STARTUP_TIMEOUT_MS,
-          serial: runtimePlatform === BuildRuntimePlatform.LINUX ? device.udid : undefined,
         });
 
         await uploadRemoteSessionConfigAsync({

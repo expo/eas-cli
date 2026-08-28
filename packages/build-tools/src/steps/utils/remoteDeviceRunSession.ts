@@ -25,11 +25,10 @@ const SERVE_SIM_MAX_DIMENSION = '960';
 const SERVE_SIM_MJPEG_QUALITY = '0.55';
 const SERVE_SIM_VIDEO_BITRATE = '6000000';
 const SERVE_SIM_VIDEO_FPS = '60';
-const SERVE_EMU_PACKAGE_NAME = '@expo/serve-emu';
-const SERVE_EMU_MAX_SIZE = '1280';
-const SERVE_EMU_BIT_RATE = '3000000';
-const SERVE_EMU_MAX_FPS = '30';
-const SERVE_EMU_KEY_FRAME_INTERVAL = '1';
+const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
+const EXPO_DEVICE_HUB_MAX_DIMENSION = '1280';
+const EXPO_DEVICE_HUB_VIDEO_BITRATE = '3000000';
+const EXPO_DEVICE_HUB_VIDEO_FPS = '30';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
@@ -397,7 +396,7 @@ const TurnIceServersResponseSchema = z.object({
 /**
  * Translate Cloudflare ICE servers into web preview CLI flags: `--stun-url` (the
  * credential-less entries) and `--turn-url`/`--turn-username`/`--turn-credential`
- * (the entry carrying the short-lived credentials). serve-sim and serve-emu
+ * (the entry carrying the short-lived credentials). serve-sim and expo-device-hub
  * intentionally expose the same ICE flag contract.
  */
 export function turnIceServersToWebPreviewArgs(iceServers: TurnIceServers): string[] {
@@ -606,8 +605,8 @@ function createServeSimPackageSpec(packageVersion: string | undefined): string {
   return `${SERVE_SIM_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
-function createServeEmuPackageSpec(packageVersion: string | undefined): string {
-  return `${SERVE_EMU_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
+function createExpoDeviceHubPackageSpec(packageVersion: string | undefined): string {
+  return `${EXPO_DEVICE_HUB_PACKAGE_NAME}@${packageVersion ?? 'latest'}`;
 }
 
 export function createServeSimArgs({
@@ -645,36 +644,37 @@ export function createServeSimArgs({
   ];
 }
 
-export function createServeEmuArgs({
+export function createExpoDeviceHubArgs({
   port,
   turnArgs = [],
   packageVersion,
-  serial,
 }: {
   port: number;
   turnArgs?: string[];
   packageVersion?: string;
-  serial?: string;
 }): string[] {
   return [
-    createServeEmuPackageSpec(packageVersion),
+    '--yes',
+    createExpoDeviceHubPackageSpec(packageVersion),
     '--port',
     String(port),
     '--host',
     WEB_PREVIEW_HOST,
+    '--platform',
+    'android',
     '--transport',
     'webrtc',
+    '--webrtc-codec',
+    'h264',
     '--webrtc-ice-policy',
     'all',
-    '--max-size',
-    SERVE_EMU_MAX_SIZE,
-    '--bit-rate',
-    SERVE_EMU_BIT_RATE,
-    '--max-fps',
-    SERVE_EMU_MAX_FPS,
-    '--key-frame-interval',
-    SERVE_EMU_KEY_FRAME_INTERVAL,
-    ...(serial ? ['--serial', serial] : []),
+    '--max-dimension',
+    EXPO_DEVICE_HUB_MAX_DIMENSION,
+    '--video-bitrate',
+    EXPO_DEVICE_HUB_VIDEO_BITRATE,
+    '--video-fps',
+    EXPO_DEVICE_HUB_VIDEO_FPS,
+    '--hide-sidebar',
     ...turnArgs,
   ];
 }
@@ -837,7 +837,7 @@ export async function startServeSimWithTunnelAsync(
   });
 }
 
-export async function startServeEmuWithTunnelAsync(
+export async function startExpoDeviceHubWithTunnelAsync(
   ctx: CustomBuildContext,
   {
     baseDomain,
@@ -845,14 +845,12 @@ export async function startServeEmuWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
-    serial,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
-    serial?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
   return await startWebPreviewWithTunnelAsync(ctx, {
@@ -860,10 +858,10 @@ export async function startServeEmuWithTunnelAsync(
     env,
     logger,
     timeoutMs,
-    serverName: 'serve-emu',
-    packageSpec: createServeEmuPackageSpec(packageVersion),
-    command: 'bunx',
-    createArgs: (port, turnArgs) => createServeEmuArgs({ port, turnArgs, packageVersion, serial }),
+    serverName: 'expo-device-hub',
+    packageSpec: createExpoDeviceHubPackageSpec(packageVersion),
+    command: 'npx',
+    createArgs: (port, turnArgs) => createExpoDeviceHubArgs({ port, turnArgs, packageVersion }),
   });
 }
 
@@ -871,7 +869,6 @@ export async function startDeviceWebPreviewWithTunnelAsync(
   ctx: CustomBuildContext,
   {
     runtimePlatform,
-    serial,
     ...options
   }: {
     runtimePlatform: BuildRuntimePlatform;
@@ -879,14 +876,13 @@ export async function startDeviceWebPreviewWithTunnelAsync(
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
-    serial?: string;
   }
 ): Promise<DeviceWebPreviewHandle> {
   switch (runtimePlatform) {
     case BuildRuntimePlatform.DARWIN:
       return await startServeSimWithTunnelAsync(ctx, options);
     case BuildRuntimePlatform.LINUX:
-      return await startServeEmuWithTunnelAsync(ctx, { ...options, serial });
+      return await startExpoDeviceHubWithTunnelAsync(ctx, options);
   }
 }
 

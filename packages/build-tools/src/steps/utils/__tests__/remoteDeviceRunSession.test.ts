@@ -13,7 +13,7 @@ import { Sentry } from '../../../sentry';
 import { turtleFetch } from '../../../utils/turtleFetch';
 import { sleepAsync } from '../../../utils/retry';
 import {
-  createServeEmuArgs,
+  createExpoDeviceHubArgs,
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
   fetchWebPreviewTurnArgsAsync,
@@ -174,40 +174,45 @@ describe(createServeSimArgs, () => {
   });
 });
 
-describe(createServeEmuArgs, () => {
+describe(createExpoDeviceHubArgs, () => {
   it('uses the latest Expo package and applies the EAS Android streaming policy', () => {
     expect(
-      createServeEmuArgs({
+      createExpoDeviceHubArgs({
         port: 4321,
         turnArgs: ['--turn-url', 'turns:turn.example.test:443'],
       })
     ).toEqual([
-      '@expo/serve-emu@latest',
+      '--yes',
+      'expo-device-hub@latest',
       '--port',
       '4321',
       '--host',
       '127.0.0.1',
+      '--platform',
+      'android',
       '--transport',
       'webrtc',
+      '--webrtc-codec',
+      'h264',
       '--webrtc-ice-policy',
       'all',
-      '--max-size',
+      '--max-dimension',
       '1280',
-      '--bit-rate',
+      '--video-bitrate',
       '3000000',
-      '--max-fps',
+      '--video-fps',
       '30',
-      '--key-frame-interval',
-      '1',
+      '--hide-sidebar',
       '--turn-url',
       'turns:turn.example.test:443',
     ]);
   });
 
-  it('pins the requested package version and Android serial', () => {
-    expect(
-      createServeEmuArgs({ port: 4321, packageVersion: '0.1.0', serial: 'emulator-5554' })
-    ).toEqual(expect.arrayContaining(['@expo/serve-emu@0.1.0', '--serial', 'emulator-5554']));
+  it('pins the requested package version', () => {
+    expect(createExpoDeviceHubArgs({ port: 4321, packageVersion: '0.6.0' }).slice(0, 2)).toEqual([
+      '--yes',
+      'expo-device-hub@0.6.0',
+    ]);
   });
 });
 
@@ -255,7 +260,7 @@ describe(waitForWebPreviewReadyAsync, () => {
 
     await waitForWebPreviewReadyAsync({
       previewServer: { pid: undefined, getOutput: () => '' },
-      serverName: 'serve-emu',
+      serverName: 'expo-device-hub',
       port: 4321,
       timeoutMs: 10_000,
     });
@@ -362,7 +367,7 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     jest.mocked(turtleFetch).mockReset();
   });
 
-  it('requests TURN ICE servers from the device run session endpoint and returns serve-sim args', async () => {
+  it('requests TURN ICE servers from the device run session endpoint and returns web preview args', async () => {
     jest.mocked(turtleFetch).mockResolvedValue({
       json: async () => ({
         data: {
@@ -402,7 +407,7 @@ describe(fetchWebPreviewTurnArgsAsync, () => {
     );
   });
 
-  it('returns [] and warns when the request fails so serve-sim falls back to P2P/STUN', async () => {
+  it('returns [] and warns when the request fails so the web preview falls back to P2P/STUN', async () => {
     jest.mocked(turtleFetch).mockRejectedValue(new Error('boom'));
     const logger = createLoggerMock();
 
