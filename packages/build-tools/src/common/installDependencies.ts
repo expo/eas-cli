@@ -32,7 +32,11 @@ export async function installDependenciesAsync({
       break;
     }
     case PackageManager.PNPM: {
-      args = ['install', useFrozenLockfile ? '--frozen-lockfile' : '--no-frozen-lockfile'];
+      args = [
+        'install',
+        ...(env['EAS_PNPM_FILTER_WORKSPACE'] ? ['--filter', env['EAS_PNPM_FILTER_WORKSPACE']] : []),
+        useFrozenLockfile ? '--frozen-lockfile' : '--no-frozen-lockfile',
+      ];
       break;
     }
     case PackageManager.YARN: {
