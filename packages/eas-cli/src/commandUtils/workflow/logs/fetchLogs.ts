@@ -2,18 +2,7 @@ import { WorkflowJobResult } from '../types';
 import { BuildQuery } from '../../../graphql/queries/BuildQuery';
 import { ExpoGraphqlClient } from '../../context/contextUtils/createGraphqlClient';
 
-export async function fetchRawLogsForCustomJobAsync(
-  job: WorkflowJobResult
-): Promise<string | null> {
-  const firstLogFileUrl = job.turtleJobRun?.logFileUrls?.[0];
-  if (!firstLogFileUrl) {
-    return null;
-  }
-  const response = await fetch(firstLogFileUrl);
-  return await response.text();
-}
-
-export async function fetchRawLogsForBuildJobAsync(
+export async function fetchRawLogsForJobAsync(
   state: { graphqlClient: ExpoGraphqlClient },
   job: WorkflowJobResult
 ): Promise<string | null> {

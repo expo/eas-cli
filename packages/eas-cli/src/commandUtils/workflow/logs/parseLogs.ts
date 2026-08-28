@@ -1,6 +1,5 @@
-import { fetchRawLogsForBuildJobAsync, fetchRawLogsForCustomJobAsync } from './fetchLogs';
+import { fetchRawLogsForJobAsync } from './fetchLogs';
 import { WorkflowJobResult, WorkflowLogs, WorkflowRawLogLine } from '../types';
-import { WorkflowJobType } from '../../../graphql/generated';
 import Log from '../../../log';
 import uniqBy from '../../../utils/expodash/uniqBy';
 import { ExpoGraphqlClient } from '../../context/contextUtils/createGraphqlClient';
@@ -59,16 +58,7 @@ export async function fetchAndParseLogsFromJobAsync(
   state: { graphqlClient: ExpoGraphqlClient },
   job: WorkflowJobResult
 ): Promise<WorkflowRawLogLine[] | null> {
-  let rawLogs: string | null;
-  switch (job.type) {
-    case WorkflowJobType.Build:
-    case WorkflowJobType.Repack:
-      rawLogs = await fetchRawLogsForBuildJobAsync(state, job);
-      break;
-    default:
-      rawLogs = await fetchRawLogsForCustomJobAsync(job);
-      break;
-  }
+  const rawLogs = await fetchRawLogsForJobAsync(state, job);
   if (!rawLogs) {
     return null;
   }
