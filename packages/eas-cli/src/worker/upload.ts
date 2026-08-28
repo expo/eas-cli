@@ -21,10 +21,14 @@ const MAX_RETRY_WARNING_DELAY_MS = 30_000;
 const UPLOAD_RETRY_LIMITS: RetryLimits = { retries: 4, maxTimeout: 5_000, maxRetryTime: 20_000 };
 const API_RETRY_LIMITS: RetryLimits = { retries: 6, maxTimeout: 5_000, maxRetryTime: 30_000 };
 
-interface RetryState {
-  firstRetryAt?: number;
+interface SharedRetryState {
   hasSeenNetworkError: boolean;
   hasWarned: boolean;
+}
+
+interface RetryState {
+  shared: SharedRetryState;
+  firstRetryAt?: number;
 }
 
 interface UploadRetryOptions {
@@ -86,8 +90,8 @@ const retryWithWarning = (
   { state, warningDelayMs, subject }: RetryWarningContext
 ): never => {
   state.firstRetryAt ??= Date.now();
-  if (!state.hasWarned && attempt > 1 && Date.now() - state.firstRetryAt >= warningDelayMs) {
-    state.hasWarned = true;
+  if (!state.shared.hasWarned && attempt > 1 && Date.now() - state.firstRetryAt >= warningDelayMs) {
+    state.shared.hasWarned = true;
     Log.warn(`${subject} encountered an error but is still retrying: ${getErrorMessage(error)}`);
   }
   return retry(error);
@@ -134,12 +138,10 @@ export async function uploadAsync(
   payload: UploadPayload,
   onProgressUpdate?: OnProgressUpdateCallback,
   retryOptions: UploadRetryOptions = {},
-  networkMode = retryOptions.state?.hasSeenNetworkError ?? false
+  networkMode = retryOptions.state?.shared.hasSeenNetworkError ?? false
 ): Promise<UploadResult> {
   const state = retryOptions.state ?? {
-    firstRetryAt: undefined,
-    hasSeenNetworkError: false,
-    hasWarned: false,
+    shared: { hasSeenNetworkError: false, hasWarned: false },
   };
   const retryOptionsForAttempts = getRetryOptions(
     UPLOAD_RETRY_LIMITS,
@@ -149,7 +151,11 @@ export async function uploadAsync(
   const warningDelayMs = getRetryWarningDelay(retryOptionsForAttempts.maxRetryTime);
   const deadlineAt = retryOptions.deadlineAt ?? Date.now() + retryOptionsForAttempts.maxRetryTime;
   retryOptionsForAttempts.maxRetryTime = Math.max(0, deadlineAt - Date.now());
-  const warningContext: RetryWarningContext = { state, warningDelayMs, subject: 'The upload' };
+  const warningContext: RetryWarningContext = {
+    state,
+    warningDelayMs,
+    subject: 'The upload',
+  };
   return await promiseRetry(async (retry, attempt) => {
     if (onProgressUpdate) {
       onProgressUpdate(0);
@@ -202,7 +208,7 @@ export async function uploadAsync(
         throw error;
       }
       if (!networkMode) {
-        state.hasSeenNetworkError = true;
+        state.shared.hasSeenNetworkError = true;
         return await uploadAsync(
           init,
           payload,
@@ -254,8 +260,7 @@ export async function uploadAsync(
       onProgressUpdate(1);
     }
 
-    state.firstRetryAt = undefined;
-    state.hasSeenNetworkError = false;
+    state.shared.hasSeenNetworkError = false;
 
     return {
       payload,
@@ -268,7 +273,7 @@ async function callUploadApiWithRetryAsync(
   url: string | URL,
   init: RequestInit | undefined,
   networkMode = false,
-  state: RetryState = { hasSeenNetworkError: false, hasWarned: false },
+  state: RetryState = { shared: { hasSeenNetworkError: false, hasWarned: false } },
   deadlineAt?: number
 ): Promise<unknown> {
   const retryOptions = getRetryOptions(API_RETRY_LIMITS, 1, networkMode);
@@ -292,7 +297,7 @@ async function callUploadApiWithRetryAsync(
         throw error;
       }
       if (!networkMode) {
-        state.hasSeenNetworkError = true;
+        state.shared.hasSeenNetworkError = true;
         return await callUploadApiWithRetryAsync(url, init, true, state, retryDeadlineAt);
       }
       return retryWithWarning(retry, error, attempt, warningContext);
@@ -329,7 +334,7 @@ export async function* batchUploadAsync(
 ): AsyncGenerator<UploadPending> {
   const progressTracker = new Array(payloads.length).fill(0);
   const controller = new AbortController();
-  const retryState: RetryState = { hasSeenNetworkError: false, hasWarned: false };
+  const sharedRetryState: SharedRetryState = { hasSeenNetworkError: false, hasWarned: false };
   const queue = new Set<Promise<UploadResult>>();
   const initWithSignal = { ...init, signal: controller.signal };
   const getProgressValue = (): number => {
@@ -356,7 +361,7 @@ export async function* batchUploadAsync(
           });
         const uploadPromise = uploadAsync(initWithSignal, payload, onChildProgressUpdate, {
           totalRequests: payloads.length,
-          state: retryState,
+          state: { shared: sharedRetryState },
         }).then(
           result => {
             queue.delete(uploadPromise);

@@ -224,8 +224,8 @@ describe(uploadAsync, () => {
     expect(Date.now()).toBeLessThanOrEqual(40_000 + 10_000);
   });
 
-  it('clears the retry clock and the network flag after a success', async () => {
-    const state = { hasSeenNetworkError: false, hasWarned: false, firstRetryAt: undefined };
+  it('clears the network flag after a success', async () => {
+    const state = { shared: { hasSeenNetworkError: false, hasWarned: false } };
     mockedFetch.mockResolvedValueOnce(response(503)).mockResolvedValueOnce(response());
 
     const promise = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
@@ -234,8 +234,25 @@ describe(uploadAsync, () => {
     await jest.runAllTimersAsync();
     await promise;
 
-    expect(state.firstRetryAt).toBeUndefined();
-    expect(state.hasSeenNetworkError).toBe(false);
+    expect(state.shared.hasSeenNetworkError).toBe(false);
+  });
+
+  it('keeps retry warning clocks independent when retry state is shared', async () => {
+    const shared = { hasSeenNetworkError: false, hasWarned: false };
+    mockedFetch
+      .mockResolvedValueOnce(response(503, { error: 'overloaded' }))
+      .mockResolvedValueOnce(response())
+      .mockImplementation(async () => response(503, { error: 'overloaded' }));
+
+    const retryingUpload = uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
+      state: { shared },
+    });
+    await uploadAsync({ baseURL: 'https://eas.expo.app' }, { asset }, undefined, {
+      state: { shared },
+    });
+    await runTimersAndExpectRejection(retryingUpload, 'overloaded');
+
+    expect(Log.warn).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry or enter network mode after cancellation', async () => {
