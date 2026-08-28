@@ -42,6 +42,7 @@ describe('projectSources', () => {
     expect(spawn).toHaveBeenNthCalledWith(2, 'chmod', ['-R', 'u+rwX', '/workingdir/build'], {
       logger,
     });
+    expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
   });
 
   it('should use the refreshed repository URL', async () => {

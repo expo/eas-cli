@@ -122,6 +122,7 @@ export async function unpackTarGzAsync({
   await spawn('tar', ['-C', destination, '--strip-components', '1', '-zxf', source], {
     logger,
   });
+  logger.info('Normalizing project source permissions');
   await spawn('chmod', ['-R', 'u+rwX', destination], { logger });
 }
 
