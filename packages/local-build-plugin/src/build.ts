@@ -1,6 +1,6 @@
 import { Artifacts, SkipNativeBuildError } from '@expo/build-tools';
 import { ArchiveSourceType, BuildJob, Metadata, Platform, Workflow } from '@expo/eas-build-job';
-import { DEBUG } from 'bunyan';
+import { DEBUG } from '@expo/bunyan';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import pickBy from 'lodash/pickBy';

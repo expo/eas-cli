@@ -2326,7 +2326,6 @@ __metadata:
     "@types/uuid": "npm:^9.0.8"
     "@urql/core": "npm:^6.0.1"
     bplist-parser: "npm:0.3.2"
-    bunyan: "npm:^1.8.15"
     content-disposition: "npm:1.0.1"
     fast-glob: "npm:^3.3.2"
     fast-xml-parser: "npm:^4.4.1"
@@ -2373,6 +2372,15 @@ __metadata:
     safe-json-stringify:
       optional: true
   checksum: 10c0/2f9de15556708ef8e2fb7cc9264ef79ec7525e3906d1a095af1fcad5edac6d6f0da5e47d2ab4c3f67f0a71b5b7422dedfa5b3d6a3dfdd1fa0c614c8535c171aa
+  languageName: node
+  linkType: hard
+
+"@expo/bunyan@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@expo/bunyan@npm:4.0.1"
+  dependencies:
+    uuid: "npm:^8.0.0"
+  checksum: 10c0/ebbec51c7b19dcfcbd981da9c1c6262c0dc03ea118356fefca3b427f445308845fc33d97da92350d68fda174f9f1d5ee95ed3ac978f1f6cc88de73d785b909cc
   languageName: node
   linkType: hard
 
@@ -2899,6 +2907,7 @@ __metadata:
     "@types/lodash.clonedeep": "npm:^4.5.9"
     "@types/node": "npm:20.14.2"
     arg: "npm:^5.0.2"
+    bunyan: "npm:^1.8.15"
     eslint-plugin-async-protect: "npm:^3.1.0"
     fast-glob: "npm:^3.3.2"
     fs-extra: "npm:^11.2.0"
@@ -10320,17 +10329,16 @@ __metadata:
   resolution: "eas-cli-local-build-plugin@workspace:packages/local-build-plugin"
   dependencies:
     "@expo/build-tools": "npm:23.0.0"
+    "@expo/bunyan": "npm:^4.0.1"
     "@expo/eas-build-job": "npm:23.0.0"
     "@expo/logger": "npm:23.0.0"
     "@expo/spawn-async": "npm:^1.7.2"
     "@expo/turtle-spawn": "npm:23.0.0"
-    "@types/bunyan": "npm:^1.8.11"
     "@types/fs-extra": "npm:^11.0.4"
     "@types/hapi__joi": "npm:^17.1.14"
     "@types/lodash": "npm:^4.17.4"
     "@types/semver": "npm:^7.5.8"
     "@types/uuid": "npm:^9.0.7"
-    bunyan: "npm:^1.8.15"
     chalk: "npm:4.1.2"
     env-paths: "npm:^2.2.1"
     fs-extra: "npm:^11.2.0"
