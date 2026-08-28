@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 - [build-tools] Prevent user npm minimum release age settings from applying to internal EAS CLI commands. ([#4296](https://github.com/expo/eas-cli/pull/4296) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Reduce serve-sim preview resolution from 1280 px to 960 px to lower streaming bandwidth. ([#4297](https://github.com/expo/eas-cli/pull/4297) by [@szdziedzic](https://github.com/szdziedzic))
+- [eas-cli] Add dynamic retries to deploy command that scale up more generously, depending on deployment size ([#4299](https://github.com/expo/eas-cli/pull/4299) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 
