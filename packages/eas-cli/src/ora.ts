@@ -17,6 +17,10 @@ const errorReal = console.error;
 
 const isCi = boolish('CI', false);
 
+export function isSpinnerEnabled(): boolean {
+  return !(Log.isDebug || !process.stdin.isTTY || isCi);
+}
+
 /**
  * A custom ora spinner that sends the stream to stdout in CI, or non-TTY, instead of stderr (the default).
  *
@@ -25,7 +29,7 @@ const isCi = boolish('CI', false);
  */
 export function ora(options?: Options | string): Ora {
   const inputOptions = typeof options === 'string' ? { text: options } : (options ?? {});
-  const disabled = Log.isDebug || !process.stdin.isTTY || isCi;
+  const disabled = !isSpinnerEnabled();
   const spinner = oraReal({
     // Ensure our non-interactive mode emulates CI mode.
     isEnabled: !disabled,
