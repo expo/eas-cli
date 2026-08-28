@@ -1,3 +1,4 @@
+import { SystemError } from '@expo/eas-build-job';
 import { bunyan } from '@expo/logger';
 import { BuildRuntimePlatform, BuildStepEnv } from '@expo/steps';
 import spawn from '@expo/turtle-spawn';
@@ -15,6 +16,7 @@ import { sleepAsync } from '../../../utils/retry';
 import {
   createServeSimArgs,
   ensureFfmpegInstalledAsync,
+  ensureMitmproxyInstalledAsync,
   fetchServeSimTurnArgsAsync,
   metricsCorsOriginToServeSimArgs,
   startNgrokTunnelAsync,
@@ -170,6 +172,17 @@ describe(createServeSimArgs, () => {
       '--yes',
       '@expo/serve-sim@next',
     ]);
+  });
+
+  it('leaves network capture off unless it is asked for', () => {
+    expect(createServeSimArgs({ port: 4321 })).not.toContain('--network-capture');
+    expect(createServeSimArgs({ port: 4321, networkCapture: false })).not.toContain(
+      '--network-capture'
+    );
+  });
+
+  it('turns network capture on when requested', () => {
+    expect(createServeSimArgs({ port: 4321, networkCapture: true })).toContain('--network-capture');
   });
 });
 
@@ -625,6 +638,67 @@ describe(waitForDeviceRunSessionStoppedAsync, () => {
         { level: 'warning', extras: { deviceRunSessionId: 'drs-id' } }
       );
     });
+  });
+});
+
+describe(ensureMitmproxyInstalledAsync, () => {
+  const spawnMock = jest.mocked(spawn);
+
+  function spawnResolved(): ReturnType<typeof spawn> {
+    return Promise.resolve({}) as unknown as ReturnType<typeof spawn>;
+  }
+
+  function spawnRejected(): ReturnType<typeof spawn> {
+    return Promise.reject(new Error('boom')) as unknown as ReturnType<typeof spawn>;
+  }
+
+  beforeEach(() => {
+    spawnMock.mockReset();
+  });
+
+  it('does not install when mitmdump is on PATH', async () => {
+    spawnMock.mockReturnValueOnce(spawnResolved());
+
+    await ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() });
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawnMock).toHaveBeenCalledWith('mitmdump', ['--version'], expect.anything());
+  });
+
+  it('installs mitmproxy with Homebrew when it is missing', async () => {
+    spawnMock
+      .mockReturnValueOnce(spawnRejected())
+      .mockReturnValueOnce(spawnResolved())
+      .mockReturnValueOnce(spawnResolved());
+
+    await ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() });
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'brew',
+      ['install', 'mitmproxy'],
+      expect.objectContaining({
+        env: expect.objectContaining({ HOMEBREW_NO_AUTO_UPDATE: '1' }),
+      })
+    );
+  });
+
+  it('throws when the install fails, rather than starting a session that cannot capture', async () => {
+    spawnMock.mockReturnValueOnce(spawnRejected()).mockReturnValueOnce(spawnRejected());
+
+    await expect(
+      ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() })
+    ).rejects.toThrow(SystemError);
+  });
+
+  it('throws when brew succeeds but mitmdump still does not run', async () => {
+    spawnMock
+      .mockReturnValueOnce(spawnRejected())
+      .mockReturnValueOnce(spawnResolved())
+      .mockReturnValueOnce(spawnRejected());
+
+    await expect(
+      ensureMitmproxyInstalledAsync({ env: createEnvMock(), logger: createLoggerMock() })
+    ).rejects.toThrow(/still not runnable/);
   });
 });
 

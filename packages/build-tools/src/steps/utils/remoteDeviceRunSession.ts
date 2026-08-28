@@ -14,6 +14,7 @@ import { clearTimeout, setTimeout } from 'node:timers';
 import { setTimeout as setTimeoutAsync } from 'node:timers/promises';
 
 import { CustomBuildContext } from '../../customBuildContext';
+import { Datadog } from '../../datadog';
 import { Sentry } from '../../sentry';
 import { sleepAsync } from '../../utils/retry';
 import { turtleFetch } from '../../utils/turtleFetch';
@@ -344,6 +345,45 @@ async function installFfmpegWithAptAsync({
  * `spawn` is not an async function and can throw synchronously, which
  * `asyncResult` cannot catch — it only wraps an already-created promise.
  */
+async function isMitmproxyAvailableAsync(env: BuildStepEnv): Promise<boolean> {
+  return (await asyncResult(spawn('mitmdump', ['--version'], { env }))).ok;
+}
+
+export async function ensureMitmproxyInstalledAsync({
+  env,
+  logger,
+}: {
+  env: BuildStepEnv;
+  logger: bunyan;
+}): Promise<void> {
+  if (await isMitmproxyAvailableAsync(env)) {
+    logger.info('mitmproxy is already installed.');
+    return;
+  }
+
+  logger.info('mitmproxy is not installed, installing it with Homebrew for network capture.');
+  const startedAt = Date.now();
+  try {
+    await spawn('brew', ['install', 'mitmproxy'], {
+      env: { ...env, HOMEBREW_NO_AUTO_UPDATE: '1' },
+      logger,
+    });
+  } catch (err) {
+    throw new SystemError('Could not install mitmproxy, which network capture needs.', {
+      cause: err,
+    });
+  }
+
+  if (!(await isMitmproxyAvailableAsync(env))) {
+    throw new SystemError(
+      'Installed mitmproxy but mitmdump is still not runnable. Try `brew link mitmproxy` on the image.'
+    );
+  }
+
+  logger.info('Installed mitmproxy.');
+  Datadog.distribution('eas.mitmproxy.install_duration', Date.now() - startedAt);
+}
+
 export async function ensureFfmpegInstalledAsync({
   runtimePlatform,
   env,
@@ -605,11 +645,13 @@ export function createServeSimArgs({
   turnArgs = [],
   metricsCorsArgs = [],
   packageVersion,
+  networkCapture = false,
 }: {
   port: number;
   turnArgs?: string[];
   metricsCorsArgs?: string[];
   packageVersion?: string;
+  networkCapture?: boolean;
 }): string[] {
   return [
     '--yes',
@@ -632,6 +674,7 @@ export function createServeSimArgs({
     SERVE_SIM_VIDEO_FPS,
     ...turnArgs,
     ...metricsCorsArgs,
+    ...(networkCapture ? ['--network-capture'] : []),
   ];
 }
 
@@ -707,14 +750,20 @@ export async function startServeSimWithTunnelAsync(
     logger,
     timeoutMs,
     packageVersion,
+    networkCapture = false,
   }: {
     baseDomain: string;
     env: BuildStepEnv;
     logger: bunyan;
     timeoutMs: number;
     packageVersion?: string;
+    networkCapture?: boolean;
   }
 ): Promise<ServeSimPreviewHandle> {
+  if (networkCapture) {
+    await ensureMitmproxyInstalledAsync({ env, logger });
+  }
+
   const port = await findAvailablePortAsync();
   logger.info(
     `Launching ${createServeSimPackageSpec(packageVersion)} on ${SERVE_SIM_HOST}:${port}.`
@@ -723,7 +772,7 @@ export async function startServeSimWithTunnelAsync(
   const metricsCorsArgs = metricsCorsOriginToServeSimArgs(env);
   const serveSim = spawnDetached({
     command: 'npx',
-    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion }),
+    args: createServeSimArgs({ port, turnArgs, metricsCorsArgs, packageVersion, networkCapture }),
     env,
   });
 
