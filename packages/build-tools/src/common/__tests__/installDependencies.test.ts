@@ -245,6 +245,42 @@ describe(installDependenciesAsync, () => {
     jest.mocked(spawn).mockReturnValue(createSpawnPromise(Promise.resolve(createSpawnResult())));
   });
 
+  it('installs only the selected workspace when EAS_PNPM_FILTER_WORKSPACE is set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.PNPM,
+      env: { EAS_PNPM_FILTER_WORKSPACE: 'my-app' },
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['install', '--filter', 'my-app', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
+  it('installs all workspaces when EAS_PNPM_FILTER_WORKSPACE is not set', async () => {
+    const logger = createMockLogger();
+
+    await installDependenciesAsync({
+      packageManager: PackageManager.PNPM,
+      env: {},
+      logger,
+      cwd: '/tmp/build',
+      useFrozenLockfile: true,
+    });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'pnpm',
+      ['install', '--frozen-lockfile'],
+      expect.objectContaining({ cwd: '/tmp/build' })
+    );
+  });
+
   it('installs only the selected workspace when EAS_BUN_FILTER_WORKSPACE is set', async () => {
     const logger = createMockLogger();
 
