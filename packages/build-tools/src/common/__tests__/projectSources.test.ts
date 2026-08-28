@@ -6,6 +6,7 @@ import {
   Platform,
   Workflow,
 } from '@expo/eas-build-job';
+import spawn from '@expo/turtle-spawn';
 import { randomBytes, randomUUID } from 'crypto';
 import { vol } from 'memfs';
 import fetch, { Response } from 'node-fetch';
@@ -14,7 +15,7 @@ import { setTimeout } from 'timers/promises';
 import { createMockLogger } from '../../__tests__/utils/logger';
 import { BuildContext } from '../../context';
 import { shallowCloneRepositoryAsync } from '../git';
-import { prepareProjectSourcesAsync } from '../projectSources';
+import { prepareProjectSourcesAsync, unpackTarGzAsync } from '../projectSources';
 
 jest.mock('@expo/turtle-spawn');
 jest.mock('node-fetch');
@@ -23,6 +24,27 @@ jest.mock('@expo/downloader');
 jest.mock('@urql/core');
 
 describe('projectSources', () => {
+  it('makes extracted project sources readable and writable by the worker', async () => {
+    const logger = createMockLogger();
+
+    await unpackTarGzAsync({
+      source: '/workingdir/project.tar.gz',
+      destination: '/workingdir/build',
+      logger,
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      'tar',
+      ['-C', '/workingdir/build', '--strip-components', '1', '-zxf', '/workingdir/project.tar.gz'],
+      { logger }
+    );
+    expect(spawn).toHaveBeenNthCalledWith(2, 'chmod', ['-R', 'u+rwX', '/workingdir/build'], {
+      logger,
+    });
+    expect(logger.info).toHaveBeenCalledWith('Normalizing project source permissions');
+  });
+
   it('should use the refreshed repository URL', async () => {
     const robotAccessToken = randomUUID();
     const buildId = randomUUID();
