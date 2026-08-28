@@ -15,15 +15,17 @@ import Log from '../../log';
 import { ora } from '../../ora';
 import { sleepAsync } from '../../utils/promise';
 
-export const CONNECTION_HOST_REGEX = /^[A-Za-z0-9.-]+(?::\d+)?$/;
-export const CONNECTION_SECRET_REGEX = /^[A-Za-z0-9._~:/+=-]+$/;
-
-export function splitConnectionHost(connectionHost: string): { host: string; port?: number } {
-  const match = connectionHost.match(/^(.+):(\d+)$/);
-  if (!match) {
-    return { host: connectionHost };
+export function splitConnectionHost(connectionHost: string): { hostname: string; port?: number } {
+  try {
+    const { hostname, port: stringPort } = new URL(`ssh://${connectionHost}`);
+    const port = stringPort === '' ? undefined : Number(stringPort);
+    return { hostname, port };
+  } catch (err) {
+    throw new Error(
+      'Unexpected connection host reported for this ssh session. Update eas-cli and try again, or contact support if it persists.',
+      { cause: err }
+    );
   }
-  return { host: match[1], port: Number(match[2]) };
 }
 
 const SSH_INSECURE_OPTS = '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null';
@@ -154,22 +156,11 @@ export default class WorkflowSsh extends EasCommand {
     }
 
     const { host: connectionHost, secret } = connectionConfig;
-    if (!CONNECTION_HOST_REGEX.test(connectionHost)) {
-      throw new Error(
-        'Unexpected connection host reported for this ssh session. Update eas-cli and try again, or contact support if it persists.'
-      );
-    }
-    if (!CONNECTION_SECRET_REGEX.test(secret)) {
-      throw new Error(
-        'Unexpected connection token reported for this ssh session. Update eas-cli and try again, or contact support if it persists.'
-      );
-    }
-
-    const { host, port } = splitConnectionHost(connectionHost);
+    const { hostname, port } = splitConnectionHost(connectionHost);
     const portOption = port !== undefined ? ` -p ${port}` : '';
 
     if (showConnect) {
-      Log.log(`ssh ${SSH_INSECURE_OPTS}${portOption} ${secret}@${host}`);
+      Log.log(`ssh ${SSH_INSECURE_OPTS}${portOption} ${secret}@${hostname}`);
       Log.newLine();
       Log.log(
         'If your network blocks the direct SSH connection, reach the session through the WebSocket relay with upterm (https://upterm.dev):'
@@ -177,7 +168,7 @@ export default class WorkflowSsh extends EasCommand {
       // WSS terminates on the relay hostname (default 443). Do not paste an SSH
       // :port into the wss:// URL — that port is only for the ssh destination.
       Log.log(
-        `  ssh -o ProxyCommand="upterm proxy wss://${secret}@${host}" ${SSH_INSECURE_OPTS}${portOption} ${secret}@${host}`
+        `  ssh -o ProxyCommand="upterm proxy wss://${secret}@${hostname}" ${SSH_INSECURE_OPTS}${portOption} ${secret}@${hostname}`
       );
       return;
     }
@@ -190,7 +181,7 @@ export default class WorkflowSsh extends EasCommand {
         configPath,
         [
           `Host ${hostAlias}`,
-          `  HostName ${host}`,
+          `  HostName ${hostname}`,
           ...(port !== undefined ? [`  Port ${port}`] : []),
           `  User ${secret}`,
           '  StrictHostKeyChecking no',

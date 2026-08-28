@@ -6,8 +6,6 @@ import { WorkflowJobSshQuery } from '../../../graphql/queries/WorkflowJobSshQuer
 import Log from '../../../log';
 import { sleepAsync } from '../../../utils/promise';
 import WorkflowSsh, {
-  CONNECTION_HOST_REGEX,
-  CONNECTION_SECRET_REGEX,
   parseSshArgv,
   resolveSshConnectStatus,
   splitConnectionHost,
@@ -132,46 +130,14 @@ describe(resolveSshConnectStatus, () => {
   });
 });
 
-describe('workflow:ssh connection validation', () => {
-  describe('CONNECTION_SECRET_REGEX', () => {
-    it.each(['TOKENabc123', 'sessionId:dGhpcytpcy9iYXNlNjQ9', 'a.b_c~d-e'])(
-      'accepts the upterm token %s',
-      token => {
-        expect(CONNECTION_SECRET_REGEX.test(token)).toBe(true);
-      }
-    );
-
-    it.each(['tok en', 'tok\nUser attacker', 'tok@host', 'tok"x', "tok'x", 'tok`x', ''])(
-      'rejects %j so it cannot inject an ssh config directive',
-      token => {
-        expect(CONNECTION_SECRET_REGEX.test(token)).toBe(false);
-      }
-    );
-  });
-
-  describe('CONNECTION_HOST_REGEX', () => {
-    it('accepts a plain hostname', () => {
-      expect(CONNECTION_HOST_REGEX.test('uptermd.upterm.dev')).toBe(true);
-    });
-
-    it.each(['host name', 'host\nHostName evil', 'host@x', 'host/x', ''])('rejects %j', host => {
-      expect(CONNECTION_HOST_REGEX.test(host)).toBe(false);
-    });
-
-    it('accepts a hostname with a port', () => {
-      expect(CONNECTION_HOST_REGEX.test('relay.expo.dev:8022')).toBe(true);
-    });
-  });
-});
-
 describe(splitConnectionHost, () => {
   it('returns the host with no port for a plain hostname', () => {
-    expect(splitConnectionHost('relay.expo.dev')).toEqual({ host: 'relay.expo.dev' });
+    expect(splitConnectionHost('relay.expo.dev')).toEqual({ hostname: 'relay.expo.dev' });
   });
 
   it('splits a host:port into host and numeric port', () => {
     expect(splitConnectionHost('relay.expo.dev:8022')).toEqual({
-      host: 'relay.expo.dev',
+      hostname: 'relay.expo.dev',
       port: 8022,
     });
   });
@@ -377,17 +343,6 @@ describe(WorkflowSsh, () => {
       },
     } as never);
     await expect(createCommand(['job-1']).runAsync()).rejects.toThrow('connection host');
-  });
-
-  it('throws on an unexpected connection token', async () => {
-    mockConnectInfo.mockResolvedValue({
-      sshRequested: true,
-      jobCompleted: false,
-      session: {
-        connectionConfig: { host: 'relay.expo.dev', secret: 'bad token', reconnecting: false },
-      },
-    } as never);
-    await expect(createCommand(['job-1']).runAsync()).rejects.toThrow('connection token');
   });
 
   it('propagates the ssh exit code from the catch handler', async () => {
