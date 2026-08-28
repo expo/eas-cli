@@ -110,6 +110,8 @@ export async function generateEasConfigAsync(projectDir: string): Promise<void> 
   await fs.writeJson(easJsonPath, easJson, { spaces: 2 });
 }
 
+const TEMPLATE_LICENSE = '0BSD';
+
 // https://github.com/npm/validate-npm-package-name#naming-rules
 function sanitizeNpmPackageName(name: string): string {
   return (
@@ -129,16 +131,13 @@ export async function updatePackageJsonAsync(
   const packageJsonPath = path.join(projectDir, 'package.json');
   const packageJson = await fs.readJson(packageJsonPath);
 
-  // Replace template package metadata with values for the new project,
-  // mirroring what create-expo-app does.
   packageJson.name = sanitizeNpmPackageName(projectName);
   packageJson.version = '1.0.0';
   packageJson.private = true;
   delete packageJson.description;
   delete packageJson.tags;
   delete packageJson.repository;
-  // Only strip the license if it's 0BSD, used by the Expo templates. Leave other licenses alone.
-  if (packageJson.license === '0BSD') {
+  if (packageJson.license === TEMPLATE_LICENSE) {
     delete packageJson.license;
   }
 
@@ -153,10 +152,6 @@ export async function updatePackageJsonAsync(
   await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
 }
 
-/**
- * Removes files that only make sense for the published template package,
- * such as the template's LICENSE file.
- */
 export async function removeTemplateFilesAsync(projectDir: string): Promise<void> {
   await fs.remove(path.join(projectDir, 'LICENSE'));
 }

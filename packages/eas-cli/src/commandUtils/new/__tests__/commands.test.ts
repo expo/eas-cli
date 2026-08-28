@@ -86,7 +86,13 @@ describe('commands', () => {
       await expect(downloadTemplateAsync('/test/target-project', template)).rejects.toThrow(
         'already exists and is not empty'
       );
-      // The pre-existing directory must not be cleaned up.
+    });
+
+    it('should not remove a pre-existing directory on failure', async () => {
+      jest.mocked(fs.pathExists).mockResolvedValueOnce(true as never);
+      jest.mocked(fs.readdir).mockResolvedValueOnce(['existing-file'] as never);
+
+      await expect(downloadTemplateAsync('/test/target-project', template)).rejects.toThrow();
       expect(fs.remove).not.toHaveBeenCalled();
     });
 

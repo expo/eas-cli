@@ -66,8 +66,6 @@ export async function downloadTemplateAsync(
     );
   } catch (error) {
     spinner.fail();
-    // Clean up a partially extracted project, but never a directory that
-    // already existed before the download started.
     if (!targetExisted) {
       await fs.remove(targetProjectDir);
     }

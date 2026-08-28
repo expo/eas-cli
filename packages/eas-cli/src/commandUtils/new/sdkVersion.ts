@@ -16,10 +16,7 @@ interface VersionsEndpointResponse {
 }
 
 /**
- * Fetches the released Expo SDK versions from the versions endpoint.
  * SDKs without a `releaseNoteUrl` are canary/in-development and are excluded.
- * Returns null when the endpoint cannot be reached, so callers can fall back
- * to the latest template.
  */
 export async function fetchSdkVersionsAsync(): Promise<SdkVersions | null> {
   let json: VersionsEndpointResponse;
@@ -56,10 +53,6 @@ function parseSdkMajor(version: string | undefined): number | null {
   return Number.isFinite(major) ? major : null;
 }
 
-/**
- * Prompts for the Expo SDK version to use for the new project, mirroring the
- * prompt in create-expo-app.
- */
 export async function promptForSdkVersionAsync({
   latest,
   expoGoCompatible,
@@ -135,12 +128,7 @@ function resolveTemplateForTag(
 }
 
 /**
- * Resolves the project template version to download.
- * - When `sdkVersion` is provided (e.g. "57", "sdk-57", or "latest"), uses it directly.
- * - In non-interactive (non-TTY) sessions, pins to the latest released SDK.
- * - Otherwise prompts for the SDK version, offering only versions that have
- *   a published template on npm.
- * - Falls back to the latest template when the versions endpoint is unavailable.
+ * `sdkVersion` accepts "57", "sdk-57", or "latest".
  */
 export async function resolveTemplateAsync({
   sdkVersion,
@@ -148,12 +136,12 @@ export async function resolveTemplateAsync({
   sdkVersion?: string;
 }): Promise<TemplateInfo> {
   const packument = await fetchTemplatePackumentAsync();
-  const distTags = packument['dist-tags'] ?? {};
+  const templateDistTags = packument['dist-tags'] ?? {};
   const packumentVersions = packument.versions ?? {};
 
   if (sdkVersion) {
     if (sdkVersion === 'latest') {
-      return resolveTemplateForTag(distTags, packumentVersions, 'latest');
+      return resolveTemplateForTag(templateDistTags, packumentVersions, 'latest');
     }
     const major = parseSdkMajor(sdkVersion.replace(/^sdk-/, ''));
     if (major === null) {
@@ -161,33 +149,33 @@ export async function resolveTemplateAsync({
         `Invalid SDK version: "${sdkVersion}". Specify a version number (e.g. 57) or "latest".`
       );
     }
-    return resolveTemplateForTag(distTags, packumentVersions, `sdk-${major}`);
+    return resolveTemplateForTag(templateDistTags, packumentVersions, `sdk-${major}`);
   }
 
   const versions = await fetchSdkVersionsAsync();
-  // Offer only SDK versions that have a published template on npm.
-  const available = versions?.available.filter(sdk => `sdk-${sdk}` in distTags) ?? [];
+  const availableWithTemplates =
+    versions?.available.filter(sdk => `sdk-${sdk}` in templateDistTags) ?? [];
 
-  if (!versions || available.length === 0) {
+  if (!versions || availableWithTemplates.length === 0) {
     if (!versions) {
       Log.warn('Could not fetch the list of Expo SDK versions. Using the latest SDK.');
     }
-    return resolveTemplateForTag(distTags, packumentVersions, 'latest');
+    return resolveTemplateForTag(templateDistTags, packumentVersions, 'latest');
   }
 
-  const latest = available[0];
+  const latest = availableWithTemplates[0];
 
   // Match the prompt guard in prompts.ts: pin to the latest released SDK
   // instead of prompting when stdin is not interactive.
   if (!process.stdin.isTTY && !global.test) {
     Log.withInfo(`Using Expo SDK ${latest}`);
-    return resolveTemplateForTag(distTags, packumentVersions, `sdk-${latest}`);
+    return resolveTemplateForTag(templateDistTags, packumentVersions, `sdk-${latest}`);
   }
 
   const selectedSdk = await promptForSdkVersionAsync({
     latest,
     expoGoCompatible: versions.expoGoCompatible,
-    available,
+    available: availableWithTemplates,
   });
-  return resolveTemplateForTag(distTags, packumentVersions, `sdk-${selectedSdk}`);
+  return resolveTemplateForTag(templateDistTags, packumentVersions, `sdk-${selectedSdk}`);
 }
