@@ -17,6 +17,7 @@ This is the log of notable changes to EAS CLI and related packages.
 - [build-tools] Support `EAS_PNPM_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `pnpm install --filter`. ([#4302](https://github.com/expo/eas-cli/pull/4302) by [@robingullo](https://github.com/robingullo))
 - [build-tools] Add the `eas/install_mitmproxy` step and start serve-sim with `--network-capture` when a simulator session requests network capture. ([#4307](https://github.com/expo/eas-cli/pull/4307) by [@gwdp](https://github.com/gwdp))
 - [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
+- [eas-cli] Add `--network-capture` to `eas simulator` to record HTTP(S) traffic from apps on the device. ([#4308](https://github.com/expo/eas-cli/pull/4308) by [@gwdp](https://github.com/gwdp))
 
 ### 🐛 Bug fixes
 
