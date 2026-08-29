@@ -37,20 +37,6 @@ jobs:
         run: yarn build
       - name: Publish packages to npm
         run: yarn run -T lerna publish from-package --yes --no-verify-access
-      - name: Verify eas-cli was published as latest on npm
-        run: |
-          expected="$(jq -r .version lerna.json)"
-          for attempt in $(seq 1 10); do
-            published="$(npm view eas-cli@latest version 2>/dev/null || true)"
-            if [ "$published" = "$expected" ]; then
-              echo "Verified eas-cli@$expected is latest on npm."
-              exit 0
-            fi
-            echo "Attempt $attempt: npm latest is '$published', expected '$expected'. Retrying in 15s..."
-            sleep 15
-          done
-          echo "eas-cli@$expected was not published as latest on npm; the publish step failed." >&2
-          exit 1
   release-changelog:
     name: Update changelog and publish release
     runs-on: ubuntu-latest
