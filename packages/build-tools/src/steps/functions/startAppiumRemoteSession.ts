@@ -72,7 +72,7 @@ export function createStartAppiumRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
       const packageVersion = inputs.package_version.value as string | undefined;
-      const networkCapture = inputs.network_capture?.value === true;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const { runtimePlatform } = global;
       const versionSpec = resolveAppium3VersionSpec(packageVersion);

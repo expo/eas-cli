@@ -81,7 +81,7 @@ export function createStartAgentDeviceRemoteSessionBuildFunction(
       const ngrokAuthtoken = getNgrokAuthtokenOrThrow(env);
 
       const packageVersion = inputs.package_version.value as string | undefined;
-      const networkCapture = inputs.network_capture?.value === true;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
       // A missing or non-positive value disables the idle timeout (opt-in feature).
       const maxIdleTimeMinutes = inputs.max_idle_time_minutes.value as number | undefined;
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;

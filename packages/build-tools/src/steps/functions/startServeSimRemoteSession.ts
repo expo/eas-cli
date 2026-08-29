@@ -33,14 +33,14 @@ export function createStartServeSimRemoteSessionBuildFunction(
         allowedValueTypeName: BuildStepInputValueTypeName.STRING,
       }),
       BuildStepInput.createProvider({
-        id: 'max_duration_seconds',
-        required: false,
-        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
-      }),
-      BuildStepInput.createProvider({
         id: 'network_capture',
         required: false,
         allowedValueTypeName: BuildStepInputValueTypeName.BOOLEAN,
+      }),
+      BuildStepInput.createProvider({
+        id: 'max_duration_seconds',
+        required: false,
+        allowedValueTypeName: BuildStepInputValueTypeName.NUMBER,
       }),
     ],
     fn: async ({ logger }, { inputs, env, signal }) => {
@@ -48,7 +48,7 @@ export function createStartServeSimRemoteSessionBuildFunction(
       const ngrokTunnelDomain = getNgrokTunnelDomainOrThrow(env);
       const maxDurationSeconds = inputs.max_duration_seconds?.value as number | undefined;
       const packageVersion = inputs.package_version?.value as string | undefined;
-      const networkCapture = inputs.network_capture?.value === true;
+      const networkCapture = inputs.network_capture?.value as boolean | undefined;
 
       logger.info('Starting serve-sim remote session.');
 
