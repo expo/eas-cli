@@ -6,22 +6,40 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🛠 Breaking changes
 
-- [eas-cli] Rename the EAS Simulator preview-only session type from `--type serve-sim` to `--type web-preview-only`. ([#4298](https://github.com/expo/eas-cli/pull/4298) by [@szdziedzic](https://github.com/szdziedzic))
-
 ### 🎉 New features
 
 - [eas-cli] Prompt for the Expo SDK version in `eas new` and add a `--sdk-version` flag. The template now downloads from npm instead of GitHub to support SDK-specific versions. ([#4301](https://github.com/expo/eas-cli/pull/4301) by [@brentvatne](https://github.com/brentvatne))
 - [eas-cli] Clean up template metadata in projects created with `eas new`: remove the template LICENSE file and reset the package.json name, version, and license fields. ([#4301](https://github.com/expo/eas-cli/pull/4301) by [@brentvatne](https://github.com/brentvatne))
-- [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
-- [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
 - [build-tools] Support `EAS_PNPM_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `pnpm install --filter`. ([#4302](https://github.com/expo/eas-cli/pull/4302) by [@robingullo](https://github.com/robingullo))
 
 ### 🐛 Bug fixes
 
 - [build-tools] Normalize extracted project permissions so source archives cannot leave files unreadable by EAS workers. ([#4287](https://github.com/expo/eas-cli/pull/4287) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- [eas-cli] Add dynamic retries to deploy command that scale up more generously, depending on deployment size ([#4299](https://github.com/expo/eas-cli/pull/4299) by [@kitten](https://github.com/kitten))
+
+### 🧹 Chores
+
+- [eas-cli] Add regression coverage for the bundled iOS entitlement introspection fallback. ([#4285](https://github.com/expo/eas-cli/pull/4285) by [@brentvatne](https://github.com/brentvatne))
+- [local-build-plugin] Replace `bunyan` with `@expo/bunyan` while preserving the Steps formatter binary. ([#4284](https://github.com/expo/eas-cli/pull/4284) by [@brentvatne](https://github.com/brentvatne))
+- [steps] Replace deprecated `lodash.get` with a local helper. ([#4283](https://github.com/expo/eas-cli/pull/4283) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli][steps] Bump `uuid` to v11 and remove the redundant `@types/uuid` dependency. ([#4282](https://github.com/expo/eas-cli/pull/4282) by [@brentvatne](https://github.com/brentvatne))
+- [eas-cli] Bump `minizlib` to 3.1.0 to drop its deprecated `rimraf@5` transitive dependency. ([#4281](https://github.com/expo/eas-cli/pull/4281) by [@brentvatne](https://github.com/brentvatne))
+
+## [23.0.0](https://github.com/expo/eas-cli/releases/tag/v23.0.0) - 2026-08-28
+
+### 🛠 Breaking changes
+
+- [eas-cli] Rename the EAS Simulator preview-only session type from `--type serve-sim` to `--type web-preview-only`. ([#4298](https://github.com/expo/eas-cli/pull/4298) by [@szdziedzic](https://github.com/szdziedzic))
+
+### 🎉 New features
+
+- [build-tools] Cache CocoaPods dependencies between iOS builds. ([#4266](https://github.com/expo/eas-cli/pull/4266) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+- [build-tools] Support `EAS_BUN_FILTER_WORKSPACE` to install only the selected workspace's dependencies with `bun install --filter`. ([#4292](https://github.com/expo/eas-cli/pull/4292) by [@konrad-armatys](https://github.com/konrad-armatys))
+
+### 🐛 Bug fixes
+
 - [build-tools] Prevent user npm minimum release age settings from applying to internal EAS CLI commands. ([#4296](https://github.com/expo/eas-cli/pull/4296) by [@sjchmiela](https://github.com/sjchmiela))
 - [build-tools] Reduce serve-sim preview resolution from 1280 px to 960 px to lower streaming bandwidth. ([#4297](https://github.com/expo/eas-cli/pull/4297) by [@szdziedzic](https://github.com/szdziedzic))
-- [eas-cli] Add dynamic retries to deploy command that scale up more generously, depending on deployment size ([#4299](https://github.com/expo/eas-cli/pull/4299) by [@kitten](https://github.com/kitten))
 
 ### 🧹 Chores
 
@@ -66,12 +84,6 @@ This is the log of notable changes to EAS CLI and related packages.
 ### 🐛 Bug fixes
 
 - [build-tools] Upload tvOS (and other non-iOS) IPAs to the App Store Connect platform declared in the bundle's `DTPlatformName`, instead of always uploading to the iOS train. ([#4234](https://github.com/expo/eas-cli/pull/4234) by [@douglowder](https://github.com/douglowder))
-
-- [eas-cli] Add regression coverage for the bundled iOS entitlement introspection fallback. ([#4285](https://github.com/expo/eas-cli/pull/4285) by [@brentvatne](https://github.com/brentvatne))
-- [local-build-plugin] Replace `bunyan` with `@expo/bunyan` while preserving the Steps formatter binary. ([#4284](https://github.com/expo/eas-cli/pull/4284) by [@brentvatne](https://github.com/brentvatne))
-- [steps] Replace deprecated `lodash.get` with a local helper. ([#4283](https://github.com/expo/eas-cli/pull/4283) by [@brentvatne](https://github.com/brentvatne))
-- [eas-cli][steps] Bump `uuid` to v11 and remove the redundant `@types/uuid` dependency. ([#4282](https://github.com/expo/eas-cli/pull/4282) by [@brentvatne](https://github.com/brentvatne))
-- [eas-cli] Bump `minizlib` to 3.1.0 to drop its deprecated `rimraf@5` transitive dependency. ([#4281](https://github.com/expo/eas-cli/pull/4281) by [@brentvatne](https://github.com/brentvatne))
 
 ## [22.2.0](https://github.com/expo/eas-cli/releases/tag/v22.2.0) - 2026-08-20
 
