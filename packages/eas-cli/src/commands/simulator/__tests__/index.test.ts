@@ -463,7 +463,7 @@ describe(Simulator, () => {
     });
   });
 
-  it('rejects --network-capture on android, instead of creating a session that records nothing', async () => {
+  it('rejects --network-capture on android', async () => {
     const { command } = createCommand([
       '--platform',
       'android',

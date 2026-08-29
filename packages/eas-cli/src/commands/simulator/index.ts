@@ -114,7 +114,7 @@ export default class Simulator extends EasCommand {
     }),
     'network-capture': Flags.boolean({
       description:
-        'Record HTTP(S) traffic from apps on the device. HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect. An app installed by this command is launched before capture starts, so relaunch it to record its traffic.',
+        'Record HTTP(S) traffic from apps on the device (iOS only). HTTPS is decrypted, so recordings contain credentials in cleartext and certificate-pinned apps fail to connect.',
     }),
     'max-duration-minutes': Flags.integer({
       description:
@@ -221,6 +221,7 @@ export default class Simulator extends EasCommand {
         'Network capture is only supported on iOS simulator sessions. Re-run without --network-capture, or pass --platform ios.'
       );
     }
+
     const expoGoSdkVersion = flags['expo-go']
       ? await resolveExpoGoSdkVersionAsync({ projectDir, sdkVersion: sdkVersionFromFlag })
       : undefined;
@@ -279,7 +280,7 @@ export default class Simulator extends EasCommand {
       );
       if (flags['network-capture']) {
         Log.warn(
-          'Network capture is on. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an app installed by this command to record its traffic.'
+          'Network capture was requested. HTTPS is decrypted, so recordings contain credentials in cleartext. Relaunch an installed app to record its traffic.'
         );
       }
     } catch (err) {
