@@ -27,8 +27,8 @@ const SERVE_SIM_VIDEO_BITRATE = '6000000';
 const SERVE_SIM_VIDEO_FPS = '60';
 const EXPO_DEVICE_HUB_PACKAGE_NAME = 'expo-device-hub';
 const EXPO_DEVICE_HUB_MAX_DIMENSION = '1280';
-const EXPO_DEVICE_HUB_VIDEO_BITRATE = '3000000';
-const EXPO_DEVICE_HUB_VIDEO_FPS = '30';
+const EXPO_DEVICE_HUB_VIDEO_BITRATE = '6000000';
+const EXPO_DEVICE_HUB_VIDEO_FPS = '60';
 
 const START_DEVICE_RUN_SESSION_MUTATION = graphql(`
   mutation StartDeviceRunSession($deviceRunSessionId: ID!, $remoteConfig: JSONObject!) {
