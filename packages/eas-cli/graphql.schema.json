@@ -46304,7 +46304,7 @@
         "fields": [
           {
             "name": "completeMessage",
-            "description": "Mark a message as completed (sets completedAt).\nmetadata is accepted for backward compatibility but ignored \u2014 use echoTurn.completeTurn instead.",
+            "description": "Mark a message as completed (sets completedAt).\nmetadata is accepted for backward compatibility but ignored — use echoTurn.completeTurn instead.",
             "args": [
               {
                 "name": "id",
@@ -52851,7 +52851,7 @@
           },
           {
             "name": "submitFeedback",
-            "description": "Record a control-variant one-shot feedback submission. Emits the\nfeedback-submitted event to RudderStack. No Slack notification, no\ntagging \u2014 those pipelines are scoped to the treatment chat flow via\ncomplete.",
+            "description": "Record a control-variant one-shot feedback submission. Emits the\nfeedback-submitted event to RudderStack. No Slack notification, no\ntagging — those pipelines are scoped to the treatment chat flow via\ncomplete.",
             "args": [
               {
                 "name": "input",
@@ -74954,7 +74954,7 @@
           },
           {
             "name": "listSupabaseOrganizations",
-            "description": "Live list of Supabase organizations this connection can access (Management API). Used once at\nconnect-time for the org picker \u2014 not a type field, so casual connection reads stay cheap.",
+            "description": "Live list of Supabase organizations this connection can access (Management API). Used once at\nconnect-time for the org picker — not a type field, so casual connection reads stay cheap.",
             "args": [
               {
                 "name": "accountId",
@@ -75329,7 +75329,7 @@
           },
           {
             "name": "fetchSupabasePublishableKey",
-            "description": "Live publishable (anon) key for the app's linked Supabase project (Management API). Never\nstored \u2014 null while the project is still provisioning. Used by the CLI to write EAS env vars.",
+            "description": "Live publishable (anon) key for the app's linked Supabase project (Management API). Never\nstored — null while the project is still provisioning. Used by the CLI to write EAS env vars.",
             "args": [
               {
                 "name": "appId",
@@ -75391,7 +75391,7 @@
           },
           {
             "name": "provisionAdditionalSupabaseProject",
-            "description": "Schedules an additional hosted Supabase project for selected EAS environments. Does not replace\nthe app's primary linked project \u2014 poll the receipt for ref/url/publishableKey in resultData.",
+            "description": "Schedules an additional hosted Supabase project for selected EAS environments. Does not replace\nthe app's primary linked project — poll the receipt for ref/url/publishableKey in resultData.",
             "args": [
               {
                 "name": "input",
@@ -85273,7 +85273,7 @@
         "fields": [
           {
             "name": "aaguid",
-            "description": "Authenticator Attestation Globally Unique Identifier \u2014 identifies the authenticator model\n(e.g., 1Password, iCloud Keychain). See https://passkeydeveloper.github.io/passkey-authenticator-aaguids/explorer/",
+            "description": "Authenticator Attestation Globally Unique Identifier — identifies the authenticator model\n(e.g., 1Password, iCloud Keychain). See https://passkeydeveloper.github.io/passkey-authenticator-aaguids/explorer/",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -92748,7 +92748,7 @@
       {
         "kind": "OBJECT",
         "name": "WorkflowDeviceTestCaseInsightsMetric",
-        "description": "A count metric returned for the current window AND the equivalent prior window\n(start \u2212 duration \u2192 start). The frontend uses (current, previous) to compute\ntrend deltas. Trend ratios are NOT pre-computed server-side \u2014 see\nWorkflowsInsightsMetric for the equivalent convention.\n\nFloat (not Int) to match WorkflowsInsightsMetric and avoid the GraphQL Int32\nceiling: year-long uniqExact counts on a high-volume project can plausibly\nexceed 2.1B. Values are integer-valued; the frontend reads them as JS numbers.",
+        "description": "A count metric returned for the current window AND the equivalent prior window\n(start − duration → start). The frontend uses (current, previous) to compute\ntrend deltas. Trend ratios are NOT pre-computed server-side — see\nWorkflowsInsightsMetric for the equivalent convention.\n\nFloat (not Int) to match WorkflowsInsightsMetric and avoid the GraphQL Int32\nceiling: year-long uniqExact counts on a high-volume project can plausibly\nexceed 2.1B. Values are integer-valued; the frontend reads them as JS numbers.",
         "fields": [
           {
             "name": "currentValue",
@@ -92791,7 +92791,7 @@
       {
         "kind": "OBJECT",
         "name": "WorkflowDeviceTestCaseInsightsNullableMetric",
-        "description": "Same shape as WorkflowDeviceTestCaseInsightsMetric but nullable on both sides \u2014\nused for metrics like avgDurationMs / p90DurationMs where \"no data in the\nwindow\" is meaningful and must not collapse to 0.",
+        "description": "Same shape as WorkflowDeviceTestCaseInsightsMetric but nullable on both sides —\nused for metrics like avgDurationMs / p90DurationMs where \"no data in the\nwindow\" is meaningful and must not collapse to 0.",
         "fields": [
           {
             "name": "currentValue",
@@ -93021,7 +93021,7 @@
       {
         "kind": "OBJECT",
         "name": "WorkflowDeviceTestCaseRecentRun",
-        "description": "One row per execution (is_final_attempt=1). The is_flaky boolean drives the\nFLAKY pill \u2014 no per-attempt timeline is exposed in v1.",
+        "description": "One row per execution (is_final_attempt=1). The is_flaky boolean drives the\nFLAKY pill — no per-attempt timeline is exposed in v1.",
         "fields": [
           {
             "name": "commitSha",
@@ -94016,7 +94016,7 @@
       {
         "kind": "ENUM",
         "name": "WorkflowDeviceTestCaseStatusFilter",
-        "description": "Mutually exclusive \u2014 matches the chart bucket semantics (passedClean / flaky / failed).\nPASSED_CLEAN  = is_final_attempt=1 AND status=passed AND is_flaky=0\nFLAKY         = is_final_attempt=1 AND is_flaky=1 (still a pass, just with retries)\nFAILED        = is_final_attempt=1 AND status=failed",
+        "description": "Mutually exclusive — matches the chart bucket semantics (passedClean / flaky / failed).\nPASSED_CLEAN  = is_final_attempt=1 AND status=passed AND is_flaky=0\nFLAKY         = is_final_attempt=1 AND is_flaky=1 (still a pass, just with retries)\nFAILED        = is_final_attempt=1 AND status=failed",
         "fields": null,
         "inputFields": null,
         "interfaces": null,
@@ -96829,6 +96829,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "ssh",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "WorkflowRunSshInput",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "workflowRevisionId",
                 "description": null,
                 "type": {
@@ -96839,18 +96851,6 @@
                     "name": "ID",
                     "ofType": null
                   }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
-                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -96886,6 +96886,18 @@
                 "deprecationReason": null
               },
               {
+                "name": "ssh",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "WorkflowRunSshInput",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "workflowRunId",
                 "description": null,
                 "type": {
@@ -96896,18 +96908,6 @@
                     "name": "ID",
                     "ofType": null
                   }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "ssh",
-                "description": null,
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "WorkflowRunSshInput",
-                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
