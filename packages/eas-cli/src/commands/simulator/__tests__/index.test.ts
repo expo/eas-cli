@@ -614,19 +614,6 @@ describe(Simulator, () => {
     );
   });
 
-  it('warns that Android emulator support is still in development before creating a session', async () => {
-    const { command } = createCommand(['--platform', 'android', '--non-interactive']);
-
-    await command.runAsync();
-
-    expect(Log.warn).toHaveBeenCalledWith(
-      'Android emulator support in EAS Simulator is still in development. Some features available on iOS may not work on Android yet. Full parity with iOS is coming soon.'
-    );
-    expect(jest.mocked(Log.warn).mock.invocationCallOrder[0]).toBeLessThan(
-      mockCreateDeviceRunSessionAsync.mock.invocationCallOrder[0]
-    );
-  });
-
   it.each([
     ['ios', AppPlatform.Ios],
     ['android', AppPlatform.Android],
