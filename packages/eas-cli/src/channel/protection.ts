@@ -34,7 +34,11 @@ export async function protectUpdateChannelAsync(
       )
       .toPromise()
   );
-  return data.updateChannel.protectUpdateChannel;
+  const channel = data.updateChannel.protectUpdateChannel;
+  if (!channel) {
+    throw new Error(`Could not find a channel with id: ${channelId}`);
+  }
+  return channel;
 }
 
 export async function unprotectUpdateChannelAsync(
@@ -59,5 +63,9 @@ export async function unprotectUpdateChannelAsync(
       )
       .toPromise()
   );
-  return data.updateChannel.unprotectUpdateChannel;
+  const channel = data.updateChannel.unprotectUpdateChannel;
+  if (!channel) {
+    throw new Error(`Could not find a channel with id: ${channelId}`);
+  }
+  return channel;
 }

@@ -30,6 +30,16 @@ describe(protectUpdateChannelAsync.name, () => {
     expect(mutation.mock.calls[0][0].loc.source.body).toContain('protectUpdateChannel');
     expect(mutation.mock.calls[0][1]).toEqual({ channelId: 'channel-id' });
   });
+
+  it('throws a clear error when the channel is not returned', async () => {
+    const { graphqlClient } = makeGraphqlClient({
+      updateChannel: { protectUpdateChannel: null },
+    });
+
+    await expect(
+      protectUpdateChannelAsync(graphqlClient, { channelId: 'missing-channel-id' })
+    ).rejects.toThrow('Could not find a channel with id: missing-channel-id');
+  });
 });
 
 describe(unprotectUpdateChannelAsync.name, () => {
@@ -50,5 +60,15 @@ describe(unprotectUpdateChannelAsync.name, () => {
 
     expect(mutation.mock.calls[0][0].loc.source.body).toContain('unprotectUpdateChannel');
     expect(mutation.mock.calls[0][1]).toEqual({ channelId: 'channel-id' });
+  });
+
+  it('throws a clear error when the channel is not returned', async () => {
+    const { graphqlClient } = makeGraphqlClient({
+      updateChannel: { unprotectUpdateChannel: null },
+    });
+
+    await expect(
+      unprotectUpdateChannelAsync(graphqlClient, { channelId: 'missing-channel-id' })
+    ).rejects.toThrow('Could not find a channel with id: missing-channel-id');
   });
 });
