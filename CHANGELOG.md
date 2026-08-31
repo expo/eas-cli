@@ -8,6 +8,8 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🎉 New features
 
+- [eas-cli] Update workflow run logs in real time, instead of every 10 seconds. ([#4228](https://github.com/expo/eas-cli/pull/4228) by [@AHGIJMKLKKZNPJKQR](https://github.com/AHGIJMKLKKZNPJKQR))
+
 ### 🐛 Bug fixes
 
 ### 🧹 Chores
