@@ -332,12 +332,12 @@ describe(Simulator, () => {
     );
   });
 
-  it('creates a ServeSim session for --type web-preview-only', async () => {
+  it('creates a WebPreviewOnly session for --type web-preview-only', async () => {
     mockByIdAsync.mockResolvedValue(
       makeDeviceRunSession({
-        type: DeviceRunSessionType.ServeSim,
+        type: DeviceRunSessionType.WebPreviewOnly,
         remoteConfig: {
-          __typename: 'ServeSimRunSessionRemoteConfig',
+          __typename: 'WebPreviewOnlyRunSessionRemoteConfig',
           previewUrl: 'https://preview.example.test',
         },
       })
@@ -354,7 +354,7 @@ describe(Simulator, () => {
 
     expect(mockCreateDeviceRunSessionAsync).toHaveBeenCalledWith(
       graphqlClient,
-      expect.objectContaining({ type: DeviceRunSessionType.ServeSim })
+      expect.objectContaining({ type: DeviceRunSessionType.WebPreviewOnly })
     );
     expect(Log.log).toHaveBeenCalledWith(expect.stringContaining('https://preview.example.test'));
   });

@@ -42,14 +42,20 @@ describe('Appium simulator configuration', () => {
 });
 
 describe('simulator session type flags', () => {
-  it('maps web-preview-only to the ServeSim GraphQL enum', () => {
+  it('maps web-preview-only to the WebPreviewOnly GraphQL enum', () => {
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['web-preview-only']).toBe(
-      DeviceRunSessionType.ServeSim
+      DeviceRunSessionType.WebPreviewOnly
     );
     expect(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.ServeSim]).toBe(
       'web-preview-only'
     );
+    expect(DEVICE_RUN_SESSION_TYPE_FLAG_VALUES[DeviceRunSessionType.WebPreviewOnly]).toBe(
+      'web-preview-only'
+    );
     expect(deviceRunSessionTypeToFlagValue(DeviceRunSessionType.ServeSim)).toBe('web-preview-only');
+    expect(deviceRunSessionTypeToFlagValue(DeviceRunSessionType.WebPreviewOnly)).toBe(
+      'web-preview-only'
+    );
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['serve-sim']).toBeUndefined();
     expect(DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE['web-preview']).toBeUndefined();
   });

@@ -100,6 +100,9 @@ export const DeviceRunSessionQuery = {
                     ... on ServeSimRunSessionRemoteConfig {
                       previewUrl
                     }
+                    ... on WebPreviewOnlyRunSessionRemoteConfig {
+                      previewUrl: webPreviewUrl
+                    }
                   }
                   turtleJobRun {
                     id

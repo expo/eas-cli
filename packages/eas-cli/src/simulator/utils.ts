@@ -29,6 +29,7 @@ export const DEVICE_RUN_SESSION_TYPE_FLAG_VALUES: Record<DeviceRunSessionType, s
   [DeviceRunSessionType.Appium]: 'appium',
   [DeviceRunSessionType.Argent]: 'argent',
   [DeviceRunSessionType.ServeSim]: 'web-preview-only',
+  [DeviceRunSessionType.WebPreviewOnly]: 'web-preview-only',
 };
 
 export const DEVICE_RUN_SESSION_TYPE_BY_FLAG_VALUE = Object.fromEntries(
@@ -78,6 +79,7 @@ export function getRemoteSessionEnvironmentVariables(
         APPIUM_CAPS: JSON.stringify(remoteConfig.capabilities),
       };
     case 'ServeSimRunSessionRemoteConfig':
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
       return {};
   }
 }
@@ -177,6 +179,12 @@ export function formatRemoteSessionInstructions(
       return lines.join('\n');
     }
     case 'ServeSimRunSessionRemoteConfig':
+      return [
+        '🌐 Open the following URL in your browser to access the simulator:',
+        '',
+        remoteConfig.previewUrl,
+      ].join('\n');
+    case 'WebPreviewOnlyRunSessionRemoteConfig':
       return [
         '🌐 Open the following URL in your browser to access the simulator:',
         '',
