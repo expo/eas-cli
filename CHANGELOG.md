@@ -15,7 +15,7 @@ This is the log of notable changes to EAS CLI and related packages.
 
 ### 🧹 Chores
 
-- [build-tools] Update the default Android emulator to a Pixel 9 running Android 36.
+- [build-tools] Update the default Android emulator to a Pixel 9 running Android 36. ([#4316](https://github.com/expo/eas-cli/pull/4316) by [@krystofwoldrich](https://github.com/krystofwoldrich))
 
 ## [23.1.0](https://github.com/expo/eas-cli/releases/tag/v23.1.0) - 2026-08-31
 
